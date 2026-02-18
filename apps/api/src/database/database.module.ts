@@ -1,0 +1,19 @@
+import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
+import Redis from 'ioredis';
+import { DrizzleProvider, DRIZZLE } from '../providers/drizzle.provider';
+import { ClickHouseProvider, CLICKHOUSE } from '../providers/clickhouse.provider';
+import { RedisProvider, REDIS } from '../providers/redis.provider';
+import { RedisThrottlerStorage } from '../throttler/redis-throttler.storage';
+
+@Global()
+@Module({
+  providers: [DrizzleProvider, ClickHouseProvider, RedisProvider, RedisThrottlerStorage],
+  exports: [DRIZZLE, CLICKHOUSE, REDIS, RedisThrottlerStorage],
+})
+export class DatabaseModule implements OnApplicationShutdown {
+  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+
+  async onApplicationShutdown() {
+    await this.redis.quit();
+  }
+}

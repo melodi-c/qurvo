@@ -1,0 +1,10 @@
+{
+  "extends": "@shot/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "strictPropertyInitialization": false
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "shot-analytics",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "db:generate": "turbo db:generate --filter=@shot/db",
+    "db:migrate": "turbo db:migrate --filter=@shot/db",
+    "ch:migrate": "turbo ch:migrate --filter=@shot/clickhouse",
+    "infra:up": "docker compose -f docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f docker/docker-compose.yml down",
+    "swagger:generate": "turbo swagger:generate --filter=@shot/api",
+    "generate-api": "turbo generate-api --filter=@shot/web"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "@nestjs/core", "argon2", "geoip-lite"]
+  },
+  "devDependencies": {
+    "turbo": "^2.8.0"
+  },
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

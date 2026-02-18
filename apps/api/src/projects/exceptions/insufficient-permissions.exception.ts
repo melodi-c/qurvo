@@ -1,0 +1,6 @@
+export class InsufficientPermissionsException extends Error {
+  constructor(message = 'Insufficient permissions') {
+    super(message);
+    this.name = 'InsufficientPermissionsException';
+  }
+}

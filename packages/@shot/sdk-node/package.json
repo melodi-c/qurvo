@@ -1,0 +1,20 @@
+{
+  "name": "@shot/sdk-node",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@shot/sdk-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@shot/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

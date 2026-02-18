@@ -1,0 +1,68 @@
+import { useState, type FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuthStore } from '@/stores/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+
+export default function RegisterPage() {
+  const [form, setForm] = useState({ email: '', password: '', display_name: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const register = useAuthStore((s) => s.register);
+  const navigate = useNavigate();
+
+  const update = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await register(form);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <CardDescription>Set up your analytics workspace</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Your Name</label>
+              <Input value={form.display_name} onChange={update('display_name')} required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" value={form.email} onChange={update('email')} required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <Input type="password" value={form.password} onChange={update('password')} required minLength={8} />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Creating...' : 'Create Account'}
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link to="/login" className="text-primary underline">
+                Sign in
+              </Link>
+            </p>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
