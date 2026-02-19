@@ -24,16 +24,19 @@ function configHash(config: FunnelWidgetConfig): string {
   });
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const qc = useQueryClient();
   const autoRefreshTriggered = useRef(false);
+  const widgetUuid = UUID_RE.test(widgetId) ? widgetId : undefined;
 
   const enabled =
     !!projectId &&
     config.steps.length >= 2 &&
-    config.steps.every((s) => s.event_name.trim() !== '');
+    config.steps.every((s) => s.event_name.trim() !== '' && s.label.trim() !== '');
 
   const hash = configHash(config);
   const queryKey = ['funnel', projectId, widgetId, hash];
@@ -48,7 +51,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
         date_from: config.date_from,
         date_to: config.date_to,
         ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
-        widget_id: widgetId,
+        ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       }),
     enabled,
     staleTime: Infinity, // We handle staleness manually based on cached_at
@@ -78,7 +81,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
       date_from: config.date_from,
       date_to: config.date_to,
       ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
-      widget_id: widgetId,
+      ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       force: true,
     });
 

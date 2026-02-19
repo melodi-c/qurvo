@@ -1,7 +1,9 @@
 import type { ClickHouseClient } from '@shot/clickhouse';
 
-/** Converts an ISO 8601 timestamp to the format ClickHouse expects for DateTime64(3) parameters. */
-function toChTs(iso: string): string {
+/** Converts an ISO 8601 timestamp to the format ClickHouse expects for DateTime64(3) parameters.
+ * If only a date (YYYY-MM-DD) is provided for the upper bound, it is treated as end-of-day. */
+function toChTs(iso: string, endOfDay = false): string {
+  if (iso.length === 10 && endOfDay) return `${iso} 23:59:59`;
   return iso.replace('T', ' ').replace('Z', '');
 }
 
@@ -124,7 +126,7 @@ export async function queryFunnel(
   const queryParams: Record<string, unknown> = {
     project_id,
     from: toChTs(params.date_from),
-    to: toChTs(params.date_to),
+    to: toChTs(params.date_to, true),
     window: windowSeconds,
     num_steps: numSteps,
     step_names: steps.map((s) => s.event_name),
