@@ -15,7 +15,8 @@ export default function TrendsPage() {
   const isConfigValid =
     config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
 
-  const { data, isLoading } = useTrendData(config, 'trends-page');
+  const { data, isLoading, isFetching } = useTrendData(config, 'trends-page');
+  const showSkeleton = isLoading && !data;
   const result = data?.data;
   const series = result?.series;
 
@@ -62,8 +63,8 @@ export default function TrendsPage() {
             </div>
           )}
 
-          {/* Loading */}
-          {isConfigValid && isLoading && (
+          {/* Loading (first load only) */}
+          {isConfigValid && showSkeleton && (
             <div className="flex-1 flex flex-col gap-6 p-8">
               <div className="flex gap-8">
                 <Skeleton className="h-10 w-28" />
@@ -74,7 +75,7 @@ export default function TrendsPage() {
           )}
 
           {/* No data */}
-          {isConfigValid && !isLoading && (!series || series.length === 0) && (
+          {isConfigValid && !showSkeleton && (!series || series.length === 0) && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                 <TrendingUp className="h-6 w-6 text-muted-foreground" />
@@ -89,8 +90,8 @@ export default function TrendsPage() {
           )}
 
           {/* Results */}
-          {isConfigValid && !isLoading && series && series.length > 0 && (
-            <div className="flex flex-col h-full">
+          {isConfigValid && !showSkeleton && series && series.length > 0 && (
+            <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               {/* Metric strip */}
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                 <Metric label={metricLabel} value={totalValue.toLocaleString()} accent />

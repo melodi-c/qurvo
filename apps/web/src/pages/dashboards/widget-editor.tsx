@@ -87,7 +87,9 @@ export default function WidgetEditorPage() {
 
   // --- Common ---
   const isConfigValid = resolvedType === 'funnel' ? isFunnelConfigValid : isTrendConfigValid;
-  const isDataLoading = resolvedType === 'funnel' ? funnelQuery.isLoading : trendQuery.isLoading;
+  const hasData = resolvedType === 'funnel' ? !!funnelQuery.data : !!trendQuery.data;
+  const isDataLoading = (resolvedType === 'funnel' ? funnelQuery.isLoading : trendQuery.isLoading) && !hasData;
+  const isDataFetching = resolvedType === 'funnel' ? funnelQuery.isFetching : trendQuery.isFetching;
   const isValid = name.trim() !== '' && isConfigValid;
 
   const handleSave = async () => {
@@ -257,7 +259,7 @@ export default function WidgetEditorPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col h-full">
+                <div className={`flex flex-col h-full transition-opacity ${isDataFetching ? 'opacity-60' : ''}`}>
                   <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                     <Metric label="Overall conversion" value={`${overallConversion}%`} accent />
                     <div className="w-px h-8 bg-border/50 mx-6" />
@@ -289,7 +291,7 @@ export default function WidgetEditorPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col h-full">
+                <div className={`flex flex-col h-full transition-opacity ${isDataFetching ? 'opacity-60' : ''}`}>
                   <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                     <Metric label={trendMetricLabel} value={trendTotal.toLocaleString()} accent />
                     <div className="w-px h-8 bg-border/50 mx-6" />

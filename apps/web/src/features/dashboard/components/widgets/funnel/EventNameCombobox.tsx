@@ -50,7 +50,7 @@ export function EventNameCombobox({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-64 p-0" align="start" side="bottom">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-48 p-0" align="start" side="bottom">
         <Command shouldFilter={false}>
           <CommandInput
             value={search}

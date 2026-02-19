@@ -15,7 +15,8 @@ export default function FunnelsPage() {
   const isConfigValid =
     config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
 
-  const { data, isLoading } = useFunnelData(config, 'funnels-page');
+  const { data, isLoading, isFetching } = useFunnelData(config, 'funnels-page');
+  const showSkeleton = isLoading && !data;
   const funnelResult = data?.data;
   const steps = funnelResult?.steps;
   const breakdown = funnelResult?.breakdown;
@@ -57,8 +58,8 @@ export default function FunnelsPage() {
             </div>
           )}
 
-          {/* Loading */}
-          {isConfigValid && isLoading && (
+          {/* Loading (first load only) */}
+          {isConfigValid && showSkeleton && (
             <div className="flex-1 flex flex-col gap-6 p-8">
               <div className="flex gap-8">
                 <Skeleton className="h-10 w-28" />
@@ -75,7 +76,7 @@ export default function FunnelsPage() {
           )}
 
           {/* No data */}
-          {isConfigValid && !isLoading && (!steps || steps.length === 0) && (
+          {isConfigValid && !showSkeleton && (!steps || steps.length === 0) && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                 <GitFork className="h-6 w-6 text-muted-foreground" />
@@ -90,8 +91,8 @@ export default function FunnelsPage() {
           )}
 
           {/* Results */}
-          {isConfigValid && !isLoading && steps && steps.length > 0 && (
-            <div className="flex flex-col h-full">
+          {isConfigValid && !showSkeleton && steps && steps.length > 0 && (
+            <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               {/* Metric strip */}
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                 <Metric label="Overall conversion" value={`${overallConversion}%`} accent />

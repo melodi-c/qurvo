@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { TrendWidgetConfig, TrendResponse } from '@/api/generated/Api';
@@ -59,6 +59,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
         ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       }),
     enabled,
+    placeholderData: keepPreviousData,
     staleTime: Infinity,
     gcTime: 2 * 60 * 60 * 1000,
   });
@@ -100,6 +101,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
     data: query.data,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    isPlaceholderData: query.isPlaceholderData,
     error: query.error,
     refresh: refreshTrend,
   };

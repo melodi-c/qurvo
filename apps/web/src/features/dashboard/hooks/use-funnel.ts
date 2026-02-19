@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { FunnelWidgetConfig, FunnelResponse } from '@/api/generated/Api';
@@ -54,6 +54,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
         ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       }),
     enabled,
+    placeholderData: keepPreviousData,
     staleTime: Infinity, // We handle staleness manually based on cached_at
     gcTime: 2 * 60 * 60 * 1000, // 2 hours
   });
@@ -93,6 +94,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
     data: query.data,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    isPlaceholderData: query.isPlaceholderData,
     error: query.error,
     refresh: refreshFunnel,
   };
