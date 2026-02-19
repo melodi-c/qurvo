@@ -1,0 +1,34 @@
+import { Injectable, Inject } from '@nestjs/common';
+import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { REDIS } from '../providers/redis.provider';
+import type { ClickHouseClient } from '@shot/clickhouse';
+import type Redis from 'ioredis';
+import { ProjectsService } from '../projects/projects.service';
+import { queryEvents, type EventsQueryParams, type EventRow } from './events.query';
+import { queryEventNames } from './event-names.query';
+
+const EVENT_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
+
+@Injectable()
+export class EventsService {
+  constructor(
+    @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
+    @Inject(REDIS) private readonly redis: Redis,
+    private readonly projectsService: ProjectsService,
+  ) {}
+
+  async getEvents(userId: string, params: EventsQueryParams): Promise<EventRow[]> {
+    await this.projectsService.getMembership(userId, params.project_id);
+    return queryEvents(this.ch, params);
+  }
+
+  async getEventNames(userId: string, projectId: string): Promise<string[]> {
+    await this.projectsService.getMembership(userId, projectId);
+    const cacheKey = `event_names:${projectId}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached) as string[];
+    const names = await queryEventNames(this.ch, { project_id: projectId });
+    await this.redis.set(cacheKey, JSON.stringify(names), 'EX', EVENT_NAMES_CACHE_TTL_SECONDS);
+    return names;
+  }
+}

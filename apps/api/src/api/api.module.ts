@@ -3,7 +3,8 @@ import { APP_FILTER } from '@nestjs/core';
 import { AuthModule } from '../auth/auth.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
-import { AnalyticsModule } from '../analytics/analytics.module';
+import { FunnelModule } from '../funnel/funnel.module';
+import { EventsModule } from '../events/events.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
@@ -17,7 +18,7 @@ import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, AnalyticsModule, DashboardsModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, EventsModule, DashboardsModule],
   controllers: [
     AuthController,
     ProjectsController,

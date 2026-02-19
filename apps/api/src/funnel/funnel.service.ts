@@ -5,9 +5,7 @@ import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@shot/clickhouse';
 import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
-import { queryFunnel, type FunnelQueryParams, type FunnelQueryResult } from './queries/funnel.query';
-import { queryEvents, type EventsQueryParams, type EventRow } from './queries/events.query';
-import { queryEventNames } from './queries/event-names.query';
+import { queryFunnel, type FunnelQueryParams, type FunnelQueryResult } from './funnel.query';
 
 const CACHE_TTL_SECONDS = 3600; // 1 hour
 
@@ -18,8 +16,8 @@ export interface FunnelCacheEntry {
 }
 
 @Injectable()
-export class AnalyticsService {
-  private readonly logger = new Logger(AnalyticsService.name);
+export class FunnelService {
+  private readonly logger = new Logger(FunnelService.name);
 
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
@@ -52,21 +50,6 @@ export class AnalyticsService {
     await this.redis.set(cacheKey, JSON.stringify({ data, cached_at }), 'EX', CACHE_TTL_SECONDS);
 
     return { data, cached_at, from_cache: false };
-  }
-
-  async getEvents(userId: string, params: EventsQueryParams): Promise<EventRow[]> {
-    await this.projectsService.getMembership(userId, params.project_id);
-    return queryEvents(this.ch, params);
-  }
-
-  async getEventNames(userId: string, projectId: string): Promise<string[]> {
-    await this.projectsService.getMembership(userId, projectId);
-    const cacheKey = `event_names:${projectId}`;
-    const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached) as string[];
-    const names = await queryEventNames(this.ch, { project_id: projectId });
-    await this.redis.set(cacheKey, JSON.stringify(names), 'EX', 3600);
-    return names;
   }
 
   private buildCacheKey(widgetId: string | undefined, params: FunnelQueryParams): string {

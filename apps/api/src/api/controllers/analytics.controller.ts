@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { AnalyticsService } from '../../analytics/analytics.service';
+import { FunnelService } from '../../funnel/funnel.service';
+import { EventsService } from '../../events/events.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { FunnelQueryDto, FunnelResponseDto, EventsQueryDto, EventRowDto, EventNamesQueryDto, EventNamesResponseDto } from '../dto/analytics.dto';
@@ -10,14 +11,17 @@ import { FunnelQueryDto, FunnelResponseDto, EventsQueryDto, EventRowDto, EventNa
 @Controller('api/analytics')
 @UseGuards(SessionAuthGuard)
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly funnelService: FunnelService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   @Post('funnel')
   async getFunnel(
     @CurrentUser() user: RequestUser,
     @Body() body: FunnelQueryDto,
   ): Promise<FunnelResponseDto> {
-    return this.analyticsService.getFunnel(user.user_id, body);
+    return this.funnelService.getFunnel(user.user_id, body);
   }
 
   @Get('events')
@@ -25,7 +29,7 @@ export class AnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: EventsQueryDto,
   ): Promise<EventRowDto[]> {
-    return this.analyticsService.getEvents(user.user_id, query);
+    return this.eventsService.getEvents(user.user_id, query);
   }
 
   @Get('event-names')
@@ -33,7 +37,7 @@ export class AnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: EventNamesQueryDto,
   ): Promise<EventNamesResponseDto> {
-    const event_names = await this.analyticsService.getEventNames(user.user_id, query.project_id);
+    const event_names = await this.eventsService.getEventNames(user.user_id, query.project_id);
     return { event_names };
   }
 }
