@@ -31,8 +31,8 @@ export async function queryEvents(
 
   const conditions: string[] = [
     `project_id = {project_id: UUID}`,
-    `timestamp >= parseDateTimeBestEffort({date_from: String})`,
-    `timestamp < parseDateTimeBestEffort({date_to: String}) + INTERVAL 1 DAY`,
+    `events.timestamp >= parseDateTimeBestEffort({date_from: String})`,
+    `events.timestamp < parseDateTimeBestEffort({date_to: String}) + INTERVAL 1 DAY`,
   ];
 
   if (params.event_name) {
@@ -52,7 +52,7 @@ export async function queryEvents(
       properties
     FROM events FINAL
     WHERE ${conditions.join(' AND ')}
-    ORDER BY timestamp DESC
+    ORDER BY events.timestamp DESC
     LIMIT {limit: UInt32}
     OFFSET {offset: UInt32}
   `;
