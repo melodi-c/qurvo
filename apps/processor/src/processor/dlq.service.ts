@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@shot/clickhouse';
 import { insertEvents } from './insert';
@@ -19,6 +20,7 @@ export class DlqService implements OnApplicationBootstrap {
   private dlqTimer: NodeJS.Timeout | null = null;
   private consecutiveFailures = 0;
   private circuitOpenedAt: number | null = null;
+  private readonly instanceId = randomUUID();
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -44,6 +46,12 @@ export class DlqService implements OnApplicationBootstrap {
       this.logger.info({ consecutiveFailures: this.consecutiveFailures }, 'DLQ circuit breaker half-open, attempting replay');
     }
 
+    const hasLock = await this.tryAcquireLock();
+    if (!hasLock) {
+      this.logger.debug('DLQ replay skipped: another instance holds the lock');
+      return;
+    }
+
     try {
       const entries = await this.redis.xrange(REDIS_STREAM_DLQ, '-', '+', 'COUNT', DLQ_REPLAY_BATCH) as [string, string[]][];
       if (!entries || entries.length === 0) return;
@@ -63,8 +71,30 @@ export class DlqService implements OnApplicationBootstrap {
       this.logger.info({ replayed: events.length }, 'Replayed events from DLQ');
     } catch (err) {
       this.consecutiveFailures++;
-      this.circuitOpenedAt = Date.now();
+      if (this.consecutiveFailures === DLQ_CIRCUIT_BREAKER_THRESHOLD) {
+        this.circuitOpenedAt = Date.now();
+      }
       this.logger.error({ err, consecutiveFailures: this.consecutiveFailures }, 'DLQ replay failed');
+    } finally {
+      await this.releaseLock();
+    }
+  }
+
+  private async tryAcquireLock(): Promise<boolean> {
+    const result = await this.redis.set(
+      'dlq:replay:lock',
+      this.instanceId,
+      'EX',
+      30,
+      'NX',
+    );
+    return result !== null;
+  }
+
+  private async releaseLock(): Promise<void> {
+    const val = await this.redis.get('dlq:replay:lock');
+    if (val === this.instanceId) {
+      await this.redis.del('dlq:replay:lock');
     }
   }
 }

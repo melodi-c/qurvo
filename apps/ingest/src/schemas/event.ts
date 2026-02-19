@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-export const EventPropertiesSchema = z.record(z.string(), z.unknown()).optional();
+export const EventPropertiesSchema = z
+  .record(z.string().max(200), z.unknown())
+  .refine((obj) => Object.keys(obj).length <= 200, { message: 'properties must not exceed 200 keys' })
+  .optional();
 
 export const EventContextSchema = z.object({
   session_id: z.string().max(128).optional(),

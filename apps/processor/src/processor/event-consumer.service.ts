@@ -68,13 +68,14 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         if (!results || results.length === 0) continue;
 
-        const buffered: BufferedEvent[] = [];
-        for (const [, messages] of results) {
-          for (const [id, fields] of messages) {
-            const event = await this.buildEvent(parseRedisFields(fields));
-            buffered.push({ messageId: id, event });
-          }
-        }
+        const buffered = await Promise.all(
+          results.flatMap(([, messages]) =>
+            messages.map(async ([id, fields]) => ({
+              messageId: id,
+              event: await this.buildEvent(parseRedisFields(fields)),
+            }))
+          )
+        );
         this.flushService.addToBuffer(buffered);
 
         if (this.flushService.isBufferFull()) {
@@ -103,14 +104,21 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         if (!result || !result[1] || result[1].length === 0) break;
 
+        const deletedIds = result[2];
+        if (deletedIds && deletedIds.length > 0) {
+          this.logger.warn({ deletedIds }, 'XAUTOCLAIM: some pending messages were deleted from stream (trimming)');
+        }
+
         cursor = result[0];
 
-        const buffered: BufferedEvent[] = [];
-        for (const [id, fields] of result[1]) {
-          if (!fields) continue;
-          const event = await this.buildEvent(parseRedisFields(fields));
-          buffered.push({ messageId: id, event });
-        }
+        const buffered = await Promise.all(
+          result[1]
+            .filter(([, fields]) => !!fields)
+            .map(async ([id, fields]) => ({
+              messageId: id,
+              event: await this.buildEvent(parseRedisFields(fields)),
+            }))
+        );
         this.flushService.addToBuffer(buffered);
 
         if (this.flushService.isBufferFull()) {

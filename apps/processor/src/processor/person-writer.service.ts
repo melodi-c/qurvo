@@ -56,6 +56,9 @@ export class PersonWriterService {
    * Property merge order (rightmost wins):
    *   $set_once → existing → $set
    * Then $unset keys are removed from the result.
+   *
+   * The merge is done atomically in a single INSERT ... ON CONFLICT DO UPDATE statement
+   * using PostgreSQL jsonb || operator to avoid race conditions between concurrent calls.
    */
   async syncPerson(
     projectId: string,
@@ -65,32 +68,30 @@ export class PersonWriterService {
   ): Promise<void> {
     const { setProps, setOnceProps, unsetKeys } = parseUserProperties(userPropertiesJson);
 
-    const rows = await this.db
-      .select({ properties: persons.properties })
-      .from(persons)
-      .where(and(eq(persons.id, personId), eq(persons.project_id, projectId)))
-      .limit(1);
+    // Initial properties for a new person: setOnce + set (no existing state to consider)
+    const initialProps: Record<string, unknown> = { ...setOnceProps, ...setProps };
+    for (const key of unsetKeys) delete initialProps[key];
 
-    if (rows.length === 0) {
-      // New person — create with initial merged properties
-      const initialProps: Record<string, unknown> = { ...setOnceProps, ...setProps };
-      for (const key of unsetKeys) delete initialProps[key];
+    // Atomic merge expression for ON CONFLICT DO UPDATE:
+    //   (setOnce || existing || set) - unsetKey1 - unsetKey2 - ...
+    // PostgreSQL || merges jsonb objects with rightmost key winning, so:
+    //   - existing overwrites setOnce  → $set_once only applies to missing keys ✓
+    //   - set overwrites existing       → $set always wins ✓
+    const setOnceJson = JSON.stringify(setOnceProps);
+    const setJson = JSON.stringify(setProps);
 
-      await this.db
-        .insert(persons)
-        .values({ id: personId, project_id: projectId, properties: initialProps })
-        .onConflictDoNothing();
-    } else {
-      // Existing person — merge: set_once loses to existing, $set wins over existing
-      const existing = (rows[0].properties ?? {}) as Record<string, unknown>;
-      const merged: Record<string, unknown> = { ...setOnceProps, ...existing, ...setProps };
-      for (const key of unsetKeys) delete merged[key];
-
-      await this.db
-        .update(persons)
-        .set({ properties: merged, updated_at: new Date() })
-        .where(and(eq(persons.id, personId), eq(persons.project_id, projectId)));
+    let mergeExpr = sql`(${setOnceJson}::jsonb || persons.properties || ${setJson}::jsonb)`;
+    for (const key of unsetKeys) {
+      mergeExpr = sql`${mergeExpr} - ${key}`;
     }
+
+    await this.db
+      .insert(persons)
+      .values({ id: personId, project_id: projectId, properties: initialProps })
+      .onConflictDoUpdate({
+        target: persons.id,
+        set: { properties: mergeExpr, updated_at: new Date() },
+      });
 
     // Ensure distinct_id → person mapping exists (idempotent)
     await this.db

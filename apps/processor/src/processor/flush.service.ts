@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@shot/clickhouse';
@@ -21,7 +21,7 @@ export interface BufferedEvent {
 }
 
 @Injectable()
-export class FlushService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class FlushService implements OnApplicationBootstrap {
   private buffer: BufferedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
 
@@ -37,14 +37,6 @@ export class FlushService implements OnApplicationBootstrap, OnApplicationShutdo
 
   stopTimer() {
     if (this.flushTimer) clearTimeout(this.flushTimer);
-  }
-
-  async onApplicationShutdown() {
-    this.stopTimer();
-    if (this.buffer.length > 0) {
-      this.logger.info({ eventCount: this.buffer.length }, 'Flushing buffer on shutdown');
-      await this.flush();
-    }
   }
 
   addToBuffer(events: BufferedEvent[]) {

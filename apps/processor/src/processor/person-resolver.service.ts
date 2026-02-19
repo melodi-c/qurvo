@@ -5,6 +5,7 @@ import Redis from 'ioredis';
 import type { ClickHouseClient } from '@shot/clickhouse';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { PERSON_REDIS_TTL_SECONDS } from '../constants';
 
 @Injectable()
 export class PersonResolverService {
@@ -26,7 +27,7 @@ export class PersonResolverService {
     const candidate = randomUUID();
 
     // Atomically set only if the key doesn't already exist
-    const result = await this.redis.set(key, candidate, 'NX');
+    const result = await this.redis.set(key, candidate, 'EX', PERSON_REDIS_TTL_SECONDS, 'NX');
     if (result !== null) {
       // We won the race and created a new person
       return candidate;
@@ -34,7 +35,11 @@ export class PersonResolverService {
 
     // Key already existed — get the value that was set by another instance
     const existing = await this.redis.get(key);
-    return existing ?? candidate;
+    if (existing) return existing;
+
+    // Key disappeared between SET NX and GET (e.g. eviction) — write candidate again
+    await this.redis.set(key, candidate, 'EX', PERSON_REDIS_TTL_SECONDS);
+    return candidate;
   }
 
   /**
@@ -58,7 +63,7 @@ export class PersonResolverService {
 
     if (!anonPersonId) {
       // Anonymous user was never seen — just link it forward, no historical events to fix.
-      await this.redis.set(anonKey, userPersonId);
+      await this.redis.set(anonKey, userPersonId, 'EX', PERSON_REDIS_TTL_SECONDS);
       return { personId: userPersonId, mergedFromPersonId: null };
     }
 
@@ -70,7 +75,7 @@ export class PersonResolverService {
     // Different persons → write an override entry so query-time dict resolves
     // all events with distinct_id = anonymousId to the user's person_id.
     await this.writeOverride(projectId, anonymousId, userPersonId);
-    await this.redis.set(anonKey, userPersonId);
+    await this.redis.set(anonKey, userPersonId, 'EX', PERSON_REDIS_TTL_SECONDS);
 
     this.logger.info(
       { projectId, anonymousId, userId, anonPersonId, userPersonId },
@@ -81,12 +86,22 @@ export class PersonResolverService {
   }
 
   private async writeOverride(projectId: string, distinctId: string, personId: string): Promise<void> {
-    await this.ch.insert({
-      table: 'person_distinct_id_overrides',
-      values: [{ project_id: projectId, distinct_id: distinctId, person_id: personId, version: Date.now() }],
-      format: 'JSONEachRow',
-      clickhouse_settings: { date_time_input_format: 'best_effort' },
-    });
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.ch.insert({
+          table: 'person_distinct_id_overrides',
+          values: [{ project_id: projectId, distinct_id: distinctId, person_id: personId, version: Date.now() }],
+          format: 'JSONEachRow',
+          clickhouse_settings: { date_time_input_format: 'best_effort' },
+        });
+        return;
+      } catch (err) {
+        if (attempt === maxRetries) throw err;
+        this.logger.warn({ err, attempt }, 'writeOverride failed, retrying');
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+      }
+    }
   }
 
   private redisKey(projectId: string, distinctId: string): string {
