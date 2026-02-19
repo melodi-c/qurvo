@@ -104,16 +104,16 @@ export function TrendChart({ series, previousSeries, chartType, compact }: Trend
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ChartComponent data={data} margin={compact ? { top: 4, right: 8, left: -16, bottom: 0 } : { top: 8, right: 24, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
         <XAxis
           dataKey="bucket"
           tickFormatter={(v) => formatBucket(v, compact)}
-          tick={{ fontSize: compact ? 10 : 12, fill: 'hsl(var(--muted-foreground))' }}
+          tick={{ fontSize: compact ? 10 : 12, fill: 'var(--color-muted-foreground)' }}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          tick={{ fontSize: compact ? 10 : 12, fill: 'hsl(var(--muted-foreground))' }}
+          tick={{ fontSize: compact ? 10 : 12, fill: 'var(--color-muted-foreground)' }}
           tickLine={false}
           axisLine={false}
           width={compact ? 32 : 48}
@@ -121,10 +121,11 @@ export function TrendChart({ series, previousSeries, chartType, compact }: Trend
         {!compact && (
           <Tooltip
             contentStyle={{
-              background: 'hsl(var(--popover))',
-              border: '1px solid hsl(var(--border))',
+              background: 'var(--color-popover)',
+              border: '1px solid var(--color-border)',
               borderRadius: '8px',
               fontSize: '12px',
+              color: 'var(--color-popover-foreground)',
             }}
             labelFormatter={(v) => formatBucket(v as string)}
           />
