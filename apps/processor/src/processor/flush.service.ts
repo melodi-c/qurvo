@@ -47,6 +47,10 @@ export class FlushService implements OnApplicationBootstrap {
     return this.buffer.length >= PROCESSOR_BATCH_SIZE;
   }
 
+  getBufferSize(): number {
+    return this.buffer.length;
+  }
+
   async flush() {
     if (this.buffer.length === 0) return;
 

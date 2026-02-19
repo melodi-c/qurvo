@@ -2,9 +2,13 @@ import { Injectable, Inject } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
+import { eq, and } from 'drizzle-orm';
 import type { ClickHouseClient } from '@shot/clickhouse';
+import { personDistinctIds } from '@shot/db';
+import type { Database } from '@shot/db';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { DRIZZLE } from '../providers/drizzle.provider';
 import { PERSON_REDIS_TTL_SECONDS } from '../constants';
 
 @Injectable()
@@ -12,6 +16,7 @@ export class PersonResolverService {
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
+    @Inject(DRIZZLE) private readonly db: Database,
     @InjectPinoLogger(PersonResolverService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -29,7 +34,18 @@ export class PersonResolverService {
     // Atomically set only if the key doesn't already exist
     const result = await this.redis.set(key, candidate, 'EX', PERSON_REDIS_TTL_SECONDS, 'NX');
     if (result !== null) {
-      // We won the race and created a new person
+      // Redis cache miss — check PostgreSQL to avoid cold-start identity fragmentation
+      const rows = await this.db
+        .select({ person_id: personDistinctIds.person_id })
+        .from(personDistinctIds)
+        .where(and(eq(personDistinctIds.project_id, projectId), eq(personDistinctIds.distinct_id, distinctId)))
+        .limit(1);
+
+      if (rows.length > 0) {
+        // Person already exists in DB — overwrite Redis with correct ID
+        await this.redis.set(key, rows[0].person_id, 'EX', PERSON_REDIS_TTL_SECONDS);
+        return rows[0].person_id;
+      }
       return candidate;
     }
 
@@ -62,7 +78,22 @@ export class PersonResolverService {
     const anonPersonId = await this.redis.get(anonKey);
 
     if (!anonPersonId) {
-      // Anonymous user was never seen — just link it forward, no historical events to fix.
+      // Check PostgreSQL for historical anon person (handles cold start / cache eviction)
+      const rows = await this.db
+        .select({ person_id: personDistinctIds.person_id })
+        .from(personDistinctIds)
+        .where(and(eq(personDistinctIds.project_id, projectId), eq(personDistinctIds.distinct_id, anonymousId)))
+        .limit(1);
+
+      if (rows.length > 0 && rows[0].person_id !== userPersonId) {
+        // Found historical anon person — write override so old events resolve correctly
+        const historicalAnonPersonId = rows[0].person_id;
+        await this.writeOverride(projectId, anonymousId, userPersonId);
+        await this.redis.set(anonKey, userPersonId, 'EX', PERSON_REDIS_TTL_SECONDS);
+        return { personId: userPersonId, mergedFromPersonId: historicalAnonPersonId };
+      }
+
+      // Anonymous user was never seen or already same person
       await this.redis.set(anonKey, userPersonId, 'EX', PERSON_REDIS_TTL_SECONDS);
       return { personId: userPersonId, mergedFromPersonId: null };
     }

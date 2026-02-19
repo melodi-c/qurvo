@@ -6,6 +6,7 @@ import { REDIS } from '../providers/redis.provider';
 import {
   PENDING_CLAIM_INTERVAL_MS,
   PENDING_IDLE_MS,
+  PROCESSOR_BATCH_SIZE,
   REDIS_CONSUMER_GROUP,
   REDIS_STREAM_EVENTS,
 } from '../constants';
@@ -59,6 +60,14 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private async startLoop() {
     while (this.running) {
       try {
+        // Backpressure: wait for buffer to drain before reading more
+        while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
+          await this.flushService.flush();
+          if (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+
         const results = await this.redis.xreadgroup(
           'GROUP', REDIS_CONSUMER_GROUP, this.consumerName,
           'COUNT', '100',

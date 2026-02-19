@@ -92,9 +92,13 @@ export class DlqService implements OnApplicationBootstrap {
   }
 
   private async releaseLock(): Promise<void> {
-    const val = await this.redis.get('dlq:replay:lock');
-    if (val === this.instanceId) {
-      await this.redis.del('dlq:replay:lock');
-    }
+    const script = `
+      if redis.call('get', KEYS[1]) == ARGV[1] then
+        return redis.call('del', KEYS[1])
+      else
+        return 0
+      end
+    `;
+    await this.redis.eval(script, 1, 'dlq:replay:lock', this.instanceId);
   }
 }

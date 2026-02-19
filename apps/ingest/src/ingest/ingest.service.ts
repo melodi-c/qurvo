@@ -12,7 +12,9 @@ function resolveEventType(eventName: string): string {
   return 'track';
 }
 
-function parseUa(userAgent?: string): { browser: string; browser_version: string; os: string; os_version: string; device_type: string } {
+type ParsedUa = { browser: string; browser_version: string; os: string; os_version: string; device_type: string };
+
+function parseUa(userAgent?: string): ParsedUa {
   if (!userAgent) return { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
   const result = new UAParser(userAgent).getResult();
   return {
@@ -32,7 +34,8 @@ export class IngestService {
 
   async trackEvent(projectId: string, event: TrackEvent, ip?: string, userAgent?: string) {
     const serverTime = new Date().toISOString();
-    const payload = this.buildPayload(projectId, event, serverTime, ip, userAgent);
+    const ua = parseUa(userAgent);
+    const payload = this.buildPayload(projectId, event, serverTime, ip, ua);
     await this.redis.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
     this.logger.log({ projectId, eventName: event.event }, 'Event ingested');
   }
@@ -41,13 +44,20 @@ export class IngestService {
     const pipeline = this.redis.pipeline();
     const serverTime = new Date().toISOString();
     const batchId = crypto.randomUUID();
+    const ua = parseUa(userAgent);
 
     for (const event of events) {
-      const payload = this.buildPayload(projectId, event, serverTime, ip, userAgent, batchId);
+      const payload = this.buildPayload(projectId, event, serverTime, ip, ua, batchId);
       pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
     }
 
-    await pipeline.exec();
+    const results = await pipeline.exec();
+    if (results) {
+      const failed = results.filter(([err]) => err !== null);
+      if (failed.length > 0) {
+        throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
+      }
+    }
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
   }
 
@@ -56,10 +66,10 @@ export class IngestService {
     event: TrackEvent,
     serverTime: string,
     ip?: string,
-    userAgent?: string,
+    ua?: ParsedUa,
     batchId?: string,
   ): Record<string, string> {
-    const ua = parseUa(userAgent);
+    const resolvedUa: ParsedUa = ua ?? { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
 
     const payload: Record<string, string> = {
       event_id: crypto.randomUUID(),
@@ -74,11 +84,11 @@ export class IngestService {
       referrer: event.context?.referrer || '',
       page_title: event.context?.page_title || '',
       page_path: event.context?.page_path || '',
-      device_type: event.context?.device_type || ua.device_type,
-      browser: event.context?.browser || ua.browser,
-      browser_version: event.context?.browser_version || ua.browser_version,
-      os: event.context?.os || ua.os,
-      os_version: event.context?.os_version || ua.os_version,
+      device_type: event.context?.device_type || resolvedUa.device_type,
+      browser: event.context?.browser || resolvedUa.browser,
+      browser_version: event.context?.browser_version || resolvedUa.browser_version,
+      os: event.context?.os || resolvedUa.os,
+      os_version: event.context?.os_version || resolvedUa.os_version,
       screen_width: String(event.context?.screen_width || 0),
       screen_height: String(event.context?.screen_height || 0),
       language: event.context?.language || '',

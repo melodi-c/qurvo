@@ -11,6 +11,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 interface CachedKeyInfo {
   project_id: string;
   key_id: string;
+  expires_at: string | null;
 }
 
 @Injectable()
@@ -37,6 +38,9 @@ export class ApiKeyGuard implements CanActivate {
     if (cached) {
       this.logger.debug('API key cache hit');
       const info: CachedKeyInfo = JSON.parse(cached);
+      if (info.expires_at && new Date(info.expires_at) < new Date()) {
+        throw new UnauthorizedException('API key expired');
+      }
       request.projectId = info.project_id;
       request.apiKeyId = info.key_id;
       return true;
@@ -67,7 +71,11 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('API key expired');
     }
 
-    const info: CachedKeyInfo = { project_id: keyInfo.project_id, key_id: keyInfo.key_id };
+    const info: CachedKeyInfo = {
+      project_id: keyInfo.project_id,
+      key_id: keyInfo.key_id,
+      expires_at: keyInfo.expires_at?.toISOString() ?? null,
+    };
     await this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS);
 
     this.db.update(apiKeys).set({ last_used_at: new Date() }).where(eq(apiKeys.id, keyInfo.key_id))

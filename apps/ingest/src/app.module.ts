@@ -4,11 +4,13 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import type Redis from 'ioredis';
 import { IngestModule } from './ingest/ingest.module';
-import { REDIS, RedisProvider } from './providers/redis.provider';
+import { REDIS } from './providers/redis.provider';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
+    DatabaseModule,
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
@@ -31,7 +33,6 @@ import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
     IngestModule,
   ],
   providers: [
-    RedisProvider,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
