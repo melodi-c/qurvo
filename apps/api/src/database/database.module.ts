@@ -14,6 +14,8 @@ export class DatabaseModule implements OnApplicationShutdown {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   async onApplicationShutdown() {
-    await this.redis.quit();
+    if (typeof this.redis.quit === 'function') {
+      await this.redis.quit();
+    }
   }
 }
