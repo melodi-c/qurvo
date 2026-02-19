@@ -73,7 +73,7 @@ export function useAddWidget() {
       widget,
     }: {
       dashboardId: string;
-      widget: { type: string; name: string; config: Record<string, unknown>; layout: { x: number; y: number; w: number; h: number } };
+      widget: { type: string; name: string; config: object; layout: { x: number; y: number; w: number; h: number } };
     }) => api.dashboardsControllerAddWidget({ projectId, dashboardId }, widget as any),
     onSuccess: (_data, { dashboardId }) => {
       qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
@@ -92,7 +92,7 @@ export function useUpdateWidget() {
     }: {
       dashboardId: string;
       widgetId: string;
-      patch: { name?: string; config?: Record<string, unknown>; layout?: { x: number; y: number; w: number; h: number } };
+      patch: { name?: string; config?: object; layout?: { x: number; y: number; w: number; h: number } };
     }) => api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId }, patch as any),
     onSuccess: (_data, { dashboardId }) => {
       qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });

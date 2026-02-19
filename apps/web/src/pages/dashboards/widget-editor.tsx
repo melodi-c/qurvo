@@ -122,7 +122,7 @@ export default function WidgetEditorPage() {
         await updateWidgetMutation.mutateAsync({
           dashboardId: dashboardId!,
           widgetId: widgetId!,
-          patch: { name, config: cleanConfig as Record<string, unknown> },
+          patch: { name, config: cleanConfig },
         });
         store.updateWidgetConfig(widgetId!, cleanConfig, name);
       }

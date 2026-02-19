@@ -238,18 +238,15 @@ export interface UpdateWidget {
   layout?: WidgetLayout;
 }
 
-export enum StepFilterDtoOperatorEnum {
-  Eq = "eq",
-  Neq = "neq",
-  Contains = "contains",
-  NotContains = "not_contains",
-  IsSet = "is_set",
-  IsNotSet = "is_not_set",
-}
+export type StepFilterDtoOperatorEnum =
+  | "eq"
+  | "neq"
+  | "contains"
+  | "not_contains"
+  | "is_set"
+  | "is_not_set";
 
-export enum CreateWidgetDtoTypeEnum {
-  Funnel = "funnel",
-}
+export type CreateWidgetDtoTypeEnum = "funnel";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;

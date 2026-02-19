@@ -13,6 +13,7 @@ await generateApi({
   output: OUTPUT_DIR,
   httpClientType: 'fetch',
   extractEnums: true,
+  generateUnionEnums: true,
   unwrapResponseData: true,
   extractRequestParams: true,
   hooks: {
