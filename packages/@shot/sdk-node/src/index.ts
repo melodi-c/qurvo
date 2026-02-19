@@ -55,6 +55,48 @@ export class Shot {
     this.queue.enqueue(payload);
   }
 
+  set(params: { distinct_id: string; properties: Record<string, unknown> }) {
+    const payload: EventPayload = {
+      event: '$set',
+      distinct_id: params.distinct_id,
+      user_properties: { $set: params.properties },
+      context: {
+        sdk_name: SDK_NAME,
+        sdk_version: SDK_VERSION,
+      },
+      timestamp: new Date().toISOString(),
+    };
+    this.queue.enqueue(payload);
+  }
+
+  setOnce(params: { distinct_id: string; properties: Record<string, unknown> }) {
+    const payload: EventPayload = {
+      event: '$set_once',
+      distinct_id: params.distinct_id,
+      user_properties: { $set_once: params.properties },
+      context: {
+        sdk_name: SDK_NAME,
+        sdk_version: SDK_VERSION,
+      },
+      timestamp: new Date().toISOString(),
+    };
+    this.queue.enqueue(payload);
+  }
+
+  screen(params: { distinct_id: string; screen_name: string; properties?: Record<string, unknown> }) {
+    const payload: EventPayload = {
+      event: '$screen',
+      distinct_id: params.distinct_id,
+      properties: { $screen_name: params.screen_name, ...params.properties },
+      context: {
+        sdk_name: SDK_NAME,
+        sdk_version: SDK_VERSION,
+      },
+      timestamp: new Date().toISOString(),
+    };
+    this.queue.enqueue(payload);
+  }
+
   async shutdown() {
     this.queue.stop();
     await this.queue.flush();

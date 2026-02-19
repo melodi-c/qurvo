@@ -114,6 +114,34 @@ class ShotBrowser {
     this.track('$pageview', properties);
   }
 
+  set(properties: Record<string, unknown>) {
+    if (!this.queue) return;
+
+    const payload: EventPayload = {
+      event: '$set',
+      distinct_id: this.userId || getAnonymousId(),
+      anonymous_id: getAnonymousId(),
+      user_properties: { $set: properties },
+      context: getContext(),
+      timestamp: new Date().toISOString(),
+    };
+    this.queue.enqueue(payload);
+  }
+
+  setOnce(properties: Record<string, unknown>) {
+    if (!this.queue) return;
+
+    const payload: EventPayload = {
+      event: '$set_once',
+      distinct_id: this.userId || getAnonymousId(),
+      anonymous_id: getAnonymousId(),
+      user_properties: { $set_once: properties },
+      context: getContext(),
+      timestamp: new Date().toISOString(),
+    };
+    this.queue.enqueue(payload);
+  }
+
   reset() {
     this.userId = null;
     localStorage.removeItem(ANON_ID_KEY);
@@ -134,6 +162,7 @@ class ShotBrowser {
 
   private setupBeaconFlush() {
     const flushForUnload = () => {
+      this.track('$pageleave');
       if (this.queue && this.queue.size > 0) {
         this.queue.flushForUnload();
       }

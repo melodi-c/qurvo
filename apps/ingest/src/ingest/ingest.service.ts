@@ -9,6 +9,9 @@ import type { TrackEvent } from '../schemas/event';
 function resolveEventType(eventName: string): string {
   if (eventName === '$identify') return 'identify';
   if (eventName === '$pageview') return 'pageview';
+  if (eventName === '$pageleave') return 'pageleave';
+  if (eventName === '$set' || eventName === '$set_once') return 'set';
+  if (eventName === '$screen') return 'screen';
   return 'track';
 }
 

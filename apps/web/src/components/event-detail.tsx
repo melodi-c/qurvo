@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronDown, Globe, UserCheck, MousePointer2, ExternalLink } from 'lucide-react';
+import { ChevronRight, ChevronDown, Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
 
@@ -50,14 +50,20 @@ export function formatRelativeTime(iso: string): string {
 
 export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 'outline' {
   if (eventName === '$pageview') return 'default';
+  if (eventName === '$pageleave') return 'default';
   if (eventName === '$identify') return 'secondary';
+  if (eventName === '$set' || eventName === '$set_once') return 'secondary';
+  if (eventName === '$screen') return 'default';
   return 'outline';
 }
 
 function EventTypeIcon({ eventName }: { eventName: string }) {
   if (eventName === '$pageview') return <Globe className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
+  if (eventName === '$pageleave') return <LogOut className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
   if (eventName === '$identify') return <UserCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />;
-  return <MousePointer2 className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />;
+  if (eventName === '$set' || eventName === '$set_once') return <UserPen className="h-3.5 w-3.5 text-green-400 shrink-0" />;
+  if (eventName === '$screen') return <Smartphone className="h-3.5 w-3.5 text-sky-400 shrink-0" />;
+  return <Zap className="h-3.5 w-3.5 text-amber-400 shrink-0" />;
 }
 
 function parseSafe(json: string): Record<string, unknown> {
