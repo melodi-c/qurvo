@@ -51,9 +51,9 @@ export async function queryPersonEvents(
       event_name,
       event_type,
       distinct_id,
-      toString(person_id) AS person_id,
+      toString(events.person_id) AS person_id,
       session_id,
-      formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%S.000Z') AS timestamp,
+      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z') AS timestamp,
       url,
       referrer,
       page_title,
@@ -78,10 +78,10 @@ export async function queryPersonEvents(
     WHERE
       project_id = {project_id:UUID}
       AND (
-        person_id = {person_id:UUID}
+        events.person_id = {person_id:UUID}
         OR dictGetOrNull('shot_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)) = {person_id:UUID}
       )
-    ORDER BY timestamp DESC
+    ORDER BY events.timestamp DESC
     LIMIT {limit:UInt32}
     OFFSET {offset:UInt32}
   `;
