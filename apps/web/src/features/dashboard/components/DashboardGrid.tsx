@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import GridLayout, { type Layout } from 'react-grid-layout';
-import type { RglItem } from '../types';
+import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useDashboardStore } from '../store';
@@ -39,12 +38,12 @@ export function DashboardGrid() {
   return (
     <div ref={containerRef}>
       <GridLayout
-        layout={localLayout as unknown as Layout}
+        layout={localLayout}
         width={width}
         gridConfig={{ cols: 12, rowHeight: 80, margin: [12, 12] as const, containerPadding: [0, 0] as const }}
         dragConfig={{ enabled: isEditing, handle: '.drag-handle' }}
         resizeConfig={{ enabled: isEditing }}
-        onLayoutChange={(layout) => updateLayout(layout as unknown as RglItem[])}
+        onLayoutChange={(layout) => updateLayout(layout)}
       >
         {localWidgets.map((widget) => (
           <div key={widget.id}>

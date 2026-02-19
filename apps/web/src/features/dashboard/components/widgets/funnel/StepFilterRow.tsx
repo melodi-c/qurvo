@@ -58,7 +58,7 @@ export function StepFilterRow({ filter, onChange, onRemove }: StepFilterRowProps
         </select>
         {hasValue && (
           <Input
-            value={filter.value}
+            value={filter.value ?? ''}
             onChange={(e) => onChange({ ...filter, value: e.target.value })}
             placeholder="value"
             className="h-6 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none"

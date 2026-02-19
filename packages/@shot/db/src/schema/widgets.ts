@@ -1,6 +1,38 @@
 import { pgTable, uuid, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 import { dashboards } from './dashboards';
 
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
+
+export interface WidgetStepFilter {
+  property: string;
+  operator: FilterOperator;
+  value?: string;
+}
+
+export interface FunnelWidgetStep {
+  event_name: string;
+  label: string;
+  filters?: WidgetStepFilter[];
+}
+
+export interface FunnelWidgetConfig {
+  type: 'funnel';
+  steps: FunnelWidgetStep[];
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+}
+
+export type WidgetConfig = FunnelWidgetConfig;
+
 export const widgets = pgTable(
   'widgets',
   {
@@ -10,8 +42,8 @@ export const widgets = pgTable(
       .references(() => dashboards.id, { onDelete: 'cascade' }),
     type: varchar('type', { length: 50 }).notNull(),
     name: varchar('name', { length: 100 }).notNull(),
-    config: jsonb('config').notNull(),
-    layout: jsonb('layout').notNull(),
+    config: jsonb('config').notNull().$type<WidgetConfig>(),
+    layout: jsonb('layout').notNull().$type<WidgetLayout>(),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

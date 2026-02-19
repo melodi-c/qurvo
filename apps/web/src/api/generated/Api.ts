@@ -169,10 +169,22 @@ export interface FunnelQuery {
   force?: boolean;
 }
 
+export interface FunnelStepResult {
+  breakdown_value?: string;
+  step: number;
+  label: string;
+  event_name: string;
+  count: number;
+  conversion_rate: number;
+  drop_off: number;
+  drop_off_rate: number;
+  avg_time_to_convert_seconds: number | null;
+}
+
 export interface FunnelResult {
-  breakdown: boolean;
   breakdown_property?: string;
-  steps: object;
+  breakdown: boolean;
+  steps: FunnelStepResult[];
 }
 
 export interface FunnelResponse {
@@ -194,12 +206,62 @@ export interface EventNamesResponse {
   event_names: string[];
 }
 
+export interface Dashboard {
+  id: string;
+  project_id: string;
+  name: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
 export interface CreateDashboard {
   /**
    * @minLength 1
    * @maxLength 100
    */
   name: string;
+}
+
+export interface FunnelWidgetConfig {
+  type: string;
+  steps: FunnelStep[];
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+}
+
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Widget {
+  id: string;
+  dashboard_id: string;
+  type: string;
+  name: string;
+  config: FunnelWidgetConfig;
+  layout: WidgetLayout;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface DashboardWithWidgets {
+  id: string;
+  project_id: string;
+  name: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+  widgets: Widget[];
 }
 
 export interface UpdateDashboard {
@@ -210,13 +272,6 @@ export interface UpdateDashboard {
   name?: string;
 }
 
-export interface WidgetLayout {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 export interface CreateWidget {
   type: CreateWidgetDtoTypeEnum;
   /**
@@ -224,7 +279,7 @@ export interface CreateWidget {
    * @maxLength 100
    */
   name: string;
-  config: object;
+  config: FunnelWidgetConfig;
   layout: WidgetLayout;
 }
 
@@ -234,7 +289,7 @@ export interface UpdateWidget {
    * @maxLength 100
    */
   name?: string;
-  config?: object;
+  config?: FunnelWidgetConfig;
   layout?: WidgetLayout;
 }
 
@@ -911,7 +966,7 @@ export class Api<
       { projectId, ...query }: DashboardsControllerListParams,
       params: RequestParams = {},
     ) =>
-      this.request<object[], any>({
+      this.request<Dashboard[], any>({
         path: `/api/projects/${projectId}/dashboards`,
         method: "GET",
         secure: true,
@@ -932,7 +987,7 @@ export class Api<
       data: CreateDashboard,
       params: RequestParams = {},
     ) =>
-      this.request<object, any>({
+      this.request<Dashboard, any>({
         path: `/api/projects/${projectId}/dashboards`,
         method: "POST",
         body: data,
@@ -954,7 +1009,7 @@ export class Api<
       { projectId, dashboardId, ...query }: DashboardsControllerGetByIdParams,
       params: RequestParams = {},
     ) =>
-      this.request<object, any>({
+      this.request<DashboardWithWidgets, any>({
         path: `/api/projects/${projectId}/dashboards/${dashboardId}`,
         method: "GET",
         secure: true,
@@ -975,7 +1030,7 @@ export class Api<
       data: UpdateDashboard,
       params: RequestParams = {},
     ) =>
-      this.request<object, any>({
+      this.request<Dashboard, any>({
         path: `/api/projects/${projectId}/dashboards/${dashboardId}`,
         method: "PUT",
         body: data,
@@ -1017,7 +1072,7 @@ export class Api<
       data: CreateWidget,
       params: RequestParams = {},
     ) =>
-      this.request<object, any>({
+      this.request<Widget, any>({
         path: `/api/projects/${projectId}/dashboards/${dashboardId}/widgets`,
         method: "POST",
         body: data,
@@ -1045,7 +1100,7 @@ export class Api<
       data: UpdateWidget,
       params: RequestParams = {},
     ) =>
-      this.request<object, any>({
+      this.request<Widget, any>({
         path: `/api/projects/${projectId}/dashboards/${dashboardId}/widgets/${widgetId}`,
         method: "PUT",
         body: data,

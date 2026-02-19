@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { DashboardWithWidgets, Widget } from '../types';
+import type { CreateWidget, UpdateWidget } from '@/api/generated/Api';
+import type { Widget } from '../types';
 
 function useProjectId() {
   const [searchParams] = useSearchParams();
@@ -12,8 +13,7 @@ export function useDashboardList() {
   const projectId = useProjectId();
   return useQuery({
     queryKey: ['dashboards', projectId],
-    queryFn: () =>
-      api.dashboardsControllerList({ projectId }) as Promise<DashboardWithWidgets[]>,
+    queryFn: () => api.dashboardsControllerList({ projectId }),
     enabled: !!projectId,
   });
 }
@@ -22,8 +22,7 @@ export function useDashboard(dashboardId: string) {
   const projectId = useProjectId();
   return useQuery({
     queryKey: ['dashboard', dashboardId],
-    queryFn: () =>
-      api.dashboardsControllerGetById({ projectId, dashboardId }) as Promise<DashboardWithWidgets>,
+    queryFn: () => api.dashboardsControllerGetById({ projectId, dashboardId }),
     enabled: !!dashboardId && !!projectId,
   });
 }
@@ -73,8 +72,8 @@ export function useAddWidget() {
       widget,
     }: {
       dashboardId: string;
-      widget: { type: string; name: string; config: object; layout: { x: number; y: number; w: number; h: number } };
-    }) => api.dashboardsControllerAddWidget({ projectId, dashboardId }, widget as any),
+      widget: CreateWidget;
+    }) => api.dashboardsControllerAddWidget({ projectId, dashboardId }, widget),
     onSuccess: (_data, { dashboardId }) => {
       qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
@@ -92,8 +91,8 @@ export function useUpdateWidget() {
     }: {
       dashboardId: string;
       widgetId: string;
-      patch: { name?: string; config?: object; layout?: { x: number; y: number; w: number; h: number } };
-    }) => api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId }, patch as any),
+      patch: UpdateWidget;
+    }) => api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId }, patch),
     onSuccess: (_data, { dashboardId }) => {
       qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
@@ -123,19 +122,19 @@ export function useSaveDashboard(dashboardId: string) {
   const addWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerAddWidget({ projectId, dashboardId }, {
-        type: w.type,
+        type: 'funnel',
         name: w.name,
-        config: w.config as any,
+        config: w.config,
         layout: w.layout,
-      } as any),
+      }),
   });
   const updateWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId: w.id }, {
         name: w.name,
-        config: w.config as any,
+        config: w.config,
         layout: w.layout,
-      } as any),
+      }),
   });
   const removeWidget = useMutation({
     mutationFn: (widgetId: string) =>

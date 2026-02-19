@@ -5,3 +5,4 @@ export { apiKeys } from './api-keys';
 export { projectMembers, projectRoleEnum } from './project-members';
 export { dashboards } from './dashboards';
 export { widgets } from './widgets';
+export type { WidgetLayout, WidgetStepFilter, FunnelWidgetStep, FunnelWidgetConfig, WidgetConfig } from './widgets';

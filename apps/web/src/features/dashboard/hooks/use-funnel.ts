@@ -38,10 +38,10 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   const hash = configHash(config);
   const queryKey = ['funnel', projectId, widgetId, hash];
 
-  const query = useQuery({
+  const query = useQuery<FunnelCacheEntry>({
     queryKey,
-    queryFn: async ({ signal }) => {
-      const result = await api.analyticsControllerGetFunnel({
+    queryFn: () =>
+      api.analyticsControllerGetFunnel({
         project_id: projectId,
         steps: cleanSteps(config),
         conversion_window_days: config.conversion_window_days,
@@ -49,9 +49,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
         date_to: config.date_to,
         ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
         widget_id: widgetId,
-      }) as unknown as FunnelCacheEntry;
-      return result;
-    },
+      }),
     enabled,
     staleTime: Infinity, // We handle staleness manually based on cached_at
     gcTime: 2 * 60 * 60 * 1000, // 2 hours
@@ -82,7 +80,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
       ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
       widget_id: widgetId,
       force: true,
-    }) as unknown as FunnelCacheEntry;
+    });
 
     qc.setQueryData(queryKey, result);
     return result;

@@ -10,7 +10,7 @@ export function useEventNames() {
     queryKey: ['event-names', projectId],
     queryFn: async () => {
       const result = await api.analyticsControllerGetEventNames({ project_id: projectId });
-      return (result as unknown as { event_names: string[] }).event_names;
+      return result.event_names;
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000, // 5 minutes

@@ -21,9 +21,9 @@ interface ChartDatum {
   pct: string;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartDatum }> }) => {
   if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload as ChartDatum;
+  const d = payload[0].payload;
   return (
     <div className="bg-card border border-border rounded-lg p-3 text-sm shadow-lg">
       <p className="font-medium mb-1 text-foreground">{d.name}</p>

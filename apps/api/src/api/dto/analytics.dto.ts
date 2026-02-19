@@ -85,6 +85,7 @@ export class FunnelQueryDto {
   force?: boolean;
 }
 
+// breakdown_value присутствует только у breakdown-шагов, поэтому optional
 export class FunnelStepResultDto {
   step: number;
   label: string;
@@ -94,19 +95,18 @@ export class FunnelStepResultDto {
   drop_off: number;
   drop_off_rate: number;
   avg_time_to_convert_seconds: number | null;
-}
-
-export class FunnelBreakdownStepResultDto extends FunnelStepResultDto {
-  breakdown_value: string;
+  @ApiPropertyOptional() breakdown_value?: string;
 }
 
 export class FunnelResultDto {
   breakdown: boolean;
-  breakdown_property?: string;
-  steps: FunnelStepResultDto[] | FunnelBreakdownStepResultDto[];
+  @ApiPropertyOptional() breakdown_property?: string;
+  @Type(() => FunnelStepResultDto)
+  steps: FunnelStepResultDto[];
 }
 
 export class FunnelResponseDto {
+  @Type(() => FunnelResultDto)
   data: FunnelResultDto;
   cached_at: string;
   from_cache: boolean;

@@ -12,7 +12,7 @@ interface DashboardStore {
   initSession: (id: string, name: string, widgets: Widget[]) => void;
   setEditing: (editing: boolean) => void;
   setLocalName: (name: string) => void;
-  updateLayout: (layout: RglItem[]) => void;
+  updateLayout: (layout: readonly RglItem[]) => void;
   addWidget: (widget: Widget) => void;
   removeWidget: (widgetId: string) => void;
   updateWidgetConfig: (widgetId: string, config: FunnelWidgetConfig, name: string) => void;
@@ -49,7 +49,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
 
   updateLayout: (layout) =>
     set((s) => ({
-      localLayout: layout,
+      localLayout: [...layout],
       isDirty: s.isEditing ? true : s.isDirty,
     })),
 

@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, LayoutDashboard, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import type { DashboardWithWidgets } from '@/features/dashboard/types';
 
 export default function DashboardsPage() {
   const [searchParams] = useSearchParams();
@@ -31,7 +30,7 @@ export default function DashboardsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const result = await createMutation.mutateAsync(name.trim()) as any;
+    const result = await createMutation.mutateAsync(name.trim());
     setShowCreate(false);
     setName('');
     navigate(`/dashboards/${result.id}?project=${projectId}`);
@@ -81,40 +80,36 @@ export default function DashboardsPage() {
         {isLoading && Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
-        {!isLoading && (dashboards || []).map((dashboard) => {
-          const d = dashboard as unknown as DashboardWithWidgets;
-          return (
-            <Card
-              key={d.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate(`/dashboards/${d.id}?project=${projectId}`)}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <LayoutDashboard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <CardTitle className="text-base truncate">{d.name}</CardTitle>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteMutation.mutate(d.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+        {!isLoading && (dashboards || []).map((dashboard) => (
+          <Card
+            key={dashboard.id}
+            className="cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => navigate(`/dashboards/${dashboard.id}?project=${projectId}`)}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <CardTitle className="text-base truncate">{dashboard.name}</CardTitle>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {d.widgets?.length ?? 0} widget{(d.widgets?.length ?? 0) !== 1 ? 's' : ''} ·{' '}
-                  {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
-                </p>
-              </CardHeader>
-            </Card>
-          );
-        })}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMutation.mutate(dashboard.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(dashboard.updated_at), { addSuffix: true })}
+              </p>
+            </CardHeader>
+          </Card>
+        ))}
         {!isLoading && (dashboards || []).length === 0 && (
           <div className="col-span-3 text-center py-12 text-muted-foreground">
             <LayoutDashboard className="h-12 w-12 mx-auto mb-3 opacity-30" />

@@ -25,7 +25,7 @@ export default function DashboardBuilderPage() {
       store.initSession(
         dashboard.id,
         dashboard.name,
-        (dashboard.widgets || []) as unknown as Widget[],
+        dashboard.widgets || [],
       );
     }
   // Re-init when fresh server data arrives (e.g. after widget editor saves),
@@ -64,7 +64,7 @@ export default function DashboardBuilderPage() {
     await save({
       name: store.localName,
       widgets: mergedWidgets,
-      serverWidgets: (dashboard.widgets || []) as unknown as Widget[],
+      serverWidgets: dashboard.widgets || [],
     });
     store.markSaved();
     store.setEditing(false);
@@ -72,7 +72,7 @@ export default function DashboardBuilderPage() {
 
   const handleDiscard = () => {
     store.discardChanges(
-      (dashboard.widgets || []) as unknown as Widget[],
+      dashboard.widgets || [],
       dashboard.name,
     );
     store.setEditing(false);

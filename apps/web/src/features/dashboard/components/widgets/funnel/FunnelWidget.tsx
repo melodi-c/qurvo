@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelChart } from './FunnelChart';
-import type { Widget, FunnelWidgetConfig, FunnelStepResult } from '@/features/dashboard/types';
+import type { Widget } from '@/features/dashboard/types';
 import { formatDistanceToNow } from 'date-fns';
 
 interface FunnelWidgetProps {
@@ -19,7 +19,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
 
-  const config = widget.config as FunnelWidgetConfig;
+  const config = widget.config;
   const { data, isLoading, isFetching, error, refresh } = useFunnelData(config, widget.id);
 
   const handleConfigure = () => {
@@ -62,7 +62,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
     );
   }
 
-  const steps = data.data.steps as FunnelStepResult[];
+  const steps = data.data.steps;
 
   if (steps.length === 0) {
     return (

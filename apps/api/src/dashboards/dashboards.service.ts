@@ -1,35 +1,13 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { dashboards, widgets } from '@shot/db';
+import type { WidgetConfig, WidgetLayout } from '@shot/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@shot/db';
 import { ProjectsService } from '../projects/projects.service';
 import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { DashboardNotFoundException } from './exceptions/dashboard-not-found.exception';
 import { WidgetNotFoundException } from './exceptions/widget-not-found.exception';
-
-export interface WidgetLayout {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface FunnelStep {
-  event_name: string;
-  label: string;
-}
-
-export interface FunnelWidgetConfig {
-  type: 'funnel';
-  steps: FunnelStep[];
-  conversion_window_days: number;
-  date_from: string;
-  date_to: string;
-  breakdown_property?: string;
-}
-
-export type WidgetConfig = FunnelWidgetConfig;
 
 @Injectable()
 export class DashboardsService {

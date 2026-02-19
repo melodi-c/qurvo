@@ -10,7 +10,7 @@ import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelStepBuilder } from '@/features/dashboard/components/widgets/funnel/FunnelStepBuilder';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
-import type { FunnelWidgetConfig, FunnelStepResult, Widget } from '@/features/dashboard/types';
+import type { FunnelWidgetConfig, Widget } from '@/features/dashboard/types';
 
 function defaultFunnelConfig(): FunnelWidgetConfig {
   const now = new Date();
@@ -68,7 +68,7 @@ export default function WidgetEditorPage() {
   const storeWidget = isNew ? null : store.localWidgets.find((w) => w.id === widgetId);
   const apiWidget = isNew
     ? null
-    : (dashboard?.widgets as Widget[] | undefined)?.find((w) => w.id === widgetId);
+    : dashboard?.widgets?.find((w) => w.id === widgetId);
   const sourceWidget = storeWidget ?? apiWidget;
 
   const [name, setName] = useState(isNew ? 'Untitled funnel' : '');
@@ -78,7 +78,7 @@ export default function WidgetEditorPage() {
   useEffect(() => {
     if (!initialized.current && sourceWidget) {
       setName(sourceWidget.name);
-      setConfig(sourceWidget.config as FunnelWidgetConfig);
+      setConfig(sourceWidget.config);
       initialized.current = true;
     }
   }, [sourceWidget?.id]);
@@ -90,7 +90,7 @@ export default function WidgetEditorPage() {
 
   const previewId = isNew ? 'preview' : widgetId!;
   const { data, isLoading } = useFunnelData(config, previewId);
-  const steps = data?.data.steps as FunnelStepResult[] | undefined;
+  const steps = data?.data.steps;
 
   const isConfigValid =
     config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
@@ -117,7 +117,7 @@ export default function WidgetEditorPage() {
           dashboardId: dashboardId!,
           widget: { type: 'funnel', name, config: cleanConfig, layout },
         });
-        store.addWidget({ ...(created as Widget), layout });
+        store.addWidget({ ...created, layout });
       } else {
         await updateWidgetMutation.mutateAsync({
           dashboardId: dashboardId!,
