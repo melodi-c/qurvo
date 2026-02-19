@@ -42,6 +42,15 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function Metric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide mb-0.5">{label}</p>
+      <p className={`text-2xl font-bold tabular-nums ${accent ? 'text-primary' : 'text-foreground'}`}>{value}</p>
+    </div>
+  );
+}
+
 function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
@@ -236,26 +245,17 @@ export default function FunnelsPage() {
 
           {/* Results */}
           {isConfigValid && !isLoading && steps && steps.length > 0 && (
-            <div className="flex flex-col gap-6 p-8">
-              <div className="flex items-end gap-8 border-b border-border pb-6">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Overall conversion</p>
-                  <p className="text-3xl font-bold tabular-nums">{overallConversion}%</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Entered funnel</p>
-                  <p className="text-3xl font-bold tabular-nums">
-                    {totalEntered?.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Completed</p>
-                  <p className="text-3xl font-bold tabular-nums">
-                    {totalConverted?.toLocaleString()}
-                  </p>
-                </div>
+            <div className="flex flex-col h-full">
+              {/* Metric strip */}
+              <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
+                <Metric label="Overall conversion" value={`${overallConversion}%`} accent />
+                <div className="w-px h-8 bg-border/50 mx-6" />
+                <Metric label="Entered funnel" value={totalEntered?.toLocaleString() ?? '—'} />
+                <div className="w-px h-8 bg-border/50 mx-6" />
+                <Metric label="Completed" value={totalConverted?.toLocaleString() ?? '—'} />
               </div>
-              <div className="w-full">
+              {/* Chart */}
+              <div className="flex-1 overflow-auto p-6 pt-8">
                 <FunnelChart steps={steps} />
               </div>
             </div>
