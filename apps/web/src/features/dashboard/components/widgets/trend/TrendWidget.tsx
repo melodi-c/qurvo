@@ -117,6 +117,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           series={result.series}
           previousSeries={result.series_previous}
           chartType={config.chart_type}
+          granularity={config.granularity}
           compact
         />
       </div>

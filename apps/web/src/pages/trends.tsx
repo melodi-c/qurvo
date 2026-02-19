@@ -115,6 +115,7 @@ export default function TrendsPage() {
                   series={series}
                   previousSeries={result?.series_previous}
                   chartType={config.chart_type}
+                  granularity={config.granularity}
                 />
               </div>
             </div>

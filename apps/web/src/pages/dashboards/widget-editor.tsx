@@ -313,6 +313,7 @@ export default function WidgetEditorPage() {
                       series={trendSeries}
                       previousSeries={trendResult?.series_previous}
                       chartType={trendConfig.chart_type}
+                      granularity={trendConfig.granularity}
                     />
                   </div>
                 </div>
