@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
+import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
 import type { Widget } from '@/api/generated/Api';
 import { formatDistanceToNow } from 'date-fns';
@@ -65,6 +66,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const steps = data.data.steps;
   const breakdown = data.data.breakdown;
   const aggregateSteps = data.data.aggregate_steps;
+  const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(data.data);
 
   if (steps.length === 0) {
     return (
@@ -76,29 +78,37 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   }
 
   return (
-    <div className="h-full flex flex-col gap-1 min-h-0">
-      <div className="flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
-        <span>
-          {data.from_cache ? (
-            <>Updated {formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })}</>
-          ) : (
-            <>Fresh data</>
-          )}
-        </span>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5"
-          onClick={() => refresh()}
-          disabled={isFetching}
-          title="Refresh"
-        >
-          <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
-        </Button>
+    <div className="h-full flex flex-col min-h-0">
+      {/* Metric header + cache */}
+      <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xl font-bold tabular-nums text-primary">{overallConversion}%</span>
+          <span className="text-xs text-muted-foreground tabular-nums truncate">
+            {totalEntered?.toLocaleString()} &rarr; {totalConverted?.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+            {data.from_cache
+              ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
+              : 'fresh'}
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5"
+            onClick={() => refresh()}
+            disabled={isFetching}
+            title="Refresh"
+          >
+            <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={aggregateSteps} />
+      {/* Compact chart */}
+      <div className="flex-1 overflow-auto min-h-0">
+        <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={aggregateSteps} compact />
       </div>
     </div>
   );

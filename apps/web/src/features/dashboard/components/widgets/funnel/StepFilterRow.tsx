@@ -1,10 +1,11 @@
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StepFilter, StepFilterDtoOperatorEnum } from '@/api/generated/Api';
 
 const OPERATORS: { value: StepFilterDtoOperatorEnum; label: string }[] = [
   { value: 'eq', label: '=' },
-  { value: 'neq', label: '≠' },
+  { value: 'neq', label: '\u2260' },
   { value: 'contains', label: 'contains' },
   { value: 'not_contains', label: "doesn't contain" },
   { value: 'is_set', label: 'is set' },
@@ -43,19 +44,23 @@ export function StepFilterRow({ filter, onChange, onRemove }: StepFilterRowProps
 
       {/* Row 2: operator + value */}
       <div className="flex items-center gap-1.5 pr-[26px]">
-        <select
+        <Select
           value={filter.operator}
-          onChange={(e) =>
-            onChange({ ...filter, operator: e.target.value as StepFilterDtoOperatorEnum, value: '' })
+          onValueChange={(val) =>
+            onChange({ ...filter, operator: val as StepFilterDtoOperatorEnum, value: '' })
           }
-          className="h-6 w-32 shrink-0 rounded-sm border border-border/60 bg-background px-1.5 text-xs text-foreground outline-none focus:border-ring cursor-pointer"
         >
-          {OPERATORS.map((op) => (
-            <option key={op.value} value={op.value}>
-              {op.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger size="sm" className="h-6 w-32 shrink-0 text-xs px-2 shadow-none border-border/60">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {OPERATORS.map((op) => (
+              <SelectItem key={op.value} value={op.value} className="text-xs">
+                {op.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {hasValue && (
           <Input
             value={filter.value ?? ''}

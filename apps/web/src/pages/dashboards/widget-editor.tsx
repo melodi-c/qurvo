@@ -1,60 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, GitFork, Save, CalendarDays, Timer, SlidersHorizontal, TrendingDown, AlertCircle } from 'lucide-react';
+import { ArrowLeft, GitFork, Save, TrendingDown, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboard, useAddWidget, useUpdateWidget } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
-import { FunnelStepBuilder } from '@/features/dashboard/components/widgets/funnel/FunnelStepBuilder';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
+import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel/FunnelQueryPanel';
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
-import type { FunnelWidgetConfig, Widget } from '@/api/generated/Api';
-
-function defaultFunnelConfig(): FunnelWidgetConfig {
-  const now = new Date();
-  const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
-  return {
-    type: 'funnel',
-    steps: [
-      { event_name: '', label: 'Step 1' },
-      { event_name: '', label: 'Step 2' },
-    ],
-    conversion_window_days: 14,
-    date_from: from,
-    date_to: to,
-  };
-}
-
-const DATE_PRESETS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-  { label: '6m', days: 180 },
-  { label: '1y', days: 365 },
-] as const;
-
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
-  return (
-    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </div>
-  );
-}
+import { defaultFunnelConfig, Metric } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
+import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 export default function WidgetEditorPage() {
   const { id: dashboardId, widgetId } = useParams<{ id: string; widgetId: string }>();
@@ -138,14 +95,14 @@ export default function WidgetEditorPage() {
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
-      {/* ── Header ──────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <header className="flex items-center gap-3 border-b border-border bg-background px-5 h-14 flex-shrink-0">
         <Link
           to={dashboardPath}
           className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="max-w-[140px] truncate">{dashboard?.name ?? '…'}</span>
+          <span className="max-w-[140px] truncate">{dashboard?.name ?? '\u2026'}</span>
         </Link>
 
         <Separator orientation="vertical" className="h-5" />
@@ -177,127 +134,21 @@ export default function WidgetEditorPage() {
           </Button>
           <Button size="sm" onClick={handleSave} disabled={!isValid || isSaving}>
             <Save className="h-3.5 w-3.5 mr-1.5" />
-            {isSaving ? 'Saving…' : 'Save to dashboard'}
+            {isSaving ? 'Saving\u2026' : 'Save to dashboard'}
           </Button>
         </div>
       </header>
 
-      {/* ── Body ────────────────────────────────────────────────────── */}
+      {/* ── Body ── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── Left panel: Query builder ────────────────────────────── */}
-        <aside className="w-[360px] flex-shrink-0 border-r border-border overflow-y-auto">
-          <div className="p-5 space-y-6">
+        {/* ── Left panel: Query builder ── */}
+        <FunnelQueryPanel config={config} onChange={setConfig} />
 
-            {/* Date range */}
-            <section className="space-y-3">
-              <SectionHeader icon={CalendarDays} label="Date range" />
-
-              {/* Presets */}
-              <div className="flex gap-1 flex-wrap">
-                {DATE_PRESETS.map(({ label, days }) => {
-                  const from = daysAgo(days);
-                  const to = today();
-                  const active =
-                    config.date_from.slice(0, 10) === from &&
-                    config.date_to.slice(0, 10) === to;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setConfig((c) => ({ ...c, date_from: from, date_to: to }))}
-                      className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-                        active
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">From</span>
-                  <Input
-                    type="date"
-                    value={config.date_from.slice(0, 10)}
-                    onChange={(e) => setConfig((c) => ({ ...c, date_from: e.target.value }))}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">To</span>
-                  <Input
-                    type="date"
-                    value={config.date_to.slice(0, 10)}
-                    onChange={(e) => setConfig((c) => ({ ...c, date_to: e.target.value }))}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* Steps */}
-            <section className="space-y-3">
-              <SectionHeader icon={TrendingDown} label="Steps" />
-              <FunnelStepBuilder
-                steps={config.steps}
-                onChange={(steps) => setConfig((c) => ({ ...c, steps }))}
-              />
-            </section>
-
-            <Separator />
-
-            {/* Conversion window */}
-            <section className="space-y-3">
-              <SectionHeader icon={Timer} label="Conversion window" />
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={1}
-                  max={90}
-                  value={config.conversion_window_days}
-                  onChange={(e) =>
-                    setConfig((c) => ({ ...c, conversion_window_days: Number(e.target.value) }))
-                  }
-                  className="h-8 w-20 text-sm"
-                />
-                <span className="text-sm text-muted-foreground">days</span>
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* Breakdown */}
-            <section className="space-y-3">
-              <SectionHeader icon={SlidersHorizontal} label="Breakdown" />
-              <Input
-                value={config.breakdown_property || ''}
-                onChange={(e) =>
-                  setConfig((c) => ({
-                    ...c,
-                    breakdown_property: e.target.value || undefined,
-                  }))
-                }
-                placeholder="e.g. country, plan, properties.utm_source"
-                className="h-8 text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Split results by a user or event property
-              </p>
-            </section>
-          </div>
-        </aside>
-
-        {/* ── Right panel: Visualization ───────────────────────────── */}
+        {/* ── Right panel: Visualization ── */}
         <main className="flex-1 overflow-auto flex flex-col">
 
-          {/* — Not configured — */}
+          {/* Not configured */}
           {!isConfigValid && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -312,10 +163,11 @@ export default function WidgetEditorPage() {
             </div>
           )}
 
-          {/* — Loading — */}
+          {/* Loading */}
           {isConfigValid && isLoading && (
             <div className="flex-1 flex flex-col gap-6 p-8">
               <div className="flex gap-8">
+                <Skeleton className="h-10 w-28" />
                 <Skeleton className="h-10 w-28" />
                 <Skeleton className="h-10 w-28" />
               </div>
@@ -323,11 +175,12 @@ export default function WidgetEditorPage() {
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-[75%]" />
                 <Skeleton className="h-10 w-[55%]" />
+                <Skeleton className="h-10 w-[35%]" />
               </div>
             </div>
           )}
 
-          {/* — No data — */}
+          {/* No data */}
           {isConfigValid && !isLoading && (!steps || steps.length === 0) && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -342,31 +195,19 @@ export default function WidgetEditorPage() {
             </div>
           )}
 
-          {/* — Results — */}
+          {/* Results */}
           {isConfigValid && !isLoading && steps && steps.length > 0 && (
-            <div className="flex flex-col gap-6 p-8">
-              {/* Metrics row */}
-              <div className="flex items-end gap-8 border-b border-border pb-6">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Overall conversion</p>
-                  <p className="text-3xl font-bold tabular-nums">{overallConversion}%</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Entered funnel</p>
-                  <p className="text-3xl font-bold tabular-nums">
-                    {totalEntered?.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Completed</p>
-                  <p className="text-3xl font-bold tabular-nums">
-                    {totalConverted?.toLocaleString()}
-                  </p>
-                </div>
+            <div className="flex flex-col h-full">
+              {/* Metric strip */}
+              <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
+                <Metric label="Overall conversion" value={`${overallConversion}%`} accent />
+                <div className="w-px h-8 bg-border/50 mx-6" />
+                <Metric label="Entered funnel" value={totalEntered?.toLocaleString() ?? '\u2014'} />
+                <div className="w-px h-8 bg-border/50 mx-6" />
+                <Metric label="Completed" value={totalConverted?.toLocaleString() ?? '\u2014'} />
               </div>
-
               {/* Chart */}
-              <div className="overflow-x-auto">
+              <div className="flex-1 overflow-auto p-6 pt-8">
                 <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={data?.data.aggregate_steps} />
               </div>
             </div>

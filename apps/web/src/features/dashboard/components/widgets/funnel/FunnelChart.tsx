@@ -5,11 +5,13 @@ export interface FunnelChartProps {
   steps: FunnelStepResult[];
   breakdown?: boolean;
   aggregateSteps?: FunnelStepResult[];
+  compact?: boolean;
 }
 
 // ── Constants & helpers ───────────────────────────────────────────────────────
 
-const BAR_AREA_H = 240;
+const BAR_AREA_H_FULL = 240;
+const BAR_AREA_H_COMPACT = 130;
 
 /** Hex colors for breakdown series (no opacity needed — applied per-element). */
 const SERIES_COLORS = [
@@ -25,28 +27,32 @@ function formatSeconds(s: number | null | undefined): string | null {
 }
 
 /** PostHog bar-width ladder based on number of series. */
-function barWidthPx(n: number): number {
-  if (n >= 20) return 8;
-  if (n >= 12) return 16;
-  if (n >= 8) return 24;
-  if (n >= 6) return 32;
-  if (n >= 5) return 40;
-  if (n >= 4) return 48;
-  if (n >= 3) return 64;
-  if (n >= 2) return 96;
-  return 96; // single series — cap at 96 so columns aren't enormous
+function barWidthPx(n: number, compact: boolean): number {
+  const scale = compact ? 0.6 : 1;
+  let base: number;
+  if (n >= 20) base = 8;
+  else if (n >= 12) base = 16;
+  else if (n >= 8) base = 24;
+  else if (n >= 6) base = 32;
+  else if (n >= 5) base = 40;
+  else if (n >= 4) base = 48;
+  else if (n >= 3) base = 64;
+  else if (n >= 2) base = 96;
+  else base = 96;
+  return Math.round(base * scale);
 }
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
 /** Y-axis percentage labels (100 → 0). */
-function YAxis() {
+function YAxis({ h }: { h: number }) {
+  const labels = h > 150 ? ['100%', '80%', '60%', '40%', '20%', ''] : ['100%', '50%', ''];
   return (
     <div
       className="flex flex-col justify-between pr-3 shrink-0 select-none"
-      style={{ height: BAR_AREA_H }}
+      style={{ height: h }}
     >
-      {['100%', '80%', '60%', '40%', '20%', ''].map((l, i) => (
+      {labels.map((l, i) => (
         <span key={i} className="text-[10px] font-medium text-muted-foreground/40 leading-none">
           {l}
         </span>
@@ -55,11 +61,12 @@ function YAxis() {
   );
 }
 
-/** Five dashed horizontal grid lines at 20 % intervals. */
-function GridLines() {
+/** Dashed horizontal grid lines. */
+function GridLines({ h }: { h: number }) {
+  const ticks = h > 150 ? [20, 40, 60, 80] : [50];
   return (
     <>
-      {[20, 40, 60, 80].map((pct) => (
+      {ticks.map((pct) => (
         <div
           key={pct}
           className="absolute inset-x-0 border-t border-dashed border-border/20 pointer-events-none"
@@ -122,15 +129,17 @@ function Bar({
   color,
   conversionRate,
   width,
+  height,
   hovered,
 }: {
   color: string;
   conversionRate: number;
   width: number;
+  height: number;
   hovered: boolean;
 }) {
   return (
-    <div className="relative shrink-0 rounded-sm" style={{ width, height: BAR_AREA_H }}>
+    <div className="relative shrink-0 rounded-sm" style={{ width, height }}>
       {/* Backdrop — striped, full height, drop-off space */}
       <div
         className="absolute inset-0 rounded-sm transition-opacity duration-200"
@@ -156,7 +165,7 @@ function Bar({
   );
 }
 
-/** Step legend below a column — mirrors PostHog's StepLegend. */
+/** Step legend below a column — full version. */
 function StepLegend({
   stepNum,
   label,
@@ -167,6 +176,7 @@ function StepLegend({
   dropOffRate,
   isFirst,
   isLast,
+  compact,
 }: {
   stepNum: number;
   label: string;
@@ -177,9 +187,24 @@ function StepLegend({
   dropOffRate: number;
   isFirst: boolean;
   isLast: boolean;
+  compact: boolean;
 }) {
   const displayName = label || eventName;
   const showEvent = label && label !== eventName;
+
+  if (compact) {
+    return (
+      <div className="pt-2 pb-1 px-1">
+        <div className="flex items-center gap-1 mb-0.5">
+          <div className="w-4 h-4 rounded-full bg-muted/60 text-[9px] font-bold flex items-center justify-center shrink-0 text-muted-foreground">
+            {stepNum}
+          </div>
+          <p className="text-[10px] font-medium text-foreground leading-tight truncate max-w-[80px]">{displayName}</p>
+        </div>
+        <p className="text-[10px] tabular-nums text-muted-foreground pl-5">{count.toLocaleString()}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-3 pb-1">
@@ -222,10 +247,11 @@ function StepLegend({
 
 // ── Non-breakdown chart ───────────────────────────────────────────────────────
 
-function PlainFunnel({ steps }: { steps: FunnelStepResult[] }) {
+function PlainFunnel({ steps, compact }: { steps: FunnelStepResult[]; compact: boolean }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const color = SERIES_COLORS[0];
-  const bw = barWidthPx(1);
+  const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
+  const bw = barWidthPx(1, compact);
 
   const stepConvs = steps.map((s, i) => {
     if (i === 0) return null;
@@ -235,21 +261,20 @@ function PlainFunnel({ steps }: { steps: FunnelStepResult[] }) {
 
   return (
     <div className="flex items-start gap-0 select-none">
-      <YAxis />
+      <YAxis h={barH} />
 
       {steps.map((step, i) => {
         const isFirst = i === 0;
-        const isLast = i === steps.length - 1;
         const isHov = hovered === i;
 
         return (
           <div key={i} className="flex flex-col shrink-0">
             {/* Bar column */}
             <div
-              className={`relative px-4 ${!isFirst ? 'border-l border-dashed border-border/35' : ''}`}
-              style={{ height: BAR_AREA_H }}
+              className={`relative ${compact ? 'px-2' : 'px-4'} ${!isFirst ? 'border-l border-dashed border-border/35' : ''}`}
+              style={{ height: barH }}
             >
-              <GridLines />
+              <GridLines h={barH} />
               {/* Baseline */}
               <div className="absolute inset-x-0 bottom-0 border-t border-border/50 pointer-events-none" />
 
@@ -259,12 +284,12 @@ function PlainFunnel({ steps }: { steps: FunnelStepResult[] }) {
                 onMouseLeave={() => setHovered(null)}
               >
                 {isHov && <BarTooltip step={step} stepConv={stepConvs[i]} />}
-                <Bar color={color} conversionRate={step.conversion_rate} width={bw} hovered={isHov} />
+                <Bar color={color} conversionRate={step.conversion_rate} width={bw} height={barH} hovered={isHov} />
               </div>
             </div>
 
             {/* Legend */}
-            <div className={!isFirst ? 'border-l border-border/25' : ''}>
+            <div className={`${compact ? 'px-2' : 'px-4'} ${!isFirst ? 'border-l border-border/25' : ''}`}>
               <StepLegend
                 stepNum={step.step}
                 label={step.label}
@@ -274,7 +299,8 @@ function PlainFunnel({ steps }: { steps: FunnelStepResult[] }) {
                 dropOff={step.drop_off}
                 dropOffRate={step.drop_off_rate}
                 isFirst={isFirst}
-                isLast={isLast}
+                isLast={i === steps.length - 1}
+                compact={compact}
               />
             </div>
           </div>
@@ -289,11 +315,14 @@ function PlainFunnel({ steps }: { steps: FunnelStepResult[] }) {
 function BreakdownFunnel({
   steps,
   aggregateSteps,
+  compact,
 }: {
   steps: FunnelStepResult[];
   aggregateSteps: FunnelStepResult[];
+  compact: boolean;
 }) {
   const [hovered, setHovered] = useState<{ si: number; gi: number } | null>(null);
+  const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
 
   // Build: step_num → breakdown_value → FunnelStepResult
   const stepMap = new Map<number, Map<string, FunnelStepResult>>();
@@ -314,7 +343,7 @@ function BreakdownFunnel({
     (a, b) => (step1Map.get(b)?.count ?? 0) - (step1Map.get(a)?.count ?? 0),
   );
 
-  const bw = barWidthPx(groups.length);
+  const bw = barWidthPx(groups.length, compact);
 
   // Per-group step-to-step conversions (for tooltip "from prev" value)
   const groupConvs = new Map<string, (number | null)[]>();
@@ -350,22 +379,21 @@ function BreakdownFunnel({
 
       {/* Chart */}
       <div className="flex items-start gap-0">
-        <YAxis />
+        <YAxis h={barH} />
 
         {stepNums.map((sn, si) => {
           const byGroup = stepMap.get(sn)!;
           const agg = aggregateSteps[si];
           const isFirst = si === 0;
-          const isLast = si === stepNums.length - 1;
 
           return (
             <div key={sn} className="flex flex-col shrink-0">
               {/* Bars */}
               <div
                 className={`relative px-2 ${!isFirst ? 'border-l border-dashed border-border/35' : ''}`}
-                style={{ height: BAR_AREA_H }}
+                style={{ height: barH }}
               >
-                <GridLines />
+                <GridLines h={barH} />
                 <div className="absolute inset-x-0 bottom-0 border-t border-border/50 pointer-events-none" />
 
                 <div className="relative z-10 flex items-end gap-0.5 h-full">
@@ -378,7 +406,7 @@ function BreakdownFunnel({
                       <div
                         key={bv}
                         className="relative flex items-end cursor-default"
-                        style={{ height: BAR_AREA_H }}
+                        style={{ height: barH }}
                         onMouseEnter={() => setHovered({ si, gi })}
                         onMouseLeave={() => setHovered(null)}
                       >
@@ -389,6 +417,7 @@ function BreakdownFunnel({
                           color={color}
                           conversionRate={gs?.conversion_rate ?? 0}
                           width={bw}
+                          height={barH}
                           hovered={isHov}
                         />
                       </div>
@@ -398,7 +427,7 @@ function BreakdownFunnel({
               </div>
 
               {/* Legend — uses backend-computed aggregate totals */}
-              <div className={!isFirst ? 'border-l border-border/25' : ''}>
+              <div className={`px-2 ${!isFirst ? 'border-l border-border/25' : ''}`}>
                 <StepLegend
                   stepNum={sn}
                   label={agg?.label ?? ''}
@@ -408,7 +437,8 @@ function BreakdownFunnel({
                   dropOff={agg?.drop_off ?? 0}
                   dropOffRate={agg?.drop_off_rate ?? 0}
                   isFirst={isFirst}
-                  isLast={isLast}
+                  isLast={si === stepNums.length - 1}
+                  compact={compact}
                 />
               </div>
             </div>
@@ -421,9 +451,9 @@ function BreakdownFunnel({
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-export function FunnelChart({ steps, breakdown, aggregateSteps }: FunnelChartProps) {
+export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false }: FunnelChartProps) {
   if (steps.length === 0) return null;
-  if (!breakdown) return <PlainFunnel steps={steps} />;
+  if (!breakdown) return <PlainFunnel steps={steps} compact={compact} />;
 
   // Backend provides aggregate_steps; fall back to computing from steps for old cache entries
   const agg: FunnelStepResult[] = aggregateSteps ?? (() => {
@@ -435,8 +465,7 @@ export function FunnelChart({ steps, breakdown, aggregateSteps }: FunnelChartPro
       const total = totals.get(sn) ?? 0;
       const prev = i > 0 ? (totals.get(nums[i - 1]) ?? total) : total;
       const isFirst = i === 0;
-      const isLast = i === nums.length - 1;
-      const dropOff = isFirst || isLast ? 0 : prev - total;
+      const dropOff = isFirst ? 0 : prev - total;
       return {
         step: sn,
         label: steps.find((s) => s.step === sn)?.label ?? '',
@@ -444,11 +473,11 @@ export function FunnelChart({ steps, breakdown, aggregateSteps }: FunnelChartPro
         count: total,
         conversion_rate: base > 0 ? Math.round((total / base) * 1000) / 10 : 0,
         drop_off: dropOff,
-        drop_off_rate: prev > 0 && !isFirst && !isLast ? Math.round((dropOff / prev) * 1000) / 10 : 0,
+        drop_off_rate: prev > 0 && !isFirst ? Math.round((dropOff / prev) * 1000) / 10 : 0,
         avg_time_to_convert_seconds: null,
       };
     });
   })();
 
-  return <BreakdownFunnel steps={steps} aggregateSteps={agg} />;
+  return <BreakdownFunnel steps={steps} aggregateSteps={agg} compact={compact} />;
 }
