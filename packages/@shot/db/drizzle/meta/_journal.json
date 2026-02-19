@@ -15,6 +15,13 @@
       "when": 1771443681496,
       "tag": "0001_complex_mongu",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771501396598,
+      "tag": "0002_flashy_selene",
+      "breakpoints": true
     }
   ]
 }

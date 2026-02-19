@@ -11,6 +11,7 @@ import {
 } from '../constants';
 import { FlushService, type BufferedEvent } from './flush.service';
 import { PersonResolverService } from './person-resolver.service';
+import { PersonWriterService } from './person-writer.service';
 import { parseRedisFields } from './utils';
 import { lookupGeo } from './geo';
 
@@ -25,6 +26,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     @Inject(REDIS) private readonly redis: Redis,
     private readonly flushService: FlushService,
     private readonly personResolver: PersonResolverService,
+    private readonly personWriter: PersonWriterService,
     @InjectPinoLogger(EventConsumerService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -125,11 +127,27 @@ export class EventConsumerService implements OnApplicationBootstrap {
     const projectId = data.project_id || '';
 
     let personId: string;
+    let mergedFromPersonId: string | null = null;
+
     if (data.event_name === '$identify' && data.anonymous_id) {
-      personId = await this.personResolver.handleIdentify(projectId, data.distinct_id, data.anonymous_id);
+      const result = await this.personResolver.handleIdentify(projectId, data.distinct_id, data.anonymous_id);
+      personId = result.personId;
+      mergedFromPersonId = result.mergedFromPersonId;
     } else {
       personId = await this.personResolver.resolve(projectId, data.distinct_id);
     }
+
+    // Fire-and-forget: sync person profile to PostgreSQL, then merge if needed.
+    // mergePersons must run after syncPerson to guarantee the FK target exists.
+    this.personWriter
+      .syncPerson(projectId, personId, data.distinct_id, data.user_properties || '{}')
+      .then(() => {
+        if (mergedFromPersonId) {
+          return this.personWriter.mergePersons(projectId, mergedFromPersonId, personId);
+        }
+        return undefined;
+      })
+      .catch((err) => this.logger.error({ err, personId }, 'PersonWriter failed'));
 
     return {
       event_id: data.event_id || '',

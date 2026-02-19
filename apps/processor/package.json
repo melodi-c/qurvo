@@ -12,6 +12,8 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@shot/clickhouse": "workspace:*",
+    "@shot/db": "workspace:*",
+    "drizzle-orm": "^0.39.0",
     "geoip-lite": "^1.4.10",
     "dotenv": "^16.4.0",
     "ioredis": "^5.4.0",

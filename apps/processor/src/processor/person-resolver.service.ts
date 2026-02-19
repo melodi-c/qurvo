@@ -39,7 +39,7 @@ export class PersonResolverService {
 
   /**
    * Handles $identify: merges the anonymous person into the user's person.
-   * Returns the canonical person_id to stamp on the identify event.
+   * Returns the canonical person_id and the anon person_id that was merged (if any).
    *
    * Flow:
    *  1. Get or create person_id for user (distinct_id of the identify event).
@@ -47,7 +47,11 @@ export class PersonResolverService {
    *  3. If they differ → write an override so old anon events resolve to the user's person.
    *  4. Update Redis so future anon events get the user's person_id directly.
    */
-  async handleIdentify(projectId: string, userId: string, anonymousId: string): Promise<string> {
+  async handleIdentify(
+    projectId: string,
+    userId: string,
+    anonymousId: string,
+  ): Promise<{ personId: string; mergedFromPersonId: string | null }> {
     const userPersonId = await this.resolve(projectId, userId);
     const anonKey = this.redisKey(projectId, anonymousId);
     const anonPersonId = await this.redis.get(anonKey);
@@ -55,12 +59,12 @@ export class PersonResolverService {
     if (!anonPersonId) {
       // Anonymous user was never seen — just link it forward, no historical events to fix.
       await this.redis.set(anonKey, userPersonId);
-      return userPersonId;
+      return { personId: userPersonId, mergedFromPersonId: null };
     }
 
     if (anonPersonId === userPersonId) {
       // Already the same person, nothing to do.
-      return userPersonId;
+      return { personId: userPersonId, mergedFromPersonId: null };
     }
 
     // Different persons → write an override entry so query-time dict resolves
@@ -73,7 +77,7 @@ export class PersonResolverService {
       'Identity merged: anonymous person linked to user person',
     );
 
-    return userPersonId;
+    return { personId: userPersonId, mergedFromPersonId: anonPersonId };
   }
 
   private async writeOverride(projectId: string, distinctId: string, personId: string): Promise<void> {

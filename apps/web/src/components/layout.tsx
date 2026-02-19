@@ -4,13 +4,14 @@ import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LayoutDashboard, FolderOpen, Key, List, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Key, List, LogOut, Users } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboards', label: 'Dashboards', icon: LayoutDashboard },
   { path: '/projects', label: 'Projects', icon: FolderOpen },
   { path: '/keys', label: 'API Keys', icon: Key },
   { path: '/events', label: 'Events', icon: List },
+  { path: '/persons', label: 'Persons', icon: Users },
 ];
 
 export default function Layout() {

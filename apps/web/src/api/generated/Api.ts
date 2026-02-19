@@ -293,6 +293,29 @@ export interface UpdateWidget {
   layout?: WidgetLayout;
 }
 
+export interface Person {
+  properties: Record<string, any>;
+  distinct_ids: string[];
+  id: string;
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonsListResponse {
+  persons: Person[];
+  total: number;
+}
+
+export interface PersonEventRow {
+  event_id: string;
+  event_name: string;
+  distinct_id: string;
+  timestamp: string;
+  url: string;
+  properties: string;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -391,6 +414,45 @@ export interface DashboardsControllerRemoveWidgetParams {
   projectId: string;
   dashboardId: string;
   widgetId: string;
+}
+
+export interface PersonsControllerGetPersonsParams {
+  search?: string;
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+}
+
+export interface PersonsControllerGetPersonByIdParams {
+  project_id: string;
+  personId: string;
+}
+
+export interface PersonsControllerGetPersonEventsParams {
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+  personId: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -1131,6 +1193,69 @@ export class Api<
         path: `/api/projects/${projectId}/dashboards/${dashboardId}/widgets/${widgetId}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersons
+     * @request GET:/api/persons
+     * @secure
+     */
+    personsControllerGetPersons: (
+      query: PersonsControllerGetPersonsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonsListResponse, any>({
+        path: `/api/persons`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonById
+     * @request GET:/api/persons/{personId}
+     * @secure
+     */
+    personsControllerGetPersonById: (
+      { personId, ...query }: PersonsControllerGetPersonByIdParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Person, any>({
+        path: `/api/persons/${personId}`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonEvents
+     * @request GET:/api/persons/{personId}/events
+     * @secure
+     */
+    personsControllerGetPersonEvents: (
+      { personId, ...query }: PersonsControllerGetPersonEventsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonEventRow[], any>({
+        path: `/api/persons/${personId}/events`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
         ...params,
       }),
   };

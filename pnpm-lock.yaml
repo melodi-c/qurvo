@@ -172,9 +172,15 @@ importers:
       '@shot/clickhouse':
         specifier: workspace:*
         version: link:../../packages/@shot/clickhouse
+      '@shot/db':
+        specifier: workspace:*
+        version: link:../../packages/@shot/db
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.39.0
+        version: 0.39.3(postgres@3.4.8)
       geoip-lite:
         specifier: ^1.4.10
         version: 1.4.10

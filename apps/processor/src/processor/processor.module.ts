@@ -3,18 +3,22 @@ import Redis from 'ioredis';
 import { type ClickHouseClient } from '@shot/clickhouse';
 import { RedisProvider, REDIS } from '../providers/redis.provider';
 import { ClickHouseProvider, CLICKHOUSE } from '../providers/clickhouse.provider';
+import { DrizzleProvider } from '../providers/drizzle.provider';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
 import { EventConsumerService } from './event-consumer.service';
 import { PersonResolverService } from './person-resolver.service';
+import { PersonWriterService } from './person-writer.service';
 
 @Module({
   providers: [
     RedisProvider,
     ClickHouseProvider,
+    DrizzleProvider,
     FlushService,
     DlqService,
     PersonResolverService,
+    PersonWriterService,
     EventConsumerService,
   ],
 })

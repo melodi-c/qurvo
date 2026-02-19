@@ -6,3 +6,5 @@ export { projectMembers, projectRoleEnum } from './project-members';
 export { dashboards } from './dashboards';
 export { widgets } from './widgets';
 export type { WidgetLayout, WidgetStepFilter, FunnelWidgetStep, FunnelWidgetConfig, WidgetConfig } from './widgets';
+export { persons } from './persons';
+export { personDistinctIds } from './person-distinct-ids';

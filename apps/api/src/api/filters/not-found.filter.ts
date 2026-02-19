@@ -4,15 +4,17 @@ import { ProjectNotFoundException } from '../../projects/exceptions/project-not-
 import { ApiKeyNotFoundException } from '../../api-keys/exceptions/api-key-not-found.exception';
 import { DashboardNotFoundException } from '../../dashboards/exceptions/dashboard-not-found.exception';
 import { WidgetNotFoundException } from '../../dashboards/exceptions/widget-not-found.exception';
+import { PersonNotFoundException } from '../../persons/exceptions/person-not-found.exception';
 
-@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException)
+@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException)
 export class NotFoundFilter implements ExceptionFilter {
   catch(
     exception:
       | ProjectNotFoundException
       | ApiKeyNotFoundException
       | DashboardNotFoundException
-      | WidgetNotFoundException,
+      | WidgetNotFoundException
+      | PersonNotFoundException,
     host: ArgumentsHost,
   ) {
     const response = host.switchToHttp().getResponse<Response>();
