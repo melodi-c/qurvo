@@ -7,6 +7,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft } from 'lucide-react';
 import { api } from '@/api/client';
+import { EventTableRow } from '@/components/event-detail';
+import type { EventLike } from '@/components/event-detail';
+import type { PersonEventRow } from '@/api/generated/Api';
+
+function toEventLike(e: PersonEventRow): EventLike {
+  return {
+    ...e,
+    screen_width: e.screen_width ?? 0,
+    screen_height: e.screen_height ?? 0,
+  };
+}
 
 export default function PersonDetailPage() {
   const { personId } = useParams<{ personId: string }>();
@@ -14,6 +25,7 @@ export default function PersonDetailPage() {
   const projectId = searchParams.get('project') || '';
   const navigate = useNavigate();
   const [page, setPage] = useState(0);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const limit = 50;
 
   const { data: person, isLoading: personLoading } = useQuery({
@@ -133,9 +145,9 @@ export default function PersonDetailPage() {
         <CardHeader>
           <CardTitle className="text-sm font-medium">Event History</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {eventsLoading && (
-            <div className="space-y-2 py-2">
+            <div className="space-y-2 p-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
@@ -143,65 +155,40 @@ export default function PersonDetailPage() {
           )}
 
           {!eventsLoading && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-2 pr-4">Event</th>
-                    <th className="pb-2 pr-4">Identifier</th>
-                    <th className="pb-2 pr-4">Time</th>
-                    <th className="pb-2 pr-4">URL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(events ?? []).map((ev) => (
-                    <tr
-                      key={ev.event_id}
-                      className="border-b border-border hover:bg-muted/50"
-                    >
-                      <td className="py-2 pr-4 font-medium">{ev.event_name}</td>
-                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
-                        {ev.distinct_id}
-                      </td>
-                      <td className="py-2 pr-4 text-muted-foreground">
-                        {new Date(ev.timestamp).toLocaleString()}
-                      </td>
-                      <td className="py-2 pr-4 text-muted-foreground truncate max-w-xs">
-                        {ev.url}
-                      </td>
-                    </tr>
-                  ))}
-                  {(events ?? []).length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                        No events found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div>
+              {/* Header */}
+              <div className="grid grid-cols-[20px_1fr_80px_140px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
+                <span />
+                <span>Event</span>
+                <span>When</span>
+                <span>Browser</span>
+              </div>
+
+              {(events ?? []).map((ev) => (
+                <EventTableRow
+                  key={ev.event_id}
+                  event={toEventLike(ev)}
+                  expanded={expandedRow === ev.event_id}
+                  onToggle={() => setExpandedRow(expandedRow === ev.event_id ? null : ev.event_id)}
+                  showPerson={false}
+                />
+              ))}
+
+              {(events ?? []).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No events found</p>
+              )}
+
+              <div className="flex justify-between items-center px-4 py-3 border-t border-border">
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">Page {page + 1}</span>
+                <Button variant="outline" size="sm" disabled={(events ?? []).length < limit} onClick={() => setPage((p) => p + 1)}>
+                  Next
+                </Button>
+              </div>
             </div>
           )}
-
-          <div className="flex justify-between items-center mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 0}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <span className="text-sm text-muted-foreground">Page {page + 1}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={(events ?? []).length < limit}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>

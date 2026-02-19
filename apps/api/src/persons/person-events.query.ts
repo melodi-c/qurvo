@@ -10,15 +10,36 @@ export interface PersonEventsQueryParams {
 export interface PersonEventRow {
   event_id: string;
   event_name: string;
+  event_type: string;
   distinct_id: string;
+  person_id: string;
+  session_id: string;
   timestamp: string;
   url: string;
+  referrer: string;
+  page_title: string;
+  page_path: string;
+  device_type: string;
+  browser: string;
+  browser_version: string;
+  os: string;
+  os_version: string;
+  screen_width: number;
+  screen_height: number;
+  country: string;
+  region: string;
+  city: string;
+  language: string;
+  timezone: string;
+  sdk_name: string;
+  sdk_version: string;
   properties: string;
+  user_properties: string;
 }
 
 /**
  * Fetches the event timeline for a specific person.
- * Uses RESOLVED_PERSON to include events from merged anonymous identities.
+ * Uses person_overrides_dict to include events from merged anonymous identities.
  */
 export async function queryPersonEvents(
   ch: ClickHouseClient,
@@ -28,10 +49,31 @@ export async function queryPersonEvents(
     SELECT
       event_id,
       event_name,
+      event_type,
       distinct_id,
+      toString(person_id) AS person_id,
+      session_id,
       formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%S.000Z') AS timestamp,
-      JSONExtractString(properties, 'url') AS url,
-      properties
+      url,
+      referrer,
+      page_title,
+      page_path,
+      device_type,
+      browser,
+      browser_version,
+      os,
+      os_version,
+      screen_width,
+      screen_height,
+      country,
+      region,
+      city,
+      language,
+      timezone,
+      sdk_name,
+      sdk_version,
+      properties,
+      user_properties
     FROM events FINAL
     WHERE
       project_id = {project_id:UUID}
