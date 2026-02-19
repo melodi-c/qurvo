@@ -3,7 +3,7 @@ import { GripVertical } from 'lucide-react';
 import { useDashboardStore } from '../store';
 import { WidgetMenu } from './WidgetMenu';
 import { FunnelWidget } from './widgets/funnel/FunnelWidget';
-import type { Widget } from '../types';
+import type { Widget } from '@/api/generated/Api';
 
 export function WidgetCard({ widget }: { widget: Widget }) {
   const isEditing = useDashboardStore((s) => s.isEditing);

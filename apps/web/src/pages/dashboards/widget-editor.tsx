@@ -10,7 +10,7 @@ import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelStepBuilder } from '@/features/dashboard/components/widgets/funnel/FunnelStepBuilder';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
-import type { FunnelWidgetConfig, Widget } from '@/features/dashboard/types';
+import type { FunnelWidgetConfig, Widget } from '@/api/generated/Api';
 
 function defaultFunnelConfig(): FunnelWidgetConfig {
   const now = new Date();

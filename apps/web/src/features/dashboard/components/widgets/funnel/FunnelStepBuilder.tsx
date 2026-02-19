@@ -2,7 +2,7 @@ import { X, Plus, ArrowDown, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { EventNameCombobox } from './EventNameCombobox';
 import { StepFilterRow } from './StepFilterRow';
-import type { FunnelStep, StepFilter } from '@/features/dashboard/types';
+import type { FunnelStep, StepFilter } from '@/api/generated/Api';
 
 interface FunnelStepBuilderProps {
   steps: FunnelStep[];

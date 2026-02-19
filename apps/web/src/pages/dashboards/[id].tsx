@@ -8,7 +8,7 @@ import { useDashboardStore } from '@/features/dashboard/store';
 import { DashboardGrid } from '@/features/dashboard/components/DashboardGrid';
 import { AddWidgetDialog } from '@/features/dashboard/components/AddWidgetDialog';
 import { SaveBar } from '@/features/dashboard/components/SaveBar';
-import type { Widget } from '@/features/dashboard/types';
+import type { Widget } from '@/api/generated/Api';
 
 export default function DashboardBuilderPage() {
   const { id } = useParams<{ id: string }>();

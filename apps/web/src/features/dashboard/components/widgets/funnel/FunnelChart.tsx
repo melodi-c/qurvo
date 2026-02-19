@@ -8,7 +8,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
-import type { FunnelStepResult } from '@/features/dashboard/types';
+import type { FunnelStepResult } from '@/api/generated/Api';
 
 interface FunnelChartProps {
   steps: FunnelStepResult[];

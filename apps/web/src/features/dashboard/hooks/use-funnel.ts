@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { FunnelWidgetConfig, FunnelCacheEntry } from '../types';
+import type { FunnelWidgetConfig, FunnelResponse } from '@/api/generated/Api';
 
 const STALE_AFTER_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -38,7 +38,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   const hash = configHash(config);
   const queryKey = ['funnel', projectId, widgetId, hash];
 
-  const query = useQuery<FunnelCacheEntry>({
+  const query = useQuery<FunnelResponse>({
     queryKey,
     queryFn: () =>
       api.analyticsControllerGetFunnel({

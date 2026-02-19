@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { GitFork } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDashboardStore } from '../store';
-import type { WidgetType } from '../types';
+import type { CreateWidgetDtoTypeEnum } from '@/api/generated/Api';
 
 interface AddWidgetDialogProps {
   open: boolean;
@@ -10,7 +10,7 @@ interface AddWidgetDialogProps {
 }
 
 const WIDGET_TYPES: {
-  type: WidgetType;
+  type: CreateWidgetDtoTypeEnum;
   label: string;
   description: string;
   icon: typeof GitFork;
@@ -29,7 +29,7 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
   const projectId = searchParams.get('project') || '';
   const dashboardId = useDashboardStore((s) => s.dashboardId);
 
-  const handleTypeSelect = (type: WidgetType) => {
+  const handleTypeSelect = (type: CreateWidgetDtoTypeEnum) => {
     onClose();
     navigate(
       `/dashboards/${dashboardId}/widgets/new?type=${type}${projectId ? `&project=${projectId}` : ''}`,

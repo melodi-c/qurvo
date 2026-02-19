@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import type { Widget, RglItem, FunnelWidgetConfig } from './types';
+import type { Widget, FunnelWidgetConfig } from '@/api/generated/Api';
+
+export interface RglItem {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 interface DashboardStore {
   dashboardId: string | null;

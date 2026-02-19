@@ -1,8 +1,8 @@
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import type { StepFilter, FilterOperator } from '@/features/dashboard/types';
+import type { StepFilter, StepFilterDtoOperatorEnum } from '@/api/generated/Api';
 
-const OPERATORS: { value: FilterOperator; label: string }[] = [
+const OPERATORS: { value: StepFilterDtoOperatorEnum; label: string }[] = [
   { value: 'eq', label: '=' },
   { value: 'neq', label: '≠' },
   { value: 'contains', label: 'contains' },
@@ -11,7 +11,7 @@ const OPERATORS: { value: FilterOperator; label: string }[] = [
   { value: 'is_not_set', label: 'is not set' },
 ];
 
-const NO_VALUE_OPS = new Set<FilterOperator>(['is_set', 'is_not_set']);
+const NO_VALUE_OPS = new Set<StepFilterDtoOperatorEnum>(['is_set', 'is_not_set']);
 
 interface StepFilterRowProps {
   filter: StepFilter;
@@ -46,7 +46,7 @@ export function StepFilterRow({ filter, onChange, onRemove }: StepFilterRowProps
         <select
           value={filter.operator}
           onChange={(e) =>
-            onChange({ ...filter, operator: e.target.value as FilterOperator, value: '' })
+            onChange({ ...filter, operator: e.target.value as StepFilterDtoOperatorEnum, value: '' })
           }
           className="h-6 w-32 shrink-0 rounded-sm border border-border/60 bg-background px-1.5 text-xs text-foreground outline-none focus:border-ring cursor-pointer"
         >

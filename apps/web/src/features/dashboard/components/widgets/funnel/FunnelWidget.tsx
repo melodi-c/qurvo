@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelChart } from './FunnelChart';
-import type { Widget } from '@/features/dashboard/types';
+import type { Widget } from '@/api/generated/Api';
 import { formatDistanceToNow } from 'date-fns';
 
 interface FunnelWidgetProps {
