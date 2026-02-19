@@ -10,6 +10,7 @@ import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelStepBuilder } from '@/features/dashboard/components/widgets/funnel/FunnelStepBuilder';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
+import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import type { FunnelWidgetConfig, Widget } from '@/api/generated/Api';
 
 function defaultFunnelConfig(): FunnelWidgetConfig {
@@ -91,6 +92,7 @@ export default function WidgetEditorPage() {
   const previewId = isNew ? 'preview' : widgetId!;
   const { data, isLoading } = useFunnelData(config, previewId);
   const steps = data?.data.steps;
+  const breakdown = data?.data.breakdown;
 
   const isConfigValid =
     config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
@@ -132,9 +134,7 @@ export default function WidgetEditorPage() {
     }
   };
 
-  const overallConversion = steps && steps.length > 0 ? steps[steps.length - 1].conversion_rate : null;
-  const totalEntered = steps && steps.length > 0 ? steps[0].count : null;
-  const totalConverted = steps && steps.length > 0 ? steps[steps.length - 1].count : null;
+  const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(data?.data);
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
@@ -366,8 +366,8 @@ export default function WidgetEditorPage() {
               </div>
 
               {/* Chart */}
-              <div className="max-w-3xl">
-                <FunnelChart steps={steps} />
+              <div className="overflow-x-auto">
+                <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={data?.data.aggregate_steps} />
               </div>
             </div>
           )}

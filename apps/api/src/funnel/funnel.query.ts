@@ -44,7 +44,7 @@ export interface FunnelBreakdownStepResult extends FunnelStepResult {
 
 export type FunnelQueryResult =
   | { breakdown: false; steps: FunnelStepResult[] }
-  | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[] };
+  | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[]; aggregate_steps: FunnelStepResult[] };
 
 export interface FunnelQueryParams {
   project_id: string;
@@ -271,6 +271,35 @@ export async function queryFunnel(
       }
     }
 
-    return { breakdown: true, breakdown_property: params.breakdown_property, steps: stepResults };
+    // Aggregate totals per step across all breakdown groups
+    const stepTotalsMap = new Map<number, number>();
+    for (const r of stepResults) {
+      stepTotalsMap.set(r.step, (stepTotalsMap.get(r.step) ?? 0) + r.count);
+    }
+    const stepNumsSorted = [...stepTotalsMap.keys()].sort((a, b) => a - b);
+    const step1Total = stepTotalsMap.get(stepNumsSorted[0]) ?? 0;
+
+    const aggregate_steps: FunnelStepResult[] = stepNumsSorted.map((sn, idx) => {
+      const total = stepTotalsMap.get(sn) ?? 0;
+      const isFirst = idx === 0;
+      const isLast = idx === stepNumsSorted.length - 1;
+      const prevTotal = isFirst ? total : (stepTotalsMap.get(stepNumsSorted[idx - 1]) ?? total);
+      const dropOff = isFirst || isLast ? 0 : prevTotal - total;
+      const dropOffRate = !isFirst && !isLast && prevTotal > 0
+        ? Math.round((dropOff / prevTotal) * 1000) / 10
+        : 0;
+      return {
+        step: sn,
+        label: steps[idx]?.label ?? '',
+        event_name: steps[idx]?.event_name ?? '',
+        count: total,
+        conversion_rate: step1Total > 0 ? Math.round((total / step1Total) * 1000) / 10 : 0,
+        drop_off: dropOff,
+        drop_off_rate: dropOffRate,
+        avg_time_to_convert_seconds: null,
+      };
+    });
+
+    return { breakdown: true, breakdown_property: params.breakdown_property, steps: stepResults, aggregate_steps };
   }
 }

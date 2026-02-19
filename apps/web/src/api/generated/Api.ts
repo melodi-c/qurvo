@@ -183,6 +183,7 @@ export interface FunnelStepResult {
 
 export interface FunnelResult {
   breakdown_property?: string;
+  aggregate_steps?: FunnelStepResult[];
   breakdown: boolean;
   steps: FunnelStepResult[];
 }

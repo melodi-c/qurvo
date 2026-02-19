@@ -1,9 +1,21 @@
 import { useState } from 'react';
 import type { FunnelStepResult } from '@/api/generated/Api';
 
-interface FunnelChartProps {
+export interface FunnelChartProps {
   steps: FunnelStepResult[];
+  breakdown?: boolean;
+  aggregateSteps?: FunnelStepResult[];
 }
+
+// ── Constants & helpers ───────────────────────────────────────────────────────
+
+const BAR_AREA_H = 240;
+
+/** Hex colors for breakdown series (no opacity needed — applied per-element). */
+const SERIES_COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
+  '#ef4444', '#ec4899', '#06b6d4', '#84cc16',
+];
 
 function formatSeconds(s: number | null | undefined): string | null {
   if (s == null) return null;
@@ -12,35 +24,54 @@ function formatSeconds(s: number | null | undefined): string | null {
   return `${(s / 3600).toFixed(1)}h`;
 }
 
-const BAR_AREA_H = 240;
-
-interface TooltipProps {
-  step: FunnelStepResult;
-  stepConv: number | null;
+/** PostHog bar-width ladder based on number of series. */
+function barWidthPx(n: number): number {
+  if (n >= 20) return 8;
+  if (n >= 12) return 16;
+  if (n >= 8) return 24;
+  if (n >= 6) return 32;
+  if (n >= 5) return 40;
+  if (n >= 4) return 48;
+  if (n >= 3) return 64;
+  if (n >= 2) return 96;
+  return 96; // single series — cap at 96 so columns aren't enormous
 }
 
-function StepTooltip({ step, stepConv }: TooltipProps) {
-  const time = formatSeconds(step.avg_time_to_convert_seconds);
+// ── Shared sub-components ─────────────────────────────────────────────────────
+
+/** Y-axis percentage labels (100 → 0). */
+function YAxis() {
   return (
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-20 pointer-events-none">
-      <div className="bg-popover border border-border rounded-lg shadow-xl px-3.5 py-3 text-left min-w-[170px]">
-        <p className="text-[12px] font-semibold text-foreground mb-2 truncate">{step.label || step.event_name}</p>
-        <div className="space-y-1">
-          <Row label="Users" value={step.count.toLocaleString()} />
-          <Row label="From step 1" value={`${step.conversion_rate}%`} />
-          {stepConv !== null && <Row label="From prev step" value={`${stepConv}%`} />}
-          {step.drop_off > 0 && <Row label="Dropped off" value={step.drop_off.toLocaleString()} muted />}
-          {time && <Row label="Avg time" value={time} />}
-        </div>
-        {/* Arrow */}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-border" />
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-1px] w-0 h-0 border-x-[4px] border-x-transparent border-t-[4px] border-t-popover" />
-      </div>
+    <div
+      className="flex flex-col justify-between pr-3 shrink-0 select-none"
+      style={{ height: BAR_AREA_H }}
+    >
+      {['100%', '80%', '60%', '40%', '20%', ''].map((l, i) => (
+        <span key={i} className="text-[10px] font-medium text-muted-foreground/40 leading-none">
+          {l}
+        </span>
+      ))}
     </div>
   );
 }
 
-function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+/** Five dashed horizontal grid lines at 20 % intervals. */
+function GridLines() {
+  return (
+    <>
+      {[20, 40, 60, 80].map((pct) => (
+        <div
+          key={pct}
+          className="absolute inset-x-0 border-t border-dashed border-border/20 pointer-events-none"
+          style={{ bottom: `${pct}%` }}
+        />
+      ))}
+    </>
+  );
+}
+
+/** Tooltip row. */
+function TRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-[11px] text-muted-foreground">{label}</span>
@@ -51,123 +82,373 @@ function Row({ label, value, muted }: { label: string; value: string; muted?: bo
   );
 }
 
-export function FunnelChart({ steps }: FunnelChartProps) {
+/** Tooltip card shown on bar hover. */
+function BarTooltip({
+  step,
+  stepConv,
+  title,
+}: {
+  step: FunnelStepResult;
+  stepConv: number | null;
+  title?: string;
+}) {
+  const time = formatSeconds(step.avg_time_to_convert_seconds);
+  return (
+    <div className="absolute bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+      <div className="bg-popover border border-border rounded-lg shadow-xl px-3.5 py-3 min-w-[165px]">
+        <p className="text-[12px] font-semibold text-foreground mb-2 leading-snug">
+          {title ?? step.label ?? step.event_name}
+        </p>
+        <div className="space-y-1">
+          <TRow label="Users" value={step.count.toLocaleString()} />
+          <TRow label="From step 1" value={`${step.conversion_rate}%`} />
+          {stepConv !== null && <TRow label="From prev" value={`${stepConv}%`} />}
+          {step.drop_off > 0 && <TRow label="Dropped" value={step.drop_off.toLocaleString()} muted />}
+          {time && <TRow label="Avg time" value={time} />}
+        </div>
+        {/* Arrow */}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-border" />
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-1px] w-0 h-0 border-x-[4px] border-x-transparent border-t-[4px] border-t-popover" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A single PostHog-style bar: striped semi-transparent backdrop (full height,
+ * represents drop-off space) + solid fill anchored to the bottom (conversion).
+ */
+function Bar({
+  color,
+  conversionRate,
+  width,
+  hovered,
+}: {
+  color: string;
+  conversionRate: number;
+  width: number;
+  hovered: boolean;
+}) {
+  return (
+    <div className="relative shrink-0 rounded-sm" style={{ width, height: BAR_AREA_H }}>
+      {/* Backdrop — striped, full height, drop-off space */}
+      <div
+        className="absolute inset-0 rounded-sm transition-opacity duration-200"
+        style={{
+          background: `repeating-linear-gradient(
+            -22.5deg,
+            transparent, transparent 4px,
+            rgba(255,255,255,0.28) 4px, rgba(255,255,255,0.28) 8px
+          ), ${color}`,
+          opacity: hovered ? 0.22 : 0.12,
+        }}
+      />
+      {/* Fill — solid color, height = conversion rate */}
+      <div
+        className="absolute bottom-0 inset-x-0 rounded-sm transition-all duration-200"
+        style={{
+          height: `${Math.max(conversionRate, 0)}%`,
+          background: color,
+          filter: hovered ? 'brightness(0.85)' : 'none',
+        }}
+      />
+    </div>
+  );
+}
+
+/** Step legend below a column — mirrors PostHog's StepLegend. */
+function StepLegend({
+  stepNum,
+  label,
+  eventName,
+  count,
+  conversionRate,
+  dropOff,
+  dropOffRate,
+  isFirst,
+  isLast,
+}: {
+  stepNum: number;
+  label: string;
+  eventName: string;
+  count: number;
+  conversionRate: number;
+  dropOff: number;
+  dropOffRate: number;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const displayName = label || eventName;
+  const showEvent = label && label !== eventName;
+
+  return (
+    <div className="pt-3 pb-1">
+      {/* Step number + name */}
+      <div className="flex items-start gap-1.5 mb-2">
+        <div className="w-5 h-5 rounded-full bg-muted/60 text-[10px] font-bold flex items-center justify-center shrink-0 mt-px text-muted-foreground">
+          {stepNum}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-semibold text-foreground leading-tight break-words">{displayName}</p>
+          {showEvent && (
+            <p className="text-[10px] text-muted-foreground/60 leading-tight mt-0.5 break-words">{eventName}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="space-y-0.5 pl-[26px]">
+        <div className="flex items-center gap-1.5 text-emerald-500">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+            <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[12px] font-semibold tabular-nums text-foreground">{count.toLocaleString()}</span>
+          {!isFirst && <span className="text-[11px] text-muted-foreground">({conversionRate}%)</span>}
+        </div>
+
+        {!isFirst && !isLast && dropOff > 0 && (
+          <div className="flex items-center gap-1.5 text-red-400">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+              <path d="M2 5h10M8 9l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-[12px] font-medium tabular-nums text-muted-foreground">{dropOff.toLocaleString()}</span>
+            <span className="text-[11px] text-muted-foreground">({dropOffRate}%)</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Non-breakdown chart ───────────────────────────────────────────────────────
+
+function PlainFunnel({ steps }: { steps: FunnelStepResult[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
+  const color = SERIES_COLORS[0];
+  const bw = barWidthPx(1);
 
-  if (steps.length === 0) return null;
-
-  const first = steps[0].count;
-
-  // Pre-compute step-to-step conversions
-  const stepConvs = steps.map((step, i) => {
+  const stepConvs = steps.map((s, i) => {
     if (i === 0) return null;
     const prev = steps[i - 1];
-    return prev.count > 0 ? Math.round((step.count / prev.count) * 1000) / 10 : 0;
+    return prev.count > 0 ? Math.round((s.count / prev.count) * 1000) / 10 : 0;
   });
 
   return (
-    <div className="w-full select-none">
+    <div className="flex items-start gap-0 select-none">
+      <YAxis />
 
-      {/* ── Bar zone ─────────────────────────────────────────────── */}
-      <div className="flex items-end gap-px w-full border-b border-border/25">
-        {steps.map((step, i) => {
-          const ratio = first > 0 ? step.count / first : 0;
-          const barH = Math.max(Math.round(ratio * BAR_AREA_H), 3);
-          const isHov = hovered === i;
+      {steps.map((step, i) => {
+        const isFirst = i === 0;
+        const isLast = i === steps.length - 1;
+        const isHov = hovered === i;
+
+        return (
+          <div key={i} className="flex flex-col shrink-0">
+            {/* Bar column */}
+            <div
+              className={`relative px-4 ${!isFirst ? 'border-l border-dashed border-border/35' : ''}`}
+              style={{ height: BAR_AREA_H }}
+            >
+              <GridLines />
+              {/* Baseline */}
+              <div className="absolute inset-x-0 bottom-0 border-t border-border/50 pointer-events-none" />
+
+              <div
+                className="relative z-10 flex items-end h-full cursor-default"
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                {isHov && <BarTooltip step={step} stepConv={stepConvs[i]} />}
+                <Bar color={color} conversionRate={step.conversion_rate} width={bw} hovered={isHov} />
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className={!isFirst ? 'border-l border-border/25' : ''}>
+              <StepLegend
+                stepNum={step.step}
+                label={step.label}
+                eventName={step.event_name}
+                count={step.count}
+                conversionRate={step.conversion_rate}
+                dropOff={step.drop_off}
+                dropOffRate={step.drop_off_rate}
+                isFirst={isFirst}
+                isLast={isLast}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Breakdown chart ───────────────────────────────────────────────────────────
+
+function BreakdownFunnel({
+  steps,
+  aggregateSteps,
+}: {
+  steps: FunnelStepResult[];
+  aggregateSteps: FunnelStepResult[];
+}) {
+  const [hovered, setHovered] = useState<{ si: number; gi: number } | null>(null);
+
+  // Build: step_num → breakdown_value → FunnelStepResult
+  const stepMap = new Map<number, Map<string, FunnelStepResult>>();
+  const insertOrder: string[] = [];
+
+  for (const s of steps) {
+    const bv = s.breakdown_value ?? '(none)';
+    if (!stepMap.has(s.step)) stepMap.set(s.step, new Map());
+    stepMap.get(s.step)!.set(bv, s);
+    if (!insertOrder.includes(bv)) insertOrder.push(bv);
+  }
+
+  const stepNums = [...stepMap.keys()].sort((a, b) => a - b);
+  const step1Map = stepMap.get(stepNums[0]) ?? new Map();
+
+  // Sort groups by step-1 count desc
+  const groups = [...insertOrder].sort(
+    (a, b) => (step1Map.get(b)?.count ?? 0) - (step1Map.get(a)?.count ?? 0),
+  );
+
+  const bw = barWidthPx(groups.length);
+
+  // Per-group step-to-step conversions (for tooltip "from prev" value)
+  const groupConvs = new Map<string, (number | null)[]>();
+  for (const gv of groups) {
+    groupConvs.set(
+      gv,
+      stepNums.map((sn, i) => {
+        if (i === 0) return null;
+        const prev = stepMap.get(stepNums[i - 1])?.get(gv);
+        const curr = stepMap.get(sn)?.get(gv);
+        if (!prev || !curr) return null;
+        return prev.count > 0 ? Math.round((curr.count / prev.count) * 1000) / 10 : 0;
+      }),
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0 select-none">
+      {/* Color legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-5">
+        {groups.map((bv, idx) => {
+          const color = SERIES_COLORS[idx % SERIES_COLORS.length];
+          const count = step1Map.get(bv)?.count ?? 0;
+          return (
+            <div key={bv} className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
+              <span className="text-[12px] font-medium text-foreground">{bv}</span>
+              <span className="text-[11px] text-muted-foreground">({count.toLocaleString()})</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Chart */}
+      <div className="flex items-start gap-0">
+        <YAxis />
+
+        {stepNums.map((sn, si) => {
+          const byGroup = stepMap.get(sn)!;
+          const agg = aggregateSteps[si];
+          const isFirst = si === 0;
+          const isLast = si === stepNums.length - 1;
 
           return (
-            <div
-              key={i}
-              className="relative flex-1 min-w-0 flex flex-col items-center cursor-default"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {/* Tooltip */}
-              {isHov && <StepTooltip step={step} stepConv={stepConvs[i]} />}
+            <div key={sn} className="flex flex-col shrink-0">
+              {/* Bars */}
+              <div
+                className={`relative px-2 ${!isFirst ? 'border-l border-dashed border-border/35' : ''}`}
+                style={{ height: BAR_AREA_H }}
+              >
+                <GridLines />
+                <div className="absolute inset-x-0 bottom-0 border-t border-border/50 pointer-events-none" />
 
-              {/* Labels above bar */}
-              <div className="mb-3 text-center">
-                <div
-                  className={`text-[15px] font-bold tabular-nums leading-tight transition-colors ${
-                    isHov ? 'text-foreground' : 'text-foreground/85'
-                  }`}
-                >
-                  {step.count.toLocaleString()}
-                </div>
-                <div
-                  className={`text-[11px] tabular-nums leading-tight mt-0.5 transition-colors ${
-                    isHov ? 'text-muted-foreground' : 'text-muted-foreground/50'
-                  }`}
-                >
-                  {step.conversion_rate}%
+                <div className="relative z-10 flex items-end gap-0.5 h-full">
+                  {groups.map((bv, gi) => {
+                    const gs = byGroup.get(bv);
+                    const isHov = hovered?.si === si && hovered?.gi === gi;
+                    const color = SERIES_COLORS[gi % SERIES_COLORS.length];
+
+                    return (
+                      <div
+                        key={bv}
+                        className="relative flex items-end cursor-default"
+                        style={{ height: BAR_AREA_H }}
+                        onMouseEnter={() => setHovered({ si, gi })}
+                        onMouseLeave={() => setHovered(null)}
+                      >
+                        {isHov && gs && (
+                          <BarTooltip step={gs} stepConv={groupConvs.get(bv)?.[si] ?? null} title={bv} />
+                        )}
+                        <Bar
+                          color={color}
+                          conversionRate={gs?.conversion_rate ?? 0}
+                          width={bw}
+                          hovered={isHov}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Bar container — negative space at top is intentional */}
-              <div className="relative w-full" style={{ height: BAR_AREA_H }}>
-                {/* Filled portion — anchored to bottom */}
-                <div
-                  className="absolute inset-x-0 bottom-0 rounded-t-[3px] transition-all duration-100"
-                  style={{
-                    height: barH,
-                    background: isHov
-                      ? 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)'
-                      : 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)',
-                  }}
+              {/* Legend — uses backend-computed aggregate totals */}
+              <div className={!isFirst ? 'border-l border-border/25' : ''}>
+                <StepLegend
+                  stepNum={sn}
+                  label={agg?.label ?? ''}
+                  eventName={agg?.event_name ?? ''}
+                  count={agg?.count ?? 0}
+                  conversionRate={agg?.conversion_rate ?? 0}
+                  dropOff={agg?.drop_off ?? 0}
+                  dropOffRate={agg?.drop_off_rate ?? 0}
+                  isFirst={isFirst}
+                  isLast={isLast}
                 />
               </div>
             </div>
           );
         })}
       </div>
-
-      {/* ── Label zone ─────────────────────────────────────────────── */}
-      {/* Mirrors bar zone structure: same flex-1 columns + gap-px */}
-      <div className="flex items-start gap-px w-full mt-0">
-        {steps.map((step, i) => {
-          const isHov = hovered === i;
-          const conv = stepConvs[i];
-
-          return (
-            <div
-              key={i}
-              className="flex-1 min-w-0 flex flex-col items-center pt-2.5 pb-1 cursor-default"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {/* Step-to-step conversion badge — shown above label for all except first */}
-              {conv !== null ? (
-                <div className="mb-2 flex items-center gap-1">
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="shrink-0">
-                    <path
-                      d="M0 4h7M5 1.5l3 2.5-3 2.5"
-                      stroke="currentColor"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-muted-foreground/30"
-                    />
-                  </svg>
-                  <span className="text-[10px] font-medium text-muted-foreground/50 tabular-nums">
-                    {conv}%
-                  </span>
-                </div>
-              ) : (
-                <div className="mb-2 h-[18px]" /> /* placeholder for first step */
-              )}
-
-              {/* Step label */}
-              <span
-                className={`text-[11px] font-medium text-center leading-snug transition-colors break-words px-1 ${
-                  isHov ? 'text-foreground' : 'text-muted-foreground/70'
-                }`}
-              >
-                {step.label || step.event_name}
-              </span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+export function FunnelChart({ steps, breakdown, aggregateSteps }: FunnelChartProps) {
+  if (steps.length === 0) return null;
+  if (!breakdown) return <PlainFunnel steps={steps} />;
+
+  // Backend provides aggregate_steps; fall back to computing from steps for old cache entries
+  const agg: FunnelStepResult[] = aggregateSteps ?? (() => {
+    const totals = new Map<number, number>();
+    for (const s of steps) totals.set(s.step, (totals.get(s.step) ?? 0) + s.count);
+    const nums = [...totals.keys()].sort((a, b) => a - b);
+    const base = totals.get(nums[0]) ?? 0;
+    return nums.map((sn, i) => {
+      const total = totals.get(sn) ?? 0;
+      const prev = i > 0 ? (totals.get(nums[i - 1]) ?? total) : total;
+      const isFirst = i === 0;
+      const isLast = i === nums.length - 1;
+      const dropOff = isFirst || isLast ? 0 : prev - total;
+      return {
+        step: sn,
+        label: steps.find((s) => s.step === sn)?.label ?? '',
+        event_name: steps.find((s) => s.step === sn)?.event_name ?? '',
+        count: total,
+        conversion_rate: base > 0 ? Math.round((total / base) * 1000) / 10 : 0,
+        drop_off: dropOff,
+        drop_off_rate: prev > 0 && !isFirst && !isLast ? Math.round((dropOff / prev) * 1000) / 10 : 0,
+        avg_time_to_convert_seconds: null,
+      };
+    });
+  })();
+
+  return <BreakdownFunnel steps={steps} aggregateSteps={agg} />;
 }

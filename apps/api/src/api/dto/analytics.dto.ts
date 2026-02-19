@@ -103,6 +103,9 @@ export class FunnelResultDto {
   @ApiPropertyOptional() breakdown_property?: string;
   @Type(() => FunnelStepResultDto)
   steps: FunnelStepResultDto[];
+  @ApiPropertyOptional()
+  @Type(() => FunnelStepResultDto)
+  aggregate_steps?: FunnelStepResultDto[];
 }
 
 export class FunnelResponseDto {

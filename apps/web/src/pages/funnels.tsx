@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelStepBuilder } from '@/features/dashboard/components/widgets/funnel/FunnelStepBuilder';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
+import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 function defaultConfig(): FunnelWidgetConfig {
@@ -67,11 +68,11 @@ export default function FunnelsPage() {
     config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
 
   const { data, isLoading } = useFunnelData(config, 'funnels-page');
-  const steps = data?.data.steps;
+  const funnelResult = data?.data;
+  const steps = funnelResult?.steps;
+  const breakdown = funnelResult?.breakdown;
 
-  const overallConversion = steps && steps.length > 0 ? steps[steps.length - 1].conversion_rate : null;
-  const totalEntered = steps && steps.length > 0 ? steps[0].count : null;
-  const totalConverted = steps && steps.length > 0 ? steps[steps.length - 1].count : null;
+  const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(funnelResult);
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
@@ -256,7 +257,7 @@ export default function FunnelsPage() {
               </div>
               {/* Chart */}
               <div className="flex-1 overflow-auto p-6 pt-8">
-                <FunnelChart steps={steps} />
+                <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={funnelResult?.aggregate_steps} />
               </div>
             </div>
           )}

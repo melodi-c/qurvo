@@ -63,6 +63,8 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   }
 
   const steps = data.data.steps;
+  const breakdown = data.data.breakdown;
+  const aggregateSteps = data.data.aggregate_steps;
 
   if (steps.length === 0) {
     return (
@@ -96,7 +98,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <FunnelChart steps={steps} />
+        <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={aggregateSteps} />
       </div>
     </div>
   );
