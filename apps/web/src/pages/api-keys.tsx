@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/api/client';
 import { Plus, Key, Copy, Check } from 'lucide-react';
 
@@ -91,7 +92,13 @@ export default function ApiKeysPage() {
         </Card>
       )}
 
-      {isLoading && <p className="text-muted-foreground">Loading...</p>}
+      {isLoading && (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      )}
 
       <div className="space-y-3">
         {(keys || []).map((key) => (

@@ -2,12 +2,15 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import Layout from '@/components/layout';
 import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
 import DashboardPage from '@/pages/dashboard';
 import DashboardsPage from '@/pages/dashboards/index';
 import DashboardBuilderPage from '@/pages/dashboards/[id]';
+import WidgetEditorPage from '@/pages/dashboards/widget-editor';
 import ProjectsPage from '@/pages/projects';
 import ApiKeysPage from '@/pages/api-keys';
 import EventsPage from '@/pages/events';
@@ -46,6 +49,8 @@ function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/dashboards" element={<DashboardsPage />} />
         <Route path="/dashboards/:id" element={<DashboardBuilderPage />} />
+        <Route path="/dashboards/:id/widgets/new" element={<WidgetEditorPage />} />
+        <Route path="/dashboards/:id/widgets/:widgetId" element={<WidgetEditorPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/keys" element={<ApiKeysPage />} />
         <Route path="/events" element={<EventsPage />} />
@@ -58,7 +63,10 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppRoutes />
+        <TooltipProvider>
+          <AppRoutes />
+          <Toaster />
+        </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

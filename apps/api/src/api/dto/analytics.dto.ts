@@ -12,8 +12,25 @@ import {
   IsOptional,
   IsUUID,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
+
+export class StepFilterDto {
+  @IsString()
+  @IsNotEmpty()
+  property: string;
+
+  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set'])
+  operator: FilterOperator;
+
+  @IsString()
+  @IsOptional()
+  value?: string;
+}
 
 export class FunnelStepDto {
   @IsString()
@@ -23,6 +40,12 @@ export class FunnelStepDto {
   @IsString()
   @IsNotEmpty()
   label: string;
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  filters?: StepFilterDto[];
 }
 
 export class FunnelQueryDto {
@@ -87,4 +110,62 @@ export class FunnelResponseDto {
   data: FunnelResultDto;
   cached_at: string;
   from_cache: boolean;
+}
+
+export class EventsQueryDto {
+  @IsUUID()
+  project_id: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  event_name?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  distinct_id?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  date_from?: string;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  date_to?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  limit?: number = 50;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  offset?: number = 0;
+}
+
+export class EventRowDto {
+  event_id: string;
+  event_name: string;
+  distinct_id: string;
+  timestamp: string;
+  url: string;
+  properties: string;
+}
+
+export class EventNamesQueryDto {
+  @IsUUID()
+  project_id: string;
+}
+
+export class EventNamesResponseDto {
+  event_names: string[];
 }

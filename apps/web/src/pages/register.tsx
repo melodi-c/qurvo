@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 export default function RegisterPage() {
@@ -40,16 +41,16 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Your Name</label>
-              <Input value={form.display_name} onChange={update('display_name')} required />
+              <Label htmlFor="name">Your Name</Label>
+              <Input id="name" value={form.display_name} onChange={update('display_name')} required />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" value={form.email} onChange={update('email')} required />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={form.email} onChange={update('email')} required />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
-              <Input type="password" value={form.password} onChange={update('password')} required minLength={8} />
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={form.password} onChange={update('password')} required minLength={8} />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating...' : 'Create Account'}

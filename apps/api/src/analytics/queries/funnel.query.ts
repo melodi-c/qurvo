@@ -11,9 +11,18 @@ function toChTs(iso: string): string {
 const RESOLVED_PERSON =
   `coalesce(dictGetOrNull('shot_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
+export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
+
+export interface StepFilter {
+  property: string;
+  operator: FilterOperator;
+  value?: string;
+}
+
 export interface FunnelStep {
   event_name: string;
   label: string;
+  filters?: StepFilter[];
 }
 
 export interface FunnelStepResult {
@@ -49,13 +58,59 @@ const TOP_LEVEL_COLUMNS = new Set([
   'browser_version', 'os', 'os_version', 'language',
 ]);
 
-function resolveBreakdownExpr(prop: string): string {
+function resolvePropertyExpr(prop: string): string {
   if (prop.startsWith('properties.')) {
     const key = prop.slice('properties.'.length).replace(/'/g, "\\'");
     return `JSONExtractString(properties, '${key}')`;
   }
+  if (prop.startsWith('user_properties.')) {
+    const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
+    return `JSONExtractString(user_properties, '${key}')`;
+  }
   if (TOP_LEVEL_COLUMNS.has(prop)) return prop;
   return prop;
+}
+
+function resolveBreakdownExpr(prop: string): string {
+  return resolvePropertyExpr(prop);
+}
+
+/** Builds the windowFunnel condition for one step, injecting filter params into queryParams. */
+function buildStepCondition(
+  step: FunnelStep,
+  idx: number,
+  queryParams: Record<string, unknown>,
+): string {
+  const parts = [`event_name = {step_${idx}:String}`];
+  for (const [j, filter] of (step.filters ?? []).entries()) {
+    const expr = resolvePropertyExpr(filter.property);
+    const paramKey = `step_${idx}_f${j}_v`;
+    switch (filter.operator) {
+      case 'eq':
+        queryParams[paramKey] = filter.value ?? '';
+        parts.push(`${expr} = {${paramKey}:String}`);
+        break;
+      case 'neq':
+        queryParams[paramKey] = filter.value ?? '';
+        parts.push(`${expr} != {${paramKey}:String}`);
+        break;
+      case 'contains':
+        queryParams[paramKey] = `%${filter.value ?? ''}%`;
+        parts.push(`${expr} LIKE {${paramKey}:String}`);
+        break;
+      case 'not_contains':
+        queryParams[paramKey] = `%${filter.value ?? ''}%`;
+        parts.push(`${expr} NOT LIKE {${paramKey}:String}`);
+        break;
+      case 'is_set':
+        parts.push(`${expr} != ''`);
+        break;
+      case 'is_not_set':
+        parts.push(`(${expr} = '' OR isNull(${expr}))`);
+        break;
+    }
+  }
+  return parts.join(' AND ');
 }
 
 export async function queryFunnel(
@@ -78,7 +133,7 @@ export async function queryFunnel(
     queryParams[`step_${i}`] = s.event_name;
   });
 
-  const stepConditions = steps.map((_, i) => `event_name = {step_${i}:String}`).join(', ');
+  const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
   if (!params.breakdown_property) {
     // Non-breakdown funnel: count users per step + time-to-convert for full completions

@@ -4,6 +4,7 @@ import { useDashboardList, useCreateDashboard, useDeleteDashboard } from '@/feat
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, LayoutDashboard, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { DashboardWithWidgets } from '@/features/dashboard/types';
@@ -76,10 +77,11 @@ export default function DashboardsPage() {
         </Card>
       )}
 
-      {isLoading && <p className="text-muted-foreground text-sm">Loading...</p>}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(dashboards || []).map((dashboard) => {
+        {isLoading && Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+        {!isLoading && (dashboards || []).map((dashboard) => {
           const d = dashboard as unknown as DashboardWithWidgets;
           return (
             <Card

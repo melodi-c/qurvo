@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LayoutDashboard, FolderOpen, Key, List, LogOut } from 'lucide-react';
 
 const navItems = [
@@ -34,17 +35,20 @@ export default function Layout() {
         </div>
 
         <div className="p-3 border-b border-border">
-          <label className="text-xs text-muted-foreground mb-1 block">Project</label>
-          <select
-            className="w-full bg-muted border border-input rounded-md px-2 py-1.5 text-sm"
-            value={currentProject || ''}
-            onChange={(e) => setSearchParams({ project: e.target.value })}
+          <p className="text-xs text-muted-foreground mb-1">Project</p>
+          <Select
+            value={currentProject ?? undefined}
+            onValueChange={(value) => setSearchParams({ project: value })}
           >
-            <option value="">Select project...</option>
-            {(projects || []).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full text-sm h-8">
+              <SelectValue placeholder="Select project..." />
+            </SelectTrigger>
+            <SelectContent>
+              {(projects || []).map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <nav className="flex-1 p-2 space-y-1">

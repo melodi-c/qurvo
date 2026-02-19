@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/api/client';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -56,7 +57,13 @@ export default function EventsPage() {
           <CardTitle className="text-sm font-medium">Events</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading && <p className="text-muted-foreground">Loading...</p>}
+          {isLoading && (
+            <div className="space-y-2 py-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-full" />
+              ))}
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

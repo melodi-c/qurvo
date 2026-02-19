@@ -1,8 +1,9 @@
 import { RefreshCw } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
-import { FunnelEditor } from './FunnelEditor';
 import { FunnelChart } from './FunnelChart';
 import type { Widget, FunnelWidgetConfig, FunnelStepResult } from '@/features/dashboard/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -12,32 +13,18 @@ interface FunnelWidgetProps {
 }
 
 export function FunnelWidget({ widget }: FunnelWidgetProps) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project') || '';
   const isEditing = useDashboardStore((s) => s.isEditing);
-  const editingWidgetId = useDashboardStore((s) => s.editingWidgetId);
-  const updateWidgetConfig = useDashboardStore((s) => s.updateWidgetConfig);
-  const setEditingWidget = useDashboardStore((s) => s.setEditingWidget);
+  const dashboardId = useDashboardStore((s) => s.dashboardId);
 
   const config = widget.config as FunnelWidgetConfig;
-  const isConfiguring = isEditing && editingWidgetId === widget.id;
-
   const { data, isLoading, isFetching, error, refresh } = useFunnelData(config, widget.id);
 
-  const handleConfigSave = (newConfig: FunnelWidgetConfig, newName: string) => {
-    updateWidgetConfig(widget.id, newConfig, newName);
+  const handleConfigure = () => {
+    navigate(`/dashboards/${dashboardId}/widgets/${widget.id}?project=${projectId}`);
   };
-
-  if (isConfiguring) {
-    return (
-      <div className="h-full overflow-auto">
-        <FunnelEditor
-          initialConfig={config}
-          initialName={widget.name}
-          onSave={handleConfigSave}
-          onCancel={() => setEditingWidget(null)}
-        />
-      </div>
-    );
-  }
 
   if (config.steps.length < 2 || config.steps.some((s) => !s.event_name.trim())) {
     return (
@@ -46,7 +33,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
           Configure funnel steps to see data
         </p>
         {isEditing && (
-          <Button size="sm" variant="ghost" onClick={() => setEditingWidget(widget.id)}>
+          <Button size="sm" variant="ghost" onClick={handleConfigure}>
             Configure
           </Button>
         )}
@@ -56,9 +43,10 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-        Loading...
+      <div className="flex flex-col gap-3 p-2 h-full justify-center">
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-4/5" />
+        <Skeleton className="h-5 w-3/5" />
       </div>
     );
   }
@@ -75,6 +63,15 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   }
 
   const steps = data.data.steps as FunnelStepResult[];
+
+  if (steps.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-1 text-center">
+        <p className="text-muted-foreground text-sm">No events found</p>
+        <p className="text-muted-foreground/60 text-xs">Try adjusting the date range or steps</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col gap-1 min-h-0">

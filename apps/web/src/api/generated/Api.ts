@@ -135,9 +135,16 @@ export interface ApiKeyCreated {
   created_at: string;
 }
 
+export interface StepFilter {
+  property: string;
+  operator: StepFilterDtoOperatorEnum;
+  value?: string;
+}
+
 export interface FunnelStep {
   event_name: string;
   label: string;
+  filters?: StepFilter[];
 }
 
 export interface FunnelQuery {
@@ -172,6 +179,19 @@ export interface FunnelResponse {
   data: FunnelResult;
   cached_at: string;
   from_cache: boolean;
+}
+
+export interface EventRow {
+  event_id: string;
+  event_name: string;
+  distinct_id: string;
+  timestamp: string;
+  url: string;
+  properties: string;
+}
+
+export interface EventNamesResponse {
+  event_names: string[];
 }
 
 export interface CreateDashboard {
@@ -218,6 +238,15 @@ export interface UpdateWidget {
   layout?: WidgetLayout;
 }
 
+export enum StepFilterDtoOperatorEnum {
+  Eq = "eq",
+  Neq = "neq",
+  Contains = "contains",
+  NotContains = "not_contains",
+  IsSet = "is_set",
+  IsNotSet = "is_not_set",
+}
+
 export enum CreateWidgetDtoTypeEnum {
   Funnel = "funnel",
 }
@@ -245,6 +274,31 @@ export interface ApiKeysControllerCreateParams {
 export interface ApiKeysControllerRevokeParams {
   projectId: string;
   keyId: string;
+}
+
+export interface AnalyticsControllerGetEventsParams {
+  event_name?: string;
+  distinct_id?: string;
+  date_from?: string;
+  date_to?: string;
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+}
+
+export interface AnalyticsControllerGetEventNamesParams {
+  /** @format uuid */
+  project_id: string;
 }
 
 export interface DashboardsControllerListParams {
@@ -802,6 +856,48 @@ export class Api<
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetEvents
+     * @request GET:/api/analytics/events
+     * @secure
+     */
+    analyticsControllerGetEvents: (
+      query: AnalyticsControllerGetEventsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<EventRow[], any>({
+        path: `/api/analytics/events`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetEventNames
+     * @request GET:/api/analytics/event-names
+     * @secure
+     */
+    analyticsControllerGetEventNames: (
+      query: AnalyticsControllerGetEventNamesParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<EventNamesResponse, any>({
+        path: `/api/analytics/event-names`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),

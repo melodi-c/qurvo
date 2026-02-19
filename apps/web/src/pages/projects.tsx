@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/api/client';
 import { Plus, FolderOpen } from 'lucide-react';
 
@@ -60,10 +61,11 @@ export default function ProjectsPage() {
         </Card>
       )}
 
-      {isLoading && <p className="text-muted-foreground">Loading...</p>}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(projects || []).map((project) => (
+        {isLoading && Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+        {!isLoading && (projects || []).map((project) => (
           <Card key={project.id} className="cursor-pointer hover:border-primary/50 transition-colors">
             <CardHeader>
               <div className="flex items-center justify-between">

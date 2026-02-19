@@ -21,14 +21,17 @@ export default function DashboardBuilderPage() {
   const store = useDashboardStore();
 
   useEffect(() => {
-    if (dashboard) {
+    if (dashboard && !store.isEditing) {
       store.initSession(
         dashboard.id,
         dashboard.name,
         (dashboard.widgets || []) as unknown as Widget[],
       );
     }
-  }, [dashboard?.id]);
+  // Re-init when fresh server data arrives (e.g. after widget editor saves),
+  // but not while the user is actively editing in-place.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboard]);
 
   if (!projectId) {
     return (

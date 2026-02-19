@@ -16,8 +16,6 @@ interface DashboardStore {
   addWidget: (widget: Widget) => void;
   removeWidget: (widgetId: string) => void;
   updateWidgetConfig: (widgetId: string, config: FunnelWidgetConfig, name: string) => void;
-  setEditingWidget: (widgetId: string | null) => void;
-  editingWidgetId: string | null;
   discardChanges: (serverWidgets: Widget[], serverName: string) => void;
   markSaved: () => void;
 }
@@ -29,8 +27,6 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   localWidgets: [],
   localLayout: [],
   localName: '',
-  editingWidgetId: null,
-
   initSession: (id, name, widgets) =>
     set({
       dashboardId: id,
@@ -45,7 +41,6 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       })),
       isDirty: false,
       isEditing: false,
-      editingWidgetId: null,
     }),
 
   setEditing: (editing) => set({ isEditing: editing }),
@@ -73,17 +68,13 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       localWidgets: s.localWidgets.filter((w) => w.id !== widgetId),
       localLayout: s.localLayout.filter((l) => l.i !== widgetId),
       isDirty: true,
-      editingWidgetId: s.editingWidgetId === widgetId ? null : s.editingWidgetId,
     })),
 
   updateWidgetConfig: (widgetId, config, name) =>
     set((s) => ({
       localWidgets: s.localWidgets.map((w) => (w.id === widgetId ? { ...w, config, name } : w)),
       isDirty: true,
-      editingWidgetId: null,
     })),
-
-  setEditingWidget: (widgetId) => set({ editingWidgetId: widgetId }),
 
   discardChanges: (serverWidgets, serverName) =>
     set({
@@ -97,7 +88,6 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         h: w.layout.h,
       })),
       isDirty: false,
-      editingWidgetId: null,
     }),
 
   markSaved: () => set({ isDirty: false }),

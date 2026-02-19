@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 export default function LoginPage() {
@@ -38,12 +39,12 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign in'}

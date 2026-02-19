@@ -6,6 +6,14 @@ import type { FunnelWidgetConfig, FunnelCacheEntry } from '../types';
 
 const STALE_AFTER_MS = 30 * 60 * 1000; // 30 minutes
 
+/** Strip filters with empty property so they don't fail backend validation. */
+function cleanSteps(config: FunnelWidgetConfig) {
+  return config.steps.map((s) => ({
+    ...s,
+    filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
+  }));
+}
+
 function configHash(config: FunnelWidgetConfig): string {
   return JSON.stringify({
     steps: config.steps,
@@ -35,7 +43,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
     queryFn: async ({ signal }) => {
       const result = await api.analyticsControllerGetFunnel({
         project_id: projectId,
-        steps: config.steps,
+        steps: cleanSteps(config),
         conversion_window_days: config.conversion_window_days,
         date_from: config.date_from,
         date_to: config.date_to,
@@ -67,7 +75,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   const refreshFunnel = async () => {
     const result = await api.analyticsControllerGetFunnel({
       project_id: projectId,
-      steps: config.steps,
+      steps: cleanSteps(config),
       conversion_window_days: config.conversion_window_days,
       date_from: config.date_from,
       date_to: config.date_to,

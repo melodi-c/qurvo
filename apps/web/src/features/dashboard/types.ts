@@ -1,8 +1,17 @@
 export type WidgetType = 'funnel';
 
+export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
+
+export interface StepFilter {
+  property: string;
+  operator: FilterOperator;
+  value: string;
+}
+
 export interface FunnelStep {
   event_name: string;
   label: string;
+  filters?: StepFilter[];
 }
 
 export interface FunnelWidgetConfig {
