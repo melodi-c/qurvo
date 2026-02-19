@@ -31,7 +31,25 @@ export interface FunnelWidgetConfig {
   breakdown_property?: string;
 }
 
-export type WidgetConfig = FunnelWidgetConfig;
+export interface TrendWidgetSeries {
+  event_name: string;
+  label: string;
+  filters?: WidgetStepFilter[];
+}
+
+export interface TrendWidgetConfig {
+  type: 'trend';
+  series: TrendWidgetSeries[];
+  metric: 'total_events' | 'unique_users' | 'events_per_user';
+  granularity: 'hour' | 'day' | 'week' | 'month';
+  chart_type: 'line' | 'bar';
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+  compare: boolean;
+}
+
+export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig;
 
 export const widgets = pgTable(
   'widgets',

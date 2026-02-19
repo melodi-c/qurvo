@@ -2,9 +2,15 @@ import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FunnelService } from '../../funnel/funnel.service';
 import { EventsService } from '../../events/events.service';
+import { TrendService } from '../../trend/trend.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { FunnelQueryDto, FunnelResponseDto, EventsQueryDto, EventRowDto, EventNamesQueryDto, EventNamesResponseDto } from '../dto/analytics.dto';
+import {
+  FunnelQueryDto, FunnelResponseDto,
+  EventsQueryDto, EventRowDto,
+  EventNamesQueryDto, EventNamesResponseDto,
+  TrendQueryDto, TrendResponseDto,
+} from '../dto/analytics.dto';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -14,6 +20,7 @@ export class AnalyticsController {
   constructor(
     private readonly funnelService: FunnelService,
     private readonly eventsService: EventsService,
+    private readonly trendService: TrendService,
   ) {}
 
   @Post('funnel')
@@ -39,5 +46,13 @@ export class AnalyticsController {
   ): Promise<EventNamesResponseDto> {
     const event_names = await this.eventsService.getEventNames(user.user_id, query.project_id);
     return { event_names };
+  }
+
+  @Post('trend')
+  async getTrend(
+    @CurrentUser() user: RequestUser,
+    @Body() body: TrendQueryDto,
+  ): Promise<TrendResponseDto> {
+    return this.trendService.getTrend(user.user_id, body);
   }
 }

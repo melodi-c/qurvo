@@ -3,6 +3,7 @@ import { GripVertical } from 'lucide-react';
 import { useDashboardStore } from '../store';
 import { WidgetMenu } from './WidgetMenu';
 import { FunnelWidget } from './widgets/funnel/FunnelWidget';
+import { TrendWidget } from './widgets/trend/TrendWidget';
 import type { Widget } from '@/api/generated/Api';
 
 export function WidgetCard({ widget }: { widget: Widget }) {
@@ -23,6 +24,7 @@ export function WidgetCard({ widget }: { widget: Widget }) {
       </CardHeader>
       <CardContent className="flex-1 p-3 min-h-0">
         {widget.type === 'funnel' && <FunnelWidget widget={widget} />}
+        {widget.type === 'trend' && <TrendWidget widget={widget} />}
       </CardContent>
     </Card>
   );

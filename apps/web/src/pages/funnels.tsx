@@ -7,6 +7,7 @@ import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import { defaultFunnelConfig, Metric } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
+// FunnelWidgetConfig is a discriminated union member from generated Api
 
 export default function FunnelsPage() {
   const [config, setConfig] = useState<FunnelWidgetConfig>(defaultFunnelConfig);

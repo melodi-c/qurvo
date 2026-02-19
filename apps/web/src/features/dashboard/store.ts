@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Widget, FunnelWidgetConfig } from '@/api/generated/Api';
+import type { Widget } from '@/api/generated/Api';
 
 export interface RglItem {
   i: string;
@@ -23,7 +23,7 @@ interface DashboardStore {
   updateLayout: (layout: readonly RglItem[]) => void;
   addWidget: (widget: Widget) => void;
   removeWidget: (widgetId: string) => void;
-  updateWidgetConfig: (widgetId: string, config: FunnelWidgetConfig, name: string) => void;
+  updateWidgetConfig: (widgetId: string, config: Widget['config'], name: string) => void;
   discardChanges: (serverWidgets: Widget[], serverName: string) => void;
   markSaved: () => void;
 }

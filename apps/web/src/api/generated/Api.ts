@@ -228,6 +228,58 @@ export interface EventNamesResponse {
   event_names: string[];
 }
 
+export interface TrendSeries {
+  event_name: string;
+  label: string;
+  filters?: StepFilter[];
+}
+
+export interface TrendQuery {
+  /** @format uuid */
+  project_id: string;
+  /**
+   * @maxItems 5
+   * @minItems 1
+   */
+  series: TrendSeries[];
+  metric: TrendQueryDtoMetricEnum;
+  granularity: TrendQueryDtoGranularityEnum;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+  compare?: boolean;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface TrendDataPoint {
+  bucket: string;
+  value: number;
+}
+
+export interface TrendSeriesResult {
+  breakdown_value?: string;
+  series_idx: number;
+  label: string;
+  event_name: string;
+  data: TrendDataPoint[];
+}
+
+export interface TrendResult {
+  breakdown_property?: string;
+  series_previous?: TrendSeriesResult[];
+  compare: boolean;
+  breakdown: boolean;
+  series: TrendSeriesResult[];
+}
+
+export interface TrendResponse {
+  data: TrendResult;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export interface Dashboard {
   id: string;
   project_id: string;
@@ -247,12 +299,24 @@ export interface CreateDashboard {
 }
 
 export interface FunnelWidgetConfig {
-  type: string;
+  type: FunnelWidgetConfigDtoTypeEnum;
   steps: FunnelStep[];
+  breakdown_property?: string;
   conversion_window_days: number;
   date_from: string;
   date_to: string;
+}
+
+export interface TrendWidgetConfig {
+  type: TrendWidgetConfigDtoTypeEnum;
+  series: TrendSeries[];
+  metric: TrendWidgetConfigDtoMetricEnum;
+  granularity: TrendWidgetConfigDtoGranularityEnum;
+  chart_type: TrendWidgetConfigDtoChartTypeEnum;
   breakdown_property?: string;
+  date_from: string;
+  date_to: string;
+  compare: boolean;
 }
 
 export interface WidgetLayout {
@@ -263,11 +327,17 @@ export interface WidgetLayout {
 }
 
 export interface Widget {
+  config:
+    | ({
+        type: "funnel";
+      } & FunnelWidgetConfig)
+    | ({
+        type: "trend";
+      } & TrendWidgetConfig);
   id: string;
   dashboard_id: string;
   type: string;
   name: string;
-  config: FunnelWidgetConfig;
   layout: WidgetLayout;
   /** @format date-time */
   created_at: string;
@@ -295,23 +365,35 @@ export interface UpdateDashboard {
 }
 
 export interface CreateWidget {
+  config:
+    | ({
+        type: "funnel";
+      } & FunnelWidgetConfig)
+    | ({
+        type: "trend";
+      } & TrendWidgetConfig);
   type: CreateWidgetDtoTypeEnum;
   /**
    * @minLength 1
    * @maxLength 100
    */
   name: string;
-  config: FunnelWidgetConfig;
   layout: WidgetLayout;
 }
 
 export interface UpdateWidget {
+  config?:
+    | ({
+        type: "funnel";
+      } & FunnelWidgetConfig)
+    | ({
+        type: "trend";
+      } & TrendWidgetConfig);
   /**
    * @minLength 1
    * @maxLength 100
    */
   name?: string;
-  config?: FunnelWidgetConfig;
   layout?: WidgetLayout;
 }
 
@@ -367,7 +449,31 @@ export type StepFilterDtoOperatorEnum =
   | "is_set"
   | "is_not_set";
 
-export type CreateWidgetDtoTypeEnum = "funnel";
+export type TrendQueryDtoMetricEnum =
+  | "total_events"
+  | "unique_users"
+  | "events_per_user";
+
+export type TrendQueryDtoGranularityEnum = "hour" | "day" | "week" | "month";
+
+export type FunnelWidgetConfigDtoTypeEnum = "funnel";
+
+export type TrendWidgetConfigDtoTypeEnum = "trend";
+
+export type TrendWidgetConfigDtoMetricEnum =
+  | "total_events"
+  | "unique_users"
+  | "events_per_user";
+
+export type TrendWidgetConfigDtoGranularityEnum =
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
+export type TrendWidgetConfigDtoChartTypeEnum = "line" | "bar";
+
+export type CreateWidgetDtoTypeEnum = "funnel" | "trend";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -1055,6 +1161,28 @@ export class Api<
         method: "GET",
         query: query,
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetTrend
+     * @request POST:/api/analytics/trend
+     * @secure
+     */
+    analyticsControllerGetTrend: (
+      data: TrendQuery,
+      params: RequestParams = {},
+    ) =>
+      this.request<TrendResponse, any>({
+        path: `/api/analytics/trend`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

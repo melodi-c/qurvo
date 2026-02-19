@@ -1,6 +1,9 @@
 import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsIn, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
-import { FunnelStepDto } from './analytics.dto';
+import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import { FunnelStepDto, TrendSeriesDto } from './analytics.dto';
+
+// ── Shared ────────────────────────────────────────────────────────────────────
 
 export class CreateDashboardDto {
   @IsString()
@@ -31,18 +34,51 @@ export class WidgetLayoutDto {
   h: number;
 }
 
+// ── Widget config DTOs (for oneOf discriminator) ──────────────────────────────
+
 export class FunnelWidgetConfigDto {
+  @ApiProperty({ enum: ['funnel'] })
   type: 'funnel';
+
+  @ApiProperty({ type: [FunnelStepDto] })
   steps: FunnelStepDto[];
+
   conversion_window_days: number;
   date_from: string;
   date_to: string;
-  @IsOptional() breakdown_property?: string;
+  @ApiPropertyOptional() breakdown_property?: string;
 }
 
+export class TrendWidgetConfigDto {
+  @ApiProperty({ enum: ['trend'] })
+  type: 'trend';
+
+  @ApiProperty({ type: [TrendSeriesDto] })
+  series: TrendSeriesDto[];
+
+  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user'] })
+  metric: 'total_events' | 'unique_users' | 'events_per_user';
+
+  @ApiProperty({ enum: ['hour', 'day', 'week', 'month'] })
+  granularity: 'hour' | 'day' | 'week' | 'month';
+
+  @ApiProperty({ enum: ['line', 'bar'] })
+  chart_type: 'line' | 'bar';
+
+  date_from: string;
+  date_to: string;
+  @ApiPropertyOptional() breakdown_property?: string;
+  compare: boolean;
+}
+
+type AnyWidgetConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto;
+
+// ── Create / Update DTOs ──────────────────────────────────────────────────────
+
+@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto)
 export class CreateWidgetDto {
   @IsString()
-  @IsIn(['funnel'])
+  @IsIn(['funnel', 'trend'])
   type: string;
 
   @IsString()
@@ -51,7 +87,14 @@ export class CreateWidgetDto {
   name: string;
 
   @IsObject()
-  config: FunnelWidgetConfigDto;
+  @ApiProperty({
+    oneOf: [
+      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
+      { $ref: getSchemaPath(TrendWidgetConfigDto) },
+    ],
+    discriminator: { propertyName: 'type', mapping: { funnel: getSchemaPath(FunnelWidgetConfigDto), trend: getSchemaPath(TrendWidgetConfigDto) } },
+  })
+  config: AnyWidgetConfig;
 
   @IsObject()
   @Type(() => WidgetLayoutDto)
@@ -67,7 +110,14 @@ export class UpdateWidgetDto {
 
   @IsObject()
   @IsOptional()
-  config?: FunnelWidgetConfigDto;
+  @ApiPropertyOptional({
+    oneOf: [
+      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
+      { $ref: getSchemaPath(TrendWidgetConfigDto) },
+    ],
+    discriminator: { propertyName: 'type', mapping: { funnel: getSchemaPath(FunnelWidgetConfigDto), trend: getSchemaPath(TrendWidgetConfigDto) } },
+  })
+  config?: AnyWidgetConfig;
 
   @IsObject()
   @IsOptional()
@@ -85,12 +135,22 @@ export class DashboardDto {
   updated_at: Date;
 }
 
+@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto)
 export class WidgetDto {
   id: string;
   dashboard_id: string;
   type: string;
   name: string;
-  config: FunnelWidgetConfigDto;
+
+  @ApiProperty({
+    oneOf: [
+      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
+      { $ref: getSchemaPath(TrendWidgetConfigDto) },
+    ],
+    discriminator: { propertyName: 'type', mapping: { funnel: getSchemaPath(FunnelWidgetConfigDto), trend: getSchemaPath(TrendWidgetConfigDto) } },
+  })
+  config: AnyWidgetConfig;
+
   layout: WidgetLayoutDto;
   created_at: Date;
   updated_at: Date;

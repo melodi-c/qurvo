@@ -17,6 +17,7 @@ import EventsPage from '@/pages/events';
 import PersonsPage from '@/pages/persons';
 import PersonDetailPage from '@/pages/person-detail';
 import FunnelsPage from '@/pages/funnels';
+import TrendsPage from '@/pages/trends';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="/dashboards/:id/widgets/:widgetId" element={<WidgetEditorPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/keys" element={<ApiKeysPage />} />
+        <Route path="/trends" element={<TrendsPage />} />
         <Route path="/funnels" element={<FunnelsPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/persons" element={<PersonsPage />} />

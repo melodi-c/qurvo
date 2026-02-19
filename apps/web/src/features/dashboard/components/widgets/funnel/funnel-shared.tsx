@@ -1,5 +1,6 @@
 import type { ElementType } from 'react';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
+// FunnelWidgetConfig now has `type` from discriminator, ensure defaults include it
 
 export function defaultFunnelConfig(): FunnelWidgetConfig {
   const now = new Date();

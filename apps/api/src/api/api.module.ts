@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { FunnelModule } from '../funnel/funnel.module';
+import { TrendModule } from '../trend/trend.module';
 import { EventsModule } from '../events/events.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
 import { PersonsModule } from '../persons/persons.module';
@@ -20,7 +21,7 @@ import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, EventsModule, DashboardsModule, PersonsModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, EventsModule, DashboardsModule, PersonsModule],
   controllers: [
     AuthController,
     ProjectsController,

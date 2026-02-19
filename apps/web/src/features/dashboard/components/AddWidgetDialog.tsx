@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GitFork } from 'lucide-react';
+import { GitFork, TrendingUp } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDashboardStore } from '../store';
 import type { CreateWidgetDtoTypeEnum } from '@/api/generated/Api';
@@ -20,6 +20,12 @@ const WIDGET_TYPES: {
     label: 'Funnel',
     description: 'Measure conversion through a sequence of events',
     icon: GitFork,
+  },
+  {
+    type: 'trend',
+    label: 'Trend',
+    description: 'Track event trends over time with line or bar charts',
+    icon: TrendingUp,
   },
 ];
 

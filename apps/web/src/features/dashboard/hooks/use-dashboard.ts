@@ -122,7 +122,7 @@ export function useSaveDashboard(dashboardId: string) {
   const addWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerAddWidget({ projectId, dashboardId }, {
-        type: 'funnel',
+        type: w.type as 'funnel' | 'trend',
         name: w.name,
         config: w.config,
         layout: w.layout,

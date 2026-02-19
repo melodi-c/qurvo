@@ -9,13 +9,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, FolderOpen, Key, List, Users, LogOut, Activity, ChevronsUpDown, GitFork } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Key, List, Users, LogOut, Activity, ChevronsUpDown, GitFork, TrendingUp } from 'lucide-react';
 
 const sidebarSections = [
   {
     title: 'Product',
     items: [
       { path: '/dashboards', label: 'Dashboards', icon: LayoutDashboard },
+      { path: '/trends',     label: 'Trends',     icon: TrendingUp },
       { path: '/funnels',    label: 'Funnels',    icon: GitFork },
       { path: '/persons',    label: 'Persons',    icon: Users },
       { path: '/events',     label: 'Events',     icon: List },
