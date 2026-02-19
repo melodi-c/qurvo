@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
-import { BarChart3, FolderOpen, Key, List, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Key, List, LogOut } from 'lucide-react';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: BarChart3 },
+  { path: '/dashboards', label: 'Dashboards', icon: LayoutDashboard },
   { path: '/projects', label: 'Projects', icon: FolderOpen },
   { path: '/keys', label: 'API Keys', icon: Key },
   { path: '/events', label: 'Events', icon: List },
@@ -49,7 +49,9 @@ export default function Layout() {
 
         <nav className="flex-1 p-2 space-y-1">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              location.pathname.startsWith(item.path + '/');
             return (
               <Link
                 key={item.path}

@@ -42,7 +42,10 @@ export interface AuthResponse {
 export interface Login {
   /** @format email */
   email: string;
-  /** @minLength 1 */
+  /**
+   * @minLength 8
+   * @maxLength 128
+   */
   password: string;
 }
 
@@ -132,54 +135,91 @@ export interface ApiKeyCreated {
   created_at: string;
 }
 
-export interface EventRow {
-  event_id: string;
+export interface FunnelStep {
+  event_name: string;
+  label: string;
+}
+
+export interface FunnelQuery {
+  /** @format uuid */
   project_id: string;
-  event_name: string;
-  event_type: string;
-  distinct_id: string;
-  anonymous_id: string;
-  session_id: string;
-  url: string;
-  referrer: string;
-  page_title: string;
-  page_path: string;
-  device_type: string;
-  browser: string;
-  browser_version: string;
-  os: string;
-  os_version: string;
-  screen_width: number;
-  screen_height: number;
-  country: string;
-  region: string;
-  city: string;
-  properties: string;
-  user_properties: string;
-  sdk_name: string;
-  sdk_version: string;
-  timestamp: string;
-  server_time: string;
-  ingested_at: string;
-  batch_id: string;
+  /**
+   * @maxItems 10
+   * @minItems 2
+   */
+  steps: FunnelStep[];
+  /**
+   * @min 1
+   * @max 90
+   * @default 14
+   */
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
 }
 
-export interface CountsResponse {
-  count: string;
-  unique_users: string;
-  sessions: string;
+export interface FunnelResult {
+  breakdown: boolean;
+  breakdown_property?: string;
+  steps: object;
 }
 
-export interface TrendItem {
-  period: string;
-  count: string;
-  unique_users: string;
+export interface FunnelResponse {
+  data: FunnelResult;
+  cached_at: string;
+  from_cache: boolean;
 }
 
-export interface TopEventItem {
-  event_name: string;
-  count: string;
-  unique_users: string;
+export interface CreateDashboard {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+}
+
+export interface UpdateDashboard {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+}
+
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface CreateWidget {
+  type: CreateWidgetDtoTypeEnum;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  config: object;
+  layout: WidgetLayout;
+}
+
+export interface UpdateWidget {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  config?: object;
+  layout?: WidgetLayout;
+}
+
+export enum CreateWidgetDtoTypeEnum {
+  Funnel = "funnel",
 }
 
 export interface ProjectsControllerGetByIdParams {
@@ -207,71 +247,44 @@ export interface ApiKeysControllerRevokeParams {
   keyId: string;
 }
 
-export interface AnalyticsControllerGetEventsParams {
-  /** @format uuid */
-  project_id: string;
-  event_name?: string;
-  distinct_id?: string;
-  from?: string;
-  to?: string;
-  /**
-   * @min 1
-   * @max 1000
-   * @default 50
-   */
-  limit: number;
-  /**
-   * @min 0
-   * @default 0
-   */
-  offset: number;
+export interface DashboardsControllerListParams {
+  projectId: string;
 }
 
-export interface AnalyticsControllerGetCountsParams {
-  /** @format uuid */
-  project_id: string;
-  event_name?: string;
-  from?: string;
-  to?: string;
+export interface DashboardsControllerCreateParams {
+  projectId: string;
 }
 
-export interface AnalyticsControllerGetTrendsParams {
-  /** @format uuid */
-  project_id: string;
-  event_name?: string;
-  from: string;
-  to: string;
-  /** @default "day" */
-  granularity: GranularityEnum;
+export interface DashboardsControllerGetByIdParams {
+  projectId: string;
+  dashboardId: string;
 }
 
-/** @default "day" */
-export enum GranularityEnum {
-  Hour = "hour",
-  Day = "day",
-  Week = "week",
-  Month = "month",
+export interface DashboardsControllerUpdateParams {
+  projectId: string;
+  dashboardId: string;
 }
 
-/** @default "day" */
-export enum AnalyticsControllerGetTrendsParams1GranularityEnum {
-  Hour = "hour",
-  Day = "day",
-  Week = "week",
-  Month = "month",
+export interface DashboardsControllerRemoveParams {
+  projectId: string;
+  dashboardId: string;
 }
 
-export interface AnalyticsControllerGetTopEventsParams {
-  /** @format uuid */
-  project_id: string;
-  from?: string;
-  to?: string;
-  /**
-   * @min 1
-   * @max 100
-   * @default 10
-   */
-  limit: number;
+export interface DashboardsControllerAddWidgetParams {
+  projectId: string;
+  dashboardId: string;
+}
+
+export interface DashboardsControllerUpdateWidgetParams {
+  projectId: string;
+  dashboardId: string;
+  widgetId: string;
+}
+
+export interface DashboardsControllerRemoveWidgetParams {
+  projectId: string;
+  dashboardId: string;
+  widgetId: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -775,18 +788,39 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetEvents
-     * @request GET:/api/analytics/events
+     * @name AnalyticsControllerGetFunnel
+     * @request POST:/api/analytics/funnel
      * @secure
      */
-    analyticsControllerGetEvents: (
-      query: AnalyticsControllerGetEventsParams,
+    analyticsControllerGetFunnel: (
+      data: FunnelQuery,
       params: RequestParams = {},
     ) =>
-      this.request<EventRow[], any>({
-        path: `/api/analytics/events`,
+      this.request<FunnelResponse, any>({
+        path: `/api/analytics/funnel`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerList
+     * @request GET:/api/projects/{projectId}/dashboards
+     * @secure
+     */
+    dashboardsControllerList: (
+      { projectId, ...query }: DashboardsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<object[], any>({
+        path: `/api/projects/${projectId}/dashboards`,
         method: "GET",
-        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -795,19 +829,41 @@ export class Api<
     /**
      * No description
      *
-     * @tags Analytics
-     * @name AnalyticsControllerGetCounts
-     * @request GET:/api/analytics/counts
+     * @tags Dashboards
+     * @name DashboardsControllerCreate
+     * @request POST:/api/projects/{projectId}/dashboards
      * @secure
      */
-    analyticsControllerGetCounts: (
-      query: AnalyticsControllerGetCountsParams,
+    dashboardsControllerCreate: (
+      { projectId, ...query }: DashboardsControllerCreateParams,
+      data: CreateDashboard,
       params: RequestParams = {},
     ) =>
-      this.request<CountsResponse, any>({
-        path: `/api/analytics/counts`,
+      this.request<object, any>({
+        path: `/api/projects/${projectId}/dashboards`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerGetById
+     * @request GET:/api/projects/{projectId}/dashboards/{dashboardId}
+     * @secure
+     */
+    dashboardsControllerGetById: (
+      { projectId, dashboardId, ...query }: DashboardsControllerGetByIdParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<object, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}`,
         method: "GET",
-        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -816,20 +872,22 @@ export class Api<
     /**
      * No description
      *
-     * @tags Analytics
-     * @name AnalyticsControllerGetTrends
-     * @request GET:/api/analytics/trends
+     * @tags Dashboards
+     * @name DashboardsControllerUpdate
+     * @request PUT:/api/projects/{projectId}/dashboards/{dashboardId}
      * @secure
      */
-    analyticsControllerGetTrends: (
-      query: AnalyticsControllerGetTrendsParams,
+    dashboardsControllerUpdate: (
+      { projectId, dashboardId, ...query }: DashboardsControllerUpdateParams,
+      data: UpdateDashboard,
       params: RequestParams = {},
     ) =>
-      this.request<TrendItem[], any>({
-        path: `/api/analytics/trends`,
-        method: "GET",
-        query: query,
+      this.request<object, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}`,
+        method: "PUT",
+        body: data,
         secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -837,21 +895,94 @@ export class Api<
     /**
      * No description
      *
-     * @tags Analytics
-     * @name AnalyticsControllerGetTopEvents
-     * @request GET:/api/analytics/top-events
+     * @tags Dashboards
+     * @name DashboardsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/dashboards/{dashboardId}
      * @secure
      */
-    analyticsControllerGetTopEvents: (
-      query: AnalyticsControllerGetTopEventsParams,
+    dashboardsControllerRemove: (
+      { projectId, dashboardId, ...query }: DashboardsControllerRemoveParams,
       params: RequestParams = {},
     ) =>
-      this.request<TopEventItem[], any>({
-        path: `/api/analytics/top-events`,
-        method: "GET",
-        query: query,
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}`,
+        method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerAddWidget
+     * @request POST:/api/projects/{projectId}/dashboards/{dashboardId}/widgets
+     * @secure
+     */
+    dashboardsControllerAddWidget: (
+      { projectId, dashboardId, ...query }: DashboardsControllerAddWidgetParams,
+      data: CreateWidget,
+      params: RequestParams = {},
+    ) =>
+      this.request<object, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}/widgets`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerUpdateWidget
+     * @request PUT:/api/projects/{projectId}/dashboards/{dashboardId}/widgets/{widgetId}
+     * @secure
+     */
+    dashboardsControllerUpdateWidget: (
+      {
+        projectId,
+        dashboardId,
+        widgetId,
+        ...query
+      }: DashboardsControllerUpdateWidgetParams,
+      data: UpdateWidget,
+      params: RequestParams = {},
+    ) =>
+      this.request<object, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}/widgets/${widgetId}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerRemoveWidget
+     * @request DELETE:/api/projects/{projectId}/dashboards/{dashboardId}/widgets/{widgetId}
+     * @secure
+     */
+    dashboardsControllerRemoveWidget: (
+      {
+        projectId,
+        dashboardId,
+        widgetId,
+        ...query
+      }: DashboardsControllerRemoveWidgetParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}/widgets/${widgetId}`,
+        method: "DELETE",
+        secure: true,
         ...params,
       }),
   };

@@ -1,0 +1,182 @@
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
+import { dashboards, widgets } from '@shot/db';
+import { DRIZZLE } from '../providers/drizzle.provider';
+import type { Database } from '@shot/db';
+import { ProjectsService } from '../projects/projects.service';
+import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
+import { DashboardNotFoundException } from './exceptions/dashboard-not-found.exception';
+import { WidgetNotFoundException } from './exceptions/widget-not-found.exception';
+
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface FunnelStep {
+  event_name: string;
+  label: string;
+}
+
+export interface FunnelWidgetConfig {
+  type: 'funnel';
+  steps: FunnelStep[];
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+}
+
+export type WidgetConfig = FunnelWidgetConfig;
+
+@Injectable()
+export class DashboardsService {
+  private readonly logger = new Logger(DashboardsService.name);
+
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    private readonly projectsService: ProjectsService,
+  ) {}
+
+  async list(userId: string, projectId: string) {
+    await this.projectsService.getMembership(userId, projectId);
+    return this.db
+      .select()
+      .from(dashboards)
+      .where(eq(dashboards.project_id, projectId))
+      .orderBy(dashboards.created_at);
+  }
+
+  async getById(userId: string, projectId: string, dashboardId: string) {
+    await this.projectsService.getMembership(userId, projectId);
+    const [dashboard] = await this.db
+      .select()
+      .from(dashboards)
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
+      .limit(1);
+    if (!dashboard) throw new DashboardNotFoundException();
+
+    const widgetRows = await this.db
+      .select()
+      .from(widgets)
+      .where(eq(widgets.dashboard_id, dashboardId))
+      .orderBy(widgets.created_at);
+
+    return { ...dashboard, widgets: widgetRows };
+  }
+
+  async create(userId: string, projectId: string, input: { name: string }) {
+    await this.projectsService.getMembership(userId, projectId);
+    const [dashboard] = await this.db
+      .insert(dashboards)
+      .values({ project_id: projectId, name: input.name, created_by: userId })
+      .returning();
+    this.logger.log({ dashboardId: dashboard.id, projectId, userId }, 'Dashboard created');
+    return dashboard;
+  }
+
+  async update(userId: string, projectId: string, dashboardId: string, input: { name?: string }) {
+    const membership = await this.projectsService.getMembership(userId, projectId);
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    await this.assertDashboardExists(projectId, dashboardId);
+
+    const [updated] = await this.db
+      .update(dashboards)
+      .set({ ...(input.name ? { name: input.name } : {}), updated_at: new Date() })
+      .where(eq(dashboards.id, dashboardId))
+      .returning();
+    this.logger.log({ dashboardId, projectId, userId }, 'Dashboard updated');
+    return updated;
+  }
+
+  async remove(userId: string, projectId: string, dashboardId: string) {
+    const membership = await this.projectsService.getMembership(userId, projectId);
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    await this.assertDashboardExists(projectId, dashboardId);
+
+    await this.db.delete(dashboards).where(eq(dashboards.id, dashboardId));
+    this.logger.log({ dashboardId, projectId, userId }, 'Dashboard deleted');
+    return { ok: true };
+  }
+
+  async addWidget(
+    userId: string,
+    projectId: string,
+    dashboardId: string,
+    input: { type: string; name: string; config: WidgetConfig; layout: WidgetLayout },
+  ) {
+    const membership = await this.projectsService.getMembership(userId, projectId);
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    await this.assertDashboardExists(projectId, dashboardId);
+
+    const [widget] = await this.db
+      .insert(widgets)
+      .values({
+        dashboard_id: dashboardId,
+        type: input.type,
+        name: input.name,
+        config: input.config,
+        layout: input.layout,
+      })
+      .returning();
+    this.logger.log({ widgetId: widget.id, dashboardId, projectId, userId }, 'Widget added');
+    return widget;
+  }
+
+  async updateWidget(
+    userId: string,
+    projectId: string,
+    dashboardId: string,
+    widgetId: string,
+    input: { name?: string; config?: WidgetConfig; layout?: WidgetLayout },
+  ) {
+    const membership = await this.projectsService.getMembership(userId, projectId);
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    await this.assertDashboardExists(projectId, dashboardId);
+    await this.assertWidgetExists(dashboardId, widgetId);
+
+    const values: Record<string, unknown> = { updated_at: new Date() };
+    if (input.name !== undefined) values.name = input.name;
+    if (input.config !== undefined) values.config = input.config;
+    if (input.layout !== undefined) values.layout = input.layout;
+
+    const [updated] = await this.db
+      .update(widgets)
+      .set(values)
+      .where(eq(widgets.id, widgetId))
+      .returning();
+    this.logger.log({ widgetId, dashboardId, projectId, userId }, 'Widget updated');
+    return updated;
+  }
+
+  async removeWidget(userId: string, projectId: string, dashboardId: string, widgetId: string) {
+    const membership = await this.projectsService.getMembership(userId, projectId);
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    await this.assertDashboardExists(projectId, dashboardId);
+    await this.assertWidgetExists(dashboardId, widgetId);
+
+    await this.db.delete(widgets).where(eq(widgets.id, widgetId));
+    this.logger.log({ widgetId, dashboardId, projectId, userId }, 'Widget removed');
+    return { ok: true };
+  }
+
+  private async assertDashboardExists(projectId: string, dashboardId: string) {
+    const [row] = await this.db
+      .select({ id: dashboards.id })
+      .from(dashboards)
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
+      .limit(1);
+    if (!row) throw new DashboardNotFoundException();
+  }
+
+  private async assertWidgetExists(dashboardId: string, widgetId: string) {
+    const [row] = await this.db
+      .select({ id: widgets.id })
+      .from(widgets)
+      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId)))
+      .limit(1);
+    if (!row) throw new WidgetNotFoundException();
+  }
+}

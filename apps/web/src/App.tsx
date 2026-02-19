@@ -6,6 +6,8 @@ import Layout from '@/components/layout';
 import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
 import DashboardPage from '@/pages/dashboard';
+import DashboardsPage from '@/pages/dashboards/index';
+import DashboardBuilderPage from '@/pages/dashboards/[id]';
 import ProjectsPage from '@/pages/projects';
 import ApiKeysPage from '@/pages/api-keys';
 import EventsPage from '@/pages/events';
@@ -42,6 +44,8 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/dashboards" element={<DashboardsPage />} />
+        <Route path="/dashboards/:id" element={<DashboardBuilderPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/keys" element={<ApiKeysPage />} />
         <Route path="/events" element={<EventsPage />} />

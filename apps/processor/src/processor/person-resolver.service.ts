@@ -17,15 +17,24 @@ export class PersonResolverService {
   /**
    * Returns the person_id for a given distinct_id.
    * Creates a new person_id if one doesn't exist yet.
+   *
+   * Uses SET NX for atomic get-or-create to avoid race conditions
+   * when multiple processor instances run simultaneously (e.g. during hot-reload).
    */
   async resolve(projectId: string, distinctId: string): Promise<string> {
     const key = this.redisKey(projectId, distinctId);
-    const existing = await this.redis.get(key);
-    if (existing) return existing;
+    const candidate = randomUUID();
 
-    const personId = randomUUID();
-    await this.redis.set(key, personId);
-    return personId;
+    // Atomically set only if the key doesn't already exist
+    const result = await this.redis.set(key, candidate, 'NX');
+    if (result !== null) {
+      // We won the race and created a new person
+      return candidate;
+    }
+
+    // Key already existed — get the value that was set by another instance
+    const existing = await this.redis.get(key);
+    return existing ?? candidate;
   }
 
   /**

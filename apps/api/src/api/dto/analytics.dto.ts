@@ -1,151 +1,90 @@
-import { IsString, IsOptional, IsUUID, IsInt, Min, Max, IsEnum, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ValidateNested,
+  IsString,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  Max,
+  IsDateString,
+  IsOptional,
+  IsUUID,
+  IsBoolean,
+} from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 
-export class EventsQueryDto {
+export class FunnelStepDto {
+  @IsString()
+  @IsNotEmpty()
+  event_name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  label: string;
+}
+
+export class FunnelQueryDto {
   @IsUUID()
   project_id: string;
 
-  @IsString()
-  @IsOptional()
-  event_name?: string;
-
-  @IsString()
-  @IsOptional()
-  distinct_id?: string;
-
-  @IsDateString()
-  @IsOptional()
-  from?: string;
-
-  @IsDateString()
-  @IsOptional()
-  to?: string;
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => FunnelStepDto)
+  steps: FunnelStepDto[];
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(1000)
-  @IsOptional()
-  limit: number = 50;
+  @Max(90)
+  conversion_window_days: number = 14;
 
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  offset: number = 0;
-}
+  @IsDateString()
+  date_from: string;
 
-export class CountsQueryDto {
-  @IsUUID()
-  project_id: string;
+  @IsDateString()
+  date_to: string;
 
   @IsString()
   @IsOptional()
-  event_name?: string;
+  breakdown_property?: string;
 
-  @IsDateString()
-  @IsOptional()
-  from?: string;
-
-  @IsDateString()
-  @IsOptional()
-  to?: string;
-}
-
-export enum Granularity {
-  HOUR = 'hour',
-  DAY = 'day',
-  WEEK = 'week',
-  MONTH = 'month',
-}
-
-export class TrendsQueryDto {
   @IsUUID()
-  project_id: string;
-
-  @IsString()
   @IsOptional()
-  event_name?: string;
+  widget_id?: string;
 
-  @IsDateString()
-  from: string;
-
-  @IsDateString()
-  to: string;
-
-  @IsEnum(Granularity)
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
   @IsOptional()
-  granularity: Granularity = Granularity.DAY;
+  force?: boolean;
 }
 
-export class TopEventsQueryDto {
-  @IsUUID()
-  project_id: string;
-
-  @IsDateString()
-  @IsOptional()
-  from?: string;
-
-  @IsDateString()
-  @IsOptional()
-  to?: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  @IsOptional()
-  limit: number = 10;
-}
-
-export class EventRowDto {
-  event_id: string;
-  project_id: string;
+export class FunnelStepResultDto {
+  step: number;
+  label: string;
   event_name: string;
-  event_type: string;
-  distinct_id: string;
-  anonymous_id?: string;
-  user_id?: string;
-  session_id?: string;
-  url?: string;
-  referrer?: string;
-  page_title?: string;
-  page_path?: string;
-  device_type?: string;
-  browser?: string;
-  browser_version?: string;
-  os?: string;
-  os_version?: string;
-  screen_width?: number;
-  screen_height?: number;
-  country?: string;
-  region?: string;
-  city?: string;
-  language?: string;
-  timezone?: string;
-  properties?: string;
-  user_properties?: string;
-  sdk_name?: string;
-  sdk_version?: string;
-  timestamp: string;
-  ingested_at?: string;
-  batch_id?: string;
+  count: number;
+  conversion_rate: number;
+  drop_off: number;
+  drop_off_rate: number;
+  avg_time_to_convert_seconds: number | null;
 }
 
-export class CountsResponseDto {
-  count: string;
-  unique_users: string;
-  sessions: string;
+export class FunnelBreakdownStepResultDto extends FunnelStepResultDto {
+  breakdown_value: string;
 }
 
-export class TrendItemDto {
-  period: string;
-  count: string;
-  unique_users: string;
+export class FunnelResultDto {
+  breakdown: boolean;
+  breakdown_property?: string;
+  steps: FunnelStepResultDto[] | FunnelBreakdownStepResultDto[];
 }
 
-export class TopEventItemDto {
-  event_name: string;
-  count: string;
-  unique_users: string;
+export class FunnelResponseDto {
+  data: FunnelResultDto;
+  cached_at: string;
+  from_cache: boolean;
 }

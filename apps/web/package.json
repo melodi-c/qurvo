@@ -11,27 +11,30 @@
     "generate-api": "node scripts/generate-api-client.mjs"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.60.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.475.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-grid-layout": "^2.2.2",
+    "react-resizable": "^3.1.3",
     "react-router-dom": "^7.0.0",
-    "@tanstack/react-query": "^5.60.0",
-    "zustand": "^5.0.0",
     "recharts": "^2.15.0",
-    "clsx": "^2.1.0",
     "tailwind-merge": "^3.0.0",
-    "class-variance-authority": "^0.7.0",
-    "lucide-react": "^0.475.0",
-    "date-fns": "^4.1.0"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/react-grid-layout": "^2.1.0",
     "@vitejs/plugin-react": "^5.1.0",
-    "typescript": "~5.9.3",
-    "vite": "^7.3.0",
+    "swagger-typescript-api": "^13.0.0",
     "tailwindcss": "^4.0.0",
-    "@tailwindcss/vite": "^4.0.0",
-    "swagger-typescript-api": "^13.0.0"
+    "typescript": "~5.9.3",
+    "vite": "^7.3.0"
   }
 }

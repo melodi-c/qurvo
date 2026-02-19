@@ -4,10 +4,12 @@ import { AuthModule } from '../auth/auth.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { DashboardsModule } from '../dashboards/dashboards.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
 import { AnalyticsController } from './controllers/analytics.controller';
+import { DashboardsController } from './controllers/dashboards.controller';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { UnauthorizedFilter } from './filters/unauthorized.filter';
 import { ForbiddenFilter } from './filters/forbidden.filter';
@@ -15,8 +17,14 @@ import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, AnalyticsModule],
-  controllers: [AuthController, ProjectsController, ApiKeysController, AnalyticsController],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, AnalyticsModule, DashboardsModule],
+  controllers: [
+    AuthController,
+    ProjectsController,
+    ApiKeysController,
+    AnalyticsController,
+    DashboardsController,
+  ],
   providers: [
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },
     { provide: APP_FILTER, useClass: UnauthorizedFilter },

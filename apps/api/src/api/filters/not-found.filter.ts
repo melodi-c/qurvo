@@ -2,10 +2,19 @@ import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus } from '@nestjs/commo
 import { Response } from 'express';
 import { ProjectNotFoundException } from '../../projects/exceptions/project-not-found.exception';
 import { ApiKeyNotFoundException } from '../../api-keys/exceptions/api-key-not-found.exception';
+import { DashboardNotFoundException } from '../../dashboards/exceptions/dashboard-not-found.exception';
+import { WidgetNotFoundException } from '../../dashboards/exceptions/widget-not-found.exception';
 
-@Catch(ProjectNotFoundException, ApiKeyNotFoundException)
+@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException)
 export class NotFoundFilter implements ExceptionFilter {
-  catch(exception: ProjectNotFoundException | ApiKeyNotFoundException, host: ArgumentsHost) {
+  catch(
+    exception:
+      | ProjectNotFoundException
+      | ApiKeyNotFoundException
+      | DashboardNotFoundException
+      | WidgetNotFoundException,
+    host: ArgumentsHost,
+  ) {
     const response = host.switchToHttp().getResponse<Response>();
     response.status(HttpStatus.NOT_FOUND).json({
       statusCode: HttpStatus.NOT_FOUND,
