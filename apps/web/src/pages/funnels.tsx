@@ -255,7 +255,7 @@ export default function FunnelsPage() {
                   </p>
                 </div>
               </div>
-              <div className="max-w-3xl">
+              <div className="w-full">
                 <FunnelChart steps={steps} />
               </div>
             </div>
