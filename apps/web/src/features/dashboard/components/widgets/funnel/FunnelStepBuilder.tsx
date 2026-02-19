@@ -1,4 +1,5 @@
-import { X, Plus, ArrowDown, Filter } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, Plus, ArrowDown, Filter, GripVertical } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { EventNameCombobox } from './EventNameCombobox';
 import { StepFilterRow } from './StepFilterRow';
@@ -10,6 +11,10 @@ interface FunnelStepBuilderProps {
 }
 
 export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const dragNode = useRef<HTMLDivElement | null>(null);
+
   const updateStep = (i: number, patch: Partial<FunnelStep>) => {
     onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   };
@@ -40,46 +45,87 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
     updateStep(i, { filters });
   };
 
+  const handleDragStart = (i: number, e: React.DragEvent<HTMLDivElement>) => {
+    setDragIdx(i);
+    dragNode.current = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+    // Make the card semi-transparent while dragging
+    requestAnimationFrame(() => {
+      if (dragNode.current) dragNode.current.style.opacity = '0.4';
+    });
+  };
+
+  const handleDragEnd = () => {
+    if (dragNode.current) dragNode.current.style.opacity = '1';
+    if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
+      const next = [...steps];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(overIdx, 0, moved);
+      onChange(next);
+    }
+    setDragIdx(null);
+    setOverIdx(null);
+    dragNode.current = null;
+  };
+
+  const handleDragOver = (i: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIdx !== null && i !== overIdx) {
+      setOverIdx(i);
+    }
+  };
+
   return (
     <div className="space-y-1.5">
       {steps.map((step, i) => (
         <div key={i}>
           {/* Step card */}
-          <div className="group rounded-xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-border/80">
-            <div className="flex items-start gap-3">
-              {/* Number badge */}
-              <div className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
+          <div
+            className={`group rounded-xl border bg-card px-3 py-2.5 transition-colors ${
+              overIdx === i && dragIdx !== null && dragIdx !== i
+                ? 'border-primary/50 bg-primary/5'
+                : 'border-border hover:border-border/80'
+            }`}
+            draggable
+            onDragStart={(e) => handleDragStart(i, e)}
+            onDragEnd={handleDragEnd}
+            onDragOver={(e) => handleDragOver(i, e)}
+            onDragLeave={() => { if (overIdx === i) setOverIdx(null); }}
+          >
+            {/* Header: grip + number + label + delete */}
+            <div className="flex items-center gap-1.5 border-b border-border/40 pb-2 mb-2">
+              <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 cursor-grab active:cursor-grabbing" />
+              <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
                 {i + 1}
               </div>
-
-              {/* Inputs */}
-              <div className="min-w-0 flex-1 space-y-1">
-                <EventNameCombobox
-                  value={step.event_name}
-                  onChange={(val) => updateStep(i, { event_name: val })}
-                />
-                <Input
-                  value={step.label}
-                  onChange={(e) => updateStep(i, { label: e.target.value })}
-                  placeholder="Display name"
-                  className="h-6 border-transparent bg-transparent text-xs text-muted-foreground shadow-none hover:border-border focus-visible:border-border focus-visible:bg-background"
-                />
-              </div>
-
-              {/* Delete — appears on hover */}
+              <Input
+                value={step.label}
+                onChange={(e) => updateStep(i, { label: e.target.value })}
+                placeholder="Step name"
+                className="h-6 flex-1 border-0 bg-transparent text-xs font-medium shadow-none p-0 focus-visible:ring-0"
+              />
               <button
                 type="button"
                 onClick={() => removeStep(i)}
                 disabled={steps.length <= 2}
-                className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0"
+                className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:text-destructive disabled:pointer-events-none disabled:opacity-0"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
 
+            {/* Event name */}
+            <div className="px-1">
+              <EventNameCombobox
+                value={step.event_name}
+                onChange={(val) => updateStep(i, { event_name: val })}
+              />
+            </div>
+
             {/* Filters */}
             {(step.filters ?? []).length > 0 && (
-              <div className="mt-2 space-y-1.5 border-t border-border/40 pt-2">
+              <div className="mt-2 space-y-1.5 border-t border-border/40 pt-2 px-1">
                 {step.filters!.map((filter, j) => (
                   <StepFilterRow
                     key={j}
@@ -95,7 +141,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
             <button
               type="button"
               onClick={() => addFilter(i)}
-              className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              className="mt-2 px-1 flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
             >
               <Filter className="h-3 w-3" />
               Add filter
