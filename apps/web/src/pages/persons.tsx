@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,11 +53,8 @@ export default function PersonsPage() {
         className="max-w-sm"
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">People</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="py-0 gap-0">
+        <CardContent className="pt-4">
           {isLoading && (
             <div className="space-y-2 py-2">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -118,7 +115,7 @@ export default function PersonsPage() {
             </div>
           )}
 
-          <div className="flex justify-between items-center mt-4">
+          <div className="flex justify-between items-center py-3">
             <Button
               variant="outline"
               size="sm"

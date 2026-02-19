@@ -62,7 +62,7 @@ export default function EventsPage() {
         />
       </div>
 
-      <Card>
+      <Card className="py-0 gap-0">
         <CardContent className="p-0">
           {isLoading && (
             <div className="space-y-2 p-4">
