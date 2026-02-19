@@ -157,11 +157,10 @@ export default function PersonDetailPage() {
           {!eventsLoading && (
             <div>
               {/* Header */}
-              <div className="grid grid-cols-[20px_1fr_80px_140px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[20px_1fr_80px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
                 <span />
                 <span>Event</span>
                 <span>When</span>
-                <span>Browser</span>
               </div>
 
               {(events ?? []).map((ev) => (
@@ -171,6 +170,7 @@ export default function PersonDetailPage() {
                   expanded={expandedRow === ev.event_id}
                   onToggle={() => setExpandedRow(expandedRow === ev.event_id ? null : ev.event_id)}
                   showPerson={false}
+                  projectId={projectId}
                 />
               ))}
 

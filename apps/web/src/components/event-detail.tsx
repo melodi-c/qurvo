@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, Globe, UserCheck, MousePointer2, ExternalLink } from 'lucide-react';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
 
@@ -53,27 +54,79 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
   return 'outline';
 }
 
+function EventTypeIcon({ eventName }: { eventName: string }) {
+  if (eventName === '$pageview') return <Globe className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
+  if (eventName === '$identify') return <UserCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />;
+  return <MousePointer2 className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />;
+}
+
 function parseSafe(json: string): Record<string, unknown> {
   try { return JSON.parse(json) as Record<string, unknown>; } catch { return {}; }
 }
 
+// ─── value renderers ──────────────────────────────────────────────────────────
+
+function ExternalLinkValue({ value }: { value: string }) {
+  if (!value) return null;
+  if (value.startsWith('http')) {
+    return (
+      <a
+        href={value}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline break-all font-mono"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {value}
+        <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+      </a>
+    );
+  }
+  return <span className="font-mono break-all">{value}</span>;
+}
+
+function PersonLink({ personId, projectId }: { personId: string; projectId?: string }) {
+  if (!personId) return null;
+  if (projectId) {
+    return (
+      <Link
+        to={`/persons/${personId}?project=${projectId}`}
+        className="text-blue-400 hover:text-blue-300 hover:underline font-mono break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {personId}
+      </Link>
+    );
+  }
+  return <span className="font-mono break-all">{personId}</span>;
+}
+
 // ─── property table ───────────────────────────────────────────────────────────
+
+type PropValue = string | number | undefined | null;
 
 interface PropEntry {
   key: string;
-  value: string | number;
+  value: PropValue;
+  render?: (value: string) => React.ReactNode;
+}
+
+function isNonEmpty(v: PropValue): boolean {
+  return v !== '' && v !== 0 && v != null;
 }
 
 function PropsTable({ rows }: { rows: PropEntry[] }) {
-  const visible = rows.filter((r) => r.value !== '' && r.value !== 0 && r.value != null);
+  const visible = rows.filter((r) => isNonEmpty(r.value));
   if (visible.length === 0) return null;
   return (
     <table className="w-full text-xs">
       <tbody>
-        {visible.map(({ key, value }) => (
+        {visible.map(({ key, value, render }) => (
           <tr key={key} className="border-b border-border/50 last:border-0">
             <td className="py-1.5 pr-4 w-40 shrink-0 text-muted-foreground align-top">{key}</td>
-            <td className="py-1.5 font-mono break-all text-foreground">{String(value)}</td>
+            <td className="py-1.5 text-foreground">
+              {render ? render(String(value)) : <span className="font-mono break-all">{String(value)}</span>}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -81,35 +134,37 @@ function PropsTable({ rows }: { rows: PropEntry[] }) {
   );
 }
 
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <tr>
-      <td colSpan={2} className="pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {label}
-      </td>
-    </tr>
-  );
-}
-
 function PropsTableGrouped({ groups }: { groups: { label: string; rows: PropEntry[] }[] }) {
-  const nonEmpty = groups.filter((g) => g.rows.some((r) => r.value !== '' && r.value !== 0 && r.value != null));
+  const nonEmpty = groups.filter((g) => g.rows.some((r) => isNonEmpty(r.value)));
   if (nonEmpty.length === 0) return null;
   return (
     <table className="w-full text-xs">
       <tbody>
         {nonEmpty.map((group) => {
-          const visible = group.rows.filter((r) => r.value !== '' && r.value !== 0 && r.value != null);
+          const visible = group.rows.filter((r) => isNonEmpty(r.value));
           if (visible.length === 0) return null;
           return (
-            <>
-              <SectionHeader key={`h-${group.label}`} label={group.label} />
-              {visible.map(({ key, value }) => (
-                <tr key={key} className="border-b border-border/50 last:border-0">
-                  <td className="py-1.5 pr-4 w-40 shrink-0 text-muted-foreground align-top">{key}</td>
-                  <td className="py-1.5 font-mono break-all text-foreground">{String(value)}</td>
-                </tr>
-              ))}
-            </>
+            <tr key={`section-${group.label}`}>
+              <td colSpan={2} className="p-0">
+                <table className="w-full">
+                  <tbody>
+                    <tr>
+                      <td colSpan={2} className="pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                        {group.label}
+                      </td>
+                    </tr>
+                    {visible.map(({ key, value, render }) => (
+                      <tr key={key} className="border-b border-border/50 last:border-0">
+                        <td className="py-1.5 pr-4 w-40 shrink-0 text-muted-foreground align-top">{key}</td>
+                        <td className="py-1.5 text-foreground">
+                          {render ? render(String(value)) : <span className="font-mono break-all">{String(value)}</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </td>
+            </tr>
           );
         })}
       </tbody>
@@ -121,14 +176,16 @@ function PropsTableGrouped({ groups }: { groups: { label: string; rows: PropEntr
 
 type DetailTab = 'event' | 'person';
 
-export function EventDetail({ event }: { event: EventLike }) {
+export function EventDetail({ event, projectId }: { event: EventLike; projectId?: string }) {
   const [tab, setTab] = useState<DetailTab>('event');
 
   const browserLabel = [event.browser, event.browser_version].filter(Boolean).join(' ');
   const osLabel = [event.os, event.os_version].filter(Boolean).join(' ');
   const screenLabel = event.screen_width && event.screen_height ? `${event.screen_width} × ${event.screen_height}` : '';
 
-  const eventGroups = [
+  const linkRenderer = (value: string) => <ExternalLinkValue value={value} />;
+
+  const eventGroups: { label: string; rows: PropEntry[] }[] = [
     {
       label: 'Location',
       rows: [
@@ -140,8 +197,8 @@ export function EventDetail({ event }: { event: EventLike }) {
     {
       label: 'Page',
       rows: [
-        { key: 'url', value: event.url },
-        { key: 'referrer', value: event.referrer },
+        { key: 'url', value: event.url, render: linkRenderer },
+        { key: 'referrer', value: event.referrer, render: linkRenderer },
         { key: 'page_title', value: event.page_title },
         { key: 'page_path', value: event.page_path },
       ],
@@ -159,7 +216,11 @@ export function EventDetail({ event }: { event: EventLike }) {
       label: 'Identity & Session',
       rows: [
         { key: 'distinct_id', value: event.distinct_id },
-        { key: 'person_id', value: event.person_id },
+        {
+          key: 'person_id',
+          value: event.person_id,
+          render: () => <PersonLink personId={event.person_id} projectId={projectId} />,
+        },
         { key: 'session_id', value: event.session_id },
         { key: 'language', value: event.language },
         { key: 'timezone', value: event.timezone },
@@ -178,20 +239,27 @@ export function EventDetail({ event }: { event: EventLike }) {
     key,
     value: typeof val === 'object' ? JSON.stringify(val) : String(val),
   }));
-
   if (customProps.length > 0) {
     eventGroups.push({ label: 'Custom Properties', rows: customProps });
   }
 
-  const personRows = Object.entries(parseSafe(event.user_properties)).map(([key, val]) => ({
+  const personRows: PropEntry[] = Object.entries(parseSafe(event.user_properties)).map(([key, val]) => ({
     key,
     value: typeof val === 'object' ? JSON.stringify(val) : String(val),
   }));
 
   return (
     <div className="border-b border-border bg-muted/20">
+      {/* Header: event name + timestamp */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-0">
+        <EventTypeIcon eventName={event.event_name} />
+        <span className="text-xs font-medium">{event.event_name}</span>
+        <span className="text-xs text-muted-foreground">·</span>
+        <span className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</span>
+      </div>
+
       {/* Tab bar */}
-      <div className="flex gap-0 border-b border-border px-4">
+      <div className="flex gap-0 border-b border-border px-4 mt-2">
         {(['event', 'person'] as DetailTab[]).map((t) => (
           <button
             key={t}
@@ -210,7 +278,6 @@ export function EventDetail({ event }: { event: EventLike }) {
       {/* Content */}
       <div className="px-4 py-3 max-h-96 overflow-y-auto">
         {tab === 'event' && <PropsTableGrouped groups={eventGroups} />}
-
         {tab === 'person' && (
           personRows.length === 0
             ? <p className="text-xs text-muted-foreground py-4">No person properties recorded</p>
@@ -228,62 +295,71 @@ export function EventTableRow({
   expanded,
   onToggle,
   showPerson = true,
+  projectId,
 }: {
   event: EventLike;
   expanded: boolean;
   onToggle: () => void;
   showPerson?: boolean;
+  projectId?: string;
 }) {
-  const browserShort = [
-    event.browser,
-    event.browser_version ? event.browser_version.split('.')[0] : '',
-  ].filter(Boolean).join(' ');
-  const deviceSummary = [browserShort, event.os].filter(Boolean).join(' · ');
+  // Show path portion of URL to save space
+  const urlDisplay = (() => {
+    if (!event.url) return event.page_path || '';
+    try { return new URL(event.url).pathname || event.url; } catch { return event.url; }
+  })();
 
   return (
     <>
       <div
-        className={`grid gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none transition-colors hover:bg-muted/40 ${expanded ? 'bg-muted/30' : ''} ${showPerson ? 'grid-cols-[20px_1fr_160px_80px_140px]' : 'grid-cols-[20px_1fr_80px_140px]'}`}
+        className={`grid gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none transition-colors hover:bg-muted/40 ${expanded ? 'bg-muted/30' : ''} ${showPerson ? 'grid-cols-[20px_1fr_160px_80px]' : 'grid-cols-[20px_1fr_80px]'}`}
         onClick={onToggle}
       >
+        {/* Chevron */}
         <span className="flex items-center text-muted-foreground/60">
           {expanded
             ? <ChevronDown className="h-3 w-3" />
             : <ChevronRight className="h-3 w-3" />}
         </span>
 
-        {/* Event name + url */}
+        {/* Event type icon + name badge + url path */}
         <span className="flex items-center gap-2 min-w-0">
+          <EventTypeIcon eventName={event.event_name} />
           <Badge
             variant={eventBadgeVariant(event.event_name)}
             className="shrink-0 font-mono text-[11px] py-0 px-1.5 h-5"
           >
             {event.event_name}
           </Badge>
-          {event.url && (
-            <span className="text-xs text-muted-foreground truncate">{event.url}</span>
+          {urlDisplay && (
+            <span className="text-xs text-muted-foreground/70 truncate font-mono">{urlDisplay}</span>
           )}
         </span>
 
-        {/* Person (optional) */}
+        {/* Person (optional) — clickable link */}
         {showPerson && (
-          <span className="flex items-center text-xs text-muted-foreground font-mono truncate">
-            {event.distinct_id}
+          <span className="flex items-center min-w-0">
+            {projectId && event.person_id ? (
+              <Link
+                to={`/persons/${event.person_id}?project=${projectId}`}
+                className="text-xs text-muted-foreground font-mono truncate hover:text-foreground hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {event.distinct_id}
+              </Link>
+            ) : (
+              <span className="text-xs text-muted-foreground font-mono truncate">{event.distinct_id}</span>
+            )}
           </span>
         )}
 
         {/* Time */}
-        <span className="flex items-center text-xs text-muted-foreground tabular-nums">
+        <span className="flex items-center text-xs text-muted-foreground tabular-nums" title={new Date(event.timestamp).toLocaleString()}>
           {formatRelativeTime(event.timestamp)}
-        </span>
-
-        {/* Browser / OS */}
-        <span className="flex items-center text-xs text-muted-foreground truncate">
-          {deviceSummary || <span className="text-muted-foreground/30">—</span>}
         </span>
       </div>
 
-      {expanded && <EventDetail event={event} />}
+      {expanded && <EventDetail event={event} projectId={projectId} />}
     </>
   );
 }

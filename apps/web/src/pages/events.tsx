@@ -75,12 +75,11 @@ export default function EventsPage() {
           {!isLoading && (
             <div>
               {/* Header */}
-              <div className="grid grid-cols-[20px_1fr_160px_80px_140px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[20px_1fr_160px_80px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
                 <span />
                 <span>Event</span>
                 <span>Person</span>
                 <span>When</span>
-                <span>Browser</span>
               </div>
 
               {/* Rows */}
@@ -91,6 +90,7 @@ export default function EventsPage() {
                   expanded={expandedRow === event.event_id}
                   onToggle={() => setExpandedRow(expandedRow === event.event_id ? null : event.event_id)}
                   showPerson
+                  projectId={projectId}
                 />
               ))}
 
