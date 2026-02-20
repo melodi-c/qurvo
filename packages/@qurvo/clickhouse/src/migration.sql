@@ -71,7 +71,7 @@ SOURCE(CLICKHOUSE(
     USER '${CLICKHOUSE_USER}'
     PASSWORD '${CLICKHOUSE_PASSWORD}'
     DB '${CLICKHOUSE_DB}'
-    QUERY 'SELECT project_id, distinct_id, argMax(person_id, version) AS person_id FROM person_distinct_id_overrides GROUP BY project_id, distinct_id'
+    QUERY 'SELECT project_id, distinct_id, argMax(person_id, version) AS person_id FROM ${CLICKHOUSE_DB}.person_distinct_id_overrides GROUP BY project_id, distinct_id'
 ))
 LIFETIME(MIN 30 MAX 60)
 LAYOUT(COMPLEX_KEY_HASHED())
