@@ -1,6 +1,6 @@
 apiVersion: v2
 name: qurvo-analytics
-description: Qurvo Analytics — event analytics platform
+description: Qurvo — event analytics platform
 type: application
 version: 0.1.0
 appVersion: "0.1.0"

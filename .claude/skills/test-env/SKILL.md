@@ -1,10 +1,10 @@
 ---
 name: test-env
-description: Настройка тестовой среды Qurvo Analytics — авторизация, получение токена, отправка тестовых событий через SDK
+description: Настройка тестовой среды Qurvo — авторизация, получение токена, отправка тестовых событий через SDK
 disable-model-invocation: true
 ---
 
-# Тестовая среда Qurvo Analytics
+# Тестовая среда Qurvo
 
 Сервисы: API `http://localhost:3000` · Ingest `http://localhost:3001` · Web `http://localhost:5173`
 
