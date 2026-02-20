@@ -1,9 +1,16 @@
 {
   "name": "@qurvo/sdk-browser",
   "version": "0.0.1",
-  "private": true,
+  "description": "Browser SDK for Qurvo analytics — event tracking, user identification, auto-capture",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
