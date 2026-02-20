@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
 import { Plus, Pencil, X } from 'lucide-react';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
@@ -81,19 +82,19 @@ export default function DashboardBuilderPage() {
   return (
     <div className="space-y-4 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          {store.isEditing ? (
+      <PageHeader
+        title={
+          store.isEditing ? (
             <Input
               value={store.localName}
               onChange={(e) => store.setLocalName(e.target.value)}
-              className="text-xl font-bold h-auto py-1"
+              className="text-base font-semibold h-auto py-1"
             />
           ) : (
-            <h1 className="text-2xl font-bold truncate">{store.localName}</h1>
-          )}
-        </div>
-
+            <h1 className="text-base font-semibold truncate">{store.localName}</h1>
+          )
+        }
+      >
         <div className="flex items-center gap-2 flex-shrink-0">
           {store.isEditing && (
             <Button onClick={() => setShowAddWidget(true)}>
@@ -118,7 +119,7 @@ export default function DashboardBuilderPage() {
             )}
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Grid */}
       <DashboardGrid />

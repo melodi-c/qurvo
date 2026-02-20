@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { PageHeader } from '@/components/ui/page-header';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
@@ -54,12 +54,7 @@ export default function PersonDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs
-        items={[
-          { label: 'Persons', path: `/persons?project=${projectId}` },
-          { label: personLoading ? '...' : (displayName ?? '') },
-        ]}
-      />
+      <PageHeader title={personLoading ? '...' : (displayName ?? '')} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card>

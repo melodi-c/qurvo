@@ -107,8 +107,8 @@ export function CrudListPage<T extends CrudListRow>({
     <div className="space-y-6">
       <PageHeader title={title}>
         <Link to={newPath}>
-          <Button size="sm" className="h-8 text-xs">
-            <Plus className="h-3.5 w-3.5 mr-1" />
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
             {newLabel}
           </Button>
         </Link>
