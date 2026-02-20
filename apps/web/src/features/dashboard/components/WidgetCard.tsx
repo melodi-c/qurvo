@@ -8,6 +8,8 @@ import type { Widget } from '@/api/generated/Api';
 
 export function WidgetCard({ widget }: { widget: Widget }) {
   const isEditing = useDashboardStore((s) => s.isEditing);
+  const insightType = widget.insight?.type;
+  const displayName = widget.insight?.name || 'Untitled';
 
   return (
     <Card className="h-full flex flex-col overflow-hidden">
@@ -18,13 +20,18 @@ export function WidgetCard({ widget }: { widget: Widget }) {
               <GripVertical className="h-4 w-4" />
             </span>
           )}
-          <CardTitle className="text-sm font-medium truncate">{widget.name}</CardTitle>
+          <CardTitle className="text-sm font-medium truncate">{displayName}</CardTitle>
         </div>
-        {isEditing && <WidgetMenu widgetId={widget.id} />}
+        {isEditing && <WidgetMenu widget={widget} />}
       </CardHeader>
       <CardContent className="flex-1 p-3 min-h-0">
-        {widget.type === 'funnel' && <FunnelWidget widget={widget} />}
-        {widget.type === 'trend' && <TrendWidget widget={widget} />}
+        {insightType === 'funnel' && <FunnelWidget widget={widget} />}
+        {insightType === 'trend' && <TrendWidget widget={widget} />}
+        {!insightType && (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            No insight linked
+          </div>
+        )}
       </CardContent>
     </Card>
   );

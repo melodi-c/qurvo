@@ -125,10 +125,6 @@ export default function CohortEditorPage() {
             <ArrowLeft className="h-3.5 w-3.5 mr-1" />
             Back
           </Button>
-          <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1">
-            <UsersRound className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Cohort</span>
-          </div>
           <h1 className="text-base font-semibold">{isNew ? 'New cohort' : 'Edit cohort'}</h1>
         </div>
         <Button size="sm" className="h-8 text-xs" onClick={handleSave} disabled={saving}>

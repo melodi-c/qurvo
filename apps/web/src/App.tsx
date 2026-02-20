@@ -10,14 +10,15 @@ import RegisterPage from '@/pages/register';
 import DashboardPage from '@/pages/dashboard';
 import DashboardsPage from '@/pages/dashboards/index';
 import DashboardBuilderPage from '@/pages/dashboards/[id]';
-import WidgetEditorPage from '@/pages/dashboards/widget-editor';
 import ProjectsPage from '@/pages/projects';
 import ApiKeysPage from '@/pages/api-keys';
 import EventsPage from '@/pages/events';
 import PersonsPage from '@/pages/persons';
 import PersonDetailPage from '@/pages/person-detail';
 import FunnelsPage from '@/pages/funnels';
+import FunnelEditorPage from '@/pages/funnel-editor';
 import TrendsPage from '@/pages/trends';
+import TrendEditorPage from '@/pages/trend-editor';
 import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
 
@@ -55,12 +56,14 @@ function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/dashboards" element={<DashboardsPage />} />
         <Route path="/dashboards/:id" element={<DashboardBuilderPage />} />
-        <Route path="/dashboards/:id/widgets/new" element={<WidgetEditorPage />} />
-        <Route path="/dashboards/:id/widgets/:widgetId" element={<WidgetEditorPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/keys" element={<ApiKeysPage />} />
         <Route path="/trends" element={<TrendsPage />} />
+        <Route path="/trends/new" element={<TrendEditorPage />} />
+        <Route path="/trends/:insightId" element={<TrendEditorPage />} />
         <Route path="/funnels" element={<FunnelsPage />} />
+        <Route path="/funnels/new" element={<FunnelEditorPage />} />
+        <Route path="/funnels/:insightId" element={<FunnelEditorPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/cohorts" element={<CohortsPage />} />
         <Route path="/cohorts/new" element={<CohortEditorPage />} />

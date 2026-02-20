@@ -1,5 +1,6 @@
-import { pgTable, uuid, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 import { dashboards } from './dashboards';
+import { insights } from './insights';
 
 export interface WidgetLayout {
   x: number;
@@ -60,9 +61,8 @@ export const widgets = pgTable(
     dashboard_id: uuid('dashboard_id')
       .notNull()
       .references(() => dashboards.id, { onDelete: 'cascade' }),
-    type: varchar('type', { length: 50 }).notNull(),
-    name: varchar('name', { length: 100 }).notNull(),
-    config: jsonb('config').notNull().$type<WidgetConfig>(),
+    insight_id: uuid('insight_id')
+      .references(() => insights.id, { onDelete: 'set null' }),
     layout: jsonb('layout').notNull().$type<WidgetLayout>(),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

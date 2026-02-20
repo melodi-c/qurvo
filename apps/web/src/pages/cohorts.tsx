@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UsersRound, Plus, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DataTable, type Column } from '@/components/ui/data-table';
 import { useCohorts, useDeleteCohort } from '@/features/cohorts/hooks/use-cohorts';
 import { toast } from 'sonner';
+import type { Cohort } from '@/api/generated/Api';
 
 function conditionsSummary(definition: { match: string; conditions: Array<{ type: string; [k: string]: unknown }> }): string {
   const parts = definition.conditions.map((c) => {
@@ -19,11 +21,13 @@ function conditionsSummary(definition: { match: string; conditions: Array<{ type
 export default function CohortsPage() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
+  const navigate = useNavigate();
   const { data: cohorts, isLoading } = useCohorts();
   const deleteMutation = useDeleteCohort();
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
     if (!confirm(`Delete cohort "${name}"?`)) return;
     setDeleting(id);
     try {
@@ -36,17 +40,70 @@ export default function CohortsPage() {
     }
   };
 
+  const columns: Column<Cohort>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      render: (row) => (
+        <div>
+          <span className="font-medium text-foreground">{row.name}</span>
+          {row.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">
+              {row.description}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'conditions',
+      header: 'Conditions',
+      render: (row) => (
+        <span className="text-xs text-muted-foreground font-mono truncate block max-w-[300px]">
+          {conditionsSummary(row.definition as any)}
+        </span>
+      ),
+    },
+    {
+      key: 'created',
+      header: 'Created',
+      render: (row) => (
+        <span className="text-xs text-muted-foreground">
+          {new Date(row.created_at).toLocaleDateString()}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      headerClassName: 'text-right w-24',
+      className: 'text-right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Link to={`/cohorts/${row.id}?project=${projectId}`}>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+            disabled={deleting === row.id}
+            onClick={(e) => handleDelete(e, row.id, row.name)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1">
-            <UsersRound className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Cohorts</span>
-          </div>
-          <h1 className="text-base font-semibold">Cohorts</h1>
-        </div>
+        <h1 className="text-base font-semibold">Cohorts</h1>
         <Link to={`/cohorts/new?project=${projectId}`}>
           <Button size="sm" className="h-8 text-xs">
             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -87,65 +144,14 @@ export default function CohortsPage() {
         </div>
       )}
 
-      {/* Cohorts list */}
+      {/* List */}
       {projectId && !isLoading && cohorts && cohorts.length > 0 && (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/30 text-xs text-muted-foreground">
-                <th className="text-left px-4 py-2.5 font-medium">Name</th>
-                <th className="text-left px-4 py-2.5 font-medium">Conditions</th>
-                <th className="text-left px-4 py-2.5 font-medium">Created</th>
-                <th className="text-right px-4 py-2.5 font-medium w-24">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {cohorts.map((cohort) => (
-                <tr key={cohort.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/cohorts/${cohort.id}?project=${projectId}`}
-                      className="font-medium text-foreground hover:text-primary transition-colors"
-                    >
-                      {cohort.name}
-                    </Link>
-                    {cohort.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">
-                        {cohort.description}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-muted-foreground font-mono truncate block max-w-[300px]">
-                      {conditionsSummary(cohort.definition as any)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {new Date(cohort.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link to={`/cohorts/${cohort.id}?project=${projectId}`}>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        disabled={deleting === cohort.id}
-                        onClick={() => handleDelete(cohort.id, cohort.name)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={cohorts}
+          rowKey={(row) => row.id}
+          onRowClick={(row) => navigate(`/cohorts/${row.id}?project=${projectId}`)}
+        />
       )}
     </div>
   );

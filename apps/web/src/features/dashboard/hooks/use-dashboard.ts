@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { CreateWidget, UpdateWidget } from '@/api/generated/Api';
-import type { Widget } from '@/api/generated/Api';
+import type { CreateWidget, Widget } from '@/api/generated/Api';
 
 function useProjectId() {
   const [searchParams] = useSearchParams();
@@ -80,25 +79,6 @@ export function useAddWidget() {
   });
 }
 
-export function useUpdateWidget() {
-  const projectId = useProjectId();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      dashboardId,
-      widgetId,
-      patch,
-    }: {
-      dashboardId: string;
-      widgetId: string;
-      patch: UpdateWidget;
-    }) => api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId }, patch),
-    onSuccess: (_data, { dashboardId }) => {
-      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
-    },
-  });
-}
-
 export function useRemoveWidget() {
   const projectId = useProjectId();
   const qc = useQueryClient();
@@ -111,7 +91,7 @@ export function useRemoveWidget() {
   });
 }
 
-/** Saves the entire dashboard state: name + all widgets (config + layout). */
+/** Saves the entire dashboard state: name + widget layouts. */
 export function useSaveDashboard(dashboardId: string) {
   const projectId = useProjectId();
   const qc = useQueryClient();
@@ -122,17 +102,13 @@ export function useSaveDashboard(dashboardId: string) {
   const addWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerAddWidget({ projectId, dashboardId }, {
-        type: w.type as 'funnel' | 'trend',
-        name: w.name,
-        config: w.config,
+        insight_id: w.insight_id ?? '',
         layout: w.layout,
       }),
   });
   const updateWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId: w.id }, {
-        name: w.name,
-        config: w.config,
         layout: w.layout,
       }),
   });

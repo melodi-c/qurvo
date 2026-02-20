@@ -72,7 +72,7 @@ export class DashboardsController {
     @Param('dashboardId') dashboardId: string,
     @Body() body: CreateWidgetDto,
   ): Promise<WidgetDto> {
-    return this.dashboardsService.addWidget(user.user_id, projectId, dashboardId, body);
+    return this.dashboardsService.addWidget(user.user_id, projectId, dashboardId, body) as any;
   }
 
   @Put(':dashboardId/widgets/:widgetId')
@@ -83,7 +83,7 @@ export class DashboardsController {
     @Param('widgetId') widgetId: string,
     @Body() body: UpdateWidgetDto,
   ): Promise<WidgetDto> {
-    return this.dashboardsService.updateWidget(user.user_id, projectId, dashboardId, widgetId, body);
+    return this.dashboardsService.updateWidget(user.user_id, projectId, dashboardId, widgetId, body) as any;
   }
 
   @Delete(':dashboardId/widgets/:widgetId')

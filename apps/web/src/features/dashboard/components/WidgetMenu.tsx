@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Trash2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,17 +8,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useDashboardStore } from '../store';
+import type { Widget } from '@/api/generated/Api';
 
-export function WidgetMenu({ widgetId }: { widgetId: string }) {
+export function WidgetMenu({ widget }: { widget: Widget }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
-  const dashboardId = useDashboardStore((s) => s.dashboardId);
   const removeWidget = useDashboardStore((s) => s.removeWidget);
 
-  const handleEdit = () => {
-    navigate(`/dashboards/${dashboardId}/widgets/${widgetId}?project=${projectId}`);
-  };
+  const insight = widget.insight;
+  const insightPath = insight
+    ? `/${insight.type === 'trend' ? 'trends' : 'funnels'}/${insight.id}?project=${projectId}`
+    : null;
 
   return (
     <DropdownMenu>
@@ -28,11 +29,13 @@ export function WidgetMenu({ widgetId }: { widgetId: string }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={handleEdit}>
-          <Pencil />
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={() => removeWidget(widgetId)}>
+        {insightPath && (
+          <DropdownMenuItem onClick={() => navigate(insightPath)}>
+            <ExternalLink />
+            Open insight
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem variant="destructive" onClick={() => removeWidget(widget.id)}>
           <Trash2 />
           Remove
         </DropdownMenuItem>

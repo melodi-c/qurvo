@@ -19,7 +19,14 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
 
-  const config = widget.config as TrendWidgetConfig;
+  const config = widget.insight?.config as TrendWidgetConfig | undefined;
+  if (!config) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        No insight linked
+      </div>
+    );
+  }
   const { data, isLoading, isFetching, error, refresh } = useTrendData(config, widget.id);
 
   const handleConfigure = () => {

@@ -1,7 +1,8 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsIn, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNotEmpty, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FunnelStepDto, TrendSeriesDto } from './analytics.dto';
+import { InsightDto } from './insights.dto';
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -73,30 +74,11 @@ export class TrendWidgetConfigDto {
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
-type AnyWidgetConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto;
+// ── Create / Update Widget DTOs ─────────────────────────────────────────────
 
-// ── Create / Update DTOs ──────────────────────────────────────────────────────
-
-@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto)
 export class CreateWidgetDto {
-  @IsString()
-  @IsIn(['funnel', 'trend'])
-  type: string;
-
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  name: string;
-
-  @IsObject()
-  @ApiProperty({
-    oneOf: [
-      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
-      { $ref: getSchemaPath(TrendWidgetConfigDto) },
-    ],
-    discriminator: { propertyName: 'type', mapping: { funnel: getSchemaPath(FunnelWidgetConfigDto), trend: getSchemaPath(TrendWidgetConfigDto) } },
-  })
-  config: AnyWidgetConfig;
+  @IsUUID()
+  insight_id: string;
 
   @IsObject()
   @Type(() => WidgetLayoutDto)
@@ -104,22 +86,9 @@ export class CreateWidgetDto {
 }
 
 export class UpdateWidgetDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
+  @IsUUID()
   @IsOptional()
-  name?: string;
-
-  @IsObject()
-  @IsOptional()
-  @ApiPropertyOptional({
-    oneOf: [
-      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
-      { $ref: getSchemaPath(TrendWidgetConfigDto) },
-    ],
-    discriminator: { propertyName: 'type', mapping: { funnel: getSchemaPath(FunnelWidgetConfigDto), trend: getSchemaPath(TrendWidgetConfigDto) } },
-  })
-  config?: AnyWidgetConfig;
+  insight_id?: string;
 
   @IsObject()
   @IsOptional()
@@ -137,23 +106,12 @@ export class DashboardDto {
   updated_at: Date;
 }
 
-@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto)
 export class WidgetDto {
   id: string;
   dashboard_id: string;
-  type: string;
-  name: string;
-
-  @ApiProperty({
-    oneOf: [
-      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
-      { $ref: getSchemaPath(TrendWidgetConfigDto) },
-    ],
-    discriminator: { propertyName: 'type', mapping: { funnel: getSchemaPath(FunnelWidgetConfigDto), trend: getSchemaPath(TrendWidgetConfigDto) } },
-  })
-  config: AnyWidgetConfig;
-
+  @ApiPropertyOptional() insight_id: string | null;
   layout: WidgetLayoutDto;
+  @ApiPropertyOptional() insight: InsightDto | null;
   created_at: Date;
   updated_at: Date;
 }

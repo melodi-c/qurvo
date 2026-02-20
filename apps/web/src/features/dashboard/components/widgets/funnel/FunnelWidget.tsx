@@ -20,7 +20,14 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
 
-  const config = widget.config as FunnelWidgetConfig;
+  const config = widget.insight?.config as FunnelWidgetConfig | undefined;
+  if (!config) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        No insight linked
+      </div>
+    );
+  }
   const { data, isLoading, isFetching, error, refresh } = useFunnelData(config, widget.id);
 
   const handleConfigure = () => {

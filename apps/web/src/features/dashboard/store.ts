@@ -23,7 +23,6 @@ interface DashboardStore {
   updateLayout: (layout: readonly RglItem[]) => void;
   addWidget: (widget: Widget) => void;
   removeWidget: (widgetId: string) => void;
-  updateWidgetConfig: (widgetId: string, config: Widget['config'], name: string) => void;
   discardChanges: (serverWidgets: Widget[], serverName: string) => void;
   markSaved: () => void;
 }
@@ -75,12 +74,6 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     set((s) => ({
       localWidgets: s.localWidgets.filter((w) => w.id !== widgetId),
       localLayout: s.localLayout.filter((l) => l.i !== widgetId),
-      isDirty: true,
-    })),
-
-  updateWidgetConfig: (widgetId, config, name) =>
-    set((s) => ({
-      localWidgets: s.localWidgets.map((w) => (w.id === widgetId ? { ...w, config, name } : w)),
       isDirty: true,
     })),
 

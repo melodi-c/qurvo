@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
-import { dashboards, widgets } from '@shot/db';
-import type { WidgetConfig, WidgetLayout } from '@shot/db';
+import { dashboards, widgets, insights } from '@shot/db';
+import type { WidgetLayout } from '@shot/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@shot/db';
 import { ProjectsService } from '../projects/projects.service';
@@ -37,12 +37,32 @@ export class DashboardsService {
     if (!dashboard) throw new DashboardNotFoundException();
 
     const widgetRows = await this.db
-      .select()
+      .select({
+        id: widgets.id,
+        dashboard_id: widgets.dashboard_id,
+        insight_id: widgets.insight_id,
+        layout: widgets.layout,
+        created_at: widgets.created_at,
+        updated_at: widgets.updated_at,
+        insight: insights,
+      })
       .from(widgets)
+      .leftJoin(insights, eq(widgets.insight_id, insights.id))
       .where(eq(widgets.dashboard_id, dashboardId))
       .orderBy(widgets.created_at);
 
-    return { ...dashboard, widgets: widgetRows };
+    return {
+      ...dashboard,
+      widgets: widgetRows.map((row) => ({
+        id: row.id,
+        dashboard_id: row.dashboard_id,
+        insight_id: row.insight_id,
+        layout: row.layout,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        insight: row.insight,
+      })),
+    };
   }
 
   async create(userId: string, projectId: string, input: { name: string }) {
@@ -83,7 +103,7 @@ export class DashboardsService {
     userId: string,
     projectId: string,
     dashboardId: string,
-    input: { type: string; name: string; config: WidgetConfig; layout: WidgetLayout },
+    input: { insight_id: string; layout: WidgetLayout },
   ) {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
@@ -93,9 +113,7 @@ export class DashboardsService {
       .insert(widgets)
       .values({
         dashboard_id: dashboardId,
-        type: input.type,
-        name: input.name,
-        config: input.config,
+        insight_id: input.insight_id,
         layout: input.layout,
       })
       .returning();
@@ -108,7 +126,7 @@ export class DashboardsService {
     projectId: string,
     dashboardId: string,
     widgetId: string,
-    input: { name?: string; config?: WidgetConfig; layout?: WidgetLayout },
+    input: { insight_id?: string; layout?: WidgetLayout },
   ) {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
@@ -116,8 +134,7 @@ export class DashboardsService {
     await this.assertWidgetExists(dashboardId, widgetId);
 
     const values: Record<string, unknown> = { updated_at: new Date() };
-    if (input.name !== undefined) values.name = input.name;
-    if (input.config !== undefined) values.config = input.config;
+    if (input.insight_id !== undefined) values.insight_id = input.insight_id;
     if (input.layout !== undefined) values.layout = input.layout;
 
     const [updated] = await this.db

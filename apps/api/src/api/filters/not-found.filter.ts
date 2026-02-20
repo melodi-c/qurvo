@@ -6,8 +6,9 @@ import { DashboardNotFoundException } from '../../dashboards/exceptions/dashboar
 import { WidgetNotFoundException } from '../../dashboards/exceptions/widget-not-found.exception';
 import { PersonNotFoundException } from '../../persons/exceptions/person-not-found.exception';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
+import { InsightNotFoundException } from '../../insights/exceptions/insight-not-found.exception';
 
-@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException)
+@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException)
 export class NotFoundFilter implements ExceptionFilter {
   catch(
     exception:
@@ -16,7 +17,8 @@ export class NotFoundFilter implements ExceptionFilter {
       | DashboardNotFoundException
       | WidgetNotFoundException
       | PersonNotFoundException
-      | CohortNotFoundException,
+      | CohortNotFoundException
+      | InsightNotFoundException,
     host: ArgumentsHost,
   ) {
     const response = host.switchToHttp().getResponse<Response>();

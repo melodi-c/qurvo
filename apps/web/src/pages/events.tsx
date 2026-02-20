@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,43 +39,51 @@ export default function EventsPage() {
     enabled: !!projectId,
   });
 
-  if (!projectId) {
-    return <div className="text-muted-foreground">Select a project first</div>;
-  }
-
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Event Explorer</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <h1 className="text-base font-semibold">Events</h1>
 
-      <div className="flex gap-3">
-        <Input
-          placeholder="Filter by event name"
-          value={filters.event_name}
-          onChange={(e) => { setFilters((f) => ({ ...f, event_name: e.target.value })); setPage(0); }}
-          className="max-w-xs"
-        />
-        <Input
-          placeholder="Filter by distinct_id"
-          value={filters.distinct_id}
-          onChange={(e) => { setFilters((f) => ({ ...f, distinct_id: e.target.value })); setPage(0); }}
-          className="max-w-xs"
-        />
-      </div>
+      {/* No project */}
+      {!projectId && (
+        <div className="flex flex-col items-center justify-center gap-3 text-center py-16">
+          <List className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Select a project to explore events</p>
+        </div>
+      )}
 
-      <Card className="py-0 gap-0">
-        <CardContent className="p-0">
+      {projectId && (
+        <>
+          {/* Filters */}
+          <div className="flex gap-3">
+            <Input
+              placeholder="Filter by event name"
+              value={filters.event_name}
+              onChange={(e) => { setFilters((f) => ({ ...f, event_name: e.target.value })); setPage(0); }}
+              className="max-w-xs"
+            />
+            <Input
+              placeholder="Filter by distinct_id"
+              value={filters.distinct_id}
+              onChange={(e) => { setFilters((f) => ({ ...f, distinct_id: e.target.value })); setPage(0); }}
+              className="max-w-xs"
+            />
+          </div>
+
+          {/* Loading */}
           {isLoading && (
-            <div className="space-y-2 p-4">
+            <div className="space-y-2">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-9 w-full" />
               ))}
             </div>
           )}
 
+          {/* Table */}
           {!isLoading && (
-            <div>
+            <div className="rounded-lg border border-border overflow-hidden">
               {/* Header */}
-              <div className="grid grid-cols-[20px_1fr_160px_80px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[20px_1fr_160px_80px] gap-3 px-4 py-2.5 bg-muted/30 text-xs font-medium text-muted-foreground">
                 <span />
                 <span>Event</span>
                 <span>Person</span>
@@ -83,35 +91,40 @@ export default function EventsPage() {
               </div>
 
               {/* Rows */}
-              {(events ?? []).map((event) => (
-                <EventTableRow
-                  key={event.event_id}
-                  event={toEventLike(event)}
-                  expanded={expandedRow === event.event_id}
-                  onToggle={() => setExpandedRow(expandedRow === event.event_id ? null : event.event_id)}
-                  showPerson
-                  projectId={projectId}
-                />
-              ))}
+              <div className="divide-y divide-border">
+                {(events ?? []).map((event) => (
+                  <EventTableRow
+                    key={event.event_id}
+                    event={toEventLike(event)}
+                    expanded={expandedRow === event.event_id}
+                    onToggle={() => setExpandedRow(expandedRow === event.event_id ? null : event.event_id)}
+                    showPerson
+                    projectId={projectId}
+                  />
+                ))}
+              </div>
 
               {(events ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-12">No events found</p>
+                <div className="flex flex-col items-center justify-center gap-1 py-12">
+                  <p className="text-sm text-muted-foreground">No events found</p>
+                  <p className="text-xs text-muted-foreground/60">Try adjusting your filters</p>
+                </div>
               )}
 
               {/* Pagination */}
-              <div className="flex justify-between items-center px-4 py-3 border-t border-border">
+              <div className="flex justify-between items-center px-4 py-3 border-t border-border bg-muted/10">
                 <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
                   Previous
                 </Button>
-                <span className="text-sm text-muted-foreground">Page {page + 1}</span>
+                <span className="text-xs text-muted-foreground">Page {page + 1}</span>
                 <Button variant="outline" size="sm" disabled={(events ?? []).length < limit} onClick={() => setPage((p) => p + 1)}>
                   Next
                 </Button>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 }

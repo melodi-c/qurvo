@@ -323,14 +323,9 @@ export interface TrendWidgetConfig {
   compare: boolean;
 }
 
-export interface WidgetLayout {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface Widget {
+export interface Insight {
+  type: InsightDtoTypeEnum;
+  description?: string | null;
   config:
     | ({
         type: "funnel";
@@ -339,9 +334,27 @@ export interface Widget {
         type: "trend";
       } & TrendWidgetConfig);
   id: string;
-  dashboard_id: string;
-  type: string;
+  project_id: string;
+  created_by: string;
   name: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Widget {
+  insight_id?: string | null;
+  insight?: Insight | null;
+  id: string;
+  dashboard_id: string;
   layout: WidgetLayout;
   /** @format date-time */
   created_at: string;
@@ -369,35 +382,14 @@ export interface UpdateDashboard {
 }
 
 export interface CreateWidget {
-  config:
-    | ({
-        type: "funnel";
-      } & FunnelWidgetConfig)
-    | ({
-        type: "trend";
-      } & TrendWidgetConfig);
-  type: CreateWidgetDtoTypeEnum;
-  /**
-   * @minLength 1
-   * @maxLength 100
-   */
-  name: string;
+  /** @format uuid */
+  insight_id: string;
   layout: WidgetLayout;
 }
 
 export interface UpdateWidget {
-  config?:
-    | ({
-        type: "funnel";
-      } & FunnelWidgetConfig)
-    | ({
-        type: "trend";
-      } & TrendWidgetConfig);
-  /**
-   * @minLength 1
-   * @maxLength 100
-   */
-  name?: string;
+  /** @format uuid */
+  insight_id?: string;
   layout?: WidgetLayout;
 }
 
@@ -482,6 +474,35 @@ export interface CohortPreview {
   definition: CohortDefinition;
 }
 
+export interface CreateInsight {
+  config:
+    | ({
+        type: "funnel";
+      } & FunnelWidgetConfig)
+    | ({
+        type: "trend";
+      } & TrendWidgetConfig);
+  type: CreateInsightDtoTypeEnum;
+  /** @maxLength 200 */
+  name: string;
+  /** @maxLength 1000 */
+  description?: string;
+}
+
+export interface UpdateInsight {
+  config?:
+    | ({
+        type: "funnel";
+      } & FunnelWidgetConfig)
+    | ({
+        type: "trend";
+      } & TrendWidgetConfig);
+  /** @maxLength 200 */
+  name?: string;
+  /** @maxLength 1000 */
+  description?: string;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -514,9 +535,11 @@ export type TrendWidgetConfigDtoGranularityEnum =
 
 export type TrendWidgetConfigDtoChartTypeEnum = "line" | "bar";
 
-export type CreateWidgetDtoTypeEnum = "funnel" | "trend";
+export type InsightDtoTypeEnum = "trend" | "funnel";
 
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
+
+export type CreateInsightDtoTypeEnum = "trend" | "funnel";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -677,6 +700,34 @@ export interface CohortsControllerGetMemberCountParams {
 
 export interface CohortsControllerPreviewCountParams {
   projectId: string;
+}
+
+export interface InsightsControllerListParams {
+  type?: TypeEnum;
+  projectId: string;
+}
+
+export type TypeEnum = "trend" | "funnel";
+
+export type InsightsControllerListParams1TypeEnum = "trend" | "funnel";
+
+export interface InsightsControllerCreateParams {
+  projectId: string;
+}
+
+export interface InsightsControllerGetByIdParams {
+  projectId: string;
+  insightId: string;
+}
+
+export interface InsightsControllerUpdateParams {
+  projectId: string;
+  insightId: string;
+}
+
+export interface InsightsControllerRemoveParams {
+  projectId: string;
+  insightId: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -1650,6 +1701,112 @@ export class Api<
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name InsightsControllerList
+     * @request GET:/api/projects/{projectId}/insights
+     * @secure
+     */
+    insightsControllerList: (
+      { projectId, ...query }: InsightsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Insight[], any>({
+        path: `/api/projects/${projectId}/insights`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name InsightsControllerCreate
+     * @request POST:/api/projects/{projectId}/insights
+     * @secure
+     */
+    insightsControllerCreate: (
+      { projectId, ...query }: InsightsControllerCreateParams,
+      data: CreateInsight,
+      params: RequestParams = {},
+    ) =>
+      this.request<Insight, any>({
+        path: `/api/projects/${projectId}/insights`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name InsightsControllerGetById
+     * @request GET:/api/projects/{projectId}/insights/{insightId}
+     * @secure
+     */
+    insightsControllerGetById: (
+      { projectId, insightId, ...query }: InsightsControllerGetByIdParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Insight, any>({
+        path: `/api/projects/${projectId}/insights/${insightId}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name InsightsControllerUpdate
+     * @request PUT:/api/projects/{projectId}/insights/{insightId}
+     * @secure
+     */
+    insightsControllerUpdate: (
+      { projectId, insightId, ...query }: InsightsControllerUpdateParams,
+      data: UpdateInsight,
+      params: RequestParams = {},
+    ) =>
+      this.request<Insight, any>({
+        path: `/api/projects/${projectId}/insights/${insightId}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name InsightsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/insights/{insightId}
+     * @secure
+     */
+    insightsControllerRemove: (
+      { projectId, insightId, ...query }: InsightsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/insights/${insightId}`,
+        method: "DELETE",
+        secure: true,
         ...params,
       }),
   };
