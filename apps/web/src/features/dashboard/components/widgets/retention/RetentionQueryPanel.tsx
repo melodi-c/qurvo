@@ -64,7 +64,7 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
                 value={config.granularity}
                 onValueChange={(v) => onChange({ ...config, granularity: v as RetentionWidgetConfig['granularity'] })}
               >
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

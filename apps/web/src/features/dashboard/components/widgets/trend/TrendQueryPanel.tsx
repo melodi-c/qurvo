@@ -53,7 +53,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                 value={config.metric}
                 onValueChange={(v) => onChange({ ...config, metric: v as TrendWidgetConfig['metric'] })}
               >
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -71,7 +71,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                 value={config.granularity}
                 onValueChange={(v) => onChange({ ...config, granularity: v as TrendWidgetConfig['granularity'] })}
               >
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
