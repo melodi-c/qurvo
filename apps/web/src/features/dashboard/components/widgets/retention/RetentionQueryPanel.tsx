@@ -33,13 +33,12 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
           <SectionHeader icon={CalendarCheck} label="Event" />
           <div className="space-y-1">
             <span className="text-xs text-muted-foreground">Target event</span>
-            <div className="rounded-md border border-border px-1 py-0.5">
-              <EventNameCombobox
-                value={config.target_event}
-                onChange={(target_event) => onChange({ ...config, target_event })}
-                placeholder="Select event..."
-              />
-            </div>
+            <EventNameCombobox
+              value={config.target_event}
+              onChange={(target_event) => onChange({ ...config, target_event })}
+              placeholder="Select event..."
+              className="h-9 rounded-md border-border px-3"
+            />
           </div>
         </section>
 

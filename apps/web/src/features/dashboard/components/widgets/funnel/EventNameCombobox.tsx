@@ -15,12 +15,14 @@ interface EventNameComboboxProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  className?: string;
 }
 
 export function EventNameCombobox({
   value,
   onChange,
   placeholder = 'event_name',
+  className: triggerClassName,
 }: EventNameComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -44,6 +46,7 @@ export function EventNameCombobox({
           className={cn(
             'flex h-7 w-full items-center rounded-sm border border-transparent bg-transparent px-2 text-left font-mono text-sm outline-none transition-colors hover:border-border focus:border-border focus:bg-background',
             !value && 'text-muted-foreground',
+            triggerClassName,
           )}
         >
           <span className="flex-1 truncate">{value || placeholder}</span>
