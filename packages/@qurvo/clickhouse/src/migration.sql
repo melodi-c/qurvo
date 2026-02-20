@@ -70,7 +70,8 @@ PRIMARY KEY project_id, distinct_id
 SOURCE(CLICKHOUSE(
     USER '${CLICKHOUSE_USER}'
     PASSWORD '${CLICKHOUSE_PASSWORD}'
-    QUERY 'SELECT project_id, distinct_id, argMax(person_id, version) AS person_id FROM qurvo_analytics.person_distinct_id_overrides GROUP BY project_id, distinct_id'
+    DB '${CLICKHOUSE_DB}'
+    QUERY 'SELECT project_id, distinct_id, argMax(person_id, version) AS person_id FROM person_distinct_id_overrides GROUP BY project_id, distinct_id'
 ))
 LIFETIME(MIN 30 MAX 60)
 LAYOUT(COMPLEX_KEY_HASHED())

@@ -10,7 +10,7 @@ function toChTs(iso: string, endOfDay = false): string {
 }
 
 const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
 const TOP_LEVEL_COLUMNS = new Set([
   'country', 'region', 'city', 'device_type', 'browser',

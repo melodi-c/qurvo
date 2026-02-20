@@ -13,7 +13,7 @@ function toChTs(iso: string, endOfDay = false): string {
  * Resolves the canonical person_id using the overrides dictionary (PostHog-style "Persons on Events").
  */
 const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
 export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
 

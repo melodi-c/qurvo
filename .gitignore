@@ -11,3 +11,4 @@ dist/
 # Kubernetes credentials
 *-config.yaml
 kubeconfig*
+config.yaml

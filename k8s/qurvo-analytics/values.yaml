@@ -122,4 +122,4 @@ migrations:
 # ClickHouse (non-secret config)
 # ==============================================================================
 clickhouse:
-  database: "qurvo_analytics"
+  database: "default_db"

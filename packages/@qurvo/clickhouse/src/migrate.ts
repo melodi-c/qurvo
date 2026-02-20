@@ -7,6 +7,7 @@ async function main() {
 
   const raw = readFileSync(join(__dirname, 'migration.sql'), 'utf-8');
   const sql = raw
+    .replace(/\$\{CLICKHOUSE_DB\}/g, process.env.CLICKHOUSE_DB || 'qurvo_analytics')
     .replace(/\$\{CLICKHOUSE_USER\}/g, process.env.CLICKHOUSE_USER || 'qurvo')
     .replace(/\$\{CLICKHOUSE_PASSWORD\}/g, process.env.CLICKHOUSE_PASSWORD || 'qurvo_secret');
 

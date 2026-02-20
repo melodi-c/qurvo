@@ -10,7 +10,7 @@ export async function queryEventNames(
 ): Promise<string[]> {
   const sql = `
     SELECT event_name, count() AS cnt
-    FROM qurvo_analytics.events FINAL
+    FROM events FINAL
     WHERE
       project_id = {project_id:UUID}
       AND timestamp >= now() - INTERVAL 90 DAY
