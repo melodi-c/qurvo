@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { api } from '@/api/client';
 import { Plus, FolderOpen } from 'lucide-react';
 
@@ -36,29 +37,21 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Projects</h1>
+      <PageHeader title="Projects">
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Project
         </Button>
-      </div>
+      </PageHeader>
 
       {showCreate && (
-        <Card>
-          <CardContent className="pt-6">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createMutation.mutate({ name });
-              }}
-              className="flex gap-3"
-            >
-              <Input placeholder="Project name" value={name} onChange={(e) => setName(e.target.value)} required className="flex-1" />
-              <Button type="submit" disabled={createMutation.isPending}>Create</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-            </form>
-          </CardContent>
-        </Card>
+        <InlineCreateForm
+          placeholder="Project name"
+          value={name}
+          onChange={setName}
+          isPending={createMutation.isPending}
+          onSubmit={() => createMutation.mutate({ name })}
+          onCancel={() => setShowCreate(false)}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

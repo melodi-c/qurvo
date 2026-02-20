@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UsersRound, Plus, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useCohorts, useDeleteCohort } from '@/features/cohorts/hooks/use-cohorts';
 import { toast } from 'sonner';
 import type { Cohort } from '@/api/generated/Api';
@@ -101,50 +103,29 @@ export default function CohortsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-base font-semibold">Cohorts</h1>
+      <PageHeader title="Cohorts">
         <Link to={`/cohorts/new?project=${projectId}`}>
           <Button size="sm" className="h-8 text-xs">
             <Plus className="h-3.5 w-3.5 mr-1" />
             New cohort
           </Button>
         </Link>
-      </div>
+      </PageHeader>
 
-      {/* No project selected */}
       {!projectId && (
-        <div className="flex flex-col items-center justify-center gap-3 text-center py-16">
-          <UsersRound className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Select a project to view cohorts</p>
-        </div>
+        <EmptyState icon={UsersRound} description="Select a project to view cohorts" />
       )}
 
-      {/* Loading */}
-      {projectId && isLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      )}
+      {projectId && isLoading && <ListSkeleton />}
 
-      {/* Empty */}
       {projectId && !isLoading && cohorts && cohorts.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 text-center py-16">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <UsersRound className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">No cohorts yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create a cohort to group users by properties or behavior
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={UsersRound}
+          title="No cohorts yet"
+          description="Create a cohort to group users by properties or behavior"
+        />
       )}
 
-      {/* List */}
       {projectId && !isLoading && cohorts && cohorts.length > 0 && (
         <DataTable
           columns={columns}

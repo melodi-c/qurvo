@@ -2,7 +2,8 @@ import { CalendarDays, Timer, SlidersHorizontal, TrendingDown, UsersRound } from
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
-import { SectionHeader, DATE_PRESETS, daysAgo, today } from './funnel-shared';
+import { SectionHeader } from '@/components/ui/section-header';
+import { DATE_PRESETS, daysAgo, today } from './funnel-shared';
 import { CohortSelector } from '@/features/cohorts/components/CohortSelector';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 

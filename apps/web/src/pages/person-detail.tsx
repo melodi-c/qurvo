@@ -5,6 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { ChevronLeft } from 'lucide-react';
 import { api } from '@/api/client';
 import { EventTableRow } from '@/components/event-detail';
@@ -71,18 +73,13 @@ export default function PersonDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Profile card */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Profile</CardTitle>
           </CardHeader>
           <CardContent>
             {personLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-5 w-full" />
-                ))}
-              </div>
+              <ListSkeleton count={4} height="h-5" className="space-y-2" />
             ) : (
               <dl className="space-y-3 text-sm">
                 <div>
@@ -102,13 +99,13 @@ export default function PersonDetailPage() {
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">First seen</dt>
                   <dd>
-                    {person ? new Date(person.created_at).toLocaleDateString() : '—'}
+                    {person ? new Date(person.created_at).toLocaleDateString() : '\u2014'}
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Last seen</dt>
                   <dd>
-                    {person ? new Date(person.updated_at).toLocaleDateString() : '—'}
+                    {person ? new Date(person.updated_at).toLocaleDateString() : '\u2014'}
                   </dd>
                 </div>
               </dl>
@@ -116,7 +113,6 @@ export default function PersonDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Properties card */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Properties</CardTitle>
@@ -140,23 +136,15 @@ export default function PersonDetailPage() {
         </Card>
       </div>
 
-      {/* Event history */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">Event History</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {eventsLoading && (
-            <div className="space-y-2 p-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          )}
+          {eventsLoading && <ListSkeleton count={6} height="h-10" className="space-y-2 p-4" />}
 
           {!eventsLoading && (
             <div>
-              {/* Header */}
               <div className="grid grid-cols-[20px_1fr_80px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
                 <span />
                 <span>Event</span>
@@ -178,15 +166,11 @@ export default function PersonDetailPage() {
                 <p className="text-sm text-muted-foreground text-center py-8">No events found</p>
               )}
 
-              <div className="flex justify-between items-center px-4 py-3 border-t border-border">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                  Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">Page {page + 1}</span>
-                <Button variant="outline" size="sm" disabled={(events ?? []).length < limit} onClick={() => setPage((p) => p + 1)}>
-                  Next
-                </Button>
-              </div>
+              <TablePagination
+                page={page}
+                onPageChange={setPage}
+                hasMore={(events ?? []).length >= limit}
+              />
             </div>
           )}
         </CardContent>

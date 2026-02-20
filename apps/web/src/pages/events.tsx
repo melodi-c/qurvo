@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { List } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { api } from '@/api/client';
 import { EventTableRow } from '@/components/event-detail';
 import type { EventLike } from '@/components/event-detail';
@@ -41,20 +43,14 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <h1 className="text-base font-semibold">Events</h1>
+      <PageHeader title="Events" />
 
-      {/* No project */}
       {!projectId && (
-        <div className="flex flex-col items-center justify-center gap-3 text-center py-16">
-          <List className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Select a project to explore events</p>
-        </div>
+        <EmptyState icon={List} description="Select a project to explore events" />
       )}
 
       {projectId && (
         <>
-          {/* Filters */}
           <div className="flex gap-3">
             <Input
               placeholder="Filter by event name"
@@ -70,19 +66,10 @@ export default function EventsPage() {
             />
           </div>
 
-          {/* Loading */}
-          {isLoading && (
-            <div className="space-y-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-9 w-full" />
-              ))}
-            </div>
-          )}
+          {isLoading && <ListSkeleton count={8} height="h-9" className="space-y-2" />}
 
-          {/* Table */}
           {!isLoading && (
             <div className="rounded-lg border border-border overflow-hidden">
-              {/* Header */}
               <div className="grid grid-cols-[20px_1fr_160px_80px] gap-3 px-4 py-2.5 bg-muted/30 text-xs font-medium text-muted-foreground">
                 <span />
                 <span>Event</span>
@@ -90,7 +77,6 @@ export default function EventsPage() {
                 <span>When</span>
               </div>
 
-              {/* Rows */}
               <div className="divide-y divide-border">
                 {(events ?? []).map((event) => (
                   <EventTableRow
@@ -111,16 +97,12 @@ export default function EventsPage() {
                 </div>
               )}
 
-              {/* Pagination */}
-              <div className="flex justify-between items-center px-4 py-3 border-t border-border bg-muted/10">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                  Previous
-                </Button>
-                <span className="text-xs text-muted-foreground">Page {page + 1}</span>
-                <Button variant="outline" size="sm" disabled={(events ?? []).length < limit} onClick={() => setPage((p) => p + 1)}>
-                  Next
-                </Button>
-              </div>
+              <TablePagination
+                page={page}
+                onPageChange={setPage}
+                hasMore={(events ?? []).length >= limit}
+                className="bg-muted/10"
+              />
             </div>
           )}
         </>

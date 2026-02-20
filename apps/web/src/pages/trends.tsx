@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, Pencil, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useInsights, useDeleteInsight } from '@/features/insights/hooks/use-insights';
 import { toast } from 'sonner';
 import type { Insight, TrendWidgetConfig } from '@/api/generated/Api';
@@ -97,56 +99,37 @@ export default function TrendsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-base font-semibold">Trends</h1>
+      <PageHeader title="Trends">
         <Link to={`/trends/new?project=${projectId}`}>
           <Button size="sm" className="h-8 text-xs">
             <Plus className="h-3.5 w-3.5 mr-1" />
             New trend
           </Button>
         </Link>
-      </div>
+      </PageHeader>
 
-      {/* No project */}
       {!projectId && (
-        <div className="flex flex-col items-center justify-center gap-3 text-center py-16">
-          <TrendingUp className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Select a project to view trends</p>
-        </div>
+        <EmptyState icon={TrendingUp} description="Select a project to view trends" />
       )}
 
-      {/* Loading */}
-      {projectId && isLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      )}
+      {projectId && isLoading && <ListSkeleton />}
 
-      {/* Empty */}
       {projectId && !isLoading && insights && insights.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 text-center py-16">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <TrendingUp className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">No trends yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create your first trend to analyze event data over time
-            </p>
-          </div>
-          <Link to={`/trends/new?project=${projectId}`}>
-            <Button size="sm">
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Create first trend
-            </Button>
-          </Link>
-        </div>
+        <EmptyState
+          icon={TrendingUp}
+          title="No trends yet"
+          description="Create your first trend to analyze event data over time"
+          action={
+            <Link to={`/trends/new?project=${projectId}`}>
+              <Button size="sm">
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Create first trend
+              </Button>
+            </Link>
+          }
+        />
       )}
 
-      {/* List */}
       {projectId && !isLoading && insights && insights.length > 0 && (
         <DataTable
           columns={columns}

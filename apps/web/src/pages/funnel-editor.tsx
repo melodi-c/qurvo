@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, GitFork, Save, TrendingDown, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { GitFork, TrendingDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EditorHeader } from '@/components/ui/editor-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Metric } from '@/components/ui/metric';
 import { useInsight, useCreateInsight, useUpdateInsight } from '@/features/insights/hooks/use-insights';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
 import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel/FunnelQueryPanel';
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
-import { defaultFunnelConfig, Metric } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
+import { defaultFunnelConfig } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 export default function FunnelEditorPage() {
@@ -85,61 +87,31 @@ export default function FunnelEditorPage() {
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center gap-3 border-b border-border bg-background px-5 h-14 flex-shrink-0">
-        <Link
-          to={listPath}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Funnels</span>
-        </Link>
+      <EditorHeader
+        backPath={listPath}
+        backLabel="Funnels"
+        name={name}
+        onNameChange={setName}
+        placeholder="Untitled funnel"
+        onSave={handleSave}
+        isSaving={isSaving}
+        isValid={isValid}
+        saveError={saveError}
+      />
 
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Untitled funnel"
-          className="flex-1 bg-transparent text-base font-semibold outline-none placeholder:text-muted-foreground/40 min-w-0"
-        />
-
-        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-          {saveError && (
-            <div className="flex items-center gap-1.5 text-xs text-destructive">
-              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>{saveError}</span>
-            </div>
-          )}
-          <Button variant="ghost" size="sm" asChild className="text-muted-foreground" disabled={isSaving}>
-            <Link to={listPath}>Discard</Link>
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={!isValid || isSaving}>
-            <Save className="h-3.5 w-3.5 mr-1.5" />
-            {isSaving ? 'Saving\u2026' : 'Save'}
-          </Button>
-        </div>
-      </header>
-
-      {/* Body */}
       <div className="flex flex-1 min-h-0">
         <FunnelQueryPanel config={config} onChange={setConfig} />
 
         <main className="flex-1 overflow-auto flex flex-col">
-          {/* Not configured */}
           {!isConfigValid && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <TrendingDown className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Configure your funnel</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Add at least 2 steps with event names to see results
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              icon={TrendingDown}
+              title="Configure your funnel"
+              description="Add at least 2 steps with event names to see results"
+              className="flex-1 p-8 py-0"
+            />
           )}
 
-          {/* Loading */}
           {isConfigValid && showSkeleton && (
             <div className="flex-1 flex flex-col gap-6 p-8">
               <div className="flex gap-8">
@@ -156,22 +128,15 @@ export default function FunnelEditorPage() {
             </div>
           )}
 
-          {/* No data */}
           {isConfigValid && !showSkeleton && (!steps || steps.length === 0) && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <GitFork className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">No results found</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  No events match these steps in the selected date range
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              icon={GitFork}
+              title="No results found"
+              description="No events match these steps in the selected date range"
+              className="flex-1 p-8 py-0"
+            />
           )}
 
-          {/* Results */}
           {isConfigValid && !showSkeleton && steps && steps.length > 0 && (
             <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
