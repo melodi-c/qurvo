@@ -148,6 +148,7 @@ export interface FunnelStep {
 }
 
 export interface FunnelQuery {
+  cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
   /**
@@ -235,6 +236,7 @@ export interface TrendSeries {
 }
 
 export interface TrendQuery {
+  cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
   /**
@@ -302,6 +304,7 @@ export interface FunnelWidgetConfig {
   type: FunnelWidgetConfigDtoTypeEnum;
   steps: FunnelStep[];
   breakdown_property?: string;
+  cohort_ids?: string[];
   conversion_window_days: number;
   date_from: string;
   date_to: string;
@@ -314,6 +317,7 @@ export interface TrendWidgetConfig {
   granularity: TrendWidgetConfigDtoGranularityEnum;
   chart_type: TrendWidgetConfigDtoChartTypeEnum;
   breakdown_property?: string;
+  cohort_ids?: string[];
   date_from: string;
   date_to: string;
   compare: boolean;
@@ -441,6 +445,43 @@ export interface PersonEventRow {
   user_properties: string;
 }
 
+export interface CohortDefinition {
+  match: CohortDefinitionDtoMatchEnum;
+  /** @minItems 1 */
+  conditions: object[];
+}
+
+export interface Cohort {
+  description?: string | null;
+  id: string;
+  project_id: string;
+  created_by: string;
+  name: string;
+  definition: CohortDefinition;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCohort {
+  name: string;
+  description?: string;
+  definition: CohortDefinition;
+}
+
+export interface UpdateCohort {
+  name?: string;
+  description?: string;
+  definition?: CohortDefinition;
+}
+
+export interface CohortMemberCount {
+  count: number;
+}
+
+export interface CohortPreview {
+  definition: CohortDefinition;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -474,6 +515,8 @@ export type TrendWidgetConfigDtoGranularityEnum =
 export type TrendWidgetConfigDtoChartTypeEnum = "line" | "bar";
 
 export type CreateWidgetDtoTypeEnum = "funnel" | "trend";
+
+export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -602,6 +645,38 @@ export interface PersonsControllerGetPersonEventsParams {
   /** @format uuid */
   project_id: string;
   personId: string;
+}
+
+export interface CohortsControllerListParams {
+  projectId: string;
+}
+
+export interface CohortsControllerCreateParams {
+  projectId: string;
+}
+
+export interface CohortsControllerGetByIdParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerUpdateParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerRemoveParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerGetMemberCountParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerPreviewCountParams {
+  projectId: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -1426,6 +1501,154 @@ export class Api<
         method: "GET",
         query: query,
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerList
+     * @request GET:/api/projects/{projectId}/cohorts
+     * @secure
+     */
+    cohortsControllerList: (
+      { projectId, ...query }: CohortsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Cohort[], any>({
+        path: `/api/projects/${projectId}/cohorts`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerCreate
+     * @request POST:/api/projects/{projectId}/cohorts
+     * @secure
+     */
+    cohortsControllerCreate: (
+      { projectId, ...query }: CohortsControllerCreateParams,
+      data: CreateCohort,
+      params: RequestParams = {},
+    ) =>
+      this.request<Cohort, any>({
+        path: `/api/projects/${projectId}/cohorts`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerGetById
+     * @request GET:/api/projects/{projectId}/cohorts/{cohortId}
+     * @secure
+     */
+    cohortsControllerGetById: (
+      { projectId, cohortId, ...query }: CohortsControllerGetByIdParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Cohort, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerUpdate
+     * @request PUT:/api/projects/{projectId}/cohorts/{cohortId}
+     * @secure
+     */
+    cohortsControllerUpdate: (
+      { projectId, cohortId, ...query }: CohortsControllerUpdateParams,
+      data: UpdateCohort,
+      params: RequestParams = {},
+    ) =>
+      this.request<Cohort, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/cohorts/{cohortId}
+     * @secure
+     */
+    cohortsControllerRemove: (
+      { projectId, cohortId, ...query }: CohortsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerGetMemberCount
+     * @request GET:/api/projects/{projectId}/cohorts/{cohortId}/count
+     * @secure
+     */
+    cohortsControllerGetMemberCount: (
+      { projectId, cohortId, ...query }: CohortsControllerGetMemberCountParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<CohortMemberCount, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/count`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerPreviewCount
+     * @request POST:/api/projects/{projectId}/cohorts/preview-count
+     * @secure
+     */
+    cohortsControllerPreviewCount: (
+      { projectId, ...query }: CohortsControllerPreviewCountParams,
+      data: CohortPreview,
+      params: RequestParams = {},
+    ) =>
+      this.request<CohortMemberCount, any>({
+        path: `/api/projects/${projectId}/cohorts/preview-count`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

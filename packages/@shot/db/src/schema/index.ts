@@ -8,3 +8,5 @@ export { widgets } from './widgets';
 export type { WidgetLayout, WidgetStepFilter, FunnelWidgetStep, FunnelWidgetConfig, WidgetConfig } from './widgets';
 export { persons } from './persons';
 export { personDistinctIds } from './person-distinct-ids';
+export { cohorts } from './cohorts';
+export type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition, CohortPropertyOperator, CohortCountOperator } from './cohorts';

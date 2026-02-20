@@ -5,6 +5,7 @@ import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@shot/clickhouse';
 import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
+import { CohortsService } from '../cohorts/cohorts.service';
 import { queryFunnel, type FunnelQueryParams, type FunnelQueryResult } from './funnel.query';
 
 const CACHE_TTL_SECONDS = 3600; // 1 hour
@@ -23,15 +24,24 @@ export class FunnelService {
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(REDIS) private readonly redis: Redis,
     private readonly projectsService: ProjectsService,
+    private readonly cohortsService: CohortsService,
   ) {}
 
   async getFunnel(
     userId: string,
-    params: FunnelQueryParams & { widget_id?: string; force?: boolean },
+    params: FunnelQueryParams & { widget_id?: string; force?: boolean; cohort_ids?: string[] },
   ): Promise<FunnelCacheEntry> {
     await this.projectsService.getMembership(userId, params.project_id);
 
-    const { widget_id, force, ...queryParams } = params;
+    const { widget_id, force, cohort_ids, ...queryParams } = params;
+
+    // Resolve cohort IDs to definitions
+    if (cohort_ids?.length) {
+      const definitions = await Promise.all(
+        cohort_ids.map((id) => this.cohortsService.getCohortDefinition(userId, params.project_id, id)),
+      );
+      queryParams.cohort_filters = definitions;
+    }
     const cacheKey = this.buildCacheKey(widget_id, queryParams);
 
     if (!force) {

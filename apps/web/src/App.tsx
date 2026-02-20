@@ -18,6 +18,8 @@ import PersonsPage from '@/pages/persons';
 import PersonDetailPage from '@/pages/person-detail';
 import FunnelsPage from '@/pages/funnels';
 import TrendsPage from '@/pages/trends';
+import CohortsPage from '@/pages/cohorts';
+import CohortEditorPage from '@/pages/cohort-editor';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -60,6 +62,9 @@ function AppRoutes() {
         <Route path="/trends" element={<TrendsPage />} />
         <Route path="/funnels" element={<FunnelsPage />} />
         <Route path="/events" element={<EventsPage />} />
+        <Route path="/cohorts" element={<CohortsPage />} />
+        <Route path="/cohorts/new" element={<CohortEditorPage />} />
+        <Route path="/cohorts/:cohortId" element={<CohortEditorPage />} />
         <Route path="/persons" element={<PersonsPage />} />
         <Route path="/persons/:personId" element={<PersonDetailPage />} />
       </Route>

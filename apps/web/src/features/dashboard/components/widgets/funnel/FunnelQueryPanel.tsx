@@ -1,8 +1,9 @@
-import { CalendarDays, Timer, SlidersHorizontal, TrendingDown } from 'lucide-react';
+import { CalendarDays, Timer, SlidersHorizontal, TrendingDown, UsersRound } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
 import { SectionHeader, DATE_PRESETS, daysAgo, today } from './funnel-shared';
+import { CohortSelector } from '@/features/cohorts/components/CohortSelector';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 interface FunnelQueryPanelProps {
@@ -92,6 +93,20 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
             />
             <span className="text-sm text-muted-foreground">days</span>
           </div>
+        </section>
+
+        <Separator />
+
+        {/* Cohort filter */}
+        <section className="space-y-3">
+          <SectionHeader icon={UsersRound} label="Cohort filter" />
+          <CohortSelector
+            value={config.cohort_ids ?? []}
+            onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Filter results to users in selected cohorts
+          </p>
         </section>
 
         <Separator />

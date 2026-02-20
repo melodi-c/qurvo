@@ -1,4 +1,6 @@
 import type { ClickHouseClient } from '@shot/clickhouse';
+import type { CohortDefinition } from '@shot/db';
+import { buildCohortFilterClause } from '../cohorts/cohorts.query';
 
 /** Converts an ISO 8601 timestamp to the format ClickHouse expects for DateTime64(3) parameters.
  * If only a date (YYYY-MM-DD) is provided for the upper bound, it is treated as end-of-day. */
@@ -53,6 +55,7 @@ export interface FunnelQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
+  cohort_filters?: CohortDefinition[];
 }
 
 const TOP_LEVEL_COLUMNS = new Set([
@@ -137,6 +140,11 @@ export async function queryFunnel(
 
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
+  // Cohort filter clause
+  const cohortClause = params.cohort_filters?.length
+    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
+    : '';
+
   if (!params.breakdown_property) {
     // Non-breakdown funnel: count users per step + time-to-convert for full completions
     const sql = `
@@ -152,7 +160,7 @@ export async function queryFunnel(
             project_id = {project_id:UUID}
             AND timestamp >= {from:DateTime64(3)}
             AND timestamp <= {to:DateTime64(3)}
-            AND event_name IN ({step_names:Array(String)})
+            AND event_name IN ({step_names:Array(String)})${cohortClause}
           GROUP BY person_id
         )
       SELECT
@@ -216,7 +224,7 @@ export async function queryFunnel(
             project_id = {project_id:UUID}
             AND timestamp >= {from:DateTime64(3)}
             AND timestamp <= {to:DateTime64(3)}
-            AND event_name IN ({step_names:Array(String)})
+            AND event_name IN ({step_names:Array(String)})${cohortClause}
           GROUP BY person_id
         )
       SELECT

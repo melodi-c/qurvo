@@ -1,4 +1,6 @@
 import type { ClickHouseClient } from '@shot/clickhouse';
+import type { CohortDefinition } from '@shot/db';
+import { buildCohortFilterClause } from '../cohorts/cohorts.query';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +65,7 @@ export interface TrendQueryParams {
   date_to: string;
   breakdown_property?: string;
   compare?: boolean;
+  cohort_filters?: CohortDefinition[];
 }
 
 export interface TrendDataPoint {
@@ -236,6 +239,11 @@ async function executeTrendQuery(
   const bucketExpr = granularityExpr(params.granularity);
   const hasBreakdown = !!params.breakdown_property;
 
+  // Cohort filter clause
+  const cohortClause = params.cohort_filters?.length
+    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
+    : '';
+
   if (!hasBreakdown) {
     const arms = params.series.map((s, idx) => {
       const cond = buildSeriesConditions(s, idx, queryParams);
@@ -250,7 +258,7 @@ async function executeTrendQuery(
           project_id = {project_id:UUID}
           AND timestamp >= {from:DateTime64(3)}
           AND timestamp <= {to:DateTime64(3)}
-          AND ${cond}
+          AND ${cond}${cohortClause}
         GROUP BY bucket`;
     });
 
@@ -280,7 +288,7 @@ async function executeTrendQuery(
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
         AND timestamp <= {to:DateTime64(3)}
-        AND ${cond}
+        AND ${cond}${cohortClause}
       GROUP BY breakdown_value, bucket`;
   });
 

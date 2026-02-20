@@ -29,6 +29,7 @@ export interface FunnelWidgetConfig {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
+  cohort_ids?: string[];
 }
 
 export interface TrendWidgetSeries {
@@ -47,6 +48,7 @@ export interface TrendWidgetConfig {
   date_to: string;
   breakdown_property?: string;
   compare: boolean;
+  cohort_ids?: string[];
 }
 
 export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig;

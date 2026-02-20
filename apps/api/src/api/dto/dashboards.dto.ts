@@ -47,6 +47,7 @@ export class FunnelWidgetConfigDto {
   date_from: string;
   date_to: string;
   @ApiPropertyOptional() breakdown_property?: string;
+  @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
 export class TrendWidgetConfigDto {
@@ -69,6 +70,7 @@ export class TrendWidgetConfigDto {
   date_to: string;
   @ApiPropertyOptional() breakdown_property?: string;
   compare: boolean;
+  @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
 type AnyWidgetConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto;

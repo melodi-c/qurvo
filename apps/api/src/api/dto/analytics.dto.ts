@@ -75,6 +75,12 @@ export class FunnelQueryDto {
   @IsOptional()
   breakdown_property?: string;
 
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  cohort_ids?: string[];
+
   @IsUUID()
   @IsOptional()
   widget_id?: string;
@@ -243,6 +249,12 @@ export class TrendQueryDto {
   @IsBoolean()
   @IsOptional()
   compare?: boolean;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  cohort_ids?: string[];
 
   @IsUUID()
   @IsOptional()

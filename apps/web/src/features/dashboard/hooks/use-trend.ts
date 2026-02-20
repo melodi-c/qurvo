@@ -24,6 +24,7 @@ function configHash(config: TrendWidgetConfig): string {
     breakdown: config.breakdown_property,
     compare: config.compare,
     chart_type: config.chart_type,
+    cohort_ids: config.cohort_ids,
   });
 }
 
@@ -57,6 +58,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
         ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
         ...(config.compare ? { compare: true } : {}),
         ...(widgetUuid ? { widget_id: widgetUuid } : {}),
+        ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
       }),
     enabled,
     placeholderData: keepPreviousData,

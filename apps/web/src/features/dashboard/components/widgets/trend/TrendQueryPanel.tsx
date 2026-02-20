@@ -4,6 +4,7 @@ import {
   BarChart3,
   SlidersHorizontal,
   ArrowLeftRight,
+  UsersRound,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { SectionHeader, DATE_PRESETS, daysAgo, today } from '../funnel/funnel-shared';
 import { METRIC_OPTIONS, GRANULARITY_OPTIONS, CHART_TYPE_OPTIONS } from './trend-shared';
+import { CohortSelector } from '@/features/cohorts/components/CohortSelector';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
 interface TrendQueryPanelProps {
@@ -162,6 +164,20 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
             />
             <span className="text-sm text-muted-foreground">Compare to previous period</span>
           </label>
+        </section>
+
+        <Separator />
+
+        {/* Cohort filter */}
+        <section className="space-y-3">
+          <SectionHeader icon={UsersRound} label="Cohort filter" />
+          <CohortSelector
+            value={config.cohort_ids ?? []}
+            onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Filter results to users in selected cohorts
+          </p>
         </section>
 
         <Separator />

@@ -21,6 +21,7 @@ function configHash(config: FunnelWidgetConfig): string {
     from: config.date_from,
     to: config.date_to,
     breakdown: config.breakdown_property,
+    cohort_ids: config.cohort_ids,
   });
 }
 
@@ -52,6 +53,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
         date_to: config.date_to,
         ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
         ...(widgetUuid ? { widget_id: widgetUuid } : {}),
+        ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
       }),
     enabled,
     placeholderData: keepPreviousData,
