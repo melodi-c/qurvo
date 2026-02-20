@@ -12,3 +12,5 @@ dist/
 *-config.yaml
 kubeconfig*
 config.yaml
+.idea
+values.local-secrets.yaml
