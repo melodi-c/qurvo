@@ -14,12 +14,23 @@ beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
 
+const DAY_MS = 86_400_000;
+
+/** Returns YYYY-MM-DD for a date offset by the given number of days from now */
+function dateOffset(days: number): string {
+  return new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Returns ISO timestamp offset by the given milliseconds from now */
+function msAgo(ms: number): string {
+  return new Date(Date.now() - ms).toISOString();
+}
+
 describe('queryFunnel — non-breakdown', () => {
   it('counts users completing a 3-step funnel', async () => {
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -27,28 +38,28 @@ describe('queryFunnel — non-breakdown', () => {
         person_id: personA,
         distinct_id: 'user-a',
         event_name: 'signup',
-        timestamp: new Date(now.getTime() - 3000).toISOString(),
+        timestamp: msAgo(3000),
       }),
       buildEvent({
         project_id: projectId,
         person_id: personA,
         distinct_id: 'user-a',
         event_name: 'onboarding_complete',
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
       buildEvent({
         project_id: projectId,
         person_id: personA,
         distinct_id: 'user-a',
         event_name: 'first_purchase',
-        timestamp: new Date(now.getTime() - 1000).toISOString(),
+        timestamp: msAgo(1000),
       }),
       buildEvent({
         project_id: projectId,
         person_id: personB,
         distinct_id: 'user-b',
         event_name: 'signup',
-        timestamp: new Date(now.getTime() - 3000).toISOString(),
+        timestamp: msAgo(3000),
       }),
     ]);
 
@@ -60,8 +71,8 @@ describe('queryFunnel — non-breakdown', () => {
         { event_name: 'first_purchase', label: 'Purchased' },
       ],
       conversion_window_days: 7,
-      date_from: new Date(now.getTime() - 86400_000).toISOString().slice(0, 10),
-      date_to: new Date(now.getTime() + 86400_000).toISOString().slice(0, 10),
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
     });
 
     expect(result.breakdown).toBe(false);
@@ -79,7 +90,6 @@ describe('queryFunnel — non-breakdown', () => {
   it('respects conversion window — out-of-window events are not counted', async () => {
     const projectId = randomUUID();
     const personId = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -87,7 +97,7 @@ describe('queryFunnel — non-breakdown', () => {
         person_id: personId,
         distinct_id: 'user-slow',
         event_name: 'step_a',
-        timestamp: new Date(now.getTime() - 3 * 86400_000).toISOString(),
+        timestamp: msAgo(3 * DAY_MS),
       }),
       buildEvent({
         project_id: projectId,
@@ -95,7 +105,7 @@ describe('queryFunnel — non-breakdown', () => {
         distinct_id: 'user-slow',
         event_name: 'step_b',
         // 2 days after step_a — within 1 day conversion window? NO
-        timestamp: new Date(now.getTime() - 1 * 86400_000).toISOString(),
+        timestamp: msAgo(1 * DAY_MS),
       }),
     ]);
 
@@ -105,9 +115,9 @@ describe('queryFunnel — non-breakdown', () => {
         { event_name: 'step_a', label: 'Step A' },
         { event_name: 'step_b', label: 'Step B' },
       ],
-      conversion_window_days: 1, // only 1 day window
-      date_from: new Date(now.getTime() - 7 * 86400_000).toISOString().slice(0, 10),
-      date_to: new Date(now.getTime() + 86400_000).toISOString().slice(0, 10),
+      conversion_window_days: 1,
+      date_from: dateOffset(-7),
+      date_to: dateOffset(1),
     });
 
     expect(result.breakdown).toBe(false);
@@ -142,7 +152,6 @@ describe('queryFunnel — non-breakdown', () => {
   it('applies step filters correctly', async () => {
     const projectId = randomUUID();
     const person = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -151,7 +160,7 @@ describe('queryFunnel — non-breakdown', () => {
         distinct_id: 'user-filter',
         event_name: 'click',
         properties: JSON.stringify({ button: 'signup' }),
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
       buildEvent({
         project_id: projectId,
@@ -159,14 +168,14 @@ describe('queryFunnel — non-breakdown', () => {
         distinct_id: 'user-filter',
         event_name: 'click',
         properties: JSON.stringify({ button: 'other' }),
-        timestamp: new Date(now.getTime() - 1000).toISOString(),
+        timestamp: msAgo(1000),
       }),
       buildEvent({
         project_id: projectId,
         person_id: person,
         distinct_id: 'user-filter',
         event_name: 'purchase',
-        timestamp: now.toISOString(),
+        timestamp: msAgo(0),
       }),
     ]);
 
@@ -181,8 +190,8 @@ describe('queryFunnel — non-breakdown', () => {
         { event_name: 'purchase', label: 'Purchase' },
       ],
       conversion_window_days: 7,
-      date_from: new Date(now.getTime() - 86400_000).toISOString().slice(0, 10),
-      date_to: new Date(now.getTime() + 86400_000).toISOString().slice(0, 10),
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
     });
 
     expect(result.breakdown).toBe(false);
@@ -196,7 +205,6 @@ describe('queryFunnel — non-breakdown', () => {
 describe('queryFunnel — with breakdown', () => {
   it('segments funnel counts by a top-level property', async () => {
     const projectId = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -205,7 +213,7 @@ describe('queryFunnel — with breakdown', () => {
         distinct_id: 'chrome-user',
         event_name: 'signup',
         browser: 'Chrome',
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
       buildEvent({
         project_id: projectId,
@@ -213,7 +221,7 @@ describe('queryFunnel — with breakdown', () => {
         distinct_id: 'chrome-user-2',
         event_name: 'signup',
         browser: 'Chrome',
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
       buildEvent({
         project_id: projectId,
@@ -221,7 +229,7 @@ describe('queryFunnel — with breakdown', () => {
         distinct_id: 'firefox-user',
         event_name: 'signup',
         browser: 'Firefox',
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
     ]);
 
@@ -232,8 +240,8 @@ describe('queryFunnel — with breakdown', () => {
         { event_name: 'checkout', label: 'Checkout' },
       ],
       conversion_window_days: 7,
-      date_from: new Date(now.getTime() - 86400_000).toISOString().slice(0, 10),
-      date_to: new Date(now.getTime() + 86400_000).toISOString().slice(0, 10),
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
       breakdown_property: 'browser',
     });
 

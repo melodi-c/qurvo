@@ -16,10 +16,22 @@ beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
 
+const DAY_MS = 86_400_000;
+
+/** Returns ISO timestamp offset by the given milliseconds from now */
+function msAgo(ms: number): string {
+  return new Date(Date.now() - ms).toISOString();
+}
+
+/** Returns YYYY-MM-DD for a date offset by the given number of days from now */
+function dateOffset(days: number): string {
+  return new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10);
+}
+
 describe('countCohortMembers — person_property conditions', () => {
   it('counts persons matching eq condition on user_properties', async () => {
     const projectId = randomUUID();
-    const now = new Date().toISOString();
+    const timestamp = msAgo(0);
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -28,7 +40,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'premium-user',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: now,
+        timestamp,
       }),
       buildEvent({
         project_id: projectId,
@@ -36,7 +48,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'free-user',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: now,
+        timestamp,
       }),
     ]);
 
@@ -52,7 +64,7 @@ describe('countCohortMembers — person_property conditions', () => {
 
   it('counts persons matching neq condition', async () => {
     const projectId = randomUUID();
-    const now = new Date().toISOString();
+    const timestamp = msAgo(0);
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -61,7 +73,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'user-a',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: now,
+        timestamp,
       }),
       buildEvent({
         project_id: projectId,
@@ -69,7 +81,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'user-b',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: now,
+        timestamp,
       }),
       buildEvent({
         project_id: projectId,
@@ -77,7 +89,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'user-c',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: now,
+        timestamp,
       }),
     ]);
 
@@ -93,7 +105,7 @@ describe('countCohortMembers — person_property conditions', () => {
 
   it('counts persons matching contains condition', async () => {
     const projectId = randomUUID();
-    const now = new Date().toISOString();
+    const timestamp = msAgo(0);
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -102,7 +114,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'user-a',
         event_name: '$set',
         user_properties: JSON.stringify({ company: 'Acme Corp' }),
-        timestamp: now,
+        timestamp,
       }),
       buildEvent({
         project_id: projectId,
@@ -110,7 +122,7 @@ describe('countCohortMembers — person_property conditions', () => {
         distinct_id: 'user-b',
         event_name: '$set',
         user_properties: JSON.stringify({ company: 'Beta Inc' }),
-        timestamp: now,
+        timestamp,
       }),
     ]);
 
@@ -130,16 +142,15 @@ describe('countCohortMembers — event conditions', () => {
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
-    const now = new Date();
 
-    const events = [
+    await insertTestEvents(ctx.ch, [
       ...Array.from({ length: 3 }, (_, i) =>
         buildEvent({
           project_id: projectId,
           person_id: personA,
           distinct_id: 'buyer-a',
           event_name: 'purchase',
-          timestamp: new Date(now.getTime() - i * 1000).toISOString(),
+          timestamp: msAgo(i * 1000),
         }),
       ),
       buildEvent({
@@ -147,11 +158,9 @@ describe('countCohortMembers — event conditions', () => {
         person_id: personB,
         distinct_id: 'buyer-b',
         event_name: 'purchase',
-        timestamp: now.toISOString(),
+        timestamp: msAgo(0),
       }),
-    ];
-
-    await insertTestEvents(ctx.ch, events);
+    ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
       match: 'all',
@@ -167,12 +176,11 @@ describe('countCohortMembers — event conditions', () => {
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
-      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: new Date(now.getTime() - 2000).toISOString() }),
-      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: new Date(now.getTime() - 1000).toISOString() }),
-      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'login', timestamp: now.toISOString() }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: msAgo(1000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'login', timestamp: msAgo(0) }),
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
@@ -191,7 +199,6 @@ describe('countCohortMembers — combined conditions', () => {
     const projectId = randomUUID();
     const personBoth = randomUUID();
     const personOnlyProp = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -200,7 +207,7 @@ describe('countCohortMembers — combined conditions', () => {
         distinct_id: 'both',
         event_name: 'purchase',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: new Date(now.getTime() - 1000).toISOString(),
+        timestamp: msAgo(1000),
       }),
       buildEvent({
         project_id: projectId,
@@ -208,7 +215,7 @@ describe('countCohortMembers — combined conditions', () => {
         distinct_id: 'only-prop',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: now.toISOString(),
+        timestamp: msAgo(0),
       }),
     ]);
 
@@ -227,7 +234,6 @@ describe('countCohortMembers — combined conditions', () => {
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -236,7 +242,7 @@ describe('countCohortMembers — combined conditions', () => {
         distinct_id: 'a',
         event_name: '$set',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: new Date(now.getTime() - 1000).toISOString(),
+        timestamp: msAgo(1000),
       }),
       buildEvent({
         project_id: projectId,
@@ -244,7 +250,7 @@ describe('countCohortMembers — combined conditions', () => {
         distinct_id: 'b',
         event_name: 'purchase',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: now.toISOString(),
+        timestamp: msAgo(0),
       }),
     ]);
 
@@ -265,7 +271,6 @@ describe('cohort filter integration with funnel', () => {
     const projectId = randomUUID();
     const premiumUser = randomUUID();
     const freeUser = randomUUID();
-    const now = new Date();
 
     await insertTestEvents(ctx.ch, [
       // Both users do the funnel steps
@@ -275,7 +280,7 @@ describe('cohort filter integration with funnel', () => {
         distinct_id: 'premium',
         event_name: 'signup',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
       buildEvent({
         project_id: projectId,
@@ -283,7 +288,7 @@ describe('cohort filter integration with funnel', () => {
         distinct_id: 'premium',
         event_name: 'checkout',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: new Date(now.getTime() - 1000).toISOString(),
+        timestamp: msAgo(1000),
       }),
       buildEvent({
         project_id: projectId,
@@ -291,7 +296,7 @@ describe('cohort filter integration with funnel', () => {
         distinct_id: 'free',
         event_name: 'signup',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: new Date(now.getTime() - 2000).toISOString(),
+        timestamp: msAgo(2000),
       }),
       buildEvent({
         project_id: projectId,
@@ -299,11 +304,10 @@ describe('cohort filter integration with funnel', () => {
         distinct_id: 'free',
         event_name: 'checkout',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: new Date(now.getTime() - 1000).toISOString(),
+        timestamp: msAgo(1000),
       }),
     ]);
 
-    // Funnel filtered to premium cohort only
     const result = await queryFunnel(ctx.ch, {
       project_id: projectId,
       steps: [
@@ -311,8 +315,8 @@ describe('cohort filter integration with funnel', () => {
         { event_name: 'checkout', label: 'Checkout' },
       ],
       conversion_window_days: 7,
-      date_from: new Date(now.getTime() - 86400_000).toISOString().slice(0, 10),
-      date_to: new Date(now.getTime() + 86400_000).toISOString().slice(0, 10),
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
       cohort_filters: [{
         match: 'all',
         conditions: [
@@ -334,9 +338,7 @@ describe('cohort filter integration with trend', () => {
     const projectId = randomUUID();
     const premiumUser = randomUUID();
     const freeUser = randomUUID();
-    const now = new Date();
-    const day = new Date(now.getTime() - 3000).toISOString();
-    const dateStr = now.toISOString().slice(0, 10);
+    const today = dateOffset(0);
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -345,7 +347,7 @@ describe('cohort filter integration with trend', () => {
         distinct_id: 'premium',
         event_name: 'page_view',
         user_properties: JSON.stringify({ plan: 'premium' }),
-        timestamp: day,
+        timestamp: msAgo(3000),
       }),
       buildEvent({
         project_id: projectId,
@@ -353,7 +355,7 @@ describe('cohort filter integration with trend', () => {
         distinct_id: 'free',
         event_name: 'page_view',
         user_properties: JSON.stringify({ plan: 'free' }),
-        timestamp: day,
+        timestamp: msAgo(3000),
       }),
     ]);
 
@@ -362,8 +364,8 @@ describe('cohort filter integration with trend', () => {
       series: [{ event_name: 'page_view', label: 'Views' }],
       metric: 'total_events',
       granularity: 'day',
-      date_from: dateStr,
-      date_to: dateStr,
+      date_from: today,
+      date_to: today,
       cohort_filters: [{
         match: 'all',
         conditions: [

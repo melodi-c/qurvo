@@ -16,7 +16,7 @@ export async function applyClickHouseMigration(
     .replace(/\$\{CLICKHOUSE_USER\}/g, user)
     .replace(/\$\{CLICKHOUSE_PASSWORD\}/g, password);
 
-  const statements = sql.split(';\n').map((s) => s.trim()).filter((s) => s.length > 0);
+  const statements = sql.split(/;[ \t]*\n/).map((s) => s.trim()).filter((s) => s.length > 0);
 
   for (const statement of statements) {
     await ch.command({ query: statement });

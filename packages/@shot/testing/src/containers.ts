@@ -7,6 +7,10 @@ import Redis from 'ioredis';
 import { applyClickHouseMigration } from './migrate-clickhouse';
 import { applyPostgresMigration } from './migrate-postgres';
 
+const DB_NAME = 'shot_analytics';
+const DB_USER = 'shot';
+const DB_PASSWORD = 'shot_secret';
+
 export interface ContainerContext {
   pgUrl: string;
   redisUrl: string;
@@ -35,7 +39,6 @@ export async function setupContainers(): Promise<ContainerContext> {
 export async function teardownContainers(): Promise<void> {
   if (!contextPromise) return;
   const ctx = await contextPromise;
-  contextPromise = null;
   await ctx.ch.close();
   ctx.redis.disconnect();
   await Promise.all([
@@ -43,14 +46,15 @@ export async function teardownContainers(): Promise<void> {
     ctx.redisContainer.stop(),
     ctx.chContainer.stop(),
   ]);
+  contextPromise = null;
 }
 
 async function startContainers(): Promise<ContainerContext> {
   const [pgContainer, redisContainer, chContainer] = await Promise.all([
     new PostgreSqlContainer('postgres:17-alpine')
-      .withDatabase('shot_analytics')
-      .withUsername('shot')
-      .withPassword('shot_secret')
+      .withDatabase(DB_NAME)
+      .withUsername(DB_USER)
+      .withPassword(DB_PASSWORD)
       .start(),
 
     new GenericContainer('redis:7-alpine')
@@ -60,9 +64,9 @@ async function startContainers(): Promise<ContainerContext> {
 
     new GenericContainer('clickhouse/clickhouse-server:24.8')
       .withEnvironment({
-        CLICKHOUSE_DB: 'shot_analytics',
-        CLICKHOUSE_USER: 'shot',
-        CLICKHOUSE_PASSWORD: 'shot_secret',
+        CLICKHOUSE_DB: DB_NAME,
+        CLICKHOUSE_USER: DB_USER,
+        CLICKHOUSE_PASSWORD: DB_PASSWORD,
         CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1',
       })
       .withExposedPorts(8123)
@@ -73,9 +77,9 @@ async function startContainers(): Promise<ContainerContext> {
   const pgUrl = pgContainer.getConnectionUri();
   const redisUrl = `redis://${redisContainer.getHost()}:${redisContainer.getMappedPort(6379)}`;
   const clickhouseUrl = `http://${chContainer.getHost()}:${chContainer.getMappedPort(8123)}`;
-  const clickhouseUser = 'shot';
-  const clickhousePassword = 'shot_secret';
-  const clickhouseDb = 'shot_analytics';
+  const clickhouseUser = DB_USER;
+  const clickhousePassword = DB_PASSWORD;
+  const clickhouseDb = DB_NAME;
 
   const ch = createClickHouse({
     url: clickhouseUrl,

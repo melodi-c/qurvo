@@ -65,32 +65,27 @@ export function buildEvent(overrides: Partial<Event> & { project_id: string; per
   };
 }
 
+const OPTIONAL_STRING_DEFAULTS: Record<string, string> = {
+  properties: '{}',
+  user_properties: '{}',
+  browser: '',
+  country: '',
+  region: '',
+  city: '',
+  device_type: '',
+  os: '',
+  os_version: '',
+  language: '',
+  url: '',
+  referrer: '',
+  page_title: '',
+  page_path: '',
+};
+
 export async function insertTestEvents(ch: ClickHouseClient, events: Event[]): Promise<void> {
   await ch.insert({
     table: 'events',
-    values: events.map(e => ({
-      event_id: e.event_id,
-      project_id: e.project_id,
-      event_name: e.event_name,
-      event_type: e.event_type,
-      distinct_id: e.distinct_id,
-      person_id: e.person_id,
-      timestamp: e.timestamp,
-      properties: e.properties ?? '{}',
-      user_properties: e.user_properties ?? '{}',
-      browser: e.browser ?? '',
-      country: e.country ?? '',
-      region: e.region ?? '',
-      city: e.city ?? '',
-      device_type: e.device_type ?? '',
-      os: e.os ?? '',
-      os_version: e.os_version ?? '',
-      language: e.language ?? '',
-      url: e.url ?? '',
-      referrer: e.referrer ?? '',
-      page_title: e.page_title ?? '',
-      page_path: e.page_path ?? '',
-    })),
+    values: events.map((e) => ({ ...OPTIONAL_STRING_DEFAULTS, ...e })),
     format: 'JSONEachRow',
     clickhouse_settings: {
       date_time_input_format: 'best_effort',
