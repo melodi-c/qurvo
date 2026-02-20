@@ -23,8 +23,8 @@ export default function RegisterPage() {
     try {
       await register(form);
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }

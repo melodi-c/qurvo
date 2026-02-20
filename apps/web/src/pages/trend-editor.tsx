@@ -1,49 +1,42 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, BarChart3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
-import { useInsight, useCreateInsight, useUpdateInsight } from '@/features/insights/hooks/use-insights';
+import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
 import { defaultTrendConfig, METRIC_OPTIONS } from '@/features/dashboard/components/widgets/trend/trend-shared';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
+function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
+  return {
+    ...config,
+    series: config.series.map((s) => ({
+      ...s,
+      filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
+    })),
+  };
+}
+
 export default function TrendEditorPage() {
-  const { insightId } = useParams<{ insightId: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const editor = useInsightEditor<TrendWidgetConfig>({
+    type: 'trend',
+    basePath: '/trends',
+    defaultName: 'Untitled trend',
+    defaultConfig: defaultTrendConfig,
+    cleanConfig: cleanTrendConfig,
 
-  const isNew = !insightId;
-  const { data: insight } = useInsight(insightId ?? '');
+  });
 
-  const [name, setName] = useState('Untitled trend');
-  const [config, setConfig] = useState<TrendWidgetConfig>(defaultTrendConfig);
-  const initialized = useRef(isNew);
+  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
 
-  useEffect(() => {
-    if (!initialized.current && insight) {
-      setName(insight.name);
-      setConfig(insight.config as TrendWidgetConfig);
-      initialized.current = true;
-    }
-  }, [insight]);
-
-  const createMutation = useCreateInsight();
-  const updateMutation = useUpdateInsight();
-  const isSaving = createMutation.isPending || updateMutation.isPending;
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  const listPath = `/trends?project=${projectId}`;
-
-  // Trend data
   const isConfigValid =
     config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
-  const previewId = isNew ? 'trend-new' : insightId!;
+  const isValid = name.trim() !== '' && isConfigValid;
+
+  const previewId = editor.isNew ? 'trend-new' : editor.insightId!;
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
   const result = data?.data;
   const series = result?.series;
@@ -55,39 +48,6 @@ export default function TrendEditorPage() {
   ) ?? 0;
   const seriesCount = series?.length ?? 0;
   const metricLabel = METRIC_OPTIONS.find((o) => o.value === config.metric)?.label ?? config.metric;
-
-  const isValid = name.trim() !== '' && isConfigValid;
-
-  const handleSave = async () => {
-    if (!isValid || isSaving) return;
-    setSaveError(null);
-
-    const cleanConfig: TrendWidgetConfig = {
-      ...config,
-      series: config.series.map((s) => ({
-        ...s,
-        filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
-      })),
-    };
-
-    try {
-      if (isNew) {
-        await createMutation.mutateAsync({
-          type: 'trend',
-          name,
-          config: cleanConfig,
-        });
-      } else {
-        await updateMutation.mutateAsync({
-          insightId: insightId!,
-          data: { name, config: cleanConfig },
-        });
-      }
-      navigate(listPath);
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Failed to save');
-    }
-  };
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">

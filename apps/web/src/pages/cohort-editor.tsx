@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Save, UsersRound, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { EditorHeader } from '@/components/ui/editor-header';
 import { CohortConditionBuilder, type CohortCondition } from '@/features/cohorts/components/CohortConditionBuilder';
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -23,11 +22,12 @@ export default function CohortEditorPage() {
   const updateMutation = useUpdateCohort();
   const previewMutation = useCohortPreviewCount();
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState('Untitled cohort');
   const [description, setDescription] = useState('');
   const [match, setMatch] = useState<'all' | 'any'>('all');
   const [conditions, setConditions] = useState<CohortCondition[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Load existing cohort data
   useEffect(() => {
@@ -58,16 +58,12 @@ export default function CohortEditorPage() {
   }, [debouncedHash, projectId, hasValidConditions]);
 
   const listPath = `/cohorts?project=${projectId}`;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isValid = name.trim() !== '' && conditions.length > 0;
 
   const handleSave = useCallback(async () => {
-    if (!name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-    if (conditions.length === 0) {
-      toast.error('Add at least one condition');
-      return;
-    }
+    if (!isValid || isSaving) return;
+    setSaveError(null);
 
     try {
       if (isNew) {
@@ -89,12 +85,10 @@ export default function CohortEditorPage() {
         toast.success('Cohort updated');
       }
       navigate(listPath);
-    } catch {
-      toast.error('Failed to save cohort');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save');
     }
-  }, [name, description, match, conditions, isNew, cohortId, listPath, navigate, createMutation, updateMutation]);
-
-  const saving = createMutation.isPending || updateMutation.isPending;
+  }, [name, description, match, conditions, isNew, cohortId, isValid, isSaving, listPath, navigate, createMutation, updateMutation]);
 
   if (!isNew && loadingCohort) {
     return (
@@ -108,42 +102,23 @@ export default function CohortEditorPage() {
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center gap-2 border-b border-border bg-background px-5 h-14 flex-shrink-0">
-        <Breadcrumbs
-          items={[
-            { label: 'Cohorts', path: listPath },
-            { label: name.trim() || (isNew ? 'New cohort' : 'Edit cohort') },
-          ]}
-          className="flex-1"
-        />
-        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-          <Button variant="ghost" size="sm" asChild className="text-muted-foreground" disabled={saving}>
-            <Link to={listPath}>Discard</Link>
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-            {saving ? 'Saving\u2026' : 'Save'}
-          </Button>
-        </div>
-      </header>
+      <EditorHeader
+        backPath={listPath}
+        backLabel="Cohorts"
+        name={name}
+        onNameChange={setName}
+        placeholder="Untitled cohort"
+        onSave={handleSave}
+        isSaving={isSaving}
+        isValid={isValid}
+        saveError={saveError}
+      />
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
         {/* Left panel: Editor */}
         <aside className="w-[420px] flex-shrink-0 border-r border-border overflow-y-auto">
           <div className="p-5 space-y-5">
-            {/* Name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Name</label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Cohort name"
-                className="h-8 text-sm"
-              />
-            </div>
-
             {/* Description */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Description</label>

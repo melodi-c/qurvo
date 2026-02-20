@@ -37,7 +37,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `Popover` | `popover.tsx` | Compound: `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverHeader`, `PopoverTitle`, `PopoverDescription` | Floating panels, combobox containers |
 | `Command` | `command.tsx` | Built on `cmdk`. Compound: `Command`, `CommandInput`, `CommandList`, `CommandEmpty`, `CommandGroup`, `CommandItem` | Searchable selection lists (inside Popover for combobox pattern) |
 | `Table` | `table.tsx` | Semantic: `Table`, `TableHeader`, `TableBody`, `TableHead`, `TableRow`, `TableCell` | When you need the raw shadcn table primitives |
-| `Skeleton` | `skeleton.tsx` | `className` | Loading placeholders. Prefer `ListSkeleton` for repeated rows |
+| `Skeleton` | `skeleton.tsx` | `className` | Loading placeholders. Prefer `ListSkeleton` or `GridSkeleton` for repeated items |
 | `Tooltip` | `tooltip.tsx` | Compound: `Tooltip`, `TooltipTrigger`, `TooltipContent`. `TooltipProvider` is mounted at app root | Button hints, metric explanations |
 | `Separator` | `separator.tsx` | `orientation`: horizontal/vertical | Visual dividers between sections |
 | `Toaster` (sonner) | `sonner.tsx` | Mounted once in `App.tsx` | Use `toast.success()`, `toast.error()` from `sonner` for notifications |
@@ -47,12 +47,14 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | Component | File | Key Props | When to use |
 |---|---|---|---|
 | `DataTable<T>` | `data-table.tsx` | `columns: Column<T>[]`, `data: T[]`, `rowKey`, `onRowClick?`, `className?`, `page?`, `onPageChange?`, `hasMore?` | Generic typed table for list pages. Optional built-in pagination via `page`/`onPageChange`/`hasMore` props — renders inside the table border |
+| `ConfirmDialog` | `confirm-dialog.tsx` | `open`, `onOpenChange`, `title`, `description?`, `confirmLabel?`, `cancelLabel?`, `variant?`, `onConfirm` | Destructive action confirmation. Handles async confirm with loading spinner. Never use native `confirm()` or `alert()` |
 | `PageHeader` | `page-header.tsx` | `title: string`, `children?` (action slot) | Page title with optional action button. Use on every top-level page |
 | `EmptyState` | `empty-state.tsx` | `icon`, `title?`, `description`, `action?`, `className?` | Empty/placeholder states. Without `title` — compact style (icon + text). With `title` — icon in circle + heading + description + optional action |
 | `InlineCreateForm` | `inline-create-form.tsx` | `placeholder`, `value`, `onChange`, `isPending`, `onSubmit`, `onCancel`, `submitLabel?`, `pendingLabel?`, `autoFocus?` | Quick create forms that appear inline (projects, dashboards, api-keys) |
-| `ListSkeleton` | `list-skeleton.tsx` | `count?` (default 3), `height?` (default "h-16"), `className?` | Loading skeleton for list pages. Replaces repeated `Array.from().map(Skeleton)` pattern |
+| `ListSkeleton` | `list-skeleton.tsx` | `count?` (default 3), `height?` (default "h-16"), `className?` | Loading skeleton for list pages |
+| `GridSkeleton` | `grid-skeleton.tsx` | `count?` (default 3), `height?` (default "h-24"), `className?` | Loading skeleton for card grid pages (projects, dashboards) |
 | `TablePagination` | `table-pagination.tsx` | `page`, `onPageChange`, `hasMore`, `className?` | Previous/Next pagination. Prefer using DataTable's built-in `page`/`onPageChange`/`hasMore` props instead of standalone usage |
-| `EditorHeader` | `editor-header.tsx` | `backPath`, `backLabel`, `name`, `onNameChange`, `placeholder`, `onSave`, `isSaving`, `isValid`, `saveError?` | Editor page header with breadcrumbs (`backLabel > name input`) + save/discard buttons (trend-editor, funnel-editor) |
+| `EditorHeader` | `editor-header.tsx` | `backPath`, `backLabel`, `name`, `onNameChange`, `placeholder`, `onSave`, `isSaving`, `isValid`, `saveError?` | Editor page header with breadcrumbs (`backLabel > name input`) + save/discard buttons. Use for all editor pages (trends, funnels, cohorts) |
 | `Metric` | `metric.tsx` | `label`, `value`, `accent?` | Large numeric display for KPIs in editor results panels |
 | `SectionHeader` | `section-header.tsx` | `icon: ElementType`, `label` | Uppercase section labels with icon in query panels |
 | `PillToggleGroup` | `pill-toggle-group.tsx` | `options: { label, value }[]`, `value`, `onChange`, `className?` | Toggle between small set of options (chart type, match mode). Renders pill-shaped buttons |
@@ -65,6 +67,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Component | File | Key Props | When to use |
 |---|---|---|---|
+| `CrudListPage<T>` | `crud-list-page.tsx` | `title`, `icon`, `basePath`, `newLabel`, `entityLabel`, `columns`, `data`, `isLoading`, `onDelete`, `emptyTitle`, `emptyDescription`, `showEmptyAction?` | Generic CRUD list page with PageHeader, EmptyState, ListSkeleton, DataTable, and ConfirmDialog delete. Automatically adds name + actions columns. Use for trends, funnels, cohorts |
 | `EventTable` | `event-table.tsx` | `events: EventLike[]`, `showPerson?`, `projectId`, `page`, `onPageChange`, `hasMore`, `className?` | Expandable event list with header, rows, and pagination. Used on events page and person-detail. Wraps `EventTableRow` from `event-detail.tsx` |
 | `EventTableRow` | `event-detail.tsx` | `event`, `expanded`, `onToggle`, `showPerson`, `projectId` | Single expandable event row. Use via `EventTable` — not directly |
 | `EventDetail` | `event-detail.tsx` | `event`, `projectId` | Expanded event detail panel with tabs (Event/Person). Rendered inside `EventTableRow` |
@@ -74,6 +77,13 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | Hook | File | Signature | When to use |
 |---|---|---|---|
 | `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
+| `useConfirmDelete` | `confirm-dialog.tsx` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
+
+## Feature Hooks (`src/features/`)
+
+| Hook | File | Signature | When to use |
+|---|---|---|---|
+| `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling |
 
 ## Code Rules
 
@@ -84,6 +94,9 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 ### Reusability
 - **Prefer creating reusable components over inline implementations.** If a UI pattern appears (or could appear) in more than one place, extract it into a shared component in `components/ui/`. Use existing components whenever possible instead of writing custom markup.
 - Before writing a new component, check if an existing one in `components/ui/` already solves the problem or can be composed to solve it.
+
+### Dialogs Over Native APIs
+- **Never use `confirm()`, `alert()`, or `prompt()`**. Use `ConfirmDialog` for destructive confirmations and `Dialog` for other modal interactions.
 
 ### Memoization
 - Use `useCallback` for functions passed as props to child components or used in dependency arrays.
@@ -100,22 +113,25 @@ All pages inside `<Layout>` receive `p-6` padding via `<main>`. Editor pages tha
 
 ### Editor Page Structure
 ```
-EditorHeader (breadcrumbs: "Funnels > name input", save/discard)
-├── QueryPanel (left sidebar, ~360px)
+EditorHeader (breadcrumbs: "Section > name input", save/discard)
+├── QueryPanel (left sidebar, ~360-420px)
 └── main (flex-1, overflow-auto)
     ├── EmptyState (not configured)
     ├── Skeleton (loading)
     ├── EmptyState (no results)
-    └── Results (Metric bar + Chart)
+    └── Results (Metric bar + Chart/Preview)
 ```
+Use `useInsightEditor` hook for shared state management (name, config, mutations, save handler).
 
 ### List Page Structure
+Use `CrudListPage` for CRUD entity lists. It handles the full layout:
 ```
 PageHeader (title + "New" button)
 ├── EmptyState (no project)
 ├── ListSkeleton (loading)
 ├── EmptyState (no data, with action)
-└── DataTable (data)
+└── DataTable (name column + extra columns + actions column)
+    └── ConfirmDialog (delete confirmation)
 ```
 
 ### Query Panel Sections

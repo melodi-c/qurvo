@@ -3,10 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/ui/page-header';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
+import { GridSkeleton } from '@/components/ui/grid-skeleton';
+import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog';
 import { api } from '@/api/client';
+import { toast } from 'sonner';
 import { Plus, FolderOpen } from 'lucide-react';
 
 export default function ProjectsPage() {
@@ -34,6 +36,16 @@ export default function ProjectsPage() {
     mutationFn: (id: string) => api.projectsControllerRemove({ id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   });
+  const confirmDelete = useConfirmDelete();
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(confirmDelete.itemId);
+      toast.success('Project deleted');
+    } catch {
+      toast.error('Failed to delete project');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -54,32 +66,47 @@ export default function ProjectsPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading && Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
-        ))}
-        {!isLoading && (projects || []).map((project) => (
-          <Card key={project.id} className="cursor-pointer hover:border-primary/50 transition-colors">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2" onClick={() => { setSearchParams({ project: project.id }); navigate(`/?project=${project.id}`); }}>
-                  <FolderOpen className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle className="text-base">{project.name}</CardTitle>
+      {isLoading && <GridSkeleton />}
+
+      {!isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(projects || []).map((project) => (
+            <Card key={project.id} className="cursor-pointer hover:border-primary/50 transition-colors">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2" onClick={() => { setSearchParams({ project: project.id }); navigate(`/?project=${project.id}`); }}>
+                    <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-base">{project.name}</CardTitle>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/keys?project=${project.id}`)}>
+                      Keys
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={(e) => { e.stopPropagation(); confirmDelete.requestDelete(project.id, project.name); }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/keys?project=${project.id}`)}>
-                    Keys
-                  </Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(project.id)}>
-                    Delete
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">slug: {project.slug}</p>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+                <p className="text-xs text-muted-foreground mt-1">slug: {project.slug}</p>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete.isOpen}
+        onOpenChange={confirmDelete.close}
+        title={`Delete "${confirmDelete.itemName}"?`}
+        description="This action cannot be undone. All project data will be permanently removed."
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

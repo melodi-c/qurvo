@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { GitFork, TrendingDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
-import { useInsight, useCreateInsight, useUpdateInsight } from '@/features/insights/hooks/use-insights';
+import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
 import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel/FunnelQueryPanel';
@@ -13,77 +11,38 @@ import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel
 import { defaultFunnelConfig } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
+function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
+  return {
+    ...config,
+    steps: config.steps.map((s) => ({
+      ...s,
+      filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
+    })),
+  };
+}
+
 export default function FunnelEditorPage() {
-  const { insightId } = useParams<{ insightId: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const editor = useInsightEditor<FunnelWidgetConfig>({
+    type: 'funnel',
+    basePath: '/funnels',
+    defaultName: 'Untitled funnel',
+    defaultConfig: defaultFunnelConfig,
+    cleanConfig: cleanFunnelConfig,
+  });
 
-  const isNew = !insightId;
-  const { data: insight } = useInsight(insightId ?? '');
+  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
 
-  const [name, setName] = useState('Untitled funnel');
-  const [config, setConfig] = useState<FunnelWidgetConfig>(defaultFunnelConfig);
-  const initialized = useRef(isNew);
-
-  useEffect(() => {
-    if (!initialized.current && insight) {
-      setName(insight.name);
-      setConfig(insight.config as FunnelWidgetConfig);
-      initialized.current = true;
-    }
-  }, [insight]);
-
-  const createMutation = useCreateInsight();
-  const updateMutation = useUpdateInsight();
-  const isSaving = createMutation.isPending || updateMutation.isPending;
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  const listPath = `/funnels?project=${projectId}`;
-
-  // Funnel data
   const isConfigValid =
     config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
-  const previewId = isNew ? 'funnel-new' : insightId!;
+  const isValid = name.trim() !== '' && isConfigValid;
+
+  const previewId = editor.isNew ? 'funnel-new' : editor.insightId!;
   const { data, isLoading, isFetching } = useFunnelData(config, previewId);
   const funnelResult = data?.data;
   const steps = funnelResult?.steps;
   const breakdown = funnelResult?.breakdown;
   const showSkeleton = isLoading && !data;
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(funnelResult);
-
-  const isValid = name.trim() !== '' && isConfigValid;
-
-  const handleSave = async () => {
-    if (!isValid || isSaving) return;
-    setSaveError(null);
-
-    const cleanConfig: FunnelWidgetConfig = {
-      ...config,
-      steps: config.steps.map((s) => ({
-        ...s,
-        filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
-      })),
-    };
-
-    try {
-      if (isNew) {
-        await createMutation.mutateAsync({
-          type: 'funnel',
-          name,
-          config: cleanConfig,
-        });
-      } else {
-        await updateMutation.mutateAsync({
-          insightId: insightId!,
-          data: { name, config: cleanConfig },
-        });
-      }
-      navigate(listPath);
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Failed to save');
-    }
-  };
 
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
