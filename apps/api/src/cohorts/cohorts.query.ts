@@ -140,7 +140,7 @@ export function buildCohortSubquery(
     return buildConditionSubquery(definition.conditions[0], cohortIdx * 100, projectIdParam, queryParams);
   }
 
-  const joiner = definition.match === 'all' ? 'INTERSECT' : 'UNION';
+  const joiner = definition.match === 'all' ? 'INTERSECT' : 'UNION ALL';
   const subqueries = definition.conditions.map((cond, i) =>
     buildConditionSubquery(cond, cohortIdx * 100 + i, projectIdParam, queryParams),
   );

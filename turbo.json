@@ -29,6 +29,9 @@
     },
     "generate-api": {
       "cache": false
+    },
+    "test:integration": {
+      "cache": false
     }
   }
 }

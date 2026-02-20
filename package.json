@@ -12,10 +12,11 @@
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
     "swagger:generate": "turbo swagger:generate --filter=@shot/api",
-    "generate-api": "turbo generate-api --filter=@shot/web"
+    "generate-api": "turbo generate-api --filter=@shot/web",
+    "test:integration": "turbo test:integration"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@nestjs/core", "argon2", "geoip-lite"]
+    "onlyBuiltDependencies": ["esbuild", "@nestjs/core", "argon2", "geoip-lite", "@swc/core"]
   },
   "devDependencies": {
     "turbo": "^2.8.0"
