@@ -29,12 +29,12 @@ importers:
       '@nestjs/throttler':
         specifier: ^6.5.0
         version: 6.5.0(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)
-      '@shot/clickhouse':
+      '@qurvo/clickhouse':
         specifier: workspace:*
-        version: link:../../packages/@shot/clickhouse
-      '@shot/db':
+        version: link:../../packages/@qurvo/clickhouse
+      '@qurvo/db':
         specifier: workspace:*
-        version: link:../../packages/@shot/db
+        version: link:../../packages/@qurvo/db
       argon2:
         specifier: ^0.41.0
         version: 0.41.1
@@ -75,12 +75,12 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
-      '@shot/testing':
+      '@qurvo/testing':
         specifier: workspace:*
-        version: link:../../packages/@shot/testing
-      '@shot/tsconfig':
+        version: link:../../packages/@qurvo/testing
+      '@qurvo/tsconfig':
         specifier: workspace:*
-        version: link:../../packages/@shot/tsconfig
+        version: link:../../packages/@qurvo/tsconfig
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
@@ -114,9 +114,9 @@ importers:
       '@nestjs/throttler':
         specifier: ^6.5.0
         version: 6.5.0(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)
-      '@shot/db':
+      '@qurvo/db':
         specifier: workspace:*
-        version: link:../../packages/@shot/db
+        version: link:../../packages/@qurvo/db
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1
@@ -154,12 +154,12 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
-      '@shot/testing':
+      '@qurvo/testing':
         specifier: workspace:*
-        version: link:../../packages/@shot/testing
-      '@shot/tsconfig':
+        version: link:../../packages/@qurvo/testing
+      '@qurvo/tsconfig':
         specifier: workspace:*
-        version: link:../../packages/@shot/tsconfig
+        version: link:../../packages/@qurvo/tsconfig
       '@swc/core':
         specifier: ^1.10.0
         version: 1.15.11
@@ -190,12 +190,12 @@ importers:
       '@nestjs/core':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@shot/clickhouse':
+      '@qurvo/clickhouse':
         specifier: workspace:*
-        version: link:../../packages/@shot/clickhouse
-      '@shot/db':
+        version: link:../../packages/@qurvo/clickhouse
+      '@qurvo/db':
         specifier: workspace:*
-        version: link:../../packages/@shot/db
+        version: link:../../packages/@qurvo/db
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1
@@ -230,12 +230,12 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
-      '@shot/testing':
+      '@qurvo/testing':
         specifier: workspace:*
-        version: link:../../packages/@shot/testing
-      '@shot/tsconfig':
+        version: link:../../packages/@qurvo/testing
+      '@qurvo/tsconfig':
         specifier: workspace:*
-        version: link:../../packages/@shot/tsconfig
+        version: link:../../packages/@qurvo/tsconfig
       '@swc/core':
         specifier: ^1.10.0
         version: 1.15.11
@@ -343,13 +343,13 @@ importers:
         specifier: ^7.3.0
         version: 7.3.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/@shot/clickhouse:
+  packages/@qurvo/clickhouse:
     dependencies:
       '@clickhouse/client':
         specifier: ^1.8.0
         version: 1.17.0
     devDependencies:
-      '@shot/tsconfig':
+      '@qurvo/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@types/node':
@@ -362,7 +362,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/@shot/db:
+  packages/@qurvo/db:
     dependencies:
       drizzle-orm:
         specifier: ^0.39.0
@@ -371,7 +371,7 @@ importers:
         specifier: ^3.4.0
         version: 3.4.8
     devDependencies:
-      '@shot/tsconfig':
+      '@qurvo/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@types/node':
@@ -387,7 +387,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/@shot/eslint-config:
+  packages/@qurvo/eslint-config:
     dependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.0.0
@@ -399,35 +399,35 @@ importers:
         specifier: ^9.0.0
         version: 9.39.2(jiti@2.6.1)
 
-  packages/@shot/sdk-browser:
+  packages/@qurvo/sdk-browser:
     dependencies:
-      '@shot/sdk-core':
+      '@qurvo/sdk-core':
         specifier: workspace:*
         version: link:../sdk-core
     devDependencies:
-      '@shot/tsconfig':
+      '@qurvo/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/@shot/sdk-core:
+  packages/@qurvo/sdk-core:
     devDependencies:
-      '@shot/tsconfig':
+      '@qurvo/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/@shot/sdk-node:
+  packages/@qurvo/sdk-node:
     dependencies:
-      '@shot/sdk-core':
+      '@qurvo/sdk-core':
         specifier: workspace:*
         version: link:../sdk-core
     devDependencies:
-      '@shot/tsconfig':
+      '@qurvo/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@types/node':
@@ -437,15 +437,12 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/@shot/testing:
+  packages/@qurvo/testing:
     dependencies:
-      '@clickhouse/client':
-        specifier: ^1.11.0
-        version: 1.17.0
-      '@shot/clickhouse':
+      '@qurvo/clickhouse':
         specifier: workspace:*
         version: link:../clickhouse
-      '@shot/db':
+      '@qurvo/db':
         specifier: workspace:*
         version: link:../db
       '@testcontainers/postgresql':
@@ -464,7 +461,7 @@ importers:
         specifier: ^10.25.0
         version: 10.28.0
     devDependencies:
-      '@shot/tsconfig':
+      '@qurvo/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@types/node':
@@ -474,7 +471,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/@shot/tsconfig: {}
+  packages/@qurvo/tsconfig: {}
 
 packages:
 

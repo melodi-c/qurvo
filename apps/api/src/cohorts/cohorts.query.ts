@@ -1,8 +1,8 @@
-import type { ClickHouseClient } from '@shot/clickhouse';
-import type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition } from '@shot/db';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
+import type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition } from '@qurvo/db';
 
 const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('shot_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+  `coalesce(dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
 const TOP_LEVEL_COLUMNS = new Set([
   'country', 'region', 'city', 'device_type', 'browser',

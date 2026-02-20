@@ -5,12 +5,12 @@ NestJS REST API for the dashboard. Port 3000.
 ## Commands
 
 ```bash
-pnpm --filter @shot/api dev          # watch mode
-pnpm --filter @shot/api build        # nest build → dist/
-pnpm --filter @shot/api start        # node dist/main.js
+pnpm --filter @qurvo/api dev          # watch mode
+pnpm --filter @qurvo/api build        # nest build → dist/
+pnpm --filter @qurvo/api start        # node dist/main.js
 
 # Integration tests (requires infra:up)
-pnpm --filter @shot/api test:integration
+pnpm --filter @qurvo/api test:integration
 
 # Swagger
 pnpm swagger:generate                # nest build && generate swagger.json
@@ -86,7 +86,7 @@ constructor(
 3. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
 
 ### Analytics Queries
-Query functions live in `src/{module}/{module}.query.ts`, not in `@shot/clickhouse`:
+Query functions live in `src/{module}/{module}.query.ts`, not in `@qurvo/clickhouse`:
 - `queryTrend(ch, params)` — time-series with granularity, compare, breakdown, cohort filters
 - `queryFunnel(ch, params)` — multi-step conversion with window, breakdown, cohort filters
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
@@ -102,7 +102,7 @@ Filters registered via `APP_FILTER` provider in their module, never via `app.use
 
 Tests in `src/test/{module}/`. Run with `vitest.integration.config.ts`.
 
-- Use `setupContainers()` from `@shot/testing` for PostgreSQL + Redis + ClickHouse
-- Date helpers (`daysAgo`, `ts`, `msAgo`, `dateOffset`) from `@shot/testing`
+- Use `setupContainers()` from `@qurvo/testing` for PostgreSQL + Redis + ClickHouse
+- Date helpers (`daysAgo`, `ts`, `msAgo`, `dateOffset`) from `@qurvo/testing`
 - API-specific `sumSeriesValues()` in `src/test/helpers/`
 - 21 tests: trends (7), funnels (5), cohorts (9)

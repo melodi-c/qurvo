@@ -1,6 +1,6 @@
 import { Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import Redis from 'ioredis';
-import { type ClickHouseClient } from '@shot/clickhouse';
+import { type ClickHouseClient } from '@qurvo/clickhouse';
 import { RedisProvider, REDIS } from '../providers/redis.provider';
 import { ClickHouseProvider, CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DrizzleProvider } from '../providers/drizzle.provider';

@@ -1,13 +1,13 @@
 # ==============================================================================
-# Multi-stage Dockerfile for shot-analytics monorepo
+# Multi-stage Dockerfile for qurvo-analytics monorepo
 #
 # Build NestJS apps (api, ingest, processor):
-#   docker build --target nestjs --build-arg APP=api -t shot-api .
-#   docker build --target nestjs --build-arg APP=ingest -t shot-ingest .
-#   docker build --target nestjs --build-arg APP=processor -t shot-processor .
+#   docker build --target nestjs --build-arg APP=api -t qurvo-api .
+#   docker build --target nestjs --build-arg APP=ingest -t qurvo-ingest .
+#   docker build --target nestjs --build-arg APP=processor -t qurvo-processor .
 #
 # Build web (nginx + SPA):
-#   docker build --target web -t shot-web .
+#   docker build --target web -t qurvo-web .
 # ==============================================================================
 
 # ==============================================================================
@@ -25,14 +25,14 @@ COPY apps/api/package.json                     apps/api/
 COPY apps/ingest/package.json                  apps/ingest/
 COPY apps/processor/package.json               apps/processor/
 COPY apps/web/package.json                     apps/web/
-COPY packages/@shot/db/package.json            packages/@shot/db/
-COPY packages/@shot/clickhouse/package.json    packages/@shot/clickhouse/
-COPY packages/@shot/sdk-core/package.json      packages/@shot/sdk-core/
-COPY packages/@shot/sdk-browser/package.json   packages/@shot/sdk-browser/
-COPY packages/@shot/sdk-node/package.json      packages/@shot/sdk-node/
-COPY packages/@shot/tsconfig/package.json      packages/@shot/tsconfig/
-COPY packages/@shot/eslint-config/package.json packages/@shot/eslint-config/
-COPY packages/@shot/testing/package.json       packages/@shot/testing/
+COPY packages/@qurvo/db/package.json            packages/@qurvo/db/
+COPY packages/@qurvo/clickhouse/package.json    packages/@qurvo/clickhouse/
+COPY packages/@qurvo/sdk-core/package.json      packages/@qurvo/sdk-core/
+COPY packages/@qurvo/sdk-browser/package.json   packages/@qurvo/sdk-browser/
+COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
+COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
+COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
+COPY packages/@qurvo/testing/package.json       packages/@qurvo/testing/
 
 RUN pnpm install --frozen-lockfile
 
@@ -46,7 +46,7 @@ FROM base AS nestjs-builder
 
 ARG APP
 
-RUN pnpm --filter @shot/${APP}... build
+RUN pnpm --filter @qurvo/${APP}... build
 
 # ==============================================================================
 # Stage: nestjs — production runtime for api/ingest/processor
@@ -61,27 +61,27 @@ RUN corepack enable && corepack prepare pnpm@10.11.0 --activate && \
 
 WORKDIR /repo
 
-# Copy manifests for production install (exclude @shot/testing)
+# Copy manifests for production install (exclude @qurvo/testing)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/${APP}/package.json                  apps/${APP}/
-COPY packages/@shot/db/package.json            packages/@shot/db/
-COPY packages/@shot/clickhouse/package.json    packages/@shot/clickhouse/
-COPY packages/@shot/sdk-core/package.json      packages/@shot/sdk-core/
-COPY packages/@shot/sdk-browser/package.json   packages/@shot/sdk-browser/
-COPY packages/@shot/sdk-node/package.json      packages/@shot/sdk-node/
-COPY packages/@shot/tsconfig/package.json      packages/@shot/tsconfig/
-COPY packages/@shot/eslint-config/package.json packages/@shot/eslint-config/
+COPY packages/@qurvo/db/package.json            packages/@qurvo/db/
+COPY packages/@qurvo/clickhouse/package.json    packages/@qurvo/clickhouse/
+COPY packages/@qurvo/sdk-core/package.json      packages/@qurvo/sdk-core/
+COPY packages/@qurvo/sdk-browser/package.json   packages/@qurvo/sdk-browser/
+COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
+COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
+COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
 
 RUN pnpm install --frozen-lockfile --prod
 
 # Copy built artifacts
 COPY --from=nestjs-builder /repo/apps/${APP}/dist                   apps/${APP}/dist/
-COPY --from=nestjs-builder /repo/packages/@shot/db/dist             packages/@shot/db/dist/
-COPY --from=nestjs-builder /repo/packages/@shot/db/drizzle          packages/@shot/db/drizzle/
-COPY --from=nestjs-builder /repo/packages/@shot/clickhouse/dist     packages/@shot/clickhouse/dist/
-COPY --from=nestjs-builder /repo/packages/@shot/sdk-core/dist       packages/@shot/sdk-core/dist/
-COPY --from=nestjs-builder /repo/packages/@shot/sdk-browser/dist    packages/@shot/sdk-browser/dist/
-COPY --from=nestjs-builder /repo/packages/@shot/sdk-node/dist       packages/@shot/sdk-node/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/db/dist             packages/@qurvo/db/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/db/drizzle          packages/@qurvo/db/drizzle/
+COPY --from=nestjs-builder /repo/packages/@qurvo/clickhouse/dist     packages/@qurvo/clickhouse/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/sdk-core/dist       packages/@qurvo/sdk-core/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/sdk-browser/dist    packages/@qurvo/sdk-browser/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/sdk-node/dist       packages/@qurvo/sdk-node/dist/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
@@ -96,7 +96,7 @@ CMD ["node", "dist/main.js"]
 # ==============================================================================
 FROM base AS web-builder
 
-RUN pnpm --filter @shot/web... build
+RUN pnpm --filter @qurvo/web... build
 
 # ==============================================================================
 # Stage: web — nginx serving SPA

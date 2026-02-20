@@ -10,7 +10,7 @@ import {
   waitForClickHouseCount,
   type ContainerContext,
   type TestProject,
-} from '@shot/testing';
+} from '@qurvo/testing';
 import { AppModule } from '../../app.module';
 import { REDIS_STREAM_EVENTS, writeEventToStream, getEventCount } from '../helpers';
 

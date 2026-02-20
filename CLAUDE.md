@@ -9,22 +9,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm dev
 
 # Run a single app
-pnpm --filter @shot/api dev
-pnpm --filter @shot/ingest dev
-pnpm --filter @shot/processor dev
-pnpm --filter @shot/web dev
+pnpm --filter @qurvo/api dev
+pnpm --filter @qurvo/ingest dev
+pnpm --filter @qurvo/processor dev
+pnpm --filter @qurvo/web dev
 
 # Build
 pnpm build
-pnpm --filter @shot/api build
+pnpm --filter @qurvo/api build
 
 # Infrastructure (PostgreSQL, Redis, ClickHouse via Docker)
 pnpm infra:up
 pnpm infra:down
 
 # Database migrations
-pnpm --filter @shot/db db:generate   # generate Drizzle SQL from schema
-pnpm --filter @shot/db db:migrate    # apply PostgreSQL migrations
+pnpm --filter @qurvo/db db:generate   # generate Drizzle SQL from schema
+pnpm --filter @qurvo/db db:migrate    # apply PostgreSQL migrations
 pnpm ch:migrate                      # apply ClickHouse migration
 
 # API client generation (requires api to be built first)
@@ -37,7 +37,7 @@ pnpm generate-api                    # generate apps/web/src/api/generated/Api.t
 ### Event Pipeline
 
 ```
-SDK (@shot/sdk-browser | @shot/sdk-node)
+SDK (@qurvo/sdk-browser | @qurvo/sdk-node)
   → POST /ingest (apps/ingest, port 3001, auth: x-api-key header)
   → Redis Stream (events:incoming)
   → apps/processor (consumer group: processor-group)
@@ -62,18 +62,18 @@ Pages: Dashboard (analytics overview), Projects, API Keys, Events explorer.
 
 ### Shared Packages
 
-- `@shot/db` — Drizzle ORM schema + PostgreSQL client. Tables: `users`, `sessions`, `projects`, `api_keys`, `project_members`
-- `@shot/clickhouse` — ClickHouse client factory (`createClickHouse`) and `Event` type. Query functions are **not** in this package — they live in their consuming app (`apps/api/src/analytics/queries.ts`)
-- `@shot/sdk-core` — fetch-based transport with queue, base types
-- `@shot/sdk-browser` / `@shot/sdk-node` — platform-specific SDK wrappers
+- `@qurvo/db` — Drizzle ORM schema + PostgreSQL client. Tables: `users`, `sessions`, `projects`, `api_keys`, `project_members`
+- `@qurvo/clickhouse` — ClickHouse client factory (`createClickHouse`) and `Event` type. Query functions are **not** in this package — they live in their consuming app (`apps/api/src/analytics/queries.ts`)
+- `@qurvo/sdk-core` — fetch-based transport with queue, base types
+- `@qurvo/sdk-browser` / `@qurvo/sdk-node` — platform-specific SDK wrappers
 
 ### ClickHouse Schema
 
-Three objects defined in `packages/@shot/clickhouse/src/migration.sql`:
+Three objects defined in `packages/@qurvo/clickhouse/src/migration.sql`:
 
 - **`events`** — `ReplacingMergeTree(ingested_at)`, partitioned by `toYYYYMM(timestamp)`, ordered by `(project_id, event_name, timestamp, event_id)`, TTL 365 days. `properties` and `user_properties` stored as JSON strings. Use `SELECT ... FROM events FINAL` in queries to deduplicate.
 - **`person_distinct_id_overrides`** — `ReplacingMergeTree(version)`, ordered by `(project_id, distinct_id)`. Written by the processor when `$identify` events merge an anonymous user into a known user.
-- **`person_overrides_dict`** — ClickHouse dictionary backed by `person_distinct_id_overrides`, refreshed every 30–60s. Used in queries via `dictGetOrNull('shot_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id))` to resolve the canonical `person_id` at query time without JOINs (PostHog-style "Persons on Events").
+- **`person_overrides_dict`** — ClickHouse dictionary backed by `person_distinct_id_overrides`, refreshed every 30–60s. Used in queries via `dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id))` to resolve the canonical `person_id` at query time without JOINs (PostHog-style "Persons on Events").
 
 ### Processor (NestJS app)
 
@@ -87,7 +87,7 @@ The processor is a full NestJS application with `ProcessorModule`. Key services:
 
 **NestJS providers**: Infrastructure dependencies (`DRIZZLE`, `CLICKHOUSE`, `REDIS`) are injected as custom provider tokens. Use `@Inject(DRIZZLE)` etc., not constructor autowiring.
 
-**API client generation workflow**: Edit `@shot/api` controllers → `pnpm swagger:generate` → `pnpm generate-api` → use updated `Api.ts` in frontend. The generated client strips `Dto` suffix from type names.
+**API client generation workflow**: Edit `@qurvo/api` controllers → `pnpm swagger:generate` → `pnpm generate-api` → use updated `Api.ts` in frontend. The generated client strips `Dto` suffix from type names.
 
 **Throttle limits**: Ingest is more permissive (50 req/s, 1000/min) than API (20 req/s, 300/min). Both use `RedisThrottlerStorage` (`apps/api/src/throttler/redis-throttler.storage.ts`) for distributed rate limiting backed by Redis sorted sets.
 

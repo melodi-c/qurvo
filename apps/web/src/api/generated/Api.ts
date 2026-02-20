@@ -986,7 +986,7 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title Shot Analytics API
+ * @title Qurvo Analytics API
  * @version 1.0
  * @contact
  */

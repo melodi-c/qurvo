@@ -1,4 +1,4 @@
-import type { ClickHouseClient } from '@shot/clickhouse';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
 
 export interface EventsQueryParams {
   project_id: string;

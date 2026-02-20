@@ -1,8 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import type { ClickHouseClient } from '@shot/clickhouse';
-import type { Database } from '@shot/db';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
+import type { Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import {
   queryPersons,

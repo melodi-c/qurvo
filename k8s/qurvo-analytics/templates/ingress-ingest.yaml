@@ -1,0 +1,36 @@
+{{- if .Values.ingest.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "qurvo.fullname" . }}-ingest
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.tls.clusterIssuer | quote }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "5m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.domain.ingest }}
+      secretName: {{ include "qurvo.fullname" . }}-ingest-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.domain.ingest }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "qurvo.fullname" . }}-ingest
+                port:
+                  name: http
+{{- end }}

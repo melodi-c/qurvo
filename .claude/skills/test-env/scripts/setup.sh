@@ -9,9 +9,9 @@ set -euo pipefail
 
 API="http://localhost:3000"
 INGEST="http://localhost:3001"
-EMAIL="${SHOT_EMAIL:-test@test.com}"
-PASS="${SHOT_PASSWORD:-password123}"
-NAME="${SHOT_NAME:-Test User}"
+EMAIL="${QURVO_EMAIL:-test@test.com}"
+PASS="${QURVO_PASSWORD:-password123}"
+NAME="${QURVO_NAME:-Test User}"
 
 echo "==> Checking API at $API..." >&2
 

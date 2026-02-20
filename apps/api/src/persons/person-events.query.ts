@@ -1,4 +1,4 @@
-import type { ClickHouseClient } from '@shot/clickhouse';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
 
 export interface PersonEventsQueryParams {
   project_id: string;
@@ -79,7 +79,7 @@ export async function queryPersonEvents(
       project_id = {project_id:UUID}
       AND (
         events.person_id = {person_id:UUID}
-        OR dictGetOrNull('shot_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)) = {person_id:UUID}
+        OR dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)) = {person_id:UUID}
       )
     ORDER BY events.timestamp DESC
     LIMIT {limit:UInt32}

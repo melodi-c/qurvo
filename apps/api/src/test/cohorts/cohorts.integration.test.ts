@@ -7,7 +7,7 @@ import {
   dateOffset,
   msAgo,
   type ContainerContext,
-} from '@shot/testing';
+} from '@qurvo/testing';
 import { countCohortMembers } from '../../cohorts/cohorts.query';
 import { queryFunnel } from '../../funnel/funnel.query';
 import { queryTrend } from '../../trend/trend.query';

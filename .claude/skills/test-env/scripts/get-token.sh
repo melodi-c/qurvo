@@ -3,8 +3,8 @@
 # Использование: source get-token.sh  или  TOKEN=$(./get-token.sh)
 
 API="http://localhost:3000"
-EMAIL="${SHOT_EMAIL:-test@test.com}"
-PASS="${SHOT_PASSWORD:-password123}"
+EMAIL="${QURVO_EMAIL:-test@test.com}"
+PASS="${QURVO_PASSWORD:-password123}"
 
 TOKEN=$(curl -sf -X POST "$API/api/auth/login" \
   -H 'Content-Type: application/json' \

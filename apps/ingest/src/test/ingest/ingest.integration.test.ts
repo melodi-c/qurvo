@@ -9,7 +9,7 @@ import {
   waitForRedisStreamLength,
   type ContainerContext,
   type TestProject,
-} from '@shot/testing';
+} from '@qurvo/testing';
 import { AppModule } from '../../app.module';
 import { postTrack, postBatch, parseRedisFields } from '../helpers';
 

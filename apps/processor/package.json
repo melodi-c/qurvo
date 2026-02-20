@@ -1,5 +1,5 @@
 {
-  "name": "@shot/processor",
+  "name": "@qurvo/processor",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -12,8 +12,8 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@shot/clickhouse": "workspace:*",
-    "@shot/db": "workspace:*",
+    "@qurvo/clickhouse": "workspace:*",
+    "@qurvo/db": "workspace:*",
     "drizzle-orm": "^0.39.0",
     "geoip-lite": "^1.4.10",
     "dotenv": "^16.4.0",
@@ -26,13 +26,13 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
-    "@shot/tsconfig": "workspace:*",
+    "@qurvo/tsconfig": "workspace:*",
     "@types/geoip-lite": "^1.4.4",
     "@types/node": "^22.0.0",
     "pino-pretty": "^13.1.3",
     "typescript": "^5.7.0",
     "vitest": "^3.2.1",
-    "@shot/testing": "workspace:*",
+    "@qurvo/testing": "workspace:*",
     "@nestjs/testing": "^11.0.0",
     "unplugin-swc": "^1.5.0",
     "@swc/core": "^1.10.0"

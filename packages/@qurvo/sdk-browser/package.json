@@ -1,0 +1,19 @@
+{
+  "name": "@qurvo/sdk-browser",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@qurvo/sdk-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@qurvo/tsconfig": "workspace:*",
+    "typescript": "^5.7.0"
+  }
+}

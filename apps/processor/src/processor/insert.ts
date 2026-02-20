@@ -1,4 +1,4 @@
-import type { ClickHouseClient, Event } from '@shot/clickhouse';
+import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 
 export async function insertEvents(ch: ClickHouseClient, events: Event[]) {
   await ch.insert({

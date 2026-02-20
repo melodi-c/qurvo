@@ -25,24 +25,24 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const res = await api.authControllerLogin({ email, password });
-    localStorage.setItem('shot_token', res.token);
+    localStorage.setItem('qurvo_token', res.token);
     set({ user: res.user });
   },
 
   register: async (data) => {
     const res = await api.authControllerRegister(data);
-    localStorage.setItem('shot_token', res.token);
+    localStorage.setItem('qurvo_token', res.token);
     set({ user: res.user });
   },
 
   logout: async () => {
     try { await api.authControllerLogout(); } catch {}
-    localStorage.removeItem('shot_token');
+    localStorage.removeItem('qurvo_token');
     set({ user: null });
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('shot_token');
+    const token = localStorage.getItem('qurvo_token');
     if (!token) {
       set({ user: null, loading: false });
       return;
@@ -51,7 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const res = await api.authControllerMe();
       set({ user: res.user, loading: false });
     } catch {
-      localStorage.removeItem('shot_token');
+      localStorage.removeItem('qurvo_token');
       set({ user: null, loading: false });
     }
   },

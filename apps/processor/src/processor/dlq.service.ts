@@ -2,7 +2,7 @@ import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
-import type { ClickHouseClient, Event } from '@shot/clickhouse';
+import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { insertEvents } from './insert';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';

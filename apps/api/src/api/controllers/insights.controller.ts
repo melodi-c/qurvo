@@ -4,7 +4,7 @@ import { InsightsService } from '../../insights/insights.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateInsightDto, UpdateInsightDto, InsightDto } from '../dto/insights.dto';
-import type { InsightType } from '@shot/db';
+import type { InsightType } from '@qurvo/db';
 
 @ApiTags('Insights')
 @ApiBearerAuth()

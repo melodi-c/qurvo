@@ -1,10 +1,10 @@
 ---
 name: test-env
-description: Настройка тестовой среды Shot Analytics — авторизация, получение токена, отправка тестовых событий через SDK
+description: Настройка тестовой среды Qurvo Analytics — авторизация, получение токена, отправка тестовых событий через SDK
 disable-model-invocation: true
 ---
 
-# Тестовая среда Shot Analytics
+# Тестовая среда Qurvo Analytics
 
 Сервисы: API `http://localhost:3000` · Ingest `http://localhost:3001` · Web `http://localhost:5173`
 
@@ -35,9 +35,9 @@ open "http://localhost:5173/events?project=$PROJECT_ID"
 ## Переменные окружения
 
 ```bash
-SHOT_EMAIL=test@test.com      # по умолчанию
-SHOT_PASSWORD=password123     # по умолчанию
-SHOT_NAME="Test User"         # имя при регистрации
+QURVO_EMAIL=test@test.com      # по умолчанию
+QURVO_PASSWORD=password123     # по умолчанию
+QURVO_NAME="Test User"         # имя при регистрации
 ```
 
 ## Формат событий
@@ -80,7 +80,7 @@ SHOT_NAME="Test User"         # имя при регистрации
     "screen_height": 1080,
     "language": "ru-RU",
     "timezone": "Europe/Moscow",
-    "sdk_name": "@shot/sdk-node",
+    "sdk_name": "@qurvo/sdk-node",
     "sdk_version": "0.0.1"
   }
 }

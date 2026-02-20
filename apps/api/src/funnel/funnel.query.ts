@@ -1,5 +1,5 @@
-import type { ClickHouseClient } from '@shot/clickhouse';
-import type { CohortDefinition } from '@shot/db';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
+import type { CohortDefinition } from '@qurvo/db';
 import { buildCohortFilterClause } from '../cohorts/cohorts.query';
 
 /** Converts an ISO 8601 timestamp to the format ClickHouse expects for DateTime64(3) parameters.
@@ -13,7 +13,7 @@ function toChTs(iso: string, endOfDay = false): string {
  * Resolves the canonical person_id using the overrides dictionary (PostHog-style "Persons on Events").
  */
 const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('shot_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+  `coalesce(dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
 export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
 

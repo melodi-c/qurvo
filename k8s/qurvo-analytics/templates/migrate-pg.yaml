@@ -1,0 +1,43 @@
+{{- if .Values.migrations.pg.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "qurvo.fullname" . }}-migrate-pg-{{ .Release.Revision }}
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate-pg
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: migrate-pg
+    spec:
+      restartPolicy: Never
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate-pg
+          image: {{ include "qurvo.image" (dict "svc" .Values.api "root" .) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["node", "../../packages/@qurvo/db/dist/migrate.js"]
+          envFrom:
+            - secretRef:
+                name: {{ include "qurvo.fullname" . }}-secret
+            - configMapRef:
+                name: {{ include "qurvo.fullname" . }}-config
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+{{- end }}

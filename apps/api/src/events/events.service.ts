@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
-import type { ClickHouseClient } from '@shot/clickhouse';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
 import { queryEvents, type EventsQueryParams, type EventRow } from './events.query';

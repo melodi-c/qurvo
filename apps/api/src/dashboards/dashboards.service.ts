@@ -1,9 +1,9 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
-import { dashboards, widgets, insights } from '@shot/db';
-import type { WidgetLayout } from '@shot/db';
+import { dashboards, widgets, insights } from '@qurvo/db';
+import type { WidgetLayout } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import type { Database } from '@shot/db';
+import type { Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { DashboardNotFoundException } from './exceptions/dashboard-not-found.exception';

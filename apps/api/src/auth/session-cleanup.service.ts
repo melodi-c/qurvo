@@ -1,8 +1,8 @@
 import { Injectable, Inject, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { lt } from 'drizzle-orm';
-import { sessions } from '@shot/db';
+import { sessions } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import type { Database } from '@shot/db';
+import type { Database } from '@qurvo/db';
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 

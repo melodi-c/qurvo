@@ -2,8 +2,8 @@ import { CanActivate, ExecutionContext, Injectable, Inject, UnauthorizedExceptio
 import * as crypto from 'crypto';
 import { eq, and, isNull } from 'drizzle-orm';
 import Redis from 'ioredis';
-import { apiKeys, projects } from '@shot/db';
-import type { Database } from '@shot/db';
+import { apiKeys, projects } from '@qurvo/db';
+import type { Database } from '@qurvo/db';
 import { API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS } from '../constants';
 import { REDIS } from '../providers/redis.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';

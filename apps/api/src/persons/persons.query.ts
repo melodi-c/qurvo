@@ -1,5 +1,5 @@
 import { eq, and, desc, ilike, sql } from 'drizzle-orm';
-import { persons, personDistinctIds, type Database } from '@shot/db';
+import { persons, personDistinctIds, type Database } from '@qurvo/db';
 
 export interface PersonsQueryParams {
   project_id: string;

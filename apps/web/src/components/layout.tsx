@@ -68,7 +68,7 @@ export default function Layout() {
           className="h-[44px] flex items-center gap-2.5 px-4 border-b border-border hover:bg-accent/30 transition-colors"
         >
           <Activity className="w-4 h-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold tracking-tight">Shot Analytics</span>
+          <span className="text-sm font-semibold tracking-tight">Qurvo Analytics</span>
         </Link>
 
         {/* Nav groups */}

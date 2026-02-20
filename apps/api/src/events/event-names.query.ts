@@ -1,4 +1,4 @@
-import type { ClickHouseClient } from '@shot/clickhouse';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
 
 export interface EventNamesQueryParams {
   project_id: string;
@@ -10,7 +10,7 @@ export async function queryEventNames(
 ): Promise<string[]> {
   const sql = `
     SELECT event_name, count() AS cnt
-    FROM shot_analytics.events FINAL
+    FROM qurvo_analytics.events FINAL
     WHERE
       project_id = {project_id:UUID}
       AND timestamp >= now() - INTERVAL 90 DAY

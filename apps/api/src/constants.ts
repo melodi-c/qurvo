@@ -1,5 +1,3 @@
-export const API_KEY_PREFIX = 'shot_pk_';
-
 export const SESSION_TOKEN_LENGTH = 32;
 export const SESSION_TTL_DAYS = 30;
 

@@ -1,5 +1,5 @@
 import { Provider } from '@nestjs/common';
-import { createClickHouse, ClickHouseClient } from '@shot/clickhouse';
+import { createClickHouse, ClickHouseClient } from '@qurvo/clickhouse';
 
 export const CLICKHOUSE = Symbol('CLICKHOUSE');
 

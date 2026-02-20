@@ -1,5 +1,5 @@
 import { Provider } from '@nestjs/common';
-import { createDb, Database } from '@shot/db';
+import { createDb, Database } from '@qurvo/db';
 
 export const DRIZZLE = Symbol('DRIZZLE');
 

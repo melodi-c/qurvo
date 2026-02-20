@@ -5,12 +5,12 @@ NestJS event collection service. Port 3001. Receives SDK events, validates, enri
 ## Commands
 
 ```bash
-pnpm --filter @shot/ingest dev          # watch mode
-pnpm --filter @shot/ingest build        # nest build → dist/
-pnpm --filter @shot/ingest start        # node dist/main.js
+pnpm --filter @qurvo/ingest dev          # watch mode
+pnpm --filter @qurvo/ingest build        # nest build → dist/
+pnpm --filter @qurvo/ingest start        # node dist/main.js
 
 # Integration tests (requires infra:up)
-pnpm --filter @shot/ingest test:integration
+pnpm --filter @qurvo/ingest test:integration
 ```
 
 ## Architecture

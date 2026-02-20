@@ -2,7 +2,7 @@ import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { writeFileSync } from 'fs';
 import Redis from 'ioredis';
-import type { Event } from '@shot/clickhouse';
+import type { Event } from '@qurvo/clickhouse';
 import { REDIS } from '../providers/redis.provider';
 import {
   PENDING_CLAIM_INTERVAL_MS,

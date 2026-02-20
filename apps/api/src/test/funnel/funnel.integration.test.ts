@@ -8,7 +8,7 @@ import {
   dateOffset,
   msAgo,
   type ContainerContext,
-} from '@shot/testing';
+} from '@qurvo/testing';
 import { queryFunnel } from '../../funnel/funnel.query';
 
 let ctx: ContainerContext;

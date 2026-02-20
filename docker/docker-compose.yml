@@ -1,24 +1,24 @@
 services:
   postgres:
     image: postgres:17
-    container_name: shot-postgres
+    container_name: qurvo-postgres
     environment:
-      POSTGRES_DB: shot_analytics
-      POSTGRES_USER: shot
-      POSTGRES_PASSWORD: shot_secret
+      POSTGRES_DB: qurvo_analytics
+      POSTGRES_USER: qurvo
+      POSTGRES_PASSWORD: qurvo_secret
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U shot -d shot_analytics"]
+      test: ["CMD-SHELL", "pg_isready -U qurvo -d qurvo_analytics"]
       interval: 5s
       timeout: 3s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: shot-redis
+    container_name: qurvo-redis
     command: >
       redis-server
       --appendonly yes
@@ -36,11 +36,11 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
-    container_name: shot-clickhouse
+    container_name: qurvo-clickhouse
     environment:
-      CLICKHOUSE_DB: shot_analytics
-      CLICKHOUSE_USER: shot
-      CLICKHOUSE_PASSWORD: shot_secret
+      CLICKHOUSE_DB: qurvo_analytics
+      CLICKHOUSE_USER: qurvo
+      CLICKHOUSE_PASSWORD: qurvo_secret
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     ports:
       - "8123:8123"
@@ -48,7 +48,7 @@ services:
     volumes:
       - chdata:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "shot", "--password", "shot_secret", "--query", "SELECT 1"]
+      test: ["CMD", "clickhouse-client", "--user", "qurvo", "--password", "qurvo_secret", "--query", "SELECT 1"]
       interval: 5s
       timeout: 3s
       retries: 5

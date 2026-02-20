@@ -7,7 +7,7 @@ import {
   daysAgo,
   ts,
   type ContainerContext,
-} from '@shot/testing';
+} from '@qurvo/testing';
 import { queryTrend } from '../../trend/trend.query';
 import { sumSeriesValues } from '../helpers';
 

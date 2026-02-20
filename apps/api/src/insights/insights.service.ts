@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { insights, type InsightConfig, type InsightType, type Database } from '@shot/db';
+import { insights, type InsightConfig, type InsightType, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import { InsightNotFoundException } from './exceptions/insight-not-found.exception';
 

@@ -5,12 +5,12 @@ NestJS background worker. No HTTP server. Consumes events from Redis Stream, res
 ## Commands
 
 ```bash
-pnpm --filter @shot/processor dev          # watch mode
-pnpm --filter @shot/processor build        # nest build → dist/
-pnpm --filter @shot/processor start        # node dist/main.js
+pnpm --filter @qurvo/processor dev          # watch mode
+pnpm --filter @qurvo/processor build        # nest build → dist/
+pnpm --filter @qurvo/processor start        # node dist/main.js
 
 # Integration tests (requires infra:up)
-pnpm --filter @shot/processor test:integration
+pnpm --filter @qurvo/processor test:integration
 ```
 
 ## Architecture

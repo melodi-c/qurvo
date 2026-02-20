@@ -1,8 +1,8 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and, ne } from 'drizzle-orm';
-import { projects, projectMembers } from '@shot/db';
+import { projects, projectMembers } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import type { Database } from '@shot/db';
+import type { Database } from '@qurvo/db';
 import { ProjectNotFoundException } from './exceptions/project-not-found.exception';
 import { InsufficientPermissionsException } from './exceptions/insufficient-permissions.exception';
 import { ProjectNameConflictException } from './exceptions/project-name-conflict.exception';

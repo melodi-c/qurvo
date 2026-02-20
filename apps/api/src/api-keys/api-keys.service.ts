@@ -1,10 +1,9 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and, isNull } from 'drizzle-orm';
 import * as crypto from 'crypto';
-import { apiKeys } from '@shot/db';
+import { apiKeys } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import type { Database } from '@shot/db';
-import { API_KEY_PREFIX } from '../constants';
+import type { Database } from '@qurvo/db';
 import { hashToken } from '../utils/hash';
 import { ProjectsService } from '../projects/projects.service';
 import { ApiKeyNotFoundException } from './exceptions/api-key-not-found.exception';
@@ -40,7 +39,7 @@ export class ApiKeysService {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new ApiKeyPermissionException();
 
-    const rawKey = `${API_KEY_PREFIX}${crypto.randomBytes(24).toString('base64url')}`;
+    const rawKey = crypto.randomBytes(24).toString('base64url');
     const key_prefix = rawKey.slice(0, 16);
     const key_hash = hashToken(rawKey);
 

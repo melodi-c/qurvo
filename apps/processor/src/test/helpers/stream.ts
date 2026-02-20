@@ -1,5 +1,5 @@
 import type Redis from 'ioredis';
-import type { ClickHouseClient } from '@shot/clickhouse';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { randomUUID } from 'crypto';
 
 export const REDIS_STREAM_EVENTS = 'events:incoming';

@@ -1,5 +1,5 @@
 {
-  "extends": "@shot/tsconfig/nestjs.json",
+  "extends": "@qurvo/tsconfig/nestjs.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",

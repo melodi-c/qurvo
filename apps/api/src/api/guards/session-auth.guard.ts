@@ -1,10 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and, gt } from 'drizzle-orm';
 import Redis from 'ioredis';
-import { sessions, users } from '@shot/db';
+import { sessions, users } from '@qurvo/db';
 import { DRIZZLE } from '../../providers/drizzle.provider';
 import { REDIS } from '../../providers/redis.provider';
-import type { Database } from '@shot/db';
+import type { Database } from '@qurvo/db';
 import { hashToken } from '../../utils/hash';
 import { SESSION_CACHE_TTL_SECONDS } from '../../constants';
 import { InvalidSessionException } from '../../auth/exceptions/invalid-session.exception';
