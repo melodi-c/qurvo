@@ -59,6 +59,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `DateRangeSection` | `date-range-section.tsx` | `dateFrom`, `dateTo`, `onChange(from, to)` | Date range picker with preset buttons (7d/30d/90d/6m/1y) + date inputs. Use in query panels |
 | `CohortFilterSection` | `cohort-filter-section.tsx` | `value: string[]`, `onChange(cohortIds)` | Cohort multi-select filter with section header. Use in query panels |
 | `BreakdownSection` | `breakdown-section.tsx` | `value: string`, `onChange(value)` | Breakdown property input with section header. Use in query panels |
+| `Breadcrumbs` | `breadcrumbs.tsx` | `items: BreadcrumbItem[]`, `className?` | Navigation breadcrumbs. Each item has `label` + optional `path`. Last item renders as plain text, rest as links. Use in editor headers |
 
 ## Shared Hooks (`src/hooks/`)
 
@@ -71,6 +72,10 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 ### File Organization
 - **Hooks and utility functions MUST NOT live in the same file as components.** Keep hooks in `hooks/` directories, utilities in `lib/` or dedicated files. Component files should only contain the component itself and its types/props interface.
 - One component per file. Co-locating small internal sub-components is acceptable only if they are not exported.
+
+### Reusability
+- **Prefer creating reusable components over inline implementations.** If a UI pattern appears (or could appear) in more than one place, extract it into a shared component in `components/ui/`. Use existing components whenever possible instead of writing custom markup.
+- Before writing a new component, check if an existing one in `components/ui/` already solves the problem or can be composed to solve it.
 
 ### Memoization
 - Use `useCallback` for functions passed as props to child components or used in dependency arrays.

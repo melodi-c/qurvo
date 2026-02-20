@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, UsersRound, Loader2 } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Save, UsersRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { CohortConditionBuilder, type CohortCondition } from '@/features/cohorts/components/CohortConditionBuilder';
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -56,6 +57,8 @@ export default function CohortEditorPage() {
     previewMutation.mutate(def);
   }, [debouncedHash, projectId, hasValidConditions]);
 
+  const listPath = `/cohorts?project=${projectId}`;
+
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
       toast.error('Name is required');
@@ -85,11 +88,11 @@ export default function CohortEditorPage() {
         });
         toast.success('Cohort updated');
       }
-      navigate(`/cohorts?project=${projectId}`);
+      navigate(listPath);
     } catch {
       toast.error('Failed to save cohort');
     }
-  }, [name, description, match, conditions, isNew, cohortId, projectId, navigate, createMutation, updateMutation]);
+  }, [name, description, match, conditions, isNew, cohortId, listPath, navigate, createMutation, updateMutation]);
 
   const saving = createMutation.isPending || updateMutation.isPending;
 
@@ -106,23 +109,23 @@ export default function CohortEditorPage() {
   return (
     <div className="-m-6 h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-border bg-background px-5 h-14 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8"
-            onClick={() => navigate(`/cohorts?project=${projectId}`)}
-          >
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-            Back
+      <header className="flex items-center gap-2 border-b border-border bg-background px-5 h-14 flex-shrink-0">
+        <Breadcrumbs
+          items={[
+            { label: 'Cohorts', path: listPath },
+            { label: name.trim() || (isNew ? 'New cohort' : 'Edit cohort') },
+          ]}
+          className="flex-1"
+        />
+        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <Button variant="ghost" size="sm" asChild className="text-muted-foreground" disabled={saving}>
+            <Link to={listPath}>Discard</Link>
           </Button>
-          <h1 className="text-base font-semibold">{isNew ? 'New cohort' : 'Edit cohort'}</h1>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+            {saving ? 'Saving\u2026' : 'Save'}
+          </Button>
         </div>
-        <Button size="sm" className="h-8 text-xs" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-          Save
-        </Button>
       </header>
 
       {/* Body */}
