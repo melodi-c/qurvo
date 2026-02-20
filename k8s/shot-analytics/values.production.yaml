@@ -1,0 +1,44 @@
+global:
+  imageTag: ""  # Set by CI: --set global.imageTag=v1.2.3
+
+domain:
+  app: "app.example.com"
+  ingest: "ingest.example.com"
+
+tls:
+  clusterIssuer: "letsencrypt-prod"
+
+api:
+  replicas: 2
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  env:
+    CORS_ORIGIN: "https://app.example.com"
+
+ingest:
+  replicas: 3
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "800m"
+      memory: "768Mi"
+
+processor:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+    limits:
+      cpu: "1500m"
+      memory: "1Gi"
+
+web:
+  replicas: 2

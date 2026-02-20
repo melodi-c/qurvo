@@ -1,5 +1,6 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { writeFileSync } from 'fs';
 import Redis from 'ioredis';
 import type { Event } from '@shot/clickhouse';
 import { REDIS } from '../providers/redis.provider';
@@ -21,7 +22,9 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private running = false;
   private loopPromise: Promise<void> | null = null;
   private pendingTimer: NodeJS.Timeout | null = null;
-  private readonly consumerName = `processor-${process.pid}`;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private readonly consumerName = process.env.PROCESSOR_CONSUMER_NAME || `processor-${process.pid}`;
+  private static readonly HEARTBEAT_PATH = '/tmp/processor.heartbeat';
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -38,6 +41,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
         this.logger.info({ consumer: this.consumerName }, 'Processor started');
         this.loopPromise = this.startLoop();
         this.pendingTimer = setInterval(() => this.claimPendingMessages(), PENDING_CLAIM_INTERVAL_MS);
+        this.writeHeartbeat();
+        this.heartbeatTimer = setInterval(() => this.writeHeartbeat(), 15_000);
       })
       .catch((err) => this.logger.error({ err }, 'Failed to initialize consumer group'));
   }
@@ -45,7 +50,16 @@ export class EventConsumerService implements OnApplicationBootstrap {
   async shutdown() {
     this.running = false;
     if (this.pendingTimer) clearInterval(this.pendingTimer);
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     await this.loopPromise;
+  }
+
+  private writeHeartbeat() {
+    try {
+      writeFileSync(EventConsumerService.HEARTBEAT_PATH, Date.now().toString());
+    } catch {
+      // non-critical: liveness probe will detect stale heartbeat
+    }
   }
 
   private async ensureConsumerGroup() {

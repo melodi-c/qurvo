@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/migration.sql dist/migration.sql",
     "dev": "tsc --watch",
     "clean": "rm -rf dist .turbo",
     "ch:migrate": "tsx src/migrate.ts"

@@ -1,0 +1,23 @@
+global:
+  imageTag: "staging"
+
+domain:
+  app: "app.staging.example.com"
+  ingest: "ingest.staging.example.com"
+
+tls:
+  clusterIssuer: "letsencrypt-staging"
+
+api:
+  replicas: 1
+  env:
+    CORS_ORIGIN: "https://app.staging.example.com"
+
+ingest:
+  replicas: 1
+
+processor:
+  replicas: 1
+
+web:
+  replicas: 1

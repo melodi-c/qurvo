@@ -7,3 +7,7 @@ dist/
 .DS_Store
 .playwright-mcp/
 *.png
+
+# Kubernetes credentials
+*-config.yaml
+kubeconfig*

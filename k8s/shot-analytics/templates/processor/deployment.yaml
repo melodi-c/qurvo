@@ -1,0 +1,58 @@
+{{- if .Values.processor.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shot.fullname" . }}-processor
+  labels:
+    {{- include "shot.labels" . | nindent 4 }}
+    app.kubernetes.io/component: processor
+spec:
+  replicas: {{ .Values.processor.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "shot.selectorLabels" (dict "component" "processor" "root" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "shot.selectorLabels" (dict "component" "processor" "root" .) | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: processor
+          image: {{ include "shot.image" (dict "svc" .Values.processor "root" .) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - name: PROCESSOR_CONSUMER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            {{- include "shot.commonEnvFrom" . | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  HEARTBEAT=/tmp/processor.heartbeat
+                  [ -f "$HEARTBEAT" ] || exit 1
+                  AGE=$(( $(date +%s) - $(date -r "$HEARTBEAT" +%s) ))
+                  [ "$AGE" -lt 60 ] || exit 1
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.processor.resources | nindent 12 }}
+{{- end }}

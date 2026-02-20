@@ -1,0 +1,38 @@
+{{- if .Values.web.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "shot.fullname" . }}-nginx-config
+  labels:
+    {{- include "shot.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        gzip on;
+        gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+        gzip_min_length 1024;
+
+        # Hashed assets — aggressive caching
+        location ~* \.(js|css|woff2?|png|svg|ico)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # SPA fallback — all routes serve index.html
+        # /api/ and /docs traffic is routed directly to api service by Ingress
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Health check for K8s probes
+        location /nginx-health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+{{- end }}

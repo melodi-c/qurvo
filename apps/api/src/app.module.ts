@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { ApiModule } from './api/api.module';
+import { HealthModule } from './health/health.module';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 
 @Module({
@@ -30,6 +31,7 @@ import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
       inject: [RedisThrottlerStorage],
     }),
     ApiModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

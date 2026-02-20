@@ -1,0 +1,125 @@
+# ==============================================================================
+# Global
+# ==============================================================================
+global:
+  imageRegistry: "ghcr.io/your-org"
+  imageTag: "latest"
+  imagePullPolicy: IfNotPresent
+  # imagePullSecrets:
+  #   - name: ghcr-secret
+
+# ==============================================================================
+# Domains & TLS
+# ==============================================================================
+domain:
+  app: "app.example.com"
+  ingest: "ingest.example.com"
+
+tls:
+  enabled: true
+  clusterIssuer: "letsencrypt-prod"
+
+# ==============================================================================
+# Ingress
+# ==============================================================================
+ingress:
+  className: "nginx"
+  annotations: {}
+
+# ==============================================================================
+# Secrets (pass via --set at deploy time)
+# ==============================================================================
+secrets:
+  databaseUrl: ""
+  redisUrl: ""
+  clickhouseUrl: ""
+  clickhouseUser: ""
+  clickhousePassword: ""
+
+# ==============================================================================
+# API
+# ==============================================================================
+api:
+  enabled: true
+  image:
+    repository: "shot-api"
+    tag: ""
+  replicas: 2
+  port: 3000
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  env:
+    CORS_ORIGIN: "https://app.example.com"
+
+# ==============================================================================
+# Ingest
+# ==============================================================================
+ingest:
+  enabled: true
+  image:
+    repository: "shot-ingest"
+    tag: ""
+  replicas: 2
+  port: 3001
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ==============================================================================
+# Processor
+# ==============================================================================
+processor:
+  enabled: true
+  image:
+    repository: "shot-processor"
+    tag: ""
+  replicas: 1
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "1000m"
+      memory: "768Mi"
+
+# ==============================================================================
+# Web
+# ==============================================================================
+web:
+  enabled: true
+  image:
+    repository: "shot-web"
+    tag: ""
+  replicas: 2
+  port: 80
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+# ==============================================================================
+# Migrations (Helm hooks)
+# ==============================================================================
+migrations:
+  pg:
+    enabled: true
+  ch:
+    enabled: true
+
+# ==============================================================================
+# ClickHouse (non-secret config)
+# ==============================================================================
+clickhouse:
+  database: "shot_analytics"
