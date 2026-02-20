@@ -2,8 +2,8 @@ global:
   imageTag: ""  # Set by CI: --set global.imageTag=v1.2.3
 
 domain:
-  app: "app.example.com"
-  ingest: "ingest.example.com"
+  app: "app.qurvo.ru"
+  ingest: "ingest.qurvo.ru"
 
 tls:
   clusterIssuer: "letsencrypt-prod"
@@ -18,7 +18,7 @@ api:
       cpu: "1000m"
       memory: "1Gi"
   env:
-    CORS_ORIGIN: "https://app.example.com"
+    CORS_ORIGIN: "https://app.qurvo.ru"
 
 ingest:
   replicas: 3

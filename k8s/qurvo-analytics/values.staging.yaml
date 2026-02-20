@@ -2,8 +2,8 @@ global:
   imageTag: "staging"
 
 domain:
-  app: "app.staging.example.com"
-  ingest: "ingest.staging.example.com"
+  app: "app.qurvo.ru"
+  ingest: "ingest.qurvo.ru"
 
 tls:
   clusterIssuer: "letsencrypt-staging"
@@ -11,7 +11,7 @@ tls:
 api:
   replicas: 1
   env:
-    CORS_ORIGIN: "https://app.staging.example.com"
+    CORS_ORIGIN: "https://app.qurvo.ru"
 
 ingest:
   replicas: 1

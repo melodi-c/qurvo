@@ -2,18 +2,18 @@
 # Global
 # ==============================================================================
 global:
-  imageRegistry: "ghcr.io/your-org"
+  imageRegistry: "ghcr.io/melodi-c/qurvo"
   imageTag: "latest"
   imagePullPolicy: IfNotPresent
-  # imagePullSecrets:
-  #   - name: ghcr-secret
+  imagePullSecrets:
+    - name: ghcr-secret
 
 # ==============================================================================
 # Domains & TLS
 # ==============================================================================
 domain:
-  app: "app.example.com"
-  ingest: "ingest.example.com"
+  app: "app.qurvo.ru"
+  ingest: "ingest.qurvo.ru"
 
 tls:
   enabled: true
@@ -42,7 +42,7 @@ secrets:
 api:
   enabled: true
   image:
-    repository: "qurvo-api"
+    repository: "api"
     tag: ""
   replicas: 2
   port: 3000
@@ -54,7 +54,7 @@ api:
       cpu: "500m"
       memory: "512Mi"
   env:
-    CORS_ORIGIN: "https://app.example.com"
+    CORS_ORIGIN: "https://app.qurvo.ru"
 
 # ==============================================================================
 # Ingest
@@ -62,7 +62,7 @@ api:
 ingest:
   enabled: true
   image:
-    repository: "qurvo-ingest"
+    repository: "ingest"
     tag: ""
   replicas: 2
   port: 3001
@@ -80,7 +80,7 @@ ingest:
 processor:
   enabled: true
   image:
-    repository: "qurvo-processor"
+    repository: "processor"
     tag: ""
   replicas: 1
   resources:
@@ -97,7 +97,7 @@ processor:
 web:
   enabled: true
   image:
-    repository: "qurvo-web"
+    repository: "web"
     tag: ""
   replicas: 2
   port: 80
