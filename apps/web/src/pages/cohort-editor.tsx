@@ -6,17 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CohortConditionBuilder, type CohortCondition } from '@/features/cohorts/components/CohortConditionBuilder';
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
+import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from 'sonner';
 import type { CohortDefinition } from '@/api/generated/Api';
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 export default function CohortEditorPage() {
   const { cohortId } = useParams<{ cohortId: string }>();

@@ -16,20 +16,3 @@ export function defaultFunnelConfig(): FunnelWidgetConfig {
   };
 }
 
-export const DATE_PRESETS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-  { label: '6m', days: 180 },
-  { label: '1y', days: 365 },
-] as const;
-
-export function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-export function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}

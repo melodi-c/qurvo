@@ -6,8 +6,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { PropertyConditionRow, type PropertyCondition } from './PropertyConditionRow';
 import { EventConditionRow, type EventCondition } from './EventConditionRow';
+
+const MATCH_OPTIONS = [
+  { label: 'ALL conditions', value: 'all' as const },
+  { label: 'ANY condition', value: 'any' as const },
+] as const;
 
 export type CohortCondition = PropertyCondition | EventCondition;
 
@@ -51,22 +57,7 @@ export function CohortConditionBuilder({
       {/* Match mode toggle */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Match</span>
-        <div className="flex gap-1">
-          {(['all', 'any'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => onMatchChange(mode)}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-                match === mode
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground'
-              }`}
-            >
-              {mode === 'all' ? 'ALL conditions' : 'ANY condition'}
-            </button>
-          ))}
-        </div>
+        <PillToggleGroup options={MATCH_OPTIONS} value={match} onChange={onMatchChange} />
       </div>
 
       {/* Conditions list */}

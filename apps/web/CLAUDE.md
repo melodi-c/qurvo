@@ -55,6 +55,16 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `EditorHeader` | `editor-header.tsx` | `backPath`, `backLabel`, `name`, `onNameChange`, `placeholder`, `onSave`, `isSaving`, `isValid`, `saveError?` | Editor page header with back link, inline name input, save/discard buttons (trend-editor, funnel-editor) |
 | `Metric` | `metric.tsx` | `label`, `value`, `accent?` | Large numeric display for KPIs in editor results panels |
 | `SectionHeader` | `section-header.tsx` | `icon: ElementType`, `label` | Uppercase section labels with icon in query panels |
+| `PillToggleGroup` | `pill-toggle-group.tsx` | `options: { label, value }[]`, `value`, `onChange`, `className?` | Toggle between small set of options (chart type, match mode). Renders pill-shaped buttons |
+| `DateRangeSection` | `date-range-section.tsx` | `dateFrom`, `dateTo`, `onChange(from, to)` | Date range picker with preset buttons (7d/30d/90d/6m/1y) + date inputs. Use in query panels |
+| `CohortFilterSection` | `cohort-filter-section.tsx` | `value: string[]`, `onChange(cohortIds)` | Cohort multi-select filter with section header. Use in query panels |
+| `BreakdownSection` | `breakdown-section.tsx` | `value: string`, `onChange(value)` | Breakdown property input with section header. Use in query panels |
+
+## Shared Hooks (`src/hooks/`)
+
+| Hook | File | Signature | When to use |
+|---|---|---|---|
+| `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
 
 ## Code Rules
 
@@ -94,6 +104,19 @@ PageHeader (title + "New" button)
 ├── EmptyState (no data, with action)
 └── DataTable (data)
 ```
+
+### Query Panel Sections
+Query panels (TrendQueryPanel, FunnelQueryPanel) compose reusable section components separated by `<Separator />`:
+```
+DateRangeSection (date presets + from/to inputs)
+Separator
+[Widget-specific sections] (Series builder, Steps, Display, etc.)
+Separator
+CohortFilterSection (multi-select cohort filter)
+Separator
+BreakdownSection (breakdown property input)
+```
+All query panel sections are self-contained components in `components/ui/`. Widget-specific sections stay in the widget's own directory.
 
 ### Project Context
 Current project ID is always passed via `?project=<uuid>` in URL search params. Read with `useSearchParams()`. Layout preserves `project` param on navigation via `navLink()` helper.
