@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FunnelService } from '../../funnel/funnel.service';
 import { EventsService } from '../../events/events.service';
 import { TrendService } from '../../trend/trend.service';
+import { RetentionService } from '../../retention/retention.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
@@ -10,6 +11,7 @@ import {
   EventsQueryDto, EventRowDto,
   EventNamesQueryDto, EventNamesResponseDto,
   TrendQueryDto, TrendResponseDto,
+  RetentionQueryDto, RetentionResponseDto,
 } from '../dto/analytics.dto';
 
 @ApiTags('Analytics')
@@ -21,6 +23,7 @@ export class AnalyticsController {
     private readonly funnelService: FunnelService,
     private readonly eventsService: EventsService,
     private readonly trendService: TrendService,
+    private readonly retentionService: RetentionService,
   ) {}
 
   @Post('funnel')
@@ -54,5 +57,13 @@ export class AnalyticsController {
     @Body() body: TrendQueryDto,
   ): Promise<TrendResponseDto> {
     return this.trendService.getTrend(user.user_id, body);
+  }
+
+  @Post('retention')
+  async getRetention(
+    @CurrentUser() user: RequestUser,
+    @Body() body: RetentionQueryDto,
+  ): Promise<RetentionResponseDto> {
+    return this.retentionService.getRetention(user.user_id, body);
   }
 }

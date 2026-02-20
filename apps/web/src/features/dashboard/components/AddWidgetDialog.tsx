@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GitFork, TrendingUp, Search } from 'lucide-react';
+import { GitFork, TrendingUp, CalendarCheck, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInsights } from '@/features/insights/hooks/use-insights';
@@ -81,8 +81,8 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
           )}
 
           {!isLoading && filtered.map((insight) => {
-            const Icon = insight.type === 'trend' ? TrendingUp : GitFork;
-            const typeLabel = insight.type === 'trend' ? 'Trend' : 'Funnel';
+            const Icon = insight.type === 'trend' ? TrendingUp : insight.type === 'funnel' ? GitFork : CalendarCheck;
+            const typeLabel = insight.type === 'trend' ? 'Trend' : insight.type === 'funnel' ? 'Funnel' : 'Retention';
             return (
               <button
                 key={insight.id}

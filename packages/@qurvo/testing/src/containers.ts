@@ -93,7 +93,7 @@ async function startContainers(): Promise<ContainerContext> {
 
   await Promise.all([
     applyPostgresMigration(pgUrl),
-    applyClickHouseMigration(ch, clickhouseUser, clickhousePassword),
+    applyClickHouseMigration(ch, clickhouseUser, clickhousePassword, clickhouseDb),
   ]);
 
   // Warmup: first INSERT after table creation may be silently lost

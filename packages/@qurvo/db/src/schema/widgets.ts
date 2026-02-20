@@ -52,7 +52,18 @@ export interface TrendWidgetConfig {
   cohort_ids?: string[];
 }
 
-export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig;
+export interface RetentionWidgetConfig {
+  type: 'retention';
+  target_event: string;
+  retention_type: 'first_time' | 'recurring';
+  granularity: 'day' | 'week' | 'month';
+  periods: number;
+  date_from: string;
+  date_to: string;
+  cohort_ids?: string[];
+}
+
+export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig;
 
 export const widgets = pgTable(
   'widgets',

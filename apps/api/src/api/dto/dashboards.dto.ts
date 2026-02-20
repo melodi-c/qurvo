@@ -74,6 +74,24 @@ export class TrendWidgetConfigDto {
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
+export class RetentionWidgetConfigDto {
+  @ApiProperty({ enum: ['retention'] })
+  type: 'retention';
+
+  target_event: string;
+
+  @ApiProperty({ enum: ['first_time', 'recurring'] })
+  retention_type: 'first_time' | 'recurring';
+
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  granularity: 'day' | 'week' | 'month';
+
+  periods: number;
+  date_from: string;
+  date_to: string;
+  @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
+}
+
 // ── Create / Update Widget DTOs ─────────────────────────────────────────────
 
 export class CreateWidgetDto {

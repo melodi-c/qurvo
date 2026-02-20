@@ -282,6 +282,45 @@ export interface TrendResponse {
   from_cache: boolean;
 }
 
+export interface RetentionQuery {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  target_event: string;
+  retention_type: RetentionQueryDtoRetentionTypeEnum;
+  granularity: RetentionQueryDtoGranularityEnum;
+  /**
+   * @min 1
+   * @max 30
+   * @default 11
+   */
+  periods: number;
+  date_from: string;
+  date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface RetentionCohort {
+  cohort_date: string;
+  cohort_size: number;
+  periods: number[];
+}
+
+export interface RetentionResult {
+  retention_type: string;
+  granularity: string;
+  cohorts: RetentionCohort[];
+  average_retention: number[];
+}
+
+export interface RetentionResponse {
+  data: RetentionResult;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export interface Dashboard {
   id: string;
   project_id: string;
@@ -323,6 +362,17 @@ export interface TrendWidgetConfig {
   compare: boolean;
 }
 
+export interface RetentionWidgetConfig {
+  type: RetentionWidgetConfigDtoTypeEnum;
+  retention_type: RetentionWidgetConfigDtoRetentionTypeEnum;
+  granularity: RetentionWidgetConfigDtoGranularityEnum;
+  cohort_ids?: string[];
+  target_event: string;
+  periods: number;
+  date_from: string;
+  date_to: string;
+}
+
 export interface Insight {
   type: InsightDtoTypeEnum;
   description?: string | null;
@@ -332,7 +382,10 @@ export interface Insight {
       } & FunnelWidgetConfig)
     | ({
         type: "trend";
-      } & TrendWidgetConfig);
+      } & TrendWidgetConfig)
+    | ({
+        type: "retention";
+      } & RetentionWidgetConfig);
   id: string;
   project_id: string;
   created_by: string;
@@ -481,7 +534,10 @@ export interface CreateInsight {
       } & FunnelWidgetConfig)
     | ({
         type: "trend";
-      } & TrendWidgetConfig);
+      } & TrendWidgetConfig)
+    | ({
+        type: "retention";
+      } & RetentionWidgetConfig);
   type: CreateInsightDtoTypeEnum;
   /** @maxLength 200 */
   name: string;
@@ -496,7 +552,10 @@ export interface UpdateInsight {
       } & FunnelWidgetConfig)
     | ({
         type: "trend";
-      } & TrendWidgetConfig);
+      } & TrendWidgetConfig)
+    | ({
+        type: "retention";
+      } & RetentionWidgetConfig);
   /** @maxLength 200 */
   name?: string;
   /** @maxLength 1000 */
@@ -518,6 +577,10 @@ export type TrendQueryDtoMetricEnum =
 
 export type TrendQueryDtoGranularityEnum = "hour" | "day" | "week" | "month";
 
+export type RetentionQueryDtoRetentionTypeEnum = "first_time" | "recurring";
+
+export type RetentionQueryDtoGranularityEnum = "day" | "week" | "month";
+
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
 export type TrendWidgetConfigDtoTypeEnum = "trend";
@@ -535,11 +598,19 @@ export type TrendWidgetConfigDtoGranularityEnum =
 
 export type TrendWidgetConfigDtoChartTypeEnum = "line" | "bar";
 
-export type InsightDtoTypeEnum = "trend" | "funnel";
+export type RetentionWidgetConfigDtoTypeEnum = "retention";
+
+export type RetentionWidgetConfigDtoRetentionTypeEnum =
+  | "first_time"
+  | "recurring";
+
+export type RetentionWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
+
+export type InsightDtoTypeEnum = "trend" | "funnel" | "retention";
 
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
-export type CreateInsightDtoTypeEnum = "trend" | "funnel";
+export type CreateInsightDtoTypeEnum = "trend" | "funnel" | "retention";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -707,9 +778,12 @@ export interface InsightsControllerListParams {
   projectId: string;
 }
 
-export type TypeEnum = "trend" | "funnel";
+export type TypeEnum = "trend" | "funnel" | "retention";
 
-export type InsightsControllerListParams1TypeEnum = "trend" | "funnel";
+export type InsightsControllerListParams1TypeEnum =
+  | "trend"
+  | "funnel"
+  | "retention";
 
 export interface InsightsControllerCreateParams {
   projectId: string;
@@ -986,7 +1060,7 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title Qurvo API
+ * @title Shot Analytics API
  * @version 1.0
  * @contact
  */
@@ -1305,6 +1379,28 @@ export class Api<
     ) =>
       this.request<TrendResponse, any>({
         path: `/api/analytics/trend`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetRetention
+     * @request POST:/api/analytics/retention
+     * @secure
+     */
+    analyticsControllerGetRetention: (
+      data: RetentionQuery,
+      params: RequestParams = {},
+    ) =>
+      this.request<RetentionResponse, any>({
+        path: `/api/analytics/retention`,
         method: "POST",
         body: data,
         secure: true,
@@ -1807,6 +1903,21 @@ export class Api<
         path: `/api/projects/${projectId}/insights/${insightId}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+  };
+  health = {
+    /**
+     * No description
+     *
+     * @tags Health
+     * @name HealthControllerCheck
+     * @request GET:/health
+     */
+    healthControllerCheck: (params: RequestParams = {}) =>
+      this.request<void, any>({
+        path: `/health`,
+        method: "GET",
         ...params,
       }),
   };

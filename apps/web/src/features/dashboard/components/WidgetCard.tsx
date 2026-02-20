@@ -4,6 +4,7 @@ import { useDashboardStore } from '../store';
 import { WidgetMenu } from './WidgetMenu';
 import { FunnelWidget } from './widgets/funnel/FunnelWidget';
 import { TrendWidget } from './widgets/trend/TrendWidget';
+import { RetentionWidget } from './widgets/retention/RetentionWidget';
 import type { Widget } from '@/api/generated/Api';
 
 export function WidgetCard({ widget }: { widget: Widget }) {
@@ -27,6 +28,7 @@ export function WidgetCard({ widget }: { widget: Widget }) {
       <CardContent className="flex-1 p-3 min-h-0">
         {insightType === 'funnel' && <FunnelWidget widget={widget} />}
         {insightType === 'trend' && <TrendWidget widget={widget} />}
+        {insightType === 'retention' && <RetentionWidget widget={widget} />}
         {!insightType && (
           <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
             No insight linked

@@ -19,6 +19,8 @@ import FunnelsPage from '@/pages/funnels';
 import FunnelEditorPage from '@/pages/funnel-editor';
 import TrendsPage from '@/pages/trends';
 import TrendEditorPage from '@/pages/trend-editor';
+import RetentionsPage from '@/pages/retentions';
+import RetentionEditorPage from '@/pages/retention-editor';
 import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
 
@@ -64,6 +66,9 @@ function AppRoutes() {
         <Route path="/funnels" element={<FunnelsPage />} />
         <Route path="/funnels/new" element={<FunnelEditorPage />} />
         <Route path="/funnels/:insightId" element={<FunnelEditorPage />} />
+        <Route path="/retentions" element={<RetentionsPage />} />
+        <Route path="/retentions/new" element={<RetentionEditorPage />} />
+        <Route path="/retentions/:insightId" element={<RetentionEditorPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/cohorts" element={<CohortsPage />} />
         <Route path="/cohorts/new" element={<CohortEditorPage />} />

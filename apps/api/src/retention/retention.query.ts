@@ -1,0 +1,241 @@
+import type { ClickHouseClient } from '@qurvo/clickhouse';
+import type { CohortDefinition } from '@qurvo/db';
+import { buildCohortFilterClause } from '../cohorts/cohorts.query';
+
+// ── Helpers (shared with trend.query.ts) ─────────────────────────────────────
+
+function toChTs(iso: string, endOfDay = false): string {
+  if (iso.length === 10 && endOfDay) return `${iso} 23:59:59`;
+  return iso.replace('T', ' ').replace('Z', '');
+}
+
+const RESOLVED_PERSON =
+  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+
+// ── Public types ─────────────────────────────────────────────────────────────
+
+export type RetentionType = 'first_time' | 'recurring';
+export type RetentionGranularity = 'day' | 'week' | 'month';
+
+export interface RetentionQueryParams {
+  project_id: string;
+  target_event: string;
+  retention_type: RetentionType;
+  granularity: RetentionGranularity;
+  periods: number;
+  date_from: string;
+  date_to: string;
+  cohort_filters?: CohortDefinition[];
+}
+
+export interface RetentionCohort {
+  cohort_date: string;
+  cohort_size: number;
+  periods: number[];
+}
+
+export interface RetentionQueryResult {
+  retention_type: RetentionType;
+  granularity: RetentionGranularity;
+  cohorts: RetentionCohort[];
+  average_retention: number[];
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+
+function granularityTruncExpr(granularity: RetentionGranularity, col: string): string {
+  switch (granularity) {
+    case 'day': return `toStartOfDay(${col})`;
+    case 'week': return `toStartOfWeek(${col}, 1)`;
+    case 'month': return `toStartOfMonth(${col})`;
+  }
+}
+
+function dateDiffUnit(granularity: RetentionGranularity): string {
+  switch (granularity) {
+    case 'day': return 'day';
+    case 'week': return 'week';
+    case 'month': return 'month';
+  }
+}
+
+function extendDate(dateTo: string, periods: number, granularity: RetentionGranularity): string {
+  const d = new Date(`${dateTo}T00:00:00Z`);
+  switch (granularity) {
+    case 'day':
+      d.setUTCDate(d.getUTCDate() + periods);
+      break;
+    case 'week':
+      d.setUTCDate(d.getUTCDate() + periods * 7);
+      break;
+    case 'month':
+      d.setUTCMonth(d.getUTCMonth() + periods);
+      break;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function truncateDate(date: string, granularity: RetentionGranularity): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  switch (granularity) {
+    case 'day':
+      break;
+    case 'week': {
+      // Monday-based week start
+      const day = d.getUTCDay();
+      const diff = day === 0 ? 6 : day - 1;
+      d.setUTCDate(d.getUTCDate() - diff);
+      break;
+    }
+    case 'month':
+      d.setUTCDate(1);
+      break;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+// ── Raw row type ─────────────────────────────────────────────────────────────
+
+interface RawRetentionRow {
+  cohort_period: string;
+  period_offset: string;
+  user_count: string;
+}
+
+// ── Result assembly ──────────────────────────────────────────────────────────
+
+function assembleResult(
+  rows: RawRetentionRow[],
+  params: RetentionQueryParams,
+): RetentionQueryResult {
+  // Group by cohort_period
+  const cohortMap = new Map<string, number[]>();
+  for (const row of rows) {
+    const key = row.cohort_period;
+    if (!cohortMap.has(key)) {
+      cohortMap.set(key, new Array(params.periods + 1).fill(0));
+    }
+    const offset = Number(row.period_offset);
+    if (offset >= 0 && offset <= params.periods) {
+      cohortMap.get(key)![offset] = Number(row.user_count);
+    }
+  }
+
+  // Sort by date
+  const sortedKeys = [...cohortMap.keys()].sort();
+  const cohorts: RetentionCohort[] = sortedKeys.map((key) => ({
+    cohort_date: key,
+    cohort_size: cohortMap.get(key)![0],
+    periods: cohortMap.get(key)!,
+  }));
+
+  // Compute average retention %
+  const average_retention: number[] = [];
+  for (let offset = 0; offset <= params.periods; offset++) {
+    let totalPct = 0;
+    let count = 0;
+    for (const cohort of cohorts) {
+      if (cohort.cohort_size > 0) {
+        totalPct += (cohort.periods[offset] / cohort.cohort_size) * 100;
+        count++;
+      }
+    }
+    average_retention.push(count > 0 ? Math.round((totalPct / count) * 100) / 100 : 0);
+  }
+
+  return {
+    retention_type: params.retention_type,
+    granularity: params.granularity,
+    cohorts,
+    average_retention,
+  };
+}
+
+// ── Core query ───────────────────────────────────────────────────────────────
+
+export async function queryRetention(
+  ch: ClickHouseClient,
+  params: RetentionQueryParams,
+): Promise<RetentionQueryResult> {
+  const queryParams: Record<string, unknown> = {
+    project_id: params.project_id,
+    target_event: params.target_event,
+    periods: params.periods,
+  };
+
+  const truncFrom = truncateDate(params.date_from, params.granularity);
+  const truncTo = truncateDate(params.date_to, params.granularity);
+  const extendedTo = extendDate(params.date_to, params.periods, params.granularity);
+
+  queryParams['from'] = toChTs(truncFrom);
+  queryParams['to'] = toChTs(truncTo, true);
+  queryParams['extended_to'] = toChTs(extendedTo, true);
+
+  const granExpr = granularityTruncExpr(params.granularity, 'timestamp');
+  const unit = dateDiffUnit(params.granularity);
+
+  const cohortClause = params.cohort_filters?.length
+    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
+    : '';
+
+  let initialCte: string;
+
+  if (params.retention_type === 'recurring') {
+    // Recurring: each period the person is active counts as an initial event
+    initialCte = `
+      SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS cohort_period
+      FROM events FINAL
+      WHERE project_id = {project_id:UUID}
+        AND timestamp >= {from:DateTime64(3)}
+        AND timestamp <= {to:DateTime64(3)}
+        AND event_name = {target_event:String}${cohortClause}
+      GROUP BY person_id, cohort_period`;
+  } else {
+    // First-time: only the first ever occurrence of the event
+    initialCte = `
+      SELECT person_id, cohort_period
+      FROM (
+        SELECT ${RESOLVED_PERSON} AS person_id,
+               min(${granExpr}) AS cohort_period
+        FROM events FINAL
+        WHERE project_id = {project_id:UUID}
+          AND event_name = {target_event:String}${cohortClause}
+        GROUP BY person_id
+      )
+      WHERE cohort_period >= {from:DateTime64(3)}
+        AND cohort_period <= {to:DateTime64(3)}`;
+  }
+
+  const sql = `
+    WITH
+      initial_events AS (${initialCte}),
+      return_events AS (
+        SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS return_period
+        FROM events FINAL
+        WHERE project_id = {project_id:UUID}
+          AND timestamp >= {from:DateTime64(3)}
+          AND timestamp <= {extended_to:DateTime64(3)}
+          AND event_name = {target_event:String}${cohortClause}
+        GROUP BY person_id, return_period
+      ),
+      retention_raw AS (
+        SELECT i.cohort_period,
+               i.person_id,
+               dateDiff('${unit}', i.cohort_period, r.return_period) AS period_offset
+        FROM initial_events i
+        INNER JOIN return_events r ON i.person_id = r.person_id
+        WHERE r.return_period >= i.cohort_period
+          AND dateDiff('${unit}', i.cohort_period, r.return_period) <= {periods:UInt32}
+      )
+    SELECT
+      toString(cohort_period) AS cohort_period,
+      period_offset,
+      uniqExact(person_id) AS user_count
+    FROM retention_raw
+    GROUP BY cohort_period, period_offset
+    ORDER BY cohort_period ASC, period_offset ASC`;
+
+  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const rows = await result.json<RawRetentionRow>();
+  return assembleResult(rows, params);
+}

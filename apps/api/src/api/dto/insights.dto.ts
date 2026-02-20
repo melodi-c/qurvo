@@ -1,16 +1,16 @@
 import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
-import { FunnelWidgetConfigDto, TrendWidgetConfigDto } from './dashboards.dto';
+import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto } from './dashboards.dto';
 
-type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto;
+type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto;
 
 // ── Create / Update DTOs ──────────────────────────────────────────────────────
 
-@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto)
+@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto)
 export class CreateInsightDto {
   @IsString()
-  @IsIn(['trend', 'funnel'])
-  type: 'trend' | 'funnel';
+  @IsIn(['trend', 'funnel', 'retention'])
+  type: 'trend' | 'funnel' | 'retention';
 
   @IsString()
   @IsNotEmpty()
@@ -27,12 +27,14 @@ export class CreateInsightDto {
     oneOf: [
       { $ref: getSchemaPath(FunnelWidgetConfigDto) },
       { $ref: getSchemaPath(TrendWidgetConfigDto) },
+      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
     ],
     discriminator: {
       propertyName: 'type',
       mapping: {
         funnel: getSchemaPath(FunnelWidgetConfigDto),
         trend: getSchemaPath(TrendWidgetConfigDto),
+        retention: getSchemaPath(RetentionWidgetConfigDto),
       },
     },
   })
@@ -57,12 +59,14 @@ export class UpdateInsightDto {
     oneOf: [
       { $ref: getSchemaPath(FunnelWidgetConfigDto) },
       { $ref: getSchemaPath(TrendWidgetConfigDto) },
+      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
     ],
     discriminator: {
       propertyName: 'type',
       mapping: {
         funnel: getSchemaPath(FunnelWidgetConfigDto),
         trend: getSchemaPath(TrendWidgetConfigDto),
+        retention: getSchemaPath(RetentionWidgetConfigDto),
       },
     },
   })
@@ -71,14 +75,14 @@ export class UpdateInsightDto {
 
 // ── Response DTO ─────────────────────────────────────────────────────────────
 
-@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto)
+@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto)
 export class InsightDto {
   id: string;
   project_id: string;
   created_by: string;
 
-  @ApiProperty({ enum: ['trend', 'funnel'] })
-  type: 'trend' | 'funnel';
+  @ApiProperty({ enum: ['trend', 'funnel', 'retention'] })
+  type: 'trend' | 'funnel' | 'retention';
 
   name: string;
   @ApiPropertyOptional() description: string | null;
@@ -87,12 +91,14 @@ export class InsightDto {
     oneOf: [
       { $ref: getSchemaPath(FunnelWidgetConfigDto) },
       { $ref: getSchemaPath(TrendWidgetConfigDto) },
+      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
     ],
     discriminator: {
       propertyName: 'type',
       mapping: {
         funnel: getSchemaPath(FunnelWidgetConfigDto),
         trend: getSchemaPath(TrendWidgetConfigDto),
+        retention: getSchemaPath(RetentionWidgetConfigDto),
       },
     },
   })
