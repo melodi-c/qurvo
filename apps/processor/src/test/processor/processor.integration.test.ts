@@ -11,63 +11,14 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@shot/testing';
-import { AppModule } from '../app.module';
+import { AppModule } from '../../app.module';
+import { REDIS_STREAM_EVENTS, writeEventToStream, getEventCount } from '../helpers';
 
-const REDIS_STREAM_EVENTS = 'events:incoming';
 const REDIS_CONSUMER_GROUP = 'processor-group';
 
 let ctx: ContainerContext;
 let processorApp: INestApplicationContext;
 let testProject: TestProject;
-
-async function writeEventToStream(
-  overrides: Record<string, string> = {},
-): Promise<string> {
-  const fields: Record<string, string> = {
-    event_id: randomUUID(),
-    project_id: testProject.projectId,
-    event_name: 'test_processor_event',
-    event_type: 'track',
-    distinct_id: `test-user-${randomUUID()}`,
-    anonymous_id: '',
-    user_id: '',
-    session_id: '',
-    url: '',
-    referrer: '',
-    page_title: '',
-    page_path: '',
-    device_type: '',
-    browser: '',
-    browser_version: '',
-    os: '',
-    os_version: '',
-    screen_width: '0',
-    screen_height: '0',
-    language: '',
-    timezone: '',
-    ip: '',
-    sdk_name: '',
-    sdk_version: '',
-    properties: '{}',
-    user_properties: '{}',
-    timestamp: new Date().toISOString(),
-    ...overrides,
-  };
-
-  const flatArgs = Object.entries(fields).flat();
-  const msgId = await ctx.redis.xadd(REDIS_STREAM_EVENTS, '*', ...flatArgs);
-  return msgId as string;
-}
-
-async function getEventCount(projectId: string): Promise<number> {
-  const result = await ctx.ch.query({
-    query: 'SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID}',
-    query_params: { p: projectId },
-    format: 'JSONEachRow',
-  });
-  const rows = await result.json<{ cnt: string }>();
-  return Number(rows[0]?.cnt ?? 0);
-}
 
 beforeAll(async () => {
   ctx = await setupContainers();
@@ -102,10 +53,9 @@ describe('event processing: Redis stream → ClickHouse', () => {
   it('processes a single event and writes it to ClickHouse', async () => {
     const projectId = testProject.projectId;
     const distinctId = `proc-user-${randomUUID()}`;
-    const countBefore = await getEventCount(projectId);
+    const countBefore = await getEventCount(ctx.ch, projectId);
 
-    await writeEventToStream({
-      project_id: projectId,
+    await writeEventToStream(ctx.redis, projectId, {
       distinct_id: distinctId,
       event_name: 'checkout',
     });
@@ -129,12 +79,11 @@ describe('event processing: Redis stream → ClickHouse', () => {
   it('processes a batch of events and all appear in ClickHouse', async () => {
     const projectId = testProject.projectId;
     const batchSize = 5;
-    const countBefore = await getEventCount(projectId);
+    const countBefore = await getEventCount(ctx.ch, projectId);
     const batchId = randomUUID();
 
     for (let i = 0; i < batchSize; i++) {
-      await writeEventToStream({
-        project_id: projectId,
+      await writeEventToStream(ctx.redis, projectId, {
         distinct_id: `batch-proc-${i}-${batchId}`,
         event_name: 'batch_test_event',
         batch_id: batchId,
@@ -158,10 +107,9 @@ describe('event processing: Redis stream → ClickHouse', () => {
   it('assigns person_id to events', async () => {
     const projectId = testProject.projectId;
     const distinctId = `person-test-${randomUUID()}`;
-    const countBefore = await getEventCount(projectId);
+    const countBefore = await getEventCount(ctx.ch, projectId);
 
-    await writeEventToStream({
-      project_id: projectId,
+    await writeEventToStream(ctx.redis, projectId, {
       distinct_id: distinctId,
       event_name: 'page_view',
     });
@@ -191,19 +139,17 @@ describe('$identify event processing', () => {
     const projectId = testProject.projectId;
     const userId = `real-user-${randomUUID()}`;
     const anonId = `anon-${randomUUID()}`;
-    const countBefore = await getEventCount(projectId);
+    const countBefore = await getEventCount(ctx.ch, projectId);
 
     // Anonymous event first
-    await writeEventToStream({
-      project_id: projectId,
+    await writeEventToStream(ctx.redis, projectId, {
       distinct_id: anonId,
       event_name: 'page_view',
       anonymous_id: anonId,
     });
 
     // Then identify
-    await writeEventToStream({
-      project_id: projectId,
+    await writeEventToStream(ctx.redis, projectId, {
       distinct_id: userId,
       event_name: '$identify',
       anonymous_id: anonId,

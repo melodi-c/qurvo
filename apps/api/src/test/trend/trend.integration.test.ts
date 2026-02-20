@@ -4,34 +4,18 @@ import {
   setupContainers,
   insertTestEvents,
   buildEvent,
+  daysAgo,
+  ts,
   type ContainerContext,
 } from '@shot/testing';
-import { queryTrend } from './trend.query';
+import { queryTrend } from '../../trend/trend.query';
+import { sumSeriesValues } from '../helpers';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
-
-/** Returns YYYY-MM-DD for N days ago (UTC) */
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Returns ISO timestamp for a specific UTC hour N days ago */
-function ts(daysBack: number, hour = 12): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - daysBack);
-  d.setUTCHours(hour, 0, 0, 0);
-  return d.toISOString();
-}
-
-function sumSeriesValues(data: { value: number }[]): number {
-  return data.reduce((sum, d) => sum + d.value, 0);
-}
 
 describe('queryTrend — total_events', () => {
   it('counts events per day bucket', async () => {

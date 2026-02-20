@@ -10,7 +10,8 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@shot/testing';
-import { AppModule } from '../app.module';
+import { AppModule } from '../../app.module';
+import { postTrack, postBatch, parseRedisFields } from '../helpers';
 
 const REDIS_STREAM_EVENTS = 'events:incoming';
 
@@ -32,6 +33,7 @@ beforeAll(async () => {
 
   app = moduleRef.createNestApplication();
   await app.init();
+  await app.listen(0);
 }, 120_000);
 
 afterAll(async () => {
@@ -39,41 +41,11 @@ afterAll(async () => {
   await teardownContainers();
 });
 
-async function postTrack(apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
-  const server = app.getHttpServer();
-  const address = server.address();
-  const port = typeof address === 'object' ? address?.port : address;
-  const res = await fetch(`http://127.0.0.1:${port}/v1/track`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-async function postBatch(apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
-  const server = app.getHttpServer();
-  const address = server.address();
-  const port = typeof address === 'object' ? address?.port : address;
-  const res = await fetch(`http://127.0.0.1:${port}/v1/batch`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
 describe('POST /v1/track', () => {
   it('returns 202 and pushes event to Redis stream', async () => {
     const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
 
-    const res = await postTrack(testProject.apiKey, {
+    const res = await postTrack(app, testProject.apiKey, {
       event: 'button_click',
       distinct_id: 'test-user-1',
       properties: { button: 'signup' },
@@ -98,7 +70,7 @@ describe('POST /v1/track', () => {
   it('enriches event with server-side fields', async () => {
     const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
 
-    await postTrack(testProject.apiKey, {
+    await postTrack(app, testProject.apiKey, {
       event: '$pageview',
       distinct_id: 'enriched-user',
     });
@@ -115,7 +87,7 @@ describe('POST /v1/track', () => {
   });
 
   it('returns 401 with invalid API key', async () => {
-    const res = await postTrack('invalid-key-xyz', {
+    const res = await postTrack(app, 'invalid-key-xyz', {
       event: 'test',
       distinct_id: 'u1',
     });
@@ -124,7 +96,7 @@ describe('POST /v1/track', () => {
   });
 
   it('returns 400 with missing required fields', async () => {
-    const res = await postTrack(testProject.apiKey, {
+    const res = await postTrack(app, testProject.apiKey, {
       // missing event and distinct_id
     });
 
@@ -136,7 +108,7 @@ describe('POST /v1/batch', () => {
   it('returns 202 and pushes all events to Redis stream', async () => {
     const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
 
-    const res = await postBatch(testProject.apiKey, {
+    const res = await postBatch(app, testProject.apiKey, {
       events: [
         { event: 'page_view', distinct_id: 'batch-user-1', timestamp: new Date().toISOString() },
         { event: 'page_view', distinct_id: 'batch-user-2', timestamp: new Date().toISOString() },
@@ -151,7 +123,7 @@ describe('POST /v1/batch', () => {
   });
 
   it('returns 400 when events array is empty', async () => {
-    const res = await postBatch(testProject.apiKey, {
+    const res = await postBatch(app, testProject.apiKey, {
       events: [],
     });
 
@@ -171,11 +143,3 @@ describe('POST /v1/batch', () => {
     expect(res.status).toBe(401);
   });
 });
-
-function parseRedisFields(fields: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (let i = 0; i < fields.length; i += 2) {
-    result[fields[i]] = fields[i + 1];
-  }
-  return result;
-}

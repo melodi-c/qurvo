@@ -4,29 +4,19 @@ import {
   setupContainers,
   insertTestEvents,
   buildEvent,
+  dateOffset,
+  msAgo,
   type ContainerContext,
 } from '@shot/testing';
-import { countCohortMembers } from './cohorts.query';
-import { queryFunnel } from '../funnel/funnel.query';
-import { queryTrend } from '../trend/trend.query';
+import { countCohortMembers } from '../../cohorts/cohorts.query';
+import { queryFunnel } from '../../funnel/funnel.query';
+import { queryTrend } from '../../trend/trend.query';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
-
-const DAY_MS = 86_400_000;
-
-/** Returns ISO timestamp offset by the given milliseconds from now */
-function msAgo(ms: number): string {
-  return new Date(Date.now() - ms).toISOString();
-}
-
-/** Returns YYYY-MM-DD for a date offset by the given number of days from now */
-function dateOffset(days: number): string {
-  return new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10);
-}
 
 describe('countCohortMembers — person_property conditions', () => {
   it('counts persons matching eq condition on user_properties', async () => {

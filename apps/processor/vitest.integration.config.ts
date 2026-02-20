@@ -4,6 +4,7 @@ import swc from 'unplugin-swc';
 export default defineConfig({
   test: {
     include: ['src/**/*.integration.test.ts'],
+    globalSetup: ['./src/test/setup.ts'],
     pool: 'forks',
     poolOptions: {
       forks: {
@@ -16,7 +17,6 @@ export default defineConfig({
   },
   plugins: [
     swc.vite({
-      module: { type: 'commonjs' },
       jsc: {
         parser: { syntax: 'typescript', decorators: true },
         transform: {
