@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 export interface Column<T> {
   key: string;
@@ -13,11 +15,26 @@ interface DataTableProps<T> {
   data: T[];
   rowKey: (row: T) => string;
   onRowClick?: (row: T) => void;
+  className?: string;
+  page?: number;
+  onPageChange?: (page: number) => void;
+  hasMore?: boolean;
 }
 
-export function DataTable<T>({ columns, data, rowKey, onRowClick }: DataTableProps<T>) {
+export function DataTable<T>({
+  columns,
+  data,
+  rowKey,
+  onRowClick,
+  className,
+  page,
+  onPageChange,
+  hasMore,
+}: DataTableProps<T>) {
+  const hasPagination = page !== undefined && onPageChange !== undefined;
+
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
+    <div className={cn('rounded-lg border border-border overflow-hidden', className)}>
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-muted/30 text-xs text-muted-foreground">
@@ -47,6 +64,14 @@ export function DataTable<T>({ columns, data, rowKey, onRowClick }: DataTablePro
           ))}
         </tbody>
       </table>
+      {hasPagination && (
+        <TablePagination
+          page={page}
+          onPageChange={onPageChange}
+          hasMore={hasMore ?? false}
+          className="bg-muted/10"
+        />
+      )}
     </div>
   );
 }

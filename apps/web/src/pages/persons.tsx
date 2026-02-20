@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
-import { TablePagination } from '@/components/ui/table-pagination';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { api } from '@/api/client';
 
@@ -119,18 +118,15 @@ export default function PersonsPage() {
               data={rows}
               rowKey={(row) => row.id}
               onRowClick={(row) => navigate(`/persons/${row.id}?project=${projectId}`)}
+              page={page}
+              onPageChange={setPage}
+              hasMore={page * limit + persons.length < total}
             />
           )}
 
           {!isLoading && rows.length === 0 && (
             <EmptyState icon={Users} description="No persons found" />
           )}
-
-          <TablePagination
-            page={page}
-            onPageChange={setPage}
-            hasMore={page * limit + persons.length < total}
-          />
         </>
       )}
     </div>

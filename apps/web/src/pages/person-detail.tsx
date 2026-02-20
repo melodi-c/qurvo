@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
-import { TablePagination } from '@/components/ui/table-pagination';
-import { ChevronLeft } from 'lucide-react';
+import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
-import { EventTableRow } from '@/components/event-detail';
 import type { EventLike } from '@/components/event-detail';
 import type { PersonEventRow } from '@/api/generated/Api';
 
@@ -25,9 +23,7 @@ export default function PersonDetailPage() {
   const { personId } = useParams<{ personId: string }>();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
-  const navigate = useNavigate();
   const [page, setPage] = useState(0);
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const limit = 50;
 
   const { data: person, isLoading: personLoading } = useQuery({
@@ -58,19 +54,12 @@ export default function PersonDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(`/persons?project=${projectId}`)}
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
-        <h1 className="text-2xl font-bold">
-          {personLoading ? <Skeleton className="h-7 w-48 inline-block" /> : displayName}
-        </h1>
-      </div>
+      <Breadcrumbs
+        items={[
+          { label: 'Persons', path: `/persons?project=${projectId}` },
+          { label: personLoading ? '...' : (displayName ?? '') },
+        ]}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card>
@@ -136,45 +125,20 @@ export default function PersonDetailPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Event History</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {eventsLoading && <ListSkeleton count={6} height="h-10" className="space-y-2 p-4" />}
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium">Event History</h2>
+        {eventsLoading && <ListSkeleton count={6} height="h-10" className="space-y-2" />}
 
-          {!eventsLoading && (
-            <div>
-              <div className="grid grid-cols-[20px_1fr_80px] gap-3 px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground">
-                <span />
-                <span>Event</span>
-                <span>When</span>
-              </div>
-
-              {(events ?? []).map((ev) => (
-                <EventTableRow
-                  key={ev.event_id}
-                  event={toEventLike(ev)}
-                  expanded={expandedRow === ev.event_id}
-                  onToggle={() => setExpandedRow(expandedRow === ev.event_id ? null : ev.event_id)}
-                  showPerson={false}
-                  projectId={projectId}
-                />
-              ))}
-
-              {(events ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">No events found</p>
-              )}
-
-              <TablePagination
-                page={page}
-                onPageChange={setPage}
-                hasMore={(events ?? []).length >= limit}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {!eventsLoading && (
+          <EventTable
+            events={(events ?? []).map(toEventLike)}
+            projectId={projectId}
+            page={page}
+            onPageChange={setPage}
+            hasMore={(events ?? []).length >= limit}
+          />
+        )}
+      </div>
     </div>
   );
 }
