@@ -79,9 +79,6 @@ COPY --from=nestjs-builder /repo/apps/${APP}/dist                   apps/${APP}/
 COPY --from=nestjs-builder /repo/packages/@qurvo/db/dist             packages/@qurvo/db/dist/
 COPY --from=nestjs-builder /repo/packages/@qurvo/db/drizzle          packages/@qurvo/db/drizzle/
 COPY --from=nestjs-builder /repo/packages/@qurvo/clickhouse/dist     packages/@qurvo/clickhouse/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/sdk-core/dist       packages/@qurvo/sdk-core/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/sdk-browser/dist    packages/@qurvo/sdk-browser/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/sdk-node/dist       packages/@qurvo/sdk-node/dist/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
