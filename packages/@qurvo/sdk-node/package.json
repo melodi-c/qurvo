@@ -1,9 +1,16 @@
 {
   "name": "@qurvo/sdk-node",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.0.2",
+  "description": "Server-side SDK for Qurvo analytics — event tracking, user identification",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
