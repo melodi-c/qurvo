@@ -23,9 +23,16 @@ export default function ProjectsPage() {
     queryFn: () => api.projectsControllerList(),
   });
 
+  const isFirstProject = !projects || projects.length === 0;
+
   const createMutation = useMutation({
     mutationFn: (data: { name: string }) => api.projectsControllerCreate(data),
-    onSuccess: () => {
+    onSuccess: async (newProject) => {
+      if (isFirstProject) {
+        await queryClient.invalidateQueries({ queryKey: ['projects'] });
+        navigate(`/dashboards?project=${newProject.id}`);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setShowCreate(false);
       setName('');
@@ -46,6 +53,44 @@ export default function ProjectsPage() {
       toast.error('Failed to delete project');
     }
   };
+
+  const hasProjects = projects && projects.length > 0;
+
+  // Empty state — no projects yet
+  if (!isLoading && !hasProjects) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-6 text-center max-w-md">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <FolderOpen className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Create your first project</h2>
+            <p className="text-sm text-muted-foreground mt-2">
+              Projects isolate your analytics data. Each project has its own events, API keys, and dashboards.
+            </p>
+          </div>
+
+          {showCreate ? (
+            <div className="w-full">
+              <InlineCreateForm
+                placeholder="Project name"
+                value={name}
+                onChange={setName}
+                isPending={createMutation.isPending}
+                onSubmit={() => createMutation.mutate({ name })}
+                onCancel={() => setShowCreate(false)}
+              />
+            </div>
+          ) : (
+            <Button onClick={() => setShowCreate(true)} size="lg">
+              <Plus className="h-4 w-4 mr-2" /> New Project
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
