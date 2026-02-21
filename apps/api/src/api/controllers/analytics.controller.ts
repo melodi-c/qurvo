@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FunnelService } from '../../funnel/funnel.service';
 import { EventsService } from '../../events/events.service';
@@ -11,6 +11,7 @@ import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   FunnelQueryDto, FunnelResponseDto,
   EventsQueryDto, EventRowDto,
+  EventDetailDto, EventDetailQueryDto,
   EventNamesQueryDto, EventNamesResponseDto,
   TrendQueryDto, TrendResponseDto,
   RetentionQueryDto, RetentionResponseDto,
@@ -47,6 +48,15 @@ export class AnalyticsController {
     @Query() query: EventsQueryDto,
   ): Promise<EventRowDto[]> {
     return this.eventsService.getEvents(user.user_id, query);
+  }
+
+  @Get('events/:eventId')
+  async getEventDetail(
+    @CurrentUser() user: RequestUser,
+    @Param('eventId') eventId: string,
+    @Query() query: EventDetailQueryDto,
+  ): Promise<EventDetailDto> {
+    return this.eventsService.getEventDetail(user.user_id, query.project_id, eventId);
   }
 
   @Get('event-names')

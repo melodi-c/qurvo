@@ -4,8 +4,9 @@ import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
-import { queryEvents, type EventsQueryParams, type EventRow } from './events.query';
+import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
 import { queryEventNames } from './event-names.query';
+import { NotFoundException } from '@nestjs/common';
 
 const EVENT_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
 
@@ -20,6 +21,13 @@ export class EventsService {
   async getEvents(userId: string, params: EventsQueryParams): Promise<EventRow[]> {
     await this.projectsService.getMembership(userId, params.project_id);
     return queryEvents(this.ch, params);
+  }
+
+  async getEventDetail(userId: string, projectId: string, eventId: string): Promise<EventDetailRow> {
+    await this.projectsService.getMembership(userId, projectId);
+    const row = await queryEventDetail(this.ch, { project_id: projectId, event_id: eventId });
+    if (!row) throw new NotFoundException('Event not found');
+    return row;
   }
 
   async getEventNames(userId: string, projectId: string): Promise<string[]> {

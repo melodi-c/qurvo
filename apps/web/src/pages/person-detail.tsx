@@ -8,16 +8,6 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
-import type { EventLike } from '@/components/event-detail';
-import type { PersonEventRow } from '@/api/generated/Api';
-
-function toEventLike(e: PersonEventRow): EventLike {
-  return {
-    ...e,
-    screen_width: e.screen_width ?? 0,
-    screen_height: e.screen_height ?? 0,
-  };
-}
 
 export default function PersonDetailPage() {
   const { personId } = useParams<{ personId: string }>();
@@ -126,7 +116,7 @@ export default function PersonDetailPage() {
 
         {!eventsLoading && (
           <EventTable
-            events={(events ?? []).map(toEventLike)}
+            events={events ?? []}
             projectId={projectId}
             page={page}
             onPageChange={setPage}

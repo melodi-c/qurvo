@@ -221,6 +221,34 @@ export interface EventRow {
   timezone: string;
   sdk_name: string;
   sdk_version: string;
+}
+
+export interface EventDetail {
+  event_id: string;
+  event_name: string;
+  event_type: string;
+  distinct_id: string;
+  person_id: string;
+  session_id: string;
+  timestamp: string;
+  url: string;
+  referrer: string;
+  page_title: string;
+  page_path: string;
+  device_type: string;
+  browser: string;
+  browser_version: string;
+  os: string;
+  os_version: string;
+  screen_width: number;
+  screen_height: number;
+  country: string;
+  region: string;
+  city: string;
+  language: string;
+  timezone: string;
+  sdk_name: string;
+  sdk_version: string;
   properties: string;
   user_properties: string;
 }
@@ -850,6 +878,12 @@ export interface AnalyticsControllerGetEventsParams {
   offset?: number;
   /** @format uuid */
   project_id: string;
+}
+
+export interface AnalyticsControllerGetEventDetailParams {
+  /** @format uuid */
+  project_id: string;
+  eventId: string;
 }
 
 export interface AnalyticsControllerGetEventNamesParams {
@@ -1495,6 +1529,27 @@ export class Api<
     ) =>
       this.request<EventRow[], any>({
         path: `/api/analytics/events`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetEventDetail
+     * @request GET:/api/analytics/events/{eventId}
+     * @secure
+     */
+    analyticsControllerGetEventDetail: (
+      { eventId, ...query }: AnalyticsControllerGetEventDetailParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<EventDetail, any>({
+        path: `/api/analytics/events/${eventId}`,
         method: "GET",
         query: query,
         secure: true,

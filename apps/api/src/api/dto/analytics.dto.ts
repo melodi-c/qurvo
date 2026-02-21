@@ -194,8 +194,16 @@ export class EventRowDto {
   timezone: string;
   sdk_name: string;
   sdk_version: string;
+}
+
+export class EventDetailDto extends EventRowDto {
   properties: string;
   user_properties: string;
+}
+
+export class EventDetailQueryDto {
+  @IsUUID()
+  project_id: string;
 }
 
 export class EventNamesQueryDto {

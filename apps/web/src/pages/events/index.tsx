@@ -9,17 +9,12 @@ import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
 import { EventsFilterPanel } from './EventsFilterPanel';
-import type { EventLike } from '@/components/event-detail';
-import type { EventRow, StepFilter } from '@/api/generated/Api';
+import type { StepFilter } from '@/api/generated/Api';
 
 function daysAgo(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().slice(0, 10);
-}
-
-function toEventLike(e: EventRow): EventLike {
-  return { ...e, screen_width: e.screen_width ?? 0, screen_height: e.screen_height ?? 0 };
 }
 
 interface EventsFilterState {
@@ -110,7 +105,7 @@ export default function EventsPage() {
 
           {!isLoading && (
             <EventTable
-              events={(events ?? []).map(toEventLike)}
+              events={events ?? []}
               showPerson
               projectId={projectId}
               page={page}

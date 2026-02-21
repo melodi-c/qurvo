@@ -42,7 +42,9 @@ export interface EventRow {
   // SDK
   sdk_name: string;
   sdk_version: string;
-  // Properties (JSON strings)
+}
+
+export interface EventDetailRow extends EventRow {
   properties: string;
   user_properties: string;
 }
@@ -107,10 +109,8 @@ export async function queryEvents(
       language,
       timezone,
       sdk_name,
-      sdk_version,
-      properties,
-      user_properties
-    FROM events FINAL
+      sdk_version
+    FROM events
     WHERE ${conditions.join(' AND ')}
     ORDER BY events.timestamp DESC
     LIMIT {limit:UInt32}
@@ -124,4 +124,62 @@ export async function queryEvents(
   });
 
   return result.json<EventRow>();
+}
+
+export interface EventDetailParams {
+  project_id: string;
+  event_id: string;
+}
+
+export async function queryEventDetail(
+  ch: ClickHouseClient,
+  params: EventDetailParams,
+): Promise<EventDetailRow | null> {
+  const query = `
+    SELECT
+      event_id,
+      event_name,
+      event_type,
+      distinct_id,
+      toString(person_id) AS person_id,
+      session_id,
+      formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
+      url,
+      referrer,
+      page_title,
+      page_path,
+      device_type,
+      browser,
+      browser_version,
+      os,
+      os_version,
+      screen_width,
+      screen_height,
+      country,
+      region,
+      city,
+      language,
+      timezone,
+      sdk_name,
+      sdk_version,
+      properties,
+      user_properties
+    FROM events
+    WHERE
+      project_id = {project_id:UUID}
+      AND event_id = {event_id:UUID}
+    LIMIT 1
+  `;
+
+  const result = await ch.query({
+    query,
+    query_params: {
+      project_id: params.project_id,
+      event_id: params.event_id,
+    },
+    format: 'JSONEachRow',
+  });
+
+  const rows = await result.json<EventDetailRow>();
+  return rows[0] ?? null;
 }

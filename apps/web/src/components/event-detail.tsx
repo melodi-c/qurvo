@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { TabNav } from '@/components/ui/tab-nav';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ChevronRight, ChevronDown, Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
+import { api } from '@/api/client';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
 
@@ -33,8 +36,8 @@ export interface EventLike {
   timezone: string;
   sdk_name: string;
   sdk_version: string;
-  properties: string;
-  user_properties: string;
+  properties?: string;
+  user_properties?: string;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -69,7 +72,8 @@ function EventTypeIcon({ eventName }: { eventName: string }) {
   return <Zap className="h-3.5 w-3.5 text-amber-400 shrink-0" />;
 }
 
-function parseSafe(json: string): Record<string, unknown> {
+function parseSafe(json: string | undefined): Record<string, unknown> {
+  if (!json) return {};
   try { return JSON.parse(json) as Record<string, unknown>; } catch { return {}; }
 }
 
@@ -188,6 +192,18 @@ type DetailTab = 'event' | 'person';
 export function EventDetail({ event, projectId }: { event: EventLike; projectId?: string }) {
   const [tab, setTab] = useState<DetailTab>('event');
 
+  // Lazy-load properties & user_properties via separate endpoint
+  const { data: detail, isLoading: detailLoading } = useQuery({
+    queryKey: ['event-detail', event.event_id, projectId],
+    queryFn: () =>
+      api.analyticsControllerGetEventDetail({
+        eventId: event.event_id,
+        project_id: projectId!,
+      }),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const browserLabel = [event.browser, event.browser_version].filter(Boolean).join(' ');
   const osLabel = [event.os, event.os_version].filter(Boolean).join(' ');
   const screenLabel = event.screen_width && event.screen_height ? `${event.screen_width} × ${event.screen_height}` : '';
@@ -244,18 +260,25 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
     },
   ];
 
-  const customProps = Object.entries(parseSafe(event.properties)).map(([key, val]) => ({
-    key,
-    value: typeof val === 'object' ? JSON.stringify(val) : String(val),
-  }));
-  if (customProps.length > 0) {
-    eventGroups.push({ label: 'Custom Properties', rows: customProps });
+  const properties = detail?.properties ?? event.properties;
+  const userProperties = detail?.user_properties ?? event.user_properties;
+
+  if (properties) {
+    const customProps = Object.entries(parseSafe(properties)).map(([key, val]) => ({
+      key,
+      value: typeof val === 'object' ? JSON.stringify(val) : String(val),
+    }));
+    if (customProps.length > 0) {
+      eventGroups.push({ label: 'Custom Properties', rows: customProps });
+    }
   }
 
-  const personRows: PropEntry[] = Object.entries(parseSafe(event.user_properties)).map(([key, val]) => ({
-    key,
-    value: typeof val === 'object' ? JSON.stringify(val) : String(val),
-  }));
+  const personRows: PropEntry[] = userProperties
+    ? Object.entries(parseSafe(userProperties)).map(([key, val]) => ({
+        key,
+        value: typeof val === 'object' ? JSON.stringify(val) : String(val),
+      }))
+    : [];
 
   return (
     <div className="border-b border-border bg-muted/20">
@@ -278,11 +301,28 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
 
       {/* Content */}
       <div className="px-4 py-3 max-h-96 overflow-y-auto">
-        {tab === 'event' && <PropsTableGrouped groups={eventGroups} />}
+        {tab === 'event' && (
+          <>
+            <PropsTableGrouped groups={eventGroups} />
+            {detailLoading && !properties && (
+              <div className="space-y-2 pt-4">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            )}
+          </>
+        )}
         {tab === 'person' && (
-          personRows.length === 0
-            ? <p className="text-xs text-muted-foreground py-4">No person properties recorded</p>
-            : <PropsTable rows={personRows} />
+          detailLoading && !userProperties
+            ? (
+              <div className="space-y-2 py-4">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            )
+            : personRows.length === 0
+              ? <p className="text-xs text-muted-foreground py-4">No person properties recorded</p>
+              : <PropsTable rows={personRows} />
         )}
       </div>
     </div>
