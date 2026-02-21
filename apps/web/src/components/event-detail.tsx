@@ -40,6 +40,7 @@ export interface EventLike {
 
 export function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return 'just now';
   const s = Math.floor(diff / 1000);
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);

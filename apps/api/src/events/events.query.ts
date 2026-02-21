@@ -77,7 +77,7 @@ export async function queryEvents(
       distinct_id,
       toString(person_id) AS person_id,
       session_id,
-      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z') AS timestamp,
+      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
       url,
       referrer,
       page_title,
