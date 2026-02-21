@@ -10,6 +10,9 @@ metadata:
     cert-manager.io/cluster-issuer: {{ .Values.tls.clusterIssuer | quote }}
     {{- end }}
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/enable-gzip: "true"
+    nginx.ingress.kubernetes.io/gzip-min-length: "1000"
+    nginx.ingress.kubernetes.io/gzip-types: "application/json text/plain text/css application/javascript"
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
