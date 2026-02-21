@@ -390,6 +390,7 @@ export interface Insight {
   project_id: string;
   created_by: string;
   name: string;
+  is_favorite: boolean;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
@@ -556,6 +557,7 @@ export interface UpdateInsight {
     | ({
         type: "retention";
       } & RetentionWidgetConfig);
+  is_favorite?: boolean;
   /** @maxLength 200 */
   name?: string;
   /** @maxLength 1000 */

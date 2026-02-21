@@ -24,7 +24,8 @@ function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
 export default function FunnelEditorPage() {
   const editor = useInsightEditor<FunnelWidgetConfig>({
     type: 'funnel',
-    basePath: '/funnels',
+    basePath: '/insights/funnels',
+    listBasePath: '/insights',
     defaultName: 'Untitled funnel',
     defaultConfig: defaultFunnelConfig,
     cleanConfig: cleanFunnelConfig,
@@ -48,7 +49,7 @@ export default function FunnelEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Funnels"
+        backLabel="Insights"
         name={name}
         onNameChange={setName}
         placeholder="Untitled funnel"

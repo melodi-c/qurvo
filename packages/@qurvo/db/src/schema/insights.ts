@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, index, boolean } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
 import type { FunnelWidgetConfig, TrendWidgetConfig, RetentionWidgetConfig } from './widgets';
@@ -14,6 +14,7 @@ export const insights = pgTable('insights', {
   name: varchar('name', { length: 200 }).notNull(),
   description: varchar('description', { length: 1000 }),
   config: jsonb('config').notNull().$type<InsightConfig>(),
+  is_favorite: boolean('is_favorite').notNull().default(false),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

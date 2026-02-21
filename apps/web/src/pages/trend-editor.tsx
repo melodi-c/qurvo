@@ -23,7 +23,8 @@ function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
 export default function TrendEditorPage() {
   const editor = useInsightEditor<TrendWidgetConfig>({
     type: 'trend',
-    basePath: '/trends',
+    basePath: '/insights/trends',
+    listBasePath: '/insights',
     defaultName: 'Untitled trend',
     defaultConfig: defaultTrendConfig,
     cleanConfig: cleanTrendConfig,
@@ -53,7 +54,7 @@ export default function TrendEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Trends"
+        backLabel="Insights"
         name={name}
         onNameChange={setName}
         placeholder="Untitled trend"

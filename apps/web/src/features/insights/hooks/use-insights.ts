@@ -52,6 +52,29 @@ export function useUpdateInsight() {
   });
 }
 
+export function useToggleFavorite() {
+  const projectId = useProjectId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ insightId, is_favorite }: { insightId: string; is_favorite: boolean }) =>
+      api.insightsControllerUpdate({ projectId, insightId }, { is_favorite }),
+    onMutate: async ({ insightId, is_favorite }) => {
+      await qc.cancelQueries({ queryKey: ['insights', projectId] });
+      const prev = qc.getQueryData(['insights', projectId]);
+      qc.setQueryData(['insights', projectId], (old: any[]) =>
+        old?.map((i: any) => (i.id === insightId ? { ...i, is_favorite } : i)),
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev) qc.setQueryData(['insights', projectId], context.prev);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['insights', projectId] });
+    },
+  });
+}
+
 export function useDeleteInsight() {
   const projectId = useProjectId();
   const qc = useQueryClient();

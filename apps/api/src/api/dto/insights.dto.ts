@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto } from './dashboards.dto';
 
@@ -71,6 +71,11 @@ export class UpdateInsightDto {
     },
   })
   config?: AnyInsightConfig;
+
+  @IsBoolean()
+  @IsOptional()
+  @ApiPropertyOptional()
+  is_favorite?: boolean;
 }
 
 // ── Response DTO ─────────────────────────────────────────────────────────────
@@ -104,6 +109,7 @@ export class InsightDto {
   })
   config: AnyInsightConfig;
 
+  is_favorite: boolean;
   created_at: Date;
   updated_at: Date;
 }

@@ -43,6 +43,13 @@
       "when": 1771700000000,
       "tag": "0005_drop_widget_name",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771800000000,
+      "tag": "0006_add_insight_favorite",
+      "breakpoints": true
     }
   ]
 }

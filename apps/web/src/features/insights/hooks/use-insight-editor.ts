@@ -6,6 +6,7 @@ import type { InsightDtoTypeEnum } from '@/api/generated/Api';
 interface UseInsightEditorOptions<T> {
   type: InsightDtoTypeEnum;
   basePath: string;
+  listBasePath?: string;
   defaultName: string;
   defaultConfig: () => T;
   cleanConfig: (config: T) => T;
@@ -14,6 +15,7 @@ interface UseInsightEditorOptions<T> {
 export function useInsightEditor<T>({
   type,
   basePath,
+  listBasePath,
   defaultName,
   defaultConfig,
   cleanConfig,
@@ -43,7 +45,7 @@ export function useInsightEditor<T>({
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const listPath = `${basePath}?project=${projectId}`;
+  const listPath = `${listBasePath ?? basePath}?project=${projectId}`;
 
   const handleSave = useCallback(async () => {
     if (!name.trim() || isSaving) return;

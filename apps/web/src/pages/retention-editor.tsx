@@ -14,7 +14,8 @@ import type { RetentionWidgetConfig } from '@/api/generated/Api';
 export default function RetentionEditorPage() {
   const editor = useInsightEditor<RetentionWidgetConfig>({
     type: 'retention',
-    basePath: '/retentions',
+    basePath: '/insights/retentions',
+    listBasePath: '/insights',
     defaultName: 'Untitled retention',
     defaultConfig: defaultRetentionConfig,
     cleanConfig: (c) => c,
@@ -34,7 +35,7 @@ export default function RetentionEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Retention"
+        backLabel="Insights"
         name={name}
         onNameChange={setName}
         placeholder="Untitled retention"

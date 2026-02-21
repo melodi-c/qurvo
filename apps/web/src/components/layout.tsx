@@ -12,16 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, FolderOpen, Key, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, GitFork, TrendingUp, CalendarCheck, X } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Key, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, Lightbulb, X } from 'lucide-react';
 
 const sidebarSections = [
   {
     title: 'Product',
     items: [
       { path: '/dashboards', label: 'Dashboards', icon: LayoutDashboard },
-      { path: '/trends',     label: 'Trends',     icon: TrendingUp },
-      { path: '/funnels',    label: 'Funnels',    icon: GitFork },
-      { path: '/retentions', label: 'Retention',  icon: CalendarCheck },
+      { path: '/insights',   label: 'Insights',   icon: Lightbulb },
       { path: '/cohorts',    label: 'Cohorts',    icon: UsersRound },
       { path: '/persons',    label: 'Persons',    icon: Users },
       { path: '/events',     label: 'Events',     icon: List },

@@ -63,7 +63,7 @@ export class InsightsService {
     userId: string,
     projectId: string,
     insightId: string,
-    input: { name?: string; description?: string; config?: InsightConfig },
+    input: { name?: string; description?: string; config?: InsightConfig; is_favorite?: boolean },
   ) {
     await this.projectsService.getMembership(userId, projectId);
 
@@ -78,6 +78,7 @@ export class InsightsService {
     if (input.name !== undefined) updateData.name = input.name;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.config !== undefined) updateData.config = input.config;
+    if (input.is_favorite !== undefined) updateData.is_favorite = input.is_favorite;
 
     const rows = await this.db
       .update(insights)
