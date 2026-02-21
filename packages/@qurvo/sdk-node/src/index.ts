@@ -33,7 +33,7 @@ export class Qurvo {
   track(params: { distinct_id: string; event: string; properties?: Record<string, unknown> }) {
     const payload: EventPayload = {
       event: params.event,
-      distinct_id: params.distinct_id,
+      distinct_id: String(params.distinct_id),
       properties: params.properties,
       context: {
         sdk_name: SDK_NAME,
@@ -47,7 +47,7 @@ export class Qurvo {
   identify(params: { distinct_id: string; user_properties: Record<string, unknown> }) {
     const payload: EventPayload = {
       event: '$identify',
-      distinct_id: params.distinct_id,
+      distinct_id: String(params.distinct_id),
       user_properties: params.user_properties,
       context: {
         sdk_name: SDK_NAME,
@@ -61,7 +61,7 @@ export class Qurvo {
   set(params: { distinct_id: string; properties: Record<string, unknown> }) {
     const payload: EventPayload = {
       event: '$set',
-      distinct_id: params.distinct_id,
+      distinct_id: String(params.distinct_id),
       user_properties: { $set: params.properties },
       context: {
         sdk_name: SDK_NAME,
@@ -75,7 +75,7 @@ export class Qurvo {
   setOnce(params: { distinct_id: string; properties: Record<string, unknown> }) {
     const payload: EventPayload = {
       event: '$set_once',
-      distinct_id: params.distinct_id,
+      distinct_id: String(params.distinct_id),
       user_properties: { $set_once: params.properties },
       context: {
         sdk_name: SDK_NAME,
@@ -89,7 +89,7 @@ export class Qurvo {
   screen(params: { distinct_id: string; screen_name: string; properties?: Record<string, unknown> }) {
     const payload: EventPayload = {
       event: '$screen',
-      distinct_id: params.distinct_id,
+      distinct_id: String(params.distinct_id),
       properties: { $screen_name: params.screen_name, ...params.properties },
       context: {
         sdk_name: SDK_NAME,
