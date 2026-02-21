@@ -31,6 +31,13 @@ pnpm ch:generate <name>              # create new ClickHouse migration file
 # API client generation (requires api to be built first)
 pnpm swagger:generate                # generate apps/api/docs/swagger.json
 pnpm generate-api                    # generate apps/web/src/api/generated/Api.ts from swagger.json
+
+# Publishing SDK packages to npm
+# IMPORTANT: Always use `pnpm publish`, never `npm publish`!
+# pnpm auto-resolves workspace:* → real version. npm does not.
+pnpm --filter @qurvo/sdk-core publish --access public --no-git-checks
+pnpm --filter @qurvo/sdk-browser publish --access public --no-git-checks
+pnpm --filter @qurvo/sdk-node publish --access public --no-git-checks
 ```
 
 ## Architecture
