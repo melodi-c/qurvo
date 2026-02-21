@@ -45,7 +45,7 @@ export default function FunnelEditorPage() {
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(funnelResult);
 
   return (
-    <div className="-m-6 h-full flex flex-col overflow-hidden">
+    <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
         backLabel="Funnels"
@@ -58,7 +58,7 @@ export default function FunnelEditorPage() {
         saveError={saveError}
       />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
         <FunnelQueryPanel config={config} onChange={setConfig} />
 
         <main className="flex-1 overflow-auto flex flex-col">

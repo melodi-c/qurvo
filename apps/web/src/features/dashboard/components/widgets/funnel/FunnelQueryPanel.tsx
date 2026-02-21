@@ -15,7 +15,7 @@ interface FunnelQueryPanelProps {
 
 export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   return (
-    <aside className="w-[360px] flex-shrink-0 border-r border-border overflow-y-auto">
+    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
       <div className="p-5 space-y-6">
 
         <DateRangeSection

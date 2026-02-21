@@ -109,7 +109,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 Compose `Popover` + `Command` for searchable dropdowns. See `EventNameCombobox` and `CohortSelector` for reference implementations.
 
 ### Page Layout
-All pages inside `<Layout>` receive `p-6` padding via `<main>`. Editor pages that need full-height override with `className="-m-6 h-full flex flex-col overflow-hidden"`.
+All pages inside `<Layout>` receive `p-4 lg:p-6` padding (responsive). Editor pages that need full-height override with `className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden"`.
 
 ### Editor Page Structure
 ```

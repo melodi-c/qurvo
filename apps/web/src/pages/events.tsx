@@ -49,18 +49,18 @@ export default function EventsPage() {
 
       {projectId && (
         <>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <Input
               placeholder="Filter by event name"
               value={filters.event_name}
               onChange={(e) => { setFilters((f) => ({ ...f, event_name: e.target.value })); setPage(0); }}
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
             />
             <Input
               placeholder="Filter by distinct_id"
               value={filters.distinct_id}
               onChange={(e) => { setFilters((f) => ({ ...f, distinct_id: e.target.value })); setPage(0); }}
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
             />
           </div>
 

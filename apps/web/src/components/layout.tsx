@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useSearchParams, Navigate } from 'react-rout
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, FolderOpen, Key, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, GitFork, TrendingUp, CalendarCheck } from 'lucide-react';
+import { LayoutTopbar } from '@/components/layout-topbar';
+import { useSidebar } from '@/hooks/use-sidebar';
+import { LayoutDashboard, FolderOpen, Key, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, GitFork, TrendingUp, CalendarCheck, X } from 'lucide-react';
 
 const sidebarSections = [
   {
@@ -38,6 +41,7 @@ export default function Layout() {
   const [searchParams, setSearchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
+  const { isOpen, open, close } = useSidebar();
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -59,6 +63,7 @@ export default function Layout() {
   }
 
   const userInitial = user?.display_name?.slice(0, 1).toUpperCase() ?? '?';
+  const logoHref = hasProjects ? navLink('/dashboards') : '/projects';
 
   // Redirect to /projects when user has no projects and is not already there
   if (projectsLoaded && !hasProjects && location.pathname !== '/projects') {
@@ -66,14 +71,47 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-col lg:flex-row h-screen bg-background">
+
+      {/* ── Mobile top bar ── */}
+      <LayoutTopbar
+        onMenuOpen={open}
+        userInitial={userInitial}
+        logoHref={logoHref}
+      />
+
+      {/* ── Backdrop (mobile only) ── */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
+          onClick={close}
+        />
+      )}
 
       {/* ── Sidebar ── */}
-      <aside className="w-[220px] shrink-0 flex flex-col border-r border-border bg-[#0f0f11]">
+      <aside
+        role={isOpen ? 'dialog' : undefined}
+        aria-modal={isOpen ? true : undefined}
+        aria-label="Navigation"
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-[220px] flex flex-col border-r border-border bg-[#0f0f11]',
+          'transition-transform duration-200 ease-in-out',
+          'lg:static lg:z-auto lg:translate-x-0 lg:shrink-0 lg:transition-none',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        {/* Close button — mobile only */}
+        <button
+          onClick={close}
+          className="lg:hidden absolute top-3 right-3 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          aria-label="Close navigation"
+        >
+          <X className="w-4 h-4" />
+        </button>
 
         {/* Logo */}
         <Link
-          to={hasProjects ? navLink('/dashboards') : '/projects'}
+          to={logoHref}
           className="h-[44px] flex items-center gap-2.5 px-4 border-b border-border hover:bg-accent/30 transition-colors"
         >
           <Activity className="w-4 h-4 text-primary shrink-0" />
@@ -93,11 +131,12 @@ export default function Layout() {
                     <Link
                       key={item.path}
                       to={navLink(item.path)}
-                      className={`flex items-center gap-2.5 px-2 py-[6px] rounded-md text-sm transition-colors ${
+                      className={cn(
+                        'flex items-center gap-2.5 px-2 py-[6px] rounded-md text-sm transition-colors',
                         isActive(item.path)
                           ? 'bg-accent text-foreground font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                      }`}
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+                      )}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       {item.label}
@@ -170,8 +209,10 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-auto p-6">
-        <Outlet />
+      <main className="flex-1 overflow-auto">
+        <div className="p-4 lg:p-6">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

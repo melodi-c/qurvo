@@ -35,12 +35,14 @@ const COLUMNS: Column<PersonRow>[] = [
     key: 'email',
     header: 'Email',
     className: 'text-muted-foreground',
+    hideOnMobile: true,
     render: (row) => row.email || '\u2014',
   },
   {
     key: 'firstSeen',
     header: 'First Seen',
     className: 'text-muted-foreground',
+    hideOnMobile: true,
     render: (row) => new Date(row.createdAt).toLocaleDateString(),
   },
   {

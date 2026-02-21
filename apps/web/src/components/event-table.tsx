@@ -26,7 +26,7 @@ export function EventTable({
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const gridCols = showPerson
-    ? 'grid-cols-[20px_1fr_160px_80px]'
+    ? 'grid-cols-[20px_1fr_80px] lg:grid-cols-[20px_1fr_160px_80px]'
     : 'grid-cols-[20px_1fr_80px]';
 
   return (
@@ -36,7 +36,7 @@ export function EventTable({
       >
         <span />
         <span>Event</span>
-        {showPerson && <span>Person</span>}
+        {showPerson && <span className="hidden lg:block">Person</span>}
         <span>When</span>
       </div>
 

@@ -31,7 +31,7 @@ export default function RetentionEditorPage() {
   const showSkeleton = isLoading && !data;
 
   return (
-    <div className="-m-6 h-full flex flex-col overflow-hidden">
+    <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
         backLabel="Retention"
@@ -44,7 +44,7 @@ export default function RetentionEditorPage() {
         saveError={saveError}
       />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
         <RetentionQueryPanel config={config} onChange={setConfig} />
 
         <main className="flex-1 overflow-auto flex flex-col">

@@ -26,7 +26,7 @@ export function EditorHeader({
   saveError,
 }: EditorHeaderProps) {
   return (
-    <header className="flex items-center gap-2 border-b border-border bg-background px-5 h-14 flex-shrink-0">
+    <header className="flex flex-col gap-2 border-b border-border bg-background px-4 py-3 lg:flex-row lg:items-center lg:px-5 lg:py-0 lg:h-14 flex-shrink-0">
       <nav className="flex items-center gap-1.5 min-w-0 flex-1">
         <Link
           to={backPath}

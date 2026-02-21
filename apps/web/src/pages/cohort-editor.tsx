@@ -101,7 +101,7 @@ export default function CohortEditorPage() {
   }
 
   return (
-    <div className="-m-6 h-full flex flex-col overflow-hidden">
+    <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
         backLabel="Cohorts"
@@ -115,9 +115,9 @@ export default function CohortEditorPage() {
       />
 
       {/* Body */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
         {/* Left panel: Editor */}
-        <aside className="w-[420px] flex-shrink-0 border-r border-border overflow-y-auto">
+        <aside className="w-full lg:w-[420px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[55vh] lg:max-h-none">
           <div className="p-5 space-y-5">
             {/* Description */}
             <div className="space-y-1.5">

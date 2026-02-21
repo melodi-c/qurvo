@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { ChevronRight, ChevronDown, Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
@@ -318,7 +319,11 @@ export function EventTableRow({
   return (
     <>
       <div
-        className={`grid gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none transition-colors hover:bg-muted/40 ${expanded ? 'bg-muted/30' : ''} ${showPerson ? 'grid-cols-[20px_1fr_160px_80px]' : 'grid-cols-[20px_1fr_80px]'}`}
+        className={cn(
+          'grid gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none transition-colors hover:bg-muted/40',
+          expanded && 'bg-muted/30',
+          showPerson ? 'grid-cols-[20px_1fr_80px] lg:grid-cols-[20px_1fr_160px_80px]' : 'grid-cols-[20px_1fr_80px]',
+        )}
         onClick={onToggle}
       >
         {/* Chevron */}
@@ -342,9 +347,9 @@ export function EventTableRow({
           )}
         </span>
 
-        {/* Person (optional) — clickable link */}
+        {/* Person (optional) — clickable link, hidden on mobile */}
         {showPerson && (
-          <span className="flex items-center min-w-0">
+          <span className="hidden lg:flex items-center min-w-0">
             {projectId && event.person_id ? (
               <Link
                 to={`/persons/${event.person_id}?project=${projectId}`}

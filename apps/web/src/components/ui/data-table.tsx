@@ -7,6 +7,7 @@ export interface Column<T> {
   header: string;
   className?: string;
   headerClassName?: string;
+  hideOnMobile?: boolean;
   render: (row: T) => ReactNode;
 }
 
@@ -41,7 +42,11 @@ export function DataTable<T>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`text-left px-4 py-2.5 font-medium ${col.headerClassName ?? ''}`}
+                className={cn(
+                  'text-left px-4 py-2.5 font-medium',
+                  col.headerClassName,
+                  col.hideOnMobile && 'hidden lg:table-cell',
+                )}
               >
                 {col.header}
               </th>
@@ -56,7 +61,7 @@ export function DataTable<T>({
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
               {columns.map((col) => (
-                <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
+                <td key={col.key} className={cn('px-4 py-3', col.className, col.hideOnMobile && 'hidden lg:table-cell')}>
                   {col.render(row)}
                 </td>
               ))}
