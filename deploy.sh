@@ -6,10 +6,11 @@ set -euo pipefail
 #
 # Usage:
 #   ./deploy.sh                    # build ALL, push, deploy
-#   ./deploy.sh --only ingest      # rebuild ingest only, deploy all
-#   ./deploy.sh --only ingest,api  # rebuild ingest+api, deploy all
-#   ./deploy.sh --skip-build       # deploy only (images must exist in registry)
+#   ./deploy.sh --only ingest      # rebuild ingest only, keep others as-is
+#   ./deploy.sh --only ingest,api  # rebuild ingest+api, keep others
+#   ./deploy.sh --skip-build       # re-deploy with current tags (no build)
 #   ./deploy.sh --tag v1.0         # use custom tag instead of git commit hash
+#   ./deploy.sh --no-hooks         # skip pre-install/pre-upgrade hooks (migrations)
 # ==============================================================================
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -23,6 +24,7 @@ export KUBECONFIG="$KUBECONFIG_PATH"
 ALL_APPS=(api ingest processor web)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
+NO_HOOKS=false
 TAG=""
 ONLY=""
 
@@ -30,36 +32,47 @@ ONLY=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=true; shift ;;
+    --no-hooks)   NO_HOOKS=true; shift ;;
     --tag)        TAG="$2"; shift 2 ;;
     --only)       ONLY="$2"; shift 2 ;;
     --help|-h)
-      echo "Usage: ./deploy.sh [--skip-build] [--tag <tag>] [--only app1,app2]"
-      echo ""
-      echo "Options:"
-      echo "  --only app1,app2  Build only specified apps (api,ingest,processor,web)"
-      echo "  --skip-build      Deploy only, skip docker build+push"
-      echo "  --tag <tag>       Custom image tag (default: git commit hash)"
+      head -14 "$0" | tail -10
       exit 0
       ;;
-    *) echo "Unknown option: $1"; exit 1 ;;
+    *) echo "ERROR: Unknown option: $1"; exit 1 ;;
   esac
 done
 
-# ── Resolve tag ──────────────────────────────────────────────────────────────
-if [[ -z "$TAG" ]]; then
-  if [[ "$SKIP_BUILD" == true ]]; then
-    TAG=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null | \
-      python3 -c "import sys,json; print(json.load(sys.stdin).get('global',{}).get('imageTag',''))" 2>/dev/null || echo "")
-    if [[ -z "$TAG" ]]; then
-      echo "ERROR: --skip-build requires a deployed release or --tag <tag>"
-      exit 1
-    fi
-  else
-    TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
-  fi
-fi
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
-# ── Resolve which apps to build ─────────────────────────────────────────────
+# Read current helm values JSON (cached for the lifetime of the script)
+HELM_VALUES_CACHE=""
+get_helm_values() {
+  if [[ -z "$HELM_VALUES_CACHE" ]]; then
+    HELM_VALUES_CACHE=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null || echo "")
+  fi
+  echo "$HELM_VALUES_CACHE"
+}
+
+# Get the currently deployed tag for a specific app (falls back to global)
+get_current_tag() {
+  local app="$1"
+  local values
+  values=$(get_helm_values)
+  if [[ -z "$values" ]]; then
+    echo ""
+    return
+  fi
+  python3 -c "
+import sys, json
+v = json.loads(sys.argv[1])
+app_tag = v.get('$app', {}).get('image', {}).get('tag', '')
+global_tag = v.get('global', {}).get('imageTag', '')
+print(app_tag or global_tag)
+" "$values" 2>/dev/null || echo ""
+}
+
+# ── Validate --only apps ────────────────────────────────────────────────────
 BUILD_APPS=()
 if [[ -n "$ONLY" ]]; then
   IFS=',' read -ra BUILD_APPS <<< "$ONLY"
@@ -77,12 +90,70 @@ else
   BUILD_APPS=("${ALL_APPS[@]}")
 fi
 
-echo "==> Tag: $TAG"
-echo "==> Registry: $REGISTRY"
+is_being_built() {
+  local app="$1"
+  for b in "${BUILD_APPS[@]}"; do
+    [[ "$app" == "$b" ]] && return 0
+  done
+  return 1
+}
+
+# ── Resolve new tag ─────────────────────────────────────────────────────────
+if [[ -z "$TAG" ]]; then
+  if [[ "$SKIP_BUILD" == true ]]; then
+    echo "ERROR: --skip-build requires --tag <tag>"
+    exit 1
+  fi
+  TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+fi
+
+# ── Compute final per-app tags ──────────────────────────────────────────────
+# Each app gets exactly one tag. For rebuilt apps — the new TAG.
+# For non-rebuilt apps — their current deployed tag (preserved).
+declare -A APP_TAGS
+
+if [[ -n "$ONLY" ]]; then
+  # Partial deploy: read current tags for non-rebuilt apps
+  for app in "${ALL_APPS[@]}"; do
+    if is_being_built "$app"; then
+      APP_TAGS[$app]="$TAG"
+    else
+      current=$(get_current_tag "$app")
+      if [[ -z "$current" ]]; then
+        echo "ERROR: Cannot determine current tag for '$app'. Do a full deploy first."
+        exit 1
+      fi
+      APP_TAGS[$app]="$current"
+    fi
+  done
+else
+  # Full deploy: all apps get the new tag
+  for app in "${ALL_APPS[@]}"; do
+    APP_TAGS[$app]="$TAG"
+  done
+fi
+
+# ── Summary ─────────────────────────────────────────────────────────────────
+echo ""
+echo "==> Deploy plan:"
+echo "    Registry: $REGISTRY"
+echo ""
+printf "    %-12s %-12s %s\n" "APP" "TAG" "ACTION"
+printf "    %-12s %-12s %s\n" "───" "───" "──────"
+for app in "${ALL_APPS[@]}"; do
+  if is_being_built "$app" && [[ "$SKIP_BUILD" == false ]]; then
+    action="build + deploy"
+  elif is_being_built "$app"; then
+    action="deploy (pre-built)"
+  else
+    action="keep"
+  fi
+  printf "    %-12s %-12s %s\n" "$app" "${APP_TAGS[$app]}" "$action"
+done
+echo ""
 
 # ── Build & push ─────────────────────────────────────────────────────────────
 if [[ "$SKIP_BUILD" == false ]]; then
-  echo ""
   echo "==> Building: ${BUILD_APPS[*]}"
 
   PIDS=()
@@ -141,45 +212,31 @@ if [[ "$SKIP_BUILD" == false ]]; then
   [[ "$FAILED" == true ]] && { echo "ERROR: Push failed. Aborting."; exit 1; }
 fi
 
+# ── Pre-deploy: fix stuck helm releases ─────────────────────────────────────
+RELEASE_STATUS=$(helm status "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null | \
+  python3 -c "import sys,json; print(json.load(sys.stdin)['info']['status'])" 2>/dev/null || echo "not-found")
+
+if [[ "$RELEASE_STATUS" == "pending-upgrade" || "$RELEASE_STATUS" == "pending-install" || "$RELEASE_STATUS" == "pending-rollback" ]]; then
+  echo "==> WARNING: Release stuck in '$RELEASE_STATUS'. Rolling back..."
+  helm rollback "$RELEASE_NAME" -n "$NAMESPACE" 2>&1
+  echo "    Rollback complete."
+  echo ""
+fi
+
 # ── Deploy with Helm ─────────────────────────────────────────────────────────
-echo ""
 echo "==> Deploying to Kubernetes..."
 
-# Build helm --set flags for per-service image tags
-HELM_SET_ARGS=(--set "global.imageTag=$TAG")
+# global.imageTag = api tag (migrations use api image)
+HELM_SET_ARGS=(--set "global.imageTag=${APP_TAGS[api]}")
 
-# When --only is used, keep the current deployed tag for non-rebuilt apps
-if [[ -n "$ONLY" ]]; then
-  HELM_VALUES_JSON=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null || echo "{}")
+# Per-app tags
+for app in "${ALL_APPS[@]}"; do
+  HELM_SET_ARGS+=(--set "${app}.image.tag=${APP_TAGS[$app]}")
+done
 
-  CURRENT_GLOBAL_TAG=$(echo "$HELM_VALUES_JSON" | \
-    python3 -c "import sys,json; print(json.load(sys.stdin).get('global',{}).get('imageTag',''))" 2>/dev/null || echo "")
-
-  if [[ -z "$CURRENT_GLOBAL_TAG" ]]; then
-    echo "ERROR: Cannot determine current deployed tag. Use full deploy without --only."
-    exit 1
-  fi
-
-  echo "    Current global tag: $CURRENT_GLOBAL_TAG"
-  echo "    New tag for ${BUILD_APPS[*]}: $TAG"
-
-  for app in "${ALL_APPS[@]}"; do
-    is_built=false
-    for b in "${BUILD_APPS[@]}"; do
-      [[ "$app" == "$b" ]] && is_built=true
-    done
-    if [[ "$is_built" == true ]]; then
-      HELM_SET_ARGS+=(--set "${app}.image.tag=$TAG")
-    else
-      # Use per-app tag if set, otherwise fall back to global tag
-      APP_TAG=$(echo "$HELM_VALUES_JSON" | \
-        python3 -c "import sys,json; print(json.load(sys.stdin).get('$app',{}).get('image',{}).get('tag',''))" 2>/dev/null || echo "")
-      HELM_SET_ARGS+=(--set "${app}.image.tag=${APP_TAG:-$CURRENT_GLOBAL_TAG}")
-    fi
-  done
-  # global tag = current (for migrations etc that use api image)
-  HELM_SET_ARGS[0]="--set"
-  HELM_SET_ARGS[1]="global.imageTag=$CURRENT_GLOBAL_TAG"
+HELM_EXTRA_ARGS=()
+if [[ "$NO_HOOKS" == true ]]; then
+  HELM_EXTRA_ARGS+=(--no-hooks)
 fi
 
 helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
@@ -188,9 +245,16 @@ helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
   -f "$HELM_CHART/values.production.yaml" \
   -f "$HELM_CHART/values.local-secrets.yaml" \
   "${HELM_SET_ARGS[@]}" \
+  "${HELM_EXTRA_ARGS[@]}" \
   --wait \
   --timeout 5m
 
 echo ""
-echo "==> Deploy complete! Tag: $TAG"
+echo "==> Deploy complete!"
+printf "    %-12s %s\n" "APP" "TAG"
+printf "    %-12s %s\n" "───" "───"
+for app in "${ALL_APPS[@]}"; do
+  printf "    %-12s %s\n" "$app" "${APP_TAGS[$app]}"
+done
+echo ""
 kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/instance=$RELEASE_NAME" --no-headers
