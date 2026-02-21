@@ -8,11 +8,12 @@
 -- timestamp part of the key efficiently and skip sorting.
 
 ALTER TABLE events
-  ADD PROJECTION events_by_project_timestamp
+  ADD PROJECTION IF NOT EXISTS events_by_project_timestamp
   (
     SELECT *
     ORDER BY (project_id, timestamp, event_id)
   );
 
 ALTER TABLE events
-  MATERIALIZE PROJECTION events_by_project_timestamp;
+  MATERIALIZE PROJECTION events_by_project_timestamp
+  SETTINGS mutations_sync = 0;
