@@ -104,6 +104,12 @@ Filters registered via `APP_FILTER` provider in their module, never via `app.use
 ### Throttle Limits
 20 req/s, 300 req/min per IP. Backed by `RedisThrottlerStorage` (sorted sets) in `src/throttler/`.
 
+### Controller Return Types & `as any`
+Controllers declare explicit return types (e.g. `Promise<CohortDto>`) so Swagger can generate correct response schemas. Drizzle ORM returns `InferSelectModel<T>` which is structurally compatible but not assignable to DTO classes, so `as any` is required on `return` statements. **Never remove `as any` from controller returns** — it will break Swagger generation.
+
+### Query Parameters as DTO
+When a controller accepts optional query parameters, group them into a DTO class with `@ApiPropertyOptional()` + `@IsOptional()` instead of using separate `@Query('name')` parameters. This ensures the generated API client types are correct (optional fields). Use `@Query() query: MyQueryDto` pattern.
+
 ### API Client Generation
 Edit controllers → `pnpm swagger:generate` → `pnpm generate-api` → use updated `Api.ts` in frontend. The generated client strips `Dto` suffix from type names.
 

@@ -14,6 +14,9 @@ import { PersonsModule } from '../persons/persons.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
 import { InsightsModule } from '../insights/insights.module';
 import { MembersModule } from '../members/members.module';
+import { MarketingChannelsModule } from '../marketing-channels/marketing-channels.module';
+import { AdSpendModule } from '../ad-spend/ad-spend.module';
+import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -23,6 +26,9 @@ import { PersonsController } from './controllers/persons.controller';
 import { CohortsController } from './controllers/cohorts.controller';
 import { InsightsController } from './controllers/insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
+import { MarketingChannelsController } from './controllers/marketing-channels.controller';
+import { AdSpendController } from './controllers/ad-spend.controller';
+import { UnitEconomicsController } from './controllers/unit-economics.controller';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { UnauthorizedFilter } from './filters/unauthorized.filter';
 import { ForbiddenFilter } from './filters/forbidden.filter';
@@ -30,7 +36,7 @@ import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -43,6 +49,9 @@ import { ConflictFilter } from './filters/conflict.filter';
     MembersController,
     InvitesController,
     MyInvitesController,
+    MarketingChannelsController,
+    AdSpendController,
+    UnitEconomicsController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },

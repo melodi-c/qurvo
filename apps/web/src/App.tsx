@@ -25,6 +25,7 @@ import LifecycleEditorPage from '@/pages/lifecycle-editor';
 import StickinessEditorPage from '@/pages/stickiness-editor';
 import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
+import UnitEconomicsPage from '@/pages/unit-economics';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="/trends" element={<Navigate to="/insights?type=trend" replace />} />
         <Route path="/funnels" element={<Navigate to="/insights?type=funnel" replace />} />
         <Route path="/retentions" element={<Navigate to="/insights?type=retention" replace />} />
+        <Route path="/unit-economics" element={<UnitEconomicsPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/cohorts" element={<CohortsPage />} />
         <Route path="/cohorts/new" element={<CohortEditorPage />} />

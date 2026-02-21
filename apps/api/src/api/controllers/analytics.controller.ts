@@ -6,6 +6,7 @@ import { TrendService } from '../../trend/trend.service';
 import { RetentionService } from '../../retention/retention.service';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { StickinessService } from '../../stickiness/stickiness.service';
+import { UnitEconomicsService } from '../../unit-economics/unit-economics.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
@@ -18,6 +19,7 @@ import {
   LifecycleQueryDto, LifecycleResponseDto,
   StickinessQueryDto, StickinessResponseDto,
 } from '../dto/analytics.dto';
+import { UnitEconomicsQueryDto, UnitEconomicsResponseDto } from '../dto/unit-economics.dto';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -31,6 +33,7 @@ export class AnalyticsController {
     private readonly retentionService: RetentionService,
     private readonly lifecycleService: LifecycleService,
     private readonly stickinessService: StickinessService,
+    private readonly unitEconomicsService: UnitEconomicsService,
   ) {}
 
   @Post('funnel')
@@ -102,5 +105,14 @@ export class AnalyticsController {
     @Body() body: StickinessQueryDto,
   ): Promise<StickinessResponseDto> {
     return this.stickinessService.getStickiness(user.user_id, body);
+  }
+
+  @Post('unit-economics')
+  @HttpCode(200)
+  async getUnitEconomics(
+    @CurrentUser() user: RequestUser,
+    @Body() body: UnitEconomicsQueryDto,
+  ): Promise<UnitEconomicsResponseDto> {
+    return this.unitEconomicsService.getMetrics(user.user_id, body);
   }
 }

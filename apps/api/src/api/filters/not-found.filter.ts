@@ -9,8 +9,10 @@ import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-fou
 import { InsightNotFoundException } from '../../insights/exceptions/insight-not-found.exception';
 import { InviteNotFoundException } from '../../members/exceptions/invite-not-found.exception';
 import { MemberNotFoundException } from '../../members/exceptions/member-not-found.exception';
+import { ChannelNotFoundException } from '../../marketing-channels/exceptions/channel-not-found.exception';
+import { SpendNotFoundException } from '../../ad-spend/exceptions/spend-not-found.exception';
 
-@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException, InviteNotFoundException, MemberNotFoundException)
+@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException, InviteNotFoundException, MemberNotFoundException, ChannelNotFoundException, SpendNotFoundException)
 export class NotFoundFilter implements ExceptionFilter {
   catch(
     exception:
@@ -22,7 +24,9 @@ export class NotFoundFilter implements ExceptionFilter {
       | CohortNotFoundException
       | InsightNotFoundException
       | InviteNotFoundException
-      | MemberNotFoundException,
+      | MemberNotFoundException
+      | ChannelNotFoundException
+      | SpendNotFoundException,
     host: ArgumentsHost,
   ) {
     const response = host.switchToHttp().getResponse<Response>();

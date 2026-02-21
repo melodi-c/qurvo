@@ -419,6 +419,62 @@ export interface StickinessResponse {
   from_cache: boolean;
 }
 
+export interface UnitEconomicsQuery {
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  granularity: UnitEconomicsQueryDtoGranularityEnum;
+  purchase_event_name?: string;
+  revenue_property?: string;
+  /**
+   * @min 7
+   * @max 365
+   */
+  churn_window_days?: number;
+  /** @format uuid */
+  channel_id?: string;
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface UnitEconomicsMetrics {
+  ua: number;
+  c1: number;
+  c2: number;
+  apc: number;
+  avp: number;
+  arppu: number;
+  arpu: number;
+  churn_rate: number;
+  lifetime_periods: number;
+  ltv: number;
+  cac: number;
+  roi_percent: number;
+  cm: number;
+  total_revenue: number;
+  total_purchases: number;
+  paying_users: number;
+  total_ad_spend: number;
+}
+
+export interface UEBucket {
+  bucket: string;
+  metrics: UnitEconomicsMetrics;
+}
+
+export interface UEData {
+  granularity: string;
+  data: UEBucket[];
+  totals: UnitEconomicsMetrics;
+}
+
+export interface UnitEconomicsResponse {
+  data: UEData;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export interface Dashboard {
   id: string;
   project_id: string;
@@ -759,6 +815,102 @@ export interface MyInvite {
   created_at: string;
 }
 
+export interface FilterCondition {
+  property: string;
+  value: string;
+}
+
+export interface MarketingChannel {
+  integration_config?: object;
+  filter_conditions?: FilterCondition[] | null;
+  color?: string | null;
+  id: string;
+  project_id: string;
+  created_by: string;
+  name: string;
+  channel_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateMarketingChannel {
+  name: string;
+  channel_type?: CreateMarketingChannelDtoChannelTypeEnum;
+  filter_conditions?: FilterCondition[];
+  color?: string;
+}
+
+export interface UpdateMarketingChannel {
+  name?: string;
+  channel_type?: UpdateMarketingChannelDtoChannelTypeEnum;
+  filter_conditions?: FilterCondition[];
+  color?: string;
+}
+
+export interface AdSpend {
+  note?: string | null;
+  id: string;
+  project_id: string;
+  channel_id: string;
+  created_by: string;
+  spend_date: string;
+  amount: string;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAdSpend {
+  channel_id: string;
+  spend_date: string;
+  amount: string;
+  currency?: string;
+  note?: string;
+}
+
+export interface BulkCreateAdSpend {
+  items: CreateAdSpend[];
+}
+
+export interface UpdateAdSpend {
+  channel_id?: string;
+  spend_date?: string;
+  amount?: string;
+  currency?: string;
+  note?: string;
+}
+
+export interface AdSpendSummary {
+  channel_color?: string | null;
+  channel_id: string;
+  channel_name: string;
+  total_amount: string;
+  record_count: number;
+}
+
+export interface UpsertUEConfig {
+  purchase_event_name?: string;
+  revenue_property?: string;
+  currency?: string;
+  /**
+   * @min 7
+   * @max 365
+   */
+  churn_window_days?: number;
+}
+
+export interface UEConfig {
+  id: string;
+  project_id: string;
+  created_by: string;
+  purchase_event_name: string | null;
+  revenue_property: string;
+  currency: string;
+  churn_window_days: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -781,6 +933,8 @@ export type RetentionQueryDtoGranularityEnum = "day" | "week" | "month";
 export type LifecycleQueryDtoGranularityEnum = "day" | "week" | "month";
 
 export type StickinessQueryDtoGranularityEnum = "day" | "week" | "month";
+
+export type UnitEconomicsQueryDtoGranularityEnum = "day" | "week" | "month";
 
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
@@ -834,6 +988,20 @@ export type CreateInsightDtoTypeEnum =
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 
 export type CreateInviteDtoRoleEnum = "editor" | "viewer";
+
+export type CreateMarketingChannelDtoChannelTypeEnum =
+  | "manual"
+  | "google_ads"
+  | "facebook_ads"
+  | "tiktok_ads"
+  | "custom_api";
+
+export type UpdateMarketingChannelDtoChannelTypeEnum =
+  | "manual"
+  | "google_ads"
+  | "facebook_ads"
+  | "tiktok_ads"
+  | "custom_api";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -1073,6 +1241,63 @@ export interface MyInvitesControllerAcceptInviteParams {
 
 export interface MyInvitesControllerDeclineInviteParams {
   inviteId: string;
+}
+
+export interface MarketingChannelsControllerListParams {
+  projectId: string;
+}
+
+export interface MarketingChannelsControllerCreateParams {
+  projectId: string;
+}
+
+export interface MarketingChannelsControllerUpdateParams {
+  projectId: string;
+  channelId: string;
+}
+
+export interface MarketingChannelsControllerRemoveParams {
+  projectId: string;
+  channelId: string;
+}
+
+export interface AdSpendControllerListParams {
+  channel_id?: string;
+  date_from?: string;
+  date_to?: string;
+  projectId: string;
+}
+
+export interface AdSpendControllerCreateParams {
+  projectId: string;
+}
+
+export interface AdSpendControllerBulkCreateParams {
+  projectId: string;
+}
+
+export interface AdSpendControllerUpdateParams {
+  projectId: string;
+  id: string;
+}
+
+export interface AdSpendControllerRemoveParams {
+  projectId: string;
+  id: string;
+}
+
+export interface AdSpendControllerSummaryParams {
+  date_from?: string;
+  date_to?: string;
+  projectId: string;
+}
+
+export interface UnitEconomicsControllerGetConfigParams {
+  projectId: string;
+}
+
+export interface UnitEconomicsControllerUpsertConfigParams {
+  projectId: string;
 }
 
 import type {
@@ -1658,6 +1883,28 @@ export class Api<
     ) =>
       this.request<StickinessResponse, any>({
         path: `/api/analytics/stickiness`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetUnitEconomics
+     * @request POST:/api/analytics/unit-economics
+     * @secure
+     */
+    analyticsControllerGetUnitEconomics: (
+      data: UnitEconomicsQuery,
+      params: RequestParams = {},
+    ) =>
+      this.request<UnitEconomicsResponse, any>({
+        path: `/api/analytics/unit-economics`,
         method: "POST",
         body: data,
         secure: true,
@@ -2342,6 +2589,272 @@ export class Api<
         path: `/api/invites/${inviteId}/decline`,
         method: "POST",
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Marketing Channels
+     * @name MarketingChannelsControllerList
+     * @request GET:/api/projects/{projectId}/channels
+     * @secure
+     */
+    marketingChannelsControllerList: (
+      { projectId, ...query }: MarketingChannelsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<MarketingChannel[], any>({
+        path: `/api/projects/${projectId}/channels`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Marketing Channels
+     * @name MarketingChannelsControllerCreate
+     * @request POST:/api/projects/{projectId}/channels
+     * @secure
+     */
+    marketingChannelsControllerCreate: (
+      { projectId, ...query }: MarketingChannelsControllerCreateParams,
+      data: CreateMarketingChannel,
+      params: RequestParams = {},
+    ) =>
+      this.request<MarketingChannel, any>({
+        path: `/api/projects/${projectId}/channels`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Marketing Channels
+     * @name MarketingChannelsControllerUpdate
+     * @request PUT:/api/projects/{projectId}/channels/{channelId}
+     * @secure
+     */
+    marketingChannelsControllerUpdate: (
+      {
+        projectId,
+        channelId,
+        ...query
+      }: MarketingChannelsControllerUpdateParams,
+      data: UpdateMarketingChannel,
+      params: RequestParams = {},
+    ) =>
+      this.request<MarketingChannel, any>({
+        path: `/api/projects/${projectId}/channels/${channelId}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Marketing Channels
+     * @name MarketingChannelsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/channels/{channelId}
+     * @secure
+     */
+    marketingChannelsControllerRemove: (
+      {
+        projectId,
+        channelId,
+        ...query
+      }: MarketingChannelsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/channels/${channelId}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ad Spend
+     * @name AdSpendControllerList
+     * @request GET:/api/projects/{projectId}/ad-spend
+     * @secure
+     */
+    adSpendControllerList: (
+      { projectId, ...query }: AdSpendControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdSpend[], any>({
+        path: `/api/projects/${projectId}/ad-spend`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ad Spend
+     * @name AdSpendControllerCreate
+     * @request POST:/api/projects/{projectId}/ad-spend
+     * @secure
+     */
+    adSpendControllerCreate: (
+      { projectId, ...query }: AdSpendControllerCreateParams,
+      data: CreateAdSpend,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdSpend, any>({
+        path: `/api/projects/${projectId}/ad-spend`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ad Spend
+     * @name AdSpendControllerBulkCreate
+     * @request POST:/api/projects/{projectId}/ad-spend/bulk
+     * @secure
+     */
+    adSpendControllerBulkCreate: (
+      { projectId, ...query }: AdSpendControllerBulkCreateParams,
+      data: BulkCreateAdSpend,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdSpend[], any>({
+        path: `/api/projects/${projectId}/ad-spend/bulk`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ad Spend
+     * @name AdSpendControllerUpdate
+     * @request PUT:/api/projects/{projectId}/ad-spend/{id}
+     * @secure
+     */
+    adSpendControllerUpdate: (
+      { projectId, id, ...query }: AdSpendControllerUpdateParams,
+      data: UpdateAdSpend,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdSpend, any>({
+        path: `/api/projects/${projectId}/ad-spend/${id}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ad Spend
+     * @name AdSpendControllerRemove
+     * @request DELETE:/api/projects/{projectId}/ad-spend/{id}
+     * @secure
+     */
+    adSpendControllerRemove: (
+      { projectId, id, ...query }: AdSpendControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/ad-spend/${id}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ad Spend
+     * @name AdSpendControllerSummary
+     * @request GET:/api/projects/{projectId}/ad-spend/summary
+     * @secure
+     */
+    adSpendControllerSummary: (
+      { projectId, ...query }: AdSpendControllerSummaryParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdSpendSummary[], any>({
+        path: `/api/projects/${projectId}/ad-spend/summary`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Unit Economics
+     * @name UnitEconomicsControllerGetConfig
+     * @request GET:/api/projects/{projectId}/unit-economics/config
+     * @secure
+     */
+    unitEconomicsControllerGetConfig: (
+      { projectId, ...query }: UnitEconomicsControllerGetConfigParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<object, any>({
+        path: `/api/projects/${projectId}/unit-economics/config`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Unit Economics
+     * @name UnitEconomicsControllerUpsertConfig
+     * @request PUT:/api/projects/{projectId}/unit-economics/config
+     * @secure
+     */
+    unitEconomicsControllerUpsertConfig: (
+      { projectId, ...query }: UnitEconomicsControllerUpsertConfigParams,
+      data: UpsertUEConfig,
+      params: RequestParams = {},
+    ) =>
+      this.request<UEConfig, any>({
+        path: `/api/projects/${projectId}/unit-economics/config`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

@@ -13,3 +13,6 @@ export { personDistinctIds } from './person-distinct-ids';
 export { cohorts } from './cohorts';
 export { projectInvites, inviteStatusEnum } from './project-invites';
 export type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition, CohortPropertyOperator, CohortCountOperator } from './cohorts';
+export { marketingChannels, channelTypeEnum } from './marketing-channels';
+export { adSpend } from './ad-spend';
+export { unitEconomicsConfig } from './unit-economics-config';
