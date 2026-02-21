@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+
 export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
 
 export interface PropertyFilter {
@@ -26,7 +28,7 @@ export function resolvePropertyExpr(prop: string): string {
     return `JSONExtractString(user_properties, '${key}')`;
   }
   if (DIRECT_COLUMNS.has(prop)) return prop;
-  throw new Error(`Unknown filter property: ${prop}`);
+  throw new BadRequestException(`Unknown filter property: ${prop}`);
 }
 
 /**

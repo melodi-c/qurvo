@@ -14,7 +14,7 @@ import {
   IsBoolean,
   IsIn,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
@@ -144,8 +144,8 @@ export class EventsQueryDto {
   @IsOptional()
   @Transform(({ value }) => {
     if (!value) return undefined;
-    if (typeof value === 'string') return JSON.parse(value);
-    return value;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(StepFilterDto, arr) : arr;
   })
   @IsArray()
   @ValidateNested({ each: true })

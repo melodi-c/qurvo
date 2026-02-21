@@ -77,7 +77,7 @@ export async function queryEvents(
   }
 
   if (params.filters?.length) {
-    const validFilters = params.filters.filter((f) => f.property.trim() !== '');
+    const validFilters = params.filters.filter((f) => f.property?.trim());
     conditions.push(...buildPropertyFilterConditions(validFilters, 'ev', queryParams));
   }
 
