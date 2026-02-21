@@ -101,11 +101,21 @@ export class IngestService {
       sdk_version: event.context?.sdk_version || '',
       properties: JSON.stringify(event.properties || {}),
       user_properties: JSON.stringify(event.user_properties || {}),
-      timestamp: event.timestamp || serverTime,
+      timestamp: this.clampTimestamp(event.timestamp, serverTime),
     };
 
     if (batchId) payload.batch_id = batchId;
     return payload;
+  }
+
+  private clampTimestamp(clientTs: string | undefined, serverTime: string): string {
+    if (!clientTs) return serverTime;
+    const drift = Math.abs(new Date(clientTs).getTime() - new Date(serverTime).getTime());
+    if (drift > 3600_000) {
+      this.logger.warn({ clientTs, serverTime, driftMs: drift }, 'Client clock drift too large, using server time');
+      return serverTime;
+    }
+    return clientTs;
   }
 
   private flattenObject(obj: Record<string, string>): string[] {
