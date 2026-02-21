@@ -11,6 +11,7 @@
     "swagger:generate": "nest build && tsx scripts/generate-swagger.ts"
   },
   "dependencies": {
+    "@fastify/static": "^9.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-fastify": "^11.0.0",
