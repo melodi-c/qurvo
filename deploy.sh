@@ -110,26 +110,29 @@ fi
 # ── Compute final per-app tags ──────────────────────────────────────────────
 # Each app gets exactly one tag. For rebuilt apps — the new TAG.
 # For non-rebuilt apps — their current deployed tag (preserved).
-declare -A APP_TAGS
+# Uses indirect variables (APP_TAG_<app>) for bash 3.2 compatibility.
+
+set_app_tag() { eval "APP_TAG_$1=\$2"; }
+get_app_tag() { eval "echo \$APP_TAG_$1"; }
 
 if [[ -n "$ONLY" ]]; then
   # Partial deploy: read current tags for non-rebuilt apps
   for app in "${ALL_APPS[@]}"; do
     if is_being_built "$app"; then
-      APP_TAGS[$app]="$TAG"
+      set_app_tag "$app" "$TAG"
     else
       current=$(get_current_tag "$app")
       if [[ -z "$current" ]]; then
         echo "ERROR: Cannot determine current tag for '$app'. Do a full deploy first."
         exit 1
       fi
-      APP_TAGS[$app]="$current"
+      set_app_tag "$app" "$current"
     fi
   done
 else
   # Full deploy: all apps get the new tag
   for app in "${ALL_APPS[@]}"; do
-    APP_TAGS[$app]="$TAG"
+    set_app_tag "$app" "$TAG"
   done
 fi
 
@@ -148,7 +151,7 @@ for app in "${ALL_APPS[@]}"; do
   else
     action="keep"
   fi
-  printf "    %-12s %-12s %s\n" "$app" "${APP_TAGS[$app]}" "$action"
+  printf "    %-12s %-12s %s\n" "$app" "$(get_app_tag "$app")" "$action"
 done
 echo ""
 
@@ -227,11 +230,11 @@ fi
 echo "==> Deploying to Kubernetes..."
 
 # global.imageTag = api tag (migrations use api image)
-HELM_SET_ARGS=(--set "global.imageTag=${APP_TAGS[api]}")
+HELM_SET_ARGS=(--set "global.imageTag=$(get_app_tag api)")
 
 # Per-app tags
 for app in "${ALL_APPS[@]}"; do
-  HELM_SET_ARGS+=(--set "${app}.image.tag=${APP_TAGS[$app]}")
+  HELM_SET_ARGS+=(--set "${app}.image.tag=$(get_app_tag "$app")")
 done
 
 HELM_EXTRA_ARGS=()
@@ -245,7 +248,7 @@ helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
   -f "$HELM_CHART/values.production.yaml" \
   -f "$HELM_CHART/values.local-secrets.yaml" \
   "${HELM_SET_ARGS[@]}" \
-  "${HELM_EXTRA_ARGS[@]}" \
+  ${HELM_EXTRA_ARGS[@]+"${HELM_EXTRA_ARGS[@]}"} \
   --wait \
   --timeout 5m
 
@@ -254,7 +257,7 @@ echo "==> Deploy complete!"
 printf "    %-12s %s\n" "APP" "TAG"
 printf "    %-12s %s\n" "───" "───"
 for app in "${ALL_APPS[@]}"; do
-  printf "    %-12s %s\n" "$app" "${APP_TAGS[$app]}"
+  printf "    %-12s %s\n" "$app" "$(get_app_tag "$app")"
 done
 echo ""
 kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/instance=$RELEASE_NAME" --no-headers
