@@ -140,9 +140,14 @@ export class EventsQueryDto {
   @IsOptional()
   date_to?: string;
 
-  @ApiPropertyOptional({ type: [StepFilterDto] })
-  @IsArray()
+  @ApiPropertyOptional({ type: String, description: 'JSON-encoded array of filters' })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return JSON.parse(value);
+    return value;
+  })
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)
   filters?: StepFilterDto[];

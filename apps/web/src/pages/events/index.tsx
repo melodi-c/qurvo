@@ -63,7 +63,7 @@ export default function EventsPage() {
         ...(debouncedFilters.eventName ? { event_name: debouncedFilters.eventName } : {}),
         date_from: debouncedFilters.dateFrom,
         date_to: debouncedFilters.dateTo,
-        ...(validFilters.length ? { filters: validFilters } : {}),
+        ...(validFilters.length ? { filters: JSON.stringify(validFilters) } : {}),
         limit,
         offset: page * limit,
       });
