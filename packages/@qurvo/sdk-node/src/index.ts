@@ -1,9 +1,9 @@
 import { gzipSync } from 'node:zlib';
 import { EventQueue, FetchTransport } from '@qurvo/sdk-core';
 import type { SdkConfig, EventPayload } from '@qurvo/sdk-core';
+import { SDK_VERSION } from './version';
 
 const SDK_NAME = '@qurvo/sdk-node';
-const SDK_VERSION = '0.0.1';
 
 export interface NodeSdkConfig extends SdkConfig {
   endpoint?: string;

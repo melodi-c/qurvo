@@ -1,8 +1,8 @@
 import { EventQueue, FetchTransport } from '@qurvo/sdk-core';
 import type { EventPayload } from '@qurvo/sdk-core';
+import { SDK_VERSION } from './version';
 
 const SDK_NAME = '@qurvo/sdk-browser';
-const SDK_VERSION = '0.0.1';
 const ANON_ID_KEY = 'qurvo_anonymous_id';
 const SESSION_ID_KEY = 'qurvo_session_id';
 
