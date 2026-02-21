@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { UnitEconomicsQuery } from '@/api/generated/Api';
+import type { UnitEconomicsControllerGetUnitEconomicsParams } from '@/api/generated/Api';
 
 function useProjectId() {
   const [searchParams] = useSearchParams();
@@ -9,7 +9,7 @@ function useProjectId() {
 }
 
 export function useUnitEconomics(
-  params: Omit<UnitEconomicsQuery, 'project_id'> | null,
+  params: Omit<UnitEconomicsControllerGetUnitEconomicsParams, 'project_id'> | null,
 ) {
   const projectId = useProjectId();
   return useQuery({
