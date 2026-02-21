@@ -131,11 +131,6 @@ export class EventsQueryDto {
   event_name?: string;
 
   @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  distinct_id?: string;
-
-  @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
   date_from?: string;
@@ -144,6 +139,13 @@ export class EventsQueryDto {
   @IsDateString()
   @IsOptional()
   date_to?: string;
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  filters?: StepFilterDto[];
 
   @ApiPropertyOptional()
   @Type(() => Number)

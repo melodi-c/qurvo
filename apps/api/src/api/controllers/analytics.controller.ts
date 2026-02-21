@@ -40,12 +40,12 @@ export class AnalyticsController {
     return this.funnelService.getFunnel(user.user_id, body);
   }
 
-  @Get('events')
+  @Post('events')
   async getEvents(
     @CurrentUser() user: RequestUser,
-    @Query() query: EventsQueryDto,
+    @Body() body: EventsQueryDto,
   ): Promise<EventRowDto[]> {
-    return this.eventsService.getEvents(user.user_id, query);
+    return this.eventsService.getEvents(user.user_id, body);
   }
 
   @Get('event-names')

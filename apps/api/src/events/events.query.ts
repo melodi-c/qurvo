@@ -1,9 +1,10 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
 
 export interface EventsQueryParams {
   project_id: string;
   event_name?: string;
-  distinct_id?: string;
+  filters?: PropertyFilter[];
   date_from?: string;
   date_to?: string;
   limit?: number;
@@ -56,17 +57,28 @@ export async function queryEvents(
     params.date_from ??
     new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+  const queryParams: Record<string, unknown> = {
+    project_id: params.project_id,
+    date_from: dateFrom,
+    date_to: dateTo,
+    limit: params.limit ?? 50,
+    offset: params.offset ?? 0,
+  };
+
   const conditions: string[] = [
-    `project_id = {project_id: UUID}`,
-    `events.timestamp >= parseDateTimeBestEffort({date_from: String})`,
-    `events.timestamp < parseDateTimeBestEffort({date_to: String}) + INTERVAL 1 DAY`,
+    `project_id = {project_id:UUID}`,
+    `events.timestamp >= parseDateTimeBestEffort({date_from:String})`,
+    `events.timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY`,
   ];
 
   if (params.event_name) {
-    conditions.push(`event_name = {event_name: String}`);
+    queryParams['event_name'] = params.event_name;
+    conditions.push(`event_name = {event_name:String}`);
   }
-  if (params.distinct_id) {
-    conditions.push(`distinct_id = {distinct_id: String}`);
+
+  if (params.filters?.length) {
+    const validFilters = params.filters.filter((f) => f.property.trim() !== '');
+    conditions.push(...buildPropertyFilterConditions(validFilters, 'ev', queryParams));
   }
 
   const query = `
@@ -101,21 +113,13 @@ export async function queryEvents(
     FROM events FINAL
     WHERE ${conditions.join(' AND ')}
     ORDER BY events.timestamp DESC
-    LIMIT {limit: UInt32}
-    OFFSET {offset: UInt32}
+    LIMIT {limit:UInt32}
+    OFFSET {offset:UInt32}
   `;
 
   const result = await ch.query({
     query,
-    query_params: {
-      project_id: params.project_id,
-      date_from: dateFrom,
-      date_to: dateTo,
-      ...(params.event_name ? { event_name: params.event_name } : {}),
-      ...(params.distinct_id ? { distinct_id: params.distinct_id } : {}),
-      limit: params.limit ?? 50,
-      offset: params.offset ?? 0,
-    },
+    query_params: queryParams,
     format: 'JSONEachRow',
   });
 

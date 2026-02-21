@@ -2,14 +2,9 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortDefinition } from '@qurvo/db';
 import { buildCohortFilterClause } from '../cohorts/cohorts.query';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
+import { resolvePropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
 
-export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
-
-export interface StepFilter {
-  property: string;
-  operator: FilterOperator;
-  value?: string;
-}
+export type StepFilter = PropertyFilter;
 
 export interface FunnelStep {
   event_name: string;
@@ -46,64 +41,18 @@ export interface FunnelQueryParams {
   cohort_filters?: CohortDefinition[];
 }
 
-const TOP_LEVEL_COLUMNS = new Set([
-  'country', 'region', 'city', 'device_type', 'browser',
-  'browser_version', 'os', 'os_version', 'language',
-]);
-
-function resolvePropertyExpr(prop: string): string {
-  if (prop.startsWith('properties.')) {
-    const key = prop.slice('properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(properties, '${key}')`;
-  }
-  if (prop.startsWith('user_properties.')) {
-    const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(user_properties, '${key}')`;
-  }
-  if (TOP_LEVEL_COLUMNS.has(prop)) return prop;
-  return prop;
-}
-
-function resolveBreakdownExpr(prop: string): string {
-  return resolvePropertyExpr(prop);
-}
-
 /** Builds the windowFunnel condition for one step, injecting filter params into queryParams. */
 function buildStepCondition(
   step: FunnelStep,
   idx: number,
   queryParams: Record<string, unknown>,
 ): string {
-  const parts = [`event_name = {step_${idx}:String}`];
-  for (const [j, filter] of (step.filters ?? []).entries()) {
-    const expr = resolvePropertyExpr(filter.property);
-    const paramKey = `step_${idx}_f${j}_v`;
-    switch (filter.operator) {
-      case 'eq':
-        queryParams[paramKey] = filter.value ?? '';
-        parts.push(`${expr} = {${paramKey}:String}`);
-        break;
-      case 'neq':
-        queryParams[paramKey] = filter.value ?? '';
-        parts.push(`${expr} != {${paramKey}:String}`);
-        break;
-      case 'contains':
-        queryParams[paramKey] = `%${filter.value ?? ''}%`;
-        parts.push(`${expr} LIKE {${paramKey}:String}`);
-        break;
-      case 'not_contains':
-        queryParams[paramKey] = `%${filter.value ?? ''}%`;
-        parts.push(`${expr} NOT LIKE {${paramKey}:String}`);
-        break;
-      case 'is_set':
-        parts.push(`${expr} != ''`);
-        break;
-      case 'is_not_set':
-        parts.push(`(${expr} = '' OR isNull(${expr}))`);
-        break;
-    }
-  }
-  return parts.join(' AND ');
+  const filterParts = buildPropertyFilterConditions(
+    step.filters ?? [],
+    `step_${idx}`,
+    queryParams,
+  );
+  return [`event_name = {step_${idx}:String}`, ...filterParts].join(' AND ');
 }
 
 export async function queryFunnel(
@@ -199,7 +148,7 @@ export async function queryFunnel(
     return { breakdown: false, steps: stepResults };
   } else {
     // Breakdown funnel
-    const breakdownExpr = resolveBreakdownExpr(params.breakdown_property);
+    const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
     const sql = `
       WITH
         funnel_per_user AS (

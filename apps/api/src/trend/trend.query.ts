@@ -2,24 +2,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortDefinition } from '@qurvo/db';
 import { buildCohortFilterClause } from '../cohorts/cohorts.query';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
-
-const TOP_LEVEL_COLUMNS = new Set([
-  'country', 'region', 'city', 'device_type', 'browser',
-  'browser_version', 'os', 'os_version', 'language',
-]);
-
-function resolvePropertyExpr(prop: string): string {
-  if (prop.startsWith('properties.')) {
-    const key = prop.slice('properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(properties, '${key}')`;
-  }
-  if (prop.startsWith('user_properties.')) {
-    const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(user_properties, '${key}')`;
-  }
-  if (TOP_LEVEL_COLUMNS.has(prop)) return prop;
-  return prop;
-}
+import { resolvePropertyExpr, buildPropertyFilterConditions } from '../utils/property-filter';
 
 function granularityExpr(g: TrendGranularity): string {
   switch (g) {
@@ -85,38 +68,13 @@ function buildSeriesConditions(
   idx: number,
   queryParams: Record<string, unknown>,
 ): string {
-  const parts: string[] = [`event_name = {s${idx}_event:String}`];
   queryParams[`s${idx}_event`] = series.event_name;
-
-  for (const [j, f] of (series.filters ?? []).entries()) {
-    const expr = resolvePropertyExpr(f.property);
-    const pk = `s${idx}_f${j}_v`;
-    switch (f.operator) {
-      case 'eq':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`${expr} = {${pk}:String}`);
-        break;
-      case 'neq':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`${expr} != {${pk}:String}`);
-        break;
-      case 'contains':
-        queryParams[pk] = `%${f.value ?? ''}%`;
-        parts.push(`${expr} LIKE {${pk}:String}`);
-        break;
-      case 'not_contains':
-        queryParams[pk] = `%${f.value ?? ''}%`;
-        parts.push(`${expr} NOT LIKE {${pk}:String}`);
-        break;
-      case 'is_set':
-        parts.push(`${expr} != ''`);
-        break;
-      case 'is_not_set':
-        parts.push(`(${expr} = '' OR isNull(${expr}))`);
-        break;
-    }
-  }
-  return parts.join(' AND ');
+  const filterParts = buildPropertyFilterConditions(
+    series.filters ?? [],
+    `s${idx}`,
+    queryParams,
+  );
+  return [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
 }
 
 // ── Period shift for compare ──────────────────────────────────────────────────

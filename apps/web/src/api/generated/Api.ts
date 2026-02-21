@@ -195,6 +195,26 @@ export interface FunnelResponse {
   from_cache: boolean;
 }
 
+export interface EventsQuery {
+  event_name?: string;
+  date_from?: string;
+  date_to?: string;
+  filters?: StepFilter[];
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+}
+
 export interface EventRow {
   event_id: string;
   event_name: string;
@@ -830,26 +850,6 @@ export interface ApiKeysControllerCreateParams {
 export interface ApiKeysControllerRevokeParams {
   projectId: string;
   keyId: string;
-}
-
-export interface AnalyticsControllerGetEventsParams {
-  event_name?: string;
-  distinct_id?: string;
-  date_from?: string;
-  date_to?: string;
-  /**
-   * @min 1
-   * @max 100
-   * @default 50
-   */
-  limit?: number;
-  /**
-   * @min 0
-   * @default 0
-   */
-  offset?: number;
-  /** @format uuid */
-  project_id: string;
 }
 
 export interface AnalyticsControllerGetEventNamesParams {
@@ -1565,18 +1565,19 @@ export class Api<
      *
      * @tags Analytics
      * @name AnalyticsControllerGetEvents
-     * @request GET:/api/analytics/events
+     * @request POST:/api/analytics/events
      * @secure
      */
     analyticsControllerGetEvents: (
-      query: AnalyticsControllerGetEventsParams,
+      data: EventsQuery,
       params: RequestParams = {},
     ) =>
       this.request<EventRow[], any>({
         path: `/api/analytics/events`,
-        method: "GET",
-        query: query,
+        method: "POST",
+        body: data,
         secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
