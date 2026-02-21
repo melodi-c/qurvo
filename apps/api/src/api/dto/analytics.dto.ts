@@ -298,6 +298,125 @@ export class TrendResponseDto {
   from_cache: boolean;
 }
 
+// ── Lifecycle DTOs ──────────────────────────────────────────────────────────
+
+export class LifecycleQueryDto {
+  @IsUUID()
+  project_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  target_event: string;
+
+  @IsIn(['day', 'week', 'month'])
+  granularity: 'day' | 'week' | 'month';
+
+  @IsDateString()
+  date_from: string;
+
+  @IsDateString()
+  date_to: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  cohort_ids?: string[];
+
+  @IsUUID()
+  @IsOptional()
+  widget_id?: string;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  force?: boolean;
+}
+
+export class LifecycleDataPointDto {
+  bucket: string;
+  new: number;
+  returning: number;
+  resurrecting: number;
+  dormant: number;
+}
+
+export class LifecycleTotalsDto {
+  new: number;
+  returning: number;
+  resurrecting: number;
+  dormant: number;
+}
+
+export class LifecycleResultDto {
+  granularity: string;
+  @Type(() => LifecycleDataPointDto)
+  data: LifecycleDataPointDto[];
+  @Type(() => LifecycleTotalsDto)
+  totals: LifecycleTotalsDto;
+}
+
+export class LifecycleResponseDto {
+  @Type(() => LifecycleResultDto)
+  data: LifecycleResultDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+// ── Stickiness DTOs ─────────────────────────────────────────────────────────
+
+export class StickinessQueryDto {
+  @IsUUID()
+  project_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  target_event: string;
+
+  @IsIn(['day', 'week', 'month'])
+  granularity: 'day' | 'week' | 'month';
+
+  @IsDateString()
+  date_from: string;
+
+  @IsDateString()
+  date_to: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  cohort_ids?: string[];
+
+  @IsUUID()
+  @IsOptional()
+  widget_id?: string;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  force?: boolean;
+}
+
+export class StickinessDataPointDto {
+  period_count: number;
+  user_count: number;
+}
+
+export class StickinessResultDto {
+  granularity: string;
+  total_periods: number;
+  @Type(() => StickinessDataPointDto)
+  data: StickinessDataPointDto[];
+}
+
+export class StickinessResponseDto {
+  @Type(() => StickinessResultDto)
+  data: StickinessResultDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 // ── Retention DTOs ──────────────────────────────────────────────────────────
 
 export class RetentionQueryDto {

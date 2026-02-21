@@ -1,16 +1,16 @@
 import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
-import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto } from './dashboards.dto';
+import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto } from './dashboards.dto';
 
-type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto;
+type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto | LifecycleWidgetConfigDto | StickinessWidgetConfigDto;
 
 // ── Create / Update DTOs ──────────────────────────────────────────────────────
 
-@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto)
+@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto)
 export class CreateInsightDto {
   @IsString()
-  @IsIn(['trend', 'funnel', 'retention'])
-  type: 'trend' | 'funnel' | 'retention';
+  @IsIn(['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'])
+  type: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness';
 
   @IsString()
   @IsNotEmpty()
@@ -28,6 +28,8 @@ export class CreateInsightDto {
       { $ref: getSchemaPath(FunnelWidgetConfigDto) },
       { $ref: getSchemaPath(TrendWidgetConfigDto) },
       { $ref: getSchemaPath(RetentionWidgetConfigDto) },
+      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
+      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
     ],
     discriminator: {
       propertyName: 'type',
@@ -35,6 +37,8 @@ export class CreateInsightDto {
         funnel: getSchemaPath(FunnelWidgetConfigDto),
         trend: getSchemaPath(TrendWidgetConfigDto),
         retention: getSchemaPath(RetentionWidgetConfigDto),
+        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
+        stickiness: getSchemaPath(StickinessWidgetConfigDto),
       },
     },
   })
@@ -60,6 +64,8 @@ export class UpdateInsightDto {
       { $ref: getSchemaPath(FunnelWidgetConfigDto) },
       { $ref: getSchemaPath(TrendWidgetConfigDto) },
       { $ref: getSchemaPath(RetentionWidgetConfigDto) },
+      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
+      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
     ],
     discriminator: {
       propertyName: 'type',
@@ -67,6 +73,8 @@ export class UpdateInsightDto {
         funnel: getSchemaPath(FunnelWidgetConfigDto),
         trend: getSchemaPath(TrendWidgetConfigDto),
         retention: getSchemaPath(RetentionWidgetConfigDto),
+        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
+        stickiness: getSchemaPath(StickinessWidgetConfigDto),
       },
     },
   })
@@ -80,14 +88,14 @@ export class UpdateInsightDto {
 
 // ── Response DTO ─────────────────────────────────────────────────────────────
 
-@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto)
+@ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto)
 export class InsightDto {
   id: string;
   project_id: string;
   created_by: string;
 
-  @ApiProperty({ enum: ['trend', 'funnel', 'retention'] })
-  type: 'trend' | 'funnel' | 'retention';
+  @ApiProperty({ enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'] })
+  type: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness';
 
   name: string;
   @ApiPropertyOptional() description: string | null;
@@ -97,6 +105,8 @@ export class InsightDto {
       { $ref: getSchemaPath(FunnelWidgetConfigDto) },
       { $ref: getSchemaPath(TrendWidgetConfigDto) },
       { $ref: getSchemaPath(RetentionWidgetConfigDto) },
+      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
+      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
     ],
     discriminator: {
       propertyName: 'type',
@@ -104,6 +114,8 @@ export class InsightDto {
         funnel: getSchemaPath(FunnelWidgetConfigDto),
         trend: getSchemaPath(TrendWidgetConfigDto),
         retention: getSchemaPath(RetentionWidgetConfigDto),
+        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
+        stickiness: getSchemaPath(StickinessWidgetConfigDto),
       },
     },
   })

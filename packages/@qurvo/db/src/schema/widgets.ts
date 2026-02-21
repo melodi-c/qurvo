@@ -63,7 +63,25 @@ export interface RetentionWidgetConfig {
   cohort_ids?: string[];
 }
 
-export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig;
+export interface LifecycleWidgetConfig {
+  type: 'lifecycle';
+  target_event: string;
+  granularity: 'day' | 'week' | 'month';
+  date_from: string;
+  date_to: string;
+  cohort_ids?: string[];
+}
+
+export interface StickinessWidgetConfig {
+  type: 'stickiness';
+  target_event: string;
+  granularity: 'day' | 'week' | 'month';
+  date_from: string;
+  date_to: string;
+  cohort_ids?: string[];
+}
+
+export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig | LifecycleWidgetConfig | StickinessWidgetConfig;
 
 export const widgets = pgTable(
   'widgets',

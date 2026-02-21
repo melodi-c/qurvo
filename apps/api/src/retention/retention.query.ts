@@ -1,16 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortDefinition } from '@qurvo/db';
 import { buildCohortFilterClause } from '../cohorts/cohorts.query';
-
-// ── Helpers (shared with trend.query.ts) ─────────────────────────────────────
-
-function toChTs(iso: string, endOfDay = false): string {
-  if (iso.length === 10 && endOfDay) return `${iso} 23:59:59`;
-  return iso.replace('T', ' ').replace('Z', '');
-}
-
-const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

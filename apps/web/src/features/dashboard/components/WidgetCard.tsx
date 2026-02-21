@@ -5,6 +5,8 @@ import { WidgetMenu } from './WidgetMenu';
 import { FunnelWidget } from './widgets/funnel/FunnelWidget';
 import { TrendWidget } from './widgets/trend/TrendWidget';
 import { RetentionWidget } from './widgets/retention/RetentionWidget';
+import { LifecycleWidget } from './widgets/lifecycle/LifecycleWidget';
+import { StickinessWidget } from './widgets/stickiness/StickinessWidget';
 import type { Widget } from '@/api/generated/Api';
 
 export function WidgetCard({ widget }: { widget: Widget }) {
@@ -29,6 +31,8 @@ export function WidgetCard({ widget }: { widget: Widget }) {
         {insightType === 'funnel' && <FunnelWidget widget={widget} />}
         {insightType === 'trend' && <TrendWidget widget={widget} />}
         {insightType === 'retention' && <RetentionWidget widget={widget} />}
+        {insightType === 'lifecycle' && <LifecycleWidget widget={widget} />}
+        {insightType === 'stickiness' && <StickinessWidget widget={widget} />}
         {!insightType && (
           <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
             No insight linked

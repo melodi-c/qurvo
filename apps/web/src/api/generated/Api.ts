@@ -321,6 +321,76 @@ export interface RetentionResponse {
   from_cache: boolean;
 }
 
+export interface LifecycleQuery {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  target_event: string;
+  granularity: LifecycleQueryDtoGranularityEnum;
+  date_from: string;
+  date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface LifecycleDataPoint {
+  bucket: string;
+  new: number;
+  returning: number;
+  resurrecting: number;
+  dormant: number;
+}
+
+export interface LifecycleTotals {
+  new: number;
+  returning: number;
+  resurrecting: number;
+  dormant: number;
+}
+
+export interface LifecycleResult {
+  granularity: string;
+  data: LifecycleDataPoint[];
+  totals: LifecycleTotals;
+}
+
+export interface LifecycleResponse {
+  data: LifecycleResult;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export interface StickinessQuery {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  target_event: string;
+  granularity: StickinessQueryDtoGranularityEnum;
+  date_from: string;
+  date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface StickinessDataPoint {
+  period_count: number;
+  user_count: number;
+}
+
+export interface StickinessResult {
+  granularity: string;
+  total_periods: number;
+  data: StickinessDataPoint[];
+}
+
+export interface StickinessResponse {
+  data: StickinessResult;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export interface Dashboard {
   id: string;
   project_id: string;
@@ -373,6 +443,24 @@ export interface RetentionWidgetConfig {
   date_to: string;
 }
 
+export interface LifecycleWidgetConfig {
+  type: LifecycleWidgetConfigDtoTypeEnum;
+  granularity: LifecycleWidgetConfigDtoGranularityEnum;
+  cohort_ids?: string[];
+  target_event: string;
+  date_from: string;
+  date_to: string;
+}
+
+export interface StickinessWidgetConfig {
+  type: StickinessWidgetConfigDtoTypeEnum;
+  granularity: StickinessWidgetConfigDtoGranularityEnum;
+  cohort_ids?: string[];
+  target_event: string;
+  date_from: string;
+  date_to: string;
+}
+
 export interface Insight {
   type: InsightDtoTypeEnum;
   description?: string | null;
@@ -385,7 +473,13 @@ export interface Insight {
       } & TrendWidgetConfig)
     | ({
         type: "retention";
-      } & RetentionWidgetConfig);
+      } & RetentionWidgetConfig)
+    | ({
+        type: "lifecycle";
+      } & LifecycleWidgetConfig)
+    | ({
+        type: "stickiness";
+      } & StickinessWidgetConfig);
   id: string;
   project_id: string;
   created_by: string;
@@ -538,7 +632,13 @@ export interface CreateInsight {
       } & TrendWidgetConfig)
     | ({
         type: "retention";
-      } & RetentionWidgetConfig);
+      } & RetentionWidgetConfig)
+    | ({
+        type: "lifecycle";
+      } & LifecycleWidgetConfig)
+    | ({
+        type: "stickiness";
+      } & StickinessWidgetConfig);
   type: CreateInsightDtoTypeEnum;
   /** @maxLength 200 */
   name: string;
@@ -556,7 +656,13 @@ export interface UpdateInsight {
       } & TrendWidgetConfig)
     | ({
         type: "retention";
-      } & RetentionWidgetConfig);
+      } & RetentionWidgetConfig)
+    | ({
+        type: "lifecycle";
+      } & LifecycleWidgetConfig)
+    | ({
+        type: "stickiness";
+      } & StickinessWidgetConfig);
   is_favorite?: boolean;
   /** @maxLength 200 */
   name?: string;
@@ -644,6 +750,10 @@ export type RetentionQueryDtoRetentionTypeEnum = "first_time" | "recurring";
 
 export type RetentionQueryDtoGranularityEnum = "day" | "week" | "month";
 
+export type LifecycleQueryDtoGranularityEnum = "day" | "week" | "month";
+
+export type StickinessQueryDtoGranularityEnum = "day" | "week" | "month";
+
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
 export type TrendWidgetConfigDtoTypeEnum = "trend";
@@ -669,11 +779,29 @@ export type RetentionWidgetConfigDtoRetentionTypeEnum =
 
 export type RetentionWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
 
-export type InsightDtoTypeEnum = "trend" | "funnel" | "retention";
+export type LifecycleWidgetConfigDtoTypeEnum = "lifecycle";
+
+export type LifecycleWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
+
+export type StickinessWidgetConfigDtoTypeEnum = "stickiness";
+
+export type StickinessWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
+
+export type InsightDtoTypeEnum =
+  | "trend"
+  | "funnel"
+  | "retention"
+  | "lifecycle"
+  | "stickiness";
 
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
-export type CreateInsightDtoTypeEnum = "trend" | "funnel" | "retention";
+export type CreateInsightDtoTypeEnum =
+  | "trend"
+  | "funnel"
+  | "retention"
+  | "lifecycle"
+  | "stickiness";
 
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 
@@ -845,12 +973,19 @@ export interface InsightsControllerListParams {
   projectId: string;
 }
 
-export type TypeEnum = "trend" | "funnel" | "retention";
+export type TypeEnum =
+  | "trend"
+  | "funnel"
+  | "retention"
+  | "lifecycle"
+  | "stickiness";
 
 export type InsightsControllerListParams1TypeEnum =
   | "trend"
   | "funnel"
-  | "retention";
+  | "retention"
+  | "lifecycle"
+  | "stickiness";
 
 export interface InsightsControllerCreateParams {
   projectId: string;
@@ -1503,6 +1638,50 @@ export class Api<
     ) =>
       this.request<RetentionResponse, any>({
         path: `/api/analytics/retention`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetLifecycle
+     * @request POST:/api/analytics/lifecycle
+     * @secure
+     */
+    analyticsControllerGetLifecycle: (
+      data: LifecycleQuery,
+      params: RequestParams = {},
+    ) =>
+      this.request<LifecycleResponse, any>({
+        path: `/api/analytics/lifecycle`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name AnalyticsControllerGetStickiness
+     * @request POST:/api/analytics/stickiness
+     * @secure
+     */
+    analyticsControllerGetStickiness: (
+      data: StickinessQuery,
+      params: RequestParams = {},
+    ) =>
+      this.request<StickinessResponse, any>({
+        path: `/api/analytics/stickiness`,
         method: "POST",
         body: data,
         secure: true,

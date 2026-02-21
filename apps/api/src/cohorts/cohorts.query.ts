@@ -1,8 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition } from '@qurvo/db';
-
-const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+import { RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 
 const TOP_LEVEL_COLUMNS = new Set([
   'country', 'region', 'city', 'device_type', 'browser',

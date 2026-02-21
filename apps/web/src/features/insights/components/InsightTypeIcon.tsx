@@ -1,4 +1,4 @@
-import { TrendingUp, GitFork, CalendarCheck, Lightbulb } from 'lucide-react';
+import { TrendingUp, GitFork, CalendarCheck, HeartPulse, Layers, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InsightDtoTypeEnum } from '@/api/generated/Api';
 
@@ -8,9 +8,11 @@ interface InsightTypeIconProps {
 }
 
 const TYPE_META = {
-  trend:     { Icon: TrendingUp,    colorClass: 'text-blue-400' },
-  funnel:    { Icon: GitFork,       colorClass: 'text-violet-400' },
-  retention: { Icon: CalendarCheck, colorClass: 'text-emerald-400' },
+  trend:      { Icon: TrendingUp,    colorClass: 'text-blue-400' },
+  funnel:     { Icon: GitFork,       colorClass: 'text-violet-400' },
+  retention:  { Icon: CalendarCheck, colorClass: 'text-emerald-400' },
+  lifecycle:  { Icon: HeartPulse,    colorClass: 'text-rose-400' },
+  stickiness: { Icon: Layers,        colorClass: 'text-amber-400' },
 } as const;
 
 export function InsightTypeIcon({ type, className }: InsightTypeIconProps) {

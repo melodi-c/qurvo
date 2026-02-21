@@ -11,10 +11,12 @@ import { useDebounce } from '@/hooks/use-debounce';
 import type { InsightsFilters, InsightTypeFilter, InsightSortOrder } from '../hooks/use-insights-filters';
 
 const TYPE_OPTIONS: { label: string; value: string }[] = [
-  { label: 'All',       value: 'all' },
-  { label: 'Trends',    value: 'trend' },
-  { label: 'Funnels',   value: 'funnel' },
-  { label: 'Retention', value: 'retention' },
+  { label: 'All',        value: 'all' },
+  { label: 'Trends',     value: 'trend' },
+  { label: 'Funnels',    value: 'funnel' },
+  { label: 'Retention',  value: 'retention' },
+  { label: 'Lifecycle',  value: 'lifecycle' },
+  { label: 'Stickiness', value: 'stickiness' },
 ];
 
 interface InsightsFilterBarProps {

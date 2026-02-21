@@ -14,7 +14,7 @@ export class InsightsController {
   constructor(private readonly insightsService: InsightsService) {}
 
   @Get()
-  @ApiQuery({ name: 'type', required: false, enum: ['trend', 'funnel', 'retention'] })
+  @ApiQuery({ name: 'type', required: false, enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'] })
   async list(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,

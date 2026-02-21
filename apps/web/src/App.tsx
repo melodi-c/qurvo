@@ -21,6 +21,8 @@ import InsightsPage from '@/pages/insights/index';
 import TrendEditorPage from '@/pages/trend-editor';
 import FunnelEditorPage from '@/pages/funnel-editor';
 import RetentionEditorPage from '@/pages/retention-editor';
+import LifecycleEditorPage from '@/pages/lifecycle-editor';
+import StickinessEditorPage from '@/pages/stickiness-editor';
 import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
 
@@ -69,6 +71,10 @@ function AppRoutes() {
         <Route path="/insights/funnels/:insightId" element={<FunnelEditorPage />} />
         <Route path="/insights/retentions/new" element={<RetentionEditorPage />} />
         <Route path="/insights/retentions/:insightId" element={<RetentionEditorPage />} />
+        <Route path="/insights/lifecycles/new" element={<LifecycleEditorPage />} />
+        <Route path="/insights/lifecycles/:insightId" element={<LifecycleEditorPage />} />
+        <Route path="/insights/stickiness/new" element={<StickinessEditorPage />} />
+        <Route path="/insights/stickiness/:insightId" element={<StickinessEditorPage />} />
         {/* Redirects from old routes */}
         <Route path="/trends" element={<Navigate to="/insights?type=trend" replace />} />
         <Route path="/funnels" element={<Navigate to="/insights?type=funnel" replace />} />

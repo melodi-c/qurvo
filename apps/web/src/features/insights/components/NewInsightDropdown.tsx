@@ -31,6 +31,18 @@ const NEW_INSIGHT_TYPES: { type: InsightDtoTypeEnum; label: string; description:
     description: 'See how users return over time',
     path: '/insights/retentions/new',
   },
+  {
+    type: 'lifecycle',
+    label: 'Lifecycle',
+    description: 'Track user growth dynamics',
+    path: '/insights/lifecycles/new',
+  },
+  {
+    type: 'stickiness',
+    label: 'Stickiness',
+    description: 'Measure engagement frequency',
+    path: '/insights/stickiness/new',
+  },
 ];
 
 export function NewInsightDropdown() {

@@ -4,6 +4,8 @@ import { FunnelService } from '../../funnel/funnel.service';
 import { EventsService } from '../../events/events.service';
 import { TrendService } from '../../trend/trend.service';
 import { RetentionService } from '../../retention/retention.service';
+import { LifecycleService } from '../../lifecycle/lifecycle.service';
+import { StickinessService } from '../../stickiness/stickiness.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
@@ -12,6 +14,8 @@ import {
   EventNamesQueryDto, EventNamesResponseDto,
   TrendQueryDto, TrendResponseDto,
   RetentionQueryDto, RetentionResponseDto,
+  LifecycleQueryDto, LifecycleResponseDto,
+  StickinessQueryDto, StickinessResponseDto,
 } from '../dto/analytics.dto';
 
 @ApiTags('Analytics')
@@ -24,6 +28,8 @@ export class AnalyticsController {
     private readonly eventsService: EventsService,
     private readonly trendService: TrendService,
     private readonly retentionService: RetentionService,
+    private readonly lifecycleService: LifecycleService,
+    private readonly stickinessService: StickinessService,
   ) {}
 
   @Post('funnel')
@@ -65,5 +71,21 @@ export class AnalyticsController {
     @Body() body: RetentionQueryDto,
   ): Promise<RetentionResponseDto> {
     return this.retentionService.getRetention(user.user_id, body);
+  }
+
+  @Post('lifecycle')
+  async getLifecycle(
+    @CurrentUser() user: RequestUser,
+    @Body() body: LifecycleQueryDto,
+  ): Promise<LifecycleResponseDto> {
+    return this.lifecycleService.getLifecycle(user.user_id, body);
+  }
+
+  @Post('stickiness')
+  async getStickiness(
+    @CurrentUser() user: RequestUser,
+    @Body() body: StickinessQueryDto,
+  ): Promise<StickinessResponseDto> {
+    return this.stickinessService.getStickiness(user.user_id, body);
   }
 }

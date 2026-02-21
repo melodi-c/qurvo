@@ -1,10 +1,10 @@
 import { pgTable, uuid, varchar, timestamp, jsonb, index, boolean } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
-import type { FunnelWidgetConfig, TrendWidgetConfig, RetentionWidgetConfig } from './widgets';
+import type { FunnelWidgetConfig, TrendWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from './widgets';
 
-export type InsightType = 'trend' | 'funnel' | 'retention';
-export type InsightConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig;
+export type InsightType = 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness';
+export type InsightConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig | LifecycleWidgetConfig | StickinessWidgetConfig;
 
 export const insights = pgTable('insights', {
   id: uuid('id').primaryKey().defaultRandom(),

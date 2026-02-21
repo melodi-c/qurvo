@@ -92,6 +92,34 @@ export class RetentionWidgetConfigDto {
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
+export class LifecycleWidgetConfigDto {
+  @ApiProperty({ enum: ['lifecycle'] })
+  type: 'lifecycle';
+
+  target_event: string;
+
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  granularity: 'day' | 'week' | 'month';
+
+  date_from: string;
+  date_to: string;
+  @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
+}
+
+export class StickinessWidgetConfigDto {
+  @ApiProperty({ enum: ['stickiness'] })
+  type: 'stickiness';
+
+  target_event: string;
+
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  granularity: 'day' | 'week' | 'month';
+
+  date_from: string;
+  date_to: string;
+  @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
+}
+
 // ── Create / Update Widget DTOs ─────────────────────────────────────────────
 
 export class CreateWidgetDto {

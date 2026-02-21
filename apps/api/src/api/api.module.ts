@@ -6,6 +6,8 @@ import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { FunnelModule } from '../funnel/funnel.module';
 import { TrendModule } from '../trend/trend.module';
 import { RetentionModule } from '../retention/retention.module';
+import { LifecycleModule } from '../lifecycle/lifecycle.module';
+import { StickinessModule } from '../stickiness/stickiness.module';
 import { EventsModule } from '../events/events.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
 import { PersonsModule } from '../persons/persons.module';
@@ -28,7 +30,7 @@ import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule],
   controllers: [
     AuthController,
     ProjectsController,

@@ -5,7 +5,7 @@ export { apiKeys } from './api-keys';
 export { projectMembers, projectRoleEnum } from './project-members';
 export { dashboards } from './dashboards';
 export { widgets } from './widgets';
-export type { WidgetLayout, WidgetStepFilter, FunnelWidgetStep, FunnelWidgetConfig, TrendWidgetConfig, TrendWidgetSeries, RetentionWidgetConfig, WidgetConfig } from './widgets';
+export type { WidgetLayout, WidgetStepFilter, FunnelWidgetStep, FunnelWidgetConfig, TrendWidgetConfig, TrendWidgetSeries, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig, WidgetConfig } from './widgets';
 export { insights } from './insights';
 export type { InsightType, InsightConfig } from './insights';
 export { persons } from './persons';

@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsightTypeIcon } from './InsightTypeIcon';
-import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig } from '@/api/generated/Api';
+import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from '@/api/generated/Api';
 
 function getEditorPath(insight: Insight): string {
   const base: Record<string, string> = {
     trend: '/insights/trends',
     funnel: '/insights/funnels',
     retention: '/insights/retentions',
+    lifecycle: '/insights/lifecycles',
+    stickiness: '/insights/stickiness',
   };
   return `${base[insight.type]}/${insight.id}`;
 }
@@ -34,6 +36,14 @@ function getTypeSubtitle(insight: Insight): string {
     const config = insight.config as RetentionWidgetConfig;
     return config.target_event || '\u2014';
   }
+  if (insight.type === 'lifecycle') {
+    const config = insight.config as LifecycleWidgetConfig;
+    return config.target_event || '\u2014';
+  }
+  if (insight.type === 'stickiness') {
+    const config = insight.config as StickinessWidgetConfig;
+    return config.target_event || '\u2014';
+  }
   return '\u2014';
 }
 
@@ -41,6 +51,8 @@ const TYPE_LABELS: Record<string, string> = {
   trend: 'Trend',
   funnel: 'Funnel',
   retention: 'Retention',
+  lifecycle: 'Lifecycle',
+  stickiness: 'Stickiness',
 };
 
 interface InsightsTableProps {
