@@ -29,6 +29,10 @@ export class StickinessQueryDto {
   date_to: string;
 
   @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  })
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()

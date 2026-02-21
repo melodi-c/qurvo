@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FunnelService } from '../../funnel/funnel.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
@@ -12,12 +12,11 @@ import { FunnelQueryDto, FunnelResponseDto } from '../dto/funnel.dto';
 export class FunnelController {
   constructor(private readonly funnelService: FunnelService) {}
 
-  @Post('funnel')
-  @HttpCode(200)
+  @Get('funnel')
   async getFunnel(
     @CurrentUser() user: RequestUser,
-    @Body() body: FunnelQueryDto,
+    @Query() query: FunnelQueryDto,
   ): Promise<FunnelResponseDto> {
-    return this.funnelService.getFunnel(user.user_id, body);
+    return this.funnelService.getFunnel(user.user_id, query);
   }
 }

@@ -147,29 +147,6 @@ export interface FunnelStep {
   filters?: StepFilter[];
 }
 
-export interface FunnelQuery {
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
-  /**
-   * @maxItems 10
-   * @minItems 2
-   */
-  steps: FunnelStep[];
-  /**
-   * @min 1
-   * @max 90
-   * @default 14
-   */
-  conversion_window_days: number;
-  date_from: string;
-  date_to: string;
-  breakdown_property?: string;
-  /** @format uuid */
-  widget_id?: string;
-  force?: boolean;
-}
-
 export interface FunnelStepResult {
   breakdown_value?: string;
   step: number;
@@ -263,26 +240,6 @@ export interface TrendSeries {
   filters?: StepFilter[];
 }
 
-export interface TrendQuery {
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
-  /**
-   * @maxItems 5
-   * @minItems 1
-   */
-  series: TrendSeries[];
-  metric: TrendQueryDtoMetricEnum;
-  granularity: TrendQueryDtoGranularityEnum;
-  date_from: string;
-  date_to: string;
-  breakdown_property?: string;
-  compare?: boolean;
-  /** @format uuid */
-  widget_id?: string;
-  force?: boolean;
-}
-
 export interface TrendDataPoint {
   bucket: string;
   value: number;
@@ -310,26 +267,6 @@ export interface TrendResponse {
   from_cache: boolean;
 }
 
-export interface RetentionQuery {
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
-  target_event: string;
-  retention_type: RetentionQueryDtoRetentionTypeEnum;
-  granularity: RetentionQueryDtoGranularityEnum;
-  /**
-   * @min 1
-   * @max 30
-   * @default 11
-   */
-  periods: number;
-  date_from: string;
-  date_to: string;
-  /** @format uuid */
-  widget_id?: string;
-  force?: boolean;
-}
-
 export interface RetentionCohort {
   cohort_date: string;
   cohort_size: number;
@@ -347,19 +284,6 @@ export interface RetentionResponse {
   data: RetentionResult;
   cached_at: string;
   from_cache: boolean;
-}
-
-export interface LifecycleQuery {
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
-  target_event: string;
-  granularity: LifecycleQueryDtoGranularityEnum;
-  date_from: string;
-  date_to: string;
-  /** @format uuid */
-  widget_id?: string;
-  force?: boolean;
 }
 
 export interface LifecycleDataPoint {
@@ -387,19 +311,6 @@ export interface LifecycleResponse {
   data: LifecycleResult;
   cached_at: string;
   from_cache: boolean;
-}
-
-export interface StickinessQuery {
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
-  target_event: string;
-  granularity: StickinessQueryDtoGranularityEnum;
-  date_from: string;
-  date_to: string;
-  /** @format uuid */
-  widget_id?: string;
-  force?: boolean;
 }
 
 export interface StickinessDataPoint {
@@ -832,25 +743,6 @@ export interface AdSpendSummary {
   record_count: number;
 }
 
-export interface UnitEconomicsQuery {
-  /** @format uuid */
-  project_id: string;
-  date_from: string;
-  date_to: string;
-  granularity: UnitEconomicsQueryDtoGranularityEnum;
-  purchase_event_name?: string;
-  revenue_property?: string;
-  /**
-   * @min 7
-   * @max 365
-   */
-  churn_window_days?: number;
-  /** @format uuid */
-  channel_id?: string;
-  widget_id?: string;
-  force?: boolean;
-}
-
 export interface UnitEconomicsMetrics {
   ua: number;
   c1: number;
@@ -919,21 +811,6 @@ export type StepFilterDtoOperatorEnum =
   | "is_set"
   | "is_not_set";
 
-export type TrendQueryDtoMetricEnum =
-  | "total_events"
-  | "unique_users"
-  | "events_per_user";
-
-export type TrendQueryDtoGranularityEnum = "hour" | "day" | "week" | "month";
-
-export type RetentionQueryDtoRetentionTypeEnum = "first_time" | "recurring";
-
-export type RetentionQueryDtoGranularityEnum = "day" | "week" | "month";
-
-export type LifecycleQueryDtoGranularityEnum = "day" | "week" | "month";
-
-export type StickinessQueryDtoGranularityEnum = "day" | "week" | "month";
-
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
 export type TrendWidgetConfigDtoTypeEnum = "trend";
@@ -1001,8 +878,6 @@ export type UpdateMarketingChannelDtoChannelTypeEnum =
   | "tiktok_ads"
   | "custom_api";
 
-export type UnitEconomicsQueryDtoGranularityEnum = "day" | "week" | "month";
-
 export interface ProjectsControllerGetByIdParams {
   id: string;
 }
@@ -1026,6 +901,25 @@ export interface ApiKeysControllerCreateParams {
 export interface ApiKeysControllerRevokeParams {
   projectId: string;
   keyId: string;
+}
+
+export interface FunnelControllerGetFunnelParams {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  steps: FunnelStep[];
+  /**
+   * @min 1
+   * @max 90
+   * @default 14
+   */
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
 }
 
 export interface EventsControllerGetEventsParams {
@@ -1058,6 +952,110 @@ export interface EventsControllerGetEventNamesParams {
   /** @format uuid */
   project_id: string;
 }
+
+export interface TrendControllerGetTrendParams {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  series: TrendSeries[];
+  metric: MetricEnum;
+  granularity: GranularityEnum;
+  date_from: string;
+  date_to: string;
+  breakdown_property?: string;
+  compare?: boolean;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export type MetricEnum = "total_events" | "unique_users" | "events_per_user";
+
+export type GranularityEnum = "hour" | "day" | "week" | "month";
+
+export type TrendControllerGetTrendParams1MetricEnum =
+  | "total_events"
+  | "unique_users"
+  | "events_per_user";
+
+export type TrendControllerGetTrendParams1GranularityEnum =
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
+export interface RetentionControllerGetRetentionParams {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  target_event: string;
+  retention_type: RetentionTypeEnum;
+  granularity: GranularityEnum1;
+  /**
+   * @min 1
+   * @max 30
+   * @default 11
+   */
+  periods: number;
+  date_from: string;
+  date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export type RetentionTypeEnum = "first_time" | "recurring";
+
+export type GranularityEnum1 = "day" | "week" | "month";
+
+export type RetentionControllerGetRetentionParams1RetentionTypeEnum =
+  | "first_time"
+  | "recurring";
+
+export type RetentionControllerGetRetentionParams1GranularityEnum =
+  | "day"
+  | "week"
+  | "month";
+
+export interface LifecycleControllerGetLifecycleParams {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  target_event: string;
+  granularity: GranularityEnum2;
+  date_from: string;
+  date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export type GranularityEnum2 = "day" | "week" | "month";
+
+export type LifecycleControllerGetLifecycleParams1GranularityEnum =
+  | "day"
+  | "week"
+  | "month";
+
+export interface StickinessControllerGetStickinessParams {
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  target_event: string;
+  granularity: GranularityEnum3;
+  date_from: string;
+  date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export type GranularityEnum3 = "day" | "week" | "month";
+
+export type StickinessControllerGetStickinessParams1GranularityEnum =
+  | "day"
+  | "week"
+  | "month";
 
 export interface DashboardsControllerListParams {
   projectId: string;
@@ -1291,6 +1289,32 @@ export interface AdSpendControllerSummaryParams {
   date_to?: string;
   projectId: string;
 }
+
+export interface UnitEconomicsControllerGetUnitEconomicsParams {
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  granularity: GranularityEnum4;
+  purchase_event_name?: string;
+  revenue_property?: string;
+  /**
+   * @min 7
+   * @max 365
+   */
+  churn_window_days?: number;
+  /** @format uuid */
+  channel_id?: string;
+  widget_id?: string;
+  force?: boolean;
+}
+
+export type GranularityEnum4 = "day" | "week" | "month";
+
+export type UnitEconomicsControllerGetUnitEconomicsParams1GranularityEnum =
+  | "day"
+  | "week"
+  | "month";
 
 export interface UnitEconomicsConfigControllerGetConfigParams {
   projectId: string;
@@ -1723,19 +1747,18 @@ export class Api<
      *
      * @tags Analytics
      * @name FunnelControllerGetFunnel
-     * @request POST:/api/analytics/funnel
+     * @request GET:/api/analytics/funnel
      * @secure
      */
     funnelControllerGetFunnel: (
-      data: FunnelQuery,
+      query: FunnelControllerGetFunnelParams,
       params: RequestParams = {},
     ) =>
       this.request<FunnelResponse, any>({
         path: `/api/analytics/funnel`,
-        method: "POST",
-        body: data,
+        method: "GET",
+        query: query,
         secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -1808,16 +1831,18 @@ export class Api<
      *
      * @tags Analytics
      * @name TrendControllerGetTrend
-     * @request POST:/api/analytics/trend
+     * @request GET:/api/analytics/trend
      * @secure
      */
-    trendControllerGetTrend: (data: TrendQuery, params: RequestParams = {}) =>
+    trendControllerGetTrend: (
+      query: TrendControllerGetTrendParams,
+      params: RequestParams = {},
+    ) =>
       this.request<TrendResponse, any>({
         path: `/api/analytics/trend`,
-        method: "POST",
-        body: data,
+        method: "GET",
+        query: query,
         secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -1827,19 +1852,18 @@ export class Api<
      *
      * @tags Analytics
      * @name RetentionControllerGetRetention
-     * @request POST:/api/analytics/retention
+     * @request GET:/api/analytics/retention
      * @secure
      */
     retentionControllerGetRetention: (
-      data: RetentionQuery,
+      query: RetentionControllerGetRetentionParams,
       params: RequestParams = {},
     ) =>
       this.request<RetentionResponse, any>({
         path: `/api/analytics/retention`,
-        method: "POST",
-        body: data,
+        method: "GET",
+        query: query,
         secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -1849,19 +1873,18 @@ export class Api<
      *
      * @tags Analytics
      * @name LifecycleControllerGetLifecycle
-     * @request POST:/api/analytics/lifecycle
+     * @request GET:/api/analytics/lifecycle
      * @secure
      */
     lifecycleControllerGetLifecycle: (
-      data: LifecycleQuery,
+      query: LifecycleControllerGetLifecycleParams,
       params: RequestParams = {},
     ) =>
       this.request<LifecycleResponse, any>({
         path: `/api/analytics/lifecycle`,
-        method: "POST",
-        body: data,
+        method: "GET",
+        query: query,
         secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -1871,19 +1894,18 @@ export class Api<
      *
      * @tags Analytics
      * @name StickinessControllerGetStickiness
-     * @request POST:/api/analytics/stickiness
+     * @request GET:/api/analytics/stickiness
      * @secure
      */
     stickinessControllerGetStickiness: (
-      data: StickinessQuery,
+      query: StickinessControllerGetStickinessParams,
       params: RequestParams = {},
     ) =>
       this.request<StickinessResponse, any>({
         path: `/api/analytics/stickiness`,
-        method: "POST",
-        body: data,
+        method: "GET",
+        query: query,
         secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -2796,19 +2818,18 @@ export class Api<
      *
      * @tags Analytics
      * @name UnitEconomicsControllerGetUnitEconomics
-     * @request POST:/api/analytics/unit-economics
+     * @request GET:/api/analytics/unit-economics
      * @secure
      */
     unitEconomicsControllerGetUnitEconomics: (
-      data: UnitEconomicsQuery,
+      query: UnitEconomicsControllerGetUnitEconomicsParams,
       params: RequestParams = {},
     ) =>
       this.request<UnitEconomicsResponse, any>({
         path: `/api/analytics/unit-economics`,
-        method: "POST",
-        body: data,
+        method: "GET",
+        query: query,
         secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),

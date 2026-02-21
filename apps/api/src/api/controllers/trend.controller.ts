@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TrendService } from '../../trend/trend.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
@@ -12,12 +12,11 @@ import { TrendQueryDto, TrendResponseDto } from '../dto/trend.dto';
 export class TrendController {
   constructor(private readonly trendService: TrendService) {}
 
-  @Post('trend')
-  @HttpCode(200)
+  @Get('trend')
   async getTrend(
     @CurrentUser() user: RequestUser,
-    @Body() body: TrendQueryDto,
+    @Query() query: TrendQueryDto,
   ): Promise<TrendResponseDto> {
-    return this.trendService.getTrend(user.user_id, body);
+    return this.trendService.getTrend(user.user_id, query);
   }
 }

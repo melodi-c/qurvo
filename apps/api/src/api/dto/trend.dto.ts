@@ -11,7 +11,7 @@ import {
   IsBoolean,
   IsIn,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 
@@ -35,6 +35,11 @@ export class TrendQueryDto {
   @IsUUID()
   project_id: string;
 
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(TrendSeriesDto, arr) : arr;
+  })
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(5)
@@ -64,6 +69,10 @@ export class TrendQueryDto {
   compare?: boolean;
 
   @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  })
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()

@@ -10,7 +10,7 @@ import {
   Max,
   IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 // ── Config DTOs ──────────────────────────────────────────────────────────────
 
@@ -86,9 +86,9 @@ export class UnitEconomicsQueryDto {
   @IsOptional()
   widget_id?: string;
 
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
   force?: boolean;
 }
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Post, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Put, Body, Query, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UnitEconomicsService } from '../../unit-economics/unit-economics.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
@@ -37,12 +37,11 @@ export class UnitEconomicsConfigController {
 export class UnitEconomicsController {
   constructor(private readonly unitEconomicsService: UnitEconomicsService) {}
 
-  @Post('unit-economics')
-  @HttpCode(200)
+  @Get('unit-economics')
   async getUnitEconomics(
     @CurrentUser() user: RequestUser,
-    @Body() body: UnitEconomicsQueryDto,
+    @Query() query: UnitEconomicsQueryDto,
   ): Promise<UnitEconomicsResponseDto> {
-    return this.unitEconomicsService.getMetrics(user.user_id, body);
+    return this.unitEconomicsService.getMetrics(user.user_id, query);
   }
 }

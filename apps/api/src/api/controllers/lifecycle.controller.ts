@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
@@ -12,12 +12,11 @@ import { LifecycleQueryDto, LifecycleResponseDto } from '../dto/lifecycle.dto';
 export class LifecycleController {
   constructor(private readonly lifecycleService: LifecycleService) {}
 
-  @Post('lifecycle')
-  @HttpCode(200)
+  @Get('lifecycle')
   async getLifecycle(
     @CurrentUser() user: RequestUser,
-    @Body() body: LifecycleQueryDto,
+    @Query() query: LifecycleQueryDto,
   ): Promise<LifecycleResponseDto> {
-    return this.lifecycleService.getLifecycle(user.user_id, body);
+    return this.lifecycleService.getLifecycle(user.user_id, query);
   }
 }

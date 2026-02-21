@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RetentionService } from '../../retention/retention.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
@@ -12,12 +12,11 @@ import { RetentionQueryDto, RetentionResponseDto } from '../dto/retention.dto';
 export class RetentionController {
   constructor(private readonly retentionService: RetentionService) {}
 
-  @Post('retention')
-  @HttpCode(200)
+  @Get('retention')
   async getRetention(
     @CurrentUser() user: RequestUser,
-    @Body() body: RetentionQueryDto,
+    @Query() query: RetentionQueryDto,
   ): Promise<RetentionResponseDto> {
-    return this.retentionService.getRetention(user.user_id, body);
+    return this.retentionService.getRetention(user.user_id, query);
   }
 }

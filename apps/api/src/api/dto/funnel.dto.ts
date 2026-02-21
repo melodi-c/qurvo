@@ -13,7 +13,7 @@ import {
   IsUUID,
   IsBoolean,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 
@@ -37,6 +37,11 @@ export class FunnelQueryDto {
   @IsUUID()
   project_id: string;
 
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(FunnelStepDto, arr) : arr;
+  })
   @IsArray()
   @ArrayMinSize(2)
   @ArrayMaxSize(10)
@@ -61,6 +66,10 @@ export class FunnelQueryDto {
   breakdown_property?: string;
 
   @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  })
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()

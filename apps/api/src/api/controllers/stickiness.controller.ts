@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { StickinessService } from '../../stickiness/stickiness.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
@@ -12,12 +12,11 @@ import { StickinessQueryDto, StickinessResponseDto } from '../dto/stickiness.dto
 export class StickinessController {
   constructor(private readonly stickinessService: StickinessService) {}
 
-  @Post('stickiness')
-  @HttpCode(200)
+  @Get('stickiness')
   async getStickiness(
     @CurrentUser() user: RequestUser,
-    @Body() body: StickinessQueryDto,
+    @Query() query: StickinessQueryDto,
   ): Promise<StickinessResponseDto> {
-    return this.stickinessService.getStickiness(user.user_id, body);
+    return this.stickinessService.getStickiness(user.user_id, query);
   }
 }
