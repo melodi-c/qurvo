@@ -47,7 +47,16 @@ done
 
 # ── Resolve tag ──────────────────────────────────────────────────────────────
 if [[ -z "$TAG" ]]; then
-  TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+  if [[ "$SKIP_BUILD" == true ]]; then
+    TAG=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null | \
+      python3 -c "import sys,json; print(json.load(sys.stdin).get('global',{}).get('imageTag',''))" 2>/dev/null || echo "")
+    if [[ -z "$TAG" ]]; then
+      echo "ERROR: --skip-build requires a deployed release or --tag <tag>"
+      exit 1
+    fi
+  else
+    TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+  fi
 fi
 
 # ── Resolve which apps to build ─────────────────────────────────────────────
