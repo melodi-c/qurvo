@@ -7,6 +7,8 @@
 -- without event_name filter. This projection lets ClickHouse use the
 -- timestamp part of the key efficiently and skip sorting.
 
+ALTER TABLE events MODIFY SETTING deduplicate_merge_projection_mode = 'rebuild';
+
 ALTER TABLE events
   ADD PROJECTION IF NOT EXISTS events_by_project_timestamp
   (
