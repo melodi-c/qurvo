@@ -60,7 +60,11 @@ export class DlqService implements OnApplicationBootstrap {
       const events: Event[] = entries
         .map(([, fields]) => {
           const obj = parseRedisFields(fields);
-          return obj.data ? (JSON.parse(obj.data) as Event) : null;
+          if (!obj.data) return null;
+          const event = JSON.parse(obj.data) as Event;
+          if (event.screen_width != null) event.screen_width = Math.max(0, event.screen_width);
+          if (event.screen_height != null) event.screen_height = Math.max(0, event.screen_height);
+          return event;
         })
         .filter((e): e is Event => e !== null);
 
