@@ -135,7 +135,7 @@ export function MetricsTab() {
           </div>
 
           {/* Timeline Chart */}
-          {result.data.data.length > 1 && (
+          {result.data.data.length > 0 && (
             <UEChart buckets={result.data.data} selectedMetrics={selectedChartMetrics} />
           )}
         </>
