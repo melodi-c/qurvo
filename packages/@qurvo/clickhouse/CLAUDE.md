@@ -7,7 +7,8 @@ ClickHouse client factory and event type definitions.
 ```bash
 pnpm --filter @qurvo/clickhouse build   # tsc → dist/
 pnpm --filter @qurvo/clickhouse dev     # tsc --watch
-pnpm ch:migrate                        # apply migration.sql to ClickHouse
+pnpm ch:migrate                        # apply pending ClickHouse migrations
+pnpm ch:generate <name>                # create new migration file
 ```
 
 ## Exports
@@ -26,13 +27,37 @@ import { createClickHouse, type ClickHouseClient, type ClickHouseConfig, type Ev
 src/
 ├── index.ts        # Exports + Event interface
 ├── client.ts       # createClickHouse() factory
-├── migrate.ts      # Migration runner (raw SQL)
-└── migration.sql   # Schema: events table, person_distinct_id_overrides, person_overrides_dict
+├── migrate.ts      # Versioned migration runner
+├── generate.ts     # Migration file generator
+└── migrations/     # SQL migration files (0001_*.sql, 0002_*.sql, ...)
 ```
+
+## Migrations
+
+Migration files live in `src/migrations/` and are applied in lexicographic order. Applied migrations are tracked in the `_migrations` ClickHouse table.
+
+### Adding a new migration
+
+```bash
+pnpm ch:generate add_sessions_table    # creates src/migrations/0002_add_sessions_table.sql
+# Edit the generated file with your DDL
+pnpm ch:migrate                        # applies only pending migrations
+```
+
+### Template variables
+
+Migration files support template substitution:
+- `${CLICKHOUSE_DB}` — database name
+- `${CLICKHOUSE_USER}` — username
+- `${CLICKHOUSE_PASSWORD}` — password
+
+### Statement splitting
+
+Statements are split on `;\n`. End each statement with a semicolon followed by a newline.
 
 ## ClickHouse Schema
 
-Defined in `src/migration.sql`:
+Defined in `src/migrations/0001_initial_schema.sql`:
 
 | Object | Engine | Purpose |
 |---|---|---|
@@ -46,4 +71,4 @@ Defined in `src/migration.sql`:
 - Always use `FROM events FINAL` to deduplicate
 - `properties` and `user_properties` are stored as JSON strings
 - Person resolution at query time: `dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id))`
-- Schema changes: edit `migration.sql` → `pnpm ch:migrate`
+- Schema changes: `pnpm ch:generate <name>` → write SQL → `pnpm ch:migrate`

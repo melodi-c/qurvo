@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 
@@ -9,18 +9,25 @@ export async function applyClickHouseMigration(
   database = 'qurvo_analytics',
 ): Promise<void> {
   // __dirname = packages/@qurvo/testing/src
-  // target   = packages/@qurvo/clickhouse/src/migration.sql
-  const migrationPath = join(__dirname, '..', '..', 'clickhouse', 'src', 'migration.sql');
-  const raw = readFileSync(migrationPath, 'utf-8');
+  // target   = packages/@qurvo/clickhouse/src/migrations/
+  const migrationsDir = join(__dirname, '..', '..', 'clickhouse', 'src', 'migrations');
 
-  const sql = raw
-    .replace(/\$\{CLICKHOUSE_USER\}/g, user)
-    .replace(/\$\{CLICKHOUSE_PASSWORD\}/g, password)
-    .replace(/\$\{CLICKHOUSE_DB\}/g, database);
+  const files = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
 
-  const statements = sql.split(/;[ \t]*\n/).map((s) => s.trim()).filter((s) => s.length > 0);
+  for (const filename of files) {
+    const raw = readFileSync(join(migrationsDir, filename), 'utf-8');
 
-  for (const statement of statements) {
-    await ch.command({ query: statement });
+    const sql = raw
+      .replace(/\$\{CLICKHOUSE_USER\}/g, user)
+      .replace(/\$\{CLICKHOUSE_PASSWORD\}/g, password)
+      .replace(/\$\{CLICKHOUSE_DB\}/g, database);
+
+    const statements = sql.split(/;[ \t]*\n/).map((s) => s.trim()).filter((s) => s.length > 0);
+
+    for (const statement of statements) {
+      await ch.command({ query: statement });
+    }
   }
 }

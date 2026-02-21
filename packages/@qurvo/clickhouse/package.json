@@ -5,10 +5,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && cp src/migration.sql dist/migration.sql",
+    "build": "tsc && cp -r src/migrations dist/migrations",
     "dev": "tsc --watch",
     "clean": "rm -rf dist .turbo",
-    "ch:migrate": "tsx src/migrate.ts"
+    "ch:migrate": "tsx src/migrate.ts",
+    "ch:generate": "tsx src/generate.ts"
   },
   "dependencies": {
     "@clickhouse/client": "^1.8.0"

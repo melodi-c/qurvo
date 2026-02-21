@@ -9,6 +9,7 @@
     "db:generate": "turbo db:generate --filter=@qurvo/db",
     "db:migrate": "turbo db:migrate --filter=@qurvo/db",
     "ch:migrate": "turbo ch:migrate --filter=@qurvo/clickhouse",
+    "ch:generate": "pnpm --filter @qurvo/clickhouse ch:generate",
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
     "swagger:generate": "turbo swagger:generate --filter=@qurvo/api",
