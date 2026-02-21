@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FunnelService } from '../../funnel/funnel.service';
 import { EventsService } from '../../events/events.service';
@@ -33,6 +33,7 @@ export class AnalyticsController {
   ) {}
 
   @Post('funnel')
+  @HttpCode(200)
   async getFunnel(
     @CurrentUser() user: RequestUser,
     @Body() body: FunnelQueryDto,
@@ -41,6 +42,7 @@ export class AnalyticsController {
   }
 
   @Post('events')
+  @HttpCode(200)
   async getEvents(
     @CurrentUser() user: RequestUser,
     @Body() body: EventsQueryDto,
@@ -58,6 +60,7 @@ export class AnalyticsController {
   }
 
   @Post('trend')
+  @HttpCode(200)
   async getTrend(
     @CurrentUser() user: RequestUser,
     @Body() body: TrendQueryDto,
@@ -66,6 +69,7 @@ export class AnalyticsController {
   }
 
   @Post('retention')
+  @HttpCode(200)
   async getRetention(
     @CurrentUser() user: RequestUser,
     @Body() body: RetentionQueryDto,
@@ -74,6 +78,7 @@ export class AnalyticsController {
   }
 
   @Post('lifecycle')
+  @HttpCode(200)
   async getLifecycle(
     @CurrentUser() user: RequestUser,
     @Body() body: LifecycleQueryDto,
@@ -82,6 +87,7 @@ export class AnalyticsController {
   }
 
   @Post('stickiness')
+  @HttpCode(200)
   async getStickiness(
     @CurrentUser() user: RequestUser,
     @Body() body: StickinessQueryDto,
