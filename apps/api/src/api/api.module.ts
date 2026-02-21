@@ -20,7 +20,12 @@ import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
-import { AnalyticsController } from './controllers/analytics.controller';
+import { FunnelController } from './controllers/funnel.controller';
+import { EventsController } from './controllers/events.controller';
+import { TrendController } from './controllers/trend.controller';
+import { RetentionController } from './controllers/retention.controller';
+import { LifecycleController } from './controllers/lifecycle.controller';
+import { StickinessController } from './controllers/stickiness.controller';
 import { DashboardsController } from './controllers/dashboards.controller';
 import { PersonsController } from './controllers/persons.controller';
 import { CohortsController } from './controllers/cohorts.controller';
@@ -28,7 +33,7 @@ import { InsightsController } from './controllers/insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
 import { MarketingChannelsController } from './controllers/marketing-channels.controller';
 import { AdSpendController } from './controllers/ad-spend.controller';
-import { UnitEconomicsController } from './controllers/unit-economics.controller';
+import { UnitEconomicsController, UnitEconomicsConfigController } from './controllers/unit-economics.controller';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { UnauthorizedFilter } from './filters/unauthorized.filter';
 import { ForbiddenFilter } from './filters/forbidden.filter';
@@ -41,7 +46,12 @@ import { ConflictFilter } from './filters/conflict.filter';
     AuthController,
     ProjectsController,
     ApiKeysController,
-    AnalyticsController,
+    FunnelController,
+    EventsController,
+    TrendController,
+    RetentionController,
+    LifecycleController,
+    StickinessController,
     DashboardsController,
     PersonsController,
     CohortsController,
@@ -52,6 +62,7 @@ import { ConflictFilter } from './filters/conflict.filter';
     MarketingChannelsController,
     AdSpendController,
     UnitEconomicsController,
+    UnitEconomicsConfigController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },

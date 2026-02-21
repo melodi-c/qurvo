@@ -53,7 +53,7 @@ export default function EventsPage() {
         if (needsValue && (!f.value || f.value.trim() === '')) return false;
         return true;
       });
-      return api.analyticsControllerGetEvents({
+      return api.eventsControllerGetEvents({
         project_id: projectId,
         ...(debouncedFilters.eventName ? { event_name: debouncedFilters.eventName } : {}),
         date_from: debouncedFilters.dateFrom,

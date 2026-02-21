@@ -9,7 +9,7 @@ export function useEventNames() {
   return useQuery({
     queryKey: ['event-names', projectId],
     queryFn: async () => {
-      const result = await api.analyticsControllerGetEventNames({ project_id: projectId });
+      const result = await api.eventsControllerGetEventNames({ project_id: projectId });
       return result.event_names;
     },
     enabled: !!projectId,

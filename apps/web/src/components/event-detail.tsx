@@ -196,7 +196,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
   const { data: detail, isLoading: detailLoading } = useQuery({
     queryKey: ['event-detail', event.event_id, projectId],
     queryFn: () =>
-      api.analyticsControllerGetEventDetail({
+      api.eventsControllerGetEventDetail({
         eventId: event.event_id,
         project_id: projectId!,
       }),

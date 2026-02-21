@@ -48,7 +48,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
   const query = useQuery<TrendResponse>({
     queryKey,
     queryFn: () =>
-      api.analyticsControllerGetTrend({
+      api.trendControllerGetTrend({
         project_id: projectId,
         series: cleanSeries(config),
         metric: config.metric,
@@ -82,7 +82,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
   }, [widgetId, hash]);
 
   const refreshTrend = async () => {
-    const result = await api.analyticsControllerGetTrend({
+    const result = await api.trendControllerGetTrend({
       project_id: projectId,
       series: cleanSeries(config),
       metric: config.metric,

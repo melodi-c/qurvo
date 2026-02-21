@@ -15,7 +15,7 @@ export function useUnitEconomics(
   return useQuery({
     queryKey: ['unitEconomics', projectId, params],
     queryFn: () =>
-      api.analyticsControllerGetUnitEconomics({
+      api.unitEconomicsControllerGetUnitEconomics({
         project_id: projectId,
         ...params!,
       }),

@@ -35,7 +35,7 @@ export function useRetentionData(config: RetentionWidgetConfig, widgetId: string
   const query = useQuery<RetentionResponse>({
     queryKey,
     queryFn: () =>
-      api.analyticsControllerGetRetention({
+      api.retentionControllerGetRetention({
         project_id: projectId,
         target_event: config.target_event,
         retention_type: config.retention_type,
@@ -68,7 +68,7 @@ export function useRetentionData(config: RetentionWidgetConfig, widgetId: string
   }, [widgetId, hash]);
 
   const refreshRetention = async () => {
-    const result = await api.analyticsControllerGetRetention({
+    const result = await api.retentionControllerGetRetention({
       project_id: projectId,
       target_event: config.target_event,
       retention_type: config.retention_type,

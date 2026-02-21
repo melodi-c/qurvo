@@ -419,62 +419,6 @@ export interface StickinessResponse {
   from_cache: boolean;
 }
 
-export interface UnitEconomicsQuery {
-  /** @format uuid */
-  project_id: string;
-  date_from: string;
-  date_to: string;
-  granularity: UnitEconomicsQueryDtoGranularityEnum;
-  purchase_event_name?: string;
-  revenue_property?: string;
-  /**
-   * @min 7
-   * @max 365
-   */
-  churn_window_days?: number;
-  /** @format uuid */
-  channel_id?: string;
-  widget_id?: string;
-  force?: boolean;
-}
-
-export interface UnitEconomicsMetrics {
-  ua: number;
-  c1: number;
-  c2: number;
-  apc: number;
-  avp: number;
-  arppu: number;
-  arpu: number;
-  churn_rate: number;
-  lifetime_periods: number;
-  ltv: number;
-  cac: number;
-  roi_percent: number;
-  cm: number;
-  total_revenue: number;
-  total_purchases: number;
-  paying_users: number;
-  total_ad_spend: number;
-}
-
-export interface UEBucket {
-  bucket: string;
-  metrics: UnitEconomicsMetrics;
-}
-
-export interface UEData {
-  granularity: string;
-  data: UEBucket[];
-  totals: UnitEconomicsMetrics;
-}
-
-export interface UnitEconomicsResponse {
-  data: UEData;
-  cached_at: string;
-  from_cache: boolean;
-}
-
 export interface Dashboard {
   id: string;
   project_id: string;
@@ -888,6 +832,62 @@ export interface AdSpendSummary {
   record_count: number;
 }
 
+export interface UnitEconomicsQuery {
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  granularity: UnitEconomicsQueryDtoGranularityEnum;
+  purchase_event_name?: string;
+  revenue_property?: string;
+  /**
+   * @min 7
+   * @max 365
+   */
+  churn_window_days?: number;
+  /** @format uuid */
+  channel_id?: string;
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface UnitEconomicsMetrics {
+  ua: number;
+  c1: number;
+  c2: number;
+  apc: number;
+  avp: number;
+  arppu: number;
+  arpu: number;
+  churn_rate: number;
+  lifetime_periods: number;
+  ltv: number;
+  cac: number;
+  roi_percent: number;
+  cm: number;
+  total_revenue: number;
+  total_purchases: number;
+  paying_users: number;
+  total_ad_spend: number;
+}
+
+export interface UEBucket {
+  bucket: string;
+  metrics: UnitEconomicsMetrics;
+}
+
+export interface UEData {
+  granularity: string;
+  data: UEBucket[];
+  totals: UnitEconomicsMetrics;
+}
+
+export interface UnitEconomicsResponse {
+  data: UEData;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export interface UpsertUEConfig {
   purchase_event_name?: string;
   revenue_property?: string;
@@ -933,8 +933,6 @@ export type RetentionQueryDtoGranularityEnum = "day" | "week" | "month";
 export type LifecycleQueryDtoGranularityEnum = "day" | "week" | "month";
 
 export type StickinessQueryDtoGranularityEnum = "day" | "week" | "month";
-
-export type UnitEconomicsQueryDtoGranularityEnum = "day" | "week" | "month";
 
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
@@ -1003,6 +1001,8 @@ export type UpdateMarketingChannelDtoChannelTypeEnum =
   | "tiktok_ads"
   | "custom_api";
 
+export type UnitEconomicsQueryDtoGranularityEnum = "day" | "week" | "month";
+
 export interface ProjectsControllerGetByIdParams {
   id: string;
 }
@@ -1028,7 +1028,7 @@ export interface ApiKeysControllerRevokeParams {
   keyId: string;
 }
 
-export interface AnalyticsControllerGetEventsParams {
+export interface EventsControllerGetEventsParams {
   event_name?: string;
   date_from?: string;
   date_to?: string;
@@ -1048,13 +1048,13 @@ export interface AnalyticsControllerGetEventsParams {
   project_id: string;
 }
 
-export interface AnalyticsControllerGetEventDetailParams {
+export interface EventsControllerGetEventDetailParams {
   /** @format uuid */
   project_id: string;
   eventId: string;
 }
 
-export interface AnalyticsControllerGetEventNamesParams {
+export interface EventsControllerGetEventNamesParams {
   /** @format uuid */
   project_id: string;
 }
@@ -1292,11 +1292,11 @@ export interface AdSpendControllerSummaryParams {
   projectId: string;
 }
 
-export interface UnitEconomicsControllerGetConfigParams {
+export interface UnitEconomicsConfigControllerGetConfigParams {
   projectId: string;
 }
 
-export interface UnitEconomicsControllerUpsertConfigParams {
+export interface UnitEconomicsConfigControllerUpsertConfigParams {
   projectId: string;
 }
 
@@ -1722,11 +1722,11 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetFunnel
+     * @name FunnelControllerGetFunnel
      * @request POST:/api/analytics/funnel
      * @secure
      */
-    analyticsControllerGetFunnel: (
+    funnelControllerGetFunnel: (
       data: FunnelQuery,
       params: RequestParams = {},
     ) =>
@@ -1744,12 +1744,12 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetEvents
+     * @name EventsControllerGetEvents
      * @request GET:/api/analytics/events
      * @secure
      */
-    analyticsControllerGetEvents: (
-      query: AnalyticsControllerGetEventsParams,
+    eventsControllerGetEvents: (
+      query: EventsControllerGetEventsParams,
       params: RequestParams = {},
     ) =>
       this.request<EventRow[], any>({
@@ -1765,12 +1765,12 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetEventDetail
+     * @name EventsControllerGetEventDetail
      * @request GET:/api/analytics/events/{eventId}
      * @secure
      */
-    analyticsControllerGetEventDetail: (
-      { eventId, ...query }: AnalyticsControllerGetEventDetailParams,
+    eventsControllerGetEventDetail: (
+      { eventId, ...query }: EventsControllerGetEventDetailParams,
       params: RequestParams = {},
     ) =>
       this.request<EventDetail, any>({
@@ -1786,12 +1786,12 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetEventNames
+     * @name EventsControllerGetEventNames
      * @request GET:/api/analytics/event-names
      * @secure
      */
-    analyticsControllerGetEventNames: (
-      query: AnalyticsControllerGetEventNamesParams,
+    eventsControllerGetEventNames: (
+      query: EventsControllerGetEventNamesParams,
       params: RequestParams = {},
     ) =>
       this.request<EventNamesResponse, any>({
@@ -1807,14 +1807,11 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetTrend
+     * @name TrendControllerGetTrend
      * @request POST:/api/analytics/trend
      * @secure
      */
-    analyticsControllerGetTrend: (
-      data: TrendQuery,
-      params: RequestParams = {},
-    ) =>
+    trendControllerGetTrend: (data: TrendQuery, params: RequestParams = {}) =>
       this.request<TrendResponse, any>({
         path: `/api/analytics/trend`,
         method: "POST",
@@ -1829,11 +1826,11 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetRetention
+     * @name RetentionControllerGetRetention
      * @request POST:/api/analytics/retention
      * @secure
      */
-    analyticsControllerGetRetention: (
+    retentionControllerGetRetention: (
       data: RetentionQuery,
       params: RequestParams = {},
     ) =>
@@ -1851,11 +1848,11 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetLifecycle
+     * @name LifecycleControllerGetLifecycle
      * @request POST:/api/analytics/lifecycle
      * @secure
      */
-    analyticsControllerGetLifecycle: (
+    lifecycleControllerGetLifecycle: (
       data: LifecycleQuery,
       params: RequestParams = {},
     ) =>
@@ -1873,38 +1870,16 @@ export class Api<
      * No description
      *
      * @tags Analytics
-     * @name AnalyticsControllerGetStickiness
+     * @name StickinessControllerGetStickiness
      * @request POST:/api/analytics/stickiness
      * @secure
      */
-    analyticsControllerGetStickiness: (
+    stickinessControllerGetStickiness: (
       data: StickinessQuery,
       params: RequestParams = {},
     ) =>
       this.request<StickinessResponse, any>({
         path: `/api/analytics/stickiness`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Analytics
-     * @name AnalyticsControllerGetUnitEconomics
-     * @request POST:/api/analytics/unit-economics
-     * @secure
-     */
-    analyticsControllerGetUnitEconomics: (
-      data: UnitEconomicsQuery,
-      params: RequestParams = {},
-    ) =>
-      this.request<UnitEconomicsResponse, any>({
-        path: `/api/analytics/unit-economics`,
         method: "POST",
         body: data,
         secure: true,
@@ -2819,13 +2794,35 @@ export class Api<
     /**
      * No description
      *
+     * @tags Analytics
+     * @name UnitEconomicsControllerGetUnitEconomics
+     * @request POST:/api/analytics/unit-economics
+     * @secure
+     */
+    unitEconomicsControllerGetUnitEconomics: (
+      data: UnitEconomicsQuery,
+      params: RequestParams = {},
+    ) =>
+      this.request<UnitEconomicsResponse, any>({
+        path: `/api/analytics/unit-economics`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
      * @tags Unit Economics
-     * @name UnitEconomicsControllerGetConfig
+     * @name UnitEconomicsConfigControllerGetConfig
      * @request GET:/api/projects/{projectId}/unit-economics/config
      * @secure
      */
-    unitEconomicsControllerGetConfig: (
-      { projectId, ...query }: UnitEconomicsControllerGetConfigParams,
+    unitEconomicsConfigControllerGetConfig: (
+      { projectId, ...query }: UnitEconomicsConfigControllerGetConfigParams,
       params: RequestParams = {},
     ) =>
       this.request<object, any>({
@@ -2840,12 +2837,12 @@ export class Api<
      * No description
      *
      * @tags Unit Economics
-     * @name UnitEconomicsControllerUpsertConfig
+     * @name UnitEconomicsConfigControllerUpsertConfig
      * @request PUT:/api/projects/{projectId}/unit-economics/config
      * @secure
      */
-    unitEconomicsControllerUpsertConfig: (
-      { projectId, ...query }: UnitEconomicsControllerUpsertConfigParams,
+    unitEconomicsConfigControllerUpsertConfig: (
+      { projectId, ...query }: UnitEconomicsConfigControllerUpsertConfigParams,
       data: UpsertUEConfig,
       params: RequestParams = {},
     ) =>

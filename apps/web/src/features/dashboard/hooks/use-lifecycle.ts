@@ -33,7 +33,7 @@ export function useLifecycleData(config: LifecycleWidgetConfig, widgetId: string
   const query = useQuery<LifecycleResponse>({
     queryKey,
     queryFn: () =>
-      api.analyticsControllerGetLifecycle({
+      api.lifecycleControllerGetLifecycle({
         project_id: projectId,
         target_event: config.target_event,
         granularity: config.granularity,
@@ -62,7 +62,7 @@ export function useLifecycleData(config: LifecycleWidgetConfig, widgetId: string
   }, [widgetId, hash]);
 
   const refreshLifecycle = async () => {
-    const result = await api.analyticsControllerGetLifecycle({
+    const result = await api.lifecycleControllerGetLifecycle({
       project_id: projectId,
       target_event: config.target_event,
       granularity: config.granularity,

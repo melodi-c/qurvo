@@ -33,7 +33,7 @@ export function useStickinessData(config: StickinessWidgetConfig, widgetId: stri
   const query = useQuery<StickinessResponse>({
     queryKey,
     queryFn: () =>
-      api.analyticsControllerGetStickiness({
+      api.stickinessControllerGetStickiness({
         project_id: projectId,
         target_event: config.target_event,
         granularity: config.granularity,
@@ -62,7 +62,7 @@ export function useStickinessData(config: StickinessWidgetConfig, widgetId: stri
   }, [widgetId, hash]);
 
   const refreshStickiness = async () => {
-    const result = await api.analyticsControllerGetStickiness({
+    const result = await api.stickinessControllerGetStickiness({
       project_id: projectId,
       target_event: config.target_event,
       granularity: config.granularity,

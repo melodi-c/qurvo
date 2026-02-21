@@ -1,7 +1,8 @@
 import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNotEmpty, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FunnelStepDto, TrendSeriesDto } from './analytics.dto';
+import { FunnelStepDto } from './funnel.dto';
+import { TrendSeriesDto } from './trend.dto';
 import { InsightDto } from './insights.dto';
 
 // ── Shared ────────────────────────────────────────────────────────────────────

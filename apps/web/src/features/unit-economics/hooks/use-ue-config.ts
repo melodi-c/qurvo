@@ -12,7 +12,7 @@ export function useUEConfig() {
   const projectId = useProjectId();
   return useQuery({
     queryKey: ['ueConfig', projectId],
-    queryFn: () => api.unitEconomicsControllerGetConfig({ projectId }) as Promise<UEConfig | null>,
+    queryFn: () => api.unitEconomicsConfigControllerGetConfig({ projectId }) as Promise<UEConfig | null>,
     enabled: !!projectId,
   });
 }
@@ -22,7 +22,7 @@ export function useUpsertUEConfig() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: UpsertUEConfig) =>
-      api.unitEconomicsControllerUpsertConfig({ projectId }, data),
+      api.unitEconomicsConfigControllerUpsertConfig({ projectId }, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ueConfig', projectId] });
     },

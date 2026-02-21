@@ -45,7 +45,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   const query = useQuery<FunnelResponse>({
     queryKey,
     queryFn: () =>
-      api.analyticsControllerGetFunnel({
+      api.funnelControllerGetFunnel({
         project_id: projectId,
         steps: cleanSteps(config),
         conversion_window_days: config.conversion_window_days,
@@ -77,7 +77,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   }, [widgetId, hash]);
 
   const refreshFunnel = async () => {
-    const result = await api.analyticsControllerGetFunnel({
+    const result = await api.funnelControllerGetFunnel({
       project_id: projectId,
       steps: cleanSteps(config),
       conversion_window_days: config.conversion_window_days,
