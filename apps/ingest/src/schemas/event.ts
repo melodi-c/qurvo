@@ -36,6 +36,7 @@ export const TrackEventSchema = z.object({
 
 export const BatchEventsSchema = z.object({
   events: z.array(TrackEventSchema).min(1).max(500),
+  sent_at: z.string().datetime().optional(),
 });
 
 export type TrackEvent = z.infer<typeof TrackEventSchema>;

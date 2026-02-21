@@ -48,7 +48,7 @@ export class EventQueue {
     const batch = this.queue.splice(0);
 
     try {
-      const ok = await this.transport.send(this.endpoint, this.apiKey, { events: batch });
+      const ok = await this.transport.send(this.endpoint, this.apiKey, { events: batch, sent_at: new Date().toISOString() });
       if (!ok) {
         this.queue.unshift(...batch);
         this.scheduleBackoff();
@@ -74,7 +74,7 @@ export class EventQueue {
     if (this.queue.length === 0) return;
 
     const batch = this.queue.splice(0);
-    this.transport.send(this.endpoint, this.apiKey, { events: batch }, { keepalive: true }).catch(() => {});
+    this.transport.send(this.endpoint, this.apiKey, { events: batch, sent_at: new Date().toISOString() }, { keepalive: true }).catch(() => {});
   }
 
   get size() {

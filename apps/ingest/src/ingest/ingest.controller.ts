@@ -30,8 +30,8 @@ export class IngestController {
     @Headers('user-agent') userAgent: string | undefined,
     @Body() body: unknown,
   ) {
-    const { events } = BatchEventsSchema.parse(body);
-    await this.ingestService.trackBatch(projectId, events, ip, userAgent);
+    const { events, sent_at } = BatchEventsSchema.parse(body);
+    await this.ingestService.trackBatch(projectId, events, ip, userAgent, sent_at);
     return { ok: true, count: events.length };
   }
 }

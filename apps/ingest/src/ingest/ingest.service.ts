@@ -43,14 +43,14 @@ export class IngestService {
     this.logger.log({ projectId, eventName: event.event }, 'Event ingested');
   }
 
-  async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string) {
+  async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
     const pipeline = this.redis.pipeline();
     const serverTime = new Date().toISOString();
     const batchId = crypto.randomUUID();
     const ua = parseUa(userAgent);
 
     for (const event of events) {
-      const payload = this.buildPayload(projectId, event, serverTime, ip, ua, batchId);
+      const payload = this.buildPayload(projectId, event, serverTime, ip, ua, batchId, sentAt);
       pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
     }
 
@@ -71,6 +71,7 @@ export class IngestService {
     ip?: string,
     ua?: ParsedUa,
     batchId?: string,
+    sentAt?: string,
   ): Record<string, string> {
     const resolvedUa: ParsedUa = ua ?? { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
 
@@ -101,21 +102,34 @@ export class IngestService {
       sdk_version: event.context?.sdk_version || '',
       properties: JSON.stringify(event.properties || {}),
       user_properties: JSON.stringify(event.user_properties || {}),
-      timestamp: this.clampTimestamp(event.timestamp, serverTime),
+      timestamp: this.resolveTimestamp(event.timestamp, serverTime, sentAt),
     };
 
     if (batchId) payload.batch_id = batchId;
     return payload;
   }
 
-  private clampTimestamp(clientTs: string | undefined, serverTime: string): string {
-    if (!clientTs) return serverTime;
-    const drift = Math.abs(new Date(clientTs).getTime() - new Date(serverTime).getTime());
-    if (drift > 3600_000) {
-      this.logger.warn({ clientTs, serverTime, driftMs: drift }, 'Client clock drift too large, using server time');
-      return serverTime;
-    }
-    return clientTs;
+  /**
+   * PostHog-style timestamp resolution.
+   * If sent_at is available: server_now - (sent_at - event_timestamp)
+   * This corrects for client clock drift while preserving relative event ordering.
+   * Falls back to server time if no client timestamps provided.
+   */
+  private resolveTimestamp(clientTs: string | undefined, serverTime: string, sentAt?: string): string {
+    if (!clientTs || !sentAt) return serverTime;
+
+    const clientTsMs = new Date(clientTs).getTime();
+    const sentAtMs = new Date(sentAt).getTime();
+    const serverMs = new Date(serverTime).getTime();
+
+    // offset = how long ago the event was created relative to when the batch was sent (client-side)
+    const offsetMs = sentAtMs - clientTsMs;
+
+    // If offset is negative (event timestamp is after sent_at), something is wrong — use server time
+    if (offsetMs < 0) return serverTime;
+
+    const resolvedMs = serverMs - offsetMs;
+    return new Date(resolvedMs).toISOString();
   }
 
   private flattenObject(obj: Record<string, string>): string[] {
