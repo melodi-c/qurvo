@@ -6,8 +6,8 @@ set -euo pipefail
 #
 # Usage:
 #   ./deploy.sh                    # build ALL, push, deploy
-#   ./deploy.sh --only ingest      # build+push only ingest, deploy all
-#   ./deploy.sh --only ingest,api  # build+push ingest and api, deploy all
+#   ./deploy.sh --only ingest      # rebuild ingest only, deploy all
+#   ./deploy.sh --only ingest,api  # rebuild ingest+api, deploy all
 #   ./deploy.sh --skip-build       # deploy only (images must exist in registry)
 #   ./deploy.sh --tag v1.0         # use custom tag instead of git commit hash
 # ==============================================================================
@@ -18,9 +18,9 @@ HELM_CHART="$REPO_ROOT/k8s/qurvo-analytics"
 RELEASE_NAME="qurvo"
 NAMESPACE="default"
 KUBECONFIG_PATH="$HELM_CHART/config.yaml"
+export KUBECONFIG="$KUBECONFIG_PATH"
 
 ALL_APPS=(api ingest processor web)
-NESTJS_APPS=(api ingest processor)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
 TAG=""
@@ -54,7 +54,6 @@ fi
 BUILD_APPS=()
 if [[ -n "$ONLY" ]]; then
   IFS=',' read -ra BUILD_APPS <<< "$ONLY"
-  # Validate app names
   for app in "${BUILD_APPS[@]}"; do
     valid=false
     for known in "${ALL_APPS[@]}"; do
@@ -75,10 +74,9 @@ echo "==> Registry: $REGISTRY"
 # ── Build & push ─────────────────────────────────────────────────────────────
 if [[ "$SKIP_BUILD" == false ]]; then
   echo ""
-  echo "==> Building Docker images: ${BUILD_APPS[*]}"
+  echo "==> Building: ${BUILD_APPS[*]}"
 
   PIDS=()
-
   for app in "${BUILD_APPS[@]}"; do
     if [[ "$app" == "web" ]]; then
       TARGET="web"
@@ -99,28 +97,21 @@ if [[ "$SKIP_BUILD" == false ]]; then
     PIDS+=("$!:$app")
   done
 
-  # Wait for builds with progress
   FAILED=false
   for entry in "${PIDS[@]}"; do
     pid="${entry%%:*}"
     app="${entry##*:}"
     if wait "$pid"; then
-      echo "    [$app] Build complete ✓"
+      echo "    [$app] Built ✓"
     else
-      echo "    [$app] Build FAILED ✗ (see /tmp/docker-build-$app.log)"
+      echo "    [$app] FAILED ✗  (see /tmp/docker-build-$app.log)"
       FAILED=true
     fi
   done
-
-  if [[ "$FAILED" == true ]]; then
-    echo "ERROR: Some builds failed. Aborting."
-    exit 1
-  fi
-
-  echo "==> All images built."
+  [[ "$FAILED" == true ]] && { echo "ERROR: Build failed. Aborting."; exit 1; }
 
   echo ""
-  echo "==> Pushing images..."
+  echo "==> Pushing..."
   PIDS=()
   for app in "${BUILD_APPS[@]}"; do
     docker push "$REGISTRY/$app:$TAG" > /tmp/docker-push-$app.log 2>&1 &
@@ -134,34 +125,58 @@ if [[ "$SKIP_BUILD" == false ]]; then
     if wait "$pid"; then
       echo "    [$app] Pushed ✓"
     else
-      echo "    [$app] Push FAILED ✗ (see /tmp/docker-push-$app.log)"
+      echo "    [$app] FAILED ✗  (see /tmp/docker-push-$app.log)"
       FAILED=true
     fi
   done
-
-  if [[ "$FAILED" == true ]]; then
-    echo "ERROR: Some pushes failed. Aborting."
-    exit 1
-  fi
-
-  echo "==> All images pushed."
+  [[ "$FAILED" == true ]] && { echo "ERROR: Push failed. Aborting."; exit 1; }
 fi
 
 # ── Deploy with Helm ─────────────────────────────────────────────────────────
 echo ""
 echo "==> Deploying to Kubernetes..."
 
-KUBECONFIG="$KUBECONFIG_PATH" helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
+# Build helm --set flags for per-service image tags
+HELM_SET_ARGS=(--set "global.imageTag=$TAG")
+
+# When --only is used, keep the current deployed tag for non-rebuilt apps
+if [[ -n "$ONLY" ]]; then
+  CURRENT_TAG=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null | \
+    python3 -c "import sys,json; v=json.load(sys.stdin); print(v.get('global',{}).get('imageTag',''))" 2>/dev/null || echo "")
+
+  if [[ -z "$CURRENT_TAG" ]]; then
+    echo "ERROR: Cannot determine current deployed tag. Use full deploy without --only."
+    exit 1
+  fi
+
+  echo "    Current deployed tag: $CURRENT_TAG"
+  echo "    New tag for ${BUILD_APPS[*]}: $TAG"
+
+  for app in "${ALL_APPS[@]}"; do
+    is_built=false
+    for b in "${BUILD_APPS[@]}"; do
+      [[ "$app" == "$b" ]] && is_built=true
+    done
+    if [[ "$is_built" == true ]]; then
+      HELM_SET_ARGS+=(--set "${app}.image.tag=$TAG")
+    else
+      HELM_SET_ARGS+=(--set "${app}.image.tag=$CURRENT_TAG")
+    fi
+  done
+  # global tag = current (for migrations etc that use api image)
+  HELM_SET_ARGS[0]="--set"
+  HELM_SET_ARGS[1]="global.imageTag=$CURRENT_TAG"
+fi
+
+helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
   --namespace "$NAMESPACE" \
   -f "$HELM_CHART/values.yaml" \
   -f "$HELM_CHART/values.production.yaml" \
   -f "$HELM_CHART/values.local-secrets.yaml" \
-  --set global.imageTag="$TAG" \
+  "${HELM_SET_ARGS[@]}" \
   --wait \
   --timeout 5m
 
 echo ""
 echo "==> Deploy complete! Tag: $TAG"
-echo "==> Checking rollout status..."
-
-KUBECONFIG="$KUBECONFIG_PATH" kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/instance=$RELEASE_NAME" --no-headers
+kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/instance=$RELEASE_NAME" --no-headers

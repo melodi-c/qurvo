@@ -12,11 +12,11 @@ api:
   replicas: 2
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "128Mi"
     limits:
       cpu: "1000m"
-      memory: "1Gi"
+      memory: "512Mi"
   env:
     CORS_ORIGIN: "https://app.qurvo.ru"
 
@@ -24,18 +24,18 @@ ingest:
   replicas: 3
   resources:
     requests:
-      cpu: "200m"
-      memory: "384Mi"
+      cpu: "100m"
+      memory: "128Mi"
     limits:
       cpu: "800m"
-      memory: "768Mi"
+      memory: "512Mi"
 
 processor:
   replicas: 1
   resources:
     requests:
-      cpu: "300m"
-      memory: "512Mi"
+      cpu: "150m"
+      memory: "256Mi"
     limits:
       cpu: "1500m"
       memory: "1Gi"
