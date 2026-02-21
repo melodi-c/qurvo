@@ -1,3 +1,4 @@
+import { gzipSync } from 'node:zlib';
 import { EventQueue, FetchTransport } from '@qurvo/sdk-core';
 import type { SdkConfig, EventPayload } from '@qurvo/sdk-core';
 
@@ -15,7 +16,7 @@ export class Qurvo {
   constructor(config: NodeSdkConfig) {
     this.config = config;
     const endpoint = config.endpoint || 'http://localhost:3001';
-    const transport = new FetchTransport();
+    const transport = new FetchTransport(async (data) => new Blob([gzipSync(data)]));
     this.queue = new EventQueue(
       transport,
       `${endpoint}/v1/batch`,

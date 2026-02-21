@@ -61,7 +61,14 @@ class QurvoBrowser {
     if (this.initialized) return;
 
     const endpoint = config.endpoint || 'http://localhost:3001';
-    const transport = new FetchTransport();
+    const compress =
+      typeof CompressionStream !== 'undefined'
+        ? async (data: string) => {
+            const stream = new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'));
+            return new Response(stream).blob();
+          }
+        : undefined;
+    const transport = new FetchTransport(compress);
     this.queue = new EventQueue(
       transport,
       `${endpoint}/v1/batch`,

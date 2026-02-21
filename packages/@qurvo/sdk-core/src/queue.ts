@@ -45,7 +45,7 @@ export class EventQueue {
     if (Date.now() < this.retryAfter) return;
 
     this.flushing = true;
-    const batch = this.queue.splice(0);
+    const batch = this.queue.splice(0, this.flushSize);
 
     try {
       const ok = await this.transport.send(this.endpoint, this.apiKey, { events: batch, sent_at: new Date().toISOString() });

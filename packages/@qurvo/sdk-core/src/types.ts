@@ -40,6 +40,8 @@ export interface SendOptions {
   keepalive?: boolean;
 }
 
+export type CompressFn = (data: string) => Promise<Blob>;
+
 export interface Transport {
   send(endpoint: string, apiKey: string, payload: unknown, options?: SendOptions): Promise<boolean>;
 }
