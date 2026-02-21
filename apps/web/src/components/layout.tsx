@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, Lightbulb, Settings, Plus, Mail, X } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, Mail, X } from 'lucide-react';
+import { QurvoLogo } from '@/components/qurvo-logo';
 
 const sidebarSections = [
   {
@@ -121,7 +122,7 @@ export default function Layout() {
           to={logoHref}
           className="h-[44px] flex items-center gap-2.5 px-4 border-b border-border hover:bg-accent/30 transition-colors"
         >
-          <Activity className="w-4 h-4 text-primary shrink-0" />
+          <QurvoLogo className="w-5 h-5 text-primary shrink-0" />
           <span className="text-sm font-semibold tracking-tight">Qurvo</span>
         </Link>
 

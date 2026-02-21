@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Activity, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import { QurvoLogo } from '@/components/qurvo-logo';
 
 interface LayoutTopbarProps {
   onMenuOpen: () => void;
@@ -18,7 +19,7 @@ export function LayoutTopbar({ onMenuOpen, userInitial, logoHref }: LayoutTopbar
         <Menu className="w-4 h-4" />
       </button>
       <Link to={logoHref} className="flex items-center gap-2 flex-1">
-        <Activity className="w-4 h-4 text-primary shrink-0" />
+        <QurvoLogo className="w-5 h-5 text-primary shrink-0" />
         <span className="text-sm font-semibold tracking-tight">Qurvo</span>
       </Link>
       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-[10px] font-bold text-primary shrink-0">
