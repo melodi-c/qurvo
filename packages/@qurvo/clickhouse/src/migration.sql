@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS events;
-
 CREATE TABLE IF NOT EXISTS events
 (
     event_id        UUID DEFAULT generateUUIDv4(),
