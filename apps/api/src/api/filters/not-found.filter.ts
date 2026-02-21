@@ -7,8 +7,10 @@ import { WidgetNotFoundException } from '../../dashboards/exceptions/widget-not-
 import { PersonNotFoundException } from '../../persons/exceptions/person-not-found.exception';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
 import { InsightNotFoundException } from '../../insights/exceptions/insight-not-found.exception';
+import { InviteNotFoundException } from '../../members/exceptions/invite-not-found.exception';
+import { MemberNotFoundException } from '../../members/exceptions/member-not-found.exception';
 
-@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException)
+@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException, InviteNotFoundException, MemberNotFoundException)
 export class NotFoundFilter implements ExceptionFilter {
   catch(
     exception:
@@ -18,7 +20,9 @@ export class NotFoundFilter implements ExceptionFilter {
       | WidgetNotFoundException
       | PersonNotFoundException
       | CohortNotFoundException
-      | InsightNotFoundException,
+      | InsightNotFoundException
+      | InviteNotFoundException
+      | MemberNotFoundException,
     host: ArgumentsHost,
   ) {
     const response = host.switchToHttp().getResponse<Response>();

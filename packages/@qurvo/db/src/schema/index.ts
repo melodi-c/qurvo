@@ -11,4 +11,5 @@ export type { InsightType, InsightConfig } from './insights';
 export { persons } from './persons';
 export { personDistinctIds } from './person-distinct-ids';
 export { cohorts } from './cohorts';
+export { projectInvites, inviteStatusEnum } from './project-invites';
 export type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition, CohortPropertyOperator, CohortCountOperator } from './cohorts';

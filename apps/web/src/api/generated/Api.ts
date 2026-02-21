@@ -564,6 +564,67 @@ export interface UpdateInsight {
   description?: string;
 }
 
+export interface MemberUser {
+  id: string;
+  email: string;
+  display_name: string;
+}
+
+export interface Member {
+  id: string;
+  project_id: string;
+  user: MemberUser;
+  role: string;
+  /** @format date-time */
+  created_at: string;
+}
+
+export interface UpdateMemberRole {
+  role: UpdateMemberRoleDtoRoleEnum;
+}
+
+export interface Inviter {
+  id: string;
+  email: string;
+  display_name: string;
+}
+
+export interface Invite {
+  id: string;
+  project_id: string;
+  invited_by: Inviter;
+  email: string;
+  role: string;
+  status: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  responded_at: string | null;
+}
+
+export interface CreateInvite {
+  role: CreateInviteDtoRoleEnum;
+  /**
+   * @format email
+   * @maxLength 255
+   */
+  email: string;
+}
+
+export interface MyInvite {
+  id: string;
+  project: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  invited_by: Inviter;
+  role: string;
+  status: string;
+  /** @format date-time */
+  created_at: string;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -613,6 +674,10 @@ export type InsightDtoTypeEnum = "trend" | "funnel" | "retention";
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
 export type CreateInsightDtoTypeEnum = "trend" | "funnel" | "retention";
+
+export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
+
+export type CreateInviteDtoRoleEnum = "editor" | "viewer";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -804,6 +869,41 @@ export interface InsightsControllerUpdateParams {
 export interface InsightsControllerRemoveParams {
   projectId: string;
   insightId: string;
+}
+
+export interface MembersControllerListMembersParams {
+  projectId: string;
+}
+
+export interface MembersControllerUpdateRoleParams {
+  projectId: string;
+  memberId: string;
+}
+
+export interface MembersControllerRemoveMemberParams {
+  projectId: string;
+  memberId: string;
+}
+
+export interface InvitesControllerListInvitesParams {
+  projectId: string;
+}
+
+export interface InvitesControllerCreateInviteParams {
+  projectId: string;
+}
+
+export interface InvitesControllerCancelInviteParams {
+  projectId: string;
+  inviteId: string;
+}
+
+export interface MyInvitesControllerAcceptInviteParams {
+  inviteId: string;
+}
+
+export interface MyInvitesControllerDeclineInviteParams {
+  inviteId: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -1905,6 +2005,189 @@ export class Api<
         path: `/api/projects/${projectId}/insights/${insightId}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Members
+     * @name MembersControllerListMembers
+     * @request GET:/api/projects/{projectId}/members
+     * @secure
+     */
+    membersControllerListMembers: (
+      { projectId, ...query }: MembersControllerListMembersParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Member[], any>({
+        path: `/api/projects/${projectId}/members`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Members
+     * @name MembersControllerUpdateRole
+     * @request PUT:/api/projects/{projectId}/members/{memberId}/role
+     * @secure
+     */
+    membersControllerUpdateRole: (
+      { projectId, memberId, ...query }: MembersControllerUpdateRoleParams,
+      data: UpdateMemberRole,
+      params: RequestParams = {},
+    ) =>
+      this.request<Member, any>({
+        path: `/api/projects/${projectId}/members/${memberId}/role`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Members
+     * @name MembersControllerRemoveMember
+     * @request DELETE:/api/projects/{projectId}/members/{memberId}
+     * @secure
+     */
+    membersControllerRemoveMember: (
+      { projectId, memberId, ...query }: MembersControllerRemoveMemberParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<OkResponse, any>({
+        path: `/api/projects/${projectId}/members/${memberId}`,
+        method: "DELETE",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Invites
+     * @name InvitesControllerListInvites
+     * @request GET:/api/projects/{projectId}/invites
+     * @secure
+     */
+    invitesControllerListInvites: (
+      { projectId, ...query }: InvitesControllerListInvitesParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Invite[], any>({
+        path: `/api/projects/${projectId}/invites`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Invites
+     * @name InvitesControllerCreateInvite
+     * @request POST:/api/projects/{projectId}/invites
+     * @secure
+     */
+    invitesControllerCreateInvite: (
+      { projectId, ...query }: InvitesControllerCreateInviteParams,
+      data: CreateInvite,
+      params: RequestParams = {},
+    ) =>
+      this.request<Invite, any>({
+        path: `/api/projects/${projectId}/invites`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Invites
+     * @name InvitesControllerCancelInvite
+     * @request DELETE:/api/projects/{projectId}/invites/{inviteId}
+     * @secure
+     */
+    invitesControllerCancelInvite: (
+      { projectId, inviteId, ...query }: InvitesControllerCancelInviteParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<OkResponse, any>({
+        path: `/api/projects/${projectId}/invites/${inviteId}`,
+        method: "DELETE",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Invites
+     * @name MyInvitesControllerGetMyInvites
+     * @request GET:/api/invites
+     * @secure
+     */
+    myInvitesControllerGetMyInvites: (params: RequestParams = {}) =>
+      this.request<MyInvite[], any>({
+        path: `/api/invites`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Invites
+     * @name MyInvitesControllerAcceptInvite
+     * @request POST:/api/invites/{inviteId}/accept
+     * @secure
+     */
+    myInvitesControllerAcceptInvite: (
+      { inviteId, ...query }: MyInvitesControllerAcceptInviteParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<OkResponse, any>({
+        path: `/api/invites/${inviteId}/accept`,
+        method: "POST",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Invites
+     * @name MyInvitesControllerDeclineInvite
+     * @request POST:/api/invites/{inviteId}/decline
+     * @secure
+     */
+    myInvitesControllerDeclineInvite: (
+      { inviteId, ...query }: MyInvitesControllerDeclineInviteParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<OkResponse, any>({
+        path: `/api/invites/${inviteId}/decline`,
+        method: "POST",
+        secure: true,
+        format: "json",
         ...params,
       }),
   };

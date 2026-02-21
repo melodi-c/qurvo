@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, useSearchParams, Navigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useSearchParams, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, FolderOpen, Key, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, Lightbulb, X } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, Activity, ChevronsUpDown, Lightbulb, Settings, Plus, Mail, X } from 'lucide-react';
 
 const sidebarSections = [
   {
@@ -28,8 +28,7 @@ const sidebarSections = [
   {
     title: 'Configure',
     items: [
-      { path: '/projects', label: 'Projects', icon: FolderOpen },
-      { path: '/keys',     label: 'API Keys', icon: Key },
+      { path: '/settings', label: 'Settings', icon: Settings },
     ],
   },
 ];
@@ -41,16 +40,26 @@ export default function Layout() {
   const user = useAuthStore((s) => s.user);
   const { isOpen, open, close } = useSidebar();
 
+  const navigate = useNavigate();
+
   const { data: projects } = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.projectsControllerList(),
   });
+
+  const { data: myInvites } = useQuery({
+    queryKey: ['myInvites'],
+    queryFn: () => api.myInvitesControllerGetMyInvites(),
+  });
+
+  const pendingInvitesCount = myInvites?.length ?? 0;
 
   const currentProject = searchParams.get('project');
   const currentProjectName = projects?.find((p) => p.id === currentProject)?.name;
 
   const hasProjects = projects && projects.length > 0;
   const projectsLoaded = projects !== undefined;
+
 
   function isActive(path: string) {
     return location.pathname === path || location.pathname.startsWith(path + '/');
@@ -149,8 +158,26 @@ export default function Layout() {
         {/* Spacer when no projects (no nav) */}
         {!hasProjects && <div className="flex-1" />}
 
-        {/* Bottom: project + user */}
+        {/* Bottom: invites + project + user */}
         <div className="border-t border-border p-2 space-y-1">
+          {/* Invites link — shown when there are pending invites */}
+          {pendingInvitesCount > 0 && (
+            <Link
+              to="/invites"
+              className={cn(
+                'flex items-center gap-2.5 px-2 py-[6px] rounded-md text-sm transition-colors',
+                isActive('/invites')
+                  ? 'bg-accent text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+              )}
+            >
+              <Mail className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Invites</span>
+              <span className="flex items-center justify-center min-w-5 h-5 rounded-full bg-primary text-background text-[10px] font-bold px-1">
+                {pendingInvitesCount}
+              </span>
+            </Link>
+          )}
           {/* Project switcher — hidden when no projects */}
           {hasProjects && (
             <DropdownMenu>
@@ -177,6 +204,11 @@ export default function Layout() {
                     {p.name}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/projects')}>
+                  <Plus className="h-3.5 w-3.5 mr-2" />
+                  New Project
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}

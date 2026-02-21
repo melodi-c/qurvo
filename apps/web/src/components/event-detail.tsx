@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { TabNav } from '@/components/ui/tab-nav';
 import { cn } from '@/lib/utils';
 import { ChevronRight, ChevronDown, Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
 
@@ -267,20 +268,12 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-0 border-b border-border px-4 mt-2">
-        {(['event', 'person'] as DetailTab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              tab === t
-                ? 'border-foreground text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t === 'event' ? 'Event' : 'Person'}
-          </button>
-        ))}
+      <div className="px-4 mt-2">
+        <TabNav
+          tabs={[{ id: 'event' as const, label: 'Event' }, { id: 'person' as const, label: 'Person' }]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {/* Content */}
