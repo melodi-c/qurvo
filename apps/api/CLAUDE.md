@@ -92,11 +92,20 @@ Query functions live in `src/{module}/{module}.query.ts`, not in `@qurvo/clickho
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
 - All queries use `FROM events FINAL` to deduplicate ReplacingMergeTree
 
+### Module Cohesion
+All code is grouped by module. Controllers, services, guards, filters, and exceptions for a feature all live inside that feature's directory. No cross-cutting `src/filters/`, `src/exceptions/`, or similar dumps.
+
 ### Filter Registration
 Filters registered via `APP_FILTER` provider in their module, never via `app.useGlobalFilters()`:
 ```typescript
 { provide: APP_FILTER, useClass: SomeExceptionFilter }
 ```
+
+### Throttle Limits
+20 req/s, 300 req/min per IP. Backed by `RedisThrottlerStorage` (sorted sets) in `src/throttler/`.
+
+### API Client Generation
+Edit controllers → `pnpm swagger:generate` → `pnpm generate-api` → use updated `Api.ts` in frontend. The generated client strips `Dto` suffix from type names.
 
 ## Integration Tests
 
