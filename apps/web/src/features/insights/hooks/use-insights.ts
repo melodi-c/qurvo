@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { CreateInsight, UpdateInsight, InsightDtoTypeEnum } from '@/api/generated/Api';
+import type { CreateInsight, UpdateInsight, InsightType } from '@/api/generated/Api';
 
 function useProjectId() {
   const [searchParams] = useSearchParams();
   return searchParams.get('project') || '';
 }
 
-export function useInsights(type?: InsightDtoTypeEnum) {
+export function useInsights(type?: InsightType) {
   const projectId = useProjectId();
   return useQuery({
     queryKey: ['insights', projectId, type],

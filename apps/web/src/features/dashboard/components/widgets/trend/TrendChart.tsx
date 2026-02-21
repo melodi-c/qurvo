@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/table';
 import type {
   TrendSeriesResult,
-  TrendWidgetConfigDtoChartTypeEnum,
-  TrendWidgetConfigDtoGranularityEnum,
+  ChartType,
+  TrendGranularity,
 } from '@/api/generated/Api';
 
 // ── Colors ──
@@ -47,8 +47,8 @@ const COMPARE_COLORS = [
 interface TrendChartProps {
   series: TrendSeriesResult[];
   previousSeries?: TrendSeriesResult[];
-  chartType: TrendWidgetConfigDtoChartTypeEnum;
-  granularity?: TrendWidgetConfigDtoGranularityEnum;
+  chartType: ChartType;
+  granularity?: TrendGranularity;
   compact?: boolean;
 }
 

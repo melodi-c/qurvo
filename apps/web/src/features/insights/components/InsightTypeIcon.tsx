@@ -1,9 +1,9 @@
 import { TrendingUp, GitFork, CalendarCheck, HeartPulse, Layers, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { InsightDtoTypeEnum } from '@/api/generated/Api';
+import type { InsightType } from '@/api/generated/Api';
 
 interface InsightTypeIconProps {
-  type: InsightDtoTypeEnum;
+  type: InsightType;
   className?: string;
 }
 

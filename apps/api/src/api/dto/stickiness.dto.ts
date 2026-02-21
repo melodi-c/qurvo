@@ -9,7 +9,7 @@ import {
   IsArray,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class StickinessQueryDto {
   @IsUUID()
@@ -19,6 +19,7 @@ export class StickinessQueryDto {
   @IsNotEmpty()
   target_event: string;
 
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   @IsIn(['day', 'week', 'month'])
   granularity: 'day' | 'week' | 'month';
 

@@ -12,7 +12,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 
 export class TrendSeriesDto {
@@ -47,9 +47,11 @@ export class TrendQueryDto {
   @Type(() => TrendSeriesDto)
   series: TrendSeriesDto[];
 
+  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user'], enumName: 'TrendMetric' })
   @IsIn(['total_events', 'unique_users', 'events_per_user'])
   metric: 'total_events' | 'unique_users' | 'events_per_user';
 
+  @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   @IsIn(['hour', 'day', 'week', 'month'])
   granularity: 'hour' | 'day' | 'week' | 'month';
 

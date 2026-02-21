@@ -11,7 +11,7 @@ import { useUEConfig } from '../hooks/use-ue-config';
 import { useChannels } from '../hooks/use-channels';
 import { UEMetricsGrid } from '../components/UEMetricsGrid';
 import { UEChart } from '../components/UEChart';
-import type { GranularityEnum4 } from '@/api/generated/Api';
+import type { Granularity } from '@/api/generated/Api';
 
 const GRANULARITY_OPTIONS = [
   { label: 'Day', value: 'day' },
@@ -35,7 +35,7 @@ export function MetricsTab() {
     return d.toISOString().slice(0, 10);
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [granularity, setGranularity] = useState<GranularityEnum4>('day');
+  const [granularity, setGranularity] = useState<Granularity>('day');
   const [channelId, setChannelId] = useState<string>('');
   const [selectedChartMetrics, setSelectedChartMetrics] = useState<string[]>(['arpu', 'ltv', 'cac']);
 
@@ -85,7 +85,7 @@ export function MetricsTab() {
         <PillToggleGroup
           options={GRANULARITY_OPTIONS}
           value={granularity}
-          onChange={(v) => setGranularity(v as GranularityEnum4)}
+          onChange={(v) => setGranularity(v as Granularity)}
         />
         {channels && channels.length > 0 && (
           <div className="space-y-1">

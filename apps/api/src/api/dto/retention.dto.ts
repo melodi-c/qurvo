@@ -12,7 +12,7 @@ import {
   IsArray,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RetentionQueryDto {
   @IsUUID()
@@ -22,9 +22,11 @@ export class RetentionQueryDto {
   @IsNotEmpty()
   target_event: string;
 
+  @ApiProperty({ enum: ['first_time', 'recurring'], enumName: 'RetentionType' })
   @IsIn(['first_time', 'recurring'])
   retention_type: 'first_time' | 'recurring';
 
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   @IsIn(['day', 'week', 'month'])
   granularity: 'day' | 'week' | 'month';
 

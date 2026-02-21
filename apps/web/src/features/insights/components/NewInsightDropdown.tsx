@@ -10,9 +10,9 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { InsightTypeIcon } from './InsightTypeIcon';
-import type { InsightDtoTypeEnum } from '@/api/generated/Api';
+import type { InsightType } from '@/api/generated/Api';
 
-const NEW_INSIGHT_TYPES: { type: InsightDtoTypeEnum; label: string; description: string; path: string }[] = [
+const NEW_INSIGHT_TYPES: { type: InsightType; label: string; description: string; path: string }[] = [
   {
     type: 'trend',
     label: 'Trend',

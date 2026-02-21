@@ -8,6 +8,7 @@ type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | Retention
 
 @ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto)
 export class CreateInsightDto {
+  @ApiProperty({ enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'], enumName: 'InsightType' })
   @IsString()
   @IsIn(['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'])
   type: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness';
@@ -94,7 +95,7 @@ export class InsightDto {
   project_id: string;
   created_by: string;
 
-  @ApiProperty({ enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'] })
+  @ApiProperty({ enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness'], enumName: 'InsightType' })
   type: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness';
 
   name: string;

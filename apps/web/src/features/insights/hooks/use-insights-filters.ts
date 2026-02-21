@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { InsightDtoTypeEnum } from '@/api/generated/Api';
+import type { InsightType } from '@/api/generated/Api';
 
-export type InsightTypeFilter = InsightDtoTypeEnum | 'all';
+export type InsightTypeFilter = InsightType | 'all';
 export type InsightSortOrder = 'newest' | 'oldest';
 
 export interface InsightsFilters {

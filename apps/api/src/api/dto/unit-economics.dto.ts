@@ -11,6 +11,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 // ── Config DTOs ──────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export class UnitEconomicsQueryDto {
   @IsDateString()
   date_to: string;
 
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   @IsIn(['day', 'week', 'month'])
   granularity: 'day' | 'week' | 'month';
 

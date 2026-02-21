@@ -59,13 +59,13 @@ export class TrendWidgetConfigDto {
   @ApiProperty({ type: [TrendSeriesDto] })
   series: TrendSeriesDto[];
 
-  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user'] })
+  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user'], enumName: 'TrendMetric' })
   metric: 'total_events' | 'unique_users' | 'events_per_user';
 
-  @ApiProperty({ enum: ['hour', 'day', 'week', 'month'] })
+  @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   granularity: 'hour' | 'day' | 'week' | 'month';
 
-  @ApiProperty({ enum: ['line', 'bar'] })
+  @ApiProperty({ enum: ['line', 'bar'], enumName: 'ChartType' })
   chart_type: 'line' | 'bar';
 
   date_from: string;
@@ -81,10 +81,10 @@ export class RetentionWidgetConfigDto {
 
   target_event: string;
 
-  @ApiProperty({ enum: ['first_time', 'recurring'] })
+  @ApiProperty({ enum: ['first_time', 'recurring'], enumName: 'RetentionType' })
   retention_type: 'first_time' | 'recurring';
 
-  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   granularity: 'day' | 'week' | 'month';
 
   periods: number;
@@ -99,7 +99,7 @@ export class LifecycleWidgetConfigDto {
 
   target_event: string;
 
-  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   granularity: 'day' | 'week' | 'month';
 
   date_from: string;
@@ -113,7 +113,7 @@ export class StickinessWidgetConfigDto {
 
   target_event: string;
 
-  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   granularity: 'day' | 'week' | 'month';
 
   date_from: string;

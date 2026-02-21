@@ -10,6 +10,23 @@
  * ---------------------------------------------------------------
  */
 
+export type InsightType =
+  | "trend"
+  | "funnel"
+  | "retention"
+  | "lifecycle"
+  | "stickiness";
+
+export type ChartType = "line" | "bar";
+
+export type Granularity = "day" | "week" | "month";
+
+export type RetentionType = "first_time" | "recurring";
+
+export type TrendGranularity = "hour" | "day" | "week" | "month";
+
+export type TrendMetric = "total_events" | "unique_users" | "events_per_user";
+
 export interface Register {
   /**
    * @format email
@@ -361,9 +378,9 @@ export interface FunnelWidgetConfig {
 export interface TrendWidgetConfig {
   type: TrendWidgetConfigDtoTypeEnum;
   series: TrendSeries[];
-  metric: TrendWidgetConfigDtoMetricEnum;
-  granularity: TrendWidgetConfigDtoGranularityEnum;
-  chart_type: TrendWidgetConfigDtoChartTypeEnum;
+  metric: TrendMetric;
+  granularity: TrendGranularity;
+  chart_type: ChartType;
   breakdown_property?: string;
   cohort_ids?: string[];
   date_from: string;
@@ -373,8 +390,8 @@ export interface TrendWidgetConfig {
 
 export interface RetentionWidgetConfig {
   type: RetentionWidgetConfigDtoTypeEnum;
-  retention_type: RetentionWidgetConfigDtoRetentionTypeEnum;
-  granularity: RetentionWidgetConfigDtoGranularityEnum;
+  retention_type: RetentionType;
+  granularity: Granularity;
   cohort_ids?: string[];
   target_event: string;
   periods: number;
@@ -384,7 +401,7 @@ export interface RetentionWidgetConfig {
 
 export interface LifecycleWidgetConfig {
   type: LifecycleWidgetConfigDtoTypeEnum;
-  granularity: LifecycleWidgetConfigDtoGranularityEnum;
+  granularity: Granularity;
   cohort_ids?: string[];
   target_event: string;
   date_from: string;
@@ -393,7 +410,7 @@ export interface LifecycleWidgetConfig {
 
 export interface StickinessWidgetConfig {
   type: StickinessWidgetConfigDtoTypeEnum;
-  granularity: StickinessWidgetConfigDtoGranularityEnum;
+  granularity: Granularity;
   cohort_ids?: string[];
   target_event: string;
   date_from: string;
@@ -401,7 +418,7 @@ export interface StickinessWidgetConfig {
 }
 
 export interface Insight {
-  type: InsightDtoTypeEnum;
+  type: InsightType;
   description?: string | null;
   config:
     | ({
@@ -562,6 +579,7 @@ export interface CohortPreview {
 }
 
 export interface CreateInsight {
+  type: InsightType;
   config:
     | ({
         type: "funnel";
@@ -578,7 +596,6 @@ export interface CreateInsight {
     | ({
         type: "stickiness";
       } & StickinessWidgetConfig);
-  type: CreateInsightDtoTypeEnum;
   /** @maxLength 200 */
   name: string;
   /** @maxLength 1000 */
@@ -815,50 +832,13 @@ export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
 export type TrendWidgetConfigDtoTypeEnum = "trend";
 
-export type TrendWidgetConfigDtoMetricEnum =
-  | "total_events"
-  | "unique_users"
-  | "events_per_user";
-
-export type TrendWidgetConfigDtoGranularityEnum =
-  | "hour"
-  | "day"
-  | "week"
-  | "month";
-
-export type TrendWidgetConfigDtoChartTypeEnum = "line" | "bar";
-
 export type RetentionWidgetConfigDtoTypeEnum = "retention";
-
-export type RetentionWidgetConfigDtoRetentionTypeEnum =
-  | "first_time"
-  | "recurring";
-
-export type RetentionWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
 
 export type LifecycleWidgetConfigDtoTypeEnum = "lifecycle";
 
-export type LifecycleWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
-
 export type StickinessWidgetConfigDtoTypeEnum = "stickiness";
 
-export type StickinessWidgetConfigDtoGranularityEnum = "day" | "week" | "month";
-
-export type InsightDtoTypeEnum =
-  | "trend"
-  | "funnel"
-  | "retention"
-  | "lifecycle"
-  | "stickiness";
-
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
-
-export type CreateInsightDtoTypeEnum =
-  | "trend"
-  | "funnel"
-  | "retention"
-  | "lifecycle"
-  | "stickiness";
 
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 
@@ -954,12 +934,12 @@ export interface EventsControllerGetEventNamesParams {
 }
 
 export interface TrendControllerGetTrendParams {
+  metric: TrendMetric;
+  granularity: TrendGranularity;
   cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
   series: TrendSeries[];
-  metric: MetricEnum;
-  granularity: GranularityEnum;
   date_from: string;
   date_to: string;
   breakdown_property?: string;
@@ -969,28 +949,13 @@ export interface TrendControllerGetTrendParams {
   force?: boolean;
 }
 
-export type MetricEnum = "total_events" | "unique_users" | "events_per_user";
-
-export type GranularityEnum = "hour" | "day" | "week" | "month";
-
-export type TrendControllerGetTrendParams1MetricEnum =
-  | "total_events"
-  | "unique_users"
-  | "events_per_user";
-
-export type TrendControllerGetTrendParams1GranularityEnum =
-  | "hour"
-  | "day"
-  | "week"
-  | "month";
-
 export interface RetentionControllerGetRetentionParams {
+  retention_type: RetentionType;
+  granularity: Granularity;
   cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
   target_event: string;
-  retention_type: RetentionTypeEnum;
-  granularity: GranularityEnum1;
   /**
    * @min 1
    * @max 30
@@ -1004,58 +969,31 @@ export interface RetentionControllerGetRetentionParams {
   force?: boolean;
 }
 
-export type RetentionTypeEnum = "first_time" | "recurring";
-
-export type GranularityEnum1 = "day" | "week" | "month";
-
-export type RetentionControllerGetRetentionParams1RetentionTypeEnum =
-  | "first_time"
-  | "recurring";
-
-export type RetentionControllerGetRetentionParams1GranularityEnum =
-  | "day"
-  | "week"
-  | "month";
-
 export interface LifecycleControllerGetLifecycleParams {
+  granularity: Granularity;
   cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
   target_event: string;
-  granularity: GranularityEnum2;
   date_from: string;
   date_to: string;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
 }
-
-export type GranularityEnum2 = "day" | "week" | "month";
-
-export type LifecycleControllerGetLifecycleParams1GranularityEnum =
-  | "day"
-  | "week"
-  | "month";
 
 export interface StickinessControllerGetStickinessParams {
+  granularity: Granularity;
   cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
   target_event: string;
-  granularity: GranularityEnum3;
   date_from: string;
   date_to: string;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
 }
-
-export type GranularityEnum3 = "day" | "week" | "month";
-
-export type StickinessControllerGetStickinessParams1GranularityEnum =
-  | "day"
-  | "week"
-  | "month";
 
 export interface DashboardsControllerListParams {
   projectId: string;
@@ -1291,11 +1229,11 @@ export interface AdSpendControllerSummaryParams {
 }
 
 export interface UnitEconomicsControllerGetUnitEconomicsParams {
+  granularity: Granularity;
   /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  granularity: GranularityEnum4;
   purchase_event_name?: string;
   revenue_property?: string;
   /**
@@ -1308,13 +1246,6 @@ export interface UnitEconomicsControllerGetUnitEconomicsParams {
   widget_id?: string;
   force?: boolean;
 }
-
-export type GranularityEnum4 = "day" | "week" | "month";
-
-export type UnitEconomicsControllerGetUnitEconomicsParams1GranularityEnum =
-  | "day"
-  | "week"
-  | "month";
 
 export interface UnitEconomicsConfigControllerGetConfigParams {
   projectId: string;

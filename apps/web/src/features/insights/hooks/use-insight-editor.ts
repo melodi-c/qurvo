@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
-import type { InsightDtoTypeEnum } from '@/api/generated/Api';
+import type { InsightType } from '@/api/generated/Api';
 
 interface UseInsightEditorOptions<T> {
-  type: InsightDtoTypeEnum;
+  type: InsightType;
   basePath: string;
   listBasePath?: string;
   defaultName: string;
