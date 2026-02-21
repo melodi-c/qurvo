@@ -150,15 +150,17 @@ HELM_SET_ARGS=(--set "global.imageTag=$TAG")
 
 # When --only is used, keep the current deployed tag for non-rebuilt apps
 if [[ -n "$ONLY" ]]; then
-  CURRENT_TAG=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null | \
-    python3 -c "import sys,json; v=json.load(sys.stdin); print(v.get('global',{}).get('imageTag',''))" 2>/dev/null || echo "")
+  HELM_VALUES_JSON=$(helm get values "$RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null || echo "{}")
 
-  if [[ -z "$CURRENT_TAG" ]]; then
+  CURRENT_GLOBAL_TAG=$(echo "$HELM_VALUES_JSON" | \
+    python3 -c "import sys,json; print(json.load(sys.stdin).get('global',{}).get('imageTag',''))" 2>/dev/null || echo "")
+
+  if [[ -z "$CURRENT_GLOBAL_TAG" ]]; then
     echo "ERROR: Cannot determine current deployed tag. Use full deploy without --only."
     exit 1
   fi
 
-  echo "    Current deployed tag: $CURRENT_TAG"
+  echo "    Current global tag: $CURRENT_GLOBAL_TAG"
   echo "    New tag for ${BUILD_APPS[*]}: $TAG"
 
   for app in "${ALL_APPS[@]}"; do
@@ -169,12 +171,15 @@ if [[ -n "$ONLY" ]]; then
     if [[ "$is_built" == true ]]; then
       HELM_SET_ARGS+=(--set "${app}.image.tag=$TAG")
     else
-      HELM_SET_ARGS+=(--set "${app}.image.tag=$CURRENT_TAG")
+      # Use per-app tag if set, otherwise fall back to global tag
+      APP_TAG=$(echo "$HELM_VALUES_JSON" | \
+        python3 -c "import sys,json; print(json.load(sys.stdin).get('$app',{}).get('image',{}).get('tag',''))" 2>/dev/null || echo "")
+      HELM_SET_ARGS+=(--set "${app}.image.tag=${APP_TAG:-$CURRENT_GLOBAL_TAG}")
     fi
   done
   # global tag = current (for migrations etc that use api image)
   HELM_SET_ARGS[0]="--set"
-  HELM_SET_ARGS[1]="global.imageTag=$CURRENT_TAG"
+  HELM_SET_ARGS[1]="global.imageTag=$CURRENT_GLOBAL_TAG"
 fi
 
 helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
