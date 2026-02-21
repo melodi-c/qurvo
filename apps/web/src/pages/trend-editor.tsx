@@ -73,7 +73,7 @@ export default function TrendEditorPage() {
               icon={BarChart3}
               title="Configure your trend"
               description="Add at least 1 series with an event name to see results"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 
@@ -92,7 +92,7 @@ export default function TrendEditorPage() {
               icon={TrendingUp}
               title="No results found"
               description="No events match these series in the selected date range"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 

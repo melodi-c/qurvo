@@ -90,7 +90,7 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
           </Button>
         </div>
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 overflow-hidden min-h-0">
         <StickinessChart result={result} compact />
       </div>
     </div>

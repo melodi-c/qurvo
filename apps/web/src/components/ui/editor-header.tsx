@@ -43,7 +43,7 @@ export function EditorHeader({
         />
       </nav>
 
-      <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+      <div className="self-end lg:self-auto ml-auto flex items-center gap-2 flex-shrink-0">
         {saveError && (
           <div className="flex items-center gap-1.5 text-xs text-destructive">
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />

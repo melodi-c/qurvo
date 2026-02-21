@@ -242,7 +242,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
           </ResponsiveContainer>
         ) : (
           /* Line chart with incomplete period dashed */
-          <div className="relative" style={{ height: 350 }}>
+          <div className="relative" style={{ height: compact ? '100%' : 350 }}>
             {/* Complete data — solid lines */}
             <ResponsiveContainer width="100%" height="100%">
               <LineChart

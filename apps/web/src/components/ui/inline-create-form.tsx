@@ -27,7 +27,7 @@ export function InlineCreateForm({
 }: InlineCreateFormProps) {
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent>
         <form
           onSubmit={(e) => {
             e.preventDefault();

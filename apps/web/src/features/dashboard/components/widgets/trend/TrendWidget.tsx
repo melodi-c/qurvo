@@ -119,7 +119,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
       </div>
 
       {/* Compact chart */}
-      <div className="flex-1 overflow-auto min-h-0">
+      <div className="flex-1 overflow-hidden min-h-0">
         <TrendChart
           series={result.series}
           previousSeries={result.series_previous}

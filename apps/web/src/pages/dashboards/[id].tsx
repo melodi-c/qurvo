@@ -80,7 +80,7 @@ export default function DashboardBuilderPage() {
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className={`space-y-4 ${store.isEditing && store.isDirty ? 'pb-24' : ''}`}>
       {/* Header */}
       <PageHeader
         title={

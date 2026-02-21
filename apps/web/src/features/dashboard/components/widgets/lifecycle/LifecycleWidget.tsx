@@ -88,7 +88,7 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
           </Button>
         </div>
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 overflow-hidden min-h-0">
         <LifecycleChart result={result} compact />
       </div>
     </div>

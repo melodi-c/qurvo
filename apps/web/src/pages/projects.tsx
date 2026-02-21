@@ -116,15 +116,19 @@ export default function ProjectsPage() {
       {!isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(projects || []).map((project) => (
-            <Card key={project.id} className="cursor-pointer hover:border-primary/50 transition-colors">
+            <Card
+              key={project.id}
+              className="cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => { setSearchParams({ project: project.id }); navigate(`/?project=${project.id}`); }}
+            >
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2" onClick={() => { setSearchParams({ project: project.id }); navigate(`/?project=${project.id}`); }}>
+                  <div className="flex items-center gap-2">
                     <FolderOpen className="h-5 w-5 text-muted-foreground" />
                     <CardTitle className="text-base">{project.name}</CardTitle>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/keys?project=${project.id}`)}>
+                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/keys?project=${project.id}`); }}>
                       Keys
                     </Button>
                     <Button

@@ -68,7 +68,7 @@ export default function FunnelEditorPage() {
               icon={TrendingDown}
               title="Configure your funnel"
               description="Add at least 2 steps with event names to see results"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 
@@ -93,7 +93,7 @@ export default function FunnelEditorPage() {
               icon={GitFork}
               title="No results found"
               description="No events match these steps in the selected date range"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 

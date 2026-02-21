@@ -58,7 +58,7 @@ export default function StickinessEditorPage() {
               icon={Layers}
               title="Configure your stickiness"
               description="Select a target event to see stickiness data"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 
@@ -78,7 +78,7 @@ export default function StickinessEditorPage() {
               icon={Layers}
               title="No results found"
               description="No events match in the selected date range"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 

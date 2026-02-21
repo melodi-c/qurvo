@@ -314,7 +314,7 @@ export function EventTableRow({
     <>
       <div
         className={cn(
-          'grid gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none transition-colors hover:bg-muted/40',
+          'grid gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors hover:bg-muted/40',
           expanded && 'bg-muted/30',
           showPerson ? 'grid-cols-[20px_1fr_80px] lg:grid-cols-[20px_1fr_160px_80px]' : 'grid-cols-[20px_1fr_80px]',
         )}

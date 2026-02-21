@@ -7,13 +7,15 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, children }: PageHeaderProps) {
   return (
-    <div className="flex items-center justify-between">
-      {typeof title === 'string' ? (
-        <h1 className="text-base font-semibold">{title}</h1>
-      ) : (
-        title
-      )}
-      {children}
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0 flex-1">
+        {typeof title === 'string' ? (
+          <h1 className="text-base font-semibold truncate">{title}</h1>
+        ) : (
+          title
+        )}
+      </div>
+      {children && <div className="flex-shrink-0">{children}</div>}
     </div>
   );
 }

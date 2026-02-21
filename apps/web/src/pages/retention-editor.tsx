@@ -54,7 +54,7 @@ export default function RetentionEditorPage() {
               icon={CalendarCheck}
               title="Configure your retention"
               description="Select a target event to see retention data"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 
@@ -73,7 +73,7 @@ export default function RetentionEditorPage() {
               icon={CalendarCheck}
               title="No results found"
               description="No events match in the selected date range"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 

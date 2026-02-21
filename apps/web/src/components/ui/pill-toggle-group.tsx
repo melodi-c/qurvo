@@ -14,7 +14,7 @@ export function PillToggleGroup<T extends string>({
   className,
 }: PillToggleGroupProps<T>) {
   return (
-    <div className={cn('flex gap-1', className)}>
+    <div className={cn('flex flex-wrap gap-1', className)}>
       {options.map((o) => (
         <button
           key={o.value}

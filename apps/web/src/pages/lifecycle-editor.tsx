@@ -53,7 +53,7 @@ export default function LifecycleEditorPage() {
               icon={HeartPulse}
               title="Configure your lifecycle"
               description="Select a target event to see lifecycle data"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 
@@ -74,7 +74,7 @@ export default function LifecycleEditorPage() {
               icon={HeartPulse}
               title="No results found"
               description="No events match in the selected date range"
-              className="flex-1 p-8 py-0"
+              className="flex-1"
             />
           )}
 
