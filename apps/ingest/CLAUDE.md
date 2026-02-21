@@ -18,7 +18,7 @@ pnpm --filter @qurvo/ingest test:integration
 ```
 src/
 ├── app.module.ts        # Root: DatabaseModule, LoggerModule, ThrottlerModule, IngestModule
-├── main.ts              # Bootstrap (CORS: '*', port 3001)
+├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, port 3001)
 ├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN
 ├── database/            # @Global: REDIS + DRIZZLE providers
 ├── ingest/
@@ -34,6 +34,7 @@ src/
 ├── schemas/
 │   └── event.ts              # TrackEventSchema, BatchEventsSchema (Zod)
 ├── throttler/
+
 │   └── redis-throttler.storage.ts  # Distributed rate limiting
 └── test/                # Integration tests
     ├── setup.ts

@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { createGunzip } from 'node:zlib';
 import {
   setupContainers,
   teardownContainers,
@@ -31,7 +33,19 @@ beforeAll(async () => {
     imports: [AppModule],
   }).compile();
 
-  app = moduleRef.createNestApplication();
+  app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter({ bodyLimit: 1048576 }));
+
+  const fastify = (app as NestFastifyApplication).getHttpAdapter().getInstance();
+  fastify.addHook('preParsing', async (request: any, _reply: any, payload: any) => {
+    if (request.headers['content-encoding'] === 'gzip') {
+      delete request.headers['content-encoding'];
+      delete request.headers['content-length'];
+      request.headers['content-type'] = 'application/json';
+      return payload.pipe(createGunzip());
+    }
+    return payload;
+  });
+
   await app.init();
   await app.listen(0);
 }, 120_000);

@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { writeFileSync, mkdirSync } from 'fs';
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 
 // Import from compiled dist — nest build applies the swagger plugin
 // which decorates DTOs with metadata for proper schema generation
@@ -24,7 +25,7 @@ async function generate() {
     .useMocker(() => ({}))
     .compile();
 
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await app.init();
 
   const config = new DocumentBuilder()
