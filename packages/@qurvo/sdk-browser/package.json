@@ -1,6 +1,6 @@
 {
   "name": "@qurvo/sdk-browser",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Browser SDK for Qurvo analytics — event tracking, user identification, auto-capture",
   "license": "MIT",
   "main": "dist/index.js",
@@ -18,7 +18,8 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@qurvo/sdk-core": "workspace:*"
+    "@qurvo/sdk-core": "workspace:*",
+    "fflate": "^0.8.2"
   },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",

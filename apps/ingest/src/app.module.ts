@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { REDIS } from './providers/redis.provider';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 import { DatabaseModule } from './database/database.module';
+import { GzipMiddleware } from './middleware/gzip.middleware';
 
 @Module({
   imports: [
@@ -38,4 +39,8 @@ import { DatabaseModule } from './database/database.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(GzipMiddleware).forRoutes('v1');
+  }
+}

@@ -1,3 +1,4 @@
+import { gzipSync, strToU8 } from 'fflate';
 import { EventQueue, FetchTransport } from '@qurvo/sdk-core';
 import type { EventPayload } from '@qurvo/sdk-core';
 import { SDK_VERSION } from './version';
@@ -61,13 +62,10 @@ class QurvoBrowser {
     if (this.initialized) return;
 
     const endpoint = config.endpoint || 'http://localhost:3001';
-    const compress =
-      typeof CompressionStream !== 'undefined'
-        ? async (data: string) => {
-            const stream = new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'));
-            return new Response(stream).blob();
-          }
-        : undefined;
+    const compress = async (data: string) => {
+      const compressed = gzipSync(strToU8(data), { mtime: 0 });
+      return new Blob([compressed.buffer as ArrayBuffer], { type: 'text/plain' });
+    };
     const transport = new FetchTransport(compress);
     this.queue = new EventQueue(
       transport,
