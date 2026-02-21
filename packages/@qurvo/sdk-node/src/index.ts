@@ -24,6 +24,8 @@ export class Qurvo {
       config.flushInterval || 5000,
       config.flushSize || 20,
       config.maxQueueSize || 1000,
+      30_000,
+      config.logger,
     );
     this.queue.start();
   }
@@ -98,8 +100,7 @@ export class Qurvo {
     this.queue.enqueue(payload);
   }
 
-  async shutdown() {
-    this.queue.stop();
-    await this.queue.flush();
+  async shutdown(timeoutMs?: number) {
+    await this.queue.shutdown(timeoutMs);
   }
 }

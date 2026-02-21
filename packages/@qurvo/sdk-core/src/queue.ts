@@ -1,4 +1,4 @@
-import type { Transport } from './types';
+import type { Transport, LogFn } from './types';
 
 export class EventQueue {
   private queue: unknown[] = [];
@@ -15,11 +15,14 @@ export class EventQueue {
     private readonly flushInterval: number = 5000,
     private readonly flushSize: number = 20,
     private readonly maxQueueSize: number = 1000,
+    private readonly sendTimeoutMs: number = 30_000,
+    private readonly logger?: LogFn,
   ) {}
 
   enqueue(event: unknown) {
     if (this.queue.length >= this.maxQueueSize) {
       this.queue.shift();
+      this.logger?.(`queue full (${this.maxQueueSize}), oldest event dropped`);
     }
     this.queue.push(event);
 
@@ -48,17 +51,31 @@ export class EventQueue {
     const batch = this.queue.splice(0, this.flushSize);
 
     try {
-      const ok = await this.transport.send(this.endpoint, this.apiKey, { events: batch, sent_at: new Date().toISOString() });
-      if (!ok) {
-        this.queue.unshift(...batch);
-        this.scheduleBackoff();
-      } else {
-        this.failureCount = 0;
-        this.retryAfter = 0;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.sendTimeoutMs);
+      try {
+        const ok = await this.transport.send(
+          this.endpoint,
+          this.apiKey,
+          { events: batch, sent_at: new Date().toISOString() },
+          { signal: controller.signal },
+        );
+        if (!ok) {
+          this.queue.unshift(...batch);
+          this.scheduleBackoff();
+          const backoffMs = Math.min(1000 * Math.pow(2, this.failureCount - 1), this.maxBackoffMs);
+          this.logger?.(`flush failed, ${batch.length} events re-queued, retry in ${backoffMs}ms`);
+        } else {
+          this.failureCount = 0;
+          this.retryAfter = 0;
+        }
+      } finally {
+        clearTimeout(timeout);
       }
-    } catch {
+    } catch (err) {
       this.queue.unshift(...batch);
       this.scheduleBackoff();
+      this.logger?.(`flush error, ${batch.length} events re-queued`, err);
     } finally {
       this.flushing = false;
     }
@@ -68,6 +85,25 @@ export class EventQueue {
     this.failureCount++;
     const backoffMs = Math.min(1000 * Math.pow(2, this.failureCount - 1), this.maxBackoffMs);
     this.retryAfter = Date.now() + backoffMs;
+  }
+
+  async flushAll(): Promise<void> {
+    this.retryAfter = 0;
+    this.failureCount = 0;
+    while (this.queue.length > 0) {
+      const sizeBefore = this.queue.length;
+      await this.flush();
+      if (this.queue.length >= sizeBefore) break;
+    }
+  }
+
+  async shutdown(timeoutMs: number = 30_000): Promise<void> {
+    this.stop();
+    if (this.queue.length === 0) return;
+    await Promise.race([
+      this.flushAll(),
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
   }
 
   flushForUnload(): void {

@@ -4,6 +4,7 @@ export interface SdkConfig {
   flushInterval?: number;
   flushSize?: number;
   maxQueueSize?: number;
+  logger?: LogFn;
 }
 
 export interface EventPayload {
@@ -38,7 +39,10 @@ export interface EventContext {
 
 export interface SendOptions {
   keepalive?: boolean;
+  signal?: AbortSignal;
 }
+
+export type LogFn = (message: string, error?: unknown) => void;
 
 export type CompressFn = (data: string) => Promise<Blob>;
 

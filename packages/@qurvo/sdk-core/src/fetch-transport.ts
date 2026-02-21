@@ -25,6 +25,7 @@ export class FetchTransport implements Transport {
         headers,
         body,
         keepalive: options?.keepalive,
+        signal: options?.signal,
       });
       return response.ok || response.status === 202;
     } catch {
