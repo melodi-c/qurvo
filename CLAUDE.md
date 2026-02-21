@@ -61,7 +61,20 @@ SDK (@qurvo/sdk-browser | @qurvo/sdk-node)
 
 ### Deployment
 
-Deployed directly to Kubernetes. Helm chart and connection config in `k8s/qurvo-analytics/`, main config: `k8s/qurvo-analytics/config.yaml`.
+Deploy via `./deploy.sh` from repo root. Builds Docker images, pushes to GHCR, deploys with Helm.
+
+```bash
+./deploy.sh              # full: build + push + deploy (tag = current commit hash)
+./deploy.sh --skip-build # deploy only (images must already exist in registry)
+./deploy.sh --tag v1.0   # use custom tag instead of git commit hash
+```
+
+- Registry: `ghcr.io/melodi-c/qurvo/{api,ingest,processor,web}`
+- Helm release: `qurvo` in `default` namespace
+- Helm chart: `k8s/qurvo-analytics/`
+- Kubeconfig: `k8s/qurvo-analytics/config.yaml`
+- Values: `values.yaml` (defaults) + `values.production.yaml` (prod overrides) + `values.local-secrets.yaml` (secrets, gitignored)
+- Builds all 4 images in parallel, pushes in parallel, then `helm upgrade --install --wait --timeout 5m`
 
 ### Shared Packages
 
