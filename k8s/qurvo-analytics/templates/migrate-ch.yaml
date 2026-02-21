@@ -28,11 +28,17 @@ spec:
           image: {{ include "qurvo.image" (dict "svc" .Values.api "root" .) }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           command: ["node", "../../packages/@qurvo/clickhouse/dist/migrate.js"]
-          envFrom:
-            - secretRef:
-                name: {{ include "qurvo.fullname" . }}-secret
-            - configMapRef:
-                name: {{ include "qurvo.fullname" . }}-config
+          env:
+            - name: CLICKHOUSE_URL
+              value: {{ .Values.secrets.clickhouseUrl | quote }}
+            - name: CLICKHOUSE_USER
+              value: {{ .Values.secrets.clickhouseUser | quote }}
+            - name: CLICKHOUSE_PASSWORD
+              value: {{ .Values.secrets.clickhousePassword | quote }}
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.clickhouse.database | quote }}
+            - name: NODE_ENV
+              value: "production"
           resources:
             requests:
               cpu: "50m"
