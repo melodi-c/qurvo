@@ -140,7 +140,7 @@ export class EventsQueryDto {
   @IsOptional()
   date_to?: string;
 
-  @ApiPropertyOptional({ type: String, description: 'JSON-encoded array of filters' })
+  @ApiPropertyOptional({ type: [StepFilterDto] })
   @IsOptional()
   @Transform(({ value }) => {
     if (!value) return undefined;

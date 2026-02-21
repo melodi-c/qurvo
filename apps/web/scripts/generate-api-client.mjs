@@ -11,7 +11,7 @@ await generateApi({
   name: 'Api.ts',
   input: SWAGGER_PATH,
   output: OUTPUT_DIR,
-  httpClientType: 'fetch',
+  httpClientType: 'axios',
   extractEnums: true,
   generateUnionEnums: true,
   unwrapResponseData: true,
