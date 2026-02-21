@@ -1,1 +1,1 @@
-export { postTrack, postBatch, parseRedisFields } from './ingest-client';
+export { postTrack, postBatch, postTrackGzip, postBatchGzip, parseRedisFields } from './ingest-client';
