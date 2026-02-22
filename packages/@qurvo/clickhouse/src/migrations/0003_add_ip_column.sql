@@ -1,0 +1,1 @@
+ALTER TABLE events ADD COLUMN IF NOT EXISTS ip String DEFAULT '' AFTER batch_id;

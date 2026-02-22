@@ -7,6 +7,9 @@ metadata:
 data:
   NODE_ENV: "production"
   CLICKHOUSE_DB: {{ .Values.clickhouse.database | quote }}
+  {{- if .Values.geolite2CountryUrl }}
+  GEOLITE2_COUNTRY_URL: {{ .Values.geolite2CountryUrl | quote }}
+  {{- end }}
   {{- if .Values.openai }}
   {{- if .Values.openai.baseUrl }}
   OPENAI_API_BASE_URL: {{ .Values.openai.baseUrl | quote }}

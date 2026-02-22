@@ -9,6 +9,7 @@ import { DlqService } from './dlq.service';
 import { EventConsumerService } from './event-consumer.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonWriterService } from './person-writer.service';
+import { GeoService } from './geo.service';
 
 @Module({
   providers: [
@@ -19,6 +20,7 @@ import { PersonWriterService } from './person-writer.service';
     DlqService,
     PersonResolverService,
     PersonWriterService,
+    GeoService,
     EventConsumerService,
   ],
 })

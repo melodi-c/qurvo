@@ -15,7 +15,7 @@ import { FlushService, type BufferedEvent } from './flush.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonWriterService } from './person-writer.service';
 import { parseRedisFields } from './utils';
-import { lookupGeo } from './geo';
+import { GeoService } from './geo.service';
 
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
@@ -31,6 +31,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     private readonly flushService: FlushService,
     private readonly personResolver: PersonResolverService,
     private readonly personWriter: PersonWriterService,
+    private readonly geoService: GeoService,
     @InjectPinoLogger(EventConsumerService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -154,7 +155,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
   }
 
   private async buildEvent(data: Record<string, string>): Promise<Event> {
-    const geo = lookupGeo(data.ip || '');
+    const ip = data.ip || '';
+    const country = this.geoService.lookupCountry(ip);
     const projectId = data.project_id || '';
 
     let personId: string;
@@ -201,9 +203,9 @@ export class EventConsumerService implements OnApplicationBootstrap {
       os_version: data.os_version,
       screen_width: Math.max(0, data.screen_width ? parseInt(data.screen_width) : 0),
       screen_height: Math.max(0, data.screen_height ? parseInt(data.screen_height) : 0),
-      country: geo.country,
-      region: geo.region,
-      city: geo.city,
+      country,
+      region: '',
+      city: '',
       language: data.language,
       timezone: data.timezone,
       properties: data.properties,
@@ -212,6 +214,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
       sdk_version: data.sdk_version,
       timestamp: data.timestamp || new Date().toISOString(),
       batch_id: data.batch_id,
+      ip,
     };
   }
 }
