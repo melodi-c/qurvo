@@ -68,3 +68,26 @@ export class OkResponseDto {
 export class ResendVerificationResponseDto {
   cooldown_seconds: number;
 }
+
+export class UpdateProfileDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  display_name: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  current_password: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  new_password: string;
+}
+
+export class ProfileResponseDto {
+  user: UserDto;
+}

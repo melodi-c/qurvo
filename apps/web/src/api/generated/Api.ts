@@ -101,6 +101,31 @@ export interface ResendVerificationResponse {
   cooldown_seconds: number;
 }
 
+export interface UpdateProfile {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  display_name: string;
+}
+
+export interface ProfileResponse {
+  user: User;
+}
+
+export interface ChangePassword {
+  /**
+   * @minLength 8
+   * @maxLength 128
+   */
+  current_password: string;
+  /**
+   * @minLength 8
+   * @maxLength 128
+   */
+  new_password: string;
+}
+
 export interface ProjectWithRole {
   role: string;
   id: string;
@@ -1755,6 +1780,50 @@ export class Api<
         path: `/api/auth/resend-verification`,
         method: "POST",
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthControllerUpdateProfile
+     * @request PATCH:/api/auth/profile
+     * @secure
+     */
+    authControllerUpdateProfile: (
+      data: UpdateProfile,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProfileResponse, any>({
+        path: `/api/auth/profile`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthControllerChangePassword
+     * @request POST:/api/auth/change-password
+     * @secure
+     */
+    authControllerChangePassword: (
+      data: ChangePassword,
+      params: RequestParams = {},
+    ) =>
+      this.request<OkResponse, any>({
+        path: `/api/auth/change-password`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

@@ -46,6 +46,7 @@ import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 import { AiNotConfiguredFilter } from './filters/ai-not-configured.filter';
 import { VerificationFilter } from './filters/verification.filter';
+import { WrongPasswordFilter } from './filters/wrong-password.filter';
 
 @Module({
   imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule],
@@ -81,6 +82,7 @@ import { VerificationFilter } from './filters/verification.filter';
     { provide: APP_FILTER, useClass: ConflictFilter },
     { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
     { provide: APP_FILTER, useClass: VerificationFilter },
+    { provide: APP_FILTER, useClass: WrongPasswordFilter },
   ],
 })
 export class ApiModule {}

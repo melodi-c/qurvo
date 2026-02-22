@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Ip, Headers, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Ip, Headers, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '../../auth/auth.service';
@@ -9,6 +9,7 @@ import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   RegisterDto, LoginDto, AuthResponseDto, MeResponseDto,
   OkResponseDto, VerifyEmailByCodeDto, VerifyEmailByTokenDto, ResendVerificationResponseDto,
+  UpdateProfileDto, ChangePasswordDto, ProfileResponseDto,
 } from '../dto/auth.dto';
 
 @ApiTags('Auth')
@@ -75,5 +76,21 @@ export class AuthController {
   async resendVerification(@CurrentUser() user: RequestUser): Promise<ResendVerificationResponseDto> {
     await this.verificationService.sendVerificationCode(user.user_id, user.email);
     return { cooldown_seconds: VERIFICATION_RESEND_COOLDOWN_SECONDS };
+  }
+
+  @Patch('profile')
+  @ApiBearerAuth()
+  @UseGuards(SessionAuthGuard)
+  async updateProfile(@Body() body: UpdateProfileDto, @CurrentUser() user: RequestUser): Promise<ProfileResponseDto> {
+    return this.authService.updateProfile(user.user_id, body) as any;
+  }
+
+  @Post('change-password')
+  @ApiBearerAuth()
+  @UseGuards(SessionAuthGuard)
+  @HttpCode(200)
+  async changePassword(@Body() body: ChangePasswordDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
+    await this.authService.changePassword(user.user_id, body.current_password, body.new_password);
+    return { ok: true };
   }
 }

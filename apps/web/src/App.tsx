@@ -14,6 +14,7 @@ import ProjectsPage from '@/pages/projects';
 import ApiKeysPage from '@/pages/api-keys';
 import SettingsPage from '@/pages/settings/index';
 import InvitesPage from '@/pages/invites';
+import ProfilePage from '@/pages/profile/index';
 import EventsPage from '@/pages/events';
 import PersonsPage from '@/pages/persons';
 import PersonDetailPage from '@/pages/person-detail';
@@ -70,7 +71,8 @@ function AppRoutes() {
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/keys" element={<ApiKeysPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/invites" element={<InvitesPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/invites" element={<Navigate to="/profile?tab=invites" replace />} />
         <Route path="/insights" element={<InsightsPage />} />
         <Route path="/insights/trends/new" element={<TrendEditorPage />} />
         <Route path="/insights/trends/:insightId" element={<TrendEditorPage />} />

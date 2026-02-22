@@ -13,6 +13,7 @@ import { hashToken } from '../utils/hash';
 import { TooManyRequestsException } from './exceptions/too-many-requests.exception';
 import { EmailConflictException } from './exceptions/email-conflict.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
+import { WrongPasswordException } from './exceptions/wrong-password.exception';
 import { VerificationService } from '../verification/verification.service';
 
 @Injectable()
@@ -154,5 +155,61 @@ export class AuthService {
     await this.redis.del(`session:${token_hash}`);
     await this.db.delete(sessions).where(eq(sessions.token_hash, token_hash));
     this.logger.log('User logged out');
+  }
+
+  async updateProfile(userId: string, input: { display_name: string }) {
+    const [updated] = await this.db
+      .update(users)
+      .set({ display_name: input.display_name, updated_at: new Date() })
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        display_name: users.display_name,
+        email_verified: users.email_verified,
+      });
+
+    await this.invalidateUserSessionCaches(userId);
+    this.logger.log({ userId }, 'Profile updated');
+
+    return { user: updated };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const [user] = await this.db
+      .select({ password_hash: users.password_hash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      throw new InvalidCredentialsException('User not found');
+    }
+
+    const valid = await argon2.verify(user.password_hash, currentPassword);
+    if (!valid) {
+      throw new WrongPasswordException();
+    }
+
+    const password_hash = await argon2.hash(newPassword);
+    await this.db
+      .update(users)
+      .set({ password_hash, updated_at: new Date() })
+      .where(eq(users.id, userId));
+
+    await this.invalidateUserSessionCaches(userId);
+    this.logger.log({ userId }, 'Password changed');
+  }
+
+  private async invalidateUserSessionCaches(userId: string): Promise<void> {
+    const userSessions = await this.db
+      .select({ token_hash: sessions.token_hash })
+      .from(sessions)
+      .where(eq(sessions.user_id, userId));
+
+    if (userSessions.length > 0) {
+      const cacheKeys = userSessions.map((s) => `session:${s.token_hash}`);
+      await this.redis.del(...cacheKeys);
+    }
   }
 }

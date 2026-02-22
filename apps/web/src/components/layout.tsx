@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, Mail, X, Calculator, Sparkles } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
 
 const sidebarSections = [
@@ -76,7 +76,7 @@ export default function Layout() {
   const logoHref = hasProjects ? navLink('/dashboards') : '/projects';
 
   // Redirect to /projects when user has no projects and is not already there
-  if (projectsLoaded && !hasProjects && location.pathname !== '/projects') {
+  if (projectsLoaded && !hasProjects && location.pathname !== '/projects' && !location.pathname.startsWith('/profile')) {
     return <Navigate to="/projects" replace />;
   }
 
@@ -161,26 +161,8 @@ export default function Layout() {
         {/* Spacer when no projects (no nav) */}
         {!hasProjects && <div className="flex-1" />}
 
-        {/* Bottom: invites + project + user */}
+        {/* Bottom: project + user */}
         <div className="border-t border-border p-2 space-y-1">
-          {/* Invites link — shown when there are pending invites */}
-          {pendingInvitesCount > 0 && (
-            <Link
-              to="/invites"
-              className={cn(
-                'flex items-center gap-2.5 px-2 py-[6px] rounded-md text-sm transition-colors',
-                isActive('/invites')
-                  ? 'bg-accent text-foreground font-medium'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
-              )}
-            >
-              <Mail className="h-4 w-4 shrink-0" />
-              <span className="flex-1">Invites</span>
-              <span className="flex items-center justify-center min-w-5 h-5 rounded-full bg-primary text-background text-[10px] font-bold px-1">
-                {pendingInvitesCount}
-              </span>
-            </Link>
-          )}
           {/* Project switcher — hidden when no projects */}
           {hasProjects && (
             <DropdownMenu>
@@ -220,8 +202,11 @@ export default function Layout() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-accent/50 transition-colors text-left">
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-[10px] font-bold text-primary shrink-0">
+                <span className="relative flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-[10px] font-bold text-primary shrink-0">
                   {userInitial}
+                  {pendingInvitesCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
+                  )}
                 </span>
                 <span className="flex-1 truncate text-foreground/80">{user?.display_name}</span>
               </button>
@@ -232,6 +217,15 @@ export default function Layout() {
                 <p className="text-xs text-muted-foreground mt-1">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/profile')}>
+                <User className="h-4 w-4 mr-2" />
+                <span className="flex-1">Profile</span>
+                {pendingInvitesCount > 0 && (
+                  <span className="flex items-center justify-center min-w-5 h-5 rounded-full bg-primary text-background text-[10px] font-bold px-1">
+                    {pendingInvitesCount}
+                  </span>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign out
