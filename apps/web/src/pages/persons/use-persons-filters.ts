@@ -29,7 +29,7 @@ export function usePersonsFilters() {
   const [page, setPage] = useState(0);
 
   // Debounced URL sync
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isInitialMount = useRef(true);
 
   useEffect(() => {
