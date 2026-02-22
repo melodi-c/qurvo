@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
@@ -7,7 +7,7 @@ import { AiConversationList } from './ai-conversation-list';
 import { useAiChat } from './use-ai-chat';
 
 export default function AiPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const qc = useQueryClient();
 
@@ -22,6 +22,42 @@ export default function AiPage() {
     stopStreaming,
   } = useAiChat();
 
+  // Helper: update `chat` search param without losing other params
+  const setChatParam = useCallback(
+    (chatId: string | null) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (chatId) {
+            next.set('chat', chatId);
+          } else {
+            next.delete('chat');
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  // On mount: restore conversation from URL
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    const chatId = new URLSearchParams(window.location.search).get('chat');
+    if (chatId && !loadedRef.current) {
+      loadedRef.current = true;
+      loadConversation(chatId);
+    }
+  }, [loadConversation]);
+
+  // When conversationId changes (e.g. new conversation created via streaming), sync to URL
+  useEffect(() => {
+    if (conversationId) {
+      setChatParam(conversationId);
+    }
+  }, [conversationId, setChatParam]);
+
   const handleSend = useCallback(
     (text: string) => {
       sendMessage(text, projectId);
@@ -32,13 +68,15 @@ export default function AiPage() {
   const handleSelectConversation = useCallback(
     (id: string) => {
       loadConversation(id);
+      setChatParam(id);
     },
-    [loadConversation],
+    [loadConversation, setChatParam],
   );
 
   const handleNewConversation = useCallback(() => {
     startNewConversation();
-  }, [startNewConversation]);
+    setChatParam(null);
+  }, [startNewConversation, setChatParam]);
 
   // Refresh conversation list when streaming ends
   const handleStop = useCallback(() => {
