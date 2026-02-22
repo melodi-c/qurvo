@@ -26,11 +26,11 @@ export class PropertyDefinitionsService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async list(userId: string, projectId: string, type?: 'event' | 'person'): Promise<PropertyDefinitionItem[]> {
+  async list(userId: string, projectId: string, type?: 'event' | 'person', eventName?: string): Promise<PropertyDefinitionItem[]> {
     await this.projectsService.getMembership(userId, projectId);
 
     const [chRows, pgRows] = await Promise.all([
-      queryPropertyNamesWithCount(this.ch, { project_id: projectId }),
+      queryPropertyNamesWithCount(this.ch, { project_id: projectId, event_name: eventName }),
       this.db
         .select()
         .from(propertyDefinitions)

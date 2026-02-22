@@ -23,7 +23,7 @@ export class PropertyDefinitionsController {
     @Param('projectId') projectId: string,
     @Query() query: PropertyDefinitionQueryDto,
   ): Promise<PropertyDefinitionDto[]> {
-    return this.propertyDefinitionsService.list(user.user_id, projectId, query.type) as any;
+    return this.propertyDefinitionsService.list(user.user_id, projectId, query.type, query.event_name) as any;
   }
 
   @Patch(':propertyType/:propertyName')

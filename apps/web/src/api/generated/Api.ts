@@ -1549,6 +1549,7 @@ export interface EventDefinitionsControllerUpsertParams {
 
 export interface PropertyDefinitionsControllerListParams {
   type?: TypeEnum1;
+  event_name?: string;
   projectId: string;
 }
 
