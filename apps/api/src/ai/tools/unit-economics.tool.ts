@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { UnitEconomicsService } from '../../unit-economics/unit-economics.service';
-import { AiVisualizationTool } from './ai-tool.interface';
+import { defineTool } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
@@ -9,24 +10,25 @@ const argsSchema = z.object({
   granularity: z.enum(['day', 'week', 'month']).describe('Time bucket granularity'),
 });
 
-@Injectable()
-export class UnitEconomicsTool extends AiVisualizationTool<typeof argsSchema> {
-  readonly name = 'query_unit_economics';
-  readonly description =
+const tool = defineTool({
+  name: 'query_unit_economics',
+  description:
     'Query unit economics metrics: UA, C1, C2, APC, AVP, ARPPU, ARPU, Churn Rate, LTV, CAC, ROI%, CM. ' +
-    'Returns totals and time-series data for the given period.';
-  readonly argsSchema = argsSchema;
-  readonly visualizationType = 'unit_economics';
+    'Returns totals and time-series data for the given period.',
+  schema: argsSchema,
+  visualizationType: 'unit_economics',
+});
 
-  constructor(private readonly unitEconomicsService: UnitEconomicsService) {
-    super();
-  }
+@Injectable()
+export class UnitEconomicsTool implements AiTool {
+  readonly name = tool.name;
 
-  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
-    const cacheEntry = await this.unitEconomicsService.getMetrics(userId, {
-      project_id: projectId,
-      ...args,
-    });
+  constructor(private readonly unitEconomicsService: UnitEconomicsService) {}
+
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (args, userId, projectId) => {
+    const cacheEntry = await this.unitEconomicsService.getMetrics(userId, { project_id: projectId, ...args });
     return cacheEntry.data;
-  }
+  });
 }

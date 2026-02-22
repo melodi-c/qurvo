@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { RetentionService } from '../../retention/retention.service';
-import { AiVisualizationTool } from './ai-tool.interface';
+import { defineTool } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   target_event: z.string().describe('Event to track retention for'),
@@ -12,24 +13,28 @@ const argsSchema = z.object({
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
 });
 
+const tool = defineTool({
+  name: 'query_retention',
+  description:
+    'Query user retention — how many users return to perform an event over time periods after their first occurrence.',
+  schema: argsSchema,
+  visualizationType: 'retention_chart',
+});
+
 @Injectable()
-export class RetentionTool extends AiVisualizationTool<typeof argsSchema> {
-  readonly name = 'query_retention';
-  readonly description =
-    'Query user retention — how many users return to perform an event over time periods after their first occurrence.';
-  readonly argsSchema = argsSchema;
-  readonly visualizationType = 'retention_chart';
+export class RetentionTool implements AiTool {
+  readonly name = tool.name;
 
-  constructor(private readonly retentionService: RetentionService) {
-    super();
-  }
+  constructor(private readonly retentionService: RetentionService) {}
 
-  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (args, userId, projectId) => {
     const result = await this.retentionService.getRetention(userId, {
       project_id: projectId,
       periods: args.periods ?? 11,
       ...args,
-    } as any);
+    });
     return result.data;
-  }
+  });
 }

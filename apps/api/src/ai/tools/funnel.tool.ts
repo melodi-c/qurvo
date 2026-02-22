@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { FunnelService } from '../../funnel/funnel.service';
-import { AiVisualizationTool, propertyFilterSchema } from './ai-tool.interface';
+import { defineTool, propertyFilterSchema } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   steps: z.array(z.object({
@@ -15,24 +16,28 @@ const argsSchema = z.object({
   breakdown_property: z.string().optional().describe('Optional property to break down by'),
 });
 
+const tool = defineTool({
+  name: 'query_funnel',
+  description:
+    'Query conversion funnel with multiple steps. Returns conversion rates, drop-offs, and average time between steps. Supports per-step filters.',
+  schema: argsSchema,
+  visualizationType: 'funnel_chart',
+});
+
 @Injectable()
-export class FunnelTool extends AiVisualizationTool<typeof argsSchema> {
-  readonly name = 'query_funnel';
-  readonly description =
-    'Query conversion funnel with multiple steps. Returns conversion rates, drop-offs, and average time between steps. Supports per-step filters.';
-  readonly argsSchema = argsSchema;
-  readonly visualizationType = 'funnel_chart';
+export class FunnelTool implements AiTool {
+  readonly name = tool.name;
 
-  constructor(private readonly funnelService: FunnelService) {
-    super();
-  }
+  constructor(private readonly funnelService: FunnelService) {}
 
-  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (args, userId, projectId) => {
     const result = await this.funnelService.getFunnel(userId, {
       project_id: projectId,
       conversion_window_days: args.conversion_window_days ?? 14,
       ...args,
-    } as any);
+    });
     return result.data;
-  }
+  });
 }

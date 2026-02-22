@@ -1,66 +1,44 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import type {
+  ChatCompletionAssistantMessageParam,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionTool,
+} from 'openai/resources/chat/completions';
 import { ProjectsService } from '../projects/projects.service';
 import { AiChatService } from './ai-chat.service';
-import { AiToolsService } from './ai-tools.service';
 import { AiContextService } from './ai-context.service';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
+import { buildSystemPrompt } from './system-prompt';
+import { AI_TOOLS } from './tools/ai-tool.interface';
+import type { AiTool } from './tools/ai-tool.interface';
 
 export type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
   | { type: 'text_delta'; content: string }
   | { type: 'tool_call_start'; tool_call_id: string; name: string }
-  | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type: string | null }
+  | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string }
   | { type: 'error'; message: string }
   | { type: 'done' };
-
-const SYSTEM_PROMPT = `You are an AI analytics assistant for Qurvo, a product analytics platform.
-Your role is to help users understand their data by querying analytics tools and interpreting results.
-
-## Rules
-- ALWAYS use the provided tools to answer questions about data. NEVER make up numbers.
-- If the user's question is ambiguous about which event to use, call list_event_names first.
-- Default date range: last 30 days from today.
-- Granularity: use "day" for ranges <60 days, "week" for 60-180 days, "month" for >180 days.
-- Default metric for trends: "total_events".
-- Default retention type: "first_time".
-- Answer in the same language the user uses.
-- Today's date: {{today}}
-- You have a query_unit_economics tool for unit economics analysis (UA, C1, C2, APC, AVP, ARPPU, ARPU, Churn Rate, LTV, CAC, ROI%, CM). Use it when the user asks about unit economics, revenue metrics, LTV, CAC, ROI, or monetization.
-- Trend and funnel tools support per-series/per-step filters. Use filters to narrow events by property values (e.g. properties.promocode = "FEB2117"). Always use filters when the user asks about a specific property value.
-
-## How tool results are displayed
-Tool results are AUTOMATICALLY rendered as interactive charts and tables in the UI — the user can already see all the data visually.
-DO NOT repeat or list raw numbers, data points, table rows, or series values from tool results. The user already sees them.
-Instead, provide ONLY:
-- A brief high-level summary (1-2 sentences max)
-- Notable insights: trends, anomalies, peaks, drops, comparisons
-- Actionable takeaways or recommendations
-Keep your response short. Never enumerate data points, never restate table contents, never list values per date/period.
-
-## Follow-up Suggestions
-At the end of EVERY response, add a [SUGGESTIONS] block with exactly 3 short follow-up questions the user might ask next. Base them on the context of the conversation. Format:
-[SUGGESTIONS]
-- Question one?
-- Question two?
-- Question three?
-
-{{project_context}}`;
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
   private client: OpenAI | null = null;
   private model: string;
+  private readonly toolMap: Map<string, AiTool>;
+  private readonly toolDefinitions: ChatCompletionTool[];
 
   constructor(
     private readonly projectsService: ProjectsService,
     private readonly chatService: AiChatService,
-    private readonly toolsService: AiToolsService,
+    @Inject(AI_TOOLS) tools: AiTool[],
     private readonly contextService: AiContextService,
   ) {
     this.model = process.env.OPENAI_MODEL || 'gpt-4o';
+    this.toolMap = new Map(tools.map((t) => [t.name, t]));
+    this.toolDefinitions = tools.map((t) => t.definition());
   }
 
   private getClient(): OpenAI {
@@ -100,9 +78,7 @@ export class AiService {
     // Build messages
     const projectContext = await this.contextService.getProjectContext(userId, params.project_id);
     const today = new Date().toISOString().split('T')[0];
-    const systemContent = SYSTEM_PROMPT
-      .replace('{{today}}', today)
-      .replace('{{project_context}}', projectContext);
+    const systemContent = buildSystemPrompt(today, projectContext);
 
     const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
 
@@ -113,13 +89,11 @@ export class AiService {
         if (msg.role === 'user') {
           messages.push({ role: 'user', content: msg.content ?? '' });
         } else if (msg.role === 'assistant') {
-          const assistantMsg: ChatCompletionMessageParam = {
+          const assistantMsg: ChatCompletionAssistantMessageParam = {
             role: 'assistant',
             content: msg.content ?? null,
+            ...(msg.tool_calls && { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] }),
           };
-          if (msg.tool_calls) {
-            (assistantMsg as any).tool_calls = msg.tool_calls;
-          }
           messages.push(assistantMsg);
         } else if (msg.role === 'tool') {
           messages.push({
@@ -144,13 +118,33 @@ export class AiService {
       visualization_type: null,
     });
 
-    // Tool-call loop (max 10 iterations)
-    const tools = this.toolsService.getToolDefinitions();
+    // Run tool-call loop
+    seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
+
+    // Auto-generate title for new conversations
+    if (isNew) {
+      const titleContent = params.message.slice(0, 100);
+      const title = titleContent.length < params.message.length ? titleContent + '...' : titleContent;
+      await this.chatService.updateTitle(conversation.id, title);
+    }
+
+    await this.chatService.touchConversation(conversation.id);
+    yield { type: 'done' };
+  }
+
+  private async *runToolCallLoop(
+    client: OpenAI,
+    messages: ChatCompletionMessageParam[],
+    conversationId: string,
+    seq: number,
+    userId: string,
+    projectId: string,
+  ): AsyncGenerator<AiStreamChunk, number> {
     for (let i = 0; i < 10; i++) {
       const stream = await client.chat.completions.create({
         model: this.model,
         messages,
-        tools,
+        tools: this.toolDefinitions,
         stream: true,
       });
 
@@ -181,8 +175,7 @@ export class AiService {
       }
 
       if (toolCalls.length === 0) {
-        // No tool calls — final response
-        await this.chatService.saveMessage(conversation.id, seq++, {
+        await this.chatService.saveMessage(conversationId, seq++, {
           role: 'assistant',
           content: assistantContent || null,
           tool_calls: null,
@@ -207,7 +200,7 @@ export class AiService {
         tool_calls: serializedToolCalls,
       });
 
-      await this.chatService.saveMessage(conversation.id, seq++, {
+      await this.chatService.saveMessage(conversationId, seq++, {
         role: 'assistant',
         content: assistantContent || null,
         tool_calls: serializedToolCalls,
@@ -222,15 +215,12 @@ export class AiService {
         yield { type: 'tool_call_start', tool_call_id: tc.id, name: tc.function.name };
 
         let toolResult: unknown;
-        let vizType: string | null = null;
+        let vizType: string | undefined;
         try {
           const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-          const res = await this.toolsService.executeTool(
-            tc.function.name,
-            args,
-            userId,
-            params.project_id,
-          );
+          const tool = this.toolMap.get(tc.function.name);
+          if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
+          const res = await tool.run(args, userId, projectId);
           toolResult = res.result;
           vizType = res.visualization_type;
         } catch (err) {
@@ -253,28 +243,19 @@ export class AiService {
           content: toolResultStr,
         });
 
-        await this.chatService.saveMessage(conversation.id, seq++, {
+        await this.chatService.saveMessage(conversationId, seq++, {
           role: 'tool',
           content: null,
           tool_calls: null,
           tool_call_id: tc.id,
           tool_name: tc.function.name,
           tool_result: toolResult,
-          visualization_type: vizType,
+          visualization_type: vizType ?? null,
         });
       }
     }
 
-    // Auto-generate title for new conversations
-    if (isNew) {
-      const titleContent = params.message.slice(0, 100);
-      const title = titleContent.length < params.message.length ? titleContent + '...' : titleContent;
-      await this.chatService.updateTitle(conversation.id, title);
-      // We don't yield the updated title — frontend will refetch conversation list
-    }
-
-    await this.chatService.touchConversation(conversation.id);
-    yield { type: 'done' };
+    return seq;
   }
 
   async listConversations(userId: string, projectId: string) {

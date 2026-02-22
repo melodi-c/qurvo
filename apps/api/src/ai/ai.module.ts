@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
-import { AiToolsService } from './ai-tools.service';
 import { AiContextService } from './ai-context.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { TrendModule } from '../trend/trend.module';
@@ -47,7 +46,6 @@ const TOOL_CLASSES = [
   providers: [
     AiService,
     AiChatService,
-    AiToolsService,
     AiContextService,
     ...TOOL_CLASSES,
     {

@@ -1,22 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { EventsService } from '../../events/events.service';
-import { AiDataTool } from './ai-tool.interface';
+import { defineTool } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
-const argsSchema = z.object({});
+const tool = defineTool({
+  name: 'list_event_names',
+  description: 'List all tracked event names in the project. Use this to discover available events before querying.',
+  schema: z.object({}),
+});
 
 @Injectable()
-export class ListEventNamesTool extends AiDataTool<typeof argsSchema> {
-  readonly name = 'list_event_names';
-  readonly description = 'List all tracked event names in the project. Use this to discover available events before querying.';
-  readonly argsSchema = argsSchema;
+export class ListEventNamesTool implements AiTool {
+  readonly name = tool.name;
 
-  constructor(private readonly eventsService: EventsService) {
-    super();
-  }
+  constructor(private readonly eventsService: EventsService) {}
 
-  protected async execute(_args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (_args, userId, projectId) => {
     const names = await this.eventsService.getEventNames(userId, projectId);
     return { event_names: names };
-  }
+  });
 }

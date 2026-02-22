@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { TrendService } from '../../trend/trend.service';
-import { AiVisualizationTool, propertyFilterSchema } from './ai-tool.interface';
+import { defineTool, propertyFilterSchema } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   series: z.array(z.object({
@@ -17,24 +18,25 @@ const argsSchema = z.object({
   compare: z.boolean().optional().describe('Whether to compare with the previous period'),
 });
 
-@Injectable()
-export class TrendTool extends AiVisualizationTool<typeof argsSchema> {
-  readonly name = 'query_trend';
-  readonly description =
+const tool = defineTool({
+  name: 'query_trend',
+  description:
     'Query time-series trend data for events. Returns data points over time with configurable granularity. ' +
-    'Supports multiple series, breakdown by property, period comparison, and per-series filters.';
-  readonly argsSchema = argsSchema;
-  readonly visualizationType = 'trend_chart';
+    'Supports multiple series, breakdown by property, period comparison, and per-series filters.',
+  schema: argsSchema,
+  visualizationType: 'trend_chart',
+});
 
-  constructor(private readonly trendService: TrendService) {
-    super();
-  }
+@Injectable()
+export class TrendTool implements AiTool {
+  readonly name = tool.name;
 
-  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
-    const result = await this.trendService.getTrend(userId, {
-      project_id: projectId,
-      ...args,
-    } as any);
+  constructor(private readonly trendService: TrendService) {}
+
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (args, userId, projectId) => {
+    const result = await this.trendService.getTrend(userId, { project_id: projectId, ...args });
     return result.data;
-  }
+  });
 }

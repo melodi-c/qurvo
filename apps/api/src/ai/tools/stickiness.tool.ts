@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { StickinessService } from '../../stickiness/stickiness.service';
-import { AiVisualizationTool } from './ai-tool.interface';
+import { defineTool } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   target_event: z.string().describe('Event to analyze stickiness for'),
@@ -10,23 +11,24 @@ const argsSchema = z.object({
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
 });
 
+const tool = defineTool({
+  name: 'query_stickiness',
+  description:
+    'Query stickiness — how many users perform an event X number of times within each period.',
+  schema: argsSchema,
+  visualizationType: 'stickiness_chart',
+});
+
 @Injectable()
-export class StickinessTool extends AiVisualizationTool<typeof argsSchema> {
-  readonly name = 'query_stickiness';
-  readonly description =
-    'Query stickiness — how many users perform an event X number of times within each period.';
-  readonly argsSchema = argsSchema;
-  readonly visualizationType = 'stickiness_chart';
+export class StickinessTool implements AiTool {
+  readonly name = tool.name;
 
-  constructor(private readonly stickinessService: StickinessService) {
-    super();
-  }
+  constructor(private readonly stickinessService: StickinessService) {}
 
-  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
-    const result = await this.stickinessService.getStickiness(userId, {
-      project_id: projectId,
-      ...args,
-    } as any);
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (args, userId, projectId) => {
+    const result = await this.stickinessService.getStickiness(userId, { project_id: projectId, ...args });
     return result.data;
-  }
+  });
 }

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
-import { AiVisualizationTool } from './ai-tool.interface';
+import { defineTool } from './ai-tool.interface';
+import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   target_event: z.string().describe('Event to analyze lifecycle for'),
@@ -10,23 +11,24 @@ const argsSchema = z.object({
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
 });
 
+const tool = defineTool({
+  name: 'query_lifecycle',
+  description:
+    'Query user lifecycle stages — categorizes users into new, returning, resurrecting, and dormant over time.',
+  schema: argsSchema,
+  visualizationType: 'lifecycle_chart',
+});
+
 @Injectable()
-export class LifecycleTool extends AiVisualizationTool<typeof argsSchema> {
-  readonly name = 'query_lifecycle';
-  readonly description =
-    'Query user lifecycle stages — categorizes users into new, returning, resurrecting, and dormant over time.';
-  readonly argsSchema = argsSchema;
-  readonly visualizationType = 'lifecycle_chart';
+export class LifecycleTool implements AiTool {
+  readonly name = tool.name;
 
-  constructor(private readonly lifecycleService: LifecycleService) {
-    super();
-  }
+  constructor(private readonly lifecycleService: LifecycleService) {}
 
-  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
-    const result = await this.lifecycleService.getLifecycle(userId, {
-      project_id: projectId,
-      ...args,
-    } as any);
+  definition() { return tool.definition; }
+
+  run = tool.createRun(async (args, userId, projectId) => {
+    const result = await this.lifecycleService.getLifecycle(userId, { project_id: projectId, ...args });
     return result.data;
-  }
+  });
 }
