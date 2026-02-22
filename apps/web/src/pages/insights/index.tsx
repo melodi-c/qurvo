@@ -9,9 +9,12 @@ import { useInsightsFilters } from '@/features/insights/hooks/use-insights-filte
 import { InsightsFilterBar } from '@/features/insights/components/InsightsFilterBar';
 import { InsightsTable } from '@/features/insights/components/InsightsTable';
 import { NewInsightDropdown } from '@/features/insights/components/NewInsightDropdown';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './index.translations';
 import type { Insight } from '@/api/generated/Api';
 
 export default function InsightsPage() {
+  const { t } = useLocalTranslation(translations);
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') ?? '';
 
@@ -62,14 +65,14 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Insights">
+      <PageHeader title={t('title')}>
         <NewInsightDropdown />
       </PageHeader>
 
       {!projectId && (
         <EmptyState
           icon={Lightbulb}
-          description="Select a project to view insights"
+          description={t('selectProject')}
         />
       )}
 
@@ -84,8 +87,8 @@ export default function InsightsPage() {
           {isEmpty && (
             <EmptyState
               icon={Lightbulb}
-              title="No insights yet"
-              description="Create your first trend, funnel, or retention analysis"
+              title={t('noYet')}
+              description={t('createFirst')}
               action={<NewInsightDropdown />}
             />
           )}
@@ -93,7 +96,7 @@ export default function InsightsPage() {
           {noResults && (
             <EmptyState
               icon={Lightbulb}
-              description="No insights match your current filters"
+              description={t('noMatch')}
             />
           )}
 

@@ -11,6 +11,8 @@ import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Plus, FolderOpen } from 'lucide-react';
 import { routes } from '@/lib/routes';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './projects.translations';
 
 export default function ProjectsPage() {
   const [showCreate, setShowCreate] = useState(false);
@@ -18,6 +20,7 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
+  const { t } = useLocalTranslation(translations);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
@@ -49,9 +52,9 @@ export default function ProjectsPage() {
   const handleDelete = async () => {
     try {
       await deleteMutation.mutateAsync(confirmDelete.itemId);
-      toast.success('Project deleted');
+      toast.success(t('deleted'));
     } catch {
-      toast.error('Failed to delete project');
+      toast.error(t('deleteFailed'));
     }
   };
 
@@ -66,16 +69,16 @@ export default function ProjectsPage() {
             <FolderOpen className="h-8 w-8 text-muted-foreground" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Create your first project</h2>
+            <h2 className="text-lg font-semibold">{t('createFirst')}</h2>
             <p className="text-sm text-muted-foreground mt-2">
-              Projects isolate your analytics data. Each project has its own events, API keys, and dashboards.
+              {t('createDescription')}
             </p>
           </div>
 
           {showCreate ? (
             <div className="w-full">
               <InlineCreateForm
-                placeholder="Project name"
+                placeholder={t('placeholder')}
                 value={name}
                 onChange={setName}
                 isPending={createMutation.isPending}
@@ -85,7 +88,7 @@ export default function ProjectsPage() {
             </div>
           ) : (
             <Button onClick={() => setShowCreate(true)} size="lg">
-              <Plus className="h-4 w-4 mr-2" /> New Project
+              <Plus className="h-4 w-4 mr-2" /> {t('newProject')}
             </Button>
           )}
         </div>
@@ -95,15 +98,15 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Projects">
+      <PageHeader title={t('title')}>
         <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Project
+          <Plus className="h-4 w-4 mr-2" /> {t('newProject')}
         </Button>
       </PageHeader>
 
       {showCreate && (
         <InlineCreateForm
-          placeholder="Project name"
+          placeholder={t('placeholder')}
           value={name}
           onChange={setName}
           isPending={createMutation.isPending}
@@ -130,7 +133,7 @@ export default function ProjectsPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`${routes.keys()}?project=${project.id}`); }}>
-                      Keys
+                      {t('keys')}
                     </Button>
                     <Button
                       size="sm"
@@ -138,7 +141,7 @@ export default function ProjectsPage() {
                       className="text-destructive"
                       onClick={(e) => { e.stopPropagation(); confirmDelete.requestDelete(project.id, project.name); }}
                     >
-                      Delete
+                      {t('delete')}
                     </Button>
                   </div>
                 </div>
@@ -152,9 +155,9 @@ export default function ProjectsPage() {
       <ConfirmDialog
         open={confirmDelete.isOpen}
         onOpenChange={confirmDelete.close}
-        title={`Delete "${confirmDelete.itemName}"?`}
-        description="This action cannot be undone. All project data will be permanently removed."
-        confirmLabel="Delete"
+        title={t('deleteTitle', { name: confirmDelete.itemName })}
+        description={t('deleteDescription')}
+        confirmLabel={t('delete')}
         onConfirm={handleDelete}
       />
     </div>

@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import appTranslations from '@/App.translations';
 import Layout from '@/components/layout';
 import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
@@ -42,8 +44,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
   const pendingVerification = useAuthStore((s) => s.pendingVerification);
+  const { t } = useLocalTranslation(appTranslations);
 
-  if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;
   if (!user) return <Navigate to={routes.login()} replace />;
   if (pendingVerification) return <Navigate to={routes.verifyEmail()} replace />;
   return <>{children}</>;

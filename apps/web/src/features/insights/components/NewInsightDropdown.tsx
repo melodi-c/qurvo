@@ -10,32 +10,35 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { InsightTypeIcon } from './InsightTypeIcon';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './NewInsightDropdown.translations';
 import type { InsightType } from '@/api/generated/Api';
-
-const NEW_INSIGHT_TYPES: { type: InsightType; label: string; description: string }[] = [
-  { type: 'trend', label: 'Trend', description: 'Track event counts over time' },
-  { type: 'funnel', label: 'Funnel', description: 'Measure conversion through steps' },
-  { type: 'retention', label: 'Retention', description: 'See how users return over time' },
-  { type: 'lifecycle', label: 'Lifecycle', description: 'Track user growth dynamics' },
-  { type: 'stickiness', label: 'Stickiness', description: 'Measure engagement frequency' },
-  { type: 'paths', label: 'Paths', description: 'Explore user journey flows' },
-];
 
 export function NewInsightDropdown() {
   const { go } = useAppNavigate();
+  const { t } = useLocalTranslation(translations);
+
+  const insightTypes: { type: InsightType; label: string; description: string }[] = [
+    { type: 'trend', label: t('trend'), description: t('trendDesc') },
+    { type: 'funnel', label: t('funnel'), description: t('funnelDesc') },
+    { type: 'retention', label: t('retention'), description: t('retentionDesc') },
+    { type: 'lifecycle', label: t('lifecycle'), description: t('lifecycleDesc') },
+    { type: 'stickiness', label: t('stickiness'), description: t('stickinessDesc') },
+    { type: 'paths', label: t('paths'), description: t('pathsDesc') },
+  ];
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
-          New insight
+          {t('newInsight')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Choose type</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('chooseType')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {NEW_INSIGHT_TYPES.map(({ type, label, description }) => (
+        {insightTypes.map(({ type, label, description }) => (
           <DropdownMenuItem
             key={type}
             onClick={() => go.insights.newByType(type)}

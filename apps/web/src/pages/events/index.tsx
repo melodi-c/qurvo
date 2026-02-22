@@ -8,10 +8,13 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './index.translations';
 import { EventsFilterPanel } from './EventsFilterPanel';
 import { useEventsFilters } from './use-events-filters';
 
 export default function EventsPage() {
+  const { t } = useLocalTranslation(translations);
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
 
@@ -57,10 +60,10 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Events" />
+      <PageHeader title={t('title')} />
 
       {!projectId && (
-        <EmptyState icon={List} description="Select a project to explore events" />
+        <EmptyState icon={List} description={t('selectProject')} />
       )}
 
       {projectId && (

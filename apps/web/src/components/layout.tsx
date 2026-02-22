@@ -1,6 +1,8 @@
 import { Outlet, Link, useLocation, useSearchParams, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
+import { useLanguageStore, languages } from '@/stores/language';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { api } from '@/api/client';
 import { cn } from '@/lib/utils';
 import {
@@ -12,41 +14,46 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database, Globe } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database, Globe, Languages } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
 import { routes } from '@/lib/routes';
-
-const sidebarSections = [
-  {
-    title: 'Product',
-    items: [
-      { path: routes.dashboards.list.pattern, label: 'Dashboards', icon: LayoutDashboard },
-      { path: routes.webAnalytics.pattern,    label: 'Web Analytics',   icon: Globe },
-      { path: routes.insights.list.pattern,   label: 'Insights',        icon: Lightbulb },
-      { path: routes.unitEconomics.pattern,   label: 'Unit Economics',  icon: Calculator },
-      { path: routes.cohorts.list.pattern,    label: 'Cohorts',         icon: UsersRound },
-      { path: routes.persons.list.pattern,    label: 'Persons',    icon: Users },
-      { path: routes.events.pattern,          label: 'Events',     icon: List },
-      { path: routes.ai.pattern,              label: 'AI Assistant', icon: Sparkles },
-    ],
-  },
-  {
-    title: 'Configure',
-    items: [
-      { path: routes.dataManagement.list.pattern, label: 'Data Management', icon: Database },
-      { path: routes.settings.pattern,             label: 'Settings', icon: Settings },
-    ],
-  },
-];
+import translations from './layout.translations';
+import type { Language } from '@/i18n/types';
 
 export default function Layout() {
+  const { t } = useLocalTranslation(translations);
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const { isOpen, open, close } = useSidebar();
+  const currentLang = useLanguageStore((s) => s.language);
+  const changeLanguage = useLanguageStore((s) => s.changeLanguage);
 
   const navigate = useNavigate();
+
+  const sidebarSections = [
+    {
+      title: t('product'),
+      items: [
+        { path: routes.dashboards.list.pattern, label: t('dashboards'), icon: LayoutDashboard },
+        { path: routes.webAnalytics.pattern,    label: t('webAnalytics'),   icon: Globe },
+        { path: routes.insights.list.pattern,   label: t('insights'),        icon: Lightbulb },
+        { path: routes.unitEconomics.pattern,   label: t('unitEconomics'),  icon: Calculator },
+        { path: routes.cohorts.list.pattern,    label: t('cohorts'),         icon: UsersRound },
+        { path: routes.persons.list.pattern,    label: t('persons'),    icon: Users },
+        { path: routes.events.pattern,          label: t('events'),     icon: List },
+        { path: routes.ai.pattern,              label: t('aiAssistant'), icon: Sparkles },
+      ],
+    },
+    {
+      title: t('configure'),
+      items: [
+        { path: routes.dataManagement.list.pattern, label: t('dataManagement'), icon: Database },
+        { path: routes.settings.pattern,             label: t('settings'), icon: Settings },
+      ],
+    },
+  ];
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -117,7 +124,7 @@ export default function Layout() {
         <button
           onClick={close}
           className="lg:hidden absolute top-3 right-3 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-          aria-label="Close navigation"
+          aria-label={t('closeNav')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -175,13 +182,13 @@ export default function Layout() {
                     {currentProjectName?.slice(0, 2).toUpperCase() ?? '–'}
                   </span>
                   <span className="flex-1 truncate text-foreground/80">
-                    {currentProjectName ?? 'Select project…'}
+                    {currentProjectName ?? t('selectProject')}
                   </span>
                   <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-52" align="start" side="top">
-                <div className="px-2 py-1 text-xs text-muted-foreground">Switch project</div>
+                <div className="px-2 py-1 text-xs text-muted-foreground">{t('switchProject')}</div>
                 <DropdownMenuSeparator />
                 {(projects ?? []).map((p) => (
                   <DropdownMenuItem
@@ -195,7 +202,7 @@ export default function Layout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate(routes.projects())}>
                   <Plus className="h-3.5 w-3.5 mr-2" />
-                  New Project
+                  {t('newProject')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -222,16 +229,39 @@ export default function Layout() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate(routes.profile())}>
                 <User className="h-4 w-4 mr-2" />
-                <span className="flex-1">Profile</span>
+                <span className="flex-1">{t('profile')}</span>
                 {pendingInvitesCount > 0 && (
                   <span className="flex items-center justify-center min-w-5 h-5 rounded-full bg-primary text-background text-[10px] font-bold px-1">
                     {pendingInvitesCount}
                   </span>
                 )}
               </DropdownMenuItem>
+
+              {/* Language switcher */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Languages className="h-4 w-4 mr-2" />
+                    <span className="flex-1">{t('language')}</span>
+                    <span className="text-xs text-muted-foreground">{languages[currentLang]}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="right" align="start">
+                  {(Object.entries(languages) as [Language, string][]).map(([code, label]) => (
+                    <DropdownMenuItem
+                      key={code}
+                      onClick={() => changeLanguage(code)}
+                      className={currentLang === code ? 'bg-accent' : ''}
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4 mr-2" />
-                Sign out
+                {t('signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

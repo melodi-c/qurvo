@@ -8,10 +8,13 @@ import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './profile-tab.translations';
 
 export function ProfileTab() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const { t } = useLocalTranslation(translations);
 
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
@@ -25,9 +28,9 @@ export function ProfileTab() {
     onSuccess: (res) => {
       setUser(res.user);
       setEditingName(false);
-      toast.success('Profile updated');
+      toast.success(t('profileUpdated'));
     },
-    onError: () => toast.error('Failed to update profile'),
+    onError: () => toast.error(t('updateFailed')),
   });
 
   const changePasswordMutation = useMutation({
@@ -37,10 +40,10 @@ export function ProfileTab() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      toast.success('Password changed');
+      toast.success(t('passwordChanged'));
     },
     onError: (err: any) => {
-      const message = err?.error?.message || 'Failed to change password';
+      const message = err?.error?.message || t('passwordChangeFailed');
       toast.error(message);
     },
   });
@@ -59,13 +62,13 @@ export function ProfileTab() {
     <div className="space-y-6 max-w-lg">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Profile Details</CardTitle>
+          <CardTitle className="text-sm">{t('profileDetails')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <dl className="divide-y divide-border text-sm">
             {/* Name */}
             <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">Name</dt>
+              <dt className="text-muted-foreground">{t('name')}</dt>
               <dd className="text-right">
                 {editingName ? (
                   <div className="flex items-center gap-2">
@@ -85,10 +88,10 @@ export function ProfileTab() {
                       onClick={() => updateProfileMutation.mutate({ display_name: name })}
                       disabled={updateProfileMutation.isPending || !name.trim()}
                     >
-                      {updateProfileMutation.isPending ? 'Saving...' : 'Save'}
+                      {updateProfileMutation.isPending ? t('saving') : t('save')}
                     </Button>
                     <Button size="xs" variant="ghost" onClick={() => setEditingName(false)}>
-                      Cancel
+                      {t('cancel')}
                     </Button>
                   </div>
                 ) : (
@@ -107,7 +110,7 @@ export function ProfileTab() {
 
             {/* Email */}
             <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">Email</dt>
+              <dt className="text-muted-foreground">{t('email')}</dt>
               <dd className="text-muted-foreground">{user?.email}</dd>
             </div>
           </dl>
@@ -116,41 +119,41 @@ export function ProfileTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Change Password</CardTitle>
+          <CardTitle className="text-sm">{t('changePassword')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="current-password">Current Password</Label>
+            <Label htmlFor="current-password">{t('currentPassword')}</Label>
             <Input
               id="current-password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Enter current password"
+              placeholder={t('currentPasswordPlaceholder')}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password">{t('newPassword')}</Label>
             <Input
               id="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min 8 characters)"
+              placeholder={t('newPasswordPlaceholder')}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <Label htmlFor="confirm-password">{t('confirmPassword')}</Label>
             <Input
               id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
+              placeholder={t('confirmPasswordPlaceholder')}
             />
           </div>
           {newPassword && confirmPassword && newPassword !== confirmPassword && (
-            <p className="text-xs text-destructive">Passwords do not match</p>
+            <p className="text-xs text-destructive">{t('passwordsMismatch')}</p>
           )}
           <Button
             onClick={() =>
@@ -161,7 +164,7 @@ export function ProfileTab() {
             }
             disabled={!canChangePassword || changePasswordMutation.isPending}
           >
-            {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+            {changePasswordMutation.isPending ? t('changingPassword') : t('changePasswordBtn')}
           </Button>
         </CardContent>
       </Card>

@@ -70,6 +70,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         display_name: user.display_name,
+        language: user.language,
         email_verified: false,
       },
     };
@@ -138,6 +139,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         display_name: user.display_name,
+        language: user.language,
         email_verified: user.email_verified,
       },
     };
@@ -157,15 +159,20 @@ export class AuthService {
     this.logger.log('User logged out');
   }
 
-  async updateProfile(userId: string, input: { display_name: string }) {
+  async updateProfile(userId: string, input: { display_name?: string; language?: string }) {
+    const setFields: Record<string, unknown> = { updated_at: new Date() };
+    if (input.display_name !== undefined) setFields.display_name = input.display_name;
+    if (input.language !== undefined) setFields.language = input.language;
+
     const [updated] = await this.db
       .update(users)
-      .set({ display_name: input.display_name, updated_at: new Date() })
+      .set(setFields)
       .where(eq(users.id, userId))
       .returning({
         id: users.id,
         email: users.email,
         display_name: users.display_name,
+        language: users.language,
         email_verified: users.email_verified,
       });
 

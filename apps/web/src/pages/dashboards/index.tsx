@@ -10,8 +10,11 @@ import { Plus, LayoutDashboard, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './index.translations';
 
 export default function DashboardsPage() {
+  const { t } = useLocalTranslation(translations);
   const { go, projectId } = useAppNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -32,36 +35,36 @@ export default function DashboardsPage() {
   const handleDelete = async () => {
     try {
       await deleteMutation.mutateAsync(confirmDelete.itemId);
-      toast.success('Dashboard deleted');
+      toast.success(t('deleted'));
     } catch {
-      toast.error('Failed to delete dashboard');
+      toast.error(t('deleteFailed'));
     }
   };
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboards">
+      <PageHeader title={t('title')}>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New Dashboard
+          {t('newDashboard')}
         </Button>
       </PageHeader>
 
       {!projectId && (
-        <EmptyState icon={LayoutDashboard} description="Select a project to view dashboards" />
+        <EmptyState icon={LayoutDashboard} description={t('selectProject')} />
       )}
 
       {projectId && (
         <>
           {showCreate && (
             <InlineCreateForm
-              placeholder="Dashboard name"
+              placeholder={t('placeholder')}
               value={name}
               onChange={setName}
               isPending={createMutation.isPending}
               onSubmit={handleCreate}
               onCancel={() => { setShowCreate(false); setName(''); }}
-              pendingLabel="Creating..."
+              pendingLabel={t('creating')}
               autoFocus
             />
           )}
@@ -100,12 +103,12 @@ export default function DashboardsPage() {
           {!isLoading && (dashboards || []).length === 0 && (
             <EmptyState
               icon={LayoutDashboard}
-              title="No dashboards yet"
-              description="Create a dashboard to get started"
+              title={t('noYet')}
+              description={t('createToStart')}
               action={
                 <Button onClick={() => setShowCreate(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  New Dashboard
+                  {t('newDashboard')}
                 </Button>
               }
             />
@@ -116,9 +119,9 @@ export default function DashboardsPage() {
       <ConfirmDialog
         open={confirmDelete.isOpen}
         onOpenChange={confirmDelete.close}
-        title={`Delete "${confirmDelete.itemName}"?`}
-        description="This dashboard and all its widgets will be permanently removed."
-        confirmLabel="Delete"
+        title={t('deleteTitle', { name: confirmDelete.itemName })}
+        description={t('deleteDescription')}
+        confirmLabel={t('delete')}
         onConfirm={handleDelete}
       />
     </div>

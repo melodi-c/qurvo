@@ -5,6 +5,7 @@ export interface RequestUser {
   user_id: string;
   email: string;
   display_name: string;
+  language: string;
   email_verified: boolean;
 }
 

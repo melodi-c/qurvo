@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
+import { useLanguageStore } from './language';
 
 interface AppUser {
   id?: string;
   email: string;
   display_name: string;
+  language?: string;
   email_verified: boolean;
 }
 
@@ -32,8 +34,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     const res = await api.authControllerLogin({ email, password });
     localStorage.setItem('qurvo_token', res.token);
+    const user = res.user as AppUser;
+    if (user.language) useLanguageStore.getState().setLanguage(user.language as 'ru' | 'en');
     set({
-      user: res.user as AppUser,
+      user,
       pendingVerification: !res.user.email_verified,
     });
   },
@@ -41,8 +45,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (data) => {
     const res = await api.authControllerRegister(data);
     localStorage.setItem('qurvo_token', res.token);
+    const user = res.user as AppUser;
+    if (user.language) useLanguageStore.getState().setLanguage(user.language as 'ru' | 'en');
     set({
-      user: res.user as AppUser,
+      user,
       pendingVerification: !res.user.email_verified,
     });
   },
@@ -61,8 +67,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     try {
       const res = await api.authControllerMe();
+      const user = res.user as unknown as AppUser;
+      if (user.language) useLanguageStore.getState().setLanguage(user.language as 'ru' | 'en');
       set({
-        user: res.user as unknown as AppUser,
+        user,
         loading: false,
         pendingVerification: !res.user.email_verified,
       });

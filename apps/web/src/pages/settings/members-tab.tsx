@@ -10,9 +10,12 @@ import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog'
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Users, UserPlus, Mail, Trash2 } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './members-tab.translations';
 
 export function MembersTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
+  const { t } = useLocalTranslation(translations);
 
   // Current project to check if user is owner
   const { data: project } = useQuery({
@@ -51,10 +54,10 @@ export function MembersTab({ projectId }: { projectId: string }) {
       setShowInvite(false);
       setInviteEmail('');
       setInviteRole('viewer');
-      toast.success('Invite sent');
+      toast.success(t('inviteSent'));
     },
     onError: (err: any) => {
-      const message = err?.error?.message || 'Failed to send invite';
+      const message = err?.error?.message || t('inviteFailed');
       toast.error(message);
     },
   });
@@ -68,9 +71,9 @@ export function MembersTab({ projectId }: { projectId: string }) {
     onSettled: () => setUpdatingRoleId(null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members', projectId] });
-      toast.success('Role updated');
+      toast.success(t('roleUpdated'));
     },
-    onError: () => toast.error('Failed to update role'),
+    onError: () => toast.error(t('roleUpdateFailed')),
   });
 
   // ── Remove member ──
@@ -78,9 +81,9 @@ export function MembersTab({ projectId }: { projectId: string }) {
     mutationFn: (memberId: string) => api.membersControllerRemoveMember({ projectId, memberId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members', projectId] });
-      toast.success('Member removed');
+      toast.success(t('removed'));
     },
-    onError: () => toast.error('Failed to remove member'),
+    onError: () => toast.error(t('removeFailed')),
   });
 
   const confirmDelete = useConfirmDelete();
@@ -97,13 +100,13 @@ export function MembersTab({ projectId }: { projectId: string }) {
     onSettled: () => setCancellingInviteId(null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites', projectId] });
-      toast.success('Invite cancelled');
+      toast.success(t('inviteCancelled'));
     },
-    onError: () => toast.error('Failed to cancel invite'),
+    onError: () => toast.error(t('cancelFailed')),
   });
 
   if (!projectId) {
-    return <EmptyState icon={Users} description="Select a project to manage members" />;
+    return <EmptyState icon={Users} description={t('selectProject')} />;
   }
 
   const isLoading = membersLoading || invitesLoading;
@@ -118,7 +121,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
               <CardContent className="pt-6">
                 <div className="flex items-end gap-3">
                   <div className="flex-1 space-y-1">
-                    <label className="text-xs text-muted-foreground">Email</label>
+                    <label className="text-xs text-muted-foreground">{t('email')}</label>
                     <Input
                       type="email"
                       placeholder="user@example.com"
@@ -128,14 +131,14 @@ export function MembersTab({ projectId }: { projectId: string }) {
                     />
                   </div>
                   <div className="w-32 space-y-1">
-                    <label className="text-xs text-muted-foreground">Role</label>
+                    <label className="text-xs text-muted-foreground">{t('role')}</label>
                     <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as 'editor' | 'viewer')}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="editor">Editor</SelectItem>
-                        <SelectItem value="viewer">Viewer</SelectItem>
+                        <SelectItem value="editor">{t('editor')}</SelectItem>
+                        <SelectItem value="viewer">{t('viewer')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -143,17 +146,17 @@ export function MembersTab({ projectId }: { projectId: string }) {
                     onClick={() => inviteMutation.mutate()}
                     disabled={inviteMutation.isPending || !inviteEmail.trim()}
                   >
-                    {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
+                    {inviteMutation.isPending ? t('sending') : t('sendInvite')}
                   </Button>
                   <Button variant="ghost" onClick={() => setShowInvite(false)}>
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <Button onClick={() => setShowInvite(true)}>
-              <UserPlus className="h-4 w-4 mr-2" /> Invite Member
+              <UserPlus className="h-4 w-4 mr-2" /> {t('inviteMember')}
             </Button>
           )}
         </div>
@@ -165,7 +168,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
       {!isLoading && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Members ({(members || []).length})</CardTitle>
+            <CardTitle className="text-sm">{t('members')} ({(members || []).length})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
@@ -182,7 +185,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                   </div>
                   <div className="flex items-center gap-2">
                     {member.role === 'owner' ? (
-                      <span className="text-xs text-muted-foreground capitalize px-2 py-1 bg-muted rounded">Owner</span>
+                      <span className="text-xs text-muted-foreground capitalize px-2 py-1 bg-muted rounded">{t('owner')}</span>
                     ) : isOwner ? (
                       <>
                         <Select
@@ -196,8 +199,8 @@ export function MembersTab({ projectId }: { projectId: string }) {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="editor">Editor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
+                            <SelectItem value="editor">{t('editor')}</SelectItem>
+                            <SelectItem value="viewer">{t('viewer')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
@@ -224,7 +227,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
       {!isLoading && pendingInvites.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Pending Invites ({pendingInvites.length})</CardTitle>
+            <CardTitle className="text-sm">{t('pendingInvites')} ({pendingInvites.length})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
@@ -235,7 +238,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                     <div>
                       <p className="text-sm">{invite.email}</p>
                       <p className="text-xs text-muted-foreground capitalize">
-                        {invite.role} &middot; invited {new Date(invite.created_at).toLocaleDateString()}
+                        {invite.role} &middot; {t('invited')} {new Date(invite.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -247,7 +250,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                       onClick={() => cancelInviteMutation.mutate(invite.id)}
                       disabled={cancellingInviteId === invite.id}
                     >
-                      {cancellingInviteId === invite.id ? 'Cancelling...' : 'Cancel'}
+                      {cancellingInviteId === invite.id ? t('cancelling') : t('cancelInvite')}
                     </Button>
                   )}
                 </div>
@@ -260,9 +263,9 @@ export function MembersTab({ projectId }: { projectId: string }) {
       <ConfirmDialog
         open={confirmDelete.isOpen}
         onOpenChange={confirmDelete.close}
-        title={`Remove "${confirmDelete.itemName}"?`}
-        description="This member will lose access to the project."
-        confirmLabel="Remove"
+        title={t('removeTitle', { name: confirmDelete.itemName })}
+        description={t('removeDescription')}
+        confirmLabel={t('remove')}
         onConfirm={handleRemove}
       />
     </div>

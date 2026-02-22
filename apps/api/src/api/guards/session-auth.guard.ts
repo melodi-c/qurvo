@@ -44,6 +44,7 @@ export class SessionAuthGuard implements CanActivate {
         user_id: users.id,
         email: users.email,
         display_name: users.display_name,
+        language: users.language,
         email_verified: users.email_verified,
       })
       .from(sessions)

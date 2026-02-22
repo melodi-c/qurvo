@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { routes } from '@/lib/routes';
+import translations from './login.translations';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,6 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
+  const { t } = useLocalTranslation(translations);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -23,7 +26,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate(routes.home());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -34,26 +37,26 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Qurvo</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardDescription>{t('subtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('email')}</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('password')}</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t('signingIn') : t('signIn')}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              {t('noAccount')}{' '}
               <Link to={routes.register()} className="text-primary underline">
-                Register
+                {t('register')}
               </Link>
             </p>
           </form>

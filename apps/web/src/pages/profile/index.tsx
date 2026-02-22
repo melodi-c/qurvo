@@ -3,19 +3,17 @@ import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/page-header';
 import { TabNav } from '@/components/ui/tab-nav';
 import { api } from '@/api/client';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './index.translations';
 import { ProfileTab } from './profile-tab';
 import { InvitesTab } from './invites-tab';
 
-const tabs = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'invites', label: 'Invites' },
-] as const;
-
-type TabId = (typeof tabs)[number]['id'];
+type TabId = 'profile' | 'invites';
 
 export default function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as TabId) || 'profile';
+  const { t } = useLocalTranslation(translations);
 
   const { data: myInvites } = useQuery({
     queryKey: ['myInvites'],
@@ -30,17 +28,19 @@ export default function ProfilePage() {
     setSearchParams(next);
   };
 
-  const tabsWithBadge = tabs.map((t) =>
-    t.id === 'invites' && pendingCount > 0
-      ? { ...t, label: `Invites (${pendingCount})` }
-      : t,
-  );
+  const tabs = [
+    { id: 'profile' as const, label: t('profileTab') },
+    {
+      id: 'invites' as const,
+      label: pendingCount > 0 ? `${t('invitesTab')} (${pendingCount})` : t('invitesTab'),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Profile" />
+      <PageHeader title={t('title')} />
 
-      <TabNav tabs={tabsWithBadge} value={activeTab} onChange={setTab} />
+      <TabNav tabs={tabs} value={activeTab} onChange={setTab} />
 
       {activeTab === 'profile' && <ProfileTab />}
       {activeTab === 'invites' && <InvitesTab />}

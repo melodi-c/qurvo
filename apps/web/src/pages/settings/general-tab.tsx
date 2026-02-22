@@ -10,10 +10,13 @@ import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Settings, Pencil } from 'lucide-react';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './general-tab.translations';
 
 export function GeneralTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const { go } = useAppNavigate();
+  const { t } = useLocalTranslation(translations);
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.projectsControllerGetById({ id: projectId }),
@@ -29,9 +32,9 @@ export function GeneralTab({ projectId }: { projectId: string }) {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setEditing(false);
-      toast.success('Project updated');
+      toast.success(t('updated'));
     },
-    onError: () => toast.error('Failed to update project'),
+    onError: () => toast.error(t('updateFailed')),
   });
 
   const deleteMutation = useMutation({
@@ -39,15 +42,15 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       go.settings();
-      toast.success('Project deleted');
+      toast.success(t('deleted'));
     },
-    onError: () => toast.error('Failed to delete project'),
+    onError: () => toast.error(t('deleteFailed')),
   });
 
   const confirmDelete = useConfirmDelete();
 
   if (!projectId) {
-    return <EmptyState icon={Settings} description="Select a project to manage settings" />;
+    return <EmptyState icon={Settings} description={t('selectProject')} />;
   }
 
   if (isLoading) return <ListSkeleton count={1} height="h-32" />;
@@ -63,13 +66,13 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     <div className="space-y-6 max-w-lg">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Project Details</CardTitle>
+          <CardTitle className="text-sm">{t('projectDetails')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <dl className="divide-y divide-border text-sm">
             {/* Name */}
             <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">Name</dt>
+              <dt className="text-muted-foreground">{t('name')}</dt>
               <dd className="text-right">
                 {editing ? (
                   <div className="flex items-center gap-2">
@@ -88,10 +91,10 @@ export function GeneralTab({ projectId }: { projectId: string }) {
                       onClick={() => updateMutation.mutate({ name })}
                       disabled={updateMutation.isPending || !name.trim()}
                     >
-                      {updateMutation.isPending ? 'Saving...' : 'Save'}
+                      {updateMutation.isPending ? t('saving') : t('save')}
                     </Button>
                     <Button size="xs" variant="ghost" onClick={() => setEditing(false)}>
-                      Cancel
+                      {t('cancel')}
                     </Button>
                   </div>
                 ) : (
@@ -109,13 +112,13 @@ export function GeneralTab({ projectId }: { projectId: string }) {
 
             {/* Slug */}
             <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">Slug</dt>
+              <dt className="text-muted-foreground">{t('slug')}</dt>
               <dd className="text-muted-foreground font-mono text-xs">{project?.slug}</dd>
             </div>
 
             {/* Role */}
             <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">Your Role</dt>
+              <dt className="text-muted-foreground">{t('yourRole')}</dt>
               <dd className="capitalize">{project?.role}</dd>
             </div>
           </dl>
@@ -125,19 +128,19 @@ export function GeneralTab({ projectId }: { projectId: string }) {
       {isOwner && (
         <Card className="border-destructive/50">
           <CardHeader>
-            <CardTitle className="text-sm text-destructive">Danger Zone</CardTitle>
+            <CardTitle className="text-sm text-destructive">{t('dangerZone')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Permanently delete this project and all its data.
+                {t('deleteDescription')}
               </p>
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => confirmDelete.requestDelete(projectId, project.name)}
               >
-                Delete Project
+                {t('deleteProject')}
               </Button>
             </div>
           </CardContent>
@@ -147,9 +150,9 @@ export function GeneralTab({ projectId }: { projectId: string }) {
       <ConfirmDialog
         open={confirmDelete.isOpen}
         onOpenChange={confirmDelete.close}
-        title={`Delete "${confirmDelete.itemName}"?`}
-        description="This action cannot be undone. All project data will be permanently removed."
-        confirmLabel="Delete"
+        title={t('deleteTitle', { name: confirmDelete.itemName })}
+        description={t('deleteConfirmDescription')}
+        confirmLabel={t('delete')}
         onConfirm={async () => {
           await deleteMutation.mutateAsync();
         }}

@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { routes } from '@/lib/routes';
+import translations from './verify-email.translations';
 
 export default function VerifyEmailPage() {
   const [code, setCode] = useState('');
@@ -24,6 +26,7 @@ export default function VerifyEmailPage() {
   const pendingVerification = useAuthStore((s) => s.pendingVerification);
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const navigate = useNavigate();
+  const { t } = useLocalTranslation(translations);
 
   // Handle ?token= — verify via API client (public endpoint)
   useEffect(() => {
@@ -41,7 +44,7 @@ export default function VerifyEmailPage() {
         }
       })
       .catch(() => {
-        setError('Ссылка недействительна или устарела. Запросите новый код.');
+        setError(t('invalidLink'));
       })
       .finally(() => setTokenVerifying(false));
   }, [searchParams, verifyByToken, checkAuth]);
@@ -66,7 +69,7 @@ export default function VerifyEmailPage() {
       await verifyByCode(code);
       navigate(routes.home());
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Ошибка верификации';
+      const msg = err?.response?.data?.message || err?.message || t('verificationError');
       setError(msg);
     } finally {
       setLoading(false);
@@ -83,7 +86,7 @@ export default function VerifyEmailPage() {
       if (secondsRemaining) {
         setCooldown(secondsRemaining);
       }
-      const msg = err?.response?.data?.message || err?.message || 'Не удалось отправить код';
+      const msg = err?.response?.data?.message || err?.message || t('resendFailed');
       setError(msg);
     }
   }, [resendVerification]);
@@ -94,8 +97,8 @@ export default function VerifyEmailPage() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl">Подтверждаем email...</CardTitle>
-            <CardDescription>Подождите, проверяем вашу ссылку.</CardDescription>
+            <CardTitle className="text-2xl">{t('verifyingTitle')}</CardTitle>
+            <CardDescription>{t('verifyingSubtitle')}</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -109,12 +112,12 @@ export default function VerifyEmailPage() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl">Email подтверждён</CardTitle>
-            <CardDescription>Ваш аккаунт успешно подтверждён.</CardDescription>
+            <CardTitle className="text-2xl">{t('verifiedTitle')}</CardTitle>
+            <CardDescription>{t('verifiedSubtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => navigate(hasSession ? routes.home() : routes.login())}>
-              {hasSession ? 'Перейти в приложение' : 'Войти'}
+              {hasSession ? t('goToApp') : t('logIn')}
             </Button>
           </CardContent>
         </Card>
@@ -126,16 +129,16 @@ export default function VerifyEmailPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Подтвердите email</CardTitle>
+          <CardTitle className="text-2xl">{t('confirmTitle')}</CardTitle>
           <CardDescription>
-            Мы отправили 6-значный код на <strong>{user?.email}</strong>. Введите его ниже.
+            {t('confirmSubtitle', { email: user?.email ?? '' })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="space-y-2">
-              <Label htmlFor="code">Код подтверждения</Label>
+              <Label htmlFor="code">{t('codeLabel')}</Label>
               <Input
                 id="code"
                 value={code}
@@ -148,7 +151,7 @@ export default function VerifyEmailPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
-              {loading ? 'Проверяем...' : 'Подтвердить'}
+              {loading ? t('verifying') : t('confirm')}
             </Button>
             <div className="text-center">
               <Button
@@ -158,7 +161,7 @@ export default function VerifyEmailPage() {
                 disabled={cooldown > 0}
                 onClick={handleResend}
               >
-                {cooldown > 0 ? `Отправить повторно через ${cooldown}с` : 'Отправить код повторно'}
+                {cooldown > 0 ? t('resendIn', { seconds: cooldown }) : t('resend')}
               </Button>
             </div>
           </form>

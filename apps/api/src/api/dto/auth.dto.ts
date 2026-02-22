@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, Matches, Length } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsIn, MinLength, MaxLength, Matches, Length } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -41,6 +41,7 @@ export class UserDto {
   id: string;
   email: string;
   display_name: string;
+  language: string;
   email_verified: boolean;
 }
 
@@ -54,6 +55,7 @@ export class SessionUserDto {
   user_id: string;
   email: string;
   display_name: string;
+  language: string;
   email_verified: boolean;
 }
 
@@ -71,9 +73,15 @@ export class ResendVerificationResponseDto {
 
 export class UpdateProfileDto {
   @IsString()
+  @IsOptional()
   @MinLength(1)
   @MaxLength(100)
-  display_name: string;
+  display_name?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['ru', 'en'])
+  language?: string;
 }
 
 export class ChangePasswordDto {

@@ -1,0 +1,36 @@
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    newInsight: 'New insight',
+    chooseType: 'Choose type',
+    trend: 'Trend',
+    trendDesc: 'Track event counts over time',
+    funnel: 'Funnel',
+    funnelDesc: 'Measure conversion through steps',
+    retention: 'Retention',
+    retentionDesc: 'See how users return over time',
+    lifecycle: 'Lifecycle',
+    lifecycleDesc: 'Track user growth dynamics',
+    stickiness: 'Stickiness',
+    stickinessDesc: 'Measure engagement frequency',
+    paths: 'Paths',
+    pathsDesc: 'Explore user journey flows',
+  },
+  ru: {
+    newInsight: 'Новая аналитика',
+    chooseType: 'Выберите тип',
+    trend: 'Тренд',
+    trendDesc: 'Отслеживание количества событий по времени',
+    funnel: 'Воронка',
+    funnelDesc: 'Измерение конверсии по шагам',
+    retention: 'Удержание',
+    retentionDesc: 'Как пользователи возвращаются со временем',
+    lifecycle: 'Жизненный цикл',
+    lifecycleDesc: 'Динамика роста пользователей',
+    stickiness: 'Вовлечённость',
+    stickinessDesc: 'Частота взаимодействия пользователей',
+    paths: 'Пути',
+    pathsDesc: 'Пользовательские маршруты',
+  },
+});
