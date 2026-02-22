@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { routes } from '@/lib/routes';
 
 export default function VerifyEmailPage() {
   const [code, setCode] = useState('');
@@ -47,7 +48,7 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (user && !pendingVerification) {
-      navigate('/');
+      navigate(routes.home());
     }
   }, [user, pendingVerification, navigate]);
 
@@ -63,7 +64,7 @@ export default function VerifyEmailPage() {
     setLoading(true);
     try {
       await verifyByCode(code);
-      navigate('/');
+      navigate(routes.home());
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Ошибка верификации';
       setError(msg);
@@ -112,7 +113,7 @@ export default function VerifyEmailPage() {
             <CardDescription>Ваш аккаунт успешно подтверждён.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => navigate(hasSession ? '/' : '/login')}>
+            <Button className="w-full" onClick={() => navigate(hasSession ? routes.home() : routes.login())}>
               {hasSession ? 'Перейти в приложение' : 'Войти'}
             </Button>
           </CardContent>

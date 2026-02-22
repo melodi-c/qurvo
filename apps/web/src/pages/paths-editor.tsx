@@ -13,8 +13,6 @@ import type { PathsWidgetConfig } from '@/api/generated/Api';
 export default function PathsEditorPage() {
   const editor = useInsightEditor<PathsWidgetConfig>({
     type: 'paths',
-    basePath: '/insights/paths',
-    listBasePath: '/insights',
     defaultName: 'Untitled paths',
     defaultConfig: defaultPathsConfig,
     cleanConfig: (config) => config,

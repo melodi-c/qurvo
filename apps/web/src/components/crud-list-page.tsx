@@ -1,6 +1,6 @@
 import type { ElementType } from 'react';
 import { useState, useCallback } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { toast } from 'sonner';
 
 interface CrudListRow {
@@ -19,7 +20,8 @@ interface CrudListRow {
 interface CrudListPageProps<T extends CrudListRow> {
   title: string;
   icon: ElementType;
-  basePath: string;
+  linkNew: string;
+  linkDetail: (id: string) => string;
   newLabel: string;
   entityLabel: string;
   columns: Column<T>[];
@@ -34,7 +36,8 @@ interface CrudListPageProps<T extends CrudListRow> {
 export function CrudListPage<T extends CrudListRow>({
   title,
   icon,
-  basePath,
+  linkNew,
+  linkDetail,
   newLabel,
   entityLabel,
   columns: extraColumns,
@@ -45,12 +48,9 @@ export function CrudListPage<T extends CrudListRow>({
   emptyDescription,
   showEmptyAction = true,
 }: CrudListPageProps<T>) {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const { projectId } = useAppNavigate();
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-
-  const newPath = `${basePath}/new?project=${projectId}`;
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -84,7 +84,7 @@ export function CrudListPage<T extends CrudListRow>({
     className: 'text-right',
     render: (row) => (
       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-        <Link to={`${basePath}/${row.id}?project=${projectId}`}>
+        <Link to={linkDetail(row.id)}>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -106,7 +106,7 @@ export function CrudListPage<T extends CrudListRow>({
   return (
     <div className="space-y-6">
       <PageHeader title={title}>
-        <Link to={newPath}>
+        <Link to={linkNew}>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             {newLabel}
@@ -126,7 +126,7 @@ export function CrudListPage<T extends CrudListRow>({
           title={emptyTitle}
           description={emptyDescription}
           action={showEmptyAction ? (
-            <Link to={newPath}>
+            <Link to={linkNew}>
               <Button size="sm">
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 {newLabel}
@@ -141,7 +141,7 @@ export function CrudListPage<T extends CrudListRow>({
           columns={allColumns}
           data={data}
           rowKey={(row) => row.id}
-          onRowClick={(row) => navigate(`${basePath}/${row.id}?project=${projectId}`)}
+          onRowClick={(row) => navigate(linkDetail(row.id))}
         />
       )}
 

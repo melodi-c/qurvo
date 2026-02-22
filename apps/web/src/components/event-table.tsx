@@ -10,6 +10,7 @@ import {
   formatRelativeTime,
   type EventLike,
 } from '@/components/event-detail';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 
 interface EventTableProps {
   events: EventLike[];
@@ -30,6 +31,7 @@ export function EventTable({
   hasMore,
   className,
 }: EventTableProps) {
+  const { link } = useAppNavigate();
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const handleExpandToggle = useCallback(
@@ -100,7 +102,7 @@ export function EventTable({
           <span className="flex items-center min-w-0">
             {projectId && row.person_id ? (
               <Link
-                to={`/persons/${row.person_id}?project=${projectId}`}
+                to={link.persons.detail(row.person_id)}
                 className="text-xs text-muted-foreground font-mono truncate hover:text-foreground hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >

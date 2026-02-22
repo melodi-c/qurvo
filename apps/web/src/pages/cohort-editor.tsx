@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,14 +7,13 @@ import { EditorHeader } from '@/components/ui/editor-header';
 import { CohortConditionBuilder, type CohortCondition } from '@/features/cohorts/components/CohortConditionBuilder';
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { toast } from 'sonner';
 import type { CohortDefinition } from '@/api/generated/Api';
 
 export default function CohortEditorPage() {
   const { cohortId } = useParams<{ cohortId: string }>();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
-  const navigate = useNavigate();
+  const { go, link, projectId } = useAppNavigate();
   const isNew = !cohortId || cohortId === 'new';
 
   const { data: existingCohort, isLoading: loadingCohort } = useCohort(isNew ? '' : cohortId!);
@@ -57,7 +56,7 @@ export default function CohortEditorPage() {
     previewMutation.mutate(def);
   }, [debouncedHash, projectId, hasValidConditions]);
 
-  const listPath = `/cohorts?project=${projectId}`;
+  const listPath = link.cohorts.list();
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const isValid = name.trim() !== '' && conditions.length > 0;
 
@@ -84,11 +83,11 @@ export default function CohortEditorPage() {
         });
         toast.success('Cohort updated');
       }
-      navigate(listPath);
+      go.cohorts.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
     }
-  }, [name, description, match, conditions, isNew, cohortId, isValid, isSaving, listPath, navigate, createMutation, updateMutation]);
+  }, [name, description, match, conditions, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation]);
 
   if (!isNew && loadingCohort) {
     return (

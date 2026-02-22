@@ -14,8 +14,6 @@ import type { RetentionWidgetConfig } from '@/api/generated/Api';
 export default function RetentionEditorPage() {
   const editor = useInsightEditor<RetentionWidgetConfig>({
     type: 'retention',
-    basePath: '/insights/retentions',
-    listBasePath: '/insights',
     defaultName: 'Untitled retention',
     defaultConfig: defaultRetentionConfig,
     cleanConfig: (c) => c,

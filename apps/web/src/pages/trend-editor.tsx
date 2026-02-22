@@ -23,8 +23,6 @@ function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
 export default function TrendEditorPage() {
   const editor = useInsightEditor<TrendWidgetConfig>({
     type: 'trend',
-    basePath: '/insights/trends',
-    listBasePath: '/insights',
     defaultName: 'Untitled trend',
     defaultConfig: defaultTrendConfig,
     cleanConfig: cleanTrendConfig,

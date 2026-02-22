@@ -13,8 +13,6 @@ import type { StickinessWidgetConfig } from '@/api/generated/Api';
 export default function StickinessEditorPage() {
   const editor = useInsightEditor<StickinessWidgetConfig>({
     type: 'stickiness',
-    basePath: '/insights/stickiness',
-    listBasePath: '/insights',
     defaultName: 'Untitled stickiness',
     defaultConfig: defaultStickinessConfig,
     cleanConfig: (c) => c,

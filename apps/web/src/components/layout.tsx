@@ -14,7 +14,7 @@ import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
-import { routes, routePatterns } from '@/lib/routes';
+import { routePatterns } from '@/lib/routes';
 
 const sidebarSections = [
   {
@@ -75,11 +75,11 @@ export default function Layout() {
   }
 
   const userInitial = user?.display_name?.slice(0, 1).toUpperCase() ?? '?';
-  const logoHref = hasProjects ? navLink(routePatterns.dashboards.list) : routes.projects();
+  const logoHref = hasProjects ? navLink(routePatterns.dashboards.list) : routePatterns.projects;
 
   // Redirect to /projects when user has no projects and is not already there
   if (projectsLoaded && !hasProjects && location.pathname !== routePatterns.projects && !location.pathname.startsWith(routePatterns.profile)) {
-    return <Navigate to={routes.projects()} replace />;
+    return <Navigate to={routePatterns.projects} replace />;
   }
 
   return (
@@ -192,7 +192,7 @@ export default function Layout() {
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate(routes.projects())}>
+                <DropdownMenuItem onClick={() => navigate(routePatterns.projects)}>
                   <Plus className="h-3.5 w-3.5 mr-2" />
                   New Project
                 </DropdownMenuItem>
@@ -219,7 +219,7 @@ export default function Layout() {
                 <p className="text-xs text-muted-foreground mt-1">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate(routes.profile())}>
+              <DropdownMenuItem onClick={() => navigate(routePatterns.profile)}>
                 <User className="h-4 w-4 mr-2" />
                 <span className="flex-1">Profile</span>
                 {pendingInvitesCount > 0 && (

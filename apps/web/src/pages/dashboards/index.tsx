@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDashboardList, useCreateDashboard, useDeleteDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -10,11 +9,10 @@ import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { Plus, LayoutDashboard, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 
 export default function DashboardsPage() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
-  const navigate = useNavigate();
+  const { go, projectId } = useAppNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
 
@@ -28,7 +26,7 @@ export default function DashboardsPage() {
     const result = await createMutation.mutateAsync(value.trim());
     setShowCreate(false);
     setName('');
-    navigate(`/dashboards/${result.id}?project=${projectId}`);
+    go.dashboards.detail(result.id);
   };
 
   const handleDelete = async () => {
@@ -75,7 +73,7 @@ export default function DashboardsPage() {
               {(dashboards || []).map((dashboard) => (
                 <div
                   key={dashboard.id}
-                  onClick={() => navigate(`/dashboards/${dashboard.id}?project=${projectId}`)}
+                  onClick={() => go.dashboards.detail(dashboard.id)}
                   className="group flex items-center gap-3 rounded-lg border border-border px-4 py-3 cursor-pointer transition-colors hover:bg-accent/50"
                 >
                   <LayoutDashboard className="h-4 w-4 text-muted-foreground shrink-0" />

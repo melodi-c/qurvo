@@ -1,9 +1,5 @@
 import type { InsightType } from '@/api/generated/Api';
 
-function withProject(path: string, projectId: string): string {
-  return `${path}?project=${projectId}`;
-}
-
 const INSIGHT_TYPE_SLUGS: Record<InsightType, string> = {
   trend: 'trends',
   funnel: 'funnels',
@@ -13,86 +9,76 @@ const INSIGHT_TYPE_SLUGS: Record<InsightType, string> = {
   paths: 'paths',
 };
 
+/** Pure path builders — no projectId, no navigation. */
 export const routes = {
-  // Auth (no project)
   login: () => '/login',
   register: () => '/register',
   verifyEmail: () => '/verify-email',
 
-  // App
-  home: (projectId: string) => withProject('/', projectId),
+  home: () => '/',
   projects: () => '/projects',
-  keys: (projectId: string) => withProject('/keys', projectId),
-  settings: (projectId: string) => withProject('/settings', projectId),
+  keys: () => '/keys',
+  settings: () => '/settings',
   profile: (params?: { tab?: string }) => {
     if (params?.tab) return `/profile?tab=${params.tab}`;
     return '/profile';
   },
 
   dashboards: {
-    list: (projectId: string) => withProject('/dashboards', projectId),
-    detail: (id: string, projectId: string) => withProject(`/dashboards/${id}`, projectId),
-    widget: (dashboardId: string, widgetId: string, projectId: string) =>
-      withProject(`/dashboards/${dashboardId}/widgets/${widgetId}`, projectId),
+    list: () => '/dashboards',
+    detail: (id: string) => `/dashboards/${id}`,
+    widget: (dashboardId: string, widgetId: string) =>
+      `/dashboards/${dashboardId}/widgets/${widgetId}`,
   },
 
   insights: {
-    list: (projectId: string) => withProject('/insights', projectId),
+    list: () => '/insights',
     trends: {
-      new: (projectId: string) => withProject('/insights/trends/new', projectId),
-      detail: (insightId: string, projectId: string) =>
-        withProject(`/insights/trends/${insightId}`, projectId),
+      new: () => '/insights/trends/new',
+      detail: (insightId: string) => `/insights/trends/${insightId}`,
     },
     funnels: {
-      new: (projectId: string) => withProject('/insights/funnels/new', projectId),
-      detail: (insightId: string, projectId: string) =>
-        withProject(`/insights/funnels/${insightId}`, projectId),
+      new: () => '/insights/funnels/new',
+      detail: (insightId: string) => `/insights/funnels/${insightId}`,
     },
     retentions: {
-      new: (projectId: string) => withProject('/insights/retentions/new', projectId),
-      detail: (insightId: string, projectId: string) =>
-        withProject(`/insights/retentions/${insightId}`, projectId),
+      new: () => '/insights/retentions/new',
+      detail: (insightId: string) => `/insights/retentions/${insightId}`,
     },
     lifecycles: {
-      new: (projectId: string) => withProject('/insights/lifecycles/new', projectId),
-      detail: (insightId: string, projectId: string) =>
-        withProject(`/insights/lifecycles/${insightId}`, projectId),
+      new: () => '/insights/lifecycles/new',
+      detail: (insightId: string) => `/insights/lifecycles/${insightId}`,
     },
     stickiness: {
-      new: (projectId: string) => withProject('/insights/stickiness/new', projectId),
-      detail: (insightId: string, projectId: string) =>
-        withProject(`/insights/stickiness/${insightId}`, projectId),
+      new: () => '/insights/stickiness/new',
+      detail: (insightId: string) => `/insights/stickiness/${insightId}`,
     },
     paths: {
-      new: (projectId: string) => withProject('/insights/paths/new', projectId),
-      detail: (insightId: string, projectId: string) =>
-        withProject(`/insights/paths/${insightId}`, projectId),
+      new: () => '/insights/paths/new',
+      detail: (insightId: string) => `/insights/paths/${insightId}`,
     },
 
-    newByType: (type: InsightType, projectId: string) =>
-      withProject(`/insights/${INSIGHT_TYPE_SLUGS[type]}/new`, projectId),
-    detailByType: (type: InsightType, insightId: string, projectId: string) =>
-      withProject(`/insights/${INSIGHT_TYPE_SLUGS[type]}/${insightId}`, projectId),
+    newByType: (type: InsightType) => `/insights/${INSIGHT_TYPE_SLUGS[type]}/new`,
+    detailByType: (type: InsightType, insightId: string) =>
+      `/insights/${INSIGHT_TYPE_SLUGS[type]}/${insightId}`,
   },
 
   cohorts: {
-    list: (projectId: string) => withProject('/cohorts', projectId),
-    new: (projectId: string) => withProject('/cohorts/new', projectId),
-    detail: (cohortId: string, projectId: string) =>
-      withProject(`/cohorts/${cohortId}`, projectId),
+    list: () => '/cohorts',
+    new: () => '/cohorts/new',
+    detail: (cohortId: string) => `/cohorts/${cohortId}`,
   },
 
-  unitEconomics: (projectId: string) => withProject('/unit-economics', projectId),
-  events: (projectId: string) => withProject('/events', projectId),
+  unitEconomics: () => '/unit-economics',
+  events: () => '/events',
 
   persons: {
-    list: (projectId: string) => withProject('/persons', projectId),
-    detail: (personId: string, projectId: string) =>
-      withProject(`/persons/${personId}`, projectId),
+    list: () => '/persons',
+    detail: (personId: string) => `/persons/${personId}`,
   },
 
-  ai: (projectId: string) => withProject('/ai', projectId),
-  dataManagement: (projectId: string) => withProject('/data-management', projectId),
+  ai: () => '/ai',
+  dataManagement: () => '/data-management',
 };
 
 /** Route patterns for React Router <Route path="..."> definitions */
@@ -146,3 +132,30 @@ export const routePatterns = {
     retentions: '/retentions',
   },
 };
+
+/** Recursively wraps route functions so each call goes through `transform`. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type WrapRoutes<T, R> = {
+  [K in keyof T]: T[K] extends (...args: infer A) => string
+    ? (...args: A) => R
+    : T[K] extends Record<string, unknown>
+      ? WrapRoutes<T[K], R>
+      : never;
+};
+
+export function wrapRoutes<R>(
+  obj: typeof routes,
+  transform: (path: string) => R,
+): WrapRoutes<typeof routes, R> {
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(obj)) {
+    const value = (obj as Record<string, unknown>)[key];
+    if (typeof value === 'function') {
+      result[key] = (...args: unknown[]) =>
+        transform((value as (...a: unknown[]) => string)(...args));
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = wrapRoutes(value as typeof routes, transform);
+    }
+  }
+  return result as WrapRoutes<typeof routes, R>;
+}

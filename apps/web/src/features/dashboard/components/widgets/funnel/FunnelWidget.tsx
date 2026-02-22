@@ -1,9 +1,9 @@
 import { RefreshCw } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
 import type { Widget, FunnelWidgetConfig } from '@/api/generated/Api';
@@ -14,9 +14,7 @@ interface FunnelWidgetProps {
 }
 
 export function FunnelWidget({ widget }: FunnelWidgetProps) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
 
@@ -31,7 +29,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const { data, isLoading, isFetching, error, refresh } = useFunnelData(config, widget.id);
 
   const handleConfigure = () => {
-    navigate(`/dashboards/${dashboardId}/widgets/${widget.id}?project=${projectId}`);
+    go.dashboards.widget(dashboardId!, widget.id);
   };
 
   if (config.steps.length < 2 || config.steps.some((s) => !s.event_name.trim())) {

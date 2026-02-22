@@ -24,8 +24,6 @@ function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
 export default function FunnelEditorPage() {
   const editor = useInsightEditor<FunnelWidgetConfig>({
     type: 'funnel',
-    basePath: '/insights/funnels',
-    listBasePath: '/insights',
     defaultName: 'Untitled funnel',
     defaultConfig: defaultFunnelConfig,
     cleanConfig: cleanFunnelConfig,

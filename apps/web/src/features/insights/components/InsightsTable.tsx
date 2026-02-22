@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Pencil, Trash2, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -8,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsightTypeIcon } from './InsightTypeIcon';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from '@/api/generated/Api';
-import { routes } from '@/lib/routes';
 
 function getTypeSubtitle(insight: Insight): string {
   if (insight.type === 'trend') {
@@ -52,14 +51,12 @@ interface InsightsTableProps {
 }
 
 export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTableProps) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') ?? '';
+  const { go } = useAppNavigate();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const handleRowClick = useCallback(
-    (row: Insight) => navigate(routes.insights.detailByType(row.type, row.id, projectId)),
-    [navigate, projectId],
+    (row: Insight) => go.insights.detailByType(row.type, row.id),
+    [go],
   );
 
   const handleDelete = useCallback(async () => {
@@ -136,7 +133,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0"
-            onClick={() => navigate(routes.insights.detailByType(row.type, row.id, projectId))}
+            onClick={() => go.insights.detailByType(row.type, row.id)}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -151,7 +148,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
         </div>
       ),
     },
-  ], [onToggleFavorite, navigate, projectId]);
+  ], [onToggleFavorite, go]);
 
   return (
     <>

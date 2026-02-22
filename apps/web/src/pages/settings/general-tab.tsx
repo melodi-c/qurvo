@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +9,11 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Settings, Pencil } from 'lucide-react';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 
 export function GeneralTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const { go } = useAppNavigate();
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.projectsControllerGetById({ id: projectId }),
@@ -38,7 +38,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     mutationFn: () => api.projectsControllerRemove({ id: projectId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      navigate('/settings');
+      go.settings();
       toast.success('Project deleted');
     },
     onError: () => toast.error('Failed to delete project'),

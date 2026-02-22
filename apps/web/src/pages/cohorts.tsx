@@ -1,6 +1,7 @@
 import { UsersRound } from 'lucide-react';
 import { CrudListPage } from '@/components/crud-list-page';
 import { useCohorts, useDeleteCohort } from '@/features/cohorts/hooks/use-cohorts';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import type { Column } from '@/components/ui/data-table';
 import type { Cohort } from '@/api/generated/Api';
 
@@ -38,12 +39,14 @@ const extraColumns: Column<Cohort>[] = [
 export default function CohortsPage() {
   const { data: cohorts, isLoading } = useCohorts();
   const deleteMutation = useDeleteCohort();
+  const { link } = useAppNavigate();
 
   return (
     <CrudListPage
       title="Cohorts"
       icon={UsersRound}
-      basePath="/cohorts"
+      linkNew={link.cohorts.new()}
+      linkDetail={(id) => link.cohorts.detail(id)}
       newLabel="New cohort"
       entityLabel="cohort"
       columns={extraColumns}

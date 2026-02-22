@@ -13,8 +13,6 @@ import type { LifecycleWidgetConfig } from '@/api/generated/Api';
 export default function LifecycleEditorPage() {
   const editor = useInsightEditor<LifecycleWidgetConfig>({
     type: 'lifecycle',
-    basePath: '/insights/lifecycles',
-    listBasePath: '/insights',
     defaultName: 'Untitled lifecycle',
     defaultConfig: defaultLifecycleConfig,
     cleanConfig: (c) => c,

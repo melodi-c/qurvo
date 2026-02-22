@@ -1,5 +1,4 @@
 import { MoreHorizontal, ExternalLink, Trash2 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -7,19 +6,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useDashboardStore } from '../store';
 import type { Widget } from '@/api/generated/Api';
 
 export function WidgetMenu({ widget }: { widget: Widget }) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const { go } = useAppNavigate();
   const removeWidget = useDashboardStore((s) => s.removeWidget);
 
   const insight = widget.insight;
-  const insightPath = insight
-    ? `/${insight.type === 'trend' ? 'trends' : 'funnels'}/${insight.id}?project=${projectId}`
-    : null;
 
   return (
     <DropdownMenu>
@@ -29,8 +24,8 @@ export function WidgetMenu({ widget }: { widget: Widget }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {insightPath && (
-          <DropdownMenuItem onClick={() => navigate(insightPath)}>
+        {insight && (
+          <DropdownMenuItem onClick={() => go.insights.detailByType(insight.type as any, insight.id)}>
             <ExternalLink />
             Open insight
           </DropdownMenuItem>

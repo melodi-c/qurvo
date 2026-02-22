@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { routes } from '@/lib/routes';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ email: '', password: '', display_name: '' });
@@ -22,7 +23,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form);
-      navigate('/');
+      navigate(routes.home());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -57,7 +58,7 @@ export default function RegisterPage() {
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link to="/login" className="text-primary underline">
+              <Link to={routes.login()} className="text-primary underline">
                 Sign in
               </Link>
             </p>

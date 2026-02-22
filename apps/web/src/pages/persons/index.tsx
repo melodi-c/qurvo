@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -8,6 +7,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { NO_VALUE_OPS } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
 import { PersonsFilterPanel } from './PersonsFilterPanel';
 import { usePersonsFilters } from './use-persons-filters';
@@ -57,9 +57,7 @@ const COLUMNS: Column<PersonRow>[] = [
 ];
 
 export default function PersonsPage() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
-  const navigate = useNavigate();
+  const { go, projectId } = useAppNavigate();
 
   const {
     filterState,
@@ -140,7 +138,7 @@ export default function PersonsPage() {
               columns={COLUMNS}
               data={rows}
               rowKey={(row) => row.id}
-              onRowClick={(row) => navigate(`/persons/${row.id}?project=${projectId}`)}
+              onRowClick={(row) => go.persons.detail(row.id)}
               page={page}
               onPageChange={setPage}
               hasMore={page * limit + persons.length < total}

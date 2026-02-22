@@ -1,9 +1,9 @@
 import { RefreshCw } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { TrendChart } from './TrendChart';
 import type { Widget, TrendWidgetConfig } from '@/api/generated/Api';
 import { formatDistanceToNow } from 'date-fns';
@@ -13,9 +13,7 @@ interface TrendWidgetProps {
 }
 
 export function TrendWidget({ widget }: TrendWidgetProps) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
 
@@ -30,7 +28,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const { data, isLoading, isFetching, error, refresh } = useTrendData(config, widget.id);
 
   const handleConfigure = () => {
-    navigate(`/dashboards/${dashboardId}/widgets/${widget.id}?project=${projectId}`);
+    go.dashboards.widget(dashboardId!, widget.id);
   };
 
   const hasValidSeries = config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');

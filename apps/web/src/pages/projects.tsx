@@ -10,6 +10,7 @@ import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog'
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Plus, FolderOpen } from 'lucide-react';
+import { routes } from '@/lib/routes';
 
 export default function ProjectsPage() {
   const [showCreate, setShowCreate] = useState(false);
@@ -30,7 +31,7 @@ export default function ProjectsPage() {
     onSuccess: async (newProject) => {
       if (isFirstProject) {
         await queryClient.invalidateQueries({ queryKey: ['projects'] });
-        navigate(`/dashboards?project=${newProject.id}`);
+        navigate(`${routes.dashboards.list()}?project=${newProject.id}`);
         return;
       }
       queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -119,7 +120,7 @@ export default function ProjectsPage() {
             <Card
               key={project.id}
               className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => { setSearchParams({ project: project.id }); navigate(`/?project=${project.id}`); }}
+              onClick={() => { setSearchParams({ project: project.id }); navigate(`${routes.home()}?project=${project.id}`); }}
             >
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -128,7 +129,7 @@ export default function ProjectsPage() {
                     <CardTitle className="text-base">{project.name}</CardTitle>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/keys?project=${project.id}`); }}>
+                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`${routes.keys()}?project=${project.id}`); }}>
                       Keys
                     </Button>
                     <Button

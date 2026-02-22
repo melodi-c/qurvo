@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import type { InsightType } from '@/api/generated/Api';
 
 interface UseInsightEditorOptions<T> {
   type: InsightType;
-  basePath: string;
-  listBasePath?: string;
   defaultName: string;
   defaultConfig: () => T;
   cleanConfig: (config: T) => T;
@@ -14,16 +13,12 @@ interface UseInsightEditorOptions<T> {
 
 export function useInsightEditor<T>({
   type,
-  basePath,
-  listBasePath,
   defaultName,
   defaultConfig,
   cleanConfig,
 }: UseInsightEditorOptions<T>) {
   const { insightId } = useParams<{ insightId: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const { go, link, projectId } = useAppNavigate();
 
   const isNew = !insightId;
   const { data: insight } = useInsight(insightId ?? '');
@@ -45,7 +40,7 @@ export function useInsightEditor<T>({
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const listPath = `${listBasePath ?? basePath}?project=${projectId}`;
+  const listPath = link.insights.list();
 
   const handleSave = useCallback(async () => {
     if (!name.trim() || isSaving) return;
@@ -64,11 +59,11 @@ export function useInsightEditor<T>({
           data: { name, config: cleanConfig(config) as any },
         });
       }
-      navigate(listPath);
+      go.insights.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
     }
-  }, [name, config, isNew, insightId, isSaving, type, listPath, navigate, createMutation, updateMutation, cleanConfig]);
+  }, [name, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanConfig]);
 
   return {
     name,

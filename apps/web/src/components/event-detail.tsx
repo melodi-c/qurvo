@@ -5,6 +5,7 @@ import { TabNav } from '@/components/ui/tab-nav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
 import { api } from '@/api/client';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
 
@@ -97,11 +98,12 @@ function ExternalLinkValue({ value }: { value: string }) {
 }
 
 function PersonLink({ personId, projectId }: { personId: string; projectId?: string }) {
+  const { link } = useAppNavigate();
   if (!personId) return null;
   if (projectId) {
     return (
       <Link
-        to={`/persons/${personId}?project=${projectId}`}
+        to={link.persons.detail(personId)}
         className="text-blue-400 hover:text-blue-300 hover:underline font-mono break-all"
         onClick={(e) => e.stopPropagation()}
       >
