@@ -37,10 +37,10 @@ export function AiChatPanel({
     const prevCount = prevMessageCountRef.current;
     prevMessageCountRef.current = messages.length;
 
-    // On initial load, scroll to bottom
-    if (isInitialLoadRef.current) {
+    // On initial load, scroll to bottom instantly (no animation)
+    if (isInitialLoadRef.current && messages.length > 0) {
       isInitialLoadRef.current = false;
-      messagesEndRef.current?.scrollIntoView();
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
       return;
     }
 
