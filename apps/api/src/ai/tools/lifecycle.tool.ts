@@ -1,47 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import type { ChatCompletionTool } from 'openai/resources/chat/completions';
+import { z } from 'zod';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
-import type { AiTool, ToolCallResult } from './ai-tool.interface';
+import { BaseAiTool } from './ai-tool.interface';
+
+const argsSchema = z.object({
+  target_event: z.string().describe('Event to analyze lifecycle for'),
+  granularity: z.enum(['day', 'week', 'month']).describe('Period granularity'),
+  date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
+  date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
+});
 
 @Injectable()
-export class LifecycleTool implements AiTool {
+export class LifecycleTool extends BaseAiTool<typeof argsSchema> {
   readonly name = 'query_lifecycle';
+  readonly description =
+    'Query user lifecycle stages — categorizes users into new, returning, resurrecting, and dormant over time.';
+  readonly argsSchema = argsSchema;
+  readonly visualizationType = 'lifecycle_chart';
 
-  constructor(private readonly lifecycleService: LifecycleService) {}
-
-  definition(): ChatCompletionTool {
-    return {
-      type: 'function',
-      function: {
-        name: this.name,
-        description:
-          'Query user lifecycle stages — categorizes users into new, returning, resurrecting, and dormant over time.',
-        parameters: {
-          type: 'object',
-          properties: {
-            target_event: { type: 'string', description: 'Event to analyze lifecycle for' },
-            granularity: {
-              type: 'string',
-              enum: ['day', 'week', 'month'],
-              description: 'Period granularity',
-            },
-            date_from: { type: 'string', description: 'Start date in ISO format (YYYY-MM-DD)' },
-            date_to: { type: 'string', description: 'End date in ISO format (YYYY-MM-DD)' },
-          },
-          required: ['target_event', 'granularity', 'date_from', 'date_to'],
-        },
-      },
-    };
+  constructor(private readonly lifecycleService: LifecycleService) {
+    super();
   }
 
-  async execute(args: Record<string, unknown>, userId: string, projectId: string): Promise<ToolCallResult> {
+  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
     const result = await this.lifecycleService.getLifecycle(userId, {
       project_id: projectId,
-      target_event: args.target_event as string,
-      granularity: (args.granularity as string) ?? 'day',
-      date_from: args.date_from as string,
-      date_to: args.date_to as string,
+      ...args,
     } as any);
-    return { result: result.data, visualization_type: 'lifecycle_chart' };
+    return result.data;
   }
 }
