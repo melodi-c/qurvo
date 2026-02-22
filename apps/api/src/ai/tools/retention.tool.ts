@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { RetentionService } from '../../retention/retention.service';
-import { BaseAiTool } from './ai-tool.interface';
+import { AiVisualizationTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   target_event: z.string().describe('Event to track retention for'),
@@ -13,7 +13,7 @@ const argsSchema = z.object({
 });
 
 @Injectable()
-export class RetentionTool extends BaseAiTool<typeof argsSchema> {
+export class RetentionTool extends AiVisualizationTool<typeof argsSchema> {
   readonly name = 'query_retention';
   readonly description =
     'Query user retention — how many users return to perform an event over time periods after their first occurrence.';

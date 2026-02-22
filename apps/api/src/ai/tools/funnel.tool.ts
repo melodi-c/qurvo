@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { FunnelService } from '../../funnel/funnel.service';
-import { BaseAiTool, propertyFilterSchema } from './ai-tool.interface';
+import { AiVisualizationTool, propertyFilterSchema } from './ai-tool.interface';
 
 const argsSchema = z.object({
   steps: z.array(z.object({
@@ -16,7 +16,7 @@ const argsSchema = z.object({
 });
 
 @Injectable()
-export class FunnelTool extends BaseAiTool<typeof argsSchema> {
+export class FunnelTool extends AiVisualizationTool<typeof argsSchema> {
   readonly name = 'query_funnel';
   readonly description =
     'Query conversion funnel with multiple steps. Returns conversion rates, drop-offs, and average time between steps. Supports per-step filters.';

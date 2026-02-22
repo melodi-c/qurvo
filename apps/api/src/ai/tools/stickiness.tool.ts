@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { StickinessService } from '../../stickiness/stickiness.service';
-import { BaseAiTool } from './ai-tool.interface';
+import { AiVisualizationTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   target_event: z.string().describe('Event to analyze stickiness for'),
@@ -11,7 +11,7 @@ const argsSchema = z.object({
 });
 
 @Injectable()
-export class StickinessTool extends BaseAiTool<typeof argsSchema> {
+export class StickinessTool extends AiVisualizationTool<typeof argsSchema> {
   readonly name = 'query_stickiness';
   readonly description =
     'Query stickiness — how many users perform an event X number of times within each period.';

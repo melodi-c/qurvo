@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { TrendService } from '../../trend/trend.service';
-import { BaseAiTool, propertyFilterSchema } from './ai-tool.interface';
+import { AiVisualizationTool, propertyFilterSchema } from './ai-tool.interface';
 
 const argsSchema = z.object({
   series: z.array(z.object({
@@ -18,7 +18,7 @@ const argsSchema = z.object({
 });
 
 @Injectable()
-export class TrendTool extends BaseAiTool<typeof argsSchema> {
+export class TrendTool extends AiVisualizationTool<typeof argsSchema> {
   readonly name = 'query_trend';
   readonly description =
     'Query time-series trend data for events. Returns data points over time with configurable granularity. ' +

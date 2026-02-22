@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
-import { BaseAiTool } from './ai-tool.interface';
+import { AiVisualizationTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   target_event: z.string().describe('Event to analyze lifecycle for'),
@@ -11,7 +11,7 @@ const argsSchema = z.object({
 });
 
 @Injectable()
-export class LifecycleTool extends BaseAiTool<typeof argsSchema> {
+export class LifecycleTool extends AiVisualizationTool<typeof argsSchema> {
   readonly name = 'query_lifecycle';
   readonly description =
     'Query user lifecycle stages — categorizes users into new, returning, resurrecting, and dormant over time.';
