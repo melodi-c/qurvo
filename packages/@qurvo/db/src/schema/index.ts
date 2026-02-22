@@ -19,3 +19,4 @@ export { unitEconomicsConfig } from './unit-economics-config';
 export { aiConversations, aiMessages } from './ai-conversations';
 export { emailVerificationCodes } from './email-verification-codes';
 export { eventDefinitions } from './event-definitions';
+export { propertyDefinitions } from './property-definitions';
