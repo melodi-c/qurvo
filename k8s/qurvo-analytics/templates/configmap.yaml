@@ -7,3 +7,11 @@ metadata:
 data:
   NODE_ENV: "production"
   CLICKHOUSE_DB: {{ .Values.clickhouse.database | quote }}
+  {{- if .Values.openai }}
+  {{- if .Values.openai.baseUrl }}
+  OPENAI_API_BASE_URL: {{ .Values.openai.baseUrl | quote }}
+  {{- end }}
+  {{- if .Values.openai.model }}
+  OPENAI_MODEL: {{ .Values.openai.model | quote }}
+  {{- end }}
+  {{- end }}

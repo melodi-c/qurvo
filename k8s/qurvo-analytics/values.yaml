@@ -35,6 +35,14 @@ secrets:
   clickhouseUrl: ""
   clickhouseUser: ""
   clickhousePassword: ""
+  openaiApiKey: ""
+
+# ==============================================================================
+# AI Assistant (OpenAI-compatible)
+# ==============================================================================
+openai:
+  baseUrl: "https://api.groq.com/openai/v1"
+  model: "llama-3.3-70b-versatile"
 
 # ==============================================================================
 # API
