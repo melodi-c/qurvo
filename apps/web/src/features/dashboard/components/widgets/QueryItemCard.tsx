@@ -74,24 +74,27 @@ export function QueryItemCard({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
     >
-      {/* Header: grip + badge + label + delete */}
+      {/* Header: grip + badge + label (with delete inside) */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border/40">
         <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 cursor-grab active:cursor-grabbing" />
         {badge}
-        <Input
-          value={item.label ?? ''}
-          onChange={(e) => onLabelChange(e.target.value)}
-          placeholder={labelPlaceholder}
-          className="h-6 flex-1 border-0 bg-transparent text-xs font-medium shadow-none p-0 focus-visible:ring-0"
-        />
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canRemove}
-          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:text-destructive disabled:pointer-events-none disabled:opacity-0"
-        >
-          <X className="h-3 w-3" />
-        </button>
+        <div className="flex items-center flex-1 min-w-0 rounded-sm border border-border/60 bg-muted/30">
+          <Input
+            value={item.label ?? ''}
+            onChange={(e) => onLabelChange(e.target.value)}
+            placeholder={labelPlaceholder}
+            className="h-7 flex-1 min-w-0 border-0 bg-transparent text-xs font-medium shadow-none px-2 focus-visible:ring-0"
+          />
+          {canRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground/50 transition-colors hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Event name */}
