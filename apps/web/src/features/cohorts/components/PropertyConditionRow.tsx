@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/funnel/PropertyNameCombobox';
+import { usePersonPropertyNames } from '@/pages/persons/use-person-property-names';
 
 export interface PropertyCondition {
   type: 'person_property';
@@ -25,6 +27,7 @@ interface PropertyConditionRowProps {
 }
 
 export function PropertyConditionRow({ condition, onChange, onRemove }: PropertyConditionRowProps) {
+  const { data: propertyNames = [] } = usePersonPropertyNames();
   const needsValue = !['is_set', 'is_not_set'].includes(condition.operator);
 
   return (
@@ -40,11 +43,11 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
         </button>
       </div>
 
-      <Input
+      <PropertyNameCombobox
         value={condition.property}
-        onChange={(e) => onChange({ ...condition, property: e.target.value })}
-        placeholder="e.g. user_properties.plan, country"
-        className="h-8 text-xs"
+        onChange={(v) => onChange({ ...condition, property: v })}
+        propertyNames={propertyNames}
+        className="h-8 min-w-0"
       />
 
       <div className="flex gap-2">
