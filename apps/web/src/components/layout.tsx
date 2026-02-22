@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, Mail, X, Calculator } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, Mail, X, Calculator, Sparkles } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
 
 const sidebarSections = [
@@ -25,6 +25,7 @@ const sidebarSections = [
       { path: '/cohorts',         label: 'Cohorts',         icon: UsersRound },
       { path: '/persons',    label: 'Persons',    icon: Users },
       { path: '/events',     label: 'Events',     icon: List },
+      { path: '/ai',          label: 'AI Assistant', icon: Sparkles },
     ],
   },
   {

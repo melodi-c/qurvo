@@ -30,6 +30,7 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.0",
+    "openai": "^4.73.0",
     "rxjs": "^7.8.0"
   },
   "devDependencies": {
