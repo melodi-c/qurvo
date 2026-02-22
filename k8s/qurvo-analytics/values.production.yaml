@@ -19,6 +19,11 @@ api:
       memory: "512Mi"
   env:
     CORS_ORIGIN: "https://app.qurvo.ru"
+    APP_BASE_URL: "https://app.qurvo.ru"
+    SMTP_HOST: "smtp.yandex.ru"
+    SMTP_PORT: "465"
+    SMTP_SECURE: "true"
+    SMTP_FROM: "Qurvo <noreply@qurvo.ru>"
 
 ingest:
   replicas: 3

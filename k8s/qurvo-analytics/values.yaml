@@ -36,6 +36,8 @@ secrets:
   clickhouseUser: ""
   clickhousePassword: ""
   openaiApiKey: ""
+  smtpUser: ""
+  smtpPass: ""
 
 # ==============================================================================
 # AI Assistant (OpenAI-compatible)
