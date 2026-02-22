@@ -1036,6 +1036,59 @@ export interface UpsertPropertyDefinitionResponse {
   updated_at: string;
 }
 
+export interface WebAnalyticsKPIs {
+  unique_visitors: number;
+  pageviews: number;
+  sessions: number;
+  avg_duration_seconds: number;
+  bounce_rate: number;
+}
+
+export interface WebAnalyticsTimeseriesPoint {
+  bucket: string;
+  unique_visitors: number;
+  pageviews: number;
+  sessions: number;
+}
+
+export interface WebAnalyticsOverviewResponse {
+  current: WebAnalyticsKPIs;
+  previous: WebAnalyticsKPIs;
+  timeseries: WebAnalyticsTimeseriesPoint[];
+  granularity: string;
+}
+
+export interface WebAnalyticsDimensionRow {
+  name: string;
+  visitors: number;
+  pageviews: number;
+}
+
+export interface WebAnalyticsPathsResponse {
+  top_pages: WebAnalyticsDimensionRow[];
+  entry_pages: WebAnalyticsDimensionRow[];
+  exit_pages: WebAnalyticsDimensionRow[];
+}
+
+export interface WebAnalyticsSourcesResponse {
+  referrers: WebAnalyticsDimensionRow[];
+  utm_sources: WebAnalyticsDimensionRow[];
+  utm_mediums: WebAnalyticsDimensionRow[];
+  utm_campaigns: WebAnalyticsDimensionRow[];
+}
+
+export interface WebAnalyticsDevicesResponse {
+  device_types: WebAnalyticsDimensionRow[];
+  browsers: WebAnalyticsDimensionRow[];
+  oses: WebAnalyticsDimensionRow[];
+}
+
+export interface WebAnalyticsGeographyResponse {
+  countries: WebAnalyticsDimensionRow[];
+  regions: WebAnalyticsDimensionRow[];
+  cities: WebAnalyticsDimensionRow[];
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -1563,6 +1616,51 @@ export interface PropertyDefinitionsControllerUpsertParams {
   projectId: string;
   propertyType: string;
   propertyName: string;
+}
+
+export interface WebAnalyticsControllerGetOverviewParams {
+  filters?: StepFilter[];
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
+}
+
+export interface WebAnalyticsControllerGetPathsParams {
+  filters?: StepFilter[];
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
+}
+
+export interface WebAnalyticsControllerGetSourcesParams {
+  filters?: StepFilter[];
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
+}
+
+export interface WebAnalyticsControllerGetDevicesParams {
+  filters?: StepFilter[];
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
+}
+
+export interface WebAnalyticsControllerGetGeographyParams {
+  filters?: StepFilter[];
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
 }
 
 import type {
@@ -3455,6 +3553,111 @@ export class Api<
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Web Analytics
+     * @name WebAnalyticsControllerGetOverview
+     * @request GET:/api/web-analytics/overview
+     * @secure
+     */
+    webAnalyticsControllerGetOverview: (
+      query: WebAnalyticsControllerGetOverviewParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<WebAnalyticsOverviewResponse, any>({
+        path: `/api/web-analytics/overview`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Web Analytics
+     * @name WebAnalyticsControllerGetPaths
+     * @request GET:/api/web-analytics/paths
+     * @secure
+     */
+    webAnalyticsControllerGetPaths: (
+      query: WebAnalyticsControllerGetPathsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<WebAnalyticsPathsResponse, any>({
+        path: `/api/web-analytics/paths`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Web Analytics
+     * @name WebAnalyticsControllerGetSources
+     * @request GET:/api/web-analytics/sources
+     * @secure
+     */
+    webAnalyticsControllerGetSources: (
+      query: WebAnalyticsControllerGetSourcesParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<WebAnalyticsSourcesResponse, any>({
+        path: `/api/web-analytics/sources`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Web Analytics
+     * @name WebAnalyticsControllerGetDevices
+     * @request GET:/api/web-analytics/devices
+     * @secure
+     */
+    webAnalyticsControllerGetDevices: (
+      query: WebAnalyticsControllerGetDevicesParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<WebAnalyticsDevicesResponse, any>({
+        path: `/api/web-analytics/devices`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Web Analytics
+     * @name WebAnalyticsControllerGetGeography
+     * @request GET:/api/web-analytics/geography
+     * @secure
+     */
+    webAnalyticsControllerGetGeography: (
+      query: WebAnalyticsControllerGetGeographyParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<WebAnalyticsGeographyResponse, any>({
+        path: `/api/web-analytics/geography`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),

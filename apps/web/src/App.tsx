@@ -31,6 +31,7 @@ import AiPage from '@/pages/ai/index';
 import VerifyEmailPage from '@/pages/verify-email';
 import EventDefinitionsPage from '@/pages/event-definitions';
 import EventDefinitionDetailPage from '@/pages/event-definition-detail';
+import WebAnalyticsPage from '@/pages/web-analytics';
 import { routes, routePatterns } from '@/lib/routes';
 
 const queryClient = new QueryClient({
@@ -68,6 +69,7 @@ function AppRoutes() {
         }
       >
         <Route path={routePatterns.home} element={<DashboardPage />} />
+        <Route path={routePatterns.webAnalytics} element={<WebAnalyticsPage />} />
         <Route path={routePatterns.dashboards.list} element={<DashboardsPage />} />
         <Route path={routePatterns.dashboards.detail} element={<DashboardBuilderPage />} />
         <Route path={routePatterns.projects} element={<ProjectsPage />} />

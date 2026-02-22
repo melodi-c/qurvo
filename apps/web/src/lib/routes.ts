@@ -24,6 +24,8 @@ export const routes = {
     return '/profile';
   },
 
+  webAnalytics: () => '/web-analytics',
+
   dashboards: {
     list: () => '/dashboards',
     detail: (id: string) => `/dashboards/${id}`,
@@ -96,6 +98,8 @@ export const routePatterns = {
   settings: '/settings',
   profile: '/profile',
   invites: '/invites',
+
+  webAnalytics: '/web-analytics',
 
   dashboards: {
     list: '/dashboards',
