@@ -41,7 +41,6 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           <TrendSeriesBuilder
             series={config.series}
             onChange={(series) => onChange({ ...config, series })}
-            propertyNames={propertyNames}
           />
         </section>
 

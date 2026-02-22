@@ -110,6 +110,11 @@ export class EventNamesResponseDto {
 export class EventPropertyNamesQueryDto {
   @IsUUID()
   project_id: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  event_name?: string;
 }
 
 export class EventPropertyNamesResponseDto {

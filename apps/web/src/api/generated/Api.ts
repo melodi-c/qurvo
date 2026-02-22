@@ -942,6 +942,7 @@ export interface EventsControllerGetEventNamesParams {
 }
 
 export interface EventsControllerGetEventPropertyNamesParams {
+  event_name?: string;
   /** @format uuid */
   project_id: string;
 }

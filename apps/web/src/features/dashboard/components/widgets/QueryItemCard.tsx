@@ -3,6 +3,7 @@ import { GripVertical, X, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { EventNameCombobox } from './funnel/EventNameCombobox';
 import { StepFilterRow } from './funnel/StepFilterRow';
+import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import type { StepFilter } from '@/api/generated/Api';
 
 export interface QueryItem {
@@ -22,8 +23,6 @@ interface QueryItemCardProps {
   labelPlaceholder?: string;
   /** Whether the remove button is disabled (e.g. min items reached) */
   canRemove: boolean;
-  /** Property names for autocomplete in filters */
-  propertyNames?: string[];
 
   onLabelChange: (label: string) => void;
   onEventChange: (event: string) => void;
@@ -46,7 +45,6 @@ export function QueryItemCard({
   badge,
   labelPlaceholder = 'Label',
   canRemove,
-  propertyNames,
   onLabelChange,
   onEventChange,
   onRemove,
@@ -61,6 +59,7 @@ export function QueryItemCard({
   onDragLeave,
 }: QueryItemCardProps) {
   const filters = item.filters ?? [];
+  const { data: propertyNames = [] } = useEventPropertyNames(item.event_name);
 
   return (
     <div

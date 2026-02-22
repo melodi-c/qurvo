@@ -8,10 +8,9 @@ const COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500'
 interface TrendSeriesBuilderProps {
   series: TrendSeries[];
   onChange: (series: TrendSeries[]) => void;
-  propertyNames?: string[];
 }
 
-export function TrendSeriesBuilder({ series, onChange, propertyNames }: TrendSeriesBuilderProps) {
+export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps) {
   const drag = useDragReorder(series, onChange);
 
   const update = (idx: number, patch: Partial<TrendSeries>) => {
@@ -59,7 +58,6 @@ export function TrendSeriesBuilder({ series, onChange, propertyNames }: TrendSer
           onFilterAdd={() => addFilter(idx)}
           onFilterChange={(fi, f) => updateFilter(idx, fi, f)}
           onFilterRemove={(fi) => removeFilter(idx, fi)}
-          propertyNames={propertyNames}
           draggable
           isDragOver={drag.overIdx === idx && drag.dragIdx !== null && drag.dragIdx !== idx}
           onDragStart={(e) => drag.handleDragStart(idx, e)}
