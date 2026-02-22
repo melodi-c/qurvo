@@ -101,7 +101,7 @@ export function SettingsTab() {
             value={form.revenue_property ?? ''}
             onChange={(v) => updateField('revenue_property', v)}
             propertyNames={propertyNames}
-            className="h-9 border border-border rounded-md bg-background px-3 font-sans"
+            className="h-9 w-full border border-border rounded-md bg-background px-3 text-sm font-sans"
           />
         </div>
 
