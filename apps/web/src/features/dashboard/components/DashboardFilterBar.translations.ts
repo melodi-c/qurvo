@@ -4,11 +4,13 @@ export default createTranslations({
   en: {
     dashboardFilters: 'Dashboard filters',
     discardOverrides: 'Discard',
-    overrideBanner: 'Date filter override is active',
+    propertyFilters: 'Property filters',
+    addFilter: 'Add filter',
   },
   ru: {
     dashboardFilters: 'Фильтры дашборда',
     discardOverrides: 'Сбросить',
-    overrideBanner: 'Активен фильтр даты на уровне дашборда',
+    propertyFilters: 'Фильтры по свойствам',
+    addFilter: 'Добавить фильтр',
   },
 });
