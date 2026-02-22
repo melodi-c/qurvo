@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
 import { api } from '@/api/client';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './event-detail.translations';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
 
@@ -190,6 +192,7 @@ function PropsTableGrouped({ groups }: { groups: { label: string; rows: PropEntr
 type DetailTab = 'event' | 'person';
 
 export function EventDetail({ event, projectId }: { event: EventLike; projectId?: string }) {
+  const { t } = useLocalTranslation(translations);
   const [tab, setTab] = useState<DetailTab>('event');
 
   // Lazy-load properties & user_properties via separate endpoint
@@ -212,7 +215,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
 
   const eventGroups: { label: string; rows: PropEntry[] }[] = [
     {
-      label: 'Location',
+      label: t('groupLocation'),
       rows: [
         { key: 'country', value: event.country },
         { key: 'region', value: event.region },
@@ -220,7 +223,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       ],
     },
     {
-      label: 'Page',
+      label: t('groupPage'),
       rows: [
         { key: 'url', value: event.url, render: linkRenderer },
         { key: 'referrer', value: event.referrer, render: linkRenderer },
@@ -229,7 +232,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       ],
     },
     {
-      label: 'Device & Browser',
+      label: t('groupDevice'),
       rows: [
         { key: 'browser', value: browserLabel },
         { key: 'os', value: osLabel },
@@ -238,7 +241,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       ],
     },
     {
-      label: 'Identity & Session',
+      label: t('groupIdentity'),
       rows: [
         { key: 'distinct_id', value: event.distinct_id },
         {
@@ -252,7 +255,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       ],
     },
     {
-      label: 'SDK',
+      label: t('groupSdk'),
       rows: [
         { key: 'sdk_name', value: event.sdk_name },
         { key: 'sdk_version', value: event.sdk_version },
@@ -269,7 +272,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       value: typeof val === 'object' ? JSON.stringify(val) : String(val),
     }));
     if (customProps.length > 0) {
-      eventGroups.push({ label: 'Custom Properties', rows: customProps });
+      eventGroups.push({ label: t('groupCustomProperties'), rows: customProps });
     }
   }
 
@@ -293,7 +296,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       {/* Tab bar */}
       <div className="px-4 mt-2">
         <TabNav
-          tabs={[{ id: 'event' as const, label: 'Event' }, { id: 'person' as const, label: 'Person' }]}
+          tabs={[{ id: 'event' as const, label: t('tabEvent') }, { id: 'person' as const, label: t('tabPerson') }]}
           value={tab}
           onChange={setTab}
         />
@@ -321,7 +324,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
               </div>
             )
             : personRows.length === 0
-              ? <p className="text-xs text-muted-foreground py-4">No person properties recorded</p>
+              ? <p className="text-xs text-muted-foreground py-4">{t('noPersonProperties')}</p>
               : <PropsTable rows={personRows} />
         )}
       </div>

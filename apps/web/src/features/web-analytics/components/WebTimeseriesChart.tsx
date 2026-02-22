@@ -12,14 +12,10 @@ import type { WebAnalyticsTimeseriesPoint } from '@/api/generated/Api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './WebTimeseriesChart.translations';
 
 type MetricKey = 'unique_visitors' | 'pageviews' | 'sessions';
-
-const METRIC_OPTIONS: { label: string; value: MetricKey }[] = [
-  { label: 'Visitors', value: 'unique_visitors' },
-  { label: 'Pageviews', value: 'pageviews' },
-  { label: 'Sessions', value: 'sessions' },
-];
 
 const METRIC_COLORS: Record<MetricKey, string> = {
   unique_visitors: '#818cf8',
@@ -50,6 +46,14 @@ export function WebTimeseriesChart({
   metric,
   onMetricChange,
 }: WebTimeseriesChartProps) {
+  const { t } = useLocalTranslation(translations);
+
+  const metricOptions: { label: string; value: MetricKey }[] = useMemo(() => [
+    { label: t('visitors'), value: 'unique_visitors' },
+    { label: t('pageviews'), value: 'pageviews' },
+    { label: t('sessions'), value: 'sessions' },
+  ], [t]);
+
   const chartData = useMemo(() => {
     if (!data) return [];
     return data.map((d) => ({
@@ -61,9 +65,9 @@ export function WebTimeseriesChart({
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="text-sm">Traffic over time</CardTitle>
+        <CardTitle className="text-sm">{t('trafficOverTime')}</CardTitle>
         <PillToggleGroup
-          options={METRIC_OPTIONS}
+          options={metricOptions}
           value={metric}
           onChange={onMetricChange}
         />

@@ -9,9 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { routes } from '@/lib/routes';
 import { useEventDefinitions } from '@/features/event-definitions/hooks/use-event-definitions';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './event-definitions.translations';
 import type { EventDefinition } from '@/api/generated/Api';
 
 export default function EventDefinitionsPage() {
+  const { t } = useLocalTranslation(translations);
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const navigate = useNavigate();
@@ -27,7 +30,7 @@ export default function EventDefinitionsPage() {
   const columns: Column<EventDefinition>[] = useMemo(() => [
     {
       key: 'event_name',
-      header: 'Event Name',
+      header: t('eventName'),
       render: (row) => (
         <div className="flex items-center gap-2">
           <span className="font-mono text-sm text-foreground">{row.event_name}</span>
@@ -41,7 +44,7 @@ export default function EventDefinitionsPage() {
     },
     {
       key: 'count',
-      header: 'Volume (30d)',
+      header: t('volume30d'),
       headerClassName: 'w-32',
       hideOnMobile: true,
       render: (row) => (
@@ -52,17 +55,17 @@ export default function EventDefinitionsPage() {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('description'),
       hideOnMobile: true,
       render: (row) => (
         <span className="text-sm text-muted-foreground">
-          {row.description || <span className="italic opacity-40">No description</span>}
+          {row.description || <span className="italic opacity-40">{t('noDescription')}</span>}
         </span>
       ),
     },
     {
       key: 'tags',
-      header: 'Tags',
+      header: t('tags'),
       hideOnMobile: true,
       render: (row) => (
         <div className="flex flex-wrap gap-1">
@@ -74,7 +77,7 @@ export default function EventDefinitionsPage() {
         </div>
       ),
     },
-  ], []);
+  ], [t]);
 
   function handleRowClick(row: EventDefinition) {
     const params = projectId ? `?project=${projectId}` : '';
@@ -83,10 +86,10 @@ export default function EventDefinitionsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Data Management" />
+      <PageHeader title={t('title')} />
 
       {!projectId && (
-        <EmptyState icon={Database} description="Select a project to view definitions" />
+        <EmptyState icon={Database} description={t('selectProject')} />
       )}
 
       {projectId && isLoading && <ListSkeleton count={8} />}
@@ -95,14 +98,16 @@ export default function EventDefinitionsPage() {
         <>
           <div className="flex items-center gap-3">
             <Input
-              placeholder="Search events..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
             {filtered && (
               <span className="text-sm text-muted-foreground">
-                {filtered.length} event{filtered.length !== 1 ? 's' : ''}
+                {filtered.length !== 1
+                  ? t('eventCountPlural', { count: filtered.length })
+                  : t('eventCount', { count: filtered.length })}
               </span>
             )}
           </div>
@@ -110,8 +115,8 @@ export default function EventDefinitionsPage() {
           {filtered && filtered.length === 0 && (
             <EmptyState
               icon={Database}
-              title="No events found"
-              description={search ? 'No events match your search' : 'No events have been tracked yet'}
+              title={t('noEventsFound')}
+              description={search ? t('noEventsMatch') : t('noEventsTracked')}
             />
           )}
 

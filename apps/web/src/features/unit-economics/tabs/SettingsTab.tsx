@@ -10,8 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
 import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/funnel/PropertyNameCombobox';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useUEConfig, useUpsertUEConfig } from '../hooks/use-ue-config';
 import type { UpsertUEConfig } from '@/api/generated/Api';
+import translations from './SettingsTab.translations';
 
 const CURRENCIES = [
   { label: 'USD ($)', value: 'USD' },
@@ -22,6 +24,7 @@ const CURRENCIES = [
 ];
 
 export function SettingsTab() {
+  const { t } = useLocalTranslation(translations);
   const { data: config, isLoading } = useUEConfig();
   const upsertMutation = useUpsertUEConfig();
 
@@ -54,7 +57,7 @@ export function SettingsTab() {
 
   const handleSave = useCallback(async () => {
     await upsertMutation.mutateAsync(form);
-    toast.success('Settings saved');
+    toast.success(t('settingsSaved'));
     setDirty(false);
   }, [form, upsertMutation]);
 
@@ -73,29 +76,29 @@ export function SettingsTab() {
       {!config && (
         <EmptyState
           icon={Settings}
-          title="Configure Unit Economics"
-          description="Set the purchase event name to start calculating metrics. Other fields have sensible defaults."
+          title={t('configureTitle')}
+          description={t('configureDescription')}
         />
       )}
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Purchase Event Name</Label>
+          <Label>{t('purchaseEventName')}</Label>
           <p className="text-xs text-muted-foreground">
-            The event that represents a purchase (e.g. "purchase", "order_completed")
+            {t('purchaseEventHint')}
           </p>
           <EventNameCombobox
             value={form.purchase_event_name ?? ''}
             onChange={(v) => updateField('purchase_event_name', v)}
-            placeholder="Select event..."
+            placeholder={t('selectEvent')}
             className="h-9 border border-border rounded-md bg-background px-3 font-sans"
           />
         </div>
 
         <div className="space-y-2">
-          <Label>Revenue Property</Label>
+          <Label>{t('revenueProperty')}</Label>
           <p className="text-xs text-muted-foreground">
-            The property key in event properties that contains the revenue amount
+            {t('revenuePropertyHint')}
           </p>
           <PropertyNameCombobox
             value={form.revenue_property ?? ''}
@@ -107,7 +110,7 @@ export function SettingsTab() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Currency</Label>
+            <Label>{t('currency')}</Label>
             <Select
               value={form.currency ?? 'USD'}
               onValueChange={(v) => updateField('currency', v)}
@@ -124,7 +127,7 @@ export function SettingsTab() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ue-churn-window">Churn Window (days)</Label>
+            <Label htmlFor="ue-churn-window">{t('churnWindow')}</Label>
             <Input
               id="ue-churn-window"
               type="number"
@@ -141,7 +144,7 @@ export function SettingsTab() {
         onClick={handleSave}
         disabled={!form.purchase_event_name?.trim() || !dirty || upsertMutation.isPending}
       >
-        {upsertMutation.isPending ? 'Saving...' : 'Save Settings'}
+        {upsertMutation.isPending ? t('saving') : t('saveSettings')}
       </Button>
     </div>
   );

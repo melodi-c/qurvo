@@ -1,0 +1,36 @@
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    backLabel: 'Cohorts',
+    placeholder: 'Untitled cohort',
+    defaultName: 'Untitled cohort',
+    descriptionLabel: 'Description',
+    descriptionPlaceholder: 'Optional description',
+    conditionsLabel: 'Conditions',
+    addConditionsTitle: 'Add conditions to preview',
+    addConditionsDescription: 'Configure conditions on the left to see matching users count',
+    calculating: 'Calculating...',
+    personsMatch: 'persons match',
+    previewPlaceholder: 'Preview will appear here',
+    cohortCreated: 'Cohort created',
+    cohortUpdated: 'Cohort updated',
+    saveFailed: 'Failed to save',
+  },
+  ru: {
+    backLabel: 'Когорты',
+    placeholder: 'Новая когорта',
+    defaultName: 'Новая когорта',
+    descriptionLabel: 'Описание',
+    descriptionPlaceholder: 'Необязательное описание',
+    conditionsLabel: 'Условия',
+    addConditionsTitle: 'Добавьте условия для предпросмотра',
+    addConditionsDescription: 'Настройте условия слева, чтобы увидеть количество подходящих пользователей',
+    calculating: 'Вычисление...',
+    personsMatch: 'пользователей соответствуют',
+    previewPlaceholder: 'Предпросмотр появится здесь',
+    cohortCreated: 'Когорта создана',
+    cohortUpdated: 'Когорта обновлена',
+    saveFailed: 'Не удалось сохранить',
+  },
+});

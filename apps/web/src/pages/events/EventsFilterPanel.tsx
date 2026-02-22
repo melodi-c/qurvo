@@ -5,6 +5,8 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
 import { StepFilterRow } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './EventsFilterPanel.translations';
 import type { StepFilter } from '@/api/generated/Api';
 
 interface EventsFilterPanelProps {
@@ -26,6 +28,7 @@ export function EventsFilterPanel({
   filters,
   onFiltersChange,
 }: EventsFilterPanelProps) {
+  const { t } = useLocalTranslation(translations);
   const { data: propertyNames = [] } = useEventPropertyNames(eventName);
 
   const addFilter = () =>
@@ -41,12 +44,12 @@ export function EventsFilterPanel({
     <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4">
       {/* Event name + clear */}
       <section className="space-y-2">
-        <span className="text-xs font-medium text-muted-foreground">Event</span>
+        <span className="text-xs font-medium text-muted-foreground">{t('event')}</span>
         <div className="flex items-center rounded-sm border border-border/60 bg-muted/30">
           <EventNameCombobox
             value={eventName}
             onChange={onEventNameChange}
-            placeholder="All events"
+            placeholder={t('allEvents')}
             className="min-w-0 flex-1 border-0 bg-transparent"
           />
           {eventName && (
@@ -73,7 +76,7 @@ export function EventsFilterPanel({
 
       {/* Property filters */}
       <section className="space-y-3">
-        <SectionHeader icon={Filter} label="Filters" />
+        <SectionHeader icon={Filter} label={t('filters')} />
         {filters.length > 0 && (
           <div className="space-y-2">
             {filters.map((f, i) => (
@@ -93,7 +96,7 @@ export function EventsFilterPanel({
           className="flex items-center gap-1.5 text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
-          Add filter
+          {t('addFilter')}
         </button>
       </section>
     </div>

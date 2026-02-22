@@ -9,6 +9,8 @@ import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { NO_VALUE_OPS } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './index.translations';
 import { PersonsFilterPanel } from './PersonsFilterPanel';
 import { usePersonsFilters } from './use-persons-filters';
 
@@ -21,42 +23,8 @@ interface PersonRow {
   updatedAt: string;
 }
 
-const COLUMNS: Column<PersonRow>[] = [
-  {
-    key: 'identifier',
-    header: 'Identifier',
-    className: 'font-mono text-xs text-muted-foreground truncate max-w-[160px]',
-    render: (row) => row.displayId,
-  },
-  {
-    key: 'name',
-    header: 'Name',
-    className: 'font-medium',
-    render: (row) => row.name || '\u2014',
-  },
-  {
-    key: 'email',
-    header: 'Email',
-    className: 'text-muted-foreground',
-    hideOnMobile: true,
-    render: (row) => row.email || '\u2014',
-  },
-  {
-    key: 'firstSeen',
-    header: 'First Seen',
-    className: 'text-muted-foreground',
-    hideOnMobile: true,
-    render: (row) => new Date(row.createdAt).toLocaleDateString(),
-  },
-  {
-    key: 'lastSeen',
-    header: 'Last Seen',
-    className: 'text-muted-foreground',
-    render: (row) => new Date(row.updatedAt).toLocaleDateString(),
-  },
-];
-
 export default function PersonsPage() {
+  const { t } = useLocalTranslation(translations);
   const { go, projectId } = useAppNavigate();
 
   const {
@@ -98,6 +66,41 @@ export default function PersonsPage() {
   const persons = data?.persons ?? [];
   const total = data?.total ?? 0;
 
+  const columns: Column<PersonRow>[] = useMemo(() => [
+    {
+      key: 'identifier',
+      header: t('identifier'),
+      className: 'font-mono text-xs text-muted-foreground truncate max-w-[160px]',
+      render: (row) => row.displayId,
+    },
+    {
+      key: 'name',
+      header: t('name'),
+      className: 'font-medium',
+      render: (row) => row.name || '\u2014',
+    },
+    {
+      key: 'email',
+      header: t('email'),
+      className: 'text-muted-foreground',
+      hideOnMobile: true,
+      render: (row) => row.email || '\u2014',
+    },
+    {
+      key: 'firstSeen',
+      header: t('firstSeen'),
+      className: 'text-muted-foreground',
+      hideOnMobile: true,
+      render: (row) => new Date(row.createdAt).toLocaleDateString(),
+    },
+    {
+      key: 'lastSeen',
+      header: t('lastSeen'),
+      className: 'text-muted-foreground',
+      render: (row) => new Date(row.updatedAt).toLocaleDateString(),
+    },
+  ], [t]);
+
   const rows: PersonRow[] = persons.map((person) => {
     const props = person.properties as Record<string, unknown>;
     return {
@@ -112,14 +115,14 @@ export default function PersonsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Persons">
+      <PageHeader title={t('title')}>
         {total > 0 && (
-          <span className="text-sm text-muted-foreground">{total.toLocaleString()} total</span>
+          <span className="text-sm text-muted-foreground">{t('total', { count: total.toLocaleString() })}</span>
         )}
       </PageHeader>
 
       {!projectId && (
-        <EmptyState icon={Users} description="Select a project to view persons" />
+        <EmptyState icon={Users} description={t('selectProject')} />
       )}
 
       {projectId && (
@@ -135,7 +138,7 @@ export default function PersonsPage() {
 
           {!isLoading && rows.length > 0 && (
             <DataTable
-              columns={COLUMNS}
+              columns={columns}
               data={rows}
               rowKey={(row) => row.id}
               onRowClick={(row) => go.persons.detail(row.id)}
@@ -146,7 +149,7 @@ export default function PersonsPage() {
           )}
 
           {!isLoading && rows.length === 0 && (
-            <EmptyState icon={Users} description="No persons found" />
+            <EmptyState icon={Users} description={t('noPersons')} />
           )}
         </>
       )}

@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './EventConditionRow.translations';
 
 export interface EventCondition {
   type: 'event';
@@ -11,12 +14,6 @@ export interface EventCondition {
   time_window_days: number;
 }
 
-const COUNT_OPERATORS = [
-  { value: 'gte', label: 'at least' },
-  { value: 'lte', label: 'at most' },
-  { value: 'eq', label: 'exactly' },
-] as const;
-
 interface EventConditionRowProps {
   condition: EventCondition;
   onChange: (condition: EventCondition) => void;
@@ -24,10 +21,18 @@ interface EventConditionRowProps {
 }
 
 export function EventConditionRow({ condition, onChange, onRemove }: EventConditionRowProps) {
+  const { t } = useLocalTranslation(translations);
+
+  const countOperators = useMemo(() => [
+    { value: 'gte', label: t('atLeast') },
+    { value: 'lte', label: t('atMost') },
+    { value: 'eq', label: t('exactly') },
+  ] as const, [t]);
+
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 p-2.5 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Performed event</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">{t('performedEvent')}</span>
         <button
           type="button"
           onClick={onRemove}
@@ -40,7 +45,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}
-        placeholder="Select event..."
+        placeholder={t('selectEvent')}
       />
 
       <div className="flex items-center gap-2">
@@ -52,7 +57,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {COUNT_OPERATORS.map((op) => (
+            {countOperators.map((op) => (
               <SelectItem key={op.value} value={op.value} className="text-xs">
                 {op.label}
               </SelectItem>
@@ -68,7 +73,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           className="h-8 text-xs w-16"
         />
 
-        <span className="text-xs text-muted-foreground whitespace-nowrap">times in last</span>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{t('timesInLast')}</span>
 
         <Input
           type="number"
@@ -79,7 +84,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           className="h-8 text-xs w-16"
         />
 
-        <span className="text-xs text-muted-foreground">days</span>
+        <span className="text-xs text-muted-foreground">{t('days')}</span>
       </div>
     </div>
   );

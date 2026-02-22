@@ -1,6 +1,8 @@
 import type { WebAnalyticsKPIs } from '@/api/generated/Api';
 import { WebKpiCard } from './WebKpiCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './WebKpiRow.translations';
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -26,6 +28,8 @@ interface WebKpiRowProps {
 }
 
 export function WebKpiRow({ current, previous, isLoading }: WebKpiRowProps) {
+  const { t } = useLocalTranslation(translations);
+
   if (isLoading || !current || !previous) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -39,31 +43,31 @@ export function WebKpiRow({ current, previous, isLoading }: WebKpiRowProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       <WebKpiCard
-        label="Unique Visitors"
+        label={t('uniqueVisitors')}
         value={formatNumber(current.unique_visitors)}
         currentValue={current.unique_visitors}
         previousValue={previous.unique_visitors}
       />
       <WebKpiCard
-        label="Pageviews"
+        label={t('pageviews')}
         value={formatNumber(current.pageviews)}
         currentValue={current.pageviews}
         previousValue={previous.pageviews}
       />
       <WebKpiCard
-        label="Sessions"
+        label={t('sessions')}
         value={formatNumber(current.sessions)}
         currentValue={current.sessions}
         previousValue={previous.sessions}
       />
       <WebKpiCard
-        label="Avg Duration"
+        label={t('avgDuration')}
         value={formatDuration(current.avg_duration_seconds)}
         currentValue={current.avg_duration_seconds}
         previousValue={previous.avg_duration_seconds}
       />
       <WebKpiCard
-        label="Bounce Rate"
+        label={t('bounceRate')}
         value={formatPercent(current.bounce_rate)}
         currentValue={current.bounce_rate}
         previousValue={previous.bounce_rate}

@@ -9,6 +9,8 @@ import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/Funn
 import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel/FunnelQueryPanel';
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import { defaultFunnelConfig } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './funnel-editor.translations';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
@@ -22,9 +24,11 @@ function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
 }
 
 export default function FunnelEditorPage() {
+  const { t } = useLocalTranslation(translations);
+
   const editor = useInsightEditor<FunnelWidgetConfig>({
     type: 'funnel',
-    defaultName: 'Untitled funnel',
+    defaultName: t('defaultName'),
     defaultConfig: defaultFunnelConfig,
     cleanConfig: cleanFunnelConfig,
   });
@@ -47,10 +51,10 @@ export default function FunnelEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Insights"
+        backLabel={t('backLabel')}
         name={name}
         onNameChange={setName}
-        placeholder="Untitled funnel"
+        placeholder={t('placeholder')}
         onSave={handleSave}
         isSaving={isSaving}
         isValid={isValid}
@@ -64,8 +68,8 @@ export default function FunnelEditorPage() {
           {!isConfigValid && (
             <EmptyState
               icon={TrendingDown}
-              title="Configure your funnel"
-              description="Add at least 2 steps with event names to see results"
+              title={t('configureTitle')}
+              description={t('configureDescription')}
               className="flex-1"
             />
           )}
@@ -89,8 +93,8 @@ export default function FunnelEditorPage() {
           {isConfigValid && !showSkeleton && (!steps || steps.length === 0) && (
             <EmptyState
               icon={GitFork}
-              title="No results found"
-              description="No events match these steps in the selected date range"
+              title={t('noResultsTitle')}
+              description={t('noResultsDescription')}
               className="flex-1"
             />
           )}
@@ -98,11 +102,11 @@ export default function FunnelEditorPage() {
           {isConfigValid && !showSkeleton && steps && steps.length > 0 && (
             <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
-                <Metric label="Overall conversion" value={`${overallConversion}%`} accent />
+                <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Entered funnel" value={totalEntered?.toLocaleString() ?? '\u2014'} />
+                <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Completed" value={totalConverted?.toLocaleString() ?? '\u2014'} />
+                <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
               </div>
               <div className="flex-1 overflow-auto p-6 pt-8">
                 <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={funnelResult?.aggregate_steps} />

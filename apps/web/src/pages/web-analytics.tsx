@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { useWebAnalyticsParams } from '@/features/web-analytics/hooks/use-web-analytics-params';
 import { useWebOverview } from '@/features/web-analytics/hooks/use-web-overview';
@@ -10,33 +10,11 @@ import { WebFilterBar } from '@/features/web-analytics/components/WebFilterBar';
 import { WebKpiRow } from '@/features/web-analytics/components/WebKpiRow';
 import { WebTimeseriesChart, type MetricKey } from '@/features/web-analytics/components/WebTimeseriesChart';
 import { WebDimensionTile } from '@/features/web-analytics/components/WebDimensionTile';
-
-const PATH_TABS = [
-  { id: 'top_pages', label: 'Top Pages' },
-  { id: 'entry_pages', label: 'Entry Pages' },
-  { id: 'exit_pages', label: 'Exit Pages' },
-] as const;
-
-const SOURCE_TABS = [
-  { id: 'referrers', label: 'Referrers' },
-  { id: 'utm_sources', label: 'UTM Source' },
-  { id: 'utm_mediums', label: 'UTM Medium' },
-  { id: 'utm_campaigns', label: 'UTM Campaign' },
-] as const;
-
-const DEVICE_TABS = [
-  { id: 'device_types', label: 'Device Type' },
-  { id: 'browsers', label: 'Browser' },
-  { id: 'oses', label: 'OS' },
-] as const;
-
-const GEO_TABS = [
-  { id: 'countries', label: 'Countries' },
-  { id: 'regions', label: 'Regions' },
-  { id: 'cities', label: 'Cities' },
-] as const;
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './web-analytics.translations';
 
 export default function WebAnalyticsPage() {
+  const { t } = useLocalTranslation(translations);
   const { dateFrom, dateTo, setDateRange, queryParams } = useWebAnalyticsParams();
   const [chartMetric, setChartMetric] = useState<MetricKey>('unique_visitors');
 
@@ -46,10 +24,35 @@ export default function WebAnalyticsPage() {
   const devices = useWebDevices(queryParams);
   const geography = useWebGeography(queryParams);
 
+  const pathTabs = useMemo(() => [
+    { id: 'top_pages', label: t('topPages') },
+    { id: 'entry_pages', label: t('entryPages') },
+    { id: 'exit_pages', label: t('exitPages') },
+  ] as const, [t]);
+
+  const sourceTabs = useMemo(() => [
+    { id: 'referrers', label: t('referrers') },
+    { id: 'utm_sources', label: t('utmSource') },
+    { id: 'utm_mediums', label: t('utmMedium') },
+    { id: 'utm_campaigns', label: t('utmCampaign') },
+  ] as const, [t]);
+
+  const deviceTabs = useMemo(() => [
+    { id: 'device_types', label: t('deviceType') },
+    { id: 'browsers', label: t('browser') },
+    { id: 'oses', label: t('os') },
+  ] as const, [t]);
+
+  const geoTabs = useMemo(() => [
+    { id: 'countries', label: t('countries') },
+    { id: 'regions', label: t('regions') },
+    { id: 'cities', label: t('cities') },
+  ] as const, [t]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <PageHeader title="Web Analytics" />
+        <PageHeader title={t('title')} />
         <WebFilterBar
           dateFrom={dateFrom}
           dateTo={dateTo}
@@ -73,8 +76,8 @@ export default function WebAnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <WebDimensionTile
-          title="Paths"
-          tabs={PATH_TABS}
+          title={t('paths')}
+          tabs={pathTabs}
           data={{
             top_pages: paths.data?.top_pages,
             entry_pages: paths.data?.entry_pages,
@@ -83,8 +86,8 @@ export default function WebAnalyticsPage() {
           isLoading={paths.isLoading}
         />
         <WebDimensionTile
-          title="Sources"
-          tabs={SOURCE_TABS}
+          title={t('sources')}
+          tabs={sourceTabs}
           data={{
             referrers: sources.data?.referrers,
             utm_sources: sources.data?.utm_sources,
@@ -94,8 +97,8 @@ export default function WebAnalyticsPage() {
           isLoading={sources.isLoading}
         />
         <WebDimensionTile
-          title="Devices"
-          tabs={DEVICE_TABS}
+          title={t('devices')}
+          tabs={deviceTabs}
           data={{
             device_types: devices.data?.device_types,
             browsers: devices.data?.browsers,
@@ -104,8 +107,8 @@ export default function WebAnalyticsPage() {
           isLoading={devices.isLoading}
         />
         <WebDimensionTile
-          title="Geography"
-          tabs={GEO_TABS}
+          title={t('geography')}
+          tabs={geoTabs}
           data={{
             countries: geography.data?.countries,
             regions: geography.data?.regions,

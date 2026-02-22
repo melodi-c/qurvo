@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,11 +10,8 @@ import {
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { PropertyConditionRow, type PropertyCondition } from './PropertyConditionRow';
 import { EventConditionRow, type EventCondition } from './EventConditionRow';
-
-const MATCH_OPTIONS = [
-  { label: 'ALL conditions', value: 'all' as const },
-  { label: 'ANY condition', value: 'any' as const },
-] as const;
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './CohortConditionBuilder.translations';
 
 export type CohortCondition = PropertyCondition | EventCondition;
 
@@ -30,6 +28,13 @@ export function CohortConditionBuilder({
   onMatchChange,
   onConditionsChange,
 }: CohortConditionBuilderProps) {
+  const { t } = useLocalTranslation(translations);
+
+  const matchOptions = useMemo(() => [
+    { label: t('allConditions'), value: 'all' as const },
+    { label: t('anyCondition'), value: 'any' as const },
+  ], [t]);
+
   const addPropertyCondition = () => {
     onConditionsChange([
       ...conditions,
@@ -56,8 +61,8 @@ export function CohortConditionBuilder({
     <div className="space-y-3">
       {/* Match mode toggle */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Match</span>
-        <PillToggleGroup options={MATCH_OPTIONS} value={match} onChange={onMatchChange} />
+        <span className="text-xs text-muted-foreground">{t('match')}</span>
+        <PillToggleGroup options={matchOptions} value={match} onChange={onMatchChange} />
       </div>
 
       {/* Conditions list */}
@@ -67,7 +72,7 @@ export function CohortConditionBuilder({
             <div className="flex items-center gap-2 py-1">
               <div className="flex-1 border-t border-border/40" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
-                {match === 'all' ? 'AND' : 'OR'}
+                {match === 'all' ? t('and') : t('or')}
               </span>
               <div className="flex-1 border-t border-border/40" />
             </div>
@@ -93,15 +98,15 @@ export function CohortConditionBuilder({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="w-full text-xs h-7">
             <Plus className="h-3 w-3 mr-1" />
-            Add condition
+            {t('addCondition')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={addPropertyCondition} className="text-xs">
-            Person property
+            {t('personProperty')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={addEventCondition} className="text-xs">
-            Performed event
+            {t('performedEvent')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

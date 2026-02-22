@@ -8,12 +8,16 @@ import { usePathsData } from '@/features/dashboard/hooks/use-paths';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
 import { PathsQueryPanel } from '@/features/dashboard/components/widgets/paths/PathsQueryPanel';
 import { defaultPathsConfig } from '@/features/dashboard/components/widgets/paths/paths-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './paths-editor.translations';
 import type { PathsWidgetConfig } from '@/api/generated/Api';
 
 export default function PathsEditorPage() {
+  const { t } = useLocalTranslation(translations);
+
   const editor = useInsightEditor<PathsWidgetConfig>({
     type: 'paths',
-    defaultName: 'Untitled paths',
+    defaultName: t('defaultName'),
     defaultConfig: defaultPathsConfig,
     cleanConfig: (config) => config,
   });
@@ -41,10 +45,10 @@ export default function PathsEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Insights"
+        backLabel={t('backLabel')}
         name={name}
         onNameChange={setName}
-        placeholder="Untitled paths"
+        placeholder={t('placeholder')}
         onSave={handleSave}
         isSaving={isSaving}
         isValid={isValid}
@@ -68,8 +72,8 @@ export default function PathsEditorPage() {
           {!showSkeleton && (!transitions || transitions.length === 0) && (
             <EmptyState
               icon={Route}
-              title="No paths found"
-              description="No event sequences found in the selected date range. Try adjusting filters."
+              title={t('noPathsTitle')}
+              description={t('noPathsDescription')}
               className="flex-1"
             />
           )}
@@ -77,9 +81,9 @@ export default function PathsEditorPage() {
           {!showSkeleton && transitions && transitions.length > 0 && (
             <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
-                <Metric label="Unique users" value={totalUsers.toLocaleString()} accent />
+                <Metric label={t('uniqueUsers')} value={totalUsers.toLocaleString()} accent />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Top paths" value={String(totalPaths)} />
+                <Metric label={t('topPaths')} value={String(totalPaths)} />
               </div>
               <div className="flex-1 overflow-auto p-6 pt-8">
                 <PathsChart

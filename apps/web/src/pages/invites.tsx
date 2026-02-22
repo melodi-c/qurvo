@@ -7,8 +7,11 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './invites.translations';
 
 export default function InvitesPage() {
+  const { t } = useLocalTranslation(translations);
   const queryClient = useQueryClient();
 
   const { data: invites, isLoading } = useQuery({
@@ -21,28 +24,28 @@ export default function InvitesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myInvites'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Invite accepted');
+      toast.success(t('accepted'));
     },
-    onError: () => toast.error('Failed to accept invite'),
+    onError: () => toast.error(t('acceptFailed')),
   });
 
   const declineMutation = useMutation({
     mutationFn: (inviteId: string) => api.myInvitesControllerDeclineInvite({ inviteId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myInvites'] });
-      toast.success('Invite declined');
+      toast.success(t('declined'));
     },
-    onError: () => toast.error('Failed to decline invite'),
+    onError: () => toast.error(t('declineFailed')),
   });
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Invites" />
+      <PageHeader title={t('title')} />
 
       {isLoading && <ListSkeleton count={2} />}
 
       {!isLoading && (!invites || invites.length === 0) && (
-        <EmptyState icon={Mail} description="No pending invites" />
+        <EmptyState icon={Mail} description={t('noInvites')} />
       )}
 
       <div className="space-y-3 max-w-2xl">
@@ -53,7 +56,7 @@ export default function InvitesPage() {
                 <div>
                   <p className="text-sm font-medium">{invite.project.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Invited by {invite.invited_by.display_name} as <span className="capitalize">{invite.role}</span>
+                    {t('invitedBy', { name: invite.invited_by.display_name })} <span className="capitalize">{invite.role}</span>
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -62,7 +65,7 @@ export default function InvitesPage() {
                     onClick={() => acceptMutation.mutate(invite.id)}
                     disabled={acceptMutation.isPending || declineMutation.isPending}
                   >
-                    Accept
+                    {t('accept')}
                   </Button>
                   <Button
                     size="sm"
@@ -70,7 +73,7 @@ export default function InvitesPage() {
                     onClick={() => declineMutation.mutate(invite.id)}
                     disabled={acceptMutation.isPending || declineMutation.isPending}
                   >
-                    Decline
+                    {t('decline')}
                   </Button>
                 </div>
               </div>

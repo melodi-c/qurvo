@@ -9,9 +9,12 @@ import { useDashboardStore } from '@/features/dashboard/store';
 import { DashboardGrid } from '@/features/dashboard/components/DashboardGrid';
 import { AddWidgetDialog } from '@/features/dashboard/components/AddWidgetDialog';
 import { SaveBar } from '@/features/dashboard/components/SaveBar';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './[id].translations';
 import type { Widget } from '@/api/generated/Api';
 
 export default function DashboardBuilderPage() {
+  const { t } = useLocalTranslation(translations);
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
@@ -39,17 +42,17 @@ export default function DashboardBuilderPage() {
   if (!projectId) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Select a project first
+        {t('selectProject')}
       </div>
     );
   }
 
   if (isLoading) {
-    return <div className="text-muted-foreground text-sm">Loading dashboard...</div>;
+    return <div className="text-muted-foreground text-sm">{t('loading')}</div>;
   }
 
   if (!dashboard) {
-    return <div className="text-muted-foreground text-sm">Dashboard not found</div>;
+    return <div className="text-muted-foreground text-sm">{t('notFound')}</div>;
   }
 
   const handleSave = async () => {
@@ -101,7 +104,7 @@ export default function DashboardBuilderPage() {
           {store.isEditing && (
             <Button onClick={() => setShowAddWidget(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Widget
+              {t('addWidget')}
             </Button>
           )}
           <Button
@@ -111,12 +114,12 @@ export default function DashboardBuilderPage() {
             {store.isEditing ? (
               <>
                 <X className="h-4 w-4 mr-2" />
-                Cancel
+                {t('cancel')}
               </>
             ) : (
               <>
                 <Pencil className="h-4 w-4 mr-2" />
-                Edit
+                {t('edit')}
               </>
             )}
           </Button>

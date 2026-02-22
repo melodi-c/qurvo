@@ -11,6 +11,8 @@ import {
   type EventLike,
 } from '@/components/event-detail';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './event-table.translations';
 
 interface EventTableProps {
   events: EventLike[];
@@ -32,6 +34,7 @@ export function EventTable({
   className,
 }: EventTableProps) {
   const { link } = useAppNavigate();
+  const { t } = useLocalTranslation(translations);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const handleExpandToggle = useCallback(
@@ -64,7 +67,7 @@ export function EventTable({
       },
       {
         key: 'event',
-        header: 'Event',
+        header: t('event'),
         className: 'px-0 py-2.5',
         headerClassName: 'px-0',
         render: (row) => {
@@ -94,7 +97,7 @@ export function EventTable({
     if (showPerson) {
       cols.push({
         key: 'person',
-        header: 'Person',
+        header: t('person'),
         className: 'px-0 py-2.5',
         headerClassName: 'px-0',
         hideOnMobile: true,
@@ -118,7 +121,7 @@ export function EventTable({
 
     cols.push({
       key: 'when',
-      header: 'When',
+      header: t('when'),
       className: 'px-0 pr-4 py-2.5',
       headerClassName: 'px-0 pr-4',
       render: (row) => (
@@ -132,7 +135,7 @@ export function EventTable({
     });
 
     return cols;
-  }, [expandedRow, showPerson, projectId]);
+  }, [expandedRow, showPerson, projectId, t]);
 
   const renderExpandedRow = useCallback(
     (row: EventLike) => <EventDetail event={row} projectId={projectId} />,
@@ -141,7 +144,7 @@ export function EventTable({
 
   const emptyState = (
     <div className="flex flex-col items-center justify-center gap-1 py-12">
-      <p className="text-sm text-muted-foreground">No events found</p>
+      <p className="text-sm text-muted-foreground">{t('noEventsFound')}</p>
     </div>
   );
 

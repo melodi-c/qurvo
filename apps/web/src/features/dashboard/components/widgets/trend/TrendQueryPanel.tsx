@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   TrendingUp,
   BarChart3,
@@ -12,7 +13,8 @@ import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
-import { METRIC_OPTIONS, GRANULARITY_OPTIONS, CHART_TYPE_OPTIONS } from './trend-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './TrendQueryPanel.translations';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
 interface TrendQueryPanelProps {
@@ -22,6 +24,25 @@ interface TrendQueryPanelProps {
 
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
   const { data: propertyNames = [] } = useEventPropertyNames();
+  const { t } = useLocalTranslation(translations);
+
+  const metricOptions = useMemo(() => [
+    { value: 'total_events', label: t('totalEvents') },
+    { value: 'unique_users', label: t('uniqueUsers') },
+    { value: 'events_per_user', label: t('eventsPerUser') },
+  ], [t]);
+
+  const granularityOptions = useMemo(() => [
+    { value: 'hour', label: t('hour') },
+    { value: 'day', label: t('day') },
+    { value: 'week', label: t('week') },
+    { value: 'month', label: t('month') },
+  ], [t]);
+
+  const chartTypeOptions = useMemo(() => [
+    { value: 'line', label: t('line') },
+    { value: 'bar', label: t('bar') },
+  ], [t]);
 
   return (
     <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
@@ -37,7 +58,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
 
         {/* Series */}
         <section className="space-y-3">
-          <SectionHeader icon={TrendingUp} label="Series" />
+          <SectionHeader icon={TrendingUp} label={t('series')} />
           <TrendSeriesBuilder
             series={config.series}
             onChange={(series) => onChange({ ...config, series })}
@@ -48,10 +69,10 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
 
         {/* Metric + Granularity */}
         <section className="space-y-3">
-          <SectionHeader icon={BarChart3} label="Display" />
+          <SectionHeader icon={BarChart3} label={t('display')} />
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Metric</span>
+              <span className="text-xs text-muted-foreground">{t('metric')}</span>
               <Select
                 value={config.metric}
                 onValueChange={(v) => onChange({ ...config, metric: v as TrendWidgetConfig['metric'] })}
@@ -60,7 +81,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {METRIC_OPTIONS.map((o) => (
+                  {metricOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value} className="text-sm">
                       {o.label}
                     </SelectItem>
@@ -69,7 +90,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               </Select>
             </div>
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Granularity</span>
+              <span className="text-xs text-muted-foreground">{t('granularity')}</span>
               <Select
                 value={config.granularity}
                 onValueChange={(v) => onChange({ ...config, granularity: v as TrendWidgetConfig['granularity'] })}
@@ -78,7 +99,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GRANULARITY_OPTIONS.map((o) => (
+                  {granularityOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value} className="text-sm">
                       {o.label}
                     </SelectItem>
@@ -90,9 +111,9 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
 
           {/* Chart type */}
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Chart type</span>
+            <span className="text-xs text-muted-foreground">{t('chartType')}</span>
             <PillToggleGroup
-              options={CHART_TYPE_OPTIONS}
+              options={chartTypeOptions}
               value={config.chart_type}
               onChange={(v) => onChange({ ...config, chart_type: v as TrendWidgetConfig['chart_type'] })}
             />
@@ -103,7 +124,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
 
         {/* Compare */}
         <section className="space-y-3">
-          <SectionHeader icon={ArrowLeftRight} label="Compare" />
+          <SectionHeader icon={ArrowLeftRight} label={t('compare')} />
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -111,7 +132,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               onChange={(e) => onChange({ ...config, compare: e.target.checked })}
               className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
             />
-            <span className="text-sm text-muted-foreground">Compare to previous period</span>
+            <span className="text-sm text-muted-foreground">{t('compareToPrevious')}</span>
           </label>
         </section>
 

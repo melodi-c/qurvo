@@ -9,6 +9,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './crud-list-page.translations';
 import { toast } from 'sonner';
 
 interface CrudListRow {
@@ -49,6 +51,7 @@ export function CrudListPage<T extends CrudListRow>({
   showEmptyAction = true,
 }: CrudListPageProps<T>) {
   const { projectId } = useAppNavigate();
+  const { t } = useLocalTranslation(translations);
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -56,15 +59,15 @@ export function CrudListPage<T extends CrudListRow>({
     if (!deleteTarget) return;
     try {
       await onDelete(deleteTarget.id);
-      toast.success(`${entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)} deleted`);
+      toast.success(t('deleteSuccess', { entity: entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1) }));
     } catch {
-      toast.error(`Failed to delete ${entityLabel}`);
+      toast.error(t('deleteError', { entity: entityLabel }));
     }
-  }, [deleteTarget, onDelete, entityLabel]);
+  }, [deleteTarget, onDelete, entityLabel, t]);
 
   const nameColumn: Column<T> = {
     key: 'name',
-    header: 'Name',
+    header: t('name'),
     render: (row) => (
       <div>
         <span className="font-medium text-foreground">{row.name}</span>
@@ -79,7 +82,7 @@ export function CrudListPage<T extends CrudListRow>({
 
   const actionsColumn: Column<T> = {
     key: 'actions',
-    header: 'Actions',
+    header: t('actions'),
     headerClassName: 'text-right w-24',
     className: 'text-right',
     render: (row) => (
@@ -115,7 +118,7 @@ export function CrudListPage<T extends CrudListRow>({
       </PageHeader>
 
       {!projectId && (
-        <EmptyState icon={icon} description={`Select a project to view ${title.toLowerCase()}`} />
+        <EmptyState icon={icon} description={t('selectProject', { title: title.toLowerCase() })} />
       )}
 
       {projectId && isLoading && <ListSkeleton />}
@@ -148,9 +151,9 @@ export function CrudListPage<T extends CrudListRow>({
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        title={`Delete ${entityLabel} "${deleteTarget?.name}"?`}
-        description="This action cannot be undone."
-        confirmLabel="Delete"
+        title={t('deleteTitle', { entity: entityLabel, name: deleteTarget?.name ?? '' })}
+        description={t('deleteDescription')}
+        confirmLabel={t('deleteConfirm')}
         onConfirm={handleDelete}
       />
     </div>

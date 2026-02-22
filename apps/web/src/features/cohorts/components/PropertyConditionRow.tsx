@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/funnel/PropertyNameCombobox';
 import { usePersonPropertyNames } from '@/pages/persons/use-person-property-names';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './PropertyConditionRow.translations';
 
 export interface PropertyCondition {
   type: 'person_property';
@@ -11,15 +14,6 @@ export interface PropertyCondition {
   value?: string;
 }
 
-const OPERATORS = [
-  { value: 'eq', label: 'equals' },
-  { value: 'neq', label: 'not equals' },
-  { value: 'contains', label: 'contains' },
-  { value: 'not_contains', label: 'not contains' },
-  { value: 'is_set', label: 'is set' },
-  { value: 'is_not_set', label: 'is not set' },
-] as const;
-
 interface PropertyConditionRowProps {
   condition: PropertyCondition;
   onChange: (condition: PropertyCondition) => void;
@@ -27,13 +21,23 @@ interface PropertyConditionRowProps {
 }
 
 export function PropertyConditionRow({ condition, onChange, onRemove }: PropertyConditionRowProps) {
+  const { t } = useLocalTranslation(translations);
   const { data: propertyNames = [] } = usePersonPropertyNames();
   const needsValue = !['is_set', 'is_not_set'].includes(condition.operator);
+
+  const operators = useMemo(() => [
+    { value: 'eq', label: t('equals') },
+    { value: 'neq', label: t('notEquals') },
+    { value: 'contains', label: t('contains') },
+    { value: 'not_contains', label: t('notContains') },
+    { value: 'is_set', label: t('isSet') },
+    { value: 'is_not_set', label: t('isNotSet') },
+  ] as const, [t]);
 
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 p-2.5 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">Person property</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">{t('personProperty')}</span>
         <button
           type="button"
           onClick={onRemove}
@@ -59,7 +63,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {OPERATORS.map((op) => (
+            {operators.map((op) => (
               <SelectItem key={op.value} value={op.value} className="text-xs">
                 {op.label}
               </SelectItem>
@@ -71,7 +75,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
           <Input
             value={condition.value ?? ''}
             onChange={(e) => onChange({ ...condition, value: e.target.value })}
-            placeholder="value"
+            placeholder={t('valuePlaceholder')}
             className="h-8 text-xs flex-1"
           />
         )}

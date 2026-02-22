@@ -11,10 +11,13 @@ import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useAdSpend, useCreateAdSpend, useDeleteAdSpend } from '../hooks/use-ad-spend';
 import { useChannels } from '../hooks/use-channels';
+import translations from './SpendTab.translations';
 
 export function SpendTab() {
+  const { t } = useLocalTranslation(translations);
   const { data: spendRecords, isLoading } = useAdSpend();
   const { data: channels } = useChannels();
   const createMutation = useCreateAdSpend();
@@ -47,13 +50,13 @@ export function SpendTab() {
       amount: form.amount,
       note: form.note || undefined,
     });
-    toast.success('Spend record added');
+    toast.success(t('spendAdded'));
     setDialogOpen(false);
   }, [form, createMutation]);
 
   const handleDelete = useCallback(async (id: string) => {
     await deleteMutation.mutateAsync(id);
-    toast.success('Spend record deleted');
+    toast.success(t('spendDeleted'));
   }, [deleteMutation]);
 
   const channelName = useCallback(
@@ -67,8 +70,8 @@ export function SpendTab() {
     return (
       <EmptyState
         icon={Plus}
-        title="No channels"
-        description="Create marketing channels first in the Channels tab"
+        title={t('noChannelsTitle')}
+        description={t('noChannelsDescription')}
       />
     );
   }
@@ -77,25 +80,25 @@ export function SpendTab() {
     <>
       <div className="space-y-4">
         <div className="flex justify-end">
-          <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add spend</Button>
+          <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />{t('addSpend')}</Button>
         </div>
 
         {!spendRecords?.length ? (
           <EmptyState
             icon={Plus}
-            title="No spend records"
-            description="Add advertising spend to calculate CAC and ROI"
-            action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add spend</Button>}
+            title={t('noSpendTitle')}
+            description={t('noSpendDescription')}
+            action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />{t('addSpend')}</Button>}
           />
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Currency</TableHead>
-                <TableHead>Note</TableHead>
+                <TableHead>{t('headerDate')}</TableHead>
+                <TableHead>{t('headerChannel')}</TableHead>
+                <TableHead className="text-right">{t('headerAmount')}</TableHead>
+                <TableHead>{t('headerCurrency')}</TableHead>
+                <TableHead>{t('headerNote')}</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -131,13 +134,13 @@ export function SpendTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Spend</DialogTitle>
+            <DialogTitle>{t('dialogTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Channel</Label>
+              <Label>{t('channel')}</Label>
               <Select value={form.channel_id} onValueChange={(v) => setForm((f) => ({ ...f, channel_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('selectChannel')} /></SelectTrigger>
                 <SelectContent>
                   {channels.map((ch) => (
                     <SelectItem key={ch.id} value={ch.id}>{ch.name}</SelectItem>
@@ -147,7 +150,7 @@ export function SpendTab() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Date</Label>
+                <Label>{t('date')}</Label>
                 <DatePicker
                   value={form.spend_date}
                   onChange={(v) => setForm((f) => ({ ...f, spend_date: v }))}
@@ -155,7 +158,7 @@ export function SpendTab() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sp-amount">Amount</Label>
+                <Label htmlFor="sp-amount">{t('amount')}</Label>
                 <Input
                   id="sp-amount"
                   type="number"
@@ -167,18 +170,18 @@ export function SpendTab() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sp-note">Note</Label>
+              <Label htmlFor="sp-note">{t('note')}</Label>
               <Input
                 id="sp-note"
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                placeholder="Optional note"
+                placeholder={t('optionalNote')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button onClick={handleCreate} disabled={!form.channel_id || !form.amount || createMutation.isPending}>
-              Add
+              {t('add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -187,8 +190,8 @@ export function SpendTab() {
       <ConfirmDialog
         open={confirm.isOpen}
         onOpenChange={confirm.close}
-        title="Delete spend record?"
-        description={`Remove "${confirm.itemName}"?`}
+        title={t('deleteTitle')}
+        description={t('deleteDescription', { name: confirm.itemName ?? '' })}
         variant="destructive"
         onConfirm={() => handleDelete(confirm.itemId!)}
       />

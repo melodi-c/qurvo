@@ -3,6 +3,8 @@ import type { WebAnalyticsDimensionRow } from '@/api/generated/Api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TabNav } from '@/components/ui/tab-nav';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './WebDimensionTile.translations';
 
 interface TabConfig<T extends string> {
   readonly id: T;
@@ -22,6 +24,7 @@ export function WebDimensionTile<T extends string>({
   data,
   isLoading,
 }: WebDimensionTileProps<T>) {
+  const { t } = useLocalTranslation(translations);
   const [activeTab, setActiveTab] = useState<T>(tabs[0].id);
   const rows = data[activeTab] ?? [];
 
@@ -41,13 +44,13 @@ export function WebDimensionTile<T extends string>({
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">No data</p>
+          <p className="text-sm text-muted-foreground py-6 text-center">{t('noData')}</p>
         ) : (
           <div className="space-y-1">
             <div className="flex items-center text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide px-2 pb-1">
-              <span className="flex-1">Name</span>
-              <span className="w-16 text-right">Visitors</span>
-              <span className="w-16 text-right">Views</span>
+              <span className="flex-1">{t('name')}</span>
+              <span className="w-16 text-right">{t('visitors')}</span>
+              <span className="w-16 text-right">{t('views')}</span>
             </div>
             {rows.map((row) => (
               <div key={row.name} className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm">

@@ -8,6 +8,8 @@ import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
 import { defaultTrendConfig, METRIC_OPTIONS } from '@/features/dashboard/components/widgets/trend/trend-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './trend-editor.translations';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
 function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
@@ -21,9 +23,11 @@ function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
 }
 
 export default function TrendEditorPage() {
+  const { t } = useLocalTranslation(translations);
+
   const editor = useInsightEditor<TrendWidgetConfig>({
     type: 'trend',
-    defaultName: 'Untitled trend',
+    defaultName: t('defaultName'),
     defaultConfig: defaultTrendConfig,
     cleanConfig: cleanTrendConfig,
 
@@ -52,10 +56,10 @@ export default function TrendEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Insights"
+        backLabel={t('backLabel')}
         name={name}
         onNameChange={setName}
-        placeholder="Untitled trend"
+        placeholder={t('placeholder')}
         onSave={handleSave}
         isSaving={isSaving}
         isValid={isValid}
@@ -69,8 +73,8 @@ export default function TrendEditorPage() {
           {!isConfigValid && (
             <EmptyState
               icon={BarChart3}
-              title="Configure your trend"
-              description="Add at least 1 series with an event name to see results"
+              title={t('configureTitle')}
+              description={t('configureDescription')}
               className="flex-1"
             />
           )}
@@ -88,8 +92,8 @@ export default function TrendEditorPage() {
           {isConfigValid && !showSkeleton && (!series || series.length === 0) && (
             <EmptyState
               icon={TrendingUp}
-              title="No results found"
-              description="No events match these series in the selected date range"
+              title={t('noResultsTitle')}
+              description={t('noResultsDescription')}
               className="flex-1"
             />
           )}
@@ -99,12 +103,12 @@ export default function TrendEditorPage() {
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                 <Metric label={metricLabel} value={totalValue.toLocaleString()} accent />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Series" value={String(seriesCount)} />
+                <Metric label={t('series')} value={String(seriesCount)} />
                 {result?.compare && result.series_previous && (
                   <>
                     <div className="w-px h-8 bg-border/50 mx-6" />
                     <Metric
-                      label="Previous period"
+                      label={t('previousPeriod')}
                       value={result.series_previous
                         .reduce((acc, s) => acc + s.data.reduce((sum, dp) => sum + dp.value, 0), 0)
                         .toLocaleString()}

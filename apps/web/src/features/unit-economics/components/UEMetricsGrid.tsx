@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils';
 import type { UnitEconomicsMetrics } from '@/api/generated/Api';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { UEMetricCard } from './UEMetricCard';
+import translations from './UEMetricsGrid.translations';
 
 interface UEMetricsGridProps {
   metrics: UnitEconomicsMetrics;
@@ -22,6 +24,7 @@ function money(n: number, currency: string): string {
 }
 
 export function UEMetricsGrid({ metrics, currency = 'USD' }: UEMetricsGridProps) {
+  const { t } = useLocalTranslation(translations);
   const m = metrics;
   const roiAccent = m.roi_percent > 0 ? 'positive' as const : m.roi_percent < 0 ? 'negative' as const : undefined;
   const cmAccent = m.cm > 0 ? 'positive' as const : m.cm < 0 ? 'negative' as const : undefined;
@@ -30,26 +33,26 @@ export function UEMetricsGrid({ metrics, currency = 'USD' }: UEMetricsGridProps)
     <div className="space-y-3">
       {/* Row 1: Acquisition & Conversion */}
       <div className="grid grid-cols-4 gap-3">
-        <UEMetricCard label="UA" value={fmt(m.ua)} formula="New unique users in period" />
-        <UEMetricCard label="C1" value={pct(m.c1)} formula="C1 = paying_users / total_users" />
-        <UEMetricCard label="C2" value={pct(m.c2)} formula="C2 = repeat_users / paying_users" />
-        <UEMetricCard label="APC" value={fmt(m.apc)} formula="APC = 1 / (1 - C2)" />
+        <UEMetricCard label="UA" value={fmt(m.ua)} formula={t('formulaUA')} />
+        <UEMetricCard label="C1" value={pct(m.c1)} formula={t('formulaC1')} />
+        <UEMetricCard label="C2" value={pct(m.c2)} formula={t('formulaC2')} />
+        <UEMetricCard label="APC" value={fmt(m.apc)} formula={t('formulaAPC')} />
       </div>
 
       {/* Row 2: Revenue */}
       <div className="grid grid-cols-4 gap-3">
-        <UEMetricCard label="AVP" value={money(m.avp, currency)} formula="AVP = revenue / purchases" />
-        <UEMetricCard label="ARPPU" value={money(m.arppu, currency)} formula="ARPPU = AVP × APC" />
-        <UEMetricCard label="ARPU" value={money(m.arpu, currency)} formula="ARPU = ARPPU × C1" />
-        <UEMetricCard label="Churn" value={pct(m.churn_rate)} formula="Churn = churned / prev_active" />
+        <UEMetricCard label="AVP" value={money(m.avp, currency)} formula={t('formulaAVP')} />
+        <UEMetricCard label="ARPPU" value={money(m.arppu, currency)} formula={t('formulaARPPU')} />
+        <UEMetricCard label="ARPU" value={money(m.arpu, currency)} formula={t('formulaARPU')} />
+        <UEMetricCard label="Churn" value={pct(m.churn_rate)} formula={t('formulaChurn')} />
       </div>
 
       {/* Row 3: Unit Economics */}
       <div className="grid grid-cols-4 gap-3">
-        <UEMetricCard label="Lifetime" value={fmt(m.lifetime_periods) + ' per.'} formula="Lifetime = 1 / Churn" />
-        <UEMetricCard label="LTV" value={money(m.ltv, currency)} formula="LTV = ARPU × Lifetime" />
-        <UEMetricCard label="CAC" value={money(m.cac, currency)} formula="CAC = ad_spend / UA" />
-        <UEMetricCard label="ROI" value={(m.roi_percent > 0 ? '+' : '') + fmt(m.roi_percent) + '%'} accent={roiAccent} formula="ROI = (LTV - CAC) / CAC × 100%" />
+        <UEMetricCard label="Lifetime" value={fmt(m.lifetime_periods) + ' ' + t('periodSuffix')} formula={t('formulaLifetime')} />
+        <UEMetricCard label="LTV" value={money(m.ltv, currency)} formula={t('formulaLTV')} />
+        <UEMetricCard label="CAC" value={money(m.cac, currency)} formula={t('formulaCAC')} />
+        <UEMetricCard label="ROI" value={(m.roi_percent > 0 ? '+' : '') + fmt(m.roi_percent) + '%'} accent={roiAccent} formula={t('formulaROI')} />
       </div>
 
       {/* CM Bar */}

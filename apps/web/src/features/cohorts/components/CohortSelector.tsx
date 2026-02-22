@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useCohorts } from '../hooks/use-cohorts';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './CohortSelector.translations';
 
 interface CohortSelectorProps {
   value: string[];
@@ -17,6 +19,7 @@ interface CohortSelectorProps {
 }
 
 export function CohortSelector({ value, onChange }: CohortSelectorProps) {
+  const { t } = useLocalTranslation(translations);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { data: cohorts = [] } = useCohorts();
@@ -51,7 +54,7 @@ export function CohortSelector({ value, onChange }: CohortSelectorProps) {
           <span className="flex-1 truncate">
             {selectedNames.length > 0
               ? selectedNames.join(', ')
-              : 'Select cohorts...'}
+              : t('selectCohorts')}
           </span>
           {value.length > 0 && (
             <span className="ml-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary px-1">
@@ -62,10 +65,10 @@ export function CohortSelector({ value, onChange }: CohortSelectorProps) {
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-52 p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput value={search} onValueChange={setSearch} placeholder="Search cohorts..." />
+          <CommandInput value={search} onValueChange={setSearch} placeholder={t('searchCohorts')} />
           <CommandList>
             <CommandEmpty className="px-3 py-3 text-xs text-muted-foreground">
-              No cohorts found
+              {t('noCohorts')}
             </CommandEmpty>
             {filtered.map((cohort) => (
               <CommandItem key={cohort.id} value={cohort.id} onSelect={() => toggle(cohort.id)}>

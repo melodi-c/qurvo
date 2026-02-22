@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
 import { ArrowUp, ArrowDown } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './WebKpiCard.translations';
 
 interface WebKpiCardProps {
   label: string;
@@ -23,6 +25,7 @@ export function WebKpiCard({
   currentValue,
   formatDelta = defaultFormatDelta,
 }: WebKpiCardProps) {
+  const { t } = useLocalTranslation(translations);
   const delta = formatDelta(currentValue, previousValue);
   const isPositive = currentValue >= previousValue;
   const isNeutral = currentValue === previousValue;
@@ -46,7 +49,7 @@ export function WebKpiCard({
             <ArrowDown className="h-3 w-3" />
           )}
           <span>{delta}</span>
-          <span className="text-muted-foreground/50">vs prev</span>
+          <span className="text-muted-foreground/50">{t('vsPrev')}</span>
         </div>
       )}
     </div>

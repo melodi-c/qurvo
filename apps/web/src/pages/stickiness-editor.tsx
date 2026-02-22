@@ -8,12 +8,16 @@ import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { StickinessQueryPanel } from '@/features/dashboard/components/widgets/stickiness/StickinessQueryPanel';
 import { defaultStickinessConfig } from '@/features/dashboard/components/widgets/stickiness/stickiness-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './stickiness-editor.translations';
 import type { StickinessWidgetConfig } from '@/api/generated/Api';
 
 export default function StickinessEditorPage() {
+  const { t } = useLocalTranslation(translations);
+
   const editor = useInsightEditor<StickinessWidgetConfig>({
     type: 'stickiness',
-    defaultName: 'Untitled stickiness',
+    defaultName: t('defaultName'),
     defaultConfig: defaultStickinessConfig,
     cleanConfig: (c) => c,
   });
@@ -37,10 +41,10 @@ export default function StickinessEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Insights"
+        backLabel={t('backLabel')}
         name={name}
         onNameChange={setName}
-        placeholder="Untitled stickiness"
+        placeholder={t('placeholder')}
         onSave={handleSave}
         isSaving={isSaving}
         isValid={isValid}
@@ -54,8 +58,8 @@ export default function StickinessEditorPage() {
           {!isConfigValid && (
             <EmptyState
               icon={Layers}
-              title="Configure your stickiness"
-              description="Select a target event to see stickiness data"
+              title={t('configureTitle')}
+              description={t('configureDescription')}
               className="flex-1"
             />
           )}
@@ -74,8 +78,8 @@ export default function StickinessEditorPage() {
           {isConfigValid && !showSkeleton && (!result || result.data.length === 0) && (
             <EmptyState
               icon={Layers}
-              title="No results found"
-              description="No events match in the selected date range"
+              title={t('noResultsTitle')}
+              description={t('noResultsDescription')}
               className="flex-1"
             />
           )}
@@ -83,11 +87,11 @@ export default function StickinessEditorPage() {
           {isConfigValid && !showSkeleton && result && result.data.length > 0 && (
             <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
-                <Metric label="Total users" value={String(totalUsers)} accent />
+                <Metric label={t('totalUsers')} value={String(totalUsers)} accent />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Most common" value={`${modePeriod} ${result.granularity}${modePeriod !== 1 ? 's' : ''}`} />
+                <Metric label={t('mostCommon')} value={`${modePeriod} ${result.granularity}${modePeriod !== 1 ? 's' : ''}`} />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Total periods" value={String(result.total_periods)} />
+                <Metric label={t('totalPeriods')} value={String(result.total_periods)} />
               </div>
               <div className="flex-1 overflow-auto p-6">
                 <StickinessChart result={result} />

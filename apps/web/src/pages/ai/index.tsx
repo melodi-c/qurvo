@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './index.translations';
 import { AiChatPanel } from './ai-chat-panel';
 import { useAiChat } from './use-ai-chat';
 
@@ -52,12 +54,13 @@ function useDeleteConversation(projectId: string) {
 }
 
 export default function AiPage() {
+  const { t } = useLocalTranslation(translations);
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const chatId = searchParams.get('chat');
 
   if (!projectId) {
-    return <EmptyState icon={Sparkles} description="Select a project to use AI Assistant" />;
+    return <EmptyState icon={Sparkles} description={t('selectProject')} />;
   }
 
   if (chatId) {
@@ -70,6 +73,7 @@ export default function AiPage() {
 /* ───────────────────── List View ───────────────────── */
 
 function AiListView({ projectId }: { projectId: string }) {
+  const { t } = useLocalTranslation(translations);
   const [, setSearchParams] = useSearchParams();
   const { data: conversations, isLoading } = useConversations(projectId);
   const deleteMutation = useDeleteConversation(projectId);
@@ -90,10 +94,10 @@ function AiListView({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="AI Assistant">
+      <PageHeader title={t('title')}>
         <Button size="sm" onClick={startNew}>
           <Plus className="w-4 h-4" />
-          New Chat
+          {t('newChat')}
         </Button>
       </PageHeader>
 
@@ -102,12 +106,12 @@ function AiListView({ projectId }: { projectId: string }) {
       {!isLoading && conversations?.length === 0 && (
         <EmptyState
           icon={Sparkles}
-          title="No conversations yet"
-          description="Start a new chat to ask questions about your analytics data"
+          title={t('noConversations')}
+          description={t('noConversationsDescription')}
           action={
             <Button onClick={startNew}>
               <Plus className="w-4 h-4" />
-              New Chat
+              {t('newChat')}
             </Button>
           }
         />
@@ -145,8 +149,8 @@ function AiListView({ projectId }: { projectId: string }) {
       <ConfirmDialog
         open={isOpen}
         onOpenChange={close}
-        title={`Delete "${itemName}"?`}
-        description="This conversation will be permanently deleted."
+        title={t('deleteTitle', { name: itemName ?? '' })}
+        description={t('deleteDescription')}
         variant="destructive"
         onConfirm={async () => {
           if (itemId) await deleteMutation.mutateAsync(itemId);
@@ -159,6 +163,7 @@ function AiListView({ projectId }: { projectId: string }) {
 /* ───────────────────── Chat View ───────────────────── */
 
 function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: string }) {
+  const { t } = useLocalTranslation(translations);
   const [, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
 
@@ -237,7 +242,7 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
         </button>
         <Sparkles className="w-4 h-4 text-primary" />
         <span className="text-sm font-semibold truncate">
-          {chatId ? 'Chat' : 'New Chat'}
+          {chatId ? t('chat') : t('newChatLabel')}
         </span>
       </div>
 

@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsightTypeIcon } from './InsightTypeIcon';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './InsightsTable.translations';
 import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from '@/api/generated/Api';
 
 function getTypeSubtitle(insight: Insight): string {
@@ -36,14 +38,6 @@ function getTypeSubtitle(insight: Insight): string {
   return '\u2014';
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  trend: 'Trend',
-  funnel: 'Funnel',
-  retention: 'Retention',
-  lifecycle: 'Lifecycle',
-  stickiness: 'Stickiness',
-};
-
 interface InsightsTableProps {
   data: Insight[];
   onToggleFavorite: (id: string, current: boolean) => void;
@@ -52,7 +46,16 @@ interface InsightsTableProps {
 
 export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTableProps) {
   const { go } = useAppNavigate();
+  const { t } = useLocalTranslation(translations);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const typeLabels: Record<string, string> = useMemo(() => ({
+    trend: t('typeTrend'),
+    funnel: t('typeFunnel'),
+    retention: t('typeRetention'),
+    lifecycle: t('typeLifecycle'),
+    stickiness: t('typeStickiness'),
+  }), [t]);
 
   const handleRowClick = useCallback(
     (row: Insight) => go.insights.detailByType(row.type, row.id),
@@ -63,11 +66,11 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     if (!deleteTarget) return;
     try {
       await onDelete(deleteTarget.id);
-      toast.success('Insight deleted');
+      toast.success(t('toastDeleted'));
     } catch {
-      toast.error('Failed to delete insight');
+      toast.error(t('toastDeleteFailed'));
     }
-  }, [deleteTarget, onDelete]);
+  }, [deleteTarget, onDelete, t]);
 
   const columns = useMemo<Column<Insight>[]>(() => [
     {
@@ -79,7 +82,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     },
     {
       key: 'name',
-      header: 'Name',
+      header: t('name'),
       render: (row) => (
         <div>
           <span className="font-medium text-foreground">{row.name}</span>
@@ -91,18 +94,18 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('type'),
       headerClassName: 'w-28',
       hideOnMobile: true,
       render: (row) => (
         <Badge variant="secondary" className="font-normal text-xs">
-          {TYPE_LABELS[row.type]}
+          {typeLabels[row.type]}
         </Badge>
       ),
     },
     {
       key: 'updated',
-      header: 'Updated',
+      header: t('updated'),
       headerClassName: 'w-28',
       hideOnMobile: true,
       render: (row) => (
@@ -148,7 +151,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
         </div>
       ),
     },
-  ], [onToggleFavorite, go]);
+  ], [onToggleFavorite, go, t, typeLabels]);
 
   return (
     <>
@@ -161,9 +164,9 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        title={`Delete "${deleteTarget?.name}"?`}
-        description="This action cannot be undone."
-        confirmLabel="Delete"
+        title={t('deleteTitle', { name: deleteTarget?.name ?? '' })}
+        description={t('deleteDescription')}
+        confirmLabel={t('deleteConfirm')}
         onConfirm={handleDelete}
       />
     </>

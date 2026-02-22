@@ -15,9 +15,12 @@ import { toast } from 'sonner';
 import { routes } from '@/lib/routes';
 import { useEventDefinitions, useUpsertEventDefinition } from '@/features/event-definitions/hooks/use-event-definitions';
 import { usePropertyDefinitions, useUpsertPropertyDefinition } from '@/features/property-definitions/hooks/use-property-definitions';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './event-definition-detail.translations';
 import type { PropertyDefinition } from '@/api/generated/Api';
 
 export default function EventDefinitionDetailPage() {
+  const { t } = useLocalTranslation(translations);
   const { eventName: rawEventName } = useParams<{ eventName: string }>();
   const eventName = rawEventName ? decodeURIComponent(rawEventName) : '';
   const [searchParams] = useSearchParams();
@@ -33,15 +36,15 @@ export default function EventDefinitionDetailPage() {
   const backPath = `${routes.dataManagement.list()}${projectId ? `?project=${projectId}` : ''}`;
 
   const breadcrumbs = useMemo(() => [
-    { label: 'Data Management', path: backPath },
+    { label: t('dataManagement'), path: backPath },
     { label: eventName },
-  ], [backPath, eventName]);
+  ], [backPath, eventName, t]);
 
   if (!projectId) {
     return (
       <div className="space-y-6">
         <PageHeader title={<Breadcrumbs items={breadcrumbs} />} />
-        <EmptyState icon={Database} description="Select a project to view definitions" />
+        <EmptyState icon={Database} description={t('selectProject')} />
       </div>
     );
   }
@@ -51,7 +54,7 @@ export default function EventDefinitionDetailPage() {
       <PageHeader title={<Breadcrumbs items={breadcrumbs} />}>
         <Button variant="ghost" size="sm" onClick={() => navigate(backPath)}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />
-          Back
+          {t('back')}
         </Button>
       </PageHeader>
 
@@ -60,8 +63,8 @@ export default function EventDefinitionDetailPage() {
       {!eventsLoading && !eventDef && (
         <EmptyState
           icon={Database}
-          title="Event not found"
-          description={`No event named "${eventName}" was found in the last 30 days`}
+          title={t('eventNotFound')}
+          description={t('eventNotFoundDescription', { name: eventName })}
         />
       )}
 
@@ -88,6 +91,7 @@ interface EventInfoCardProps {
 }
 
 function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
+  const { t } = useLocalTranslation(translations);
   const [description, setDescription] = useState(eventDef.description ?? '');
   const [tags, setTags] = useState((eventDef.tags ?? []).join(', '));
   const [verified, setVerified] = useState(eventDef.verified ?? false);
@@ -111,35 +115,35 @@ function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
           verified,
         },
       });
-      toast.success('Event definition updated');
+      toast.success(t('eventUpdated'));
     } catch {
-      toast.error('Failed to update event definition');
+      toast.error(t('eventUpdateFailed'));
     }
-  }, [eventName, description, tags, verified, upsertMutation]);
+  }, [eventName, description, tags, verified, upsertMutation, t]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Event Info</CardTitle>
+        <CardTitle className="text-sm">{t('eventInfo')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="event-description">Description</Label>
+            <Label htmlFor="event-description">{t('description')}</Label>
             <Input
               id="event-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this event..."
+              placeholder={t('descriptionPlaceholder')}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="event-tags">Tags</Label>
+            <Label htmlFor="event-tags">{t('tagsLabel')}</Label>
             <Input
               id="event-tags"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              placeholder="tag1, tag2, tag3"
+              placeholder={t('tagsPlaceholder')}
             />
           </div>
         </div>
@@ -154,10 +158,10 @@ function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
               <span className={`flex items-center justify-center w-5 h-5 rounded border transition-colors ${verified ? 'bg-primary border-primary' : 'border-border'}`}>
                 {verified && <Check className="w-3 h-3 text-primary-foreground" />}
               </span>
-              Verified
+              {t('verified')}
             </button>
             <span className="text-sm text-muted-foreground">
-              Volume (30d): <span className="tabular-nums font-medium text-foreground">{eventDef.count.toLocaleString()}</span>
+              {t('volume30d')} <span className="tabular-nums font-medium text-foreground">{eventDef.count.toLocaleString()}</span>
             </span>
           </div>
 
@@ -166,7 +170,7 @@ function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
             onClick={handleSave}
             disabled={!hasChanges || upsertMutation.isPending}
           >
-            {upsertMutation.isPending ? 'Saving...' : 'Save'}
+            {upsertMutation.isPending ? t('saving') : t('save')}
           </Button>
         </div>
       </CardContent>
@@ -177,6 +181,7 @@ function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
 // ── Event Properties Section ────────────────────────────────────────────────
 
 function EventPropertiesSection({ eventName }: { eventName: string }) {
+  const { t } = useLocalTranslation(translations);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'event' | 'person'>('all');
   const [editingRow, setEditingRow] = useState<string | null>(null);
@@ -221,24 +226,30 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
           tags: parsedTags,
         },
       });
-      toast.success('Property definition updated');
+      toast.success(t('propertyUpdated'));
       setEditingRow(null);
     } catch {
-      toast.error('Failed to update property definition');
+      toast.error(t('propertyUpdateFailed'));
     }
-  }, [editValues, upsertMutation]);
+  }, [editValues, upsertMutation, t]);
+
+  const typeFilterLabels: Record<'all' | 'event' | 'person', string> = useMemo(() => ({
+    all: t('all'),
+    event: t('event'),
+    person: t('person'),
+  }), [t]);
 
   const columns: Column<PropertyDefinition>[] = useMemo(() => [
     {
       key: 'property_name',
-      header: 'Property',
+      header: t('property'),
       render: (row) => (
         <span className="font-mono text-sm text-foreground">{row.property_name}</span>
       ),
     },
     {
       key: 'property_type',
-      header: 'Type',
+      header: t('type'),
       headerClassName: 'w-24',
       hideOnMobile: true,
       render: (row) => (
@@ -249,7 +260,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
     },
     {
       key: 'count',
-      header: 'Volume (30d)',
+      header: t('volume30d'),
       headerClassName: 'w-32',
       hideOnMobile: true,
       render: (row) => (
@@ -260,7 +271,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('description'),
       hideOnMobile: true,
       render: (row) => {
         if (editingRow === rowKey(row)) {
@@ -268,7 +279,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
             <Input
               value={editValues.description}
               onChange={(e) => setEditValues((v) => ({ ...v, description: e.target.value }))}
-              placeholder="Describe this property..."
+              placeholder={t('describeProperty')}
               className="h-7 text-xs"
               autoFocus
               onClick={(e) => e.stopPropagation()}
@@ -277,14 +288,14 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
         }
         return (
           <span className="text-sm text-muted-foreground">
-            {row.description || <span className="italic opacity-40">No description</span>}
+            {row.description || <span className="italic opacity-40">{t('noDescription')}</span>}
           </span>
         );
       },
     },
     {
       key: 'tags',
-      header: 'Tags',
+      header: t('tagsLabel'),
       hideOnMobile: true,
       render: (row) => {
         if (editingRow === rowKey(row)) {
@@ -292,7 +303,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
             <Input
               value={editValues.tags}
               onChange={(e) => setEditValues((v) => ({ ...v, tags: e.target.value }))}
-              placeholder="tag1, tag2"
+              placeholder={t('tagPlaceholder')}
               className="h-7 text-xs"
               onClick={(e) => e.stopPropagation()}
             />
@@ -324,14 +335,14 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
                 onClick={() => saveEdit(row)}
                 disabled={upsertMutation.isPending}
               >
-                Save
+                {t('save')}
               </Button>
               <Button
                 size="xs"
                 variant="ghost"
                 onClick={cancelEdit}
               >
-                Cancel
+                {t('cancel')}
               </Button>
             </div>
           );
@@ -343,41 +354,43 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
               variant="ghost"
               onClick={() => startEdit(row)}
             >
-              Edit
+              {t('edit')}
             </Button>
           </div>
         );
       },
     },
-  ], [editingRow, editValues, rowKey, startEdit, cancelEdit, saveEdit, upsertMutation.isPending]);
+  ], [t, editingRow, editValues, rowKey, startEdit, cancelEdit, saveEdit, upsertMutation.isPending]);
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-semibold">Properties</h2>
+      <h2 className="text-sm font-semibold">{t('properties')}</h2>
 
       <div className="flex items-center gap-3">
         <Input
-          placeholder="Search properties..."
+          placeholder={t('searchProperties')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
         <div className="flex gap-1">
-          {(['all', 'event', 'person'] as const).map((t) => (
+          {(['all', 'event', 'person'] as const).map((filterType) => (
             <Button
-              key={t}
+              key={filterType}
               size="xs"
-              variant={typeFilter === t ? 'default' : 'ghost'}
-              onClick={() => setTypeFilter(t)}
+              variant={typeFilter === filterType ? 'default' : 'ghost'}
+              onClick={() => setTypeFilter(filterType)}
               className="capitalize"
             >
-              {t === 'all' ? 'All' : t}
+              {typeFilterLabels[filterType]}
             </Button>
           ))}
         </div>
         {filtered && (
           <span className="text-sm text-muted-foreground">
-            {filtered.length} propert{filtered.length !== 1 ? 'ies' : 'y'}
+            {filtered.length !== 1
+              ? t('propertyCountPlural', { count: filtered.length })
+              : t('propertyCount', { count: filtered.length })}
           </span>
         )}
       </div>
@@ -387,8 +400,8 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
       {!isLoading && filtered && filtered.length === 0 && (
         <EmptyState
           icon={Database}
-          title="No properties found"
-          description={search ? 'No properties match your search' : 'No properties found for this event'}
+          title={t('noPropertiesFound')}
+          description={search ? t('noPropertiesMatch') : t('noPropertiesEvent')}
         />
       )}
 

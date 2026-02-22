@@ -1,0 +1,34 @@
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    name: 'Name',
+    type: 'Type',
+    updated: 'Updated',
+    typeTrend: 'Trend',
+    typeFunnel: 'Funnel',
+    typeRetention: 'Retention',
+    typeLifecycle: 'Lifecycle',
+    typeStickiness: 'Stickiness',
+    deleteTitle: 'Delete "{{name}}"?',
+    deleteDescription: 'This action cannot be undone.',
+    deleteConfirm: 'Delete',
+    toastDeleted: 'Insight deleted',
+    toastDeleteFailed: 'Failed to delete insight',
+  },
+  ru: {
+    name: 'Название',
+    type: 'Тип',
+    updated: 'Обновлено',
+    typeTrend: 'Тренд',
+    typeFunnel: 'Воронка',
+    typeRetention: 'Удержание',
+    typeLifecycle: 'Жизненный цикл',
+    typeStickiness: 'Вовлечённость',
+    deleteTitle: 'Удалить «{{name}}»?',
+    deleteDescription: 'Это действие нельзя отменить.',
+    deleteConfirm: 'Удалить',
+    toastDeleted: 'Аналитика удалена',
+    toastDeleteFailed: 'Не удалось удалить аналитику',
+  },
+});

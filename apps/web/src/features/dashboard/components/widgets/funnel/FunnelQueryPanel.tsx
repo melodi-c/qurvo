@@ -7,6 +7,8 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './FunnelQueryPanel.translations';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 interface FunnelQueryPanelProps {
@@ -16,6 +18,7 @@ interface FunnelQueryPanelProps {
 
 export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   const { data: propertyNames = [] } = useEventPropertyNames();
+  const { t } = useLocalTranslation(translations);
 
   return (
     <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
@@ -31,7 +34,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         {/* Steps */}
         <section className="space-y-3">
-          <SectionHeader icon={TrendingDown} label="Steps" />
+          <SectionHeader icon={TrendingDown} label={t('steps')} />
           <FunnelStepBuilder
             steps={config.steps}
             onChange={(steps) => onChange({ ...config, steps })}
@@ -42,7 +45,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         {/* Conversion window */}
         <section className="space-y-3">
-          <SectionHeader icon={Timer} label="Conversion window" />
+          <SectionHeader icon={Timer} label={t('conversionWindow')} />
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -54,7 +57,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
               }
               className="h-8 w-20 text-sm"
             />
-            <span className="text-sm text-muted-foreground">days</span>
+            <span className="text-sm text-muted-foreground">{t('days')}</span>
           </div>
         </section>
 

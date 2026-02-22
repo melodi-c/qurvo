@@ -9,8 +9,11 @@ import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { Plus, Key, Copy, Check } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './api-keys.translations';
 
 export default function ApiKeysPage() {
+  const { t } = useLocalTranslation(translations);
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const [showCreate, setShowCreate] = useState(false);
@@ -50,14 +53,14 @@ export default function ApiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="API Keys">
+      <PageHeader title={t('title')}>
         <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Key
+          <Plus className="h-4 w-4 mr-2" /> {t('newKey')}
         </Button>
       </PageHeader>
 
       {!projectId && (
-        <EmptyState icon={Key} description="Select a project to manage API keys" />
+        <EmptyState icon={Key} description={t('selectProject')} />
       )}
 
       {projectId && (
@@ -65,21 +68,21 @@ export default function ApiKeysPage() {
           {createdKey && (
             <Card className="border-green-800">
               <CardContent className="pt-6">
-                <p className="text-sm text-green-400 mb-2">API Key created. Copy it now — it won't be shown again.</p>
+                <p className="text-sm text-green-400 mb-2">{t('keyCreated')}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-muted p-3 rounded text-sm break-all">{createdKey}</code>
                   <Button size="icon" variant="outline" onClick={copyKey}>
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
-                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setCreatedKey(null)}>Dismiss</Button>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setCreatedKey(null)}>{t('dismiss')}</Button>
               </CardContent>
             </Card>
           )}
 
           {showCreate && (
             <InlineCreateForm
-              placeholder="Key name (e.g. production)"
+              placeholder={t('placeholder')}
               value={name}
               onChange={setName}
               isPending={createMutation.isPending}
@@ -100,14 +103,14 @@ export default function ApiKeysPage() {
                       <div>
                         <CardTitle className="text-sm">{key.name}</CardTitle>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {key.key_prefix}... &middot; Created {new Date(key.created_at).toLocaleDateString()}
-                          {key.revoked_at && <span className="text-red-400 ml-2">Revoked</span>}
+                          {key.key_prefix}... &middot; {t('created')} {new Date(key.created_at).toLocaleDateString()}
+                          {key.revoked_at && <span className="text-red-400 ml-2">{t('revoked')}</span>}
                         </p>
                       </div>
                     </div>
                     {!key.revoked_at && (
                       <Button size="sm" variant="destructive" onClick={() => revokeMutation.mutate(key.id)}>
-                        Revoke
+                        {t('revoke')}
                       </Button>
                     )}
                   </div>

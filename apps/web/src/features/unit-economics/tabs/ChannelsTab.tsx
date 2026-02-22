@@ -10,8 +10,10 @@ import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } from '../hooks/use-channels';
 import type { MarketingChannel, CreateMarketingChannel } from '@/api/generated/Api';
+import translations from './ChannelsTab.translations';
 
 interface FilterCondition {
   property: string;
@@ -19,6 +21,7 @@ interface FilterCondition {
 }
 
 export function ChannelsTab() {
+  const { t } = useLocalTranslation(translations);
   const { data: channels, isLoading } = useChannels();
   const createMutation = useCreateChannel();
   const updateMutation = useUpdateChannel();
@@ -69,17 +72,17 @@ export function ChannelsTab() {
     };
     if (editingChannel) {
       await updateMutation.mutateAsync({ channelId: editingChannel.id, data });
-      toast.success('Channel updated');
+      toast.success(t('channelUpdated'));
     } else {
       await createMutation.mutateAsync(data);
-      toast.success('Channel created');
+      toast.success(t('channelCreated'));
     }
     setDialogOpen(false);
   }, [name, color, conditions, editingChannel, createMutation, updateMutation]);
 
   const handleDelete = useCallback(async (id: string) => {
     await deleteMutation.mutateAsync(id);
-    toast.success('Channel deleted');
+    toast.success(t('channelDeleted'));
   }, [deleteMutation]);
 
   if (isLoading) return <ListSkeleton count={3} />;
@@ -87,22 +90,22 @@ export function ChannelsTab() {
   const content = !channels?.length ? (
     <EmptyState
       icon={Plus}
-      title="No channels yet"
-      description="Add marketing channels to track ad spend and calculate CAC"
-      action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add channel</Button>}
+      title={t('noChannelsTitle')}
+      description={t('noChannelsDescription')}
+      action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />{t('addChannel')}</Button>}
     />
   ) : (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add channel</Button>
+        <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />{t('addChannel')}</Button>
       </div>
 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Filters</TableHead>
+            <TableHead>{t('headerName')}</TableHead>
+            <TableHead>{t('headerType')}</TableHead>
+            <TableHead>{t('headerFilters')}</TableHead>
             <TableHead className="w-[80px]" />
           </TableRow>
         </TableHeader>
@@ -156,21 +159,21 @@ export function ChannelsTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingChannel ? 'Edit Channel' : 'New Channel'}</DialogTitle>
+            <DialogTitle>{editingChannel ? t('editChannel') : t('newChannel')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-[1fr_auto] gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ch-name">Name</Label>
+                <Label htmlFor="ch-name">{t('name')}</Label>
                 <Input
                   id="ch-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Google Ads"
+                  placeholder={t('namePlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ch-color">Color</Label>
+                <Label htmlFor="ch-color">{t('color')}</Label>
                 <Input
                   id="ch-color"
                   type="color"
@@ -182,21 +185,21 @@ export function ChannelsTab() {
             </div>
 
             <div className="space-y-2">
-              <Label>Filter Conditions</Label>
+              <Label>{t('filterConditions')}</Label>
               <div className="space-y-2">
                 {conditions.map((c, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <Input
                       value={c.property}
                       onChange={(e) => updateCondition(i, 'property', e.target.value)}
-                      placeholder="property"
+                      placeholder={t('property')}
                       className="flex-1"
                     />
                     <span className="text-muted-foreground">=</span>
                     <Input
                       value={c.value}
                       onChange={(e) => updateCondition(i, 'value', e.target.value)}
-                      placeholder="value"
+                      placeholder={t('value')}
                       className="flex-1"
                     />
                     <Button variant="ghost" size="icon-xs" onClick={() => removeCondition(i)}>
@@ -206,7 +209,7 @@ export function ChannelsTab() {
                 ))}
               </div>
               <Button variant="outline" size="sm" onClick={addCondition}>
-                <Plus className="h-3.5 w-3.5 mr-1" />Add condition
+                <Plus className="h-3.5 w-3.5 mr-1" />{t('addCondition')}
               </Button>
             </div>
           </div>
@@ -215,7 +218,7 @@ export function ChannelsTab() {
               onClick={handleSubmit}
               disabled={!name.trim() || createMutation.isPending || updateMutation.isPending}
             >
-              {editingChannel ? 'Save' : 'Create'}
+              {editingChannel ? t('save') : t('create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -225,8 +228,8 @@ export function ChannelsTab() {
       <ConfirmDialog
         open={confirm.isOpen}
         onOpenChange={confirm.close}
-        title={`Delete "${confirm.itemName}"?`}
-        description="All ad spend records for this channel will also be deleted."
+        title={t('deleteTitle', { name: confirm.itemName ?? '' })}
+        description={t('deleteDescription')}
         variant="destructive"
         onConfirm={() => handleDelete(confirm.itemId!)}
       />

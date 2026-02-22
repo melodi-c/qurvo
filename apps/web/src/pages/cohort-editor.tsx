@@ -8,10 +8,13 @@ import { CohortConditionBuilder, type CohortCondition } from '@/features/cohorts
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './cohort-editor.translations';
 import { toast } from 'sonner';
 import type { CohortDefinition } from '@/api/generated/Api';
 
 export default function CohortEditorPage() {
+  const { t } = useLocalTranslation(translations);
   const { cohortId } = useParams<{ cohortId: string }>();
   const { go, link, projectId } = useAppNavigate();
   const isNew = !cohortId || cohortId === 'new';
@@ -21,7 +24,7 @@ export default function CohortEditorPage() {
   const updateMutation = useUpdateCohort();
   const previewMutation = useCohortPreviewCount();
 
-  const [name, setName] = useState('Untitled cohort');
+  const [name, setName] = useState(t('defaultName'));
   const [description, setDescription] = useState('');
   const [match, setMatch] = useState<'all' | 'any'>('all');
   const [conditions, setConditions] = useState<CohortCondition[]>([]);
@@ -71,7 +74,7 @@ export default function CohortEditorPage() {
           description: description.trim() || undefined,
           definition: { match, conditions: conditions as any },
         });
-        toast.success('Cohort created');
+        toast.success(t('cohortCreated'));
       } else {
         await updateMutation.mutateAsync({
           cohortId: cohortId!,
@@ -81,13 +84,13 @@ export default function CohortEditorPage() {
             definition: { match, conditions: conditions as any },
           },
         });
-        toast.success('Cohort updated');
+        toast.success(t('cohortUpdated'));
       }
       go.cohorts.list();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Failed to save');
+      setSaveError(e instanceof Error ? e.message : t('saveFailed'));
     }
-  }, [name, description, match, conditions, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation]);
+  }, [name, description, match, conditions, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t]);
 
   if (!isNew && loadingCohort) {
     return (
@@ -103,10 +106,10 @@ export default function CohortEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Cohorts"
+        backLabel={t('backLabel')}
         name={name}
         onNameChange={setName}
-        placeholder="Untitled cohort"
+        placeholder={t('placeholder')}
         onSave={handleSave}
         isSaving={isSaving}
         isValid={isValid}
@@ -120,11 +123,11 @@ export default function CohortEditorPage() {
           <div className="p-5 space-y-5">
             {/* Description */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Description</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t('descriptionPlaceholder')}
                 className="h-8 text-sm"
               />
             </div>
@@ -134,7 +137,7 @@ export default function CohortEditorPage() {
 
             {/* Conditions */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Conditions</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</label>
               <CohortConditionBuilder
                 match={match}
                 conditions={conditions}
@@ -153,26 +156,26 @@ export default function CohortEditorPage() {
             </div>
             {!hasValidConditions ? (
               <div>
-                <p className="text-sm font-medium">Add conditions to preview</p>
+                <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Configure conditions on the left to see matching users count
+                  {t('addConditionsDescription')}
                 </p>
               </div>
             ) : previewMutation.isPending ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Calculating...</span>
+                <span className="text-sm">{t('calculating')}</span>
               </div>
             ) : previewMutation.data ? (
               <div>
                 <p className="text-4xl font-bold tabular-nums text-primary">
                   {previewMutation.data.count.toLocaleString()}
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">persons match</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
               </div>
             ) : (
               <div>
-                <p className="text-sm font-medium">Preview will appear here</p>
+                <p className="text-sm font-medium">{t('previewPlaceholder')}</p>
               </div>
             )}
           </div>

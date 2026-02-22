@@ -5,8 +5,11 @@ import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useElementWidth } from '@/hooks/use-element-width';
 import { useDashboardStore } from '../store';
 import { WidgetCard } from './WidgetCard';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './DashboardGrid.translations';
 
 export function DashboardGrid() {
+  const { t } = useLocalTranslation(translations);
   const localWidgets = useDashboardStore((s) => s.localWidgets);
   const localLayout = useDashboardStore((s) => s.localLayout);
   const isEditing = useDashboardStore((s) => s.isEditing);
@@ -19,7 +22,7 @@ export function DashboardGrid() {
     <div ref={containerRef}>
       {localWidgets.length === 0 ? (
         <div className="border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
-          {isEditing ? 'Click "Add Widget" to add your first widget' : 'No widgets yet. Click Edit to add widgets.'}
+          {isEditing ? t('emptyEditing') : t('emptyViewing')}
         </div>
       ) : isMobile ? (
         <div className="flex flex-col gap-3">

@@ -6,18 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BarChart3 } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useUnitEconomics } from '../hooks/use-unit-economics';
 import { useUEConfig } from '../hooks/use-ue-config';
 import { useChannels } from '../hooks/use-channels';
 import { UEMetricsGrid } from '../components/UEMetricsGrid';
 import { UEChart } from '../components/UEChart';
 import type { Granularity } from '@/api/generated/Api';
-
-const GRANULARITY_OPTIONS = [
-  { label: 'Day', value: 'day' },
-  { label: 'Week', value: 'week' },
-  { label: 'Month', value: 'month' },
-];
+import translations from './MetricsTab.translations';
 
 const CHART_METRICS = [
   { label: 'ARPU', value: 'arpu' },
@@ -29,6 +25,7 @@ const CHART_METRICS = [
 ];
 
 export function MetricsTab() {
+  const { t } = useLocalTranslation(translations);
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -41,6 +38,12 @@ export function MetricsTab() {
 
   const { data: config } = useUEConfig();
   const { data: channels } = useChannels();
+
+  const granularityOptions = useMemo(() => [
+    { label: t('granularityDay'), value: 'day' },
+    { label: t('granularityWeek'), value: 'week' },
+    { label: t('granularityMonth'), value: 'month' },
+  ], [t]);
 
   const queryParams = useMemo(() => {
     if (!config?.purchase_event_name) return null;
@@ -64,8 +67,8 @@ export function MetricsTab() {
     return (
       <EmptyState
         icon={BarChart3}
-        title="Configure Unit Economics"
-        description="Set the purchase event name in Settings tab to start calculating metrics"
+        title={t('configureTitle')}
+        description={t('configureDescription')}
       />
     );
   }
@@ -83,9 +86,9 @@ export function MetricsTab() {
           }}
         />
         <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">Period</span>
+          <span className="text-xs text-muted-foreground">{t('period')}</span>
           <PillToggleGroup
-            options={GRANULARITY_OPTIONS}
+            options={granularityOptions}
             value={granularity}
             onChange={(v) => setGranularity(v as Granularity)}
             className="h-8 items-center"
@@ -93,13 +96,13 @@ export function MetricsTab() {
         </div>
         {channels && channels.length > 0 && (
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Channel</Label>
+            <Label className="text-xs text-muted-foreground">{t('channel')}</Label>
             <Select value={channelId} onValueChange={(v) => setChannelId(v === '__all__' ? '' : v)}>
               <SelectTrigger size="sm" className="w-[180px]">
-                <SelectValue placeholder="All channels" />
+                <SelectValue placeholder={t('allChannels')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">All channels</SelectItem>
+                <SelectItem value="__all__">{t('allChannels')}</SelectItem>
                 {channels.map((ch) => (
                   <SelectItem key={ch.id} value={ch.id}>{ch.name}</SelectItem>
                 ))}
@@ -122,7 +125,7 @@ export function MetricsTab() {
 
           {/* Chart metric selector */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground mr-1">Chart:</span>
+            <span className="text-xs text-muted-foreground mr-1">{t('chart')}</span>
             {CHART_METRICS.map((m) => (
               <button
                 key={m.value}

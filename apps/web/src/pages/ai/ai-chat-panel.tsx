@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { SendHorizonal, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AiMessage } from './ai-message';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './ai-chat-panel.translations';
 import type { AiMessageData } from './use-ai-chat';
 
 interface AiChatPanelProps {
@@ -25,6 +27,7 @@ export function AiChatPanel({
   isLoadingMore,
   onLoadMore,
 }: AiChatPanelProps) {
+  const { t } = useLocalTranslation(translations);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -115,8 +118,8 @@ export function AiChatPanel({
         )}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
-            <p className="text-lg font-medium text-foreground mb-1">Ask about your data</p>
-            <p>Try: "How many signups last week?" or "Show me a retention chart"</p>
+            <p className="text-lg font-medium text-foreground mb-1">{t('askTitle')}</p>
+            <p>{t('askHint')}</p>
           </div>
         )}
         {messages.map((msg) => (
@@ -138,7 +141,7 @@ export function AiChatPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about your analytics data..."
+            placeholder={t('inputPlaceholder')}
             rows={1}
             className="flex-1 resize-none bg-input/30 border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
             style={{ minHeight: '38px' }}

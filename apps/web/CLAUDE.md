@@ -164,3 +164,58 @@ Use `useDragReorder<T>` hook from `QueryItemCard.tsx` for reorderable lists via 
 
 ### Tailwind v4 Border Color
 Tailwind v4 sets `border-color: var(--color-border)` on all elements in the base layer. Utilities like `border-b-white` on a child may not override this due to cascade. For colored borders on specific sides, use absolutely positioned `<span>` elements with `bg-*` instead (see `TabNav` component for reference).
+
+## Internationalization (i18n)
+
+Custom i18n system without external libraries. Supports Russian (`ru`) and English (`en`), default is Russian.
+
+### Architecture
+
+| File / Directory | Purpose |
+|---|---|
+| `src/i18n/types.ts` | `Language` type (`'en' \| 'ru'`), `TranslationsMap<T>`, `createTranslations()` helper |
+| `src/i18n/pluralize.ts` | Russian/English pluralization rules |
+| `src/stores/language.ts` | Zustand store with `persist` middleware (localStorage key `qurvo-language`). Syncs language to API via `PATCH /api/auth/profile` |
+| `src/hooks/use-local-translation.ts` | `useLocalTranslation(translations)` hook — returns `{ t, lang }` |
+
+### How to add translations to a component
+
+1. **Create a `.translations.ts` file** next to the component:
+```typescript
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    title: 'Dashboard',
+    deleteConfirm: 'Delete "{{name}}"?',
+  },
+  ru: {
+    title: 'Дашборд',
+    deleteConfirm: 'Удалить «{{name}}»?',
+  },
+});
+```
+
+2. **Use in component**:
+```typescript
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './MyComponent.translations';
+
+function MyComponent() {
+  const { t } = useLocalTranslation(translations);
+  return <h1>{t('title')}</h1>;
+}
+```
+
+3. **Interpolation**: `t('deleteConfirm', { name: item.name })` — replaces `{{name}}` in the string.
+
+4. **Pluralization**: Import `pluralize` from `@/i18n/pluralize` for Russian plural forms.
+
+### Rules
+
+- **Every user-visible string must use `t()`**. No hardcoded English or Russian strings in JSX.
+- **Co-locate translations** — `.translations.ts` file lives next to its component.
+- **Keep translation keys camelCase** — `deleteConfirm`, not `delete_confirm` or `DELETE_CONFIRM`.
+- **Static arrays with labels** (tabs, options, columns) that need translation must be inside the component function (use `useMemo` with `t` dependency) — not at module level.
+- **Toast messages** use `t()` too: `toast.success(t('saved'))`.
+- **Language switcher** is in the sidebar user menu (Layout component).

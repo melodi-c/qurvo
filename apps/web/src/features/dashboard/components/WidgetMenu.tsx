@@ -8,11 +8,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useDashboardStore } from '../store';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './WidgetMenu.translations';
 import type { Widget } from '@/api/generated/Api';
 
 export function WidgetMenu({ widget }: { widget: Widget }) {
   const { go } = useAppNavigate();
   const removeWidget = useDashboardStore((s) => s.removeWidget);
+  const { t } = useLocalTranslation(translations);
 
   const insight = widget.insight;
 
@@ -27,12 +30,12 @@ export function WidgetMenu({ widget }: { widget: Widget }) {
         {insight && (
           <DropdownMenuItem onClick={() => go.insights.detailByType(insight.type as any, insight.id)}>
             <ExternalLink />
-            Open insight
+            {t('openInsight')}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem variant="destructive" onClick={() => removeWidget(widget.id)}>
           <Trash2 />
-          Remove
+          {t('remove')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

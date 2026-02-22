@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -8,6 +8,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './RetentionTable.translations';
 import type { RetentionResult } from '@/api/generated/Api';
 
 interface RetentionTableProps {
@@ -31,14 +33,21 @@ function formatDate(dateStr: string, granularity: string): string {
 
 export function RetentionTable({ result, compact = false }: RetentionTableProps) {
   const { cohorts, average_retention, granularity } = result;
+  const { t } = useLocalTranslation(translations);
 
   const maxPeriods = compact
     ? Math.min(average_retention.length, 7)
     : average_retention.length;
 
+  const getPeriodLabel = useCallback((granularity: string): string => {
+    if (granularity === 'day') return t('day');
+    if (granularity === 'week') return t('week');
+    return t('month');
+  }, [t]);
+
   const periodHeaders = useMemo(
-    () => Array.from({ length: maxPeriods }, (_, i) => `${granularity === 'day' ? 'Day' : granularity === 'week' ? 'Week' : 'Month'} ${i}`),
-    [maxPeriods, granularity],
+    () => Array.from({ length: maxPeriods }, (_, i) => `${getPeriodLabel(granularity)} ${i}`),
+    [maxPeriods, granularity, getPeriodLabel],
   );
 
   if (cohorts.length === 0) return null;
@@ -48,8 +57,8 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="sticky left-0 bg-background z-10 min-w-[100px]">Cohort</TableHead>
-            <TableHead className="text-right min-w-[60px]">Users</TableHead>
+            <TableHead className="sticky left-0 bg-background z-10 min-w-[100px]">{t('cohort')}</TableHead>
+            <TableHead className="text-right min-w-[60px]">{t('users')}</TableHead>
             {periodHeaders.map((h) => (
               <TableHead key={h} className="text-center min-w-[70px] text-xs">{h}</TableHead>
             ))}
@@ -59,7 +68,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
           {/* Average row */}
           <TableRow className="border-b-2 border-border font-medium">
             <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground">
-              Average
+              {t('average')}
             </TableCell>
             <TableCell />
             {average_retention.slice(0, maxPeriods).map((pct, i) => (
@@ -102,7 +111,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
                     <Tooltip key={i}>
                       <TooltipTrigger asChild>{cell}</TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">{count.toLocaleString()} users ({pct.toFixed(1)}%)</p>
+                        <p className="text-xs">{t('usersCount', { count: count.toLocaleString(), pct: pct.toFixed(1) })}</p>
                       </TooltipContent>
                     </Tooltip>
                   );

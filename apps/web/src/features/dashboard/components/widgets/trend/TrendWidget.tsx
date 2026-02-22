@@ -4,6 +4,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
 import type { Widget, TrendWidgetConfig } from '@/api/generated/Api';
 import { formatDistanceToNow } from 'date-fns';
@@ -16,12 +18,13 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
+  const { t } = useLocalTranslation(translations);
 
   const config = widget.insight?.config as TrendWidgetConfig | undefined;
   if (!config) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        No insight linked
+        {t('noInsight')}
       </div>
     );
   }
@@ -37,11 +40,11 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
         <p className="text-muted-foreground text-sm text-center">
-          Configure series to see trend data
+          {t('configureSeries')}
         </p>
         {isEditing && (
           <Button size="sm" variant="ghost" onClick={handleConfigure}>
-            Configure
+            {t('configure')}
           </Button>
         )}
       </div>
@@ -61,9 +64,9 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   if (error || !data) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
-        <p className="text-muted-foreground text-sm">Failed to load trend data</p>
+        <p className="text-muted-foreground text-sm">{t('loadFailed')}</p>
         <Button size="sm" variant="ghost" onClick={() => refresh()}>
-          Retry
+          {t('retry')}
         </Button>
       </div>
     );
@@ -73,8 +76,8 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   if (result.series.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-1 text-center">
-        <p className="text-muted-foreground text-sm">No events found</p>
-        <p className="text-muted-foreground/60 text-xs">Try adjusting the date range or series</p>
+        <p className="text-muted-foreground text-sm">{t('noEvents')}</p>
+        <p className="text-muted-foreground/60 text-xs">{t('adjustRange')}</p>
       </div>
     );
   }
@@ -101,7 +104,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
             {data.from_cache
               ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
-              : 'fresh'}
+              : t('fresh')}
           </span>
           <Button
             size="icon"
@@ -109,7 +112,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
             className="h-5 w-5"
             onClick={() => refresh()}
             disabled={isFetching}
-            title="Refresh"
+            title={t('refresh')}
           >
             <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
           </Button>

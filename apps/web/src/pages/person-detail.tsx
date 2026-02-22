@@ -8,8 +8,11 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './person-detail.translations';
 
 export default function PersonDetailPage() {
+  const { t } = useLocalTranslation(translations);
   const { personId } = useParams<{ personId: string }>();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
@@ -50,7 +53,7 @@ export default function PersonDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Profile</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('profile')}</CardTitle>
           </CardHeader>
           <CardContent>
             {personLoading ? (
@@ -58,11 +61,11 @@ export default function PersonDetailPage() {
             ) : (
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-muted-foreground text-xs mb-1">Person ID</dt>
+                  <dt className="text-muted-foreground text-xs mb-1">{t('personId')}</dt>
                   <dd className="font-mono text-xs break-all">{person?.id}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground text-xs mb-1">Identifiers</dt>
+                  <dt className="text-muted-foreground text-xs mb-1">{t('identifiers')}</dt>
                   <dd className="flex flex-wrap gap-1">
                     {(person?.distinct_ids ?? []).map((id) => (
                       <Badge key={id} variant="secondary" className="font-mono text-xs">
@@ -72,13 +75,13 @@ export default function PersonDetailPage() {
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">First seen</dt>
+                  <dt className="text-muted-foreground">{t('firstSeen')}</dt>
                   <dd>
                     {person ? new Date(person.created_at).toLocaleDateString() : '\u2014'}
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Last seen</dt>
+                  <dt className="text-muted-foreground">{t('lastSeen')}</dt>
                   <dd>
                     {person ? new Date(person.updated_at).toLocaleDateString() : '\u2014'}
                   </dd>
@@ -90,13 +93,13 @@ export default function PersonDetailPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Properties</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('properties')}</CardTitle>
           </CardHeader>
           <CardContent>
             {personLoading ? (
               <Skeleton className="h-24 w-full" />
             ) : Object.keys(props).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No user properties recorded.</p>
+              <p className="text-sm text-muted-foreground">{t('noProperties')}</p>
             ) : (
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 {Object.entries(props).map(([k, v]) => (
@@ -112,7 +115,7 @@ export default function PersonDetailPage() {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-sm font-medium">Event History</h2>
+        <h2 className="text-sm font-medium">{t('eventHistory')}</h2>
         {eventsLoading && <ListSkeleton count={6} height="h-10" className="space-y-2" />}
 
         {!eventsLoading && (

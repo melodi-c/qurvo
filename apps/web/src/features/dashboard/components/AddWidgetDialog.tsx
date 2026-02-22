@@ -7,6 +7,8 @@ import { useInsights } from '@/features/insights/hooks/use-insights';
 import { useAddWidget } from '../hooks/use-dashboard';
 import { useDashboardStore } from '../store';
 import { toast } from 'sonner';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './AddWidgetDialog.translations';
 import type { Insight } from '@/api/generated/Api';
 
 interface AddWidgetDialogProps {
@@ -15,6 +17,7 @@ interface AddWidgetDialogProps {
 }
 
 export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
+  const { t } = useLocalTranslation(translations);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
   const store = useDashboardStore();
   const { data: insights, isLoading } = useInsights();
@@ -37,10 +40,10 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
         widget: { insight_id: insight.id, layout },
       });
       store.addWidget({ ...created, insight, layout });
-      toast.success(`Added "${insight.name}" to dashboard`);
+      toast.success(t('toastAdded', { name: insight.name }));
       onClose();
     } catch {
-      toast.error('Failed to add widget');
+      toast.error(t('toastFailed'));
     } finally {
       setAdding(null);
     }
@@ -50,13 +53,13 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Insight to Dashboard</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search insights..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -75,14 +78,14 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
           {!isLoading && filtered.length === 0 && (
             <div className="py-8 text-center text-sm text-muted-foreground">
               {insights?.length === 0
-                ? 'No insights yet. Create a trend or funnel first.'
-                : 'No insights match your search.'}
+                ? t('noInsightsYet')
+                : t('noMatch')}
             </div>
           )}
 
           {!isLoading && filtered.map((insight) => {
             const Icon = insight.type === 'trend' ? TrendingUp : insight.type === 'funnel' ? GitFork : CalendarCheck;
-            const typeLabel = insight.type === 'trend' ? 'Trend' : insight.type === 'funnel' ? 'Funnel' : 'Retention';
+            const typeLabel = insight.type === 'trend' ? t('typeTrend') : insight.type === 'funnel' ? t('typeFunnel') : t('typeRetention');
             return (
               <button
                 key={insight.id}

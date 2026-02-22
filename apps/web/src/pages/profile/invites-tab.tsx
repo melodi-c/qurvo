@@ -6,8 +6,11 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './invites-tab.translations';
 
 export function InvitesTab() {
+  const { t } = useLocalTranslation(translations);
   const queryClient = useQueryClient();
 
   const { data: invites, isLoading } = useQuery({
@@ -20,18 +23,18 @@ export function InvitesTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myInvites'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Invite accepted');
+      toast.success(t('acceptSuccess'));
     },
-    onError: () => toast.error('Failed to accept invite'),
+    onError: () => toast.error(t('acceptError')),
   });
 
   const declineMutation = useMutation({
     mutationFn: (inviteId: string) => api.myInvitesControllerDeclineInvite({ inviteId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myInvites'] });
-      toast.success('Invite declined');
+      toast.success(t('declineSuccess'));
     },
-    onError: () => toast.error('Failed to decline invite'),
+    onError: () => toast.error(t('declineError')),
   });
 
   return (
@@ -39,7 +42,7 @@ export function InvitesTab() {
       {isLoading && <ListSkeleton count={2} />}
 
       {!isLoading && (!invites || invites.length === 0) && (
-        <EmptyState icon={Mail} description="No pending invites" />
+        <EmptyState icon={Mail} description={t('noPending')} />
       )}
 
       <div className="space-y-3 max-w-2xl">
@@ -50,7 +53,7 @@ export function InvitesTab() {
                 <div>
                   <p className="text-sm font-medium">{invite.project.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Invited by {invite.invited_by.display_name} as{' '}
+                    {t('invitedBy', { name: invite.invited_by.display_name })}{' '}
                     <span className="capitalize">{invite.role}</span>
                   </p>
                 </div>
@@ -60,7 +63,7 @@ export function InvitesTab() {
                     onClick={() => acceptMutation.mutate(invite.id)}
                     disabled={acceptMutation.isPending || declineMutation.isPending}
                   >
-                    Accept
+                    {t('accept')}
                   </Button>
                   <Button
                     size="sm"
@@ -68,7 +71,7 @@ export function InvitesTab() {
                     onClick={() => declineMutation.mutate(invite.id)}
                     disabled={acceptMutation.isPending || declineMutation.isPending}
                   >
-                    Decline
+                    {t('decline')}
                   </Button>
                 </div>
               </div>

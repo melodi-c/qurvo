@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -8,16 +8,9 @@ import {
 } from '@/components/ui/select';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './InsightsFilterBar.translations';
 import type { InsightsFilters, InsightTypeFilter, InsightSortOrder } from '../hooks/use-insights-filters';
-
-const TYPE_OPTIONS: { label: string; value: string }[] = [
-  { label: 'All',        value: 'all' },
-  { label: 'Trends',     value: 'trend' },
-  { label: 'Funnels',    value: 'funnel' },
-  { label: 'Retention',  value: 'retention' },
-  { label: 'Lifecycle',  value: 'lifecycle' },
-  { label: 'Stickiness', value: 'stickiness' },
-];
 
 interface InsightsFilterBarProps {
   filters: InsightsFilters;
@@ -25,8 +18,18 @@ interface InsightsFilterBarProps {
 }
 
 export function InsightsFilterBar({ filters, setFilter }: InsightsFilterBarProps) {
+  const { t } = useLocalTranslation(translations);
   const [searchInput, setSearchInput] = useState(filters.search);
   const debouncedSearch = useDebounce(searchInput, 300);
+
+  const typeOptions = useMemo(() => [
+    { label: t('all'),        value: 'all' },
+    { label: t('trends'),     value: 'trend' },
+    { label: t('funnels'),    value: 'funnel' },
+    { label: t('retention'),  value: 'retention' },
+    { label: t('lifecycle'),  value: 'lifecycle' },
+    { label: t('stickiness'), value: 'stickiness' },
+  ], [t]);
 
   useEffect(() => {
     setFilter({ search: debouncedSearch });
@@ -42,7 +45,7 @@ export function InsightsFilterBar({ filters, setFilter }: InsightsFilterBarProps
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <Input
-          placeholder="Search insights…"
+          placeholder={t('searchPlaceholder')}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="pl-8 h-8 w-52 text-sm"
@@ -50,7 +53,7 @@ export function InsightsFilterBar({ filters, setFilter }: InsightsFilterBarProps
       </div>
 
       <PillToggleGroup
-        options={TYPE_OPTIONS}
+        options={typeOptions}
         value={filters.type}
         onChange={(value) => setFilter({ type: value as InsightTypeFilter })}
       />
@@ -64,7 +67,7 @@ export function InsightsFilterBar({ filters, setFilter }: InsightsFilterBarProps
         className="h-8 gap-1.5"
       >
         <Star className={cn('h-3.5 w-3.5', filters.favorites && 'fill-current')} />
-        Favorites
+        {t('favorites')}
       </Button>
 
       <Select
@@ -75,8 +78,8 @@ export function InsightsFilterBar({ filters, setFilter }: InsightsFilterBarProps
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="newest">Newest first</SelectItem>
-          <SelectItem value="oldest">Oldest first</SelectItem>
+          <SelectItem value="newest">{t('newestFirst')}</SelectItem>
+          <SelectItem value="oldest">{t('oldestFirst')}</SelectItem>
         </SelectContent>
       </Select>
     </div>

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './layout-topbar.translations';
 
 interface LayoutTopbarProps {
   onMenuOpen: () => void;
@@ -9,12 +11,14 @@ interface LayoutTopbarProps {
 }
 
 export function LayoutTopbar({ onMenuOpen, userInitial, logoHref }: LayoutTopbarProps) {
+  const { t } = useLocalTranslation(translations);
+
   return (
     <header className="lg:hidden flex items-center gap-3 h-[44px] px-4 border-b border-border bg-[#0f0f11] shrink-0">
       <button
         onClick={onMenuOpen}
         className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-        aria-label="Open navigation"
+        aria-label={t('openNavigation')}
       >
         <Menu className="w-4 h-4" />
       </button>

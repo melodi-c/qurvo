@@ -8,12 +8,16 @@ import { useLifecycleData } from '@/features/dashboard/hooks/use-lifecycle';
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { LifecycleQueryPanel } from '@/features/dashboard/components/widgets/lifecycle/LifecycleQueryPanel';
 import { defaultLifecycleConfig } from '@/features/dashboard/components/widgets/lifecycle/lifecycle-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './lifecycle-editor.translations';
 import type { LifecycleWidgetConfig } from '@/api/generated/Api';
 
 export default function LifecycleEditorPage() {
+  const { t } = useLocalTranslation(translations);
+
   const editor = useInsightEditor<LifecycleWidgetConfig>({
     type: 'lifecycle',
-    defaultName: 'Untitled lifecycle',
+    defaultName: t('defaultName'),
     defaultConfig: defaultLifecycleConfig,
     cleanConfig: (c) => c,
   });
@@ -32,10 +36,10 @@ export default function LifecycleEditorPage() {
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
         backPath={listPath}
-        backLabel="Insights"
+        backLabel={t('backLabel')}
         name={name}
         onNameChange={setName}
-        placeholder="Untitled lifecycle"
+        placeholder={t('placeholder')}
         onSave={handleSave}
         isSaving={isSaving}
         isValid={isValid}
@@ -49,8 +53,8 @@ export default function LifecycleEditorPage() {
           {!isConfigValid && (
             <EmptyState
               icon={HeartPulse}
-              title="Configure your lifecycle"
-              description="Select a target event to see lifecycle data"
+              title={t('configureTitle')}
+              description={t('configureDescription')}
               className="flex-1"
             />
           )}
@@ -70,8 +74,8 @@ export default function LifecycleEditorPage() {
           {isConfigValid && !showSkeleton && (!result || result.data.length === 0) && (
             <EmptyState
               icon={HeartPulse}
-              title="No results found"
-              description="No events match in the selected date range"
+              title={t('noResultsTitle')}
+              description={t('noResultsDescription')}
               className="flex-1"
             />
           )}
@@ -79,13 +83,13 @@ export default function LifecycleEditorPage() {
           {isConfigValid && !showSkeleton && result && result.data.length > 0 && (
             <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
-                <Metric label="New" value={String(result.totals.new)} accent />
+                <Metric label={t('new')} value={String(result.totals.new)} accent />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Returning" value={String(result.totals.returning)} />
+                <Metric label={t('returning')} value={String(result.totals.returning)} />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Resurrecting" value={String(result.totals.resurrecting)} />
+                <Metric label={t('resurrecting')} value={String(result.totals.resurrecting)} />
                 <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label="Dormant" value={String(Math.abs(result.totals.dormant))} />
+                <Metric label={t('dormant')} value={String(Math.abs(result.totals.dormant))} />
               </div>
               <div className="flex-1 overflow-auto p-6">
                 <LifecycleChart result={result} />

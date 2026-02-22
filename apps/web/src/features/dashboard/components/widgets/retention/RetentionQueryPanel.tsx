@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { CalendarCheck, BarChart3 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,7 +8,8 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { EventNameCombobox } from '../funnel/EventNameCombobox';
-import { RETENTION_TYPE_OPTIONS, RETENTION_GRANULARITY_OPTIONS } from './retention-shared';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './RetentionQueryPanel.translations';
 import type { RetentionWidgetConfig } from '@/api/generated/Api';
 
 interface RetentionQueryPanelProps {
@@ -16,6 +18,19 @@ interface RetentionQueryPanelProps {
 }
 
 export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelProps) {
+  const { t } = useLocalTranslation(translations);
+
+  const retentionTypeOptions = useMemo(() => [
+    { value: 'first_time', label: t('firstTime') },
+    { value: 'recurring', label: t('recurring') },
+  ], [t]);
+
+  const granularityOptions = useMemo(() => [
+    { value: 'day', label: t('day') },
+    { value: 'week', label: t('week') },
+    { value: 'month', label: t('month') },
+  ], [t]);
+
   return (
     <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
       <div className="p-5 space-y-6">
@@ -30,13 +45,13 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
 
         {/* Target Event */}
         <section className="space-y-3">
-          <SectionHeader icon={CalendarCheck} label="Event" />
+          <SectionHeader icon={CalendarCheck} label={t('event')} />
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Target event</span>
+            <span className="text-xs text-muted-foreground">{t('targetEvent')}</span>
             <EventNameCombobox
               value={config.target_event}
               onChange={(target_event) => onChange({ ...config, target_event })}
-              placeholder="Select event..."
+              placeholder={t('selectEvent')}
               className="h-9 rounded-md border-border px-3"
             />
           </div>
@@ -46,12 +61,12 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
 
         {/* Retention Type + Granularity + Periods */}
         <section className="space-y-3">
-          <SectionHeader icon={BarChart3} label="Display" />
+          <SectionHeader icon={BarChart3} label={t('display')} />
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Retention type</span>
+            <span className="text-xs text-muted-foreground">{t('retentionType')}</span>
             <PillToggleGroup
-              options={RETENTION_TYPE_OPTIONS}
+              options={retentionTypeOptions}
               value={config.retention_type}
               onChange={(v) => onChange({ ...config, retention_type: v as RetentionWidgetConfig['retention_type'] })}
             />
@@ -59,7 +74,7 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Granularity</span>
+              <span className="text-xs text-muted-foreground">{t('granularity')}</span>
               <Select
                 value={config.granularity}
                 onValueChange={(v) => onChange({ ...config, granularity: v as RetentionWidgetConfig['granularity'] })}
@@ -68,7 +83,7 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {RETENTION_GRANULARITY_OPTIONS.map((o) => (
+                  {granularityOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value} className="text-sm">
                       {o.label}
                     </SelectItem>
@@ -77,7 +92,7 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
               </Select>
             </div>
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Periods</span>
+              <span className="text-xs text-muted-foreground">{t('periods')}</span>
               <Input
                 type="number"
                 min={1}
