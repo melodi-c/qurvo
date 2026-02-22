@@ -88,6 +88,7 @@ export function MetricsTab() {
             options={GRANULARITY_OPTIONS}
             value={granularity}
             onChange={(v) => setGranularity(v as Granularity)}
+            className="h-8 items-center"
           />
         </div>
         {channels && channels.length > 0 && (
