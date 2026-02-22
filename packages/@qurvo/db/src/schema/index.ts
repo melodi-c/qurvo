@@ -16,3 +16,4 @@ export type { CohortDefinition, CohortCondition, CohortPropertyCondition, Cohort
 export { marketingChannels, channelTypeEnum } from './marketing-channels';
 export { adSpend } from './ad-spend';
 export { unitEconomicsConfig } from './unit-economics-config';
+export { aiConversations, aiMessages } from './ai-conversations';

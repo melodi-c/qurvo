@@ -17,6 +17,7 @@ import { MembersModule } from '../members/members.module';
 import { MarketingChannelsModule } from '../marketing-channels/marketing-channels.module';
 import { AdSpendModule } from '../ad-spend/ad-spend.module';
 import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
+import { AiModule } from '../ai/ai.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -34,14 +35,16 @@ import { MembersController, InvitesController, MyInvitesController } from './con
 import { MarketingChannelsController } from './controllers/marketing-channels.controller';
 import { AdSpendController } from './controllers/ad-spend.controller';
 import { UnitEconomicsController, UnitEconomicsConfigController } from './controllers/unit-economics.controller';
+import { AiController } from './controllers/ai.controller';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { UnauthorizedFilter } from './filters/unauthorized.filter';
 import { ForbiddenFilter } from './filters/forbidden.filter';
 import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
+import { AiNotConfiguredFilter } from './filters/ai-not-configured.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -63,6 +66,7 @@ import { ConflictFilter } from './filters/conflict.filter';
     AdSpendController,
     UnitEconomicsController,
     UnitEconomicsConfigController,
+    AiController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },
@@ -70,6 +74,7 @@ import { ConflictFilter } from './filters/conflict.filter';
     { provide: APP_FILTER, useClass: ForbiddenFilter },
     { provide: APP_FILTER, useClass: NotFoundFilter },
     { provide: APP_FILTER, useClass: ConflictFilter },
+    { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
   ],
 })
 export class ApiModule {}

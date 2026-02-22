@@ -26,6 +26,7 @@ import StickinessEditorPage from '@/pages/stickiness-editor';
 import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
 import UnitEconomicsPage from '@/pages/unit-economics';
+import AiPage from '@/pages/ai/index';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -87,6 +88,7 @@ function AppRoutes() {
         <Route path="/cohorts/:cohortId" element={<CohortEditorPage />} />
         <Route path="/persons" element={<PersonsPage />} />
         <Route path="/persons/:personId" element={<PersonDetailPage />} />
+        <Route path="/ai" element={<AiPage />} />
       </Route>
     </Routes>
   );

@@ -1,0 +1,106 @@
+import { Injectable, Inject } from '@nestjs/common';
+import { eq, and, desc, asc } from 'drizzle-orm';
+import { aiConversations, aiMessages } from '@qurvo/db';
+import { DRIZZLE } from '../providers/drizzle.provider';
+import type { Database } from '@qurvo/db';
+
+export interface SavedMessage {
+  role: string;
+  content: string | null;
+  tool_calls: unknown | null;
+  tool_call_id: string | null;
+  tool_name: string | null;
+  tool_result: unknown | null;
+  visualization_type: string | null;
+}
+
+@Injectable()
+export class AiChatService {
+  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  async createConversation(userId: string, projectId: string, title?: string) {
+    const [row] = await this.db
+      .insert(aiConversations)
+      .values({
+        user_id: userId,
+        project_id: projectId,
+        title: title ?? 'New conversation',
+      })
+      .returning();
+    return row;
+  }
+
+  async getConversation(conversationId: string, userId: string) {
+    const [row] = await this.db
+      .select()
+      .from(aiConversations)
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async listConversations(userId: string, projectId: string) {
+    return this.db
+      .select({
+        id: aiConversations.id,
+        title: aiConversations.title,
+        created_at: aiConversations.created_at,
+        updated_at: aiConversations.updated_at,
+      })
+      .from(aiConversations)
+      .where(and(eq(aiConversations.user_id, userId), eq(aiConversations.project_id, projectId)))
+      .orderBy(desc(aiConversations.updated_at));
+  }
+
+  async deleteConversation(conversationId: string, userId: string) {
+    await this.db
+      .delete(aiConversations)
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)));
+  }
+
+  async getMessages(conversationId: string) {
+    return this.db
+      .select()
+      .from(aiMessages)
+      .where(eq(aiMessages.conversation_id, conversationId))
+      .orderBy(asc(aiMessages.sequence));
+  }
+
+  async getNextSequence(conversationId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ sequence: aiMessages.sequence })
+      .from(aiMessages)
+      .where(eq(aiMessages.conversation_id, conversationId))
+      .orderBy(desc(aiMessages.sequence))
+      .limit(1);
+    return row ? row.sequence + 1 : 0;
+  }
+
+  async saveMessage(conversationId: string, sequence: number, msg: SavedMessage) {
+    await this.db.insert(aiMessages).values({
+      conversation_id: conversationId,
+      sequence,
+      role: msg.role,
+      content: msg.content,
+      tool_calls: msg.tool_calls,
+      tool_call_id: msg.tool_call_id,
+      tool_name: msg.tool_name,
+      tool_result: msg.tool_result,
+      visualization_type: msg.visualization_type,
+    });
+  }
+
+  async updateTitle(conversationId: string, title: string) {
+    await this.db
+      .update(aiConversations)
+      .set({ title, updated_at: new Date() })
+      .where(eq(aiConversations.id, conversationId));
+  }
+
+  async touchConversation(conversationId: string) {
+    await this.db
+      .update(aiConversations)
+      .set({ updated_at: new Date() })
+      .where(eq(aiConversations.id, conversationId));
+  }
+}
