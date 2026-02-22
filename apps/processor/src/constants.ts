@@ -18,3 +18,5 @@ export const DLQ_CIRCUIT_BREAKER_RESET_MS = 5 * 60_000;
 export const REDIS_DLQ_MAXLEN = 100_000;
 
 export const PERSON_REDIS_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days
+
+export const COHORT_MEMBERSHIP_INTERVAL_MS = 10 * 60_000; // 10 minutes

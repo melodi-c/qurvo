@@ -1,6 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type { CohortDefinition } from '@qurvo/db';
-import { buildCohortFilterClause } from '../cohorts/cohorts.query';
+import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -26,7 +25,7 @@ export interface PathsQueryParams {
   min_persons?: number;
   path_cleaning_rules?: PathCleaningRule[];
   wildcard_groups?: WildcardGroup[];
-  cohort_filters?: CohortDefinition[];
+  cohort_filters?: CohortFilterInput[];
 }
 
 export interface PathTransition {

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, index, bigint } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
 
@@ -38,6 +38,8 @@ export const cohorts = pgTable('cohorts', {
   name: varchar('name', { length: 200 }).notNull(),
   description: varchar('description', { length: 1000 }),
   definition: jsonb('definition').notNull().$type<CohortDefinition>(),
+  membership_version: bigint('membership_version', { mode: 'number' }),
+  membership_computed_at: timestamp('membership_computed_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
