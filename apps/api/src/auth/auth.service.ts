@@ -57,7 +57,11 @@ export class AuthService {
 
     this.logger.log({ userId: user.id }, 'User registered');
 
-    await this.verificationService.sendVerificationCode(user.id, user.email);
+    try {
+      await this.verificationService.sendVerificationCode(user.id, user.email);
+    } catch (err) {
+      this.logger.error({ userId: user.id, err }, 'Failed to send verification email');
+    }
 
     return {
       token,
