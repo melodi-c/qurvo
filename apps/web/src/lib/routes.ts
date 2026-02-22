@@ -9,133 +9,139 @@ const INSIGHT_TYPE_SLUGS: Record<InsightType, string> = {
   paths: 'paths',
 };
 
+// ---------------------------------------------------------------------------
+// route() helper — single source of truth for path pattern + builder function
+// ---------------------------------------------------------------------------
+
+type Route<F extends (...args: any[]) => string> = F & { pattern: string };
+
+function route(pattern: string): Route<() => string>;
+function route<A extends unknown[]>(
+  pattern: string,
+  build: (...args: A) => string,
+): Route<(...args: A) => string>;
+function route(
+  pattern: string,
+  build?: (...args: unknown[]) => string,
+): Route<(...args: unknown[]) => string> {
+  const fn = (build ?? (() => pattern)) as Route<(...args: unknown[]) => string>;
+  fn.pattern = pattern;
+  return fn;
+}
+
+// ---------------------------------------------------------------------------
+// routes — call for navigation, read .pattern for <Route path="">
+// ---------------------------------------------------------------------------
+
 /** Pure path builders — no projectId, no navigation. */
 export const routes = {
-  login: () => '/login',
-  register: () => '/register',
-  verifyEmail: () => '/verify-email',
+  login: route('/login'),
+  register: route('/register'),
+  verifyEmail: route('/verify-email'),
 
-  home: () => '/',
-  projects: () => '/projects',
-  keys: () => '/keys',
-  settings: () => '/settings',
-  profile: (params?: { tab?: string }) => {
+  home: route('/'),
+  projects: route('/projects'),
+  keys: route('/keys'),
+  settings: route('/settings'),
+  invites: route('/invites'),
+  profile: route('/profile', (params?: { tab?: string }) => {
     if (params?.tab) return `/profile?tab=${params.tab}`;
     return '/profile';
-  },
+  }),
 
   dashboards: {
-    list: () => '/dashboards',
-    detail: (id: string) => `/dashboards/${id}`,
-    widget: (dashboardId: string, widgetId: string) =>
-      `/dashboards/${dashboardId}/widgets/${widgetId}`,
+    list: route('/dashboards'),
+    detail: route('/dashboards/:id', (id: string) => `/dashboards/${id}`),
+    widget: route(
+      '/dashboards/:dashboardId/widgets/:widgetId',
+      (dashboardId: string, widgetId: string) =>
+        `/dashboards/${dashboardId}/widgets/${widgetId}`,
+    ),
   },
 
   insights: {
-    list: () => '/insights',
+    list: route('/insights'),
     trends: {
-      new: () => '/insights/trends/new',
-      detail: (insightId: string) => `/insights/trends/${insightId}`,
+      new: route('/insights/trends/new'),
+      detail: route(
+        '/insights/trends/:insightId',
+        (insightId: string) => `/insights/trends/${insightId}`,
+      ),
     },
     funnels: {
-      new: () => '/insights/funnels/new',
-      detail: (insightId: string) => `/insights/funnels/${insightId}`,
+      new: route('/insights/funnels/new'),
+      detail: route(
+        '/insights/funnels/:insightId',
+        (insightId: string) => `/insights/funnels/${insightId}`,
+      ),
     },
     retentions: {
-      new: () => '/insights/retentions/new',
-      detail: (insightId: string) => `/insights/retentions/${insightId}`,
+      new: route('/insights/retentions/new'),
+      detail: route(
+        '/insights/retentions/:insightId',
+        (insightId: string) => `/insights/retentions/${insightId}`,
+      ),
     },
     lifecycles: {
-      new: () => '/insights/lifecycles/new',
-      detail: (insightId: string) => `/insights/lifecycles/${insightId}`,
+      new: route('/insights/lifecycles/new'),
+      detail: route(
+        '/insights/lifecycles/:insightId',
+        (insightId: string) => `/insights/lifecycles/${insightId}`,
+      ),
     },
     stickiness: {
-      new: () => '/insights/stickiness/new',
-      detail: (insightId: string) => `/insights/stickiness/${insightId}`,
+      new: route('/insights/stickiness/new'),
+      detail: route(
+        '/insights/stickiness/:insightId',
+        (insightId: string) => `/insights/stickiness/${insightId}`,
+      ),
     },
     paths: {
-      new: () => '/insights/paths/new',
-      detail: (insightId: string) => `/insights/paths/${insightId}`,
+      new: route('/insights/paths/new'),
+      detail: route(
+        '/insights/paths/:insightId',
+        (insightId: string) => `/insights/paths/${insightId}`,
+      ),
     },
 
-    newByType: (type: InsightType) => `/insights/${INSIGHT_TYPE_SLUGS[type]}/new`,
-    detailByType: (type: InsightType, insightId: string) =>
-      `/insights/${INSIGHT_TYPE_SLUGS[type]}/${insightId}`,
+    newByType: route(
+      '/insights/:type/new',
+      (type: InsightType) => `/insights/${INSIGHT_TYPE_SLUGS[type]}/new`,
+    ),
+    detailByType: route(
+      '/insights/:type/:insightId',
+      (type: InsightType, insightId: string) =>
+        `/insights/${INSIGHT_TYPE_SLUGS[type]}/${insightId}`,
+    ),
   },
 
   cohorts: {
-    list: () => '/cohorts',
-    new: () => '/cohorts/new',
-    detail: (cohortId: string) => `/cohorts/${cohortId}`,
+    list: route('/cohorts'),
+    new: route('/cohorts/new'),
+    detail: route('/cohorts/:cohortId', (cohortId: string) => `/cohorts/${cohortId}`),
   },
 
-  unitEconomics: () => '/unit-economics',
-  events: () => '/events',
+  unitEconomics: route('/unit-economics'),
+  events: route('/events'),
 
   persons: {
-    list: () => '/persons',
-    detail: (personId: string) => `/persons/${personId}`,
+    list: route('/persons'),
+    detail: route('/persons/:personId', (personId: string) => `/persons/${personId}`),
   },
 
-  ai: () => '/ai',
+  ai: route('/ai'),
   dataManagement: {
-    list: () => '/data-management',
-    detail: (eventName: string) => `/data-management/${encodeURIComponent(eventName)}`,
-  },
-};
-
-/** Route patterns for React Router <Route path="..."> definitions */
-export const routePatterns = {
-  login: '/login',
-  register: '/register',
-  verifyEmail: '/verify-email',
-
-  home: '/',
-  projects: '/projects',
-  keys: '/keys',
-  settings: '/settings',
-  profile: '/profile',
-  invites: '/invites',
-
-  dashboards: {
-    list: '/dashboards',
-    detail: '/dashboards/:id',
-  },
-
-  insights: {
-    list: '/insights',
-    trends: { new: '/insights/trends/new', detail: '/insights/trends/:insightId' },
-    funnels: { new: '/insights/funnels/new', detail: '/insights/funnels/:insightId' },
-    retentions: { new: '/insights/retentions/new', detail: '/insights/retentions/:insightId' },
-    lifecycles: { new: '/insights/lifecycles/new', detail: '/insights/lifecycles/:insightId' },
-    stickiness: { new: '/insights/stickiness/new', detail: '/insights/stickiness/:insightId' },
-    paths: { new: '/insights/paths/new', detail: '/insights/paths/:insightId' },
-  },
-
-  cohorts: {
-    list: '/cohorts',
-    new: '/cohorts/new',
-    detail: '/cohorts/:cohortId',
-  },
-
-  unitEconomics: '/unit-economics',
-  events: '/events',
-
-  persons: {
-    list: '/persons',
-    detail: '/persons/:personId',
-  },
-
-  ai: '/ai',
-  dataManagement: {
-    list: '/data-management',
-    detail: '/data-management/:eventName',
+    list: route('/data-management'),
+    detail: route(
+      '/data-management/:eventName',
+      (eventName: string) => `/data-management/${encodeURIComponent(eventName)}`,
+    ),
   },
 
   legacy: {
-    trends: '/trends',
-    funnels: '/funnels',
-    retentions: '/retentions',
+    trends: route('/trends'),
+    funnels: route('/funnels'),
+    retentions: route('/retentions'),
   },
 };
 

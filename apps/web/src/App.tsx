@@ -31,7 +31,7 @@ import AiPage from '@/pages/ai/index';
 import VerifyEmailPage from '@/pages/verify-email';
 import EventDefinitionsPage from '@/pages/event-definitions';
 import EventDefinitionDetailPage from '@/pages/event-definition-detail';
-import { routes, routePatterns } from '@/lib/routes';
+import { routes } from '@/lib/routes';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -57,9 +57,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path={routePatterns.login} element={<LoginPage />} />
-      <Route path={routePatterns.register} element={<RegisterPage />} />
-      <Route path={routePatterns.verifyEmail} element={<VerifyEmailPage />} />
+      <Route path={routes.login.pattern} element={<LoginPage />} />
+      <Route path={routes.register.pattern} element={<RegisterPage />} />
+      <Route path={routes.verifyEmail.pattern} element={<VerifyEmailPage />} />
       <Route
         element={
           <ProtectedRoute>
@@ -67,41 +67,41 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path={routePatterns.home} element={<DashboardPage />} />
-        <Route path={routePatterns.dashboards.list} element={<DashboardsPage />} />
-        <Route path={routePatterns.dashboards.detail} element={<DashboardBuilderPage />} />
-        <Route path={routePatterns.projects} element={<ProjectsPage />} />
-        <Route path={routePatterns.keys} element={<ApiKeysPage />} />
-        <Route path={routePatterns.settings} element={<SettingsPage />} />
-        <Route path={routePatterns.profile} element={<ProfilePage />} />
-        <Route path={routePatterns.invites} element={<Navigate to={routes.profile({ tab: 'invites' })} replace />} />
-        <Route path={routePatterns.insights.list} element={<InsightsPage />} />
-        <Route path={routePatterns.insights.trends.new} element={<TrendEditorPage />} />
-        <Route path={routePatterns.insights.trends.detail} element={<TrendEditorPage />} />
-        <Route path={routePatterns.insights.funnels.new} element={<FunnelEditorPage />} />
-        <Route path={routePatterns.insights.funnels.detail} element={<FunnelEditorPage />} />
-        <Route path={routePatterns.insights.retentions.new} element={<RetentionEditorPage />} />
-        <Route path={routePatterns.insights.retentions.detail} element={<RetentionEditorPage />} />
-        <Route path={routePatterns.insights.lifecycles.new} element={<LifecycleEditorPage />} />
-        <Route path={routePatterns.insights.lifecycles.detail} element={<LifecycleEditorPage />} />
-        <Route path={routePatterns.insights.stickiness.new} element={<StickinessEditorPage />} />
-        <Route path={routePatterns.insights.stickiness.detail} element={<StickinessEditorPage />} />
-        <Route path={routePatterns.insights.paths.new} element={<PathsEditorPage />} />
-        <Route path={routePatterns.insights.paths.detail} element={<PathsEditorPage />} />
+        <Route path={routes.home.pattern} element={<DashboardPage />} />
+        <Route path={routes.dashboards.list.pattern} element={<DashboardsPage />} />
+        <Route path={routes.dashboards.detail.pattern} element={<DashboardBuilderPage />} />
+        <Route path={routes.projects.pattern} element={<ProjectsPage />} />
+        <Route path={routes.keys.pattern} element={<ApiKeysPage />} />
+        <Route path={routes.settings.pattern} element={<SettingsPage />} />
+        <Route path={routes.profile.pattern} element={<ProfilePage />} />
+        <Route path={routes.invites.pattern} element={<Navigate to={routes.profile({ tab: 'invites' })} replace />} />
+        <Route path={routes.insights.list.pattern} element={<InsightsPage />} />
+        <Route path={routes.insights.trends.new.pattern} element={<TrendEditorPage />} />
+        <Route path={routes.insights.trends.detail.pattern} element={<TrendEditorPage />} />
+        <Route path={routes.insights.funnels.new.pattern} element={<FunnelEditorPage />} />
+        <Route path={routes.insights.funnels.detail.pattern} element={<FunnelEditorPage />} />
+        <Route path={routes.insights.retentions.new.pattern} element={<RetentionEditorPage />} />
+        <Route path={routes.insights.retentions.detail.pattern} element={<RetentionEditorPage />} />
+        <Route path={routes.insights.lifecycles.new.pattern} element={<LifecycleEditorPage />} />
+        <Route path={routes.insights.lifecycles.detail.pattern} element={<LifecycleEditorPage />} />
+        <Route path={routes.insights.stickiness.new.pattern} element={<StickinessEditorPage />} />
+        <Route path={routes.insights.stickiness.detail.pattern} element={<StickinessEditorPage />} />
+        <Route path={routes.insights.paths.new.pattern} element={<PathsEditorPage />} />
+        <Route path={routes.insights.paths.detail.pattern} element={<PathsEditorPage />} />
         {/* Redirects from old routes */}
-        <Route path={routePatterns.legacy.trends} element={<Navigate to="/insights?type=trend" replace />} />
-        <Route path={routePatterns.legacy.funnels} element={<Navigate to="/insights?type=funnel" replace />} />
-        <Route path={routePatterns.legacy.retentions} element={<Navigate to="/insights?type=retention" replace />} />
-        <Route path={routePatterns.unitEconomics} element={<UnitEconomicsPage />} />
-        <Route path={routePatterns.events} element={<EventsPage />} />
-        <Route path={routePatterns.cohorts.list} element={<CohortsPage />} />
-        <Route path={routePatterns.cohorts.new} element={<CohortEditorPage />} />
-        <Route path={routePatterns.cohorts.detail} element={<CohortEditorPage />} />
-        <Route path={routePatterns.persons.list} element={<PersonsPage />} />
-        <Route path={routePatterns.persons.detail} element={<PersonDetailPage />} />
-        <Route path={routePatterns.ai} element={<AiPage />} />
-        <Route path={routePatterns.dataManagement.list} element={<EventDefinitionsPage />} />
-        <Route path={routePatterns.dataManagement.detail} element={<EventDefinitionDetailPage />} />
+        <Route path={routes.legacy.trends.pattern} element={<Navigate to="/insights?type=trend" replace />} />
+        <Route path={routes.legacy.funnels.pattern} element={<Navigate to="/insights?type=funnel" replace />} />
+        <Route path={routes.legacy.retentions.pattern} element={<Navigate to="/insights?type=retention" replace />} />
+        <Route path={routes.unitEconomics.pattern} element={<UnitEconomicsPage />} />
+        <Route path={routes.events.pattern} element={<EventsPage />} />
+        <Route path={routes.cohorts.list.pattern} element={<CohortsPage />} />
+        <Route path={routes.cohorts.new.pattern} element={<CohortEditorPage />} />
+        <Route path={routes.cohorts.detail.pattern} element={<CohortEditorPage />} />
+        <Route path={routes.persons.list.pattern} element={<PersonsPage />} />
+        <Route path={routes.persons.detail.pattern} element={<PersonDetailPage />} />
+        <Route path={routes.ai.pattern} element={<AiPage />} />
+        <Route path={routes.dataManagement.list.pattern} element={<EventDefinitionsPage />} />
+        <Route path={routes.dataManagement.detail.pattern} element={<EventDefinitionDetailPage />} />
       </Route>
     </Routes>
   );
