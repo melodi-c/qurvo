@@ -6,9 +6,11 @@ import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
 import { queryEventNames } from './event-names.query';
+import { queryEventPropertyNames } from './event-property-names.query';
 import { NotFoundException } from '@nestjs/common';
 
 const EVENT_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
+const EVENT_PROPERTY_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
 
 @Injectable()
 export class EventsService {
@@ -37,6 +39,16 @@ export class EventsService {
     if (cached) return JSON.parse(cached) as string[];
     const names = await queryEventNames(this.ch, { project_id: projectId });
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', EVENT_NAMES_CACHE_TTL_SECONDS);
+    return names;
+  }
+
+  async getEventPropertyNames(userId: string, projectId: string): Promise<string[]> {
+    await this.projectsService.getMembership(userId, projectId);
+    const cacheKey = `event_property_names:${projectId}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached) as string[];
+    const names = await queryEventPropertyNames(this.ch, { project_id: projectId });
+    await this.redis.set(cacheKey, JSON.stringify(names), 'EX', EVENT_PROPERTY_NAMES_CACHE_TTL_SECONDS);
     return names;
   }
 }

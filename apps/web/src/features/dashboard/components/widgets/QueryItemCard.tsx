@@ -22,6 +22,8 @@ interface QueryItemCardProps {
   labelPlaceholder?: string;
   /** Whether the remove button is disabled (e.g. min items reached) */
   canRemove: boolean;
+  /** Property names for autocomplete in filters */
+  propertyNames?: string[];
 
   onLabelChange: (label: string) => void;
   onEventChange: (event: string) => void;
@@ -44,6 +46,7 @@ export function QueryItemCard({
   badge,
   labelPlaceholder = 'Label',
   canRemove,
+  propertyNames,
   onLabelChange,
   onEventChange,
   onRemove,
@@ -110,6 +113,7 @@ export function QueryItemCard({
               filter={f}
               onChange={(updated) => onFilterChange(fi, updated)}
               onRemove={() => onFilterRemove(fi)}
+              propertyNames={propertyNames}
             />
           ))}
         </div>

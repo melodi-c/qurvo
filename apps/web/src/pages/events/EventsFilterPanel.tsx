@@ -4,6 +4,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
 import { StepFilterRow } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import type { StepFilter } from '@/api/generated/Api';
 
 interface EventsFilterPanelProps {
@@ -25,6 +26,8 @@ export function EventsFilterPanel({
   filters,
   onFiltersChange,
 }: EventsFilterPanelProps) {
+  const { data: propertyNames = [] } = useEventPropertyNames();
+
   const addFilter = () =>
     onFiltersChange([...filters, { property: '', operator: 'eq', value: '' }]);
 
@@ -80,6 +83,7 @@ export function EventsFilterPanel({
                 filter={f}
                 onChange={(updated) => updateFilter(i, updated)}
                 onRemove={() => removeFilter(i)}
+                propertyNames={propertyNames}
               />
             ))}
           </div>

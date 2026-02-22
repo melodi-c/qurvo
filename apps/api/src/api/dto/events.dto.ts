@@ -10,7 +10,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 
 export class EventsQueryDto {
@@ -105,4 +105,14 @@ export class EventNamesQueryDto {
 
 export class EventNamesResponseDto {
   event_names: string[];
+}
+
+export class EventPropertyNamesQueryDto {
+  @IsUUID()
+  project_id: string;
+}
+
+export class EventPropertyNamesResponseDto {
+  @ApiProperty({ type: [String] })
+  property_names: string[];
 }

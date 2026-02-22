@@ -11,6 +11,7 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
+import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { METRIC_OPTIONS, GRANULARITY_OPTIONS, CHART_TYPE_OPTIONS } from './trend-shared';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
@@ -20,6 +21,8 @@ interface TrendQueryPanelProps {
 }
 
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
+  const { data: propertyNames = [] } = useEventPropertyNames();
+
   return (
     <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
       <div className="p-5 space-y-6">
@@ -38,6 +41,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           <TrendSeriesBuilder
             series={config.series}
             onChange={(series) => onChange({ ...config, series })}
+            propertyNames={propertyNames}
           />
         </section>
 
@@ -124,6 +128,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
         <BreakdownSection
           value={config.breakdown_property || ''}
           onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
+          propertyNames={propertyNames}
         />
       </div>
     </aside>
