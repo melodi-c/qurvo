@@ -8,6 +8,8 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
+import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/funnel/PropertyNameCombobox';
+import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useUEConfig, useUpsertUEConfig } from '../hooks/use-ue-config';
 import type { UpsertUEConfig } from '@/api/generated/Api';
 
@@ -31,6 +33,7 @@ export function SettingsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
+  const { data: propertyNames = [] } = useEventPropertyNames(form.purchase_event_name || undefined);
 
   useEffect(() => {
     if (config) {
@@ -90,15 +93,15 @@ export function SettingsTab() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ue-revenue-prop">Revenue Property</Label>
+          <Label>Revenue Property</Label>
           <p className="text-xs text-muted-foreground">
             The property key in event properties that contains the revenue amount
           </p>
-          <Input
-            id="ue-revenue-prop"
+          <PropertyNameCombobox
             value={form.revenue_property ?? ''}
-            onChange={(e) => updateField('revenue_property', e.target.value)}
-            placeholder="revenue"
+            onChange={(v) => updateField('revenue_property', v)}
+            propertyNames={propertyNames}
+            className="h-9 border border-border rounded-md bg-background px-3 font-sans"
           />
         </div>
 
