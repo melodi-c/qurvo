@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
 import { TabNav } from '@/components/ui/tab-nav';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { ChevronRight, ChevronDown, Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
+import { Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
 import { api } from '@/api/client';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
@@ -63,7 +61,7 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
   return 'outline';
 }
 
-function EventTypeIcon({ eventName }: { eventName: string }) {
+export function EventTypeIcon({ eventName }: { eventName: string }) {
   if (eventName === '$pageview') return <Globe className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
   if (eventName === '$pageleave') return <LogOut className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
   if (eventName === '$identify') return <UserCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />;
@@ -329,82 +327,3 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
   );
 }
 
-// ─── EventTableRow ────────────────────────────────────────────────────────────
-
-export function EventTableRow({
-  event,
-  expanded,
-  onToggle,
-  showPerson = true,
-  projectId,
-}: {
-  event: EventLike;
-  expanded: boolean;
-  onToggle: () => void;
-  showPerson?: boolean;
-  projectId?: string;
-}) {
-  // Show path portion of URL to save space
-  const urlDisplay = (() => {
-    if (!event.url) return event.page_path || '';
-    try { return new URL(event.url).pathname || event.url; } catch { return event.url; }
-  })();
-
-  return (
-    <>
-      <div
-        className={cn(
-          'grid gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors hover:bg-muted/40',
-          expanded && 'bg-muted/30',
-          showPerson ? 'grid-cols-[20px_1fr_80px] lg:grid-cols-[20px_1fr_160px_80px]' : 'grid-cols-[20px_1fr_80px]',
-        )}
-        onClick={onToggle}
-      >
-        {/* Chevron */}
-        <span className="flex items-center text-muted-foreground/60">
-          {expanded
-            ? <ChevronDown className="h-3 w-3" />
-            : <ChevronRight className="h-3 w-3" />}
-        </span>
-
-        {/* Event type icon + name badge + url path */}
-        <span className="flex items-center gap-2 min-w-0">
-          <EventTypeIcon eventName={event.event_name} />
-          <Badge
-            variant={eventBadgeVariant(event.event_name)}
-            className="shrink-0 font-mono text-[11px] py-0 px-1.5 h-5"
-          >
-            {event.event_name}
-          </Badge>
-          {urlDisplay && (
-            <span className="text-xs text-muted-foreground/70 truncate font-mono">{urlDisplay}</span>
-          )}
-        </span>
-
-        {/* Person (optional) — clickable link, hidden on mobile */}
-        {showPerson && (
-          <span className="hidden lg:flex items-center min-w-0">
-            {projectId && event.person_id ? (
-              <Link
-                to={`/persons/${event.person_id}?project=${projectId}`}
-                className="text-xs text-muted-foreground font-mono truncate hover:text-foreground hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {event.distinct_id}
-              </Link>
-            ) : (
-              <span className="text-xs text-muted-foreground font-mono truncate">{event.distinct_id}</span>
-            )}
-          </span>
-        )}
-
-        {/* Time */}
-        <span className="flex items-center text-xs text-muted-foreground tabular-nums" title={new Date(event.timestamp).toLocaleString()}>
-          {formatRelativeTime(event.timestamp)}
-        </span>
-      </div>
-
-      {expanded && <EventDetail event={event} projectId={projectId} />}
-    </>
-  );
-}
