@@ -47,9 +47,13 @@ export class TrendQueryDto {
   @Type(() => TrendSeriesDto)
   series: TrendSeriesDto[];
 
-  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user'], enumName: 'TrendMetric' })
-  @IsIn(['total_events', 'unique_users', 'events_per_user'])
-  metric: 'total_events' | 'unique_users' | 'events_per_user';
+  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user', 'property_sum', 'property_avg', 'property_min', 'property_max'], enumName: 'TrendMetric' })
+  @IsIn(['total_events', 'unique_users', 'events_per_user', 'property_sum', 'property_avg', 'property_min', 'property_max'])
+  metric: 'total_events' | 'unique_users' | 'events_per_user' | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
+
+  @IsString()
+  @IsOptional()
+  metric_property?: string;
 
   @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   @IsIn(['hour', 'day', 'week', 'month'])

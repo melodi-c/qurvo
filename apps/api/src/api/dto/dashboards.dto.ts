@@ -65,8 +65,10 @@ export class TrendWidgetConfigDto {
   @ApiProperty({ type: [TrendSeriesDto] })
   series: TrendSeriesDto[];
 
-  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user'], enumName: 'TrendMetric' })
-  metric: 'total_events' | 'unique_users' | 'events_per_user';
+  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user', 'property_sum', 'property_avg', 'property_min', 'property_max'], enumName: 'TrendMetric' })
+  metric: 'total_events' | 'unique_users' | 'events_per_user' | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
+
+  @ApiPropertyOptional() metric_property?: string;
 
   @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   granularity: 'hour' | 'day' | 'week' | 'month';

@@ -253,3 +253,176 @@ describe('queryTrend — with series filters', () => {
     }
   });
 });
+
+describe('queryTrend — property aggregation', () => {
+  it('sums property values (property_sum)', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'purchase',
+        properties: JSON.stringify({ amount: 100 }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'purchase',
+        properties: JSON.stringify({ amount: 250 }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'purchase', label: 'Purchases' }],
+      metric: 'property_sum',
+      metric_property: 'properties.amount',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    if (!result.compare && !result.breakdown) {
+      expect(sumSeriesValues(result.series[0].data)).toBe(350);
+    }
+  });
+
+  it('averages property values (property_avg)', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'session',
+        properties: JSON.stringify({ duration: 10 }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'session',
+        properties: JSON.stringify({ duration: 30 }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'session', label: 'Sessions' }],
+      metric: 'property_avg',
+      metric_property: 'properties.duration',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    if (!result.compare && !result.breakdown) {
+      expect(sumSeriesValues(result.series[0].data)).toBe(20);
+    }
+  });
+
+  it('finds min and max property values (property_min / property_max)', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'order',
+        properties: JSON.stringify({ price: 5 }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'order',
+        properties: JSON.stringify({ price: 99 }),
+        timestamp: ts(3, 11),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u3',
+        event_name: 'order',
+        properties: JSON.stringify({ price: 42 }),
+        timestamp: ts(3, 12),
+      }),
+    ]);
+
+    const minResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'order', label: 'Orders' }],
+      metric: 'property_min',
+      metric_property: 'properties.price',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    if (!minResult.compare && !minResult.breakdown) {
+      expect(sumSeriesValues(minResult.series[0].data)).toBe(5);
+    }
+
+    const maxResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'order', label: 'Orders' }],
+      metric: 'property_max',
+      metric_property: 'properties.price',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    if (!maxResult.compare && !maxResult.breakdown) {
+      expect(sumSeriesValues(maxResult.series[0].data)).toBe(99);
+    }
+  });
+
+  it('treats non-numeric property values as 0', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'purchase',
+        properties: JSON.stringify({ amount: 'abc' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'purchase',
+        properties: JSON.stringify({ amount: 100 }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'purchase', label: 'Purchases' }],
+      metric: 'property_sum',
+      metric_property: 'properties.amount',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    if (!result.compare && !result.breakdown) {
+      // "abc" → toFloat64OrZero → 0, 100 → 100, sum = 100
+      expect(sumSeriesValues(result.series[0].data)).toBe(100);
+    }
+  });
+});

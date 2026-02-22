@@ -18,6 +18,7 @@ function configHash(config: TrendWidgetConfig): string {
   return JSON.stringify({
     series: config.series,
     metric: config.metric,
+    metric_property: config.metric_property,
     granularity: config.granularity,
     from: config.date_from,
     to: config.date_to,
@@ -56,6 +57,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
         granularity: config.granularity,
         date_from: config.date_from,
         date_to: config.date_to,
+        ...(config.metric_property ? { metric_property: config.metric_property } : {}),
         ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
         ...(config.compare ? { compare: true } : {}),
         ...(widgetUuid ? { widget_id: widgetUuid } : {}),
@@ -90,6 +92,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
       granularity: config.granularity,
       date_from: config.date_from,
       date_to: config.date_to,
+      ...(config.metric_property ? { metric_property: config.metric_property } : {}),
       ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
       ...(config.compare ? { compare: true } : {}),
       ...(widgetUuid ? { widget_id: widgetUuid } : {}),

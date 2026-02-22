@@ -22,6 +22,10 @@ export const METRIC_OPTIONS = [
   { value: 'total_events', label: 'Total events' },
   { value: 'unique_users', label: 'Unique users' },
   { value: 'events_per_user', label: 'Events per user' },
+  { value: 'property_sum', label: 'Sum of property' },
+  { value: 'property_avg', label: 'Average of property' },
+  { value: 'property_min', label: 'Min of property' },
+  { value: 'property_max', label: 'Max of property' },
 ] as const;
 
 export const GRANULARITY_OPTIONS = [
