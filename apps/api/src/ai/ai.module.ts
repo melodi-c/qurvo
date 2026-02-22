@@ -8,6 +8,7 @@ import { FunnelModule } from '../funnel/funnel.module';
 import { RetentionModule } from '../retention/retention.module';
 import { LifecycleModule } from '../lifecycle/lifecycle.module';
 import { StickinessModule } from '../stickiness/stickiness.module';
+import { PathsModule } from '../paths/paths.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
 import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
@@ -20,6 +21,7 @@ import { LifecycleTool } from './tools/lifecycle.tool';
 import { StickinessTool } from './tools/stickiness.tool';
 import { UnitEconomicsTool } from './tools/unit-economics.tool';
 import { ListEventNamesTool } from './tools/list-event-names.tool';
+import { PathsTool } from './tools/paths.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -29,6 +31,7 @@ const TOOL_CLASSES = [
   StickinessTool,
   UnitEconomicsTool,
   ListEventNamesTool,
+  PathsTool,
 ];
 
 @Module({
@@ -39,6 +42,7 @@ const TOOL_CLASSES = [
     RetentionModule,
     LifecycleModule,
     StickinessModule,
+    PathsModule,
     EventsModule,
     PersonsModule,
     UnitEconomicsModule,

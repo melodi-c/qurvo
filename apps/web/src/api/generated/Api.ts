@@ -15,7 +15,8 @@ export type InsightType =
   | "funnel"
   | "retention"
   | "lifecycle"
-  | "stickiness";
+  | "stickiness"
+  | "paths";
 
 export type ChartType = "line" | "bar";
 
@@ -370,6 +371,39 @@ export interface StickinessResponse {
   from_cache: boolean;
 }
 
+export interface PathCleaningRule {
+  regex: string;
+  alias: string;
+}
+
+export interface WildcardGroup {
+  pattern: string;
+  alias: string;
+}
+
+export interface PathTransition {
+  step: number;
+  source: string;
+  target: string;
+  person_count: number;
+}
+
+export interface TopPath {
+  path: string[];
+  person_count: number;
+}
+
+export interface PathsResult {
+  transitions: PathTransition[];
+  top_paths: TopPath[];
+}
+
+export interface PathsResponse {
+  data: PathsResult;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export interface Dashboard {
   id: string;
   project_id: string;
@@ -440,6 +474,30 @@ export interface StickinessWidgetConfig {
   date_to: string;
 }
 
+export interface PathCleaningRuleConfig {
+  regex: string;
+  alias: string;
+}
+
+export interface WildcardGroupConfig {
+  pattern: string;
+  alias: string;
+}
+
+export interface PathsWidgetConfig {
+  type: PathsWidgetConfigDtoTypeEnum;
+  start_event?: string;
+  end_event?: string;
+  exclusions?: string[];
+  min_persons?: number;
+  path_cleaning_rules?: PathCleaningRuleConfig[];
+  wildcard_groups?: WildcardGroupConfig[];
+  cohort_ids?: string[];
+  date_from: string;
+  date_to: string;
+  step_limit: number;
+}
+
 export interface Insight {
   type: InsightType;
   description?: string | null;
@@ -458,7 +516,10 @@ export interface Insight {
       } & LifecycleWidgetConfig)
     | ({
         type: "stickiness";
-      } & StickinessWidgetConfig);
+      } & StickinessWidgetConfig)
+    | ({
+        type: "paths";
+      } & PathsWidgetConfig);
   id: string;
   project_id: string;
   created_by: string;
@@ -622,7 +683,10 @@ export interface CreateInsight {
       } & LifecycleWidgetConfig)
     | ({
         type: "stickiness";
-      } & StickinessWidgetConfig);
+      } & StickinessWidgetConfig)
+    | ({
+        type: "paths";
+      } & PathsWidgetConfig);
   /** @maxLength 200 */
   name: string;
   /** @maxLength 1000 */
@@ -645,7 +709,10 @@ export interface UpdateInsight {
       } & LifecycleWidgetConfig)
     | ({
         type: "stickiness";
-      } & StickinessWidgetConfig);
+      } & StickinessWidgetConfig)
+    | ({
+        type: "paths";
+      } & PathsWidgetConfig);
   is_favorite?: boolean;
   /** @maxLength 200 */
   name?: string;
@@ -902,6 +969,8 @@ export type LifecycleWidgetConfigDtoTypeEnum = "lifecycle";
 
 export type StickinessWidgetConfigDtoTypeEnum = "stickiness";
 
+export type PathsWidgetConfigDtoTypeEnum = "paths";
+
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
@@ -1060,6 +1129,30 @@ export interface StickinessControllerGetStickinessParams {
   target_event: string;
   date_from: string;
   date_to: string;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export interface PathsControllerGetPathsParams {
+  exclusions?: string[];
+  path_cleaning_rules?: PathCleaningRule[];
+  wildcard_groups?: WildcardGroup[];
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  /**
+   * @min 3
+   * @max 10
+   * @default 5
+   */
+  step_limit?: number;
+  start_event?: string;
+  end_event?: string;
+  /** @min 1 */
+  min_persons?: number;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
@@ -2011,6 +2104,27 @@ export class Api<
     ) =>
       this.request<StickinessResponse, any>({
         path: `/api/analytics/stickiness`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name PathsControllerGetPaths
+     * @request GET:/api/analytics/paths
+     * @secure
+     */
+    pathsControllerGetPaths: (
+      query: PathsControllerGetPathsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PathsResponse, any>({
+        path: `/api/analytics/paths`,
         method: "GET",
         query: query,
         secure: true,

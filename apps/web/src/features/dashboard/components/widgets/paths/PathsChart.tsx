@@ -1,0 +1,214 @@
+import { useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { Sankey, Tooltip, Layer, Rectangle } from 'recharts';
+import type { PathTransition, TopPath } from '@/api/generated/Api';
+
+interface PathsChartProps {
+  transitions: PathTransition[];
+  topPaths: TopPath[];
+  compact?: boolean;
+}
+
+interface SankeyNode {
+  name: string;
+  displayName: string;
+}
+
+interface SankeyLink {
+  source: number;
+  target: number;
+  value: number;
+}
+
+const COLORS = [
+  '#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
+  '#ef4444', '#ec4899', '#14b8a6', '#6366f1', '#84cc16',
+];
+
+function toSankeyData(transitions: PathTransition[]) {
+  const nodeMap = new Map<string, number>();
+  const nodes: SankeyNode[] = [];
+
+  const getNodeIndex = (step: number, name: string) => {
+    const key = `${step}:${name}`;
+    if (!nodeMap.has(key)) {
+      const idx = nodes.length;
+      nodeMap.set(key, idx);
+      nodes.push({ name: key, displayName: name });
+    }
+    return nodeMap.get(key)!;
+  };
+
+  const links: SankeyLink[] = [];
+
+  for (const t of transitions) {
+    const sourceIdx = getNodeIndex(t.step, t.source);
+    const targetIdx = getNodeIndex(t.step + 1, t.target);
+    links.push({ source: sourceIdx, target: targetIdx, value: t.person_count });
+  }
+
+  return { nodes, links };
+}
+
+function CustomNode({ x, y, width, height, index, payload }: any) {
+  const color = COLORS[index % COLORS.length];
+  return (
+    <Layer key={`node-${index}`}>
+      <Rectangle
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={color}
+        fillOpacity={0.9}
+        rx={2}
+      />
+      {height > 14 && (
+        <text
+          x={x + width + 6}
+          y={y + height / 2}
+          textAnchor="start"
+          dominantBaseline="middle"
+          className="fill-foreground text-[11px]"
+        >
+          {payload.displayName}
+        </text>
+      )}
+    </Layer>
+  );
+}
+
+function CustomTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const data = payload[0]?.payload?.payload;
+  if (!data) return null;
+
+  // Link tooltip
+  if (data.source !== undefined && data.target !== undefined) {
+    const sourceName = data.source?.displayName ?? data.sourceName ?? '?';
+    const targetName = data.target?.displayName ?? data.targetName ?? '?';
+    return (
+      <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
+        <p className="font-medium text-foreground">
+          {sourceName} → {targetName}
+        </p>
+        <p className="text-muted-foreground mt-1">
+          {Number(data.value).toLocaleString()} users
+        </p>
+      </div>
+    );
+  }
+
+  // Node tooltip
+  return (
+    <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
+      <p className="font-medium text-foreground">{data.displayName ?? data.name}</p>
+      <p className="text-muted-foreground mt-1">
+        {Number(data.value).toLocaleString()} users
+      </p>
+    </div>
+  );
+}
+
+/** Minimum width per step column so labels don't overlap */
+const MIN_WIDTH_PER_STEP = 180;
+
+function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setWidth(Math.floor(entry.contentRect.width));
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [ref]);
+  return width;
+}
+
+export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) {
+  const sankeyData = useMemo(() => toSankeyData(transitions), [transitions]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
+
+  if (sankeyData.nodes.length === 0 || sankeyData.links.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        No path data to display
+      </div>
+    );
+  }
+
+  // Count unique steps to calculate minimum width
+  const maxStep = transitions.reduce((m, t) => Math.max(m, t.step), 0);
+  const stepCount = maxStep + 1; // +1 for the target column
+  const minWidth = stepCount * MIN_WIDTH_PER_STEP;
+  const chartHeight = compact ? 250 : 400;
+  const chartWidth = compact
+    ? Math.max(containerWidth || 350, 350)
+    : Math.max(containerWidth || 600, minWidth);
+
+  return (
+    <div className="flex flex-col gap-6 h-full">
+      {/* Sankey diagram — scrollable horizontally */}
+      <div
+        ref={containerRef}
+        className={`${compact ? 'flex-1 min-h-0' : 'h-[400px]'} overflow-x-auto overflow-y-hidden`}
+      >
+        <div style={{ width: chartWidth, minWidth }}>
+          <Sankey
+            width={chartWidth}
+            height={chartHeight}
+            data={sankeyData}
+            node={<CustomNode />}
+            link={{ stroke: '#a1a1aa', strokeOpacity: 0.2 }}
+            nodePadding={24}
+            nodeWidth={8}
+            margin={{ top: 10, right: 120, bottom: 10, left: 10 }}
+          >
+            <Tooltip content={<CustomTooltip />} />
+          </Sankey>
+        </div>
+      </div>
+
+      {/* Top Paths table */}
+      {!compact && topPaths.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-foreground">Top Paths</h3>
+          <div className="border border-border rounded-md overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">#</th>
+                  <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Path</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-muted-foreground">Users</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPaths.map((tp, i) => (
+                  <tr key={i} className="border-b border-border/50 last:border-0">
+                    <td className="py-2 px-3 text-muted-foreground tabular-nums">{i + 1}</td>
+                    <td className="py-2 px-3">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {tp.path.map((event, j) => (
+                          <span key={j} className="flex items-center gap-1">
+                            {j > 0 && <span className="text-muted-foreground/60">→</span>}
+                            <span className="font-mono text-xs bg-muted/60 rounded px-1.5 py-0.5">
+                              {event}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-right tabular-nums font-medium">
+                      {tp.person_count.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -81,7 +81,31 @@ export interface StickinessWidgetConfig {
   cohort_ids?: string[];
 }
 
-export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig | LifecycleWidgetConfig | StickinessWidgetConfig;
+export interface PathCleaningRule {
+  regex: string;
+  alias: string;
+}
+
+export interface WildcardGroup {
+  pattern: string;
+  alias: string;
+}
+
+export interface PathsWidgetConfig {
+  type: 'paths';
+  date_from: string;
+  date_to: string;
+  step_limit: number;
+  start_event?: string;
+  end_event?: string;
+  exclusions?: string[];
+  min_persons?: number;
+  path_cleaning_rules?: PathCleaningRule[];
+  wildcard_groups?: WildcardGroup[];
+  cohort_ids?: string[];
+}
+
+export type WidgetConfig = FunnelWidgetConfig | TrendWidgetConfig | RetentionWidgetConfig | LifecycleWidgetConfig | StickinessWidgetConfig | PathsWidgetConfig;
 
 export const widgets = pgTable(
   'widgets',

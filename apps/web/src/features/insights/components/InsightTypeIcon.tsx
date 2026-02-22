@@ -1,4 +1,4 @@
-import { TrendingUp, GitFork, CalendarCheck, HeartPulse, Layers, Lightbulb } from 'lucide-react';
+import { TrendingUp, GitFork, CalendarCheck, HeartPulse, Layers, Lightbulb, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InsightType } from '@/api/generated/Api';
 
@@ -13,6 +13,7 @@ const TYPE_META = {
   retention:  { Icon: CalendarCheck, colorClass: 'text-emerald-400' },
   lifecycle:  { Icon: HeartPulse,    colorClass: 'text-rose-400' },
   stickiness: { Icon: Layers,        colorClass: 'text-amber-400' },
+  paths:      { Icon: Workflow,      colorClass: 'text-cyan-400' },
 } as const;
 
 export function InsightTypeIcon({ type, className }: InsightTypeIconProps) {

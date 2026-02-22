@@ -8,6 +8,7 @@ import { TrendModule } from '../trend/trend.module';
 import { RetentionModule } from '../retention/retention.module';
 import { LifecycleModule } from '../lifecycle/lifecycle.module';
 import { StickinessModule } from '../stickiness/stickiness.module';
+import { PathsModule } from '../paths/paths.module';
 import { EventsModule } from '../events/events.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
 import { PersonsModule } from '../persons/persons.module';
@@ -28,6 +29,7 @@ import { TrendController } from './controllers/trend.controller';
 import { RetentionController } from './controllers/retention.controller';
 import { LifecycleController } from './controllers/lifecycle.controller';
 import { StickinessController } from './controllers/stickiness.controller';
+import { PathsController } from './controllers/paths.controller';
 import { DashboardsController } from './controllers/dashboards.controller';
 import { PersonsController } from './controllers/persons.controller';
 import { CohortsController } from './controllers/cohorts.controller';
@@ -46,7 +48,7 @@ import { AiNotConfiguredFilter } from './filters/ai-not-configured.filter';
 import { VerificationFilter } from './filters/verification.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -57,6 +59,7 @@ import { VerificationFilter } from './filters/verification.filter';
     RetentionController,
     LifecycleController,
     StickinessController,
+    PathsController,
     DashboardsController,
     PersonsController,
     CohortsController,

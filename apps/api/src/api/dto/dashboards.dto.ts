@@ -121,6 +121,32 @@ export class StickinessWidgetConfigDto {
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
+export class PathCleaningRuleConfigDto {
+  regex: string;
+  alias: string;
+}
+
+export class WildcardGroupConfigDto {
+  pattern: string;
+  alias: string;
+}
+
+export class PathsWidgetConfigDto {
+  @ApiProperty({ enum: ['paths'] })
+  type: 'paths';
+
+  date_from: string;
+  date_to: string;
+  step_limit: number;
+  @ApiPropertyOptional() start_event?: string;
+  @ApiPropertyOptional() end_event?: string;
+  @ApiPropertyOptional({ type: [String] }) exclusions?: string[];
+  @ApiPropertyOptional() min_persons?: number;
+  @ApiPropertyOptional({ type: [PathCleaningRuleConfigDto] }) path_cleaning_rules?: PathCleaningRuleConfigDto[];
+  @ApiPropertyOptional({ type: [WildcardGroupConfigDto] }) wildcard_groups?: WildcardGroupConfigDto[];
+  @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
+}
+
 // ── Create / Update Widget DTOs ─────────────────────────────────────────────
 
 export class CreateWidgetDto {
