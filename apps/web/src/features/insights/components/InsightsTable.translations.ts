@@ -28,7 +28,7 @@ export default createTranslations({
     deleteTitle: 'Удалить «{{name}}»?',
     deleteDescription: 'Это действие нельзя отменить.',
     deleteConfirm: 'Удалить',
-    toastDeleted: 'Аналитика удалена',
-    toastDeleteFailed: 'Не удалось удалить аналитику',
+    toastDeleted: 'Инсайт удалён',
+    toastDeleteFailed: 'Не удалось удалить инсайт',
   },
 });

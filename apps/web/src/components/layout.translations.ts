@@ -27,7 +27,7 @@ export default createTranslations({
     product: 'Продукт',
     configure: 'Настройки',
     dashboards: 'Дашборды',
-    insights: 'Аналитика',
+    insights: 'Инсайты',
     unitEconomics: 'Юнит-экономика',
     cohorts: 'Когорты',
     persons: 'Пользователи',

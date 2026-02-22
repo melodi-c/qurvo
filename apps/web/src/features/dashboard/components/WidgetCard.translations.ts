@@ -7,6 +7,6 @@ export default createTranslations({
   },
   ru: {
     untitled: 'Без названия',
-    noInsightLinked: 'Аналитика не привязана',
+    noInsightLinked: 'Инсайт не привязан',
   },
 });

@@ -6,7 +6,7 @@ export default createTranslations({
     remove: 'Remove',
   },
   ru: {
-    openInsight: 'Открыть аналитику',
+    openInsight: 'Открыть инсайт',
     remove: 'Удалить',
   },
 });

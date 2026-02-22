@@ -18,7 +18,7 @@ export default createTranslations({
     pathsDesc: 'Explore user journey flows',
   },
   ru: {
-    newInsight: 'Новая аналитика',
+    newInsight: 'Новый инсайт',
     chooseType: 'Выберите тип',
     trend: 'Тренд',
     trendDesc: 'Отслеживание количества событий по времени',

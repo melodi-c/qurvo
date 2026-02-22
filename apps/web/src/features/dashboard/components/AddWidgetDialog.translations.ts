@@ -13,9 +13,9 @@ export default createTranslations({
     toastFailed: 'Failed to add widget',
   },
   ru: {
-    title: 'Добавить аналитику на дашборд',
-    searchPlaceholder: 'Поиск аналитик...',
-    noInsightsYet: 'Аналитик пока нет. Сначала создайте тренд или воронку.',
+    title: 'Добавить инсайт на дашборд',
+    searchPlaceholder: 'Поиск инсайтов...',
+    noInsightsYet: 'Инсайтов пока нет. Сначала создайте тренд или воронку.',
     noMatch: 'Ничего не найдено по вашему запросу.',
     typeTrend: 'Тренд',
     typeFunnel: 'Воронка',

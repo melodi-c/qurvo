@@ -14,7 +14,7 @@ export default createTranslations({
     oldestFirst: 'Oldest first',
   },
   ru: {
-    searchPlaceholder: 'Поиск аналитик\u2026',
+    searchPlaceholder: 'Поиск инсайтов\u2026',
     all: 'Все',
     trends: 'Тренды',
     funnels: 'Воронки',

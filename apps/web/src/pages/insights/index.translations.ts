@@ -9,10 +9,10 @@ export default createTranslations({
     noMatch: 'No insights match your current filters',
   },
   ru: {
-    title: 'Аналитика',
-    selectProject: 'Выберите проект для просмотра аналитики',
-    noYet: 'Аналитики пока нет',
+    title: 'Инсайты',
+    selectProject: 'Выберите проект для просмотра инсайтов',
+    noYet: 'Инсайтов пока нет',
     createFirst: 'Создайте первый тренд, воронку или анализ удержания',
-    noMatch: 'Нет аналитики, соответствующей текущим фильтрам',
+    noMatch: 'Нет инсайтов, соответствующих текущим фильтрам',
   },
 });
