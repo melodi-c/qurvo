@@ -1,9 +1,10 @@
-import { eq, and, desc, ilike, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
+import { buildPgPropertyFilterConditions, type PersonPropertyFilter } from '../utils/pg-property-filter';
 
 export interface PersonsQueryParams {
   project_id: string;
-  search?: string;
+  filters?: PersonPropertyFilter[];
   limit: number;
   offset: number;
 }
@@ -19,14 +20,14 @@ export interface PersonRow {
 
 export interface PersonsCountParams {
   project_id: string;
-  search?: string;
+  filters?: PersonPropertyFilter[];
 }
 
 export async function queryPersons(db: Database, params: PersonsQueryParams): Promise<PersonRow[]> {
-  const baseCondition = eq(persons.project_id, params.project_id);
-  const condition = params.search
-    ? and(baseCondition, ilike(personDistinctIds.distinct_id, `%${params.search}%`))
-    : baseCondition;
+  const conditions: SQL[] = [eq(persons.project_id, params.project_id)];
+  if (params.filters?.length) {
+    conditions.push(...buildPgPropertyFilterConditions(params.filters));
+  }
 
   const rows = await db
     .select({
@@ -39,7 +40,7 @@ export async function queryPersons(db: Database, params: PersonsQueryParams): Pr
     })
     .from(persons)
     .leftJoin(personDistinctIds, eq(personDistinctIds.person_id, persons.id))
-    .where(condition)
+    .where(and(...conditions))
     .groupBy(persons.id)
     .orderBy(desc(persons.updated_at))
     .limit(params.limit)
@@ -72,16 +73,15 @@ export async function queryPersonById(
 }
 
 export async function queryPersonsCount(db: Database, params: PersonsCountParams): Promise<number> {
-  const baseCondition = eq(persons.project_id, params.project_id);
-  const condition = params.search
-    ? and(baseCondition, ilike(personDistinctIds.distinct_id, `%${params.search}%`))
-    : baseCondition;
+  const conditions: SQL[] = [eq(persons.project_id, params.project_id)];
+  if (params.filters?.length) {
+    conditions.push(...buildPgPropertyFilterConditions(params.filters));
+  }
 
   const rows = await db
-    .select({ count: sql<string>`count(DISTINCT ${persons.id})` })
+    .select({ count: sql<string>`count(*)` })
     .from(persons)
-    .leftJoin(personDistinctIds, eq(personDistinctIds.person_id, persons.id))
-    .where(condition);
+    .where(and(...conditions));
 
   return Number(rows[0]?.count ?? 0);
 }

@@ -1,15 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsString, IsOptional, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsUUID, IsOptional, IsInt, Min, Max, IsArray, ValidateNested } from 'class-validator';
+import { Type, Transform, plainToInstance } from 'class-transformer';
+import { StepFilterDto } from './shared/filters.dto';
 
 export class PersonsQueryDto {
   @IsUUID()
   project_id: string;
 
-  @ApiPropertyOptional()
-  @IsString()
+  @ApiPropertyOptional({ type: [StepFilterDto] })
   @IsOptional()
-  search?: string;
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(StepFilterDto, arr) : arr;
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  filters?: StepFilterDto[];
 
   @ApiPropertyOptional()
   @Type(() => Number)
@@ -91,4 +99,14 @@ export class PersonEventRowDto {
   sdk_version: string;
   properties: string;
   user_properties: string;
+}
+
+export class PersonPropertyNamesQueryDto {
+  @IsUUID()
+  project_id: string;
+}
+
+export class PersonPropertyNamesResponseDto {
+  @ApiProperty({ type: [String] })
+  property_names: string[];
 }

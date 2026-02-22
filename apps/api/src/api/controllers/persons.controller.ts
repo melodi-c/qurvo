@@ -9,6 +9,8 @@ import {
   PersonDto,
   PersonEventsQueryDto,
   PersonEventRowDto,
+  PersonPropertyNamesQueryDto,
+  PersonPropertyNamesResponseDto,
 } from '../dto/persons.dto';
 import type { PersonRow } from '../../persons/persons.query';
 
@@ -37,12 +39,24 @@ export class PersonsController {
   ): Promise<PersonsListResponseDto> {
     const { persons, total } = await this.personsService.getPersons(user.user_id, {
       project_id: query.project_id,
-      search: query.search,
+      filters: query.filters,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
     });
 
     return { persons: persons.map(toPersonDto), total };
+  }
+
+  @Get('property-names')
+  async getPersonPropertyNames(
+    @CurrentUser() user: RequestUser,
+    @Query() query: PersonPropertyNamesQueryDto,
+  ): Promise<PersonPropertyNamesResponseDto> {
+    const property_names = await this.personsService.getPersonPropertyNames(
+      user.user_id,
+      query.project_id,
+    );
+    return { property_names } as any;
   }
 
   @Get(':personId')

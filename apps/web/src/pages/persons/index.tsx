@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Users } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { api } from '@/api/client';
+import { useDebounce } from '@/hooks/use-debounce';
+import { NO_VALUE_OPS } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { PersonsFilterPanel } from './PersonsFilterPanel';
+import type { StepFilter } from '@/api/generated/Api';
 
 interface PersonRow {
   id: string;
@@ -57,19 +60,32 @@ export default function PersonsPage() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<StepFilter[]>([]);
   const [page, setPage] = useState(0);
   const limit = 50;
 
+  const debouncedFilters = useDebounce(filters, 400);
+
+  const filtersHash = useMemo(
+    () => JSON.stringify(debouncedFilters),
+    [debouncedFilters],
+  );
+
   const { data, isLoading } = useQuery({
-    queryKey: ['persons', projectId, search, page],
-    queryFn: () =>
-      api.personsControllerGetPersons({
+    queryKey: ['persons', projectId, filtersHash, page],
+    queryFn: () => {
+      const validFilters = debouncedFilters.filter((f) => {
+        if (f.property.trim() === '') return false;
+        if (!NO_VALUE_OPS.has(f.operator) && (!f.value || f.value.trim() === '')) return false;
+        return true;
+      });
+      return api.personsControllerGetPersons({
         project_id: projectId,
-        ...(search ? { search } : {}),
+        ...(validFilters.length ? { filters: validFilters } : {}),
         limit,
         offset: page * limit,
-      }),
+      });
+    },
     enabled: !!projectId,
   });
 
@@ -88,6 +104,11 @@ export default function PersonsPage() {
     };
   });
 
+  const handleFiltersChange = useCallback((f: StepFilter[]) => {
+    setFilters(f);
+    setPage(0);
+  }, []);
+
   return (
     <div className="space-y-6">
       <PageHeader title="Persons">
@@ -102,14 +123,9 @@ export default function PersonsPage() {
 
       {projectId && (
         <>
-          <Input
-            placeholder="Search by identifier..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
-            className="max-w-sm"
+          <PersonsFilterPanel
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
           />
 
           {isLoading && <ListSkeleton count={8} height="h-10" className="space-y-2" />}
