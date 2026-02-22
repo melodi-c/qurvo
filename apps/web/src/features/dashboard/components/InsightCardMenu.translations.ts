@@ -5,12 +5,14 @@ export default createTranslations({
     openInsight: 'Open insight',
     refresh: 'Refresh',
     editText: 'Edit text',
+    duplicate: 'Duplicate',
     remove: 'Remove',
   },
   ru: {
     openInsight: 'Открыть инсайт',
     refresh: 'Обновить',
     editText: 'Редактировать текст',
+    duplicate: 'Дублировать',
     remove: 'Удалить',
   },
 });

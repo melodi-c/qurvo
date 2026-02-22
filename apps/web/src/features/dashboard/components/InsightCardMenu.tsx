@@ -1,4 +1,4 @@
-import { MoreHorizontal, ExternalLink, RefreshCw, Trash2, Pencil } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, RefreshCw, Trash2, Pencil, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ interface InsightCardMenuProps {
 export function InsightCardMenu({ widget, onRefresh, onEditText }: InsightCardMenuProps) {
   const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
+  const duplicateWidget = useDashboardStore((s) => s.duplicateWidget);
   const removeWidget = useDashboardStore((s) => s.removeWidget);
   const { t } = useLocalTranslation(translations);
 
@@ -51,6 +52,12 @@ export function InsightCardMenu({ widget, onRefresh, onEditText }: InsightCardMe
           <DropdownMenuItem onClick={onEditText}>
             <Pencil />
             {t('editText')}
+          </DropdownMenuItem>
+        )}
+        {isEditing && (
+          <DropdownMenuItem onClick={() => duplicateWidget(widget.id)}>
+            <Copy />
+            {t('duplicate')}
           </DropdownMenuItem>
         )}
         {isEditing && (

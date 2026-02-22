@@ -37,6 +37,7 @@ interface DashboardStore {
   setLocalName: (name: string) => void;
   updateLayout: (layout: readonly RglItem[]) => void;
   addWidget: (widget: Widget) => void;
+  duplicateWidget: (widgetId: string) => void;
   removeWidget: (widgetId: string) => void;
   markSaved: () => void;
 
@@ -115,6 +116,33 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       ],
       isDirty: true,
     })),
+
+  duplicateWidget: (widgetId) =>
+    set((s) => {
+      const source = s.localWidgets.find((w) => w.id === widgetId);
+      const sourceLayout = s.localLayout.find((l) => l.i === widgetId);
+      if (!source || !sourceLayout) return s;
+
+      const newId = crypto.randomUUID();
+      const maxY = s.localLayout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
+      const clone: Widget = {
+        ...source,
+        id: newId,
+        layout: { ...source.layout, y: maxY },
+      };
+      const meta = s.widgetMeta[widgetId];
+      return {
+        localWidgets: [...s.localWidgets, clone],
+        localLayout: [
+          ...s.localLayout,
+          { i: newId, x: sourceLayout.x, y: maxY, w: sourceLayout.w, h: sourceLayout.h },
+        ],
+        widgetMeta: meta
+          ? { ...s.widgetMeta, [newId]: { ...meta } }
+          : s.widgetMeta,
+        isDirty: true,
+      };
+    }),
 
   removeWidget: (widgetId) =>
     set((s) => ({
