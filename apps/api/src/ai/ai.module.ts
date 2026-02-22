@@ -13,7 +13,7 @@ import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
 import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AI_TOOLS } from './tools/ai-tool.interface';
-import type { AiTool } from './tools/ai-tool.interface';
+import type { BaseAiTool } from './tools/ai-tool.interface';
 import { TrendTool } from './tools/trend.tool';
 import { FunnelTool } from './tools/funnel.tool';
 import { RetentionTool } from './tools/retention.tool';
@@ -52,7 +52,7 @@ const TOOL_CLASSES = [
     ...TOOL_CLASSES,
     {
       provide: AI_TOOLS,
-      useFactory: (...tools: AiTool[]) => tools,
+      useFactory: (...tools: BaseAiTool[]) => tools,
       inject: TOOL_CLASSES,
     },
   ],

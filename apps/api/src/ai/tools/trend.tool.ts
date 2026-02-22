@@ -1,102 +1,40 @@
 import { Injectable } from '@nestjs/common';
-import type { ChatCompletionTool } from 'openai/resources/chat/completions';
+import { z } from 'zod';
 import { TrendService } from '../../trend/trend.service';
-import type { AiTool, ToolCallResult } from './ai-tool.interface';
+import { BaseAiTool, propertyFilterSchema } from './ai-tool.interface';
+
+const argsSchema = z.object({
+  series: z.array(z.object({
+    event_name: z.string().describe('Name of the event to track'),
+    label: z.string().describe('Display label for this series'),
+    filters: z.array(propertyFilterSchema).optional().describe('Optional filters to narrow down events by property values'),
+  })).min(1).max(5).describe('Event series to query'),
+  metric: z.enum(['total_events', 'unique_users', 'events_per_user']).describe('Aggregation metric'),
+  granularity: z.enum(['hour', 'day', 'week', 'month']).describe('Time bucket granularity. Use day for <60 days, week for 60-180, month for >180'),
+  date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
+  date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
+  breakdown_property: z.string().optional().describe('Optional event property to break down by'),
+  compare: z.boolean().optional().describe('Whether to compare with the previous period'),
+});
 
 @Injectable()
-export class TrendTool implements AiTool {
+export class TrendTool extends BaseAiTool<typeof argsSchema> {
   readonly name = 'query_trend';
+  readonly description =
+    'Query time-series trend data for events. Returns data points over time with configurable granularity. ' +
+    'Supports multiple series, breakdown by property, period comparison, and per-series filters.';
+  readonly argsSchema = argsSchema;
+  readonly visualizationType = 'trend_chart';
 
-  constructor(private readonly trendService: TrendService) {}
-
-  definition(): ChatCompletionTool {
-    return {
-      type: 'function',
-      function: {
-        name: this.name,
-        description:
-          'Query time-series trend data for events. Returns data points over time with configurable granularity. ' +
-          'Supports multiple series, breakdown by property, and period comparison.',
-        parameters: {
-          type: 'object',
-          properties: {
-            series: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  event_name: { type: 'string', description: 'Name of the event to track' },
-                  label: { type: 'string', description: 'Display label for this series' },
-                  filters: {
-                    type: 'array',
-                    description: 'Optional filters to narrow down events by property values',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        property: {
-                          type: 'string',
-                          description:
-                            'Property to filter on. Use "properties.<key>" for event properties (e.g. "properties.promocode"), ' +
-                            'or direct columns: url, referrer, page_title, page_path, device_type, browser, os, country, region, city',
-                        },
-                        operator: {
-                          type: 'string',
-                          enum: ['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set'],
-                          description: 'Filter operator',
-                        },
-                        value: {
-                          type: 'string',
-                          description: 'Value to compare against (not needed for is_set/is_not_set)',
-                        },
-                      },
-                      required: ['property', 'operator'],
-                    },
-                  },
-                },
-                required: ['event_name', 'label'],
-              },
-              minItems: 1,
-              maxItems: 5,
-              description: 'Event series to query',
-            },
-            metric: {
-              type: 'string',
-              enum: ['total_events', 'unique_users', 'events_per_user'],
-              description: 'Aggregation metric. Default: total_events',
-            },
-            granularity: {
-              type: 'string',
-              enum: ['hour', 'day', 'week', 'month'],
-              description: 'Time bucket granularity. Use day for <60 days, week for 60-180, month for >180',
-            },
-            date_from: { type: 'string', description: 'Start date in ISO format (YYYY-MM-DD)' },
-            date_to: { type: 'string', description: 'End date in ISO format (YYYY-MM-DD)' },
-            breakdown_property: {
-              type: 'string',
-              description: 'Optional event property to break down by',
-            },
-            compare: {
-              type: 'boolean',
-              description: 'Whether to compare with the previous period',
-            },
-          },
-          required: ['series', 'metric', 'granularity', 'date_from', 'date_to'],
-        },
-      },
-    };
+  constructor(private readonly trendService: TrendService) {
+    super();
   }
 
-  async execute(args: Record<string, unknown>, userId: string, projectId: string): Promise<ToolCallResult> {
+  protected async execute(args: z.infer<typeof argsSchema>, userId: string, projectId: string) {
     const result = await this.trendService.getTrend(userId, {
       project_id: projectId,
-      series: args.series as { event_name: string; label: string; filters?: { property: string; operator: string; value?: string }[] }[],
-      metric: (args.metric as string) ?? 'total_events',
-      granularity: (args.granularity as string) ?? 'day',
-      date_from: args.date_from as string,
-      date_to: args.date_to as string,
-      breakdown_property: args.breakdown_property as string | undefined,
-      compare: args.compare as boolean | undefined,
+      ...args,
     } as any);
-    return { result: result.data, visualization_type: 'trend_chart' };
+    return result.data;
   }
 }

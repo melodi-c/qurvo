@@ -1,15 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 import { AI_TOOLS } from './tools/ai-tool.interface';
-import type { AiTool, ToolCallResult } from './tools/ai-tool.interface';
+import type { BaseAiTool, ToolCallResult } from './tools/ai-tool.interface';
 
 export type { ToolCallResult } from './tools/ai-tool.interface';
 
 @Injectable()
 export class AiToolsService {
-  private readonly toolMap: Map<string, AiTool>;
+  private readonly toolMap: Map<string, BaseAiTool>;
 
-  constructor(@Inject(AI_TOOLS) tools: AiTool[]) {
+  constructor(@Inject(AI_TOOLS) tools: BaseAiTool[]) {
     this.toolMap = new Map(tools.map((t) => [t.name, t]));
   }
 
@@ -25,6 +25,6 @@ export class AiToolsService {
   ): Promise<ToolCallResult> {
     const tool = this.toolMap.get(name);
     if (!tool) throw new Error(`Unknown tool: ${name}`);
-    return tool.execute(args, userId, projectId);
+    return tool.run(args, userId, projectId);
   }
 }
