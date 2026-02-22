@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,8 +77,11 @@ export default function VerifyEmailPage() {
     }
   }, [code, verifyByCode, navigate]);
 
+  const [resending, setResending] = useState(false);
+
   const handleResend = useCallback(async () => {
     setError('');
+    setResending(true);
     try {
       const res = await resendVerification();
       setCooldown(res.cooldown_seconds);
@@ -88,6 +92,8 @@ export default function VerifyEmailPage() {
       }
       const msg = err?.response?.data?.message || err?.message || t('resendFailed');
       setError(msg);
+    } finally {
+      setResending(false);
     }
   }, [resendVerification]);
 
@@ -100,6 +106,9 @@ export default function VerifyEmailPage() {
             <CardTitle className="text-2xl">{t('verifyingTitle')}</CardTitle>
             <CardDescription>{t('verifyingSubtitle')}</CardDescription>
           </CardHeader>
+          <CardContent className="flex justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </CardContent>
         </Card>
       </div>
     );
@@ -151,6 +160,7 @@ export default function VerifyEmailPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? t('verifying') : t('confirm')}
             </Button>
             <div className="text-center">
@@ -158,9 +168,10 @@ export default function VerifyEmailPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={cooldown > 0}
+                disabled={cooldown > 0 || resending}
                 onClick={handleResend}
               >
+                {resending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {cooldown > 0 ? t('resendIn', { seconds: cooldown }) : t('resend')}
               </Button>
             </div>
