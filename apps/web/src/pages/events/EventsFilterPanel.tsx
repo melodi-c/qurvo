@@ -42,19 +42,18 @@ export function EventsFilterPanel({
       {/* Event name + clear */}
       <section className="space-y-2">
         <span className="text-xs font-medium text-muted-foreground">Event</span>
-        <div className="flex items-center gap-1.5">
-          <div className="flex-1">
-            <EventNameCombobox
-              value={eventName}
-              onChange={onEventNameChange}
-              placeholder="All events"
-            />
-          </div>
+        <div className="flex items-center rounded-sm border border-border/60 bg-muted/30">
+          <EventNameCombobox
+            value={eventName}
+            onChange={onEventNameChange}
+            placeholder="All events"
+            className="min-w-0 flex-1 border-0"
+          />
           {eventName && (
             <button
               type="button"
               onClick={() => onEventNameChange('')}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:text-destructive"
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground/50 transition-colors hover:text-destructive"
             >
               <X className="h-3 w-3" />
             </button>

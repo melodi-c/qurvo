@@ -27,11 +27,13 @@
     "fastify": "^5.7.4",
     "ioredis": "^5.9.3",
     "nestjs-pino": "^4.6.0",
+    "openai": "^4.73.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.0",
-    "openai": "^4.73.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
