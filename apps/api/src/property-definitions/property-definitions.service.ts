@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -10,6 +10,7 @@ import { queryPropertyNamesWithCount } from '../events/property-names-with-count
 export interface PropertyDefinitionItem {
   property_name: string;
   property_type: 'event' | 'person';
+  event_name: string;
   count: number;
   id: string | null;
   description: string | null;
@@ -29,12 +30,16 @@ export class PropertyDefinitionsService {
   async list(userId: string, projectId: string, type?: 'event' | 'person', eventName?: string): Promise<PropertyDefinitionItem[]> {
     await this.projectsService.getMembership(userId, projectId);
 
+    const pgWhere = eventName
+      ? and(eq(propertyDefinitions.project_id, projectId), eq(propertyDefinitions.event_name, eventName))
+      : eq(propertyDefinitions.project_id, projectId);
+
     const [chRows, pgRows] = await Promise.all([
       queryPropertyNamesWithCount(this.ch, { project_id: projectId, event_name: eventName }),
       this.db
         .select()
         .from(propertyDefinitions)
-        .where(eq(propertyDefinitions.project_id, projectId)),
+        .where(pgWhere),
     ]);
 
     const metaMap = new Map(
@@ -48,6 +53,7 @@ export class PropertyDefinitionsService {
         return {
           property_name: ch.property_name,
           property_type: ch.property_type,
+          event_name: eventName ?? '',
           count: ch.count,
           id: meta?.id ?? null,
           description: meta?.description ?? null,
@@ -65,6 +71,7 @@ export class PropertyDefinitionsService {
     projectId: string,
     propertyName: string,
     propertyType: 'event' | 'person',
+    eventName: string,
     input: { description?: string; tags?: string[]; verified?: boolean },
   ) {
     await this.projectsService.getMembership(userId, projectId);
@@ -75,12 +82,13 @@ export class PropertyDefinitionsService {
         project_id: projectId,
         property_name: propertyName,
         property_type: propertyType,
+        event_name: eventName,
         description: input.description ?? null,
         tags: input.tags ?? [],
         verified: input.verified ?? false,
       })
       .onConflictDoUpdate({
-        target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
+        target: [propertyDefinitions.project_id, propertyDefinitions.event_name, propertyDefinitions.property_name, propertyDefinitions.property_type],
         set: {
           ...(input.description !== undefined ? { description: input.description } : {}),
           ...(input.tags !== undefined ? { tags: input.tags } : {}),

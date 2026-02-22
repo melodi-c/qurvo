@@ -1012,6 +1012,7 @@ export interface UpsertEventDefinitionResponse {
 
 export interface PropertyDefinition {
   property_type: PropertyDefinitionDtoPropertyTypeEnum;
+  event_name: string;
   id?: string | null;
   description?: string | null;
   tags: string[];
@@ -1022,6 +1023,7 @@ export interface PropertyDefinition {
 }
 
 export interface UpsertPropertyDefinition {
+  event_name: string;
   description?: string;
   tags?: string[];
   verified?: boolean;
@@ -1029,6 +1031,7 @@ export interface UpsertPropertyDefinition {
 
 export interface UpsertPropertyDefinitionResponse {
   property_type: UpsertPropertyDefinitionResponseDtoPropertyTypeEnum;
+  event_name: string;
   description?: string | null;
   tags: string[];
   id: string;

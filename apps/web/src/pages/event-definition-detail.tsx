@@ -221,6 +221,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
       await upsertMutation.mutateAsync({
         propertyName: row.property_name,
         propertyType: row.property_type,
+        eventName,
         data: {
           description: editValues.description || undefined,
           tags: parsedTags,
@@ -231,7 +232,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
     } catch {
       toast.error(t('propertyUpdateFailed'));
     }
-  }, [editValues, upsertMutation, t]);
+  }, [editValues, upsertMutation, eventName, t]);
 
   const typeFilterLabels: Record<'all' | 'event' | 'person', string> = useMemo(() => ({
     all: t('all'),

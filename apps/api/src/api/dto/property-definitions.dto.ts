@@ -5,6 +5,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpsertPropertyDefinitionDto {
   @IsString()
+  @ApiProperty()
+  event_name: string;
+
+  @IsString()
   @IsOptional()
   @ApiPropertyOptional()
   description?: string;
@@ -39,6 +43,7 @@ export class PropertyDefinitionQueryDto {
 export class PropertyDefinitionDto {
   property_name: string;
   @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
+  @ApiProperty() event_name: string;
   count: number;
   @ApiPropertyOptional() id: string | null;
   @ApiPropertyOptional() description: string | null;
@@ -52,6 +57,7 @@ export class UpsertPropertyDefinitionResponseDto {
   project_id: string;
   property_name: string;
   @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
+  @ApiProperty() event_name: string;
   @ApiPropertyOptional() description: string | null;
   @ApiProperty({ type: [String] }) tags: string[];
   verified: boolean;

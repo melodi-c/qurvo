@@ -39,6 +39,7 @@ export class PropertyDefinitionsController {
       projectId,
       propertyName,
       propertyType,
+      body.event_name,
       body,
     ) as any;
   }
