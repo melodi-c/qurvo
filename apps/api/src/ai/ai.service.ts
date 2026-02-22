@@ -92,7 +92,7 @@ export class AiService {
           const assistantMsg: ChatCompletionAssistantMessageParam = {
             role: 'assistant',
             content: msg.content ?? null,
-            ...(msg.tool_calls && { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] }),
+            ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
           };
           messages.push(assistantMsg);
         } else if (msg.role === 'tool') {
