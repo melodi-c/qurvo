@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database, Globe } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
 import { routes } from '@/lib/routes';
 
@@ -21,6 +21,7 @@ const sidebarSections = [
     title: 'Product',
     items: [
       { path: routes.dashboards.list.pattern, label: 'Dashboards', icon: LayoutDashboard },
+      { path: routes.webAnalytics.pattern,    label: 'Web Analytics',   icon: Globe },
       { path: routes.insights.list.pattern,   label: 'Insights',        icon: Lightbulb },
       { path: routes.unitEconomics.pattern,   label: 'Unit Economics',  icon: Calculator },
       { path: routes.cohorts.list.pattern,    label: 'Cohorts',         icon: UsersRound },

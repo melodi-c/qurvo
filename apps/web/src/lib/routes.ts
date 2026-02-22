@@ -49,6 +49,8 @@ export const routes = {
     return '/profile';
   }),
 
+  webAnalytics: route('/web-analytics'),
+
   dashboards: {
     list: route('/dashboards'),
     detail: route('/dashboards/:id', (id: string) => `/dashboards/${id}`),
