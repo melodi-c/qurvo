@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Users } from 'lucide-react';
@@ -10,7 +10,7 @@ import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
 import { NO_VALUE_OPS } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
 import { PersonsFilterPanel } from './PersonsFilterPanel';
-import type { StepFilter } from '@/api/generated/Api';
+import { usePersonsFilters } from './use-persons-filters';
 
 interface PersonRow {
   id: string;
@@ -19,11 +19,6 @@ interface PersonRow {
   email: string;
   createdAt: string;
   updatedAt: string;
-}
-
-interface PersonsFilterState {
-  search: string;
-  filters: StepFilter[];
 }
 
 const COLUMNS: Column<PersonRow>[] = [
@@ -65,11 +60,15 @@ export default function PersonsPage() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const navigate = useNavigate();
-  const [filterState, setFilterState] = useState<PersonsFilterState>({
-    search: '',
-    filters: [],
-  });
-  const [page, setPage] = useState(0);
+
+  const {
+    filterState,
+    page,
+    setPage,
+    handleSearchChange,
+    handleFiltersChange,
+  } = usePersonsFilters();
+
   const limit = 50;
 
   const debouncedState = useDebounce(filterState, 400);
@@ -112,16 +111,6 @@ export default function PersonsPage() {
       updatedAt: person.updated_at,
     };
   });
-
-  const handleSearchChange = useCallback((search: string) => {
-    setFilterState((s) => ({ ...s, search }));
-    setPage(0);
-  }, []);
-
-  const handleFiltersChange = useCallback((filters: StepFilter[]) => {
-    setFilterState((s) => ({ ...s, filters }));
-    setPage(0);
-  }, []);
 
   return (
     <div className="space-y-6">
