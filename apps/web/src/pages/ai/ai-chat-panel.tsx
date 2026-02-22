@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { SendHorizonal, Square } from 'lucide-react';
+import { SendHorizonal, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AiMessage } from './ai-message';
 import type { AiMessageData } from './use-ai-chat';
@@ -10,20 +10,78 @@ interface AiChatPanelProps {
   error: string | null;
   onSend: (text: string) => void;
   onStop: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
-export function AiChatPanel({ messages, isStreaming, error, onSend, onStop }: AiChatPanelProps) {
+export function AiChatPanel({
+  messages,
+  isStreaming,
+  error,
+  onSend,
+  onStop,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
+}: AiChatPanelProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prevMessageCountRef = useRef(messages.length);
+  const isInitialLoadRef = useRef(true);
 
+  // Auto-scroll to bottom on new messages (but not when loading older messages)
   useEffect(() => {
+    const prevCount = prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+
+    // On initial load, scroll to bottom
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      messagesEndRef.current?.scrollIntoView();
+      return;
+    }
+
+    // If messages were prepended (loading older), maintain scroll position
+    if (messages.length > prevCount && prevCount > 0) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        const addedCount = messages.length - prevCount;
+        // Check if the first new message has a lower sequence (= older messages prepended)
+        const isOlderPrepended =
+          messages[0]?.sequence !== undefined &&
+          addedCount > 0 &&
+          container.scrollTop < 100;
+        if (isOlderPrepended) return; // Don't auto-scroll
+      }
+    }
+
+    // For new messages at the bottom, auto-scroll
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
     if (!isStreaming) inputRef.current?.focus();
   }, [isStreaming]);
+
+  // Detect scroll to top for loading more messages
+  const handleScroll = useCallback(() => {
+    if (!hasMore || isLoadingMore || !onLoadMore) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (container.scrollTop < 50) {
+      const prevScrollHeight = container.scrollHeight;
+      onLoadMore();
+      // Restore scroll position after prepend
+      requestAnimationFrame(() => {
+        const newScrollHeight = container.scrollHeight;
+        container.scrollTop = newScrollHeight - prevScrollHeight;
+      });
+    }
+  }, [hasMore, isLoadingMore, onLoadMore]);
 
   const handleSubmit = useCallback(() => {
     const text = input.trim();
@@ -45,7 +103,16 @@ export function AiChatPanel({ messages, isStreaming, error, onSend, onStop }: Ai
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+      >
+        {isLoadingMore && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
             <p className="text-lg font-medium text-foreground mb-1">Ask about your data</p>

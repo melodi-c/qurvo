@@ -9,6 +9,7 @@ export interface AiMessageData {
   tool_result?: unknown;
   visualization_type?: string | null;
   isStreaming?: boolean;
+  sequence?: number;
 }
 
 interface AiChatState {
@@ -16,13 +17,29 @@ interface AiChatState {
   conversationId: string | null;
   isStreaming: boolean;
   error: string | null;
+  hasMore: boolean;
+  isLoadingMore: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
+const PAGE_SIZE = 30;
 
 let nextId = 0;
 function tempId() {
   return `temp-${++nextId}`;
+}
+
+function mapMessages(raw: any[]): AiMessageData[] {
+  return raw.map((m: any) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    tool_call_id: m.tool_call_id,
+    tool_name: m.tool_name,
+    tool_result: m.tool_result,
+    visualization_type: m.visualization_type,
+    sequence: m.sequence,
+  }));
 }
 
 export function useAiChat() {
@@ -31,6 +48,8 @@ export function useAiChat() {
     conversationId: null,
     isStreaming: false,
     error: null,
+    hasMore: false,
+    isLoadingMore: false,
   });
 
   const abortRef = useRef<AbortController | null>(null);
@@ -40,7 +59,6 @@ export function useAiChat() {
       const token = localStorage.getItem('qurvo_token');
       if (!token) return;
 
-      // Add user message optimistically
       const userMsg: AiMessageData = { id: tempId(), role: 'user', content: text };
       setState((prev) => ({
         ...prev,
@@ -129,7 +147,6 @@ export function useAiChat() {
                 break;
 
               case 'tool_call_start':
-                // Reset assistant id for next text segment after tool results
                 assistantId = tempId();
                 assistantContent = '';
                 break;
@@ -162,7 +179,6 @@ export function useAiChat() {
           }
         }
 
-        // Mark streaming complete
         setState((prev) => ({
           ...prev,
           isStreaming: false,
@@ -180,40 +196,63 @@ export function useAiChat() {
     [state.conversationId],
   );
 
-  const loadConversation = useCallback(
-    async (convId: string) => {
-      const token = localStorage.getItem('qurvo_token');
-      if (!token) return;
+  const loadConversation = useCallback(async (convId: string) => {
+    const token = localStorage.getItem('qurvo_token');
+    if (!token) return;
 
-      try {
-        const res = await fetch(`${API_URL}/api/ai/conversations/${convId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('Failed to load conversation');
-        const data = await res.json();
+    try {
+      const res = await fetch(
+        `${API_URL}/api/ai/conversations/${convId}?limit=${PAGE_SIZE}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) throw new Error('Failed to load conversation');
+      const data = await res.json();
 
-        const messages: AiMessageData[] = (data.messages ?? []).map((m: any) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          tool_call_id: m.tool_call_id,
-          tool_name: m.tool_name,
-          tool_result: m.tool_result,
-          visualization_type: m.visualization_type,
-        }));
+      setState({
+        messages: mapMessages(data.messages ?? []),
+        conversationId: convId,
+        isStreaming: false,
+        error: null,
+        hasMore: data.has_more ?? false,
+        isLoadingMore: false,
+      });
+    } catch (err: any) {
+      setState((prev) => ({ ...prev, error: err.message }));
+    }
+  }, []);
 
-        setState({
-          messages,
-          conversationId: convId,
-          isStreaming: false,
-          error: null,
-        });
-      } catch (err: any) {
-        setState((prev) => ({ ...prev, error: err.message }));
-      }
-    },
-    [],
-  );
+  const loadMoreMessages = useCallback(async () => {
+    const token = localStorage.getItem('qurvo_token');
+    if (!token || !state.conversationId || state.isLoadingMore || !state.hasMore) return;
+
+    const oldest = state.messages[0];
+    if (!oldest?.sequence) return;
+
+    setState((prev) => ({ ...prev, isLoadingMore: true }));
+
+    try {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        before_sequence: String(oldest.sequence),
+      });
+      const res = await fetch(
+        `${API_URL}/api/ai/conversations/${state.conversationId}?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) throw new Error('Failed to load messages');
+      const data = await res.json();
+
+      const older = mapMessages(data.messages ?? []);
+      setState((prev) => ({
+        ...prev,
+        messages: [...older, ...prev.messages],
+        hasMore: data.has_more ?? false,
+        isLoadingMore: false,
+      }));
+    } catch (err: any) {
+      setState((prev) => ({ ...prev, isLoadingMore: false, error: err.message }));
+    }
+  }, [state.conversationId, state.isLoadingMore, state.hasMore, state.messages]);
 
   const startNewConversation = useCallback(() => {
     abortRef.current?.abort();
@@ -222,6 +261,8 @@ export function useAiChat() {
       conversationId: null,
       isStreaming: false,
       error: null,
+      hasMore: false,
+      isLoadingMore: false,
     });
   }, []);
 
@@ -239,8 +280,11 @@ export function useAiChat() {
     conversationId: state.conversationId,
     isStreaming: state.isStreaming,
     error: state.error,
+    hasMore: state.hasMore,
+    isLoadingMore: state.isLoadingMore,
     sendMessage,
     loadConversation,
+    loadMoreMessages,
     startNewConversation,
     stopStreaming,
   };

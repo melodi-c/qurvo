@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class AiChatDto {
   @IsUUID()
@@ -40,6 +41,24 @@ export class AiMessageDto {
   created_at: string;
 }
 
+export class AiConversationMessagesQueryDto {
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  limit?: number = 30;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  before_sequence?: number;
+}
+
 export class AiConversationDetailDto extends AiConversationDto {
   messages: AiMessageDto[];
+  has_more: boolean;
 }

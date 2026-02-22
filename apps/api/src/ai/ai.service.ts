@@ -108,7 +108,7 @@ export class AiService {
 
     // Load history
     if (!isNew) {
-      const history = await this.chatService.getMessages(conversation.id);
+      const { messages: history } = await this.chatService.getMessages(conversation.id, 10000);
       for (const msg of history) {
         if (msg.role === 'user') {
           messages.push({ role: 'user', content: msg.content ?? '' });
@@ -282,11 +282,11 @@ export class AiService {
     return this.chatService.listConversations(userId, projectId);
   }
 
-  async getConversation(userId: string, conversationId: string) {
+  async getConversation(userId: string, conversationId: string, limit?: number, beforeSequence?: number) {
     const conv = await this.chatService.getConversation(conversationId, userId);
     if (!conv) throw new Error('Conversation not found');
-    const messages = await this.chatService.getMessages(conversationId);
-    return { ...conv, messages };
+    const { messages, hasMore } = await this.chatService.getMessages(conversationId, limit, beforeSequence);
+    return { ...conv, messages, has_more: hasMore };
   }
 
   async deleteConversation(userId: string, conversationId: string) {

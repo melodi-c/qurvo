@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, lt } from 'drizzle-orm';
 import { aiConversations, aiMessages } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
@@ -58,12 +58,23 @@ export class AiChatService {
       .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)));
   }
 
-  async getMessages(conversationId: string) {
-    return this.db
+  async getMessages(conversationId: string, limit = 30, beforeSequence?: number) {
+    const conditions = [eq(aiMessages.conversation_id, conversationId)];
+    if (beforeSequence !== undefined) {
+      conditions.push(lt(aiMessages.sequence, beforeSequence));
+    }
+
+    const rows = await this.db
       .select()
       .from(aiMessages)
-      .where(eq(aiMessages.conversation_id, conversationId))
-      .orderBy(asc(aiMessages.sequence));
+      .where(and(...conditions))
+      .orderBy(desc(aiMessages.sequence))
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    if (hasMore) rows.pop();
+
+    return { messages: rows.reverse(), hasMore };
   }
 
   async getNextSequence(conversationId: string): Promise<number> {

@@ -4,7 +4,7 @@ import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { AiChatDto, AiConversationsQueryDto, AiConversationDto, AiConversationDetailDto } from '../dto/ai.dto';
+import { AiChatDto, AiConversationsQueryDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
 
 @ApiTags('AI')
 @ApiBearerAuth()
@@ -64,8 +64,9 @@ export class AiController {
   async getConversation(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
+    @Query() query: AiConversationMessagesQueryDto,
   ): Promise<AiConversationDetailDto> {
-    return this.aiService.getConversation(user.user_id, id) as any;
+    return this.aiService.getConversation(user.user_id, id, query.limit, query.before_sequence) as any;
   }
 
   @Delete('conversations/:id')
