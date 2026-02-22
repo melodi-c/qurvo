@@ -58,14 +58,14 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <span className="text-xs text-muted-foreground">From</span>
           <DatePicker
             value={dateFrom.slice(0, 10)}
             onChange={(v) => onChange(v, dateTo)}
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <span className="text-xs text-muted-foreground">To</span>
           <DatePicker
             value={dateTo.slice(0, 10)}
