@@ -35,7 +35,7 @@ export class PersonsService {
     await this.projectsService.getMembership(userId, params.project_id);
     const [personsList, total] = await Promise.all([
       queryPersons(this.db, params),
-      queryPersonsCount(this.db, { project_id: params.project_id, filters: params.filters }),
+      queryPersonsCount(this.db, { project_id: params.project_id, search: params.search, filters: params.filters }),
     ]);
     return { persons: personsList, total };
   }

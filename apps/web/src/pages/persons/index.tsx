@@ -21,6 +21,11 @@ interface PersonRow {
   updatedAt: string;
 }
 
+interface PersonsFilterState {
+  search: string;
+  filters: StepFilter[];
+}
+
 const COLUMNS: Column<PersonRow>[] = [
   {
     key: 'identifier',
@@ -60,27 +65,31 @@ export default function PersonsPage() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<StepFilter[]>([]);
+  const [filterState, setFilterState] = useState<PersonsFilterState>({
+    search: '',
+    filters: [],
+  });
   const [page, setPage] = useState(0);
   const limit = 50;
 
-  const debouncedFilters = useDebounce(filters, 400);
+  const debouncedState = useDebounce(filterState, 400);
 
-  const filtersHash = useMemo(
-    () => JSON.stringify(debouncedFilters),
-    [debouncedFilters],
+  const stateHash = useMemo(
+    () => JSON.stringify(debouncedState),
+    [debouncedState],
   );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['persons', projectId, filtersHash, page],
+    queryKey: ['persons', projectId, stateHash, page],
     queryFn: () => {
-      const validFilters = debouncedFilters.filter((f) => {
+      const validFilters = debouncedState.filters.filter((f) => {
         if (f.property.trim() === '') return false;
         if (!NO_VALUE_OPS.has(f.operator) && (!f.value || f.value.trim() === '')) return false;
         return true;
       });
       return api.personsControllerGetPersons({
         project_id: projectId,
+        ...(debouncedState.search ? { search: debouncedState.search } : {}),
         ...(validFilters.length ? { filters: validFilters } : {}),
         limit,
         offset: page * limit,
@@ -104,8 +113,13 @@ export default function PersonsPage() {
     };
   });
 
-  const handleFiltersChange = useCallback((f: StepFilter[]) => {
-    setFilters(f);
+  const handleSearchChange = useCallback((search: string) => {
+    setFilterState((s) => ({ ...s, search }));
+    setPage(0);
+  }, []);
+
+  const handleFiltersChange = useCallback((filters: StepFilter[]) => {
+    setFilterState((s) => ({ ...s, filters }));
     setPage(0);
   }, []);
 
@@ -124,7 +138,9 @@ export default function PersonsPage() {
       {projectId && (
         <>
           <PersonsFilterPanel
-            filters={filters}
+            search={filterState.search}
+            onSearchChange={handleSearchChange}
+            filters={filterState.filters}
             onFiltersChange={handleFiltersChange}
           />
 
