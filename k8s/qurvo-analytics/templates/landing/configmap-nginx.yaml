@@ -1,0 +1,37 @@
+{{- if .Values.landing.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "qurvo.fullname" . }}-nginx-landing-config
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        gzip on;
+        gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+        gzip_min_length 1024;
+
+        # Hashed assets — aggressive caching
+        location ~* \.(js|css|woff2?|png|svg|ico)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Static site fallback
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Health check for K8s probes
+        location /nginx-health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+{{- end }}

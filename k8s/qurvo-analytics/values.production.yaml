@@ -4,6 +4,7 @@ global:
 domain:
   app: "app.qurvo.ru"
   ingest: "ingest.qurvo.ru"
+  landing: "qurvo.ru"
 
 tls:
   clusterIssuer: "letsencrypt-prod"
@@ -46,4 +47,7 @@ processor:
       memory: "1Gi"
 
 web:
+  replicas: 2
+
+landing:
   replicas: 2

@@ -21,7 +21,7 @@ NAMESPACE="default"
 KUBECONFIG_PATH="$HELM_CHART/config.yaml"
 export KUBECONFIG="$KUBECONFIG_PATH"
 
-ALL_APPS=(api ingest processor web)
+ALL_APPS=(api ingest processor web landing)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
 NO_HOOKS=false
@@ -161,8 +161,8 @@ if [[ "$SKIP_BUILD" == false ]]; then
 
   PIDS=()
   for app in "${BUILD_APPS[@]}"; do
-    if [[ "$app" == "web" ]]; then
-      TARGET="web"
+    if [[ "$app" == "web" || "$app" == "landing" ]]; then
+      TARGET="$app"
       BUILD_ARG=""
     else
       TARGET="nestjs"

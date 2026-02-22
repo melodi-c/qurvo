@@ -1,0 +1,18 @@
+{{- if .Values.landing.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "qurvo.fullname" . }}-landing
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: landing
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "qurvo.selectorLabels" (dict "component" "landing" "root" .) | nindent 4 }}
+{{- end }}

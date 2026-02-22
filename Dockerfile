@@ -8,6 +8,9 @@
 #
 # Build web (nginx + SPA):
 #   docker build --target web -t qurvo-web .
+#
+# Build landing (nginx + static landing page):
+#   docker build --target landing -t qurvo-landing .
 # ==============================================================================
 
 # ==============================================================================
@@ -25,6 +28,7 @@ COPY apps/api/package.json                     apps/api/
 COPY apps/ingest/package.json                  apps/ingest/
 COPY apps/processor/package.json               apps/processor/
 COPY apps/web/package.json                     apps/web/
+COPY apps/landing/package.json                 apps/landing/
 COPY packages/@qurvo/db/package.json            packages/@qurvo/db/
 COPY packages/@qurvo/clickhouse/package.json    packages/@qurvo/clickhouse/
 COPY packages/@qurvo/sdk-core/package.json      packages/@qurvo/sdk-core/
@@ -103,5 +107,23 @@ FROM nginx:1.27-alpine AS web
 RUN rm /etc/nginx/conf.d/default.conf
 
 COPY --from=web-builder /repo/apps/web/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+# ==============================================================================
+# Stage: landing-builder — build static landing page
+# ==============================================================================
+FROM base AS landing-builder
+
+RUN pnpm --filter @qurvo/landing... build
+
+# ==============================================================================
+# Stage: landing — nginx serving static landing page
+# ==============================================================================
+FROM nginx:1.27-alpine AS landing
+
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY --from=landing-builder /repo/apps/landing/dist /usr/share/nginx/html
 
 EXPOSE 80
