@@ -82,11 +82,14 @@ export function MetricsTab() {
             setDateTo(to);
           }}
         />
-        <PillToggleGroup
-          options={GRANULARITY_OPTIONS}
-          value={granularity}
-          onChange={(v) => setGranularity(v as Granularity)}
-        />
+        <div className="space-y-1.5">
+          <span className="text-xs text-muted-foreground">Period</span>
+          <PillToggleGroup
+            options={GRANULARITY_OPTIONS}
+            value={granularity}
+            onChange={(v) => setGranularity(v as Granularity)}
+          />
+        </div>
         {channels && channels.length > 0 && (
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Channel</Label>
