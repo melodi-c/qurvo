@@ -30,10 +30,10 @@ Pin a specific version for production:
 
 ```html
 <!-- unpkg -->
-<script src="https://unpkg.com/@qurvo/sdk-browser@0.0.9/dist/qurvo.iife.js"></script>
+<script src="https://unpkg.com/@qurvo/sdk-browser@0.0.10/dist/qurvo.iife.js"></script>
 
 <!-- jsdelivr -->
-<script src="https://cdn.jsdelivr.net/npm/@qurvo/sdk-browser@0.0.9/dist/qurvo.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@qurvo/sdk-browser@0.0.10/dist/qurvo.iife.js"></script>
 ```
 
 The IIFE build exposes a global `qurvo` object with the same API as the ES module.

@@ -1,6 +1,6 @@
 {
   "name": "@qurvo/sdk-browser",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Browser SDK for Qurvo analytics — event tracking, user identification, auto-capture",
   "license": "MIT",
   "main": "dist/index.js",
