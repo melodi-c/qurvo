@@ -51,14 +51,13 @@ export default function WebAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <PageHeader title={t('title')} />
-        <WebFilterBar
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onDateRangeChange={setDateRange}
-        />
-      </div>
+      <PageHeader title={t('title')} />
+
+      <WebFilterBar
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateRangeChange={setDateRange}
+      />
 
       <WebKpiRow
         current={overview.data?.current}
