@@ -38,6 +38,7 @@ export default function PersonDetailPage() {
   const props = (person?.properties ?? {}) as Record<string, unknown>;
   const displayName =
     String(props['name'] ?? props['$name'] ?? '') ||
+    String(props['email'] ?? props['$email'] ?? '') ||
     person?.distinct_ids[0] ||
     person?.id?.slice(0, 8) ||
     personId;
