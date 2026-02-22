@@ -73,7 +73,7 @@ export function MetricsTab() {
   return (
     <div className="space-y-6">
       {/* Controls */}
-      <div className="flex items-end gap-4 flex-wrap">
+      <div className="flex items-center gap-4 flex-wrap">
         <DateRangeSection
           dateFrom={dateFrom}
           dateTo={dateTo}
