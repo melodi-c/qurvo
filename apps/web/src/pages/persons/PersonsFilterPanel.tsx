@@ -1,0 +1,52 @@
+import { Filter } from 'lucide-react';
+import { SectionHeader } from '@/components/ui/section-header';
+import { StepFilterRow } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { usePersonPropertyNames } from './use-person-property-names';
+import type { StepFilter } from '@/api/generated/Api';
+
+interface PersonsFilterPanelProps {
+  filters: StepFilter[];
+  onFiltersChange: (filters: StepFilter[]) => void;
+}
+
+export function PersonsFilterPanel({ filters, onFiltersChange }: PersonsFilterPanelProps) {
+  const { data: propertyNames = [] } = usePersonPropertyNames();
+
+  const addFilter = () =>
+    onFiltersChange([...filters, { property: '', operator: 'eq', value: '' }]);
+
+  const updateFilter = (i: number, f: StepFilter) =>
+    onFiltersChange(filters.map((existing, idx) => (idx === i ? f : existing)));
+
+  const removeFilter = (i: number) =>
+    onFiltersChange(filters.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4">
+      <section className="space-y-3">
+        <SectionHeader icon={Filter} label="Filters" />
+        {filters.length > 0 && (
+          <div className="space-y-2">
+            {filters.map((f, i) => (
+              <StepFilterRow
+                key={i}
+                filter={f}
+                onChange={(updated) => updateFilter(i, updated)}
+                onRemove={() => removeFilter(i)}
+                propertyNames={propertyNames}
+              />
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={addFilter}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
+        >
+          <Filter className="h-3 w-3" />
+          Add filter
+        </button>
+      </section>
+    </div>
+  );
+}

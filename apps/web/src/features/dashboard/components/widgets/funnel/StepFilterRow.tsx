@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PropertyNameCombobox } from './PropertyNameCombobox';
 import type { StepFilter, StepFilterDtoOperatorEnum } from '@/api/generated/Api';
 
 const OPERATORS: { value: StepFilterDtoOperatorEnum; label: string }[] = [
@@ -12,27 +13,37 @@ const OPERATORS: { value: StepFilterDtoOperatorEnum; label: string }[] = [
   { value: 'is_not_set', label: 'is not set' },
 ];
 
-const NO_VALUE_OPS = new Set<StepFilterDtoOperatorEnum>(['is_set', 'is_not_set']);
+export const NO_VALUE_OPS = new Set<StepFilterDtoOperatorEnum>(['is_set', 'is_not_set']);
 
 interface StepFilterRowProps {
   filter: StepFilter;
   onChange: (f: StepFilter) => void;
   onRemove: () => void;
+  propertyNames?: string[];
 }
 
-export function StepFilterRow({ filter, onChange, onRemove }: StepFilterRowProps) {
+export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: StepFilterRowProps) {
   const hasValue = !NO_VALUE_OPS.has(filter.operator);
 
   return (
     <div className="space-y-1">
       {/* Row 1: property + delete */}
       <div className="flex items-center gap-1.5">
-        <Input
-          value={filter.property}
-          onChange={(e) => onChange({ ...filter, property: e.target.value })}
-          placeholder="property (e.g. properties.plan)"
-          className="h-6 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none font-mono"
-        />
+        {propertyNames !== undefined ? (
+          <PropertyNameCombobox
+            value={filter.property}
+            onChange={(val) => onChange({ ...filter, property: val })}
+            propertyNames={propertyNames}
+            className="h-6 min-w-0 flex-1"
+          />
+        ) : (
+          <Input
+            value={filter.property}
+            onChange={(e) => onChange({ ...filter, property: e.target.value })}
+            placeholder="property (e.g. properties.plan)"
+            className="h-6 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none font-mono"
+          />
+        )}
         <button
           type="button"
           onClick={onRemove}

@@ -511,6 +511,10 @@ export interface PersonsListResponse {
   total: number;
 }
 
+export interface PersonPropertyNamesResponse {
+  property_names: string[];
+}
+
 export interface PersonEventRow {
   event_id: string;
   event_name: string;
@@ -1036,7 +1040,7 @@ export interface DashboardsControllerRemoveWidgetParams {
 }
 
 export interface PersonsControllerGetPersonsParams {
-  search?: string;
+  filters?: StepFilter[];
   /**
    * @min 1
    * @max 100
@@ -1048,6 +1052,11 @@ export interface PersonsControllerGetPersonsParams {
    * @default 0
    */
   offset?: number;
+  /** @format uuid */
+  project_id: string;
+}
+
+export interface PersonsControllerGetPersonPropertyNamesParams {
   /** @format uuid */
   project_id: string;
 }
@@ -2035,6 +2044,27 @@ export class Api<
     ) =>
       this.request<PersonsListResponse, any>({
         path: `/api/persons`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonPropertyNames
+     * @request GET:/api/persons/property-names
+     * @secure
+     */
+    personsControllerGetPersonPropertyNames: (
+      query: PersonsControllerGetPersonPropertyNamesParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonPropertyNamesResponse, any>({
+        path: `/api/persons/property-names`,
         method: "GET",
         query: query,
         secure: true,
