@@ -12,6 +12,7 @@ import {
 } from '@/components/event-detail';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';
 import translations from './event-table.translations';
 
 interface EventTableProps {
@@ -36,6 +37,8 @@ export function EventTable({
   const { link } = useAppNavigate();
   const { t } = useLocalTranslation(translations);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const { data: definitions = [] } = useEventDefinitions();
+  const eventDescriptions = useMemo(() => buildDescriptionMap(definitions), [definitions]);
 
   const handleExpandToggle = useCallback(
     (key: string) => setExpandedRow((prev) => (prev === key ? null : key)),
@@ -75,16 +78,24 @@ export function EventTable({
             if (!row.url) return row.page_path || '';
             try { return new URL(row.url).pathname || row.url; } catch { return row.url; }
           })();
+          const desc = eventDescriptions[row.event_name];
 
           return (
             <span className="flex items-center gap-2 min-w-0">
               <EventTypeIcon eventName={row.event_name} />
-              <Badge
-                variant={eventBadgeVariant(row.event_name)}
-                className="shrink-0 font-mono text-[11px] py-0 px-1.5 h-5"
-              >
-                {row.event_name}
-              </Badge>
+              {desc ? (
+                <>
+                  <span className="shrink-0 text-xs font-medium">{desc}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{row.event_name}</span>
+                </>
+              ) : (
+                <Badge
+                  variant={eventBadgeVariant(row.event_name)}
+                  className="shrink-0 font-mono text-[11px] py-0 px-1.5 h-5"
+                >
+                  {row.event_name}
+                </Badge>
+              )}
               {urlDisplay && (
                 <span className="text-xs text-muted-foreground/70 truncate font-mono">{urlDisplay}</span>
               )}
@@ -135,7 +146,7 @@ export function EventTable({
     });
 
     return cols;
-  }, [expandedRow, showPerson, projectId, t]);
+  }, [expandedRow, showPerson, projectId, t, eventDescriptions]);
 
   const renderExpandedRow = useCallback(
     (row: EventLike) => <EventDetail event={row} projectId={projectId} />,

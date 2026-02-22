@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { TabNav } from '@/components/ui/tab-nav';
@@ -7,6 +7,7 @@ import { Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from
 import { api } from '@/api/client';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';
 import translations from './event-detail.translations';
 
 // ─── shared event shape ───────────────────────────────────────────────────────
@@ -194,6 +195,8 @@ type DetailTab = 'event' | 'person';
 export function EventDetail({ event, projectId }: { event: EventLike; projectId?: string }) {
   const { t } = useLocalTranslation(translations);
   const [tab, setTab] = useState<DetailTab>('event');
+  const { data: definitions = [] } = useEventDefinitions();
+  const eventDescriptions = useMemo(() => buildDescriptionMap(definitions), [definitions]);
 
   // Lazy-load properties & user_properties via separate endpoint
   const { data: detail, isLoading: detailLoading } = useQuery({
@@ -288,7 +291,14 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       {/* Header: event name + timestamp */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-0">
         <EventTypeIcon eventName={event.event_name} />
-        <span className="text-xs font-medium">{event.event_name}</span>
+        {eventDescriptions[event.event_name] ? (
+          <>
+            <span className="text-xs font-medium">{eventDescriptions[event.event_name]}</span>
+            <span className="text-[11px] font-mono text-muted-foreground">{event.event_name}</span>
+          </>
+        ) : (
+          <span className="text-xs font-medium">{event.event_name}</span>
+        )}
         <span className="text-xs text-muted-foreground">·</span>
         <span className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</span>
       </div>
