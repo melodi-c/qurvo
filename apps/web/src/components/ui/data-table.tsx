@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { TablePagination } from '@/components/ui/table-pagination';
 
@@ -20,6 +20,10 @@ interface DataTableProps<T> {
   page?: number;
   onPageChange?: (page: number) => void;
   hasMore?: boolean;
+  expandedRowKey?: string;
+  onExpandToggle?: (key: string) => void;
+  renderExpandedRow?: (row: T) => ReactNode;
+  emptyState?: ReactNode;
 }
 
 export function DataTable<T>({
@@ -31,8 +35,14 @@ export function DataTable<T>({
   page,
   onPageChange,
   hasMore,
+  expandedRowKey,
+  onExpandToggle,
+  renderExpandedRow,
+  emptyState,
 }: DataTableProps<T>) {
   const hasPagination = page !== undefined && onPageChange !== undefined;
+  const isExpandable = onExpandToggle !== undefined && renderExpandedRow !== undefined;
+  const isClickable = !!onRowClick || isExpandable;
 
   return (
     <div className={cn('rounded-lg border border-border overflow-hidden', className)}>
@@ -54,19 +64,49 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {data.map((row) => (
-            <tr
-              key={rowKey(row)}
-              className={`hover:bg-muted/20 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-            >
-              {columns.map((col) => (
-                <td key={col.key} className={cn('px-4 py-3', col.className, col.hideOnMobile && 'hidden lg:table-cell')}>
-                  {col.render(row)}
-                </td>
-              ))}
+          {data.map((row) => {
+            const key = rowKey(row);
+            const isExpanded = isExpandable && expandedRowKey === key;
+
+            return (
+              <Fragment key={key}>
+                <tr
+                  className={cn(
+                    'transition-colors',
+                    isClickable && 'cursor-pointer',
+                    isExpanded ? 'bg-muted/30 hover:bg-muted/30' : 'hover:bg-muted/20',
+                  )}
+                  onClick={
+                    onRowClick
+                      ? () => onRowClick(row)
+                      : isExpandable
+                        ? () => onExpandToggle(key)
+                        : undefined
+                  }
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className={cn('px-4 py-3', col.className, col.hideOnMobile && 'hidden lg:table-cell')}>
+                      {col.render(row)}
+                    </td>
+                  ))}
+                </tr>
+                {isExpanded && (
+                  <tr className="border-t-0">
+                    <td colSpan={columns.length} className="p-0">
+                      {renderExpandedRow(row)}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+          {data.length === 0 && emptyState && (
+            <tr>
+              <td colSpan={columns.length} className="p-0">
+                {emptyState}
+              </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
       {hasPagination && (
