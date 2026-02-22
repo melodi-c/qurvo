@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Bot, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { AiToolResult } from './ai-tool-result';
 import type { AiMessageData } from './use-ai-chat';
 
@@ -38,9 +40,16 @@ export function AiMessage({ message }: AiMessageProps) {
             : 'bg-accent/50 text-foreground',
         )}
       >
-        {message.content && (
+        {message.content && isUser && (
           <div className="whitespace-pre-wrap break-words">
             {message.content}
+          </div>
+        )}
+        {message.content && !isUser && (
+          <div className="ai-markdown break-words">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
             {message.isStreaming && (
               <span className="inline-block w-1.5 h-4 bg-foreground/60 ml-0.5 animate-pulse" />
             )}
