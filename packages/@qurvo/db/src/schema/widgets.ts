@@ -39,6 +39,12 @@ export interface TrendWidgetSeries {
   filters?: WidgetStepFilter[];
 }
 
+export interface TrendFormula {
+  id: string;
+  label: string;
+  expression: string;
+}
+
 export interface TrendWidgetConfig {
   type: 'trend';
   series: TrendWidgetSeries[];
@@ -50,6 +56,7 @@ export interface TrendWidgetConfig {
   breakdown_property?: string;
   compare: boolean;
   cohort_ids?: string[];
+  formulas?: TrendFormula[];
 }
 
 export interface RetentionWidgetConfig {

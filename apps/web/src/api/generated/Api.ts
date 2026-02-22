@@ -462,6 +462,12 @@ export interface FunnelWidgetConfig {
   date_to: string;
 }
 
+export interface TrendFormula {
+  id: string;
+  label: string;
+  expression: string;
+}
+
 export interface TrendWidgetConfig {
   type: TrendWidgetConfigDtoTypeEnum;
   series: TrendSeries[];
@@ -470,6 +476,7 @@ export interface TrendWidgetConfig {
   chart_type: ChartType;
   breakdown_property?: string;
   cohort_ids?: string[];
+  formulas?: TrendFormula[];
   date_from: string;
   date_to: string;
   compare: boolean;

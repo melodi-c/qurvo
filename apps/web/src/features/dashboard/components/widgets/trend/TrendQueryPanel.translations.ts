@@ -18,6 +18,7 @@ export default createTranslations({
     month: 'Month',
     line: 'Line',
     bar: 'Bar',
+    formulas: 'Formulas',
   },
   ru: {
     series: 'Серии',
@@ -36,5 +37,6 @@ export default createTranslations({
     month: 'Месяц',
     line: 'Линия',
     bar: 'Столбцы',
+    formulas: 'Формулы',
   },
 });

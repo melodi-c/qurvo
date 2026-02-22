@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { QueryItemCard, useDragReorder } from '../QueryItemCard';
 import type { TrendSeries, StepFilter } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { SERIES_LETTERS } from './trend-shared';
 import translations from './TrendSeriesBuilder.translations';
 
 const COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500'];
@@ -52,7 +53,12 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
           key={idx}
           item={s}
           index={idx}
-          badge={<div className={`h-2.5 w-2.5 rounded-full shrink-0 ${COLORS[idx % COLORS.length]}`} />}
+          badge={
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${COLORS[idx % COLORS.length]}`} />
+              <span className="text-[10px] font-mono font-semibold text-muted-foreground leading-none">{SERIES_LETTERS[idx]}</span>
+            </div>
+          }
           labelPlaceholder="Label"
           canRemove={series.length > 1}
           onLabelChange={(label) => update(idx, { label })}
