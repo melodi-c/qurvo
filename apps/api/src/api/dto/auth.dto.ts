@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsOptional, Matches, Length } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
   @IsEmail()
@@ -26,10 +27,24 @@ export class LoginDto {
   password: string;
 }
 
+export class VerifyEmailDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(/^\d{6}$/)
+  code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(64, 64)
+  token?: string;
+}
+
 export class UserDto {
   id: string;
   email: string;
   display_name: string;
+  email_verified: boolean;
 }
 
 export class AuthResponseDto {
@@ -42,6 +57,7 @@ export class SessionUserDto {
   user_id: string;
   email: string;
   display_name: string;
+  email_verified: boolean;
 }
 
 export class MeResponseDto {
@@ -50,4 +66,8 @@ export class MeResponseDto {
 
 export class OkResponseDto {
   ok: boolean;
+}
+
+export class ResendVerificationResponseDto {
+  cooldown_seconds: number;
 }

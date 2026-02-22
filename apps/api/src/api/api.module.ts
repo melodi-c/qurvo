@@ -18,6 +18,7 @@ import { MarketingChannelsModule } from '../marketing-channels/marketing-channel
 import { AdSpendModule } from '../ad-spend/ad-spend.module';
 import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AiModule } from '../ai/ai.module';
+import { VerificationModule } from '../verification/verification.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -42,9 +43,10 @@ import { ForbiddenFilter } from './filters/forbidden.filter';
 import { NotFoundFilter } from './filters/not-found.filter';
 import { ConflictFilter } from './filters/conflict.filter';
 import { AiNotConfiguredFilter } from './filters/ai-not-configured.filter';
+import { VerificationFilter } from './filters/verification.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -75,6 +77,7 @@ import { AiNotConfiguredFilter } from './filters/ai-not-configured.filter';
     { provide: APP_FILTER, useClass: NotFoundFilter },
     { provide: APP_FILTER, useClass: ConflictFilter },
     { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
+    { provide: APP_FILTER, useClass: VerificationFilter },
   ],
 })
 export class ApiModule {}

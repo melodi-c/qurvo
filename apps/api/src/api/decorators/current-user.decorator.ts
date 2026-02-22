@@ -5,6 +5,7 @@ export interface RequestUser {
   user_id: string;
   email: string;
   display_name: string;
+  email_verified: boolean;
 }
 
 export const CurrentUser = createParamDecorator(

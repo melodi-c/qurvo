@@ -44,6 +44,7 @@ export class SessionAuthGuard implements CanActivate {
         user_id: users.id,
         email: users.email,
         display_name: users.display_name,
+        email_verified: users.email_verified,
       })
       .from(sessions)
       .innerJoin(users, eq(sessions.user_id, users.id))

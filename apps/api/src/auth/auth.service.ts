@@ -13,6 +13,7 @@ import { hashToken } from '../utils/hash';
 import { TooManyRequestsException } from './exceptions/too-many-requests.exception';
 import { EmailConflictException } from './exceptions/email-conflict.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
+import { VerificationService } from '../verification/verification.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly verificationService: VerificationService,
   ) {}
 
   async register(input: { email: string; password: string; display_name: string }) {
@@ -55,12 +57,15 @@ export class AuthService {
 
     this.logger.log({ userId: user.id }, 'User registered');
 
+    await this.verificationService.sendVerificationCode(user.id, user.email);
+
     return {
       token,
       user: {
         id: user.id,
         email: user.email,
         display_name: user.display_name,
+        email_verified: false,
       },
     };
   }
@@ -128,6 +133,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         display_name: user.display_name,
+        email_verified: user.email_verified,
       },
     };
   }

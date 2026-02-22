@@ -49,6 +49,7 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
+  email_verified: boolean;
 }
 
 export interface AuthResponse {
@@ -75,10 +76,25 @@ export interface SessionUser {
   user_id: string;
   email: string;
   display_name: string;
+  email_verified: boolean;
 }
 
 export interface MeResponse {
   user: SessionUser;
+}
+
+export interface VerifyEmail {
+  /** @pattern /^\d{6}$/ */
+  code?: string;
+  /**
+   * @minLength 64
+   * @maxLength 64
+   */
+  token?: string;
+}
+
+export interface ResendVerificationResponse {
+  cooldown_seconds: number;
 }
 
 export interface ProjectWithRole {
@@ -828,6 +844,43 @@ export interface UEConfig {
   updated_at: string;
 }
 
+export interface AiChat {
+  /** @format uuid */
+  conversation_id?: string;
+  /** @format uuid */
+  project_id: string;
+  message: string;
+}
+
+export interface AiConversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiMessage {
+  content?: string | null;
+  tool_calls?: object;
+  tool_call_id?: string | null;
+  tool_name?: string | null;
+  tool_result?: object;
+  visualization_type?: string | null;
+  id: string;
+  role: string;
+  sequence: number;
+  created_at: string;
+}
+
+export interface AiConversationDetail {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages: AiMessage[];
+  has_more: boolean;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -865,6 +918,10 @@ export type UpdateMarketingChannelDtoChannelTypeEnum =
   | "facebook_ads"
   | "tiktok_ads"
   | "custom_api";
+
+export interface AuthControllerVerifyEmailByLinkParams {
+  token: string;
+}
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -1275,6 +1332,27 @@ export interface UnitEconomicsConfigControllerUpsertConfigParams {
   projectId: string;
 }
 
+export interface AiControllerListConversationsParams {
+  /** @format uuid */
+  project_id: string;
+}
+
+export interface AiControllerGetConversationParams {
+  /**
+   * @min 1
+   * @max 100
+   * @default 30
+   */
+  limit?: number;
+  /** @min 0 */
+  before_sequence?: number;
+  id: string;
+}
+
+export interface AiControllerDeleteConversationParams {
+  id: string;
+}
+
 import type {
   AxiosInstance,
   AxiosRequestConfig,
@@ -1523,6 +1601,63 @@ export class Api<
       this.request<MeResponse, any>({
         path: `/api/auth/me`,
         method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthControllerVerifyEmail
+     * @request POST:/api/auth/verify-email
+     * @secure
+     */
+    authControllerVerifyEmail: (
+      data: VerifyEmail,
+      params: RequestParams = {},
+    ) =>
+      this.request<OkResponse, any>({
+        path: `/api/auth/verify-email`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthControllerVerifyEmailByLink
+     * @request GET:/api/auth/verify-email
+     */
+    authControllerVerifyEmailByLink: (
+      query: AuthControllerVerifyEmailByLinkParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/auth/verify-email`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthControllerResendVerification
+     * @request POST:/api/auth/resend-verification
+     * @secure
+     */
+    authControllerResendVerification: (params: RequestParams = {}) =>
+      this.request<ResendVerificationResponse, any>({
+        path: `/api/auth/resend-verification`,
+        method: "POST",
         secure: true,
         format: "json",
         ...params,
@@ -2867,6 +3002,85 @@ export class Api<
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerChat
+     * @request POST:/api/ai/chat
+     * @secure
+     */
+    aiControllerChat: (data: AiChat, params: RequestParams = {}) =>
+      this.request<void, any>({
+        path: `/api/ai/chat`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerListConversations
+     * @request GET:/api/ai/conversations
+     * @secure
+     */
+    aiControllerListConversations: (
+      query: AiControllerListConversationsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiConversation[], any>({
+        path: `/api/ai/conversations`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerGetConversation
+     * @request GET:/api/ai/conversations/{id}
+     * @secure
+     */
+    aiControllerGetConversation: (
+      { id, ...query }: AiControllerGetConversationParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiConversationDetail, any>({
+        path: `/api/ai/conversations/${id}`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerDeleteConversation
+     * @request DELETE:/api/ai/conversations/{id}
+     * @secure
+     */
+    aiControllerDeleteConversation: (
+      { id, ...query }: AiControllerDeleteConversationParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/ai/conversations/${id}`,
+        method: "DELETE",
+        secure: true,
         ...params,
       }),
   };

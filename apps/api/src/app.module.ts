@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { ApiModule } from './api/api.module';
 import { HealthModule } from './health/health.module';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
       } as any,
     }),
     DatabaseModule,
+    EmailModule,
     ThrottlerModule.forRootAsync({
       imports: [DatabaseModule],
       useFactory: (storage: RedisThrottlerStorage) => ({

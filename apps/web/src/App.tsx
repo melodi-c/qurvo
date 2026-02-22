@@ -27,6 +27,7 @@ import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
 import UnitEconomicsPage from '@/pages/unit-economics';
 import AiPage from '@/pages/ai/index';
+import VerifyEmailPage from '@/pages/verify-email';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -35,9 +36,11 @@ const queryClient = new QueryClient({
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
+  const pendingVerification = useAuthStore((s) => s.pendingVerification);
 
   if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (pendingVerification) return <Navigate to="/verify-email" replace />;
   return <>{children}</>;
 }
 
@@ -52,6 +55,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route
         element={
           <ProtectedRoute>
