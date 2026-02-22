@@ -53,7 +53,7 @@ export class VerificationService {
     });
 
     const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
-    const verifyUrl = `${baseUrl}/verify-email?token=${tokenRaw}`;
+    const verifyUrl = `${baseUrl}/api/auth/verify-email?token=${tokenRaw}`;
 
     await this.emailProvider.sendEmailVerification(email, code, verifyUrl);
 
