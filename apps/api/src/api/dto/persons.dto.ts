@@ -1,11 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsOptional, IsInt, Min, Max, IsArray, ValidateNested } from 'class-validator';
+import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { StepFilterDto } from './shared/filters.dto';
 
 export class PersonsQueryDto {
   @IsUUID()
   project_id: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  search?: string;
 
   @ApiPropertyOptional({ type: [StepFilterDto] })
   @IsOptional()

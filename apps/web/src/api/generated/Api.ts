@@ -1040,6 +1040,7 @@ export interface DashboardsControllerRemoveWidgetParams {
 }
 
 export interface PersonsControllerGetPersonsParams {
+  search?: string;
   filters?: StepFilter[];
   /**
    * @min 1

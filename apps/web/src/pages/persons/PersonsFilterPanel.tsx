@@ -1,15 +1,24 @@
-import { Filter } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StepFilterRow } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
 import { usePersonPropertyNames } from './use-person-property-names';
 import type { StepFilter } from '@/api/generated/Api';
 
 interface PersonsFilterPanelProps {
+  search: string;
+  onSearchChange: (value: string) => void;
   filters: StepFilter[];
   onFiltersChange: (filters: StepFilter[]) => void;
 }
 
-export function PersonsFilterPanel({ filters, onFiltersChange }: PersonsFilterPanelProps) {
+export function PersonsFilterPanel({
+  search,
+  onSearchChange,
+  filters,
+  onFiltersChange,
+}: PersonsFilterPanelProps) {
   const { data: propertyNames = [] } = usePersonPropertyNames();
 
   const addFilter = () =>
@@ -23,8 +32,20 @@ export function PersonsFilterPanel({ filters, onFiltersChange }: PersonsFilterPa
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4">
+      <section className="space-y-2">
+        <SectionHeader icon={Search} label="Identifier" />
+        <Input
+          placeholder="Search by identifier..."
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="h-8 text-sm"
+        />
+      </section>
+
+      <Separator />
+
       <section className="space-y-3">
-        <SectionHeader icon={Filter} label="Filters" />
+        <SectionHeader icon={Filter} label="Property filters" />
         {filters.length > 0 && (
           <div className="space-y-2">
             {filters.map((f, i) => (

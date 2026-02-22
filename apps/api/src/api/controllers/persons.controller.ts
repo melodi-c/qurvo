@@ -39,6 +39,7 @@ export class PersonsController {
   ): Promise<PersonsListResponseDto> {
     const { persons, total } = await this.personsService.getPersons(user.user_id, {
       project_id: query.project_id,
+      search: query.search,
       filters: query.filters,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
