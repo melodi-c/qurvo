@@ -976,6 +976,35 @@ export interface AiConversationDetail {
   has_more: boolean;
 }
 
+export interface EventDefinition {
+  id?: string | null;
+  description?: string | null;
+  tags: string[];
+  updated_at?: string | null;
+  event_name: string;
+  count: number;
+  verified: boolean;
+}
+
+export interface UpsertEventDefinition {
+  description?: string;
+  tags?: string[];
+  verified?: boolean;
+}
+
+export interface UpsertEventDefinitionResponse {
+  description?: string | null;
+  tags: string[];
+  id: string;
+  project_id: string;
+  event_name: string;
+  verified: boolean;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -1470,6 +1499,15 @@ export interface AiControllerGetConversationParams {
 
 export interface AiControllerDeleteConversationParams {
   id: string;
+}
+
+export interface EventDefinitionsControllerListParams {
+  projectId: string;
+}
+
+export interface EventDefinitionsControllerUpsertParams {
+  projectId: string;
+  eventName: string;
 }
 
 import type {
@@ -3267,6 +3305,53 @@ export class Api<
         path: `/api/ai/conversations/${id}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Event Definitions
+     * @name EventDefinitionsControllerList
+     * @request GET:/api/projects/{projectId}/event-definitions
+     * @secure
+     */
+    eventDefinitionsControllerList: (
+      { projectId, ...query }: EventDefinitionsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<EventDefinition[], any>({
+        path: `/api/projects/${projectId}/event-definitions`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Event Definitions
+     * @name EventDefinitionsControllerUpsert
+     * @request PATCH:/api/projects/{projectId}/event-definitions/{eventName}
+     * @secure
+     */
+    eventDefinitionsControllerUpsert: (
+      {
+        projectId,
+        eventName,
+        ...query
+      }: EventDefinitionsControllerUpsertParams,
+      data: UpsertEventDefinition,
+      params: RequestParams = {},
+    ) =>
+      this.request<UpsertEventDefinitionResponse, any>({
+        path: `/api/projects/${projectId}/event-definitions/${eventName}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
   };
