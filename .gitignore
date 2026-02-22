@@ -14,3 +14,5 @@ kubeconfig*
 config.yaml
 .idea
 values.local-secrets.yaml
+
+.claude/worktrees/*
