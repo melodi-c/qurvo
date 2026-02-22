@@ -26,7 +26,14 @@ export type RetentionType = "first_time" | "recurring";
 
 export type TrendGranularity = "hour" | "day" | "week" | "month";
 
-export type TrendMetric = "total_events" | "unique_users" | "events_per_user";
+export type TrendMetric =
+  | "total_events"
+  | "unique_users"
+  | "events_per_user"
+  | "property_sum"
+  | "property_avg"
+  | "property_min"
+  | "property_max";
 
 export interface Register {
   /**
@@ -472,6 +479,7 @@ export interface TrendWidgetConfig {
   type: TrendWidgetConfigDtoTypeEnum;
   series: TrendSeries[];
   metric: TrendMetric;
+  metric_property?: string;
   granularity: TrendGranularity;
   chart_type: ChartType;
   breakdown_property?: string;
@@ -1257,6 +1265,7 @@ export interface TrendControllerGetTrendParams {
   /** @format uuid */
   project_id: string;
   series: TrendSeries[];
+  metric_property?: string;
   date_from: string;
   date_to: string;
   breakdown_property?: string;

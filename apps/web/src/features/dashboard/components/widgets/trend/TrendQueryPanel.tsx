@@ -32,7 +32,17 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
     { value: 'total_events', label: t('totalEvents') },
     { value: 'unique_users', label: t('uniqueUsers') },
     { value: 'events_per_user', label: t('eventsPerUser') },
+    { value: 'property_sum', label: t('propertySum') },
+    { value: 'property_avg', label: t('propertyAvg') },
+    { value: 'property_min', label: t('propertyMin') },
+    { value: 'property_max', label: t('propertyMax') },
   ], [t]);
+
+  const isPropertyMetric = config.metric.startsWith('property_');
+  const customPropertyNames = useMemo(
+    () => propertyNames.filter((n) => n.startsWith('properties.')),
+    [propertyNames],
+  );
 
   const granularityOptions = useMemo(() => [
     { value: 'hour', label: t('hour') },
@@ -89,7 +99,16 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               <span className="text-xs text-muted-foreground">{t('metric')}</span>
               <Select
                 value={config.metric}
-                onValueChange={(v) => onChange({ ...config, metric: v as TrendWidgetConfig['metric'] })}
+                onValueChange={(v) => {
+                  const next = v as TrendWidgetConfig['metric'];
+                  const wasProperty = config.metric.startsWith('property_');
+                  const isProperty = next.startsWith('property_');
+                  onChange({
+                    ...config,
+                    metric: next,
+                    ...(!isProperty && wasProperty ? { metric_property: undefined } : {}),
+                  });
+                }}
               >
                 <SelectTrigger size="sm">
                   <SelectValue />
@@ -122,6 +141,28 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               </Select>
             </div>
           </div>
+
+          {/* Property selector for property_* metrics */}
+          {isPropertyMetric && (
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground">{t('metricProperty')}</span>
+              <Select
+                value={config.metric_property ?? ''}
+                onValueChange={(v) => onChange({ ...config, metric_property: v || undefined })}
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue placeholder={t('selectProperty')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {customPropertyNames.map((name) => (
+                    <SelectItem key={name} value={name} className="text-sm">
+                      {name.replace('properties.', '')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Chart type */}
           <div className="space-y-1">

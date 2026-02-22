@@ -1,4 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { BadRequestException } from '@nestjs/common';
 import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 import { resolvePropertyExpr, buildPropertyFilterConditions } from '../utils/property-filter';
@@ -14,7 +15,8 @@ function granularityExpr(g: TrendGranularity): string {
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
-export type TrendMetric = 'total_events' | 'unique_users' | 'events_per_user';
+export type TrendMetric = 'total_events' | 'unique_users' | 'events_per_user'
+  | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
 export type TrendGranularity = 'hour' | 'day' | 'week' | 'month';
 
 export interface TrendFilter {
@@ -33,6 +35,7 @@ export interface TrendQueryParams {
   project_id: string;
   series: TrendSeries[];
   metric: TrendMetric;
+  metric_property?: string;
   granularity: TrendGranularity;
   date_from: string;
   date_to: string;
@@ -97,15 +100,44 @@ interface RawTrendRow {
   bucket: string;
   raw_value: string;
   uniq_value: string;
+  agg_value: string;
 }
 
 interface RawBreakdownRow extends RawTrendRow {
   breakdown_value: string;
 }
 
+function resolveNumericPropertyExpr(prop: string): string {
+  if (prop.startsWith('properties.')) {
+    const key = prop.slice('properties.'.length).replace(/'/g, "\\'");
+    return `toFloat64OrZero(JSONExtractRaw(properties, '${key}'))`;
+  }
+  if (prop.startsWith('user_properties.')) {
+    const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
+    return `toFloat64OrZero(JSONExtractRaw(user_properties, '${key}'))`;
+  }
+  throw new BadRequestException(`Unknown metric property: ${prop}`);
+}
+
+const AGG_FUNCTIONS: Record<string, string> = {
+  property_sum: 'sum',
+  property_avg: 'avg',
+  property_min: 'min',
+  property_max: 'max',
+};
+
+function buildAggColumn(metric: TrendMetric, metricProperty?: string): string {
+  const fn = AGG_FUNCTIONS[metric];
+  if (!fn) return '0 AS agg_value';
+  if (!metricProperty) throw new BadRequestException('metric_property is required for property aggregation metrics');
+  const expr = resolveNumericPropertyExpr(metricProperty);
+  return `${fn}(${expr}) AS agg_value`;
+}
+
 // ── Result assembly ───────────────────────────────────────────────────────────
 
-function assembleValue(metric: TrendMetric, raw: string, uniq: string): number {
+function assembleValue(metric: TrendMetric, raw: string, uniq: string, agg: string): number {
+  if (metric.startsWith('property_')) return Number(agg);
   if (metric === 'total_events') return Number(raw);
   if (metric === 'unique_users') return Number(uniq);
   // events_per_user
@@ -124,7 +156,7 @@ function assembleNonBreakdown(
     if (!grouped.has(idx)) grouped.set(idx, []);
     grouped.get(idx)!.push({
       bucket: row.bucket,
-      value: assembleValue(metric, row.raw_value, row.uniq_value),
+      value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
     });
   }
   return seriesMeta.map((s, idx) => ({
@@ -152,7 +184,7 @@ function assembleBreakdown(
     }
     grouped.get(key)!.push({
       bucket: row.bucket,
-      value: assembleValue(metric, row.raw_value, row.uniq_value),
+      value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
     });
   }
   const results: TrendSeriesResult[] = [];
@@ -186,6 +218,7 @@ async function executeTrendQuery(
 
   const bucketExpr = granularityExpr(params.granularity);
   const hasBreakdown = !!params.breakdown_property;
+  const aggCol = buildAggColumn(params.metric, params.metric_property);
 
   // Cohort filter clause
   const cohortClause = params.cohort_filters?.length
@@ -200,7 +233,8 @@ async function executeTrendQuery(
           ${idx} AS series_idx,
           ${bucketExpr} AS bucket,
           count() AS raw_value,
-          uniqExact(${RESOLVED_PERSON}) AS uniq_value
+          uniqExact(${RESOLVED_PERSON}) AS uniq_value,
+          ${aggCol}
         FROM events FINAL
         WHERE
           project_id = {project_id:UUID}
@@ -230,7 +264,8 @@ async function executeTrendQuery(
         ${breakdownExpr} AS breakdown_value,
         ${bucketExpr} AS bucket,
         count() AS raw_value,
-        uniqExact(${RESOLVED_PERSON}) AS uniq_value
+        uniqExact(${RESOLVED_PERSON}) AS uniq_value,
+        ${aggCol}
       FROM events FINAL
       WHERE
         project_id = {project_id:UUID}
@@ -253,7 +288,7 @@ async function executeTrendQuery(
       ORDER BY count() DESC
       LIMIT 25
     )
-    SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value
+    SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
     FROM (
       ${arms.join('\nUNION ALL\n')}
     )

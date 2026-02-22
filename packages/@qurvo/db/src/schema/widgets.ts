@@ -48,7 +48,9 @@ export interface TrendFormula {
 export interface TrendWidgetConfig {
   type: 'trend';
   series: TrendWidgetSeries[];
-  metric: 'total_events' | 'unique_users' | 'events_per_user';
+  metric: 'total_events' | 'unique_users' | 'events_per_user'
+    | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
+  metric_property?: string;
   granularity: 'hour' | 'day' | 'week' | 'month';
   chart_type: 'line' | 'bar';
   date_from: string;
