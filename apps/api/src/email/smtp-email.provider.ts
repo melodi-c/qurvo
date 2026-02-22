@@ -30,27 +30,41 @@ export class SmtpEmailProvider implements EmailProvider, OnModuleInit {
     await this.transporter.sendMail({
       from,
       to,
-      subject: 'Verify your Qurvo account',
+      subject: 'Подтвердите email — Qurvo',
       html: this.buildHtml(code, verifyUrl),
-      text: `Your verification code is: ${code}\n\nOr click here to verify: ${verifyUrl}\n\nThis code expires in 10 minutes.`,
+      text: `Ваш код подтверждения: ${code}\n\nИли перейдите по ссылке: ${verifyUrl}\n\nКод действителен 10 минут.`,
     });
 
     this.logger.log({ to }, 'Verification email sent');
   }
 
   private buildHtml(code: string, verifyUrl: string): string {
+    const digits = code.split('').join(' &nbsp; ');
     return `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
-        <h2 style="margin-bottom:8px">Verify your email</h2>
-        <p style="color:#71717a;margin-bottom:24px">Enter this code in the app to confirm your account:</p>
-        <div style="font-size:36px;font-weight:700;letter-spacing:8px;text-align:center;
-                    padding:24px;background:#18181b;border-radius:8px;color:#fafafa">
-          ${code}
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+                  max-width:480px;margin:0 auto;padding:40px 24px;color:#18181b">
+        <div style="text-align:center;margin-bottom:32px">
+          <span style="font-size:20px;font-weight:700;letter-spacing:-0.5px">Qurvo</span>
         </div>
-        <p style="margin-top:24px;color:#71717a;font-size:14px">
-          Or <a href="${verifyUrl}" style="color:#fafafa">click here to verify automatically</a>.
+        <h2 style="margin:0 0 8px;font-size:22px;font-weight:600">Подтвердите email</h2>
+        <p style="color:#71717a;margin:0 0 24px;font-size:15px;line-height:1.5">
+          Введите этот код в приложении для подтверждения аккаунта:
         </p>
-        <p style="color:#52525b;font-size:12px;margin-top:16px">This code expires in 10 minutes.</p>
+        <div style="font-size:32px;font-weight:700;letter-spacing:6px;text-align:center;
+                    padding:20px 24px;background:#18181b;border-radius:12px;color:#fafafa">
+          ${digits}
+        </div>
+        <div style="text-align:center;margin-top:24px">
+          <a href="${verifyUrl}"
+             style="display:inline-block;padding:12px 32px;background:#18181b;color:#fafafa;
+                    text-decoration:none;border-radius:8px;font-size:14px;font-weight:500">
+            Подтвердить автоматически
+          </a>
+        </div>
+        <p style="color:#a1a1aa;font-size:13px;margin-top:32px;text-align:center;line-height:1.5">
+          Код действителен 10 минут.<br>
+          Если вы не регистрировались в Qurvo, проигнорируйте это письмо.
+        </p>
       </div>
     `;
   }
