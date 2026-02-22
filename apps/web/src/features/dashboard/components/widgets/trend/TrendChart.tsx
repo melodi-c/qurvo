@@ -382,6 +382,30 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
         )}
       </div>
 
+      {/* Compact legend (dashboard mode) */}
+      {compact && allSeriesKeys.length > 1 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 px-1">
+          {allSeriesKeys.map((key, idx) => (
+            <div key={key} className="flex items-center gap-1 min-w-0">
+              <span
+                className="inline-block h-2 w-2 rounded-full shrink-0"
+                style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+              />
+              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{key}</span>
+            </div>
+          ))}
+          {formulaKeys.map((key, idx) => (
+            <div key={key} className="flex items-center gap-1 min-w-0">
+              <span
+                className="inline-block h-2 w-2 rounded-full shrink-0 border border-dashed"
+                style={{ borderColor: FORMULA_COLORS[idx % FORMULA_COLORS.length] }}
+              />
+              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{key}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Legend table (not in compact mode) */}
       {!compact && (allSeriesKeys.length > 0 || formulaKeys.length > 0) && (
         <div className="mt-4 border-t border-border/40">
