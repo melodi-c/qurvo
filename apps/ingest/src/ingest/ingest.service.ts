@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import { REDIS } from '../providers/redis.provider';
-import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN } from '../constants';
+import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_KEY_PREFIX, BILLING_EVENTS_TTL_SECONDS } from '../constants';
 import type { TrackEvent } from '../schemas/event';
 
 function resolveEventType(eventName: string): string {
@@ -40,6 +40,7 @@ export class IngestService {
     const ua = parseUa(userAgent);
     const payload = this.buildPayload(projectId, event, serverTime, ip, ua);
     await this.redis.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
+    this.incrementBillingCounter(projectId, 1);
     this.logger.log({ projectId, eventName: event.event }, 'Event ingested');
   }
 
@@ -61,6 +62,7 @@ export class IngestService {
         throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
       }
     }
+    this.incrementBillingCounter(projectId, events.length);
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
   }
 
@@ -130,6 +132,19 @@ export class IngestService {
 
     const resolvedMs = serverMs - offsetMs;
     return new Date(resolvedMs).toISOString();
+  }
+
+  private incrementBillingCounter(projectId: string, count: number): void {
+    const now = new Date();
+    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const counterKey = `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;
+
+    const pipeline = this.redis.pipeline();
+    pipeline.incrby(counterKey, count);
+    pipeline.expire(counterKey, BILLING_EVENTS_TTL_SECONDS);
+    pipeline.exec().catch((err: unknown) =>
+      this.logger.warn({ err, projectId }, 'Failed to increment billing counter'),
+    );
   }
 
   private flattenObject(obj: Record<string, string>): string[] {

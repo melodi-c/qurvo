@@ -1,5 +1,7 @@
 export { users } from './users';
 export { sessions } from './sessions';
+export { plans } from './plans';
+export type { PlanFeatures } from './plans';
 export { projects } from './projects';
 export { apiKeys } from './api-keys';
 export { projectMembers, projectRoleEnum } from './project-members';

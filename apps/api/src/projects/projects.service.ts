@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and, ne } from 'drizzle-orm';
-import { projects, projectMembers } from '@qurvo/db';
+import { projects, projectMembers, plans } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
 import { ProjectNotFoundException } from './exceptions/project-not-found.exception';
@@ -23,12 +23,14 @@ export class ProjectsService {
         id: projects.id,
         name: projects.name,
         slug: projects.slug,
+        plan: plans.slug,
         created_at: projects.created_at,
         updated_at: projects.updated_at,
         role: projectMembers.role,
       })
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.project_id, projects.id))
+      .leftJoin(plans, eq(projects.plan_id, plans.id))
       .where(eq(projectMembers.user_id, userId));
   }
 
@@ -38,12 +40,14 @@ export class ProjectsService {
         id: projects.id,
         name: projects.name,
         slug: projects.slug,
+        plan: plans.slug,
         created_at: projects.created_at,
         updated_at: projects.updated_at,
         role: projectMembers.role,
       })
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.project_id, projects.id))
+      .leftJoin(plans, eq(projects.plan_id, plans.id))
       .where(and(eq(projectMembers.project_id, projectId), eq(projectMembers.user_id, userId)))
       .limit(1);
 
@@ -54,9 +58,16 @@ export class ProjectsService {
   async create(userId: string, input: { name: string }) {
     const slug = slugify(input.name);
     const project = await this.db.transaction(async (tx) => {
+      const freePlan = await tx
+        .select({ id: plans.id })
+        .from(plans)
+        .where(eq(plans.slug, 'free'))
+        .limit(1);
+
       const [created] = await tx.insert(projects).values({
         name: input.name,
         slug,
+        plan_id: freePlan[0]?.id ?? null,
       }).returning();
 
       await tx.insert(projectMembers).values({
@@ -68,7 +79,7 @@ export class ProjectsService {
       return created;
     });
     this.logger.log({ projectId: project.id, userId }, 'Project created');
-    return project;
+    return this.getById(userId, project.id);
   }
 
   async update(userId: string, projectId: string, input: { name?: string }) {

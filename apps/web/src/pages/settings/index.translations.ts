@@ -6,11 +6,13 @@ export default createTranslations({
     general: 'General',
     members: 'Members',
     apiKeys: 'API Keys',
+    billing: 'Billing',
   },
   ru: {
     title: 'Настройки',
     general: 'Общие',
     members: 'Участники',
     apiKeys: 'API ключи',
+    billing: 'Тариф',
   },
 });

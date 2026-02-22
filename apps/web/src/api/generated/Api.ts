@@ -50,6 +50,7 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
+  language: string;
   email_verified: boolean;
 }
 
@@ -77,6 +78,7 @@ export interface SessionUser {
   user_id: string;
   email: string;
   display_name: string;
+  language: string;
   email_verified: boolean;
 }
 
@@ -106,7 +108,8 @@ export interface UpdateProfile {
    * @minLength 1
    * @maxLength 100
    */
-  display_name: string;
+  display_name?: string;
+  language?: UpdateProfileDtoLanguageEnum;
 }
 
 export interface ProfileResponse {
@@ -131,6 +134,7 @@ export interface ProjectWithRole {
   id: string;
   name: string;
   slug: string;
+  plan: string | null;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
@@ -149,6 +153,7 @@ export interface Project {
   id: string;
   name: string;
   slug: string;
+  plan: string | null;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
@@ -1089,6 +1094,28 @@ export interface WebAnalyticsGeographyResponse {
   cities: WebAnalyticsDimensionRow[];
 }
 
+export interface BillingStatus {
+  /** @example "free" */
+  plan: string;
+  /** @example "Free" */
+  plan_name: string;
+  /** @example 42130 */
+  events_this_month: number;
+  /** @example null */
+  events_limit?: number | null;
+  /** @example null */
+  data_retention_days?: number | null;
+  /** @example null */
+  max_projects?: number | null;
+  features: object;
+  /** @example "2026-02-01T00:00:00.000Z" */
+  period_start: string;
+  /** @example "2026-03-01T00:00:00.000Z" */
+  period_end: string;
+}
+
+export type UpdateProfileDtoLanguageEnum = "ru" | "en";
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -1661,6 +1688,10 @@ export interface WebAnalyticsControllerGetGeographyParams {
   date_from: string;
   date_to: string;
   force?: boolean;
+}
+
+export interface BillingControllerGetStatusParams {
+  projectId: string;
 }
 
 import type {
@@ -3657,6 +3688,26 @@ export class Api<
         path: `/api/web-analytics/geography`,
         method: "GET",
         query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Billing
+     * @name BillingControllerGetStatus
+     * @request GET:/api/projects/{projectId}/billing
+     * @secure
+     */
+    billingControllerGetStatus: (
+      { projectId, ...query }: BillingControllerGetStatusParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<BillingStatus, any>({
+        path: `/api/projects/${projectId}/billing`,
+        method: "GET",
         secure: true,
         format: "json",
         ...params,

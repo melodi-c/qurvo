@@ -15,22 +15,22 @@ export class ProjectsController {
 
   @Get()
   async list(@CurrentUser() user: RequestUser): Promise<ProjectWithRoleDto[]> {
-    return this.projectsService.list(user.user_id);
+    return this.projectsService.list(user.user_id) as any;
   }
 
   @Get(':id')
   async getById(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<ProjectWithRoleDto> {
-    return this.projectsService.getById(user.user_id, id);
+    return this.projectsService.getById(user.user_id, id) as any;
   }
 
   @Post()
   async create(@CurrentUser() user: RequestUser, @Body() body: CreateProjectDto): Promise<ProjectDto> {
-    return this.projectsService.create(user.user_id, body);
+    return this.projectsService.create(user.user_id, body) as any;
   }
 
   @Put(':id')
   async update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() body: UpdateProjectDto): Promise<ProjectDto> {
-    return this.projectsService.update(user.user_id, id, body);
+    return this.projectsService.update(user.user_id, id, body) as any;
   }
 
   @Delete(':id')

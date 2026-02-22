@@ -6,8 +6,9 @@ import translations from './index.translations';
 import { GeneralTab } from './general-tab';
 import { MembersTab } from './members-tab';
 import { ApiKeysTab } from './api-keys-tab';
+import { BillingTab } from './billing-tab';
 
-type TabId = 'general' | 'members' | 'keys';
+type TabId = 'general' | 'members' | 'keys' | 'billing';
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,6 +20,7 @@ export default function SettingsPage() {
     { id: 'general' as const, label: t('general') },
     { id: 'members' as const, label: t('members') },
     { id: 'keys' as const, label: t('apiKeys') },
+    { id: 'billing' as const, label: t('billing') },
   ];
 
   const setTab = (tab: TabId) => {
@@ -36,6 +38,7 @@ export default function SettingsPage() {
       {activeTab === 'general' && <GeneralTab projectId={projectId} />}
       {activeTab === 'members' && <MembersTab projectId={projectId} />}
       {activeTab === 'keys' && <ApiKeysTab projectId={projectId} />}
+      {activeTab === 'billing' && <BillingTab projectId={projectId} />}
     </div>
   );
 }
