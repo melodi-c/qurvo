@@ -6,25 +6,36 @@ import { SDK_VERSION } from './version';
 const SDK_NAME = '@qurvo/sdk-browser';
 const ANON_ID_KEY = 'qurvo_anonymous_id';
 const SESSION_ID_KEY = 'qurvo_session_id';
+const USER_ID_KEY = 'qurvo_user_id';
+
+function safeGetItem(storage: Storage, key: string): string | null {
+  try { return storage.getItem(key); } catch { return null; }
+}
+function safeSetItem(storage: Storage, key: string, value: string): void {
+  try { storage.setItem(key, value); } catch { /* noop */ }
+}
+function safeRemoveItem(storage: Storage, key: string): void {
+  try { storage.removeItem(key); } catch { /* noop */ }
+}
 
 function generateId(): string {
   return crypto.randomUUID?.() || Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
 function getAnonymousId(): string {
-  let id = localStorage.getItem(ANON_ID_KEY);
+  let id = safeGetItem(localStorage, ANON_ID_KEY);
   if (!id) {
     id = generateId();
-    localStorage.setItem(ANON_ID_KEY, id);
+    safeSetItem(localStorage, ANON_ID_KEY, id);
   }
   return id;
 }
 
 function getSessionId(): string {
-  let id = sessionStorage.getItem(SESSION_ID_KEY);
+  let id = safeGetItem(sessionStorage, SESSION_ID_KEY);
   if (!id) {
     id = generateId();
-    sessionStorage.setItem(SESSION_ID_KEY, id);
+    safeSetItem(sessionStorage, SESSION_ID_KEY, id);
   }
   return id;
 }
@@ -76,6 +87,7 @@ class QurvoBrowser {
       1000,
     );
     this.queue.start();
+    this.userId = safeGetItem(localStorage, USER_ID_KEY);
     this.initialized = true;
 
     if (config.autocapture !== false) {
@@ -104,6 +116,7 @@ class QurvoBrowser {
     if (!this.queue) return;
 
     this.userId = userId;
+    safeSetItem(localStorage, USER_ID_KEY, userId);
     const payload: EventPayload = {
       event: '$identify',
       distinct_id: userId,
@@ -117,6 +130,10 @@ class QurvoBrowser {
 
   page(properties?: Record<string, unknown>) {
     this.track('$pageview', properties);
+  }
+
+  screen(screenName: string, properties?: Record<string, unknown>) {
+    this.track('$screen', { $screen_name: screenName, ...properties });
   }
 
   set(properties: Record<string, unknown>) {
@@ -149,8 +166,9 @@ class QurvoBrowser {
 
   reset() {
     this.userId = null;
-    localStorage.removeItem(ANON_ID_KEY);
-    sessionStorage.removeItem(SESSION_ID_KEY);
+    safeRemoveItem(localStorage, ANON_ID_KEY);
+    safeRemoveItem(sessionStorage, SESSION_ID_KEY);
+    safeRemoveItem(localStorage, USER_ID_KEY);
   }
 
   private setupAutocapture() {
@@ -160,7 +178,17 @@ class QurvoBrowser {
       this.page();
     };
 
+    const originalReplaceState = history.replaceState;
+    history.replaceState = (...args) => {
+      originalReplaceState.apply(history, args);
+      this.page();
+    };
+
     window.addEventListener('popstate', () => {
+      this.page();
+    });
+
+    window.addEventListener('hashchange', () => {
       this.page();
     });
   }
