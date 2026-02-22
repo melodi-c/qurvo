@@ -11,7 +11,6 @@ import { TextTileDialog } from '@/features/dashboard/components/TextTileDialog';
 import { SaveBar } from '@/features/dashboard/components/SaveBar';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './[id].translations';
-import type { Widget } from '@/api/generated/Api';
 
 export default function DashboardBuilderPage() {
   const { t } = useLocalTranslation(translations);
@@ -57,19 +56,18 @@ export default function DashboardBuilderPage() {
   }
 
   const handleSave = async () => {
-    // Merge layout positions back into widget objects
-    // Filter out text tiles (no insight_id) — they're frontend-only for now
-    const mergedWidgets: Widget[] = store.localWidgets
-      .filter((w) => w.insight_id != null)
-      .map((widget) => {
-        const layoutItem = store.localLayout.find((l) => l.i === widget.id);
-        return layoutItem
-          ? {
-              ...widget,
-              layout: { x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h },
-            }
-          : widget;
-      });
+    // Merge layout positions back into widget objects, include text content
+    const mergedWidgets = store.localWidgets.map((widget) => {
+      const layoutItem = store.localLayout.find((l) => l.i === widget.id);
+      const textContent = store.widgetMeta[widget.id]?.textContent;
+      return {
+        ...widget,
+        layout: layoutItem
+          ? { x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h }
+          : widget.layout,
+        content: textContent ?? widget.content ?? undefined,
+      };
+    });
 
     await save({
       name: store.localName,

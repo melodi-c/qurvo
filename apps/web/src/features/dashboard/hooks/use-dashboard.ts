@@ -102,14 +102,16 @@ export function useSaveDashboard(dashboardId: string) {
   const addWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerAddWidget({ projectId, dashboardId }, {
-        insight_id: w.insight_id ?? '',
+        insight_id: w.insight_id ?? undefined,
         layout: w.layout,
+        content: w.content ?? undefined,
       }),
   });
   const updateWidget = useMutation({
     mutationFn: (w: Widget) =>
       api.dashboardsControllerUpdateWidget({ projectId, dashboardId, widgetId: w.id }, {
         layout: w.layout,
+        content: w.content ?? undefined,
       }),
   });
   const removeWidget = useMutation({

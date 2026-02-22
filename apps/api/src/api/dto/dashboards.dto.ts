@@ -160,11 +160,18 @@ export class PathsWidgetConfigDto {
 
 export class CreateWidgetDto {
   @IsUUID()
-  insight_id: string;
+  @IsOptional()
+  insight_id?: string;
 
   @IsObject()
   @Type(() => WidgetLayoutDto)
   layout: WidgetLayoutDto;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10000)
+  @ApiPropertyOptional()
+  content?: string;
 }
 
 export class UpdateWidgetDto {
@@ -176,6 +183,12 @@ export class UpdateWidgetDto {
   @IsOptional()
   @Type(() => WidgetLayoutDto)
   layout?: WidgetLayoutDto;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10000)
+  @ApiPropertyOptional()
+  content?: string;
 }
 
 // ── Response DTOs ─────────────────────────────────────────────────────────────
@@ -193,6 +206,7 @@ export class WidgetDto {
   dashboard_id: string;
   @ApiPropertyOptional() insight_id: string | null;
   layout: WidgetLayoutDto;
+  @ApiPropertyOptional() content: string | null;
   @ApiPropertyOptional() insight: InsightDto | null;
   created_at: Date;
   updated_at: Date;

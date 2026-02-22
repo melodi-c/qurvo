@@ -585,6 +585,7 @@ export interface WidgetLayout {
 
 export interface Widget {
   insight_id?: string | null;
+  content?: string | null;
   insight?: Insight | null;
   id: string;
   dashboard_id: string;
@@ -615,12 +616,16 @@ export interface UpdateDashboard {
 }
 
 export interface CreateWidget {
+  /** @maxLength 10000 */
+  content?: string;
   /** @format uuid */
-  insight_id: string;
+  insight_id?: string;
   layout: WidgetLayout;
 }
 
 export interface UpdateWidget {
+  /** @maxLength 10000 */
+  content?: string;
   /** @format uuid */
   insight_id?: string;
   layout?: WidgetLayout;

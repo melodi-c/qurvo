@@ -22,7 +22,7 @@ export function InsightCardViz({ widget, configOverride }: InsightCardVizProps) 
     return (
       <TextTileViz
         widgetId={widget.id}
-        content={widgetMeta?.textContent ?? ''}
+        content={widgetMeta?.textContent ?? widget.content ?? ''}
         isEditing={isEditing}
       />
     );

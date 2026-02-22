@@ -42,6 +42,7 @@ export class DashboardsService {
         dashboard_id: widgets.dashboard_id,
         insight_id: widgets.insight_id,
         layout: widgets.layout,
+        content: widgets.content,
         created_at: widgets.created_at,
         updated_at: widgets.updated_at,
         insight: insights,
@@ -58,6 +59,7 @@ export class DashboardsService {
         dashboard_id: row.dashboard_id,
         insight_id: row.insight_id,
         layout: row.layout,
+        content: row.content,
         created_at: row.created_at,
         updated_at: row.updated_at,
         insight: row.insight,
@@ -103,7 +105,7 @@ export class DashboardsService {
     userId: string,
     projectId: string,
     dashboardId: string,
-    input: { insight_id: string; layout: WidgetLayout },
+    input: { insight_id?: string; layout: WidgetLayout; content?: string },
   ) {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
@@ -113,8 +115,9 @@ export class DashboardsService {
       .insert(widgets)
       .values({
         dashboard_id: dashboardId,
-        insight_id: input.insight_id,
+        insight_id: input.insight_id ?? null,
         layout: input.layout,
+        content: input.content ?? null,
       })
       .returning();
     this.logger.log({ widgetId: widget.id, dashboardId, projectId, userId }, 'Widget added');
@@ -126,7 +129,7 @@ export class DashboardsService {
     projectId: string,
     dashboardId: string,
     widgetId: string,
-    input: { insight_id?: string; layout?: WidgetLayout },
+    input: { insight_id?: string; layout?: WidgetLayout; content?: string },
   ) {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
@@ -136,6 +139,7 @@ export class DashboardsService {
     const values: Record<string, unknown> = { updated_at: new Date() };
     if (input.insight_id !== undefined) values.insight_id = input.insight_id;
     if (input.layout !== undefined) values.layout = input.layout;
+    if (input.content !== undefined) values.content = input.content;
 
     const [updated] = await this.db
       .update(widgets)

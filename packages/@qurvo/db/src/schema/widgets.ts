@@ -1,4 +1,4 @@
-import { pgTable, uuid, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, jsonb, index, text } from 'drizzle-orm/pg-core';
 import { dashboards } from './dashboards';
 import { insights } from './insights';
 
@@ -126,6 +126,7 @@ export const widgets = pgTable(
     insight_id: uuid('insight_id')
       .references(() => insights.id, { onDelete: 'set null' }),
     layout: jsonb('layout').notNull().$type<WidgetLayout>(),
+    content: text('content'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

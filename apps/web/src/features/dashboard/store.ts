@@ -70,7 +70,14 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   widgetMeta: {},
   snapshot: null,
 
-  initSession: (id, name, widgets) =>
+  initSession: (id, name, widgets) => {
+    // Hydrate widgetMeta from server content field for text tiles
+    const meta: Record<string, LocalWidgetMeta> = {};
+    for (const w of widgets) {
+      if (w.content) {
+        meta[w.id] = { textContent: w.content };
+      }
+    }
     set({
       dashboardId: id,
       localName: name,
@@ -79,9 +86,10 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       isDirty: false,
       isEditing: false,
       filterOverrides: EMPTY_OVERRIDES,
-      widgetMeta: {},
+      widgetMeta: meta,
       snapshot: null,
-    }),
+    });
+  },
 
   setEditing: (editing) => set({ isEditing: editing }),
 
