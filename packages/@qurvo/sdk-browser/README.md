@@ -12,6 +12,32 @@ pnpm add @qurvo/sdk-browser
 yarn add @qurvo/sdk-browser
 ```
 
+## CDN / Script Tag
+
+Load the SDK directly via a `<script>` tag — no bundler required:
+
+```html
+<script src="https://unpkg.com/@qurvo/sdk-browser@latest/dist/qurvo.iife.js"></script>
+<script>
+  qurvo.init({
+    apiKey: 'qk_your_api_key',
+    endpoint: 'https://ingest.yourapp.com',
+  });
+</script>
+```
+
+Pin a specific version for production:
+
+```html
+<!-- unpkg -->
+<script src="https://unpkg.com/@qurvo/sdk-browser@0.0.9/dist/qurvo.iife.js"></script>
+
+<!-- jsdelivr -->
+<script src="https://cdn.jsdelivr.net/npm/@qurvo/sdk-browser@0.0.9/dist/qurvo.iife.js"></script>
+```
+
+The IIFE build exposes a global `qurvo` object with the same API as the ES module.
+
 ## Quick Start
 
 ```typescript

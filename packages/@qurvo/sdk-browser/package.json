@@ -13,7 +13,8 @@
   },
   "scripts": {
     "prebuild": "node -e \"const p=require('./package.json'); require('fs').writeFileSync('src/version.ts', 'export const SDK_VERSION = \\'' + p.version + '\\';\\n')\"",
-    "build": "tsc",
+    "build": "tsc && node esbuild.config.mjs",
+    "build:types": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist .turbo"
   },
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
+    "esbuild": "^0.25.0",
     "typescript": "^5.7.0"
   }
 }
