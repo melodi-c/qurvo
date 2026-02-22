@@ -14,9 +14,10 @@ interface StepFilterRowProps {
   onChange: (f: StepFilter) => void;
   onRemove: () => void;
   propertyNames?: string[];
+  propertyDescriptions?: Record<string, string>;
 }
 
-export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: StepFilterRowProps) {
+export function StepFilterRow({ filter, onChange, onRemove, propertyNames, propertyDescriptions }: StepFilterRowProps) {
   const { t } = useLocalTranslation(translations);
   const hasValue = !NO_VALUE_OPS.has(filter.operator);
 
@@ -38,6 +39,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             value={filter.property}
             onChange={(val) => onChange({ ...filter, property: val })}
             propertyNames={propertyNames}
+            descriptions={propertyDescriptions}
             className="h-8 min-w-0 flex-1 border-0 bg-transparent"
           />
         ) : (

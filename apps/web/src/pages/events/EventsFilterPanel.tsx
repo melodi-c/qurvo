@@ -29,7 +29,7 @@ export function EventsFilterPanel({
   onFiltersChange,
 }: EventsFilterPanelProps) {
   const { t } = useLocalTranslation(translations);
-  const { data: propertyNames = [] } = useEventPropertyNames(eventName);
+  const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames(eventName);
 
   const addFilter = () =>
     onFiltersChange([...filters, { property: '', operator: 'eq', value: '' }]);
@@ -86,6 +86,7 @@ export function EventsFilterPanel({
                 onChange={(updated) => updateFilter(i, updated)}
                 onRemove={() => removeFilter(i)}
                 propertyNames={propertyNames}
+                propertyDescriptions={propDescriptions}
               />
             ))}
           </div>

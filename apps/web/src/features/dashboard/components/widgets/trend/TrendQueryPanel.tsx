@@ -23,7 +23,7 @@ interface TrendQueryPanelProps {
 }
 
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
-  const { data: propertyNames = [] } = useEventPropertyNames();
+  const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames();
   const { t } = useLocalTranslation(translations);
 
   const metricOptions = useMemo(() => [
@@ -149,6 +149,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           value={config.breakdown_property || ''}
           onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
           propertyNames={propertyNames}
+          propertyDescriptions={propDescriptions}
         />
       </div>
     </aside>

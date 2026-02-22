@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { useEventNames } from '@/features/dashboard/hooks/use-event-names';
+import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';
 import translations from './EventNameCombobox.translations';
 
 interface EventNameComboboxProps {
@@ -29,10 +29,17 @@ export function EventNameCombobox({
   const { t } = useLocalTranslation(translations);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { data: eventNames = [] } = useEventNames();
+  const { data: definitions = [] } = useEventDefinitions();
+
+  const descriptions = useMemo(() => buildDescriptionMap(definitions), [definitions]);
+  const eventNames = useMemo(() => definitions.map((d) => d.event_name), [definitions]);
 
   const filtered = search
-    ? eventNames.filter((n) => n.toLowerCase().includes(search.toLowerCase()))
+    ? eventNames.filter((n) => {
+        const q = search.toLowerCase();
+        const desc = descriptions[n];
+        return n.toLowerCase().includes(q) || (desc && desc.toLowerCase().includes(q));
+      })
     : eventNames;
 
   const handleSelect = (name: string) => {
@@ -41,18 +48,21 @@ export function EventNameCombobox({
     setSearch('');
   };
 
+  const displayValue = value ? (descriptions[value] || value) : placeholder;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
           className={cn(
-            'flex h-8 w-full items-center rounded-sm border border-input bg-input/30 px-2 text-left font-mono text-xs outline-none transition-colors hover:bg-input/50',
+            'flex h-8 w-full items-center rounded-sm border border-input bg-input/30 px-2 text-left text-xs outline-none transition-colors hover:bg-input/50',
             !value && 'text-muted-foreground',
+            descriptions[value] ? 'font-sans' : 'font-mono',
             triggerClassName,
           )}
         >
-          <span className="flex-1 truncate">{value || placeholder}</span>
+          <span className="flex-1 truncate">{displayValue}</span>
         </button>
       </PopoverTrigger>
 
@@ -83,7 +93,16 @@ export function EventNameCombobox({
                 <Check
                   className={cn('h-3.5 w-3.5 flex-shrink-0', value === name ? 'opacity-100' : 'opacity-0')}
                 />
-                <span className="font-mono text-sm truncate">{name}</span>
+                <div className="min-w-0 flex-1">
+                  {descriptions[name] ? (
+                    <>
+                      <span className="text-sm truncate block">{descriptions[name]}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground truncate block">{name}</span>
+                    </>
+                  ) : (
+                    <span className="font-mono text-sm truncate block">{name}</span>
+                  )}
+                </div>
               </CommandItem>
             ))}
           </CommandList>

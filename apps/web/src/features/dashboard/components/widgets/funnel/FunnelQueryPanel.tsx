@@ -17,7 +17,7 @@ interface FunnelQueryPanelProps {
 }
 
 export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
-  const { data: propertyNames = [] } = useEventPropertyNames();
+  const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames();
   const { t } = useLocalTranslation(translations);
 
   return (
@@ -74,6 +74,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           value={config.breakdown_property || ''}
           onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
           propertyNames={propertyNames}
+          propertyDescriptions={propDescriptions}
         />
       </div>
     </aside>

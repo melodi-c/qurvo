@@ -7,9 +7,10 @@ interface BreakdownSectionProps {
   value: string;
   onChange: (value: string) => void;
   propertyNames?: string[];
+  propertyDescriptions?: Record<string, string>;
 }
 
-export function BreakdownSection({ value, onChange, propertyNames }: BreakdownSectionProps) {
+export function BreakdownSection({ value, onChange, propertyNames, propertyDescriptions }: BreakdownSectionProps) {
   return (
     <section className="space-y-3">
       <SectionHeader icon={SlidersHorizontal} label="Breakdown" />
@@ -18,6 +19,7 @@ export function BreakdownSection({ value, onChange, propertyNames }: BreakdownSe
           value={value}
           onChange={onChange}
           propertyNames={propertyNames}
+          descriptions={propertyDescriptions}
           className="h-8"
         />
       ) : (

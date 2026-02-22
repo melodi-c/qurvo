@@ -22,7 +22,7 @@ interface PropertyConditionRowProps {
 
 export function PropertyConditionRow({ condition, onChange, onRemove }: PropertyConditionRowProps) {
   const { t } = useLocalTranslation(translations);
-  const { data: propertyNames = [] } = usePersonPropertyNames();
+  const { data: propertyNames = [], descriptions } = usePersonPropertyNames();
   const needsValue = !['is_set', 'is_not_set'].includes(condition.operator);
 
   const operators = useMemo(() => [
@@ -51,6 +51,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
         value={condition.property}
         onChange={(v) => onChange({ ...condition, property: v })}
         propertyNames={propertyNames}
+        descriptions={descriptions}
         className="h-8 min-w-0"
       />
 

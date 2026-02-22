@@ -36,7 +36,7 @@ export function SettingsTab() {
   });
 
   const [dirty, setDirty] = useState(false);
-  const { data: propertyNames = [] } = useEventPropertyNames(form.purchase_event_name || undefined);
+  const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames(form.purchase_event_name || undefined);
 
   useEffect(() => {
     if (config) {
@@ -104,6 +104,7 @@ export function SettingsTab() {
             value={form.revenue_property ?? ''}
             onChange={(v) => updateField('revenue_property', v)}
             propertyNames={propertyNames}
+            descriptions={propDescriptions}
             className="h-9 w-full border border-border rounded-md bg-background px-3 text-sm font-sans"
           />
         </div>

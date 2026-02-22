@@ -62,7 +62,7 @@ export function QueryItemCard({
 }: QueryItemCardProps) {
   const { t } = useLocalTranslation(translations);
   const filters = item.filters ?? [];
-  const { data: propertyNames = [] } = useEventPropertyNames(item.event_name);
+  const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames(item.event_name);
 
   return (
     <div
@@ -119,6 +119,7 @@ export function QueryItemCard({
               onChange={(updated) => onFilterChange(fi, updated)}
               onRemove={() => onFilterRemove(fi)}
               propertyNames={propertyNames}
+              propertyDescriptions={propDescriptions}
             />
           ))}
         </div>
