@@ -43,6 +43,12 @@ const NEW_INSIGHT_TYPES: { type: InsightType; label: string; description: string
     description: 'Measure engagement frequency',
     path: '/insights/stickiness/new',
   },
+  {
+    type: 'paths',
+    label: 'Paths',
+    description: 'Explore user journey flows',
+    path: '/insights/paths/new',
+  },
 ];
 
 export function NewInsightDropdown() {

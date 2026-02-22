@@ -5,6 +5,7 @@ import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/Funn
 import { RetentionChart } from '@/features/dashboard/components/widgets/retention/RetentionChart';
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
+import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
 import { UEMetricsGrid } from '@/features/unit-economics/components/UEMetricsGrid';
 import { UEChart } from '@/features/unit-economics/components/UEChart';
 
@@ -75,6 +76,12 @@ export function AiToolResult({ result, visualizationType }: AiToolResultProps) {
         )}
         {visualizationType === 'stickiness_chart' && result.data && (
           <StickinessChart result={result} />
+        )}
+        {visualizationType === 'paths_chart' && result.transitions && (
+          <PathsChart
+            transitions={result.transitions}
+            topPaths={result.top_paths ?? []}
+          />
         )}
         {visualizationType === 'unit_economics' && result.totals && (
           <>
