@@ -7,6 +7,7 @@ import {
   EventsQueryDto, EventRowDto,
   EventDetailDto, EventDetailQueryDto,
   EventNamesQueryDto, EventNamesResponseDto,
+  EventPropertyNamesQueryDto, EventPropertyNamesResponseDto,
 } from '../dto/events.dto';
 
 @ApiTags('Analytics')
@@ -40,5 +41,14 @@ export class EventsController {
   ): Promise<EventNamesResponseDto> {
     const event_names = await this.eventsService.getEventNames(user.user_id, query.project_id);
     return { event_names };
+  }
+
+  @Get('event-property-names')
+  async getEventPropertyNames(
+    @CurrentUser() user: RequestUser,
+    @Query() query: EventPropertyNamesQueryDto,
+  ): Promise<EventPropertyNamesResponseDto> {
+    const property_names = await this.eventsService.getEventPropertyNames(user.user_id, query.project_id);
+    return { property_names } as any;
   }
 }

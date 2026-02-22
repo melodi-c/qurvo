@@ -5,9 +5,10 @@ import type { FunnelStep, StepFilter } from '@/api/generated/Api';
 interface FunnelStepBuilderProps {
   steps: FunnelStep[];
   onChange: (steps: FunnelStep[]) => void;
+  propertyNames?: string[];
 }
 
-export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
+export function FunnelStepBuilder({ steps, onChange, propertyNames }: FunnelStepBuilderProps) {
   const drag = useDragReorder(steps, onChange);
 
   const updateStep = (i: number, patch: Partial<FunnelStep>) => {
@@ -60,6 +61,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
             onFilterAdd={() => addFilter(i)}
             onFilterChange={(fi, f) => updateFilter(i, fi, f)}
             onFilterRemove={(fi) => removeFilter(i, fi)}
+            propertyNames={propertyNames}
             draggable
             isDragOver={drag.overIdx === i && drag.dragIdx !== null && drag.dragIdx !== i}
             onDragStart={(e) => drag.handleDragStart(i, e)}

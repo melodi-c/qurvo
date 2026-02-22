@@ -251,6 +251,10 @@ export interface EventNamesResponse {
   event_names: string[];
 }
 
+export interface EventPropertyNamesResponse {
+  property_names: string[];
+}
+
 export interface TrendSeries {
   event_name: string;
   label: string;
@@ -933,6 +937,11 @@ export interface EventsControllerGetEventDetailParams {
 }
 
 export interface EventsControllerGetEventNamesParams {
+  /** @format uuid */
+  project_id: string;
+}
+
+export interface EventsControllerGetEventPropertyNamesParams {
   /** @format uuid */
   project_id: string;
 }
@@ -1760,6 +1769,27 @@ export class Api<
     ) =>
       this.request<EventNamesResponse, any>({
         path: `/api/analytics/event-names`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name EventsControllerGetEventPropertyNames
+     * @request GET:/api/analytics/event-property-names
+     * @secure
+     */
+    eventsControllerGetEventPropertyNames: (
+      query: EventsControllerGetEventPropertyNamesParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<EventPropertyNamesResponse, any>({
+        path: `/api/analytics/event-property-names`,
         method: "GET",
         query: query,
         secure: true,

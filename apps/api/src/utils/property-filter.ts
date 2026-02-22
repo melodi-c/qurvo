@@ -8,7 +8,7 @@ export interface PropertyFilter {
   value?: string;
 }
 
-const DIRECT_COLUMNS = new Set([
+export const DIRECT_COLUMNS = new Set([
   'event_name', 'distinct_id', 'session_id',
   'url', 'referrer', 'page_title', 'page_path',
   'device_type', 'browser', 'browser_version',
