@@ -31,8 +31,10 @@ export default function DashboardBuilderPage() {
     }
   // Re-init when fresh server data arrives (e.g. after widget editor saves),
   // but not while the user is actively editing in-place.
+  // Also re-run when isEditing changes to false (e.g. after save) so that
+  // fresh server data is picked up even if the refetch completed during editing.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboard]);
+  }, [dashboard, store.isEditing]);
 
   if (!projectId) {
     return (

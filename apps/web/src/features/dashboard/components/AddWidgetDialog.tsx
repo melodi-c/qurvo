@@ -36,7 +36,7 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
         dashboardId,
         widget: { insight_id: insight.id, layout },
       });
-      store.addWidget({ ...created, layout });
+      store.addWidget({ ...created, insight, layout });
       toast.success(`Added "${insight.name}" to dashboard`);
       onClose();
     } catch {

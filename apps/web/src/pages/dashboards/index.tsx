@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDashboardList, useCreateDashboard, useDeleteDashboard } from '@/features/dashboard/hooks/use-dashboard';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
-import { GridSkeleton } from '@/components/ui/grid-skeleton';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
@@ -69,39 +68,33 @@ export default function DashboardsPage() {
             />
           )}
 
-          {isLoading && <GridSkeleton />}
+          {isLoading && <ListSkeleton count={5} height="h-12" />}
 
           {!isLoading && (dashboards || []).length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1">
               {(dashboards || []).map((dashboard) => (
-                <Card
+                <div
                   key={dashboard.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
                   onClick={() => navigate(`/dashboards/${dashboard.id}?project=${projectId}`)}
+                  className="group flex items-center gap-3 rounded-lg border border-border px-4 py-3 cursor-pointer transition-colors hover:bg-accent/50"
                 >
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <LayoutDashboard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <CardTitle className="text-base truncate">{dashboard.name}</CardTitle>
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          confirmDelete.requestDelete(dashboard.id, dashboard.name);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <LayoutDashboard className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{dashboard.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(dashboard.updated_at), { addSuffix: true })}
                     </p>
-                  </CardHeader>
-                </Card>
+                  </div>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0 p-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmDelete.requestDelete(dashboard.id, dashboard.name);
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
