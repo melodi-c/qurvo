@@ -32,7 +32,8 @@ export abstract class BaseAiTool<T extends ZodType = ZodType> {
   abstract readonly visualizationType: string | null;
 
   definition(): ChatCompletionTool {
-    const schema = zodToJsonSchema(this.argsSchema, { target: 'openApi3' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const schema = (zodToJsonSchema as any)(this.argsSchema, { target: 'openApi3' });
     delete (schema as Record<string, unknown>)['$schema'];
     return {
       type: 'function',
