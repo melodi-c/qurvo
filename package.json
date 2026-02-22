@@ -17,7 +17,7 @@
     "test:integration": "turbo test:integration"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@nestjs/core", "argon2", "geoip-lite", "@swc/core"]
+    "onlyBuiltDependencies": ["esbuild", "@nestjs/core", "argon2", "@swc/core"]
   },
   "devDependencies": {
     "turbo": "^2.8.0"

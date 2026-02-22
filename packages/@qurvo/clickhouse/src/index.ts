@@ -35,4 +35,5 @@ export interface Event {
   timestamp: string;
   ingested_at?: string;
   batch_id?: string;
+  ip?: string;
 }
