@@ -1,5 +1,7 @@
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
+export const SERIES_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
+
 export function defaultTrendConfig(): TrendWidgetConfig {
   const now = new Date();
   const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);

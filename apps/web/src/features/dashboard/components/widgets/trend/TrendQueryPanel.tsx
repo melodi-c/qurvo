@@ -3,6 +3,7 @@ import {
   TrendingUp,
   BarChart3,
   ArrowLeftRight,
+  FunctionSquare,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +13,7 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
+import { FormulaBuilder } from './FormulaBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendQueryPanel.translations';
@@ -62,6 +64,18 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           <TrendSeriesBuilder
             series={config.series}
             onChange={(series) => onChange({ ...config, series })}
+          />
+        </section>
+
+        <Separator />
+
+        {/* Formulas */}
+        <section className="space-y-3">
+          <SectionHeader icon={FunctionSquare} label={t('formulas')} />
+          <FormulaBuilder
+            formulas={config.formulas ?? []}
+            seriesCount={config.series.length}
+            onChange={(formulas) => onChange({ ...config, formulas: formulas.length ? formulas : undefined })}
           />
         </section>
 

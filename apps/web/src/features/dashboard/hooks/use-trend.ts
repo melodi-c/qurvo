@@ -25,6 +25,7 @@ function configHash(config: TrendWidgetConfig): string {
     compare: config.compare,
     chart_type: config.chart_type,
     cohort_ids: config.cohort_ids,
+    formulas: config.formulas,
   });
 }
 

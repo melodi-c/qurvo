@@ -122,6 +122,7 @@ export default function TrendEditorPage() {
                   previousSeries={result?.series_previous}
                   chartType={config.chart_type}
                   granularity={config.granularity}
+                  formulas={config.formulas}
                 />
               </div>
             </div>

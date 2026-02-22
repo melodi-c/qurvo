@@ -127,6 +127,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           chartType={config.chart_type}
           granularity={config.granularity}
           compact
+          formulas={config.formulas}
         />
       </div>
     </div>

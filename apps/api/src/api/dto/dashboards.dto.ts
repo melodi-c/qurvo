@@ -52,6 +52,12 @@ export class FunnelWidgetConfigDto {
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
+export class TrendFormulaDto {
+  id: string;
+  label: string;
+  expression: string;
+}
+
 export class TrendWidgetConfigDto {
   @ApiProperty({ enum: ['trend'] })
   type: 'trend';
@@ -73,6 +79,7 @@ export class TrendWidgetConfigDto {
   @ApiPropertyOptional() breakdown_property?: string;
   compare: boolean;
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
+  @ApiPropertyOptional({ type: [TrendFormulaDto] }) formulas?: TrendFormulaDto[];
 }
 
 export class RetentionWidgetConfigDto {
