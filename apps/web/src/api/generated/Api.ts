@@ -1005,6 +1005,37 @@ export interface UpsertEventDefinitionResponse {
   updated_at: string;
 }
 
+export interface PropertyDefinition {
+  property_type: PropertyDefinitionDtoPropertyTypeEnum;
+  id?: string | null;
+  description?: string | null;
+  tags: string[];
+  updated_at?: string | null;
+  property_name: string;
+  count: number;
+  verified: boolean;
+}
+
+export interface UpsertPropertyDefinition {
+  description?: string;
+  tags?: string[];
+  verified?: boolean;
+}
+
+export interface UpsertPropertyDefinitionResponse {
+  property_type: UpsertPropertyDefinitionResponseDtoPropertyTypeEnum;
+  description?: string | null;
+  tags: string[];
+  id: string;
+  project_id: string;
+  property_name: string;
+  verified: boolean;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -1044,6 +1075,12 @@ export type UpdateMarketingChannelDtoChannelTypeEnum =
   | "facebook_ads"
   | "tiktok_ads"
   | "custom_api";
+
+export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
+
+export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
+  | "event"
+  | "person";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -1508,6 +1545,23 @@ export interface EventDefinitionsControllerListParams {
 export interface EventDefinitionsControllerUpsertParams {
   projectId: string;
   eventName: string;
+}
+
+export interface PropertyDefinitionsControllerListParams {
+  type?: TypeEnum1;
+  projectId: string;
+}
+
+export type TypeEnum1 = "event" | "person";
+
+export type PropertyDefinitionsControllerListParams1TypeEnum =
+  | "event"
+  | "person";
+
+export interface PropertyDefinitionsControllerUpsertParams {
+  projectId: string;
+  propertyType: string;
+  propertyName: string;
 }
 
 import type {
@@ -3347,6 +3401,55 @@ export class Api<
     ) =>
       this.request<UpsertEventDefinitionResponse, any>({
         path: `/api/projects/${projectId}/event-definitions/${eventName}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Property Definitions
+     * @name PropertyDefinitionsControllerList
+     * @request GET:/api/projects/{projectId}/property-definitions
+     * @secure
+     */
+    propertyDefinitionsControllerList: (
+      { projectId, ...query }: PropertyDefinitionsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PropertyDefinition[], any>({
+        path: `/api/projects/${projectId}/property-definitions`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Property Definitions
+     * @name PropertyDefinitionsControllerUpsert
+     * @request PATCH:/api/projects/{projectId}/property-definitions/{propertyType}/{propertyName}
+     * @secure
+     */
+    propertyDefinitionsControllerUpsert: (
+      {
+        projectId,
+        propertyType,
+        propertyName,
+        ...query
+      }: PropertyDefinitionsControllerUpsertParams,
+      data: UpsertPropertyDefinition,
+      params: RequestParams = {},
+    ) =>
+      this.request<UpsertPropertyDefinitionResponse, any>({
+        path: `/api/projects/${projectId}/property-definitions/${propertyType}/${propertyName}`,
         method: "PATCH",
         body: data,
         secure: true,
