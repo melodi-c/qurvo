@@ -9,17 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InsightTypeIcon } from './InsightTypeIcon';
 import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from '@/api/generated/Api';
-
-function getEditorPath(insight: Insight): string {
-  const base: Record<string, string> = {
-    trend: '/insights/trends',
-    funnel: '/insights/funnels',
-    retention: '/insights/retentions',
-    lifecycle: '/insights/lifecycles',
-    stickiness: '/insights/stickiness',
-  };
-  return `${base[insight.type]}/${insight.id}`;
-}
+import { routes } from '@/lib/routes';
 
 function getTypeSubtitle(insight: Insight): string {
   if (insight.type === 'trend') {
@@ -68,7 +58,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const handleRowClick = useCallback(
-    (row: Insight) => navigate(`${getEditorPath(row)}?project=${projectId}`),
+    (row: Insight) => navigate(routes.insights.detailByType(row.type, row.id, projectId)),
     [navigate, projectId],
   );
 
@@ -146,7 +136,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0"
-            onClick={() => navigate(`${getEditorPath(row)}?project=${projectId}`)}
+            onClick={() => navigate(routes.insights.detailByType(row.type, row.id, projectId))}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>

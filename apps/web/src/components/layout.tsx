@@ -14,25 +14,26 @@ import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
+import { routes, routePatterns } from '@/lib/routes';
 
 const sidebarSections = [
   {
     title: 'Product',
     items: [
-      { path: '/dashboards', label: 'Dashboards', icon: LayoutDashboard },
-      { path: '/insights',        label: 'Insights',        icon: Lightbulb },
-      { path: '/unit-economics',  label: 'Unit Economics',  icon: Calculator },
-      { path: '/cohorts',         label: 'Cohorts',         icon: UsersRound },
-      { path: '/persons',    label: 'Persons',    icon: Users },
-      { path: '/events',     label: 'Events',     icon: List },
-      { path: '/ai',          label: 'AI Assistant', icon: Sparkles },
+      { path: routePatterns.dashboards.list, label: 'Dashboards', icon: LayoutDashboard },
+      { path: routePatterns.insights.list,   label: 'Insights',        icon: Lightbulb },
+      { path: routePatterns.unitEconomics,   label: 'Unit Economics',  icon: Calculator },
+      { path: routePatterns.cohorts.list,    label: 'Cohorts',         icon: UsersRound },
+      { path: routePatterns.persons.list,    label: 'Persons',    icon: Users },
+      { path: routePatterns.events,          label: 'Events',     icon: List },
+      { path: routePatterns.ai,             label: 'AI Assistant', icon: Sparkles },
     ],
   },
   {
     title: 'Configure',
     items: [
-      { path: '/data-management', label: 'Data Management', icon: Database },
-      { path: '/settings', label: 'Settings', icon: Settings },
+      { path: routePatterns.dataManagement, label: 'Data Management', icon: Database },
+      { path: routePatterns.settings, label: 'Settings', icon: Settings },
     ],
   },
 ];
@@ -74,11 +75,11 @@ export default function Layout() {
   }
 
   const userInitial = user?.display_name?.slice(0, 1).toUpperCase() ?? '?';
-  const logoHref = hasProjects ? navLink('/dashboards') : '/projects';
+  const logoHref = hasProjects ? navLink(routePatterns.dashboards.list) : routes.projects();
 
   // Redirect to /projects when user has no projects and is not already there
-  if (projectsLoaded && !hasProjects && location.pathname !== '/projects' && !location.pathname.startsWith('/profile')) {
-    return <Navigate to="/projects" replace />;
+  if (projectsLoaded && !hasProjects && location.pathname !== routePatterns.projects && !location.pathname.startsWith(routePatterns.profile)) {
+    return <Navigate to={routes.projects()} replace />;
   }
 
   return (
@@ -191,7 +192,7 @@ export default function Layout() {
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/projects')}>
+                <DropdownMenuItem onClick={() => navigate(routes.projects())}>
                   <Plus className="h-3.5 w-3.5 mr-2" />
                   New Project
                 </DropdownMenuItem>
@@ -218,7 +219,7 @@ export default function Layout() {
                 <p className="text-xs text-muted-foreground mt-1">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <DropdownMenuItem onClick={() => navigate(routes.profile())}>
                 <User className="h-4 w-4 mr-2" />
                 <span className="flex-1">Profile</span>
                 {pendingInvitesCount > 0 && (
