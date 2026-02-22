@@ -140,7 +140,7 @@ export function AiChatPanel({
             onKeyDown={handleKeyDown}
             placeholder="Ask about your analytics data..."
             rows={1}
-            className="flex-1 resize-none bg-accent/30 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
+            className="flex-1 resize-none bg-input/30 border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
             style={{ minHeight: '38px' }}
             disabled={isStreaming}
           />

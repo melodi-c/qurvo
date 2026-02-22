@@ -34,14 +34,14 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             value={filter.property}
             onChange={(val) => onChange({ ...filter, property: val })}
             propertyNames={propertyNames}
-            className="h-8 min-w-0 flex-1 border-0"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent"
           />
         ) : (
           <Input
             value={filter.property}
             onChange={(e) => onChange({ ...filter, property: e.target.value })}
             placeholder="property (e.g. properties.plan)"
-            className="h-8 min-w-0 flex-1 border-0 bg-transparent px-2 text-xs shadow-none font-mono"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent shadow-none px-2 text-xs font-mono"
           />
         )}
         <button
@@ -77,7 +77,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             value={filter.value ?? ''}
             onChange={(e) => onChange({ ...filter, value: e.target.value })}
             placeholder="value"
-            className="h-8 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none"
+            className="h-8 min-w-0 flex-1 px-2 text-xs shadow-none"
           />
         )}
       </div>

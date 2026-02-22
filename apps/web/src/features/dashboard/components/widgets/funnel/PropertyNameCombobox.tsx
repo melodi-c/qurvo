@@ -42,7 +42,7 @@ export function PropertyNameCombobox({
         <button
           type="button"
           className={cn(
-            'flex items-center rounded-sm border border-border/60 bg-muted/30 px-2 text-left font-mono text-xs outline-none transition-colors hover:border-border focus:border-border focus:bg-background',
+            'flex items-center rounded-sm border border-input bg-input/30 px-2 text-left font-mono text-xs outline-none transition-colors hover:bg-input/50',
             !value && 'text-muted-foreground',
             className,
           )}

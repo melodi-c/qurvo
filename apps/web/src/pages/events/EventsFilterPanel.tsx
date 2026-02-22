@@ -47,7 +47,7 @@ export function EventsFilterPanel({
             value={eventName}
             onChange={onEventNameChange}
             placeholder="All events"
-            className="min-w-0 flex-1 border-0"
+            className="min-w-0 flex-1 border-0 bg-transparent"
           />
           {eventName && (
             <button

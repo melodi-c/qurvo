@@ -43,7 +43,7 @@ export function CohortSelector({ value, onChange }: CohortSelectorProps) {
         <button
           type="button"
           className={cn(
-            'flex h-8 w-full items-center rounded-md border border-border bg-background px-3 text-left text-sm transition-colors hover:bg-accent/50',
+            'flex h-8 w-full items-center rounded-md border border-input bg-input/30 px-3 text-left text-sm transition-colors hover:bg-input/50',
             !value.length && 'text-muted-foreground',
           )}
         >
