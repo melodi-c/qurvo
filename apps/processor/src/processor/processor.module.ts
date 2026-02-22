@@ -6,6 +6,7 @@ import { ClickHouseProvider, CLICKHOUSE } from '../providers/clickhouse.provider
 import { DrizzleProvider } from '../providers/drizzle.provider';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
+import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonWriterService } from './person-writer.service';
@@ -18,6 +19,7 @@ import { GeoService } from './geo.service';
     DrizzleProvider,
     FlushService,
     DlqService,
+    CohortMembershipService,
     PersonResolverService,
     PersonWriterService,
     GeoService,
@@ -31,11 +33,13 @@ export class ProcessorModule implements OnApplicationShutdown {
     private readonly eventConsumerService: EventConsumerService,
     private readonly flushService: FlushService,
     private readonly dlqService: DlqService,
+    private readonly cohortMembershipService: CohortMembershipService,
   ) {}
 
   async onApplicationShutdown() {
     await this.eventConsumerService.shutdown();
     this.dlqService.stop();
+    this.cohortMembershipService.stop();
     this.flushService.stopTimer();
     await this.flushService.flush();
     await this.ch.close();

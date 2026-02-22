@@ -1,6 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type { CohortDefinition } from '@qurvo/db';
-import { buildCohortFilterClause } from '../cohorts/cohorts.query';
+import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 import { resolvePropertyExpr, buildPropertyFilterConditions } from '../utils/property-filter';
 
@@ -39,7 +38,7 @@ export interface TrendQueryParams {
   date_to: string;
   breakdown_property?: string;
   compare?: boolean;
-  cohort_filters?: CohortDefinition[];
+  cohort_filters?: CohortFilterInput[];
 }
 
 export interface TrendDataPoint {

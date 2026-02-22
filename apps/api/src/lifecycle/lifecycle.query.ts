@@ -1,6 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type { CohortDefinition } from '@qurvo/db';
-import { buildCohortFilterClause } from '../cohorts/cohorts.query';
+import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 
 function granularityTruncExpr(granularity: LifecycleGranularity, col: string): string {
@@ -54,7 +53,7 @@ export interface LifecycleQueryParams {
   granularity: LifecycleGranularity;
   date_from: string;
   date_to: string;
-  cohort_filters?: CohortDefinition[];
+  cohort_filters?: CohortFilterInput[];
 }
 
 export interface LifecycleDataPoint {

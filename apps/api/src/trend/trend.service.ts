@@ -35,12 +35,16 @@ export class TrendService {
 
     const { widget_id, force, cohort_ids, ...queryParams } = params;
 
-    // Resolve cohort IDs to definitions
+    // Resolve cohort IDs to filter inputs (materialized or inline)
     if (cohort_ids?.length) {
-      const definitions = await Promise.all(
-        cohort_ids.map((id) => this.cohortsService.getCohortDefinition(userId, params.project_id, id)),
+      const rows = await Promise.all(
+        cohort_ids.map((id) => this.cohortsService.getById(userId, params.project_id, id)),
       );
-      queryParams.cohort_filters = definitions;
+      queryParams.cohort_filters = rows.map((c) => ({
+        cohort_id: c.id,
+        definition: c.definition,
+        materialized: c.membership_version !== null,
+      }));
     }
     const cacheKey = this.buildCacheKey(widget_id, queryParams);
 
