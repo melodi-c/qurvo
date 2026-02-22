@@ -10,6 +10,7 @@ export default function VerifyEmailPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verified, setVerified] = useState(false);
   const [cooldown, setCooldown] = useState(60);
   const [searchParams] = useSearchParams();
 
@@ -22,10 +23,16 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (searchParams.get('verified') === 'true') {
-      checkAuth().then(() => navigate('/'));
+      setVerified(true);
+      checkAuth().then(() => {
+        const token = localStorage.getItem('qurvo_token');
+        if (token) {
+          navigate('/');
+        }
+      });
     }
     if (searchParams.get('error') === 'invalid') {
-      setError('The verification link is invalid or has expired. Please request a new code.');
+      setError('Ссылка недействительна или устарела. Запросите новый код.');
     }
   }, [searchParams, checkAuth, navigate]);
 
@@ -49,7 +56,7 @@ export default function VerifyEmailPage() {
       await verifyEmail(code);
       navigate('/');
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Verification failed';
+      const msg = err?.response?.data?.message || err?.message || 'Ошибка верификации';
       setError(msg);
     } finally {
       setLoading(false);
@@ -66,25 +73,45 @@ export default function VerifyEmailPage() {
       if (secondsRemaining) {
         setCooldown(secondsRemaining);
       }
-      const msg = err?.response?.data?.message || err?.message || 'Failed to resend code';
+      const msg = err?.response?.data?.message || err?.message || 'Не удалось отправить код';
       setError(msg);
     }
   }, [resendVerification]);
+
+  if (verified) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Email подтверждён</CardTitle>
+            <CardDescription>
+              Ваш аккаунт успешно подтверждён.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => navigate('/login')}>
+              Войти
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Verify your email</CardTitle>
+          <CardTitle className="text-2xl">Подтвердите email</CardTitle>
           <CardDescription>
-            We sent a 6-digit code to <strong>{user?.email}</strong>. Enter it below to continue.
+            Мы отправили 6-значный код на <strong>{user?.email}</strong>. Введите его ниже.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="space-y-2">
-              <Label htmlFor="code">Verification code</Label>
+              <Label htmlFor="code">Код подтверждения</Label>
               <Input
                 id="code"
                 value={code}
@@ -97,7 +124,7 @@ export default function VerifyEmailPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
-              {loading ? 'Verifying...' : 'Verify'}
+              {loading ? 'Проверяем...' : 'Подтвердить'}
             </Button>
             <div className="text-center">
               <Button
@@ -107,7 +134,7 @@ export default function VerifyEmailPage() {
                 disabled={cooldown > 0}
                 onClick={handleResend}
               >
-                {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                {cooldown > 0 ? `Отправить повторно через ${cooldown}с` : 'Отправить код повторно'}
               </Button>
             </div>
           </form>
