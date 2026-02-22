@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { List } from 'lucide-react';
@@ -9,32 +9,21 @@ import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
 import { EventsFilterPanel } from './EventsFilterPanel';
-import type { StepFilter } from '@/api/generated/Api';
-
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-interface EventsFilterState {
-  eventName: string;
-  dateFrom: string;
-  dateTo: string;
-  filters: StepFilter[];
-}
+import { useEventsFilters } from './use-events-filters';
 
 export default function EventsPage() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
 
-  const [filterState, setFilterState] = useState<EventsFilterState>({
-    eventName: '',
-    dateFrom: daysAgo(7),
-    dateTo: new Date().toISOString().slice(0, 10),
-    filters: [],
-  });
-  const [page, setPage] = useState(0);
+  const {
+    filterState,
+    page,
+    setPage,
+    handleEventNameChange,
+    handleDateChange,
+    handleFiltersChange,
+  } = useEventsFilters();
+
   const limit = 50;
 
   const debouncedFilters = useDebounce(filterState, 400);
@@ -65,21 +54,6 @@ export default function EventsPage() {
     },
     enabled: !!projectId,
   });
-
-  const handleEventNameChange = useCallback((eventName: string) => {
-    setFilterState((s) => ({ ...s, eventName }));
-    setPage(0);
-  }, []);
-
-  const handleDateChange = useCallback((dateFrom: string, dateTo: string) => {
-    setFilterState((s) => ({ ...s, dateFrom, dateTo }));
-    setPage(0);
-  }, []);
-
-  const handleFiltersChange = useCallback((filters: StepFilter[]) => {
-    setFilterState((s) => ({ ...s, filters }));
-    setPage(0);
-  }, []);
 
   return (
     <div className="space-y-6">
