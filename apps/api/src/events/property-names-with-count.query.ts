@@ -8,8 +8,12 @@ export interface PropertyNameWithCount {
 
 export async function queryPropertyNamesWithCount(
   ch: ClickHouseClient,
-  params: { project_id: string },
+  params: { project_id: string; event_name?: string },
 ): Promise<PropertyNameWithCount[]> {
+  const eventFilter = params.event_name
+    ? `AND event_name = {event_name:String}`
+    : '';
+
   const sql = `
     SELECT property_name, property_type, cnt
     FROM (
@@ -24,6 +28,7 @@ export async function queryPropertyNamesWithCount(
           project_id = {project_id:UUID}
           AND timestamp >= now() - INTERVAL 30 DAY
           AND properties != '{}'
+          ${eventFilter}
       )
       GROUP BY key
 
@@ -40,6 +45,7 @@ export async function queryPropertyNamesWithCount(
           project_id = {project_id:UUID}
           AND timestamp >= now() - INTERVAL 30 DAY
           AND user_properties != '{}'
+          ${eventFilter}
       )
       GROUP BY key
     )
@@ -47,9 +53,12 @@ export async function queryPropertyNamesWithCount(
     LIMIT 500
   `;
 
+  const query_params: Record<string, string> = { project_id: params.project_id };
+  if (params.event_name) query_params.event_name = params.event_name;
+
   const result = await ch.query({
     query: sql,
-    query_params: { project_id: params.project_id },
+    query_params,
     format: 'JSONEachRow',
   });
 

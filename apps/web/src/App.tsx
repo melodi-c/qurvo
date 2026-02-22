@@ -30,6 +30,7 @@ import UnitEconomicsPage from '@/pages/unit-economics';
 import AiPage from '@/pages/ai/index';
 import VerifyEmailPage from '@/pages/verify-email';
 import EventDefinitionsPage from '@/pages/event-definitions';
+import EventDefinitionDetailPage from '@/pages/event-definition-detail';
 import { routes, routePatterns } from '@/lib/routes';
 
 const queryClient = new QueryClient({
@@ -99,7 +100,8 @@ function AppRoutes() {
         <Route path={routePatterns.persons.list} element={<PersonsPage />} />
         <Route path={routePatterns.persons.detail} element={<PersonDetailPage />} />
         <Route path={routePatterns.ai} element={<AiPage />} />
-        <Route path={routePatterns.dataManagement} element={<EventDefinitionsPage />} />
+        <Route path={routePatterns.dataManagement.list} element={<EventDefinitionsPage />} />
+        <Route path={routePatterns.dataManagement.detail} element={<EventDefinitionDetailPage />} />
       </Route>
     </Routes>
   );

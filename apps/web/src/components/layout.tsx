@@ -32,7 +32,7 @@ const sidebarSections = [
   {
     title: 'Configure',
     items: [
-      { path: routePatterns.dataManagement, label: 'Data Management', icon: Database },
+      { path: routePatterns.dataManagement.list, label: 'Data Management', icon: Database },
       { path: routePatterns.settings, label: 'Settings', icon: Settings },
     ],
   },

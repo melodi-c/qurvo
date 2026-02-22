@@ -27,6 +27,11 @@ export class PropertyDefinitionQueryDto {
   @IsIn(['event', 'person'])
   @ApiPropertyOptional({ enum: ['event', 'person'] })
   type?: 'event' | 'person';
+
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional()
+  event_name?: string;
 }
 
 // ── Response DTOs ─────────────────────────────────────────────────────────────

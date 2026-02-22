@@ -78,7 +78,10 @@ export const routes = {
   },
 
   ai: () => '/ai',
-  dataManagement: () => '/data-management',
+  dataManagement: {
+    list: () => '/data-management',
+    detail: (eventName: string) => `/data-management/${encodeURIComponent(eventName)}`,
+  },
 };
 
 /** Route patterns for React Router <Route path="..."> definitions */
@@ -124,7 +127,10 @@ export const routePatterns = {
   },
 
   ai: '/ai',
-  dataManagement: '/data-management',
+  dataManagement: {
+    list: '/data-management',
+    detail: '/data-management/:eventName',
+  },
 
   legacy: {
     trends: '/trends',

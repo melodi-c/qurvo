@@ -3,13 +3,13 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { UpsertPropertyDefinition } from '@/api/generated/Api';
 
-export function usePropertyDefinitions(type?: 'event' | 'person') {
+export function usePropertyDefinitions(type?: 'event' | 'person', eventName?: string) {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';
 
   return useQuery({
-    queryKey: ['propertyDefinitions', projectId, type],
-    queryFn: () => api.propertyDefinitionsControllerList({ projectId, type }),
+    queryKey: ['propertyDefinitions', projectId, type, eventName],
+    queryFn: () => api.propertyDefinitionsControllerList({ projectId, type, event_name: eventName }),
     enabled: !!projectId,
   });
 }
