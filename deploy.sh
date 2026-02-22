@@ -230,11 +230,12 @@ fi
 echo "==> Deploying to Kubernetes..."
 
 # global.imageTag = api tag (migrations use api image)
-HELM_SET_ARGS=(--set "global.imageTag=$(get_app_tag api)")
+# Use --set-string to prevent Helm from interpreting numeric-looking tags as int64
+HELM_SET_ARGS=(--set-string "global.imageTag=$(get_app_tag api)")
 
 # Per-app tags
 for app in "${ALL_APPS[@]}"; do
-  HELM_SET_ARGS+=(--set "${app}.image.tag=$(get_app_tag "$app")")
+  HELM_SET_ARGS+=(--set-string "${app}.image.tag=$(get_app_tag "$app")")
 done
 
 HELM_EXTRA_ARGS=()
