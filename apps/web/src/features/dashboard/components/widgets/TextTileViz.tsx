@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useDashboardStore } from '../../store';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TextTileViz.translations';
@@ -10,11 +11,22 @@ interface TextTileVizProps {
 
 export function TextTileViz({ widgetId, content, isEditing }: TextTileVizProps) {
   const setWidgetMeta = useDashboardStore((s) => s.setWidgetMeta);
+  const focusedTextTile = useDashboardStore((s) => s.focusedTextTile);
+  const clearTextFocus = useDashboardStore((s) => s.clearTextFocus);
   const { t } = useLocalTranslation(translations);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (focusedTextTile === widgetId && textareaRef.current) {
+      textareaRef.current.focus();
+      clearTextFocus();
+    }
+  }, [focusedTextTile, widgetId, clearTextFocus]);
 
   if (isEditing) {
     return (
       <textarea
+        ref={textareaRef}
         className="drag-cancel w-full h-full resize-none bg-transparent text-sm text-foreground
                    placeholder:text-muted-foreground focus:outline-none"
         placeholder={t('placeholder')}

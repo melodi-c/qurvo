@@ -12,6 +12,7 @@ interface InsightCardProps {
 
 export function InsightCard({ widget }: InsightCardProps) {
   const filterOverrides = useDashboardStore((s) => s.filterOverrides);
+  const requestTextFocus = useDashboardStore((s) => s.requestTextFocus);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const isTextTile = !widget.insight;
@@ -23,9 +24,7 @@ export function InsightCard({ widget }: InsightCardProps) {
     : baseConfig;
 
   const handleToggleDetails = useCallback(() => setDetailsOpen((v) => !v), []);
-
-  // Text editing happens inline via TextTileViz in edit mode.
-  // The "Edit text" menu item is a no-op hint for now (text tiles auto-edit in edit mode).
+  const handleEditText = useCallback(() => requestTextFocus(widget.id), [requestTextFocus, widget.id]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -33,6 +32,7 @@ export function InsightCard({ widget }: InsightCardProps) {
         widget={widget}
         detailsOpen={detailsOpen}
         onToggleDetails={handleToggleDetails}
+        onEditText={isTextTile ? handleEditText : undefined}
       />
 
       {detailsOpen && !isTextTile && mergedConfig && (

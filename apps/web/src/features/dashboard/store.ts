@@ -48,6 +48,9 @@ interface DashboardStore {
   clearFilterOverrides: () => void;
   setWidgetMeta: (widgetId: string, meta: Partial<LocalWidgetMeta>) => void;
   addTextTile: (content: string) => void;
+  focusedTextTile: string | null;
+  requestTextFocus: (widgetId: string) => void;
+  clearTextFocus: () => void;
 }
 
 function widgetsToLayout(widgets: Widget[]): RglItem[] {
@@ -70,6 +73,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   filterOverrides: EMPTY_OVERRIDES,
   widgetMeta: {},
   snapshot: null,
+  focusedTextTile: null,
 
   initSession: (id, name, widgets) => {
     // Hydrate widgetMeta from server content field for text tiles
@@ -170,6 +174,9 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       },
       isDirty: true,
     })),
+
+  requestTextFocus: (widgetId) => set({ focusedTextTile: widgetId }),
+  clearTextFocus: () => set({ focusedTextTile: null }),
 
   addTextTile: (content) =>
     set((s) => {
