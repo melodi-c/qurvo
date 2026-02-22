@@ -35,7 +35,6 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           <FunnelStepBuilder
             steps={config.steps}
             onChange={(steps) => onChange({ ...config, steps })}
-            propertyNames={propertyNames}
           />
         </section>
 

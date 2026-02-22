@@ -48,7 +48,7 @@ export class EventsController {
     @CurrentUser() user: RequestUser,
     @Query() query: EventPropertyNamesQueryDto,
   ): Promise<EventPropertyNamesResponseDto> {
-    const property_names = await this.eventsService.getEventPropertyNames(user.user_id, query.project_id);
+    const property_names = await this.eventsService.getEventPropertyNames(user.user_id, query.project_id, query.event_name);
     return { property_names } as any;
   }
 }

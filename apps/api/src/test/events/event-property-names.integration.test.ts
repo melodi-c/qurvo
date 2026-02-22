@@ -132,6 +132,57 @@ describe('queryEventPropertyNames', () => {
     expect(resultB).not.toContain('properties.secret');
   });
 
+  it('filters properties by event_name when provided', async () => {
+    const projectId = randomUUID();
+    const personId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'purchase',
+        timestamp: ts(1),
+        properties: JSON.stringify({ plan: 'premium', amount: '99' }),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'page_view',
+        timestamp: ts(1),
+        properties: JSON.stringify({ path: '/home', referrer_tag: 'google' }),
+      }),
+    ]);
+
+    // With event_name filter — only purchase properties
+    const purchaseResult = await queryEventPropertyNames(ctx.ch, {
+      project_id: projectId,
+      event_name: 'purchase',
+    });
+    expect(purchaseResult).toContain('properties.plan');
+    expect(purchaseResult).toContain('properties.amount');
+    expect(purchaseResult).not.toContain('properties.path');
+    expect(purchaseResult).not.toContain('properties.referrer_tag');
+
+    // With event_name filter — only page_view properties
+    const pageViewResult = await queryEventPropertyNames(ctx.ch, {
+      project_id: projectId,
+      event_name: 'page_view',
+    });
+    expect(pageViewResult).toContain('properties.path');
+    expect(pageViewResult).toContain('properties.referrer_tag');
+    expect(pageViewResult).not.toContain('properties.plan');
+    expect(pageViewResult).not.toContain('properties.amount');
+
+    // Without event_name — all properties
+    const allResult = await queryEventPropertyNames(ctx.ch, {
+      project_id: projectId,
+    });
+    expect(allResult).toContain('properties.plan');
+    expect(allResult).toContain('properties.amount');
+    expect(allResult).toContain('properties.path');
+    expect(allResult).toContain('properties.referrer_tag');
+  });
+
   it('returns results sorted alphabetically', async () => {
     const projectId = randomUUID();
     const personId = randomUUID();

@@ -26,7 +26,7 @@ export function EventsFilterPanel({
   filters,
   onFiltersChange,
 }: EventsFilterPanelProps) {
-  const { data: propertyNames = [] } = useEventPropertyNames();
+  const { data: propertyNames = [] } = useEventPropertyNames(eventName);
 
   const addFilter = () =>
     onFiltersChange([...filters, { property: '', operator: 'eq', value: '' }]);

@@ -42,12 +42,14 @@ export class EventsService {
     return names;
   }
 
-  async getEventPropertyNames(userId: string, projectId: string): Promise<string[]> {
+  async getEventPropertyNames(userId: string, projectId: string, eventName?: string): Promise<string[]> {
     await this.projectsService.getMembership(userId, projectId);
-    const cacheKey = `event_property_names:${projectId}`;
+    const cacheKey = eventName
+      ? `event_property_names:${projectId}:${eventName}`
+      : `event_property_names:${projectId}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached) as string[];
-    const names = await queryEventPropertyNames(this.ch, { project_id: projectId });
+    const names = await queryEventPropertyNames(this.ch, { project_id: projectId, event_name: eventName });
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', EVENT_PROPERTY_NAMES_CACHE_TTL_SECONDS);
     return names;
   }

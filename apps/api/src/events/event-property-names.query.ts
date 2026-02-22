@@ -3,12 +3,17 @@ import { DIRECT_COLUMNS } from '../utils/property-filter';
 
 export interface EventPropertyNamesQueryParams {
   project_id: string;
+  event_name?: string;
 }
 
 export async function queryEventPropertyNames(
   ch: ClickHouseClient,
   params: EventPropertyNamesQueryParams,
 ): Promise<string[]> {
+  const eventFilter = params.event_name
+    ? `AND event_name = {event_name:String}`
+    : '';
+
   const sql = `
     SELECT DISTINCT key
     FROM (
@@ -18,6 +23,7 @@ export async function queryEventPropertyNames(
         project_id = {project_id:UUID}
         AND timestamp >= now() - INTERVAL 90 DAY
         AND properties != '{}'
+        ${eventFilter}
 
       UNION ALL
 
@@ -27,14 +33,18 @@ export async function queryEventPropertyNames(
         project_id = {project_id:UUID}
         AND timestamp >= now() - INTERVAL 90 DAY
         AND user_properties != '{}'
+        ${eventFilter}
     )
     ORDER BY key
     LIMIT 500
   `;
 
+  const query_params: Record<string, string> = { project_id: params.project_id };
+  if (params.event_name) query_params.event_name = params.event_name;
+
   const result = await ch.query({
     query: sql,
-    query_params: { project_id: params.project_id },
+    query_params,
     format: 'JSONEachRow',
   });
 
