@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Widget } from '@/api/generated/Api';
+import { type DashboardFilterOverrides, EMPTY_OVERRIDES } from './lib/filter-overrides';
 
 export interface RglItem {
   i: string;
@@ -9,6 +10,17 @@ export interface RglItem {
   h: number;
 }
 
+export interface LocalWidgetMeta {
+  textContent?: string;
+}
+
+interface Snapshot {
+  widgets: Widget[];
+  layout: RglItem[];
+  name: string;
+  widgetMeta: Record<string, LocalWidgetMeta>;
+}
+
 interface DashboardStore {
   dashboardId: string | null;
   isEditing: boolean;
@@ -16,6 +28,9 @@ interface DashboardStore {
   localWidgets: Widget[];
   localLayout: RglItem[];
   localName: string;
+  filterOverrides: DashboardFilterOverrides;
+  widgetMeta: Record<string, LocalWidgetMeta>;
+  snapshot: Snapshot | null;
 
   initSession: (id: string, name: string, widgets: Widget[]) => void;
   setEditing: (editing: boolean) => void;
@@ -23,8 +38,25 @@ interface DashboardStore {
   updateLayout: (layout: readonly RglItem[]) => void;
   addWidget: (widget: Widget) => void;
   removeWidget: (widgetId: string) => void;
-  discardChanges: (serverWidgets: Widget[], serverName: string) => void;
   markSaved: () => void;
+
+  // New actions
+  enterEditMode: () => void;
+  cancelEditMode: () => void;
+  setFilterOverrides: (overrides: Partial<DashboardFilterOverrides>) => void;
+  clearFilterOverrides: () => void;
+  setWidgetMeta: (widgetId: string, meta: Partial<LocalWidgetMeta>) => void;
+  addTextTile: (content: string) => void;
+}
+
+function widgetsToLayout(widgets: Widget[]): RglItem[] {
+  return widgets.map((w) => ({
+    i: w.id,
+    x: w.layout.x,
+    y: w.layout.y,
+    w: w.layout.w,
+    h: w.layout.h,
+  }));
 }
 
 export const useDashboardStore = create<DashboardStore>((set) => ({
@@ -34,20 +66,21 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   localWidgets: [],
   localLayout: [],
   localName: '',
+  filterOverrides: EMPTY_OVERRIDES,
+  widgetMeta: {},
+  snapshot: null,
+
   initSession: (id, name, widgets) =>
     set({
       dashboardId: id,
       localName: name,
       localWidgets: widgets,
-      localLayout: widgets.map((w) => ({
-        i: w.id,
-        x: w.layout.x,
-        y: w.layout.y,
-        w: w.layout.w,
-        h: w.layout.h,
-      })),
+      localLayout: widgetsToLayout(widgets),
       isDirty: false,
       isEditing: false,
+      filterOverrides: EMPTY_OVERRIDES,
+      widgetMeta: {},
+      snapshot: null,
     }),
 
   setEditing: (editing) => set({ isEditing: editing }),
@@ -74,22 +107,75 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     set((s) => ({
       localWidgets: s.localWidgets.filter((w) => w.id !== widgetId),
       localLayout: s.localLayout.filter((l) => l.i !== widgetId),
+      widgetMeta: Object.fromEntries(
+        Object.entries(s.widgetMeta).filter(([k]) => k !== widgetId),
+      ),
       isDirty: true,
     })),
 
-  discardChanges: (serverWidgets, serverName) =>
-    set({
-      localWidgets: serverWidgets,
-      localName: serverName,
-      localLayout: serverWidgets.map((w) => ({
-        i: w.id,
-        x: w.layout.x,
-        y: w.layout.y,
-        w: w.layout.w,
-        h: w.layout.h,
-      })),
-      isDirty: false,
+  markSaved: () => set({ isDirty: false, snapshot: null }),
+
+  enterEditMode: () =>
+    set((s) => ({
+      isEditing: true,
+      snapshot: {
+        widgets: s.localWidgets,
+        layout: s.localLayout,
+        name: s.localName,
+        widgetMeta: s.widgetMeta,
+      },
+    })),
+
+  cancelEditMode: () =>
+    set((s) => {
+      if (!s.snapshot) return { isEditing: false, isDirty: false };
+      return {
+        isEditing: false,
+        isDirty: false,
+        localWidgets: s.snapshot.widgets,
+        localLayout: s.snapshot.layout,
+        localName: s.snapshot.name,
+        widgetMeta: s.snapshot.widgetMeta,
+        snapshot: null,
+      };
     }),
 
-  markSaved: () => set({ isDirty: false }),
+  setFilterOverrides: (overrides) =>
+    set((s) => ({
+      filterOverrides: { ...s.filterOverrides, ...overrides },
+    })),
+
+  clearFilterOverrides: () =>
+    set({ filterOverrides: EMPTY_OVERRIDES }),
+
+  setWidgetMeta: (widgetId, meta) =>
+    set((s) => ({
+      widgetMeta: {
+        ...s.widgetMeta,
+        [widgetId]: { ...s.widgetMeta[widgetId], ...meta },
+      },
+      isDirty: true,
+    })),
+
+  addTextTile: (content) =>
+    set((s) => {
+      const id = `text-${crypto.randomUUID()}`;
+      const maxY = s.localLayout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
+      const layout = { x: 0, y: maxY, w: 3, h: 2 };
+      const newWidget: Widget = {
+        id,
+        dashboard_id: s.dashboardId ?? '',
+        insight_id: null,
+        insight: null,
+        layout,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      return {
+        localWidgets: [...s.localWidgets, newWidget],
+        localLayout: [...s.localLayout, { i: id, ...layout }],
+        widgetMeta: { ...s.widgetMeta, [id]: { textContent: content } },
+        isDirty: true,
+      };
+    }),
 }));

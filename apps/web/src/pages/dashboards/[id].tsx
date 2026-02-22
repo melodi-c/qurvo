@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/ui/page-header';
-import { Plus, Pencil, X } from 'lucide-react';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
+import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
+import { DashboardFilterBar } from '@/features/dashboard/components/DashboardFilterBar';
 import { DashboardGrid } from '@/features/dashboard/components/DashboardGrid';
+import { EditModeToolbar } from '@/features/dashboard/components/EditModeToolbar';
 import { AddWidgetDialog } from '@/features/dashboard/components/AddWidgetDialog';
+import { TextTileDialog } from '@/features/dashboard/components/TextTileDialog';
 import { SaveBar } from '@/features/dashboard/components/SaveBar';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './[id].translations';
@@ -21,6 +21,7 @@ export default function DashboardBuilderPage() {
   const { data: dashboard, isLoading } = useDashboard(id!);
   const { save, isPending } = useSaveDashboard(id!);
   const [showAddWidget, setShowAddWidget] = useState(false);
+  const [showTextDialog, setShowTextDialog] = useState(false);
 
   const store = useDashboardStore();
 
@@ -57,15 +58,18 @@ export default function DashboardBuilderPage() {
 
   const handleSave = async () => {
     // Merge layout positions back into widget objects
-    const mergedWidgets: Widget[] = store.localWidgets.map((widget) => {
-      const layoutItem = store.localLayout.find((l) => l.i === widget.id);
-      return layoutItem
-        ? {
-            ...widget,
-            layout: { x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h },
-          }
-        : widget;
-    });
+    // Filter out text tiles (no insight_id) — they're frontend-only for now
+    const mergedWidgets: Widget[] = store.localWidgets
+      .filter((w) => w.insight_id != null)
+      .map((widget) => {
+        const layoutItem = store.localLayout.find((l) => l.i === widget.id);
+        return layoutItem
+          ? {
+              ...widget,
+              layout: { x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h },
+            }
+          : widget;
+      });
 
     await save({
       name: store.localName,
@@ -77,62 +81,28 @@ export default function DashboardBuilderPage() {
   };
 
   const handleDiscard = () => {
-    store.discardChanges(
-      dashboard.widgets || [],
-      dashboard.name,
-    );
-    store.setEditing(false);
+    store.cancelEditMode();
   };
 
   return (
-    <div className={`space-y-4 ${store.isEditing && store.isDirty ? 'pb-24' : ''}`}>
-      {/* Header */}
-      <PageHeader
-        title={
-          store.isEditing ? (
-            <Input
-              value={store.localName}
-              onChange={(e) => store.setLocalName(e.target.value)}
-              className="text-base font-semibold h-auto py-1"
-            />
-          ) : (
-            <h1 className="text-base font-semibold truncate">{store.localName}</h1>
-          )
-        }
-      >
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {store.isEditing && (
-            <Button onClick={() => setShowAddWidget(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('addWidget')}
-            </Button>
-          )}
-          <Button
-            variant={store.isEditing ? 'secondary' : 'outline'}
-            onClick={() => store.setEditing(!store.isEditing)}
-          >
-            {store.isEditing ? (
-              <>
-                <X className="h-4 w-4 mr-2" />
-                {t('cancel')}
-              </>
-            ) : (
-              <>
-                <Pencil className="h-4 w-4 mr-2" />
-                {t('edit')}
-              </>
-            )}
-          </Button>
-        </div>
-      </PageHeader>
+    <div className={`space-y-4 ${store.isEditing && store.isDirty ? 'pb-32' : ''}`}>
+      <DashboardHeader />
 
-      {/* Grid */}
-      <DashboardGrid />
+      <DashboardFilterBar />
 
-      {/* Add Widget Dialog */}
+      <DashboardGrid
+        onAddInsight={() => setShowAddWidget(true)}
+        onAddText={() => setShowTextDialog(true)}
+      />
+
+      <EditModeToolbar
+        onAddInsight={() => setShowAddWidget(true)}
+        onAddText={() => setShowTextDialog(true)}
+      />
+
       <AddWidgetDialog open={showAddWidget} onClose={() => setShowAddWidget(false)} />
+      <TextTileDialog open={showTextDialog} onClose={() => setShowTextDialog(false)} />
 
-      {/* Save Bar */}
       {store.isEditing && store.isDirty && (
         <SaveBar onSave={handleSave} onDiscard={handleDiscard} isSaving={isPending} />
       )}

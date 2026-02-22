@@ -1,52 +1,93 @@
-import GridLayout from 'react-grid-layout';
+import { useCallback } from 'react';
+import { Responsive as ResponsiveGridLayout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useElementWidth } from '@/hooks/use-element-width';
-import { useDashboardStore } from '../store';
-import { WidgetCard } from './WidgetCard';
-import { useLocalTranslation } from '@/hooks/use-local-translation';
-import translations from './DashboardGrid.translations';
+import { useDashboardStore, type RglItem } from '../store';
+import { InsightCard } from './InsightCard';
+import { DashboardEmptyState } from './DashboardEmptyState';
 
-export function DashboardGrid() {
-  const { t } = useLocalTranslation(translations);
+const BREAKPOINTS = { sm: 1024, xs: 0 };
+const COLS = { sm: 12, xs: 1 };
+
+interface DashboardGridProps {
+  onAddInsight: () => void;
+  onAddText: () => void;
+}
+
+export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
   const localWidgets = useDashboardStore((s) => s.localWidgets);
   const localLayout = useDashboardStore((s) => s.localLayout);
   const isEditing = useDashboardStore((s) => s.isEditing);
   const updateLayout = useDashboardStore((s) => s.updateLayout);
   const isMobile = useIsMobile();
-
   const { ref: containerRef, width } = useElementWidth();
+  const handleLayoutChange = useCallback(
+    (currentLayout: readonly RglItem[]) => updateLayout(currentLayout),
+    [updateLayout],
+  );
+
+  if (localWidgets.length === 0) {
+    return (
+      <DashboardEmptyState
+        isEditing={isEditing}
+        onAddInsight={onAddInsight}
+        onAddText={onAddText}
+      />
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col gap-3">
+        {localWidgets.map((widget) => (
+          <div key={widget.id} style={{ height: 320 }}>
+            <InsightCard widget={widget} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const smLayout = localLayout;
+  const xsLayout = localLayout.map((l) => ({ ...l, x: 0, w: 1 }));
 
   return (
-    <div ref={containerRef}>
-      {localWidgets.length === 0 ? (
-        <div className="border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
-          {isEditing ? t('emptyEditing') : t('emptyViewing')}
-        </div>
-      ) : isMobile ? (
-        <div className="flex flex-col gap-3">
-          {localWidgets.map((widget) => (
-            <div key={widget.id} style={{ height: 320 }}>
-              <WidgetCard widget={widget} />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <GridLayout
-          layout={localLayout}
+    <div ref={containerRef} data-editing={isEditing || undefined}>
+      {width > 0 && (
+        <ResponsiveGridLayout
+          layouts={{ sm: smLayout, xs: xsLayout }}
+          breakpoints={BREAKPOINTS}
+          cols={COLS}
+          rowHeight={80}
+          margin={[12, 12] as const}
+          containerPadding={[0, 0] as const}
           width={width}
-          gridConfig={{ cols: 12, rowHeight: 80, margin: [12, 12] as const, containerPadding: [0, 0] as const }}
-          dragConfig={{ enabled: isEditing, handle: '.drag-handle' }}
-          resizeConfig={{ enabled: isEditing }}
-          onLayoutChange={(layout) => updateLayout(layout)}
+          dragConfig={{
+            enabled: isEditing,
+            handle: '.drag-handle',
+            cancel: '.drag-cancel',
+          }}
+          resizeConfig={{
+            enabled: isEditing,
+            handles: ['s', 'e', 'se'],
+          }}
+          onLayoutChange={handleLayoutChange}
         >
           {localWidgets.map((widget) => (
-            <div key={widget.id}>
-              <WidgetCard widget={widget} />
+            <div
+              key={widget.id}
+              style={
+                !isEditing
+                  ? { contentVisibility: 'auto' as const, containIntrinsicSize: '0 320px' }
+                  : undefined
+              }
+            >
+              <InsightCard widget={widget} />
             </div>
           ))}
-        </GridLayout>
+        </ResponsiveGridLayout>
       )}
     </div>
   );

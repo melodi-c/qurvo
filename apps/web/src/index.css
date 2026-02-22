@@ -61,3 +61,80 @@ body {
 .ai-markdown th { font-weight: 600; background: var(--color-muted); }
 .ai-markdown a { color: var(--color-ring); text-decoration: underline; }
 .ai-markdown hr { border: none; border-top: 1px solid var(--color-border); margin: 0.6em 0; }
+
+/* react-grid-layout resize handles */
+.react-resizable-handle {
+  background-image: none !important;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+[data-editing] .react-resizable-handle {
+  opacity: 0.5;
+}
+
+[data-editing] .react-resizable-handle:hover {
+  opacity: 1;
+}
+
+.react-resizable-handle-se {
+  bottom: 0 !important;
+  right: 0 !important;
+  width: 16px !important;
+  height: 16px !important;
+  cursor: se-resize !important;
+}
+
+.react-resizable-handle-s {
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  width: 32px !important;
+  height: 8px !important;
+  cursor: s-resize !important;
+}
+
+.react-resizable-handle-e {
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%);
+  width: 8px !important;
+  height: 32px !important;
+  cursor: e-resize !important;
+}
+
+.react-resizable-handle-se::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--color-muted-foreground);
+  border-bottom: 2px solid var(--color-muted-foreground);
+  border-radius: 0 0 2px 0;
+}
+
+.react-resizable-handle-s::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: var(--color-muted-foreground);
+  border-radius: 1px;
+}
+
+.react-resizable-handle-e::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 20px;
+  background: var(--color-muted-foreground);
+  border-radius: 1px;
+}

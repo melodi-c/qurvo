@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { GitFork, TrendingUp, CalendarCheck, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { InsightTypeIcon } from '@/features/insights/components/InsightTypeIcon';
 import { useInsights } from '@/features/insights/hooks/use-insights';
-import { useAddWidget } from '../hooks/use-dashboard';
 import { useDashboardStore } from '../store';
-import { toast } from 'sonner';
+import { DEFAULT_WIDGET_SIZE, DEFAULT_FALLBACK_SIZE } from '../lib/default-sizes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './AddWidgetDialog.translations';
-import type { Insight } from '@/api/generated/Api';
+import type { Insight, InsightType } from '@/api/generated/Api';
 
 interface AddWidgetDialogProps {
   open: boolean;
@@ -18,35 +18,30 @@ interface AddWidgetDialogProps {
 
 export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
   const { t } = useLocalTranslation(translations);
-  const dashboardId = useDashboardStore((s) => s.dashboardId);
   const store = useDashboardStore();
   const { data: insights, isLoading } = useInsights();
-  const addWidget = useAddWidget();
   const [search, setSearch] = useState('');
-  const [adding, setAdding] = useState<string | null>(null);
 
   const filtered = (insights ?? []).filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleAdd = async (insight: Insight) => {
-    if (!dashboardId || adding) return;
-    setAdding(insight.id);
-    try {
-      const maxY = store.localLayout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-      const layout = { x: 0, y: maxY, w: 6, h: 4 };
-      const created = await addWidget.mutateAsync({
-        dashboardId,
-        widget: { insight_id: insight.id, layout },
-      });
-      store.addWidget({ ...created, insight, layout });
-      toast.success(t('toastAdded', { name: insight.name }));
-      onClose();
-    } catch {
-      toast.error(t('toastFailed'));
-    } finally {
-      setAdding(null);
-    }
+  const handleAdd = (insight: Insight) => {
+    const maxY = store.localLayout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
+    const size = DEFAULT_WIDGET_SIZE[insight.type] ?? DEFAULT_FALLBACK_SIZE;
+    const layout = { x: 0, y: maxY, ...size };
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    store.addWidget({
+      id: tempId,
+      dashboard_id: store.dashboardId ?? '',
+      insight_id: insight.id,
+      insight,
+      layout,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    onClose();
   };
 
   return (
@@ -84,17 +79,19 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
           )}
 
           {!isLoading && filtered.map((insight) => {
-            const Icon = insight.type === 'trend' ? TrendingUp : insight.type === 'funnel' ? GitFork : CalendarCheck;
-            const typeLabel = insight.type === 'trend' ? t('typeTrend') : insight.type === 'funnel' ? t('typeFunnel') : t('typeRetention');
+            const typeKeyMap: Record<string, 'typeTrend' | 'typeFunnel' | 'typeRetention' | 'typeLifecycle' | 'typeStickiness' | 'typePaths'> = {
+              trend: 'typeTrend', funnel: 'typeFunnel', retention: 'typeRetention',
+              lifecycle: 'typeLifecycle', stickiness: 'typeStickiness', paths: 'typePaths',
+            };
+            const typeLabel = t(typeKeyMap[insight.type] ?? 'typeTrend');
             return (
               <button
                 key={insight.id}
                 onClick={() => handleAdd(insight)}
-                disabled={adding === insight.id}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors text-left disabled:opacity-50"
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors text-left"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted flex-shrink-0">
-                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <InsightTypeIcon type={insight.type as InsightType} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{insight.name}</p>
