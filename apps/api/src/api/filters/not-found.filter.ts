@@ -11,8 +11,9 @@ import { InviteNotFoundException } from '../../members/exceptions/invite-not-fou
 import { MemberNotFoundException } from '../../members/exceptions/member-not-found.exception';
 import { ChannelNotFoundException } from '../../marketing-channels/exceptions/channel-not-found.exception';
 import { SpendNotFoundException } from '../../ad-spend/exceptions/spend-not-found.exception';
+import { EventDefinitionNotFoundException } from '../../event-definitions/exceptions/event-definition-not-found.exception';
 
-@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException, InviteNotFoundException, MemberNotFoundException, ChannelNotFoundException, SpendNotFoundException)
+@Catch(ProjectNotFoundException, ApiKeyNotFoundException, DashboardNotFoundException, WidgetNotFoundException, PersonNotFoundException, CohortNotFoundException, InsightNotFoundException, InviteNotFoundException, MemberNotFoundException, ChannelNotFoundException, SpendNotFoundException, EventDefinitionNotFoundException)
 export class NotFoundFilter implements ExceptionFilter {
   catch(
     exception:
@@ -26,7 +27,8 @@ export class NotFoundFilter implements ExceptionFilter {
       | InviteNotFoundException
       | MemberNotFoundException
       | ChannelNotFoundException
-      | SpendNotFoundException,
+      | SpendNotFoundException
+      | EventDefinitionNotFoundException,
     host: ArgumentsHost,
   ) {
     const response = host.switchToHttp().getResponse<FastifyReply>();

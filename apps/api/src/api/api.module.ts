@@ -20,6 +20,7 @@ import { AdSpendModule } from '../ad-spend/ad-spend.module';
 import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AiModule } from '../ai/ai.module';
 import { VerificationModule } from '../verification/verification.module';
+import { EventDefinitionsModule } from '../event-definitions/event-definitions.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -39,6 +40,7 @@ import { MarketingChannelsController } from './controllers/marketing-channels.co
 import { AdSpendController } from './controllers/ad-spend.controller';
 import { UnitEconomicsController, UnitEconomicsConfigController } from './controllers/unit-economics.controller';
 import { AiController } from './controllers/ai.controller';
+import { EventDefinitionsController } from './controllers/event-definitions.controller';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { UnauthorizedFilter } from './filters/unauthorized.filter';
 import { ForbiddenFilter } from './filters/forbidden.filter';
@@ -49,7 +51,7 @@ import { VerificationFilter } from './filters/verification.filter';
 import { WrongPasswordFilter } from './filters/wrong-password.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule, EventDefinitionsModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -73,6 +75,7 @@ import { WrongPasswordFilter } from './filters/wrong-password.filter';
     UnitEconomicsController,
     UnitEconomicsConfigController,
     AiController,
+    EventDefinitionsController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },

@@ -30,6 +30,7 @@ import CohortEditorPage from '@/pages/cohort-editor';
 import UnitEconomicsPage from '@/pages/unit-economics';
 import AiPage from '@/pages/ai/index';
 import VerifyEmailPage from '@/pages/verify-email';
+import EventDefinitionsPage from '@/pages/event-definitions';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -98,6 +99,7 @@ function AppRoutes() {
         <Route path="/persons" element={<PersonsPage />} />
         <Route path="/persons/:personId" element={<PersonDetailPage />} />
         <Route path="/ai" element={<AiPage />} />
+        <Route path="/data-management" element={<EventDefinitionsPage />} />
       </Route>
     </Routes>
   );

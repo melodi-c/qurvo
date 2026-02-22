@@ -78,6 +78,13 @@
       "when": 1772200000000,
       "tag": "0010_add_email_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1772300000000,
+      "tag": "0011_add_event_definitions",
+      "breakpoints": true
     }
   ]
 }
