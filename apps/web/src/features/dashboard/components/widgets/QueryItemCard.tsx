@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { GripVertical, X, Filter } from 'lucide-react';
+import { GripVertical, X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { EventNameCombobox } from './funnel/EventNameCombobox';
 import { StepFilterRow } from './funnel/StepFilterRow';
@@ -125,7 +125,7 @@ export function QueryItemCard({
           onClick={onFilterAdd}
           className="flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-foreground"
         >
-          <Filter className="h-3 w-3" />
+          <Plus className="h-3 w-3" />
           Add filter
         </button>
       </div>

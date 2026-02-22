@@ -1,4 +1,4 @@
-import { Filter, X } from 'lucide-react';
+import { Filter, Plus, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
@@ -93,7 +93,7 @@ export function EventsFilterPanel({
           onClick={addFilter}
           className="flex items-center gap-1.5 text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
         >
-          <Filter className="h-3 w-3" />
+          <Plus className="h-3 w-3" />
           Add filter
         </button>
       </section>
