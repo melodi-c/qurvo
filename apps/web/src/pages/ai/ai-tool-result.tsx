@@ -5,6 +5,8 @@ import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/Funn
 import { RetentionChart } from '@/features/dashboard/components/widgets/retention/RetentionChart';
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
+import { UEMetricsGrid } from '@/features/unit-economics/components/UEMetricsGrid';
+import { UEChart } from '@/features/unit-economics/components/UEChart';
 
 interface AiToolResultProps {
   toolName: string;
@@ -73,6 +75,17 @@ export function AiToolResult({ result, visualizationType }: AiToolResultProps) {
         )}
         {visualizationType === 'stickiness_chart' && result.data && (
           <StickinessChart result={result} />
+        )}
+        {visualizationType === 'unit_economics' && result.totals && (
+          <>
+            <UEMetricsGrid metrics={result.totals} />
+            {result.data?.length > 1 && (
+              <UEChart
+                buckets={result.data}
+                selectedMetrics={['arpu', 'ltv', 'cac']}
+              />
+            )}
+          </>
         )}
       </CardContent>
     </Card>

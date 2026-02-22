@@ -11,6 +11,26 @@ import { LifecycleModule } from '../lifecycle/lifecycle.module';
 import { StickinessModule } from '../stickiness/stickiness.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
+import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
+import { AI_TOOLS } from './tools/ai-tool.interface';
+import type { AiTool } from './tools/ai-tool.interface';
+import { TrendTool } from './tools/trend.tool';
+import { FunnelTool } from './tools/funnel.tool';
+import { RetentionTool } from './tools/retention.tool';
+import { LifecycleTool } from './tools/lifecycle.tool';
+import { StickinessTool } from './tools/stickiness.tool';
+import { UnitEconomicsTool } from './tools/unit-economics.tool';
+import { ListEventNamesTool } from './tools/list-event-names.tool';
+
+const TOOL_CLASSES = [
+  TrendTool,
+  FunnelTool,
+  RetentionTool,
+  LifecycleTool,
+  StickinessTool,
+  UnitEconomicsTool,
+  ListEventNamesTool,
+];
 
 @Module({
   imports: [
@@ -22,8 +42,20 @@ import { PersonsModule } from '../persons/persons.module';
     StickinessModule,
     EventsModule,
     PersonsModule,
+    UnitEconomicsModule,
   ],
-  providers: [AiService, AiChatService, AiToolsService, AiContextService],
+  providers: [
+    AiService,
+    AiChatService,
+    AiToolsService,
+    AiContextService,
+    ...TOOL_CLASSES,
+    {
+      provide: AI_TOOLS,
+      useFactory: (...tools: AiTool[]) => tools,
+      inject: TOOL_CLASSES,
+    },
+  ],
   exports: [AiService],
 })
 export class AiModule {}

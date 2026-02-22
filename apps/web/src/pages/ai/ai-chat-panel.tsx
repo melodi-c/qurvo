@@ -53,7 +53,7 @@ export function AiChatPanel({ messages, isStreaming, error, onSend, onStop }: Ai
           </div>
         )}
         {messages.map((msg) => (
-          <AiMessage key={msg.id} message={msg} />
+          <AiMessage key={msg.id} message={msg} onSuggestionClick={onSend} />
         ))}
         {error && (
           <div className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
