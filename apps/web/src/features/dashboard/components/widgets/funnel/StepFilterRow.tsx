@@ -34,14 +34,14 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             value={filter.property}
             onChange={(val) => onChange({ ...filter, property: val })}
             propertyNames={propertyNames}
-            className="h-6 min-w-0 flex-1"
+            className="h-8 min-w-0 flex-1"
           />
         ) : (
           <Input
             value={filter.property}
             onChange={(e) => onChange({ ...filter, property: e.target.value })}
             placeholder="property (e.g. properties.plan)"
-            className="h-6 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none font-mono"
+            className="h-8 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none font-mono"
           />
         )}
         <button
@@ -61,7 +61,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             onChange({ ...filter, operator: val as StepFilterDtoOperatorEnum, value: '' })
           }
         >
-          <SelectTrigger size="sm" className="h-6 w-32 shrink-0 text-xs px-2 shadow-none border-border/60">
+          <SelectTrigger size="sm" className="h-8 w-32 shrink-0 text-xs px-2 shadow-none border-border/60">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -77,7 +77,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             value={filter.value ?? ''}
             onChange={(e) => onChange({ ...filter, value: e.target.value })}
             placeholder="value"
-            className="h-6 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none"
+            className="h-8 min-w-0 flex-1 border-border/60 bg-muted/30 px-2 text-xs shadow-none"
           />
         )}
       </div>

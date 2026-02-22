@@ -48,7 +48,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           value={condition.count_operator}
           onValueChange={(v) => onChange({ ...condition, count_operator: v as EventCondition['count_operator'] })}
         >
-          <SelectTrigger className="h-7 text-xs w-[100px]">
+          <SelectTrigger size="sm" className="h-8 text-xs w-[100px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -65,7 +65,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           min={0}
           value={condition.count}
           onChange={(e) => onChange({ ...condition, count: Number(e.target.value) })}
-          className="h-7 text-xs w-16"
+          className="h-8 text-xs w-16"
         />
 
         <span className="text-xs text-muted-foreground whitespace-nowrap">times in last</span>
@@ -76,7 +76,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           max={365}
           value={condition.time_window_days}
           onChange={(e) => onChange({ ...condition, time_window_days: Number(e.target.value) })}
-          className="h-7 text-xs w-16"
+          className="h-8 text-xs w-16"
         />
 
         <span className="text-xs text-muted-foreground">days</span>

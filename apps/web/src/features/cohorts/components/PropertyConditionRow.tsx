@@ -44,7 +44,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
         value={condition.property}
         onChange={(e) => onChange({ ...condition, property: e.target.value })}
         placeholder="e.g. user_properties.plan, country"
-        className="h-7 text-xs"
+        className="h-8 text-xs"
       />
 
       <div className="flex gap-2">
@@ -52,7 +52,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
           value={condition.operator}
           onValueChange={(v) => onChange({ ...condition, operator: v as PropertyCondition['operator'] })}
         >
-          <SelectTrigger className="h-7 text-xs flex-1">
+          <SelectTrigger size="sm" className="h-8 text-xs flex-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -69,7 +69,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
             value={condition.value ?? ''}
             onChange={(e) => onChange({ ...condition, value: e.target.value })}
             placeholder="value"
-            className="h-7 text-xs flex-1"
+            className="h-8 text-xs flex-1"
           />
         )}
       </div>
