@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { LifecycleWidgetConfig, LifecycleResponse } from '@/api/generated/Api';
+import { refreshLimiter } from '../lib/refresh-limiter';
 
 const STALE_AFTER_MS = 30 * 60 * 1000;
 
@@ -61,7 +62,7 @@ export function useLifecycleData(config: LifecycleWidgetConfig, widgetId: string
     autoRefreshTriggered.current = false;
   }, [widgetId, hash]);
 
-  const refreshLifecycle = async () => {
+  const refreshLifecycle = () => refreshLimiter.run(async () => {
     const result = await api.lifecycleControllerGetLifecycle({
       project_id: projectId,
       target_event: config.target_event,
@@ -75,7 +76,7 @@ export function useLifecycleData(config: LifecycleWidgetConfig, widgetId: string
 
     qc.setQueryData(queryKey, result);
     return result;
-  };
+  });
 
   return {
     data: query.data,

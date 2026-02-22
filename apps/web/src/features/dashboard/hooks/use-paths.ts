@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { PathsWidgetConfig, PathsResponse } from '@/api/generated/Api';
+import { refreshLimiter } from '../lib/refresh-limiter';
 
 const STALE_AFTER_MS = 30 * 60 * 1000;
 
@@ -71,7 +72,7 @@ export function usePathsData(config: PathsWidgetConfig, widgetId: string) {
     autoRefreshTriggered.current = false;
   }, [widgetId, hash]);
 
-  const refreshPaths = async () => {
+  const refreshPaths = () => refreshLimiter.run(async () => {
     const result = await api.pathsControllerGetPaths({
       project_id: projectId,
       date_from: config.date_from,
@@ -89,7 +90,7 @@ export function usePathsData(config: PathsWidgetConfig, widgetId: string) {
 
     qc.setQueryData(queryKey, result);
     return result;
-  };
+  });
 
   return {
     data: query.data,

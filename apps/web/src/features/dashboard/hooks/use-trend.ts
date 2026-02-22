@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { TrendWidgetConfig, TrendResponse } from '@/api/generated/Api';
+import { refreshLimiter } from '../lib/refresh-limiter';
 
 const STALE_AFTER_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -84,7 +85,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
     autoRefreshTriggered.current = false;
   }, [widgetId, hash]);
 
-  const refreshTrend = async () => {
+  const refreshTrend = () => refreshLimiter.run(async () => {
     const result = await api.trendControllerGetTrend({
       project_id: projectId,
       series: cleanSeries(config),
@@ -101,7 +102,7 @@ export function useTrendData(config: TrendWidgetConfig, widgetId: string) {
 
     qc.setQueryData(queryKey, result);
     return result;
-  };
+  });
 
   return {
     data: query.data,
