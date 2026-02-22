@@ -26,6 +26,31 @@ export class FunnelTool implements AiTool {
                 properties: {
                   event_name: { type: 'string', description: 'Event name for this funnel step' },
                   label: { type: 'string', description: 'Display label for this step' },
+                  filters: {
+                    type: 'array',
+                    description: 'Optional filters to narrow down events by property values',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        property: {
+                          type: 'string',
+                          description:
+                            'Property to filter on. Use "properties.<key>" for event properties (e.g. "properties.promocode"), ' +
+                            'or direct columns: url, referrer, page_title, page_path, device_type, browser, os, country, region, city',
+                        },
+                        operator: {
+                          type: 'string',
+                          enum: ['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set'],
+                          description: 'Filter operator',
+                        },
+                        value: {
+                          type: 'string',
+                          description: 'Value to compare against (not needed for is_set/is_not_set)',
+                        },
+                      },
+                      required: ['property', 'operator'],
+                    },
+                  },
                 },
                 required: ['event_name', 'label'],
               },
@@ -53,7 +78,7 @@ export class FunnelTool implements AiTool {
   async execute(args: Record<string, unknown>, userId: string, projectId: string): Promise<ToolCallResult> {
     const result = await this.funnelService.getFunnel(userId, {
       project_id: projectId,
-      steps: args.steps as { event_name: string; label: string }[],
+      steps: args.steps as { event_name: string; label: string; filters?: { property: string; operator: string; value?: string }[] }[],
       conversion_window_days: (args.conversion_window_days as number) ?? 14,
       date_from: args.date_from as string,
       date_to: args.date_to as string,
