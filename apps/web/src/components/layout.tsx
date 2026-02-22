@@ -112,7 +112,7 @@ export default function Layout() {
       <aside
         role={isOpen ? 'dialog' : undefined}
         aria-modal={isOpen ? true : undefined}
-        aria-label="Navigation"
+        aria-label={t('navigation')}
         className={cn(
           'fixed inset-y-0 left-0 z-50 w-[220px] flex flex-col border-r border-border bg-[#0f0f11]',
           'transition-transform duration-200 ease-in-out',

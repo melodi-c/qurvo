@@ -21,6 +21,7 @@ export default createTranslations({
     signOut: 'Sign out',
     closeNav: 'Close navigation',
     language: 'Language',
+    navigation: 'Navigation',
   },
   ru: {
     product: 'Продукт',
@@ -42,5 +43,6 @@ export default createTranslations({
     signOut: 'Выйти',
     closeNav: 'Закрыть навигацию',
     language: 'Язык',
+    navigation: 'Навигация',
   },
 });
