@@ -1,4 +1,4 @@
-import { Plus, Type } from 'lucide-react';
+import { Plus, Type, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDashboardStore } from '../store';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -12,6 +12,7 @@ interface EditModeToolbarProps {
 export function EditModeToolbar({ onAddInsight, onAddText }: EditModeToolbarProps) {
   const isEditing = useDashboardStore((s) => s.isEditing);
   const localWidgets = useDashboardStore((s) => s.localWidgets);
+  const autoLayout = useDashboardStore((s) => s.autoLayout);
   const { t } = useLocalTranslation(translations);
 
   // Only show when editing and dashboard has widgets (empty state has its own CTAs)
@@ -29,6 +30,10 @@ export function EditModeToolbar({ onAddInsight, onAddText }: EditModeToolbarProp
       <Button variant="outline" size="sm" onClick={onAddText}>
         <Type className="h-3.5 w-3.5 mr-1.5" />
         {t('addText')}
+      </Button>
+      <Button variant="outline" size="sm" onClick={autoLayout}>
+        <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+        {t('autoLayout')}
       </Button>
     </div>
   );

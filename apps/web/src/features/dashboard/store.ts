@@ -48,6 +48,7 @@ interface DashboardStore {
   setPropertyFilters: (filters: DashboardFilterOverrides['propertyFilters']) => void;
   clearFilterOverrides: () => void;
   setWidgetMeta: (widgetId: string, meta: Partial<LocalWidgetMeta>) => void;
+  autoLayout: () => void;
   addTextTile: (content: string) => void;
   focusedTextTile: string | null;
   requestTextFocus: (widgetId: string) => void;
@@ -205,6 +206,50 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
 
   requestTextFocus: (widgetId) => set({ focusedTextTile: widgetId }),
   clearTextFocus: () => set({ focusedTextTile: null }),
+
+  autoLayout: () =>
+    set((s) => {
+      const COLS = 12;
+      const sorted = [...s.localLayout].sort((a, b) => a.y - b.y || a.x - b.x);
+      const grid: boolean[][] = []; // grid[row][col] = occupied
+
+      const ensureRows = (upTo: number) => {
+        while (grid.length <= upTo) grid.push(new Array(COLS).fill(false));
+      };
+
+      const canPlace = (x: number, y: number, w: number, h: number) => {
+        ensureRows(y + h - 1);
+        for (let r = y; r < y + h; r++) {
+          for (let c = x; c < x + w; c++) {
+            if (c >= COLS || grid[r][c]) return false;
+          }
+        }
+        return true;
+      };
+
+      const place = (x: number, y: number, w: number, h: number) => {
+        ensureRows(y + h - 1);
+        for (let r = y; r < y + h; r++) {
+          for (let c = x; c < x + w; c++) {
+            grid[r][c] = true;
+          }
+        }
+      };
+
+      const newLayout = sorted.map((item) => {
+        // Find first position that fits
+        for (let y = 0; ; y++) {
+          for (let x = 0; x <= COLS - item.w; x++) {
+            if (canPlace(x, y, item.w, item.h)) {
+              place(x, y, item.w, item.h);
+              return { ...item, x, y };
+            }
+          }
+        }
+      });
+
+      return { localLayout: newLayout, isDirty: true };
+    }),
 
   addTextTile: (content) =>
     set((s) => {
