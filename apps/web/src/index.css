@@ -138,3 +138,22 @@ body {
   background: var(--color-muted-foreground);
   border-radius: 1px;
 }
+
+/* Dragged widget preview */
+.react-grid-item.react-draggable-dragging {
+  z-index: 100 !important;
+  opacity: 0.9;
+  transform-origin: center center;
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(250, 250, 250, 0.1);
+  border-radius: 0.75rem;
+  transition: box-shadow 0.2s, opacity 0.2s;
+}
+
+/* Drop target placeholder */
+.react-grid-placeholder {
+  background: rgba(250, 250, 250, 0.04) !important;
+  border: 2px dashed rgba(250, 250, 250, 0.15) !important;
+  border-radius: 0.75rem !important;
+  opacity: 1 !important;
+  transition: all 0.15s ease;
+}
