@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export type ToolCallResult =
   | { result: unknown; visualization_type: string }
@@ -18,11 +17,50 @@ export const propertyFilterSchema = z.object({
   value: z.string().optional().describe('Value to compare against (not needed for is_set/is_not_set)'),
 });
 
-/**
- * Builds a ChatCompletionTool definition from a Zod schema.
- * Standalone function — avoids TS2589 (infinite type instantiation)
- * that occurs when zodToJsonSchema is called inside a generic class method.
- */
+// ---------------------------------------------------------------------------
+// Minimal Zod → JSON Schema converter (handles only types our tools use)
+// ---------------------------------------------------------------------------
+
+function zodTypeToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
+  const desc = schema.description;
+  const base = (obj: Record<string, unknown>) => (desc ? { ...obj, description: desc } : obj);
+
+  if (schema instanceof z.ZodString) return base({ type: 'string' });
+  if (schema instanceof z.ZodNumber) return base({ type: 'number' });
+  if (schema instanceof z.ZodBoolean) return base({ type: 'boolean' });
+
+  if (schema instanceof z.ZodEnum) {
+    return base({ type: 'string', enum: schema.options });
+  }
+
+  if (schema instanceof z.ZodOptional) {
+    const inner = zodTypeToJsonSchema(schema.unwrap());
+    return desc ? { ...inner, description: desc } : inner;
+  }
+
+  if (schema instanceof z.ZodArray) {
+    const result: Record<string, unknown> = { type: 'array', items: zodTypeToJsonSchema(schema.element) };
+    if (schema._def.minLength !== null) result.minItems = schema._def.minLength.value;
+    if (schema._def.maxLength !== null) result.maxItems = schema._def.maxLength.value;
+    return base(result);
+  }
+
+  if (schema instanceof z.ZodObject) {
+    const shape = schema.shape;
+    const properties: Record<string, unknown> = {};
+    const required: string[] = [];
+    for (const [key, val] of Object.entries(shape)) {
+      properties[key] = zodTypeToJsonSchema(val as z.ZodTypeAny);
+      if (!(val instanceof z.ZodOptional)) required.push(key);
+    }
+    const result: Record<string, unknown> = { type: 'object', properties };
+    if (required.length > 0) result.required = required;
+    return base(result);
+  }
+
+  return base({});
+}
+
 function buildToolDefinition(
   name: string,
   description: string,
@@ -33,8 +71,7 @@ function buildToolDefinition(
     function: {
       name,
       description,
-      // Library boundary: zodToJsonSchema returns JsonSchema7Type, OpenAI expects Record<string, unknown>
-      parameters: (zodToJsonSchema as Function)(schema, { target: 'openApi3' }) as Record<string, unknown>,
+      parameters: zodTypeToJsonSchema(schema),
     },
   };
 }

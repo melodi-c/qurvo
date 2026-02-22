@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { UnitEconomicsService } from '../../unit-economics/unit-economics.service';
-import { BaseAiTool } from './ai-tool.interface';
+import { AiVisualizationTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
@@ -10,7 +10,7 @@ const argsSchema = z.object({
 });
 
 @Injectable()
-export class UnitEconomicsTool extends BaseAiTool<typeof argsSchema> {
+export class UnitEconomicsTool extends AiVisualizationTool<typeof argsSchema> {
   readonly name = 'query_unit_economics';
   readonly description =
     'Query unit economics metrics: UA, C1, C2, APC, AVP, ARPPU, ARPU, Churn Rate, LTV, CAC, ROI%, CM. ' +
