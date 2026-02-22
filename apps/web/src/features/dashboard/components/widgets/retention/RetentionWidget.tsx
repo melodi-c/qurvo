@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { WidgetSkeleton } from '../WidgetSkeleton';
+import { WidgetTransition } from '../WidgetTransition';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
 import { RetentionTable } from './RetentionTable';
@@ -34,13 +35,7 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col gap-3 p-2 h-full justify-center">
-        <Skeleton className="h-5 w-full" />
-        <Skeleton className="h-5 w-4/5" />
-        <Skeleton className="h-5 w-3/5" />
-      </div>
-    );
+    return <WidgetSkeleton variant="table" />;
   }
 
   if (error || !data) {
@@ -65,35 +60,37 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0">
-      <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xl font-bold tabular-nums text-primary">
-            {result.cohorts.length}
-          </span>
-          <span className="text-xs text-muted-foreground">{t('cohorts')}</span>
+    <WidgetTransition isFetching={isFetching}>
+      <div className="h-full flex flex-col min-h-0">
+        <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xl font-bold tabular-nums text-primary">
+              {result.cohorts.length}
+            </span>
+            <span className="text-xs text-muted-foreground">{t('cohorts')}</span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+              {data.from_cache
+                ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
+                : t('fresh')}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-5 w-5"
+              onClick={() => refresh()}
+              disabled={isFetching}
+              title={t('refresh')}
+            >
+              <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
-            {data.from_cache
-              ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
-              : t('fresh')}
-          </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={() => refresh()}
-            disabled={isFetching}
-            title={t('refresh')}
-          >
-            <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
-          </Button>
+        <div className="flex-1 overflow-auto min-h-0">
+          <RetentionTable result={result} compact />
         </div>
       </div>
-      <div className="flex-1 overflow-auto min-h-0">
-        <RetentionTable result={result} compact />
-      </div>
-    </div>
+    </WidgetTransition>
   );
 }

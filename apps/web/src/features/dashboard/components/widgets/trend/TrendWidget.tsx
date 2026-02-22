@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { WidgetSkeleton } from '../WidgetSkeleton';
+import { WidgetTransition } from '../WidgetTransition';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
@@ -52,13 +53,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col gap-3 p-2 h-full justify-center">
-        <Skeleton className="h-5 w-full" />
-        <Skeleton className="h-5 w-4/5" />
-        <Skeleton className="h-5 w-3/5" />
-      </div>
-    );
+    return <WidgetSkeleton variant="chart" />;
   }
 
   if (error || !data) {
@@ -87,49 +82,51 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const mainTotal = totals[0] ?? 0;
 
   return (
-    <div className="h-full flex flex-col min-h-0">
-      {/* Metric header + cache */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xl font-bold tabular-nums text-primary">
-            {mainTotal.toLocaleString()}
-          </span>
-          {totals.length > 1 && (
-            <span className="text-xs text-muted-foreground tabular-nums truncate">
-              {totals.slice(1).map((t) => t.toLocaleString()).join(' / ')}
+    <WidgetTransition isFetching={isFetching}>
+      <div className="h-full flex flex-col min-h-0">
+        {/* Metric header + cache */}
+        <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xl font-bold tabular-nums text-primary">
+              {mainTotal.toLocaleString()}
             </span>
-          )}
+            {totals.length > 1 && (
+              <span className="text-xs text-muted-foreground tabular-nums truncate">
+                {totals.slice(1).map((t) => t.toLocaleString()).join(' / ')}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+              {data.from_cache
+                ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
+                : t('fresh')}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-5 w-5"
+              onClick={() => refresh()}
+              disabled={isFetching}
+              title={t('refresh')}
+            >
+              <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
-            {data.from_cache
-              ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
-              : t('fresh')}
-          </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5"
-            onClick={() => refresh()}
-            disabled={isFetching}
-            title={t('refresh')}
-          >
-            <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </div>
 
-      {/* Compact chart */}
-      <div className="flex-1 overflow-hidden min-h-0">
-        <TrendChart
-          series={result.series}
-          previousSeries={result.series_previous}
-          chartType={config.chart_type}
-          granularity={config.granularity}
-          compact
-          formulas={config.formulas}
-        />
+        {/* Compact chart */}
+        <div className="flex-1 overflow-hidden min-h-0">
+          <TrendChart
+            series={result.series}
+            previousSeries={result.series_previous}
+            chartType={config.chart_type}
+            granularity={config.granularity}
+            compact
+            formulas={config.formulas}
+          />
+        </div>
       </div>
-    </div>
+    </WidgetTransition>
   );
 }
