@@ -17,7 +17,8 @@ interface AuthState {
   register: (data: { email: string; password: string; display_name: string }) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  verifyEmail: (code: string) => Promise<void>;
+  verifyByCode: (code: string) => Promise<void>;
+  verifyByToken: (token: string) => Promise<void>;
   resendVerification: () => Promise<{ cooldown_seconds: number }>;
 }
 
@@ -71,8 +72,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  verifyEmail: async (code: string) => {
-    await api.authControllerVerifyEmail({ code });
+  verifyByCode: async (code: string) => {
+    await api.authControllerVerifyByCode({ code });
+    const user = get().user;
+    if (user) {
+      set({ user: { ...user, email_verified: true }, pendingVerification: false });
+    }
+  },
+
+  verifyByToken: async (token: string) => {
+    await api.authControllerVerifyByToken({ token });
     const user = get().user;
     if (user) {
       set({ user: { ...user, email_verified: true }, pendingVerification: false });

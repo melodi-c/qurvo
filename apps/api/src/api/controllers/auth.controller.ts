@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Ip, Headers, UseGuards, HttpCode, Query, Redirect, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Ip, Headers, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '../../auth/auth.service';
@@ -8,7 +8,7 @@ import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   RegisterDto, LoginDto, AuthResponseDto, MeResponseDto,
-  OkResponseDto, VerifyEmailDto, ResendVerificationResponseDto,
+  OkResponseDto, VerifyEmailByCodeDto, VerifyEmailByTokenDto, ResendVerificationResponseDto,
 } from '../dto/auth.dto';
 
 @ApiTags('Auth')
@@ -49,33 +49,22 @@ export class AuthController {
     return { user } as any;
   }
 
-  @Post('verify-email')
+  @Post('verify-email/code')
   @ApiBearerAuth()
   @UseGuards(SessionAuthGuard)
   @HttpCode(200)
   @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 20, ttl: 60000 } })
-  async verifyEmail(@Body() body: VerifyEmailDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
-    if (body.code) {
-      await this.verificationService.verifyByCode(user.user_id, body.code);
-    } else if (body.token) {
-      await this.verificationService.verifyByToken(body.token);
-    } else {
-      throw new BadRequestException('Either code or token is required');
-    }
+  async verifyByCode(@Body() body: VerifyEmailByCodeDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
+    await this.verificationService.verifyByCode(user.user_id, body.code);
     return { ok: true };
   }
 
-  @Get('verify-email')
-  @Redirect()
-  @Throttle({ short: { limit: 20, ttl: 60000 }, medium: { limit: 50, ttl: 60000 } })
-  async verifyEmailByLink(@Query('token') token: string) {
-    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
-    try {
-      await this.verificationService.verifyByToken(token);
-      return { url: `${baseUrl}/verify-email?verified=true`, statusCode: 302 };
-    } catch {
-      return { url: `${baseUrl}/verify-email?error=invalid`, statusCode: 302 };
-    }
+  @Post('verify-email/token')
+  @HttpCode(200)
+  @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 20, ttl: 60000 } })
+  async verifyByToken(@Body() body: VerifyEmailByTokenDto): Promise<OkResponseDto> {
+    await this.verificationService.verifyByToken(body.token);
+    return { ok: true };
   }
 
   @Post('resend-verification')

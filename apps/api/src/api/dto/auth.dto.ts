@@ -1,5 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsOptional, Matches, Length } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength, MaxLength, Matches, Length } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -27,17 +26,15 @@ export class LoginDto {
   password: string;
 }
 
-export class VerifyEmailDto {
-  @ApiPropertyOptional()
-  @IsOptional()
+export class VerifyEmailByCodeDto {
   @Matches(/^\d{6}$/)
-  code?: string;
+  code: string;
+}
 
-  @ApiPropertyOptional()
-  @IsOptional()
+export class VerifyEmailByTokenDto {
   @IsString()
   @Length(64, 64)
-  token?: string;
+  token: string;
 }
 
 export class UserDto {

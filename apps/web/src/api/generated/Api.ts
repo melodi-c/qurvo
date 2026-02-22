@@ -83,14 +83,17 @@ export interface MeResponse {
   user: SessionUser;
 }
 
-export interface VerifyEmail {
+export interface VerifyEmailByCode {
   /** @pattern /^\d{6}$/ */
-  code?: string;
+  code: string;
+}
+
+export interface VerifyEmailByToken {
   /**
    * @minLength 64
    * @maxLength 64
    */
-  token?: string;
+  token: string;
 }
 
 export interface ResendVerificationResponse {
@@ -919,10 +922,6 @@ export type UpdateMarketingChannelDtoChannelTypeEnum =
   | "tiktok_ads"
   | "custom_api";
 
-export interface AuthControllerVerifyEmailByLinkParams {
-  token: string;
-}
-
 export interface ProjectsControllerGetByIdParams {
   id: string;
 }
@@ -1610,16 +1609,16 @@ export class Api<
      * No description
      *
      * @tags Auth
-     * @name AuthControllerVerifyEmail
-     * @request POST:/api/auth/verify-email
+     * @name AuthControllerVerifyByCode
+     * @request POST:/api/auth/verify-email/code
      * @secure
      */
-    authControllerVerifyEmail: (
-      data: VerifyEmail,
+    authControllerVerifyByCode: (
+      data: VerifyEmailByCode,
       params: RequestParams = {},
     ) =>
       this.request<OkResponse, any>({
-        path: `/api/auth/verify-email`,
+        path: `/api/auth/verify-email/code`,
         method: "POST",
         body: data,
         secure: true,
@@ -1632,17 +1631,19 @@ export class Api<
      * No description
      *
      * @tags Auth
-     * @name AuthControllerVerifyEmailByLink
-     * @request GET:/api/auth/verify-email
+     * @name AuthControllerVerifyByToken
+     * @request POST:/api/auth/verify-email/token
      */
-    authControllerVerifyEmailByLink: (
-      query: AuthControllerVerifyEmailByLinkParams,
+    authControllerVerifyByToken: (
+      data: VerifyEmailByToken,
       params: RequestParams = {},
     ) =>
-      this.request<void, any>({
-        path: `/api/auth/verify-email`,
-        method: "GET",
-        query: query,
+      this.request<OkResponse, any>({
+        path: `/api/auth/verify-email/token`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 

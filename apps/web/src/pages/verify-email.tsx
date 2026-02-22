@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
@@ -10,31 +10,40 @@ export default function VerifyEmailPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tokenVerifying, setTokenVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [cooldown, setCooldown] = useState(60);
   const [searchParams] = useSearchParams();
+  const tokenHandled = useRef(false);
 
-  const verifyEmail = useAuthStore((s) => s.verifyEmail);
+  const verifyByCode = useAuthStore((s) => s.verifyByCode);
+  const verifyByToken = useAuthStore((s) => s.verifyByToken);
   const resendVerification = useAuthStore((s) => s.resendVerification);
   const user = useAuthStore((s) => s.user);
   const pendingVerification = useAuthStore((s) => s.pendingVerification);
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const navigate = useNavigate();
 
+  // Handle ?token= — verify via API client (public endpoint)
   useEffect(() => {
-    if (searchParams.get('verified') === 'true') {
-      setVerified(true);
-      checkAuth().then(() => {
-        const token = localStorage.getItem('qurvo_token');
-        if (token) {
-          navigate('/');
+    const token = searchParams.get('token');
+    if (!token || tokenHandled.current) return;
+    tokenHandled.current = true;
+    setTokenVerifying(true);
+
+    verifyByToken(token)
+      .then(() => {
+        setVerified(true);
+        // If we have a session, refresh auth state so redirect works
+        if (localStorage.getItem('qurvo_token')) {
+          checkAuth();
         }
-      });
-    }
-    if (searchParams.get('error') === 'invalid') {
-      setError('Ссылка недействительна или устарела. Запросите новый код.');
-    }
-  }, [searchParams, checkAuth, navigate]);
+      })
+      .catch(() => {
+        setError('Ссылка недействительна или устарела. Запросите новый код.');
+      })
+      .finally(() => setTokenVerifying(false));
+  }, [searchParams, verifyByToken, checkAuth]);
 
   useEffect(() => {
     if (user && !pendingVerification) {
@@ -48,12 +57,12 @@ export default function VerifyEmailPage() {
     return () => clearInterval(id);
   }, [cooldown]);
 
-  const handleSubmit = useCallback(async (e: FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await verifyEmail(code);
+      await verifyByCode(code);
       navigate('/');
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Ошибка верификации';
@@ -61,7 +70,7 @@ export default function VerifyEmailPage() {
     } finally {
       setLoading(false);
     }
-  }, [code, verifyEmail, navigate]);
+  }, [code, verifyByCode, navigate]);
 
   const handleResend = useCallback(async () => {
     setError('');
@@ -78,19 +87,33 @@ export default function VerifyEmailPage() {
     }
   }, [resendVerification]);
 
+  // Token verification in progress
+  if (tokenVerifying) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Подтверждаем email...</CardTitle>
+            <CardDescription>Подождите, проверяем вашу ссылку.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // Verified successfully
   if (verified) {
+    const hasSession = !!localStorage.getItem('qurvo_token');
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl">Email подтверждён</CardTitle>
-            <CardDescription>
-              Ваш аккаунт успешно подтверждён.
-            </CardDescription>
+            <CardDescription>Ваш аккаунт успешно подтверждён.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => navigate('/login')}>
-              Войти
+            <Button className="w-full" onClick={() => navigate(hasSession ? '/' : '/login')}>
+              {hasSession ? 'Перейти в приложение' : 'Войти'}
             </Button>
           </CardContent>
         </Card>
