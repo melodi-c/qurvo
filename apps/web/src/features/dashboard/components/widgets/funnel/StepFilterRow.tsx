@@ -1,17 +1,11 @@
+import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { PropertyNameCombobox } from './PropertyNameCombobox';
+import translations from './StepFilterRow.translations';
 import type { StepFilter, StepFilterDtoOperatorEnum } from '@/api/generated/Api';
-
-const OPERATORS: { value: StepFilterDtoOperatorEnum; label: string }[] = [
-  { value: 'eq', label: '=' },
-  { value: 'neq', label: '\u2260' },
-  { value: 'contains', label: 'contains' },
-  { value: 'not_contains', label: "doesn't contain" },
-  { value: 'is_set', label: 'is set' },
-  { value: 'is_not_set', label: 'is not set' },
-];
 
 export const NO_VALUE_OPS = new Set<StepFilterDtoOperatorEnum>(['is_set', 'is_not_set']);
 
@@ -23,7 +17,17 @@ interface StepFilterRowProps {
 }
 
 export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: StepFilterRowProps) {
+  const { t } = useLocalTranslation(translations);
   const hasValue = !NO_VALUE_OPS.has(filter.operator);
+
+  const operators = useMemo<{ value: StepFilterDtoOperatorEnum; label: string }[]>(() => [
+    { value: 'eq', label: '=' },
+    { value: 'neq', label: '\u2260' },
+    { value: 'contains', label: t('contains') },
+    { value: 'not_contains', label: t('doesNotContain') },
+    { value: 'is_set', label: t('isSet') },
+    { value: 'is_not_set', label: t('isNotSet') },
+  ], [t]);
 
   return (
     <div className="space-y-1">
@@ -40,7 +44,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
           <Input
             value={filter.property}
             onChange={(e) => onChange({ ...filter, property: e.target.value })}
-            placeholder="property (e.g. properties.plan)"
+            placeholder={t('propertyPlaceholder')}
             className="h-8 min-w-0 flex-1 border-0 bg-transparent shadow-none px-2 text-xs font-mono"
           />
         )}
@@ -65,7 +69,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {OPERATORS.map((op) => (
+            {operators.map((op) => (
               <SelectItem key={op.value} value={op.value} className="text-xs">
                 {op.label}
               </SelectItem>
@@ -76,7 +80,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames }: Ste
           <Input
             value={filter.value ?? ''}
             onChange={(e) => onChange({ ...filter, value: e.target.value })}
-            placeholder="value"
+            placeholder={t('valuePlaceholder')}
             className="h-8 min-w-0 flex-1 px-2 text-xs shadow-none"
           />
         )}

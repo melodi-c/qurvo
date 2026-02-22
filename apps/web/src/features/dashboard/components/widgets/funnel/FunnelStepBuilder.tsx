@@ -1,5 +1,7 @@
 import { Plus, ArrowDown } from 'lucide-react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { QueryItemCard, useDragReorder } from '../QueryItemCard';
+import translations from './FunnelStepBuilder.translations';
 import type { FunnelStep, StepFilter } from '@/api/generated/Api';
 
 interface FunnelStepBuilderProps {
@@ -8,6 +10,7 @@ interface FunnelStepBuilderProps {
 }
 
 export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
+  const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(steps, onChange);
 
   const updateStep = (i: number, patch: Partial<FunnelStep>) => {
@@ -15,7 +18,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
   };
 
   const addStep = () =>
-    onChange([...steps, { event_name: '', label: `Step ${steps.length + 1}` }]);
+    onChange([...steps, { event_name: '', label: t('stepN', { n: String(steps.length + 1) }) }]);
 
   const removeStep = (i: number) => {
     if (steps.length <= 2) return;
@@ -52,7 +55,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
                 {i + 1}
               </div>
             }
-            labelPlaceholder="Step name"
+            labelPlaceholder={t('stepName')}
             canRemove={steps.length > 2}
             onLabelChange={(label) => updateStep(i, { label })}
             onEventChange={(event_name) => updateStep(i, { event_name })}
@@ -84,7 +87,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
         className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
       >
         <Plus className="h-3.5 w-3.5" />
-        Add step
+        {t('addStep')}
       </button>
     </div>
   );

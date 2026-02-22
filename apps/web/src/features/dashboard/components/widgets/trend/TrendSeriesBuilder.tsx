@@ -2,6 +2,8 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryItemCard, useDragReorder } from '../QueryItemCard';
 import type { TrendSeries, StepFilter } from '@/api/generated/Api';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './TrendSeriesBuilder.translations';
 
 const COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500'];
 
@@ -11,6 +13,7 @@ interface TrendSeriesBuilderProps {
 }
 
 export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps) {
+  const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(series, onChange);
 
   const update = (idx: number, patch: Partial<TrendSeries>) => {
@@ -75,7 +78,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
           className="w-full text-xs h-7"
         >
           <Plus className="h-3 w-3 mr-1" />
-          Add series
+          {t('addSeries')}
         </Button>
       )}
     </div>

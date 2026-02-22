@@ -9,19 +9,26 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { StickinessResult } from '@/api/generated/Api';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './StickinessChart.translations';
 
 interface StickinessChartProps {
   result: StickinessResult;
   compact?: boolean;
 }
 
-const GRANULARITY_LABELS: Record<string, string> = {
-  day: 'days',
-  week: 'weeks',
-  month: 'months',
-};
-
 export function StickinessChart({ result, compact = false }: StickinessChartProps) {
+  const { t } = useLocalTranslation(translations);
+
+  const granularityLabels: Record<string, string> = useMemo(
+    () => ({
+      day: t('days'),
+      week: t('weeks'),
+      month: t('months'),
+    }),
+    [t],
+  );
+
   const totalUsers = useMemo(
     () => result.data.reduce((sum, d) => sum + d.user_count, 0),
     [result.data],
@@ -30,17 +37,18 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
   const data = useMemo(
     () =>
       result.data.map((d) => ({
-        label: `${d.period_count} ${GRANULARITY_LABELS[result.granularity] ?? 'periods'}`,
+        label: `${d.period_count} ${granularityLabels[result.granularity] ?? t('periods')}`,
         period_count: d.period_count,
         user_count: d.user_count,
         pct: totalUsers > 0 ? Math.round((d.user_count / totalUsers) * 1000) / 10 : 0,
       })),
-    [result.data, result.granularity, totalUsers],
+    [result.data, result.granularity, totalUsers, granularityLabels, t],
   );
 
   if (data.length === 0) return null;
 
   const height = compact ? 160 : 300;
+  const usersLabel = t('users');
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -70,12 +78,12 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
               fontSize: '12px',
             }}
             formatter={(value: number, _name: string, entry: any) => [
-              `${value} users (${entry.payload.pct}%)`,
-              'Users',
+              `${value} ${usersLabel.toLowerCase()} (${entry.payload.pct}%)`,
+              usersLabel,
             ]}
           />
         )}
-        <Bar dataKey="user_count" fill="#f59e0b" name="Users" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="user_count" fill="#f59e0b" name={usersLabel} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

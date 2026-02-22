@@ -1,9 +1,11 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { GripVertical, X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { EventNameCombobox } from './funnel/EventNameCombobox';
 import { StepFilterRow } from './funnel/StepFilterRow';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
+import translations from './QueryItemCard.translations';
 import type { StepFilter } from '@/api/generated/Api';
 
 export interface QueryItem {
@@ -58,6 +60,7 @@ export function QueryItemCard({
   onDragOver,
   onDragLeave,
 }: QueryItemCardProps) {
+  const { t } = useLocalTranslation(translations);
   const filters = item.filters ?? [];
   const { data: propertyNames = [] } = useEventPropertyNames(item.event_name);
 
@@ -102,7 +105,7 @@ export function QueryItemCard({
         <EventNameCombobox
           value={item.event_name}
           onChange={onEventChange}
-          placeholder="Select event..."
+          placeholder={t('selectEvent')}
         />
       </div>
 
@@ -129,7 +132,7 @@ export function QueryItemCard({
           className="flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
-          Add filter
+          {t('addFilter')}
         </button>
       </div>
     </div>

@@ -9,7 +9,9 @@ import {
   CommandEmpty,
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useEventNames } from '@/features/dashboard/hooks/use-event-names';
+import translations from './EventNameCombobox.translations';
 
 interface EventNameComboboxProps {
   value: string;
@@ -24,6 +26,7 @@ export function EventNameCombobox({
   placeholder = 'event_name',
   className: triggerClassName,
 }: EventNameComboboxProps) {
+  const { t } = useLocalTranslation(translations);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { data: eventNames = [] } = useEventNames();
@@ -58,7 +61,7 @@ export function EventNameCombobox({
           <CommandInput
             value={search}
             onValueChange={setSearch}
-            placeholder="Search events..."
+            placeholder={t('searchEvents')}
           />
           <CommandList>
             <CommandEmpty className="px-3 py-3 text-left">
@@ -71,7 +74,7 @@ export function EventNameCombobox({
                   Use <span className="font-mono font-medium">"{search}"</span>
                 </button>
               ) : (
-                <span className="text-xs text-muted-foreground">No events found</span>
+                <span className="text-xs text-muted-foreground">{t('noEventsFound')}</span>
               )}
             </CommandEmpty>
 

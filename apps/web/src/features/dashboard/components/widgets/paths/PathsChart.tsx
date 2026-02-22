@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { Sankey, Tooltip, Layer, Rectangle } from 'recharts';
 import type { PathTransition, TopPath } from '@/api/generated/Api';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './PathsChart.translations';
 
 interface PathsChartProps {
   transitions: PathTransition[];
@@ -77,7 +79,7 @@ function CustomNode({ x, y, width, height, index, payload }: any) {
   );
 }
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload, usersLabel }: any) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload?.payload;
   if (!data) return null;
@@ -92,7 +94,7 @@ function CustomTooltip({ active, payload }: any) {
           {sourceName} → {targetName}
         </p>
         <p className="text-muted-foreground mt-1">
-          {Number(data.value).toLocaleString()} users
+          {Number(data.value).toLocaleString()} {usersLabel}
         </p>
       </div>
     );
@@ -103,7 +105,7 @@ function CustomTooltip({ active, payload }: any) {
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
       <p className="font-medium text-foreground">{data.displayName ?? data.name}</p>
       <p className="text-muted-foreground mt-1">
-        {Number(data.value).toLocaleString()} users
+        {Number(data.value).toLocaleString()} {usersLabel}
       </p>
     </div>
   );
@@ -126,6 +128,7 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
 }
 
 export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) {
+  const { t } = useLocalTranslation(translations);
   const sankeyData = useMemo(() => toSankeyData(transitions), [transitions]);
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
@@ -133,7 +136,7 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
   if (sankeyData.nodes.length === 0 || sankeyData.links.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        No path data to display
+        {t('noData')}
       </div>
     );
   }
@@ -149,7 +152,7 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      {/* Sankey diagram — scrollable horizontally */}
+      {/* Sankey diagram -- scrollable horizontally */}
       <div
         ref={containerRef}
         className={`${compact ? 'flex-1 min-h-0' : 'h-[400px]'} overflow-x-auto overflow-y-hidden`}
@@ -165,7 +168,7 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
             nodeWidth={8}
             margin={{ top: 10, right: 120, bottom: 10, left: 10 }}
           >
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip usersLabel={t('users')} />} />
           </Sankey>
         </div>
       </div>
@@ -173,14 +176,14 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
       {/* Top Paths table */}
       {!compact && topPaths.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground">Top Paths</h3>
+          <h3 className="text-sm font-medium text-foreground">{t('topPaths')}</h3>
           <div className="border border-border rounded-md overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">#</th>
-                  <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Path</th>
-                  <th className="text-right py-2 px-3 text-xs font-medium text-muted-foreground">Users</th>
+                  <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">{t('columnNumber')}</th>
+                  <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">{t('columnPath')}</th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-muted-foreground">{t('columnUsers')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,7 +194,7 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
                       <div className="flex items-center gap-1 flex-wrap">
                         {tp.path.map((event, j) => (
                           <span key={j} className="flex items-center gap-1">
-                            {j > 0 && <span className="text-muted-foreground/60">→</span>}
+                            {j > 0 && <span className="text-muted-foreground/60">&rarr;</span>}
                             <span className="font-mono text-xs bg-muted/60 rounded px-1.5 py-0.5">
                               {event}
                             </span>

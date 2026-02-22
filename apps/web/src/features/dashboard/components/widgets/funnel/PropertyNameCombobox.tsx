@@ -9,6 +9,8 @@ import {
   CommandEmpty,
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './PropertyNameCombobox.translations';
 
 interface PropertyNameComboboxProps {
   value: string;
@@ -23,6 +25,7 @@ export function PropertyNameCombobox({
   propertyNames,
   className,
 }: PropertyNameComboboxProps) {
+  const { t } = useLocalTranslation(translations);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -47,7 +50,7 @@ export function PropertyNameCombobox({
             className,
           )}
         >
-          <span className="flex-1 truncate">{value || 'property'}</span>
+          <span className="flex-1 truncate">{value || t('searchProperties')}</span>
         </button>
       </PopoverTrigger>
 
@@ -56,11 +59,11 @@ export function PropertyNameCombobox({
           <CommandInput
             value={search}
             onValueChange={setSearch}
-            placeholder="Search properties..."
+            placeholder={t('searchProperties')}
           />
           <CommandList>
             <CommandEmpty className="px-3 py-3 text-left">
-              <span className="text-xs text-muted-foreground">No properties found</span>
+              <span className="text-xs text-muted-foreground">{t('noPropertiesFound')}</span>
             </CommandEmpty>
 
             {filtered.map((name) => (

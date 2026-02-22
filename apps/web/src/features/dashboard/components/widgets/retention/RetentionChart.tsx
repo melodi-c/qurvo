@@ -9,6 +9,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { RetentionResult } from '@/api/generated/Api';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './RetentionChart.translations';
 
 interface RetentionChartProps {
   result: RetentionResult;
@@ -16,6 +18,7 @@ interface RetentionChartProps {
 }
 
 export function RetentionChart({ result, compact = false }: RetentionChartProps) {
+  const { t } = useLocalTranslation(translations);
   const { average_retention, granularity } = result;
 
   const data = useMemo(
@@ -57,7 +60,7 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
               borderRadius: '8px',
               fontSize: '12px',
             }}
-            formatter={(value: number) => [`${value}%`, 'Retention']}
+            formatter={(value: number) => [`${value}%`, t('retention')]}
           />
         )}
         <Line

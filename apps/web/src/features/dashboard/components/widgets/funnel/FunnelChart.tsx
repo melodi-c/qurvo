@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './FunnelChart.translations';
 import type { FunnelStepResult } from '@/api/generated/Api';
 
 export interface FunnelChartProps {
@@ -99,6 +101,7 @@ function BarTooltip({
   stepConv: number | null;
   title?: string;
 }) {
+  const { t } = useLocalTranslation(translations);
   const time = formatSeconds(step.avg_time_to_convert_seconds);
   return (
     <div className="absolute bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 z-30 pointer-events-none">
@@ -107,11 +110,11 @@ function BarTooltip({
           {title ?? step.label ?? step.event_name}
         </p>
         <div className="space-y-1">
-          <TRow label="Users" value={step.count.toLocaleString()} />
-          <TRow label="From step 1" value={`${step.conversion_rate}%`} />
-          {stepConv !== null && <TRow label="From prev" value={`${stepConv}%`} />}
-          {step.drop_off > 0 && <TRow label="Dropped" value={step.drop_off.toLocaleString()} muted />}
-          {time && <TRow label="Avg time" value={time} />}
+          <TRow label={t('users')} value={step.count.toLocaleString()} />
+          <TRow label={t('fromStep1')} value={`${step.conversion_rate}%`} />
+          {stepConv !== null && <TRow label={t('fromPrev')} value={`${stepConv}%`} />}
+          {step.drop_off > 0 && <TRow label={t('dropped')} value={step.drop_off.toLocaleString()} muted />}
+          {time && <TRow label={t('avgTime')} value={time} />}
         </div>
         {/* Arrow */}
         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-border" />

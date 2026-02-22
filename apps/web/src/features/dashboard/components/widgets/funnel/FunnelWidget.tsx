@@ -4,8 +4,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
+import translations from './FunnelWidget.translations';
 import type { Widget, FunnelWidgetConfig } from '@/api/generated/Api';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -14,6 +16,7 @@ interface FunnelWidgetProps {
 }
 
 export function FunnelWidget({ widget }: FunnelWidgetProps) {
+  const { t } = useLocalTranslation(translations);
   const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
   const dashboardId = useDashboardStore((s) => s.dashboardId);
@@ -22,7 +25,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   if (!config) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        No insight linked
+        {t('noInsightLinked')}
       </div>
     );
   }
@@ -36,11 +39,11 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
         <p className="text-muted-foreground text-sm text-center">
-          Configure funnel steps to see data
+          {t('configureSteps')}
         </p>
         {isEditing && (
           <Button size="sm" variant="ghost" onClick={handleConfigure}>
-            Configure
+            {t('configure')}
           </Button>
         )}
       </div>
@@ -60,9 +63,9 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   if (error || !data) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
-        <p className="text-muted-foreground text-sm">Failed to load funnel data</p>
+        <p className="text-muted-foreground text-sm">{t('failedToLoad')}</p>
         <Button size="sm" variant="ghost" onClick={() => refresh()}>
-          Retry
+          {t('retry')}
         </Button>
       </div>
     );
@@ -76,8 +79,8 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   if (steps.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-1 text-center">
-        <p className="text-muted-foreground text-sm">No events found</p>
-        <p className="text-muted-foreground/60 text-xs">Try adjusting the date range or steps</p>
+        <p className="text-muted-foreground text-sm">{t('noEventsFound')}</p>
+        <p className="text-muted-foreground/60 text-xs">{t('tryAdjusting')}</p>
       </div>
     );
   }
@@ -96,7 +99,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
           <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
             {data.from_cache
               ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
-              : 'fresh'}
+              : t('fresh')}
           </span>
           <Button
             size="icon"
@@ -104,7 +107,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
             className="h-5 w-5"
             onClick={() => refresh()}
             disabled={isFetching}
-            title="Refresh"
+            title={t('refresh')}
           >
             <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
           </Button>
