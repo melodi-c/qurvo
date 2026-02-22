@@ -1285,14 +1285,16 @@ export type TypeEnum =
   | "funnel"
   | "retention"
   | "lifecycle"
-  | "stickiness";
+  | "stickiness"
+  | "paths";
 
 export type InsightsControllerListParams1TypeEnum =
   | "trend"
   | "funnel"
   | "retention"
   | "lifecycle"
-  | "stickiness";
+  | "stickiness"
+  | "paths";
 
 export interface InsightsControllerCreateParams {
   projectId: string;
