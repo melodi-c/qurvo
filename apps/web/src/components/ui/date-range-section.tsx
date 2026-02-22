@@ -1,5 +1,5 @@
 import { CalendarDays } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { SectionHeader } from '@/components/ui/section-header';
 
 const DATE_PRESETS = [
@@ -60,20 +60,16 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">From</span>
-          <Input
-            type="date"
+          <DatePicker
             value={dateFrom.slice(0, 10)}
-            onChange={(e) => onChange(e.target.value, dateTo)}
-            className="h-8 text-sm"
+            onChange={(v) => onChange(v, dateTo)}
           />
         </div>
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">To</span>
-          <Input
-            type="date"
+          <DatePicker
             value={dateTo.slice(0, 10)}
-            onChange={(e) => onChange(dateFrom, e.target.value)}
-            className="h-8 text-sm"
+            onChange={(v) => onChange(dateFrom, v)}
           />
         </div>
       </div>

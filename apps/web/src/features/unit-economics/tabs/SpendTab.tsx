@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
@@ -146,12 +147,11 @@ export function SpendTab() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sp-date">Date</Label>
-                <Input
-                  id="sp-date"
-                  type="date"
+                <Label>Date</Label>
+                <DatePicker
                   value={form.spend_date}
-                  onChange={(e) => setForm((f) => ({ ...f, spend_date: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, spend_date: v }))}
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
