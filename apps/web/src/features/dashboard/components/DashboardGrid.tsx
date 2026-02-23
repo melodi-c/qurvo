@@ -10,7 +10,6 @@ import { DashboardEmptyState } from './DashboardEmptyState';
 
 const BREAKPOINTS = { sm: 1024, xs: 0 };
 const COLS = { sm: 24, xs: 1 };
-const SCALE = 2;
 
 interface DashboardGridProps {
   onAddInsight: () => void;
@@ -25,16 +24,7 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
   const isMobile = useIsMobile();
   const { ref: containerRef, width } = useElementWidth();
   const handleLayoutChange = useCallback(
-    (currentLayout: readonly RglItem[]) =>
-      updateLayout(
-        currentLayout.map((l) => ({
-          ...l,
-          x: Math.round(l.x / SCALE),
-          y: Math.round(l.y / SCALE),
-          w: Math.round(l.w / SCALE),
-          h: Math.round(l.h / SCALE),
-        })),
-      ),
+    (currentLayout: readonly RglItem[]) => updateLayout(currentLayout),
     [updateLayout],
   );
 
@@ -60,15 +50,8 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     );
   }
 
-  const smLayout = localLayout.map((l) => ({
-    ...l,
-    x: l.x * SCALE,
-    y: l.y * SCALE,
-    w: l.w * SCALE,
-    h: l.h * SCALE,
-    minH: 2 * SCALE,
-  }));
-  const xsLayout = localLayout.map((l) => ({ ...l, x: 0, w: 1, minH: 2 * SCALE }));
+  const smLayout = localLayout.map((l) => ({ ...l, minH: 4 }));
+  const xsLayout = localLayout.map((l) => ({ ...l, x: 0, w: 1, minH: 4 }));
 
   return (
     <div ref={containerRef} data-editing={isEditing || undefined}>
