@@ -90,7 +90,7 @@ USER appuser
 WORKDIR /repo/apps/${APP}
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/main.js"]
+CMD ["node", "--require", "./dist/tracer.js", "dist/main.js"]
 
 # ==============================================================================
 # Stage: web-builder — build SPA

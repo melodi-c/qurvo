@@ -11,6 +11,7 @@ set -euo pipefail
 #   ./deploy.sh --skip-build       # re-deploy with current tags (no build)
 #   ./deploy.sh --tag v1.0         # use custom tag instead of git commit hash
 #   ./deploy.sh --no-hooks         # skip pre-install/pre-upgrade hooks (migrations)
+#   ./deploy.sh --datadog          # also deploy/upgrade Datadog agent
 # ==============================================================================
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -25,6 +26,7 @@ ALL_APPS=(api ingest processor web landing)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
 NO_HOOKS=false
+DEPLOY_DATADOG=false
 TAG=""
 ONLY=""
 
@@ -33,6 +35,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=true; shift ;;
     --no-hooks)   NO_HOOKS=true; shift ;;
+    --datadog)    DEPLOY_DATADOG=true; shift ;;
     --tag)        TAG="$2"; shift 2 ;;
     --only)       ONLY="$2"; shift 2 ;;
     --help|-h)
@@ -252,6 +255,20 @@ helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
   ${HELM_EXTRA_ARGS[@]+"${HELM_EXTRA_ARGS[@]}"} \
   --wait \
   --timeout 5m
+
+# ── Deploy Datadog Agent (optional) ───────────────────────────────────────────
+if [[ "$DEPLOY_DATADOG" == true ]]; then
+  echo ""
+  echo "==> Deploying Datadog Agent..."
+  helm repo add datadog https://helm.datadoghq.com 2>/dev/null || true
+  helm repo update datadog
+  helm upgrade --install datadog-agent datadog/datadog \
+    --namespace "$NAMESPACE" \
+    -f "$REPO_ROOT/k8s/datadog/values-datadog.yaml" \
+    --wait \
+    --timeout 5m
+  echo "    Datadog Agent deployed."
+fi
 
 echo ""
 echo "==> Deploy complete!"

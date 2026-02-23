@@ -15,6 +15,7 @@
     "@nestjs/platform-fastify": "^11.0.0",
     "@nestjs/throttler": "^6.5.0",
     "@qurvo/db": "workspace:*",
+    "dd-trace": "^5.0.0",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.39.0",
     "ioredis": "^5.4.0",

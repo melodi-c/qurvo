@@ -20,9 +20,11 @@ spec:
     metadata:
       labels:
         {{- include "qurvo.selectorLabels" (dict "component" "ingest" "root" .) | nindent 8 }}
+        {{- include "qurvo.datadogLabels" (dict "component" "ingest" "root" .) | nindent 8 }}
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- include "qurvo.datadogLogAnnotations" (dict "container" "ingest" "source" "nodejs" "root" .) | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -38,6 +40,7 @@ spec:
               containerPort: {{ .Values.ingest.port }}
               protocol: TCP
           env:
+            {{- include "qurvo.datadogEnvVars" (dict "component" "ingest" "root" .) | nindent 12 }}
             - name: INGEST_PORT
               value: {{ .Values.ingest.port | quote }}
           envFrom:
