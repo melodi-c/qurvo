@@ -3,5 +3,4 @@ export function toChTs(iso: string, endOfDay = false): string {
   return iso.replace('T', ' ').replace('Z', '');
 }
 
-export const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+export { RESOLVED_PERSON } from '@qurvo/cohort-query';

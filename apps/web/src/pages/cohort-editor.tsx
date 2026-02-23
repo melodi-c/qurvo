@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
-import { CohortConditionBuilder, type CohortCondition } from '@/features/cohorts/components/CohortConditionBuilder';
+import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBuilder';
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './cohort-editor.translations';
 import { toast } from 'sonner';
-import type { CohortDefinition } from '@/api/generated/Api';
+import { normalizeToV2, isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
 
 export default function CohortEditorPage() {
   const { t } = useLocalTranslation(translations);
@@ -26,8 +26,7 @@ export default function CohortEditorPage() {
 
   const [name, setName] = useState(t('defaultName'));
   const [description, setDescription] = useState('');
-  const [match, setMatch] = useState<'all' | 'any'>('all');
-  const [conditions, setConditions] = useState<CohortCondition[]>([]);
+  const [groups, setGroups] = useState<CohortConditionGroup[]>([createEmptyGroup()]);
   const [initialized, setInitialized] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -36,32 +35,48 @@ export default function CohortEditorPage() {
     if (existingCohort && !initialized) {
       setName(existingCohort.name);
       setDescription(existingCohort.description ?? '');
-      const def = existingCohort.definition as unknown as { match: 'all' | 'any'; conditions: CohortCondition[] };
-      setMatch(def.match);
-      setConditions(def.conditions);
+      const rootGroup = normalizeToV2(existingCohort.definition);
+      // Top-level is OR of AND groups. If the root is AND, wrap it in an array of one group.
+      if (rootGroup.type === 'AND') {
+        setGroups([rootGroup]);
+      } else {
+        // OR at top: each value is an AND group
+        const andGroups = rootGroup.values.map((v) => {
+          if (isGroup(v)) return v;
+          // Single condition: wrap in AND group
+          return { type: 'AND' as const, values: [v] };
+        });
+        setGroups(andGroups.length > 0 ? andGroups : [createEmptyGroup()]);
+      }
       setInitialized(true);
     }
   }, [existingCohort, initialized]);
 
+  // Build V2 definition from groups
+  const definition = useMemo((): CohortConditionGroup => {
+    if (groups.length === 1) return groups[0];
+    return { type: 'OR', values: groups };
+  }, [groups]);
+
   // Debounced preview count
-  const definition: CohortDefinition = { match, conditions: conditions as any };
   const definitionHash = JSON.stringify(definition);
   const debouncedHash = useDebounce(definitionHash, 800);
-  const hasValidConditions = conditions.length > 0 && conditions.every((c) => {
-    if (c.type === 'person_property') return c.property.trim() !== '';
-    if (c.type === 'event') return c.event_name.trim() !== '';
-    return false;
-  });
+
+  const hasValidConditions = useMemo(() => {
+    const allConditions = groups.flatMap((g) => g.values as CohortCondition[]);
+    return allConditions.length > 0 && allConditions.every(isConditionValid);
+  }, [groups]);
 
   useEffect(() => {
     if (!projectId || !hasValidConditions) return;
-    const def = JSON.parse(debouncedHash) as CohortDefinition;
+    const def = JSON.parse(debouncedHash);
     previewMutation.mutate(def);
   }, [debouncedHash, projectId, hasValidConditions]);
 
   const listPath = link.cohorts.list();
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const isValid = name.trim() !== '' && conditions.length > 0;
+  const allConditions = groups.flatMap((g) => g.values);
+  const isValid = name.trim() !== '' && allConditions.length > 0;
 
   const handleSave = useCallback(async () => {
     if (!isValid || isSaving) return;
@@ -72,7 +87,7 @@ export default function CohortEditorPage() {
         await createMutation.mutateAsync({
           name: name.trim(),
           description: description.trim() || undefined,
-          definition: { match, conditions: conditions as any },
+          definition: definition as any,
         });
         toast.success(t('cohortCreated'));
       } else {
@@ -81,7 +96,7 @@ export default function CohortEditorPage() {
           data: {
             name: name.trim(),
             description: description.trim() || undefined,
-            definition: { match, conditions: conditions as any },
+            definition: definition as any,
           },
         });
         toast.success(t('cohortUpdated'));
@@ -90,7 +105,7 @@ export default function CohortEditorPage() {
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t('saveFailed'));
     }
-  }, [name, description, match, conditions, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t]);
+  }, [name, description, definition, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t]);
 
   if (!isNew && loadingCohort) {
     return (
@@ -138,11 +153,10 @@ export default function CohortEditorPage() {
             {/* Conditions */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</label>
-              <CohortConditionBuilder
-                match={match}
-                conditions={conditions}
-                onMatchChange={setMatch}
-                onConditionsChange={setConditions}
+              <CohortGroupBuilder
+                groups={groups}
+                onChange={setGroups}
+                excludeCohortId={cohortId}
               />
             </div>
           </div>

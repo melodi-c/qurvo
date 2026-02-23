@@ -12,9 +12,16 @@ export { insights } from './insights';
 export type { InsightType, InsightConfig } from './insights';
 export { persons } from './persons';
 export { personDistinctIds } from './person-distinct-ids';
-export { cohorts } from './cohorts';
+export { cohorts, isV2Definition, isConditionGroup, normalizeDefinition } from './cohorts';
 export { projectInvites, inviteStatusEnum } from './project-invites';
-export type { CohortDefinition, CohortCondition, CohortPropertyCondition, CohortEventCondition, CohortPropertyOperator, CohortCountOperator } from './cohorts';
+export type {
+  CohortDefinition, CohortDefinitionV2, CohortConditionGroup,
+  CohortCondition, CohortPropertyCondition, CohortEventCondition,
+  CohortCohortCondition, CohortFirstTimeEventCondition, CohortNotPerformedEventCondition,
+  CohortEventSequenceCondition, CohortPerformedRegularlyCondition,
+  CohortStoppedPerformingCondition, CohortRestartedPerformingCondition,
+  CohortPropertyOperator, CohortCountOperator, CohortEventFilter,
+} from './cohorts';
 export { marketingChannels, channelTypeEnum } from './marketing-channels';
 export { adSpend } from './ad-spend';
 export { unitEconomicsConfig } from './unit-economics-config';

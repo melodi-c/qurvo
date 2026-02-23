@@ -1,0 +1,13 @@
+export { RESOLVED_PERSON, resolvePropertyExpr, resolveEventPropertyExpr, buildEventFilterClauses, TOP_LEVEL_COLUMNS } from './helpers';
+export { buildGroupSubquery, buildCohortSubquery, buildCohortFilterClause } from './builder';
+export { buildPropertyConditionSubquery } from './conditions/property';
+export { buildEventConditionSubquery } from './conditions/event';
+export { buildCohortRefConditionSubquery } from './conditions/cohort-ref';
+export { buildFirstTimeEventSubquery } from './conditions/first-time';
+export { buildNotPerformedEventSubquery } from './conditions/not-performed';
+export { buildEventSequenceSubquery } from './conditions/sequence';
+export { buildPerformedRegularlySubquery } from './conditions/regularity';
+export { buildStoppedPerformingSubquery } from './conditions/stopped';
+export { buildRestartedPerformingSubquery } from './conditions/restarted';
+export { extractCohortReferences, detectCircularDependency } from './validation';
+export type { CohortFilterInput, BuildContext } from './types';
