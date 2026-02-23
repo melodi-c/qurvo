@@ -96,6 +96,8 @@ function condSummary(c: CohortCondition): string {
       return `!${c.event_name} / ${c.time_window_days}d`;
     case 'event_sequence':
       return `seq(${c.steps.map((s) => s.event_name).join(' > ')})`;
+    case 'not_performed_event_sequence':
+      return `!seq(${c.steps.map((s) => s.event_name).join(' > ')})`;
     case 'performed_regularly':
       return `reg(${c.event_name}) ${c.min_periods}/${c.total_periods}`;
     case 'stopped_performing':
