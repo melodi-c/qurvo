@@ -6,13 +6,7 @@ import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/fu
 import { usePersonPropertyNames } from '@/pages/persons/use-person-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './PropertyConditionRow.translations';
-
-export interface PropertyCondition {
-  type: 'person_property';
-  property: string;
-  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
-  value?: string;
-}
+import type { PropertyCondition } from '../types';
 
 interface PropertyConditionRowProps {
   condition: PropertyCondition;
@@ -32,6 +26,12 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
     { value: 'not_contains', label: t('notContains') },
     { value: 'is_set', label: t('isSet') },
     { value: 'is_not_set', label: t('isNotSet') },
+    { value: 'gt', label: t('greaterThan') },
+    { value: 'lt', label: t('lessThan') },
+    { value: 'gte', label: t('greaterOrEqual') },
+    { value: 'lte', label: t('lessOrEqual') },
+    { value: 'regex', label: t('matchesRegex') },
+    { value: 'not_regex', label: t('notMatchesRegex') },
   ] as const, [t]);
 
   return (

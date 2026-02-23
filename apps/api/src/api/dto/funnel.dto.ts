@@ -12,6 +12,7 @@ import {
   IsOptional,
   IsUUID,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -64,6 +65,20 @@ export class FunnelQueryDto {
   @IsString()
   @IsOptional()
   breakdown_property?: string;
+
+  @ApiPropertyOptional({ enum: ['property', 'cohort'] })
+  @IsOptional()
+  breakdown_type?: 'property' | 'cohort';
+
+  @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  breakdown_cohort_ids?: string[];
 
   @ApiPropertyOptional({ type: [String] })
   @Transform(({ value }) => {

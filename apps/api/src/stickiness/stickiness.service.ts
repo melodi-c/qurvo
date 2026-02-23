@@ -43,6 +43,7 @@ export class StickinessService {
         cohort_id: c.id,
         definition: c.definition,
         materialized: c.membership_version !== null,
+        is_static: c.is_static,
       }));
     }
 

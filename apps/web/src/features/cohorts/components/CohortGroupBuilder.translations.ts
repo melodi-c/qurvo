@@ -1,0 +1,38 @@
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    and: 'AND',
+    or: 'OR',
+    addCondition: 'Add condition',
+    addOrGroup: 'Add OR group',
+    personProperty: 'Person property',
+    performedEvent: 'Performed event',
+    cohortMembership: 'In cohort',
+    firstTimeEvent: 'First time event',
+    notPerformedEvent: 'Did not perform',
+    eventSequence: 'Event sequence',
+    performedRegularly: 'Performed regularly',
+    stoppedPerforming: 'Stopped performing',
+    restartedPerforming: 'Restarted performing',
+    basicConditions: 'Basic',
+    behavioralConditions: 'Behavioral',
+  },
+  ru: {
+    and: 'И',
+    or: 'ИЛИ',
+    addCondition: 'Добавить условие',
+    addOrGroup: 'Добавить группу ИЛИ',
+    personProperty: 'Свойство пользователя',
+    performedEvent: 'Выполненное событие',
+    cohortMembership: 'В когорте',
+    firstTimeEvent: 'Первое событие',
+    notPerformedEvent: 'Не выполнял',
+    eventSequence: 'Последовательность событий',
+    performedRegularly: 'Выполнял регулярно',
+    stoppedPerforming: 'Перестал выполнять',
+    restartedPerforming: 'Возобновил выполнение',
+    basicConditions: 'Основные',
+    behavioralConditions: 'Поведенческие',
+  },
+});

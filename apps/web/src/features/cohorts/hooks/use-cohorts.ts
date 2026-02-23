@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { CreateCohort, UpdateCohort, CohortDefinition } from '@/api/generated/Api';
+import type { CreateCohort, UpdateCohort } from '@/api/generated/Api';
 
 export function useCohorts() {
   const [searchParams] = useSearchParams();
@@ -83,7 +83,49 @@ export function useCohortPreviewCount() {
   const projectId = searchParams.get('project') || '';
 
   return useMutation({
-    mutationFn: (definition: CohortDefinition) =>
-      api.cohortsControllerPreviewCount({ projectId }, { definition }),
+    mutationFn: (definition: unknown) =>
+      api.cohortsControllerPreviewCount({ projectId }, { definition } as any),
+  });
+}
+
+export function useCreateStaticCohort() {
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project') || '';
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { name: string; description?: string; person_ids: string[] }) =>
+      (api as any).cohortsControllerCreateStatic({ projectId }, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+    },
+  });
+}
+
+export function useDuplicateAsStatic() {
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project') || '';
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (cohortId: string) =>
+      (api as any).cohortsControllerDuplicateAsStatic({ projectId, cohortId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+    },
+  });
+}
+
+export function useUploadCohortCsv() {
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project') || '';
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) =>
+      (api as any).cohortsControllerUploadCsv({ projectId, cohortId }, { csv_content: csvContent }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+    },
   });
 }

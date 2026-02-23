@@ -29,11 +29,19 @@ export class FunnelService {
 
   async getFunnel(
     userId: string,
-    params: FunnelQueryParams & { widget_id?: string; force?: boolean; cohort_ids?: string[] },
+    params: Omit<FunnelQueryParams, 'cohort_filters' | 'breakdown_cohort_ids'> & {
+      widget_id?: string;
+      force?: boolean;
+      cohort_ids?: string[];
+      breakdown_type?: 'property' | 'cohort';
+      breakdown_cohort_ids?: string[];
+    },
   ): Promise<FunnelCacheEntry> {
     await this.projectsService.getMembership(userId, params.project_id);
 
-    const { widget_id, force, cohort_ids, ...queryParams } = params;
+    const { widget_id, force, cohort_ids, breakdown_type, breakdown_cohort_ids, ...rest } = params;
+
+    const queryParams: FunnelQueryParams = { ...rest };
 
     // Resolve cohort IDs to filter inputs (materialized or inline)
     if (cohort_ids?.length) {
@@ -44,6 +52,19 @@ export class FunnelService {
         cohort_id: c.id,
         definition: c.definition,
         materialized: c.membership_version !== null,
+        is_static: c.is_static,
+      }));
+    }
+
+    // Resolve cohort breakdown IDs
+    if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {
+      const cbRows = await Promise.all(
+        breakdown_cohort_ids.map((id) => this.cohortsService.getById(userId, params.project_id, id)),
+      );
+      queryParams.breakdown_cohort_ids = cbRows.map((c) => ({
+        cohort_id: c.id,
+        name: c.name,
+        is_static: c.is_static,
       }));
     }
     const cacheKey = this.buildCacheKey(widget_id, queryParams);

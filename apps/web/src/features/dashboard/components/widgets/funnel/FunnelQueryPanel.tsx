@@ -75,6 +75,17 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
           propertyNames={propertyNames}
           propertyDescriptions={propDescriptions}
+          breakdownType={(config as any).breakdown_type ?? 'property'}
+          onBreakdownTypeChange={(type) => onChange({
+            ...config,
+            breakdown_type: type,
+            ...(type === 'cohort' ? { breakdown_property: undefined } : { breakdown_cohort_ids: undefined }),
+          } as any)}
+          breakdownCohortIds={(config as any).breakdown_cohort_ids ?? []}
+          onBreakdownCohortIdsChange={(ids) => onChange({
+            ...config,
+            breakdown_cohort_ids: ids.length ? ids : undefined,
+          } as any)}
         />
       </div>
     </aside>

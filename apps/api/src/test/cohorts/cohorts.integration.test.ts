@@ -11,9 +11,9 @@ import {
 import {
   countCohortMembers,
   countCohortMembersFromTable,
-  buildCohortSubquery,
   type CohortFilterInput,
 } from '../../cohorts/cohorts.query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
 import { queryFunnel } from '../../funnel/funnel.query';
 import { queryTrend } from '../../trend/trend.query';
 import type { CohortDefinition } from '@qurvo/db';
@@ -429,6 +429,7 @@ describe('cohort filter integration with funnel', () => {
         ],
       },
       materialized: false,
+      is_static: false,
     };
 
     const result = await queryFunnel(ctx.ch, {
@@ -514,6 +515,7 @@ describe('cohort filter integration with funnel', () => {
         cohort_id: cohortId,
         definition,
         materialized: true,
+        is_static: false,
       }],
     });
 
@@ -567,6 +569,7 @@ describe('cohort filter integration with trend', () => {
           ],
         },
         materialized: false,
+      is_static: false,
       }],
     });
 
@@ -621,6 +624,7 @@ describe('cohort filter integration with trend', () => {
         cohort_id: cohortId,
         definition,
         materialized: true,
+        is_static: false,
       }],
     });
 
