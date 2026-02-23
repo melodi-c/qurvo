@@ -5,6 +5,7 @@ import { UAParser } from 'ua-parser-js';
 import { REDIS } from '../providers/redis.provider';
 import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_KEY_PREFIX, BILLING_EVENTS_TTL_SECONDS } from '../constants';
 import type { TrackEvent } from '../schemas/event';
+import type { ImportEvent } from '../schemas/import-event';
 
 function resolveEventType(eventName: string): string {
   if (eventName === '$identify') return 'identify';
@@ -64,6 +65,29 @@ export class IngestService {
     }
     this.incrementBillingCounter(projectId, events.length);
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
+  }
+
+  async importBatch(projectId: string, events: ImportEvent[]) {
+    const pipeline = this.redis.pipeline();
+    const batchId = `import-${crypto.randomUUID()}`;
+
+    for (const event of events) {
+      const payload = this.buildPayload(projectId, event, event.timestamp);
+      if (event.event_id) {
+        payload.event_id = event.event_id;
+      }
+      payload.batch_id = batchId;
+      pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
+    }
+
+    const results = await pipeline.exec();
+    if (results) {
+      const failed = results.filter(([err]) => err !== null);
+      if (failed.length > 0) {
+        throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
+      }
+    }
+    this.logger.log({ projectId, eventCount: events.length, batchId }, 'Import batch ingested');
   }
 
   private buildPayload(

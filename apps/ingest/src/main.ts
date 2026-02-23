@@ -9,7 +9,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ bodyLimit: 1048576, trustProxy: true }),
+    new FastifyAdapter({ bodyLimit: 5242880, trustProxy: true }),
     { bufferLogs: true },
   );
 

@@ -1,8 +1,10 @@
 import { Controller, Post, Body, Ip, Headers, UseGuards, HttpCode } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { IngestService } from './ingest.service';
 import { ApiKeyGuard } from '../guards/api-key.guard';
 import { ProjectId } from '../decorators/project-id.decorator';
 import { TrackEventSchema, BatchEventsSchema } from '../schemas/event';
+import { ImportBatchSchema } from '../schemas/import-event';
 
 @Controller('v1')
 @UseGuards(ApiKeyGuard)
@@ -32,6 +34,18 @@ export class IngestController {
   ) {
     const { events, sent_at } = BatchEventsSchema.parse(body);
     await this.ingestService.trackBatch(projectId, events, ip, userAgent, sent_at);
+    return { ok: true, count: events.length };
+  }
+
+  @Post('import')
+  @HttpCode(202)
+  @SkipThrottle()
+  async import(
+    @ProjectId() projectId: string,
+    @Body() body: unknown,
+  ) {
+    const { events } = ImportBatchSchema.parse(body);
+    await this.ingestService.importBatch(projectId, events);
     return { ok: true, count: events.length };
   }
 }
