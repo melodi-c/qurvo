@@ -14,7 +14,7 @@ export type CohortPropertyOperator =
   | 'between' | 'not_between'
   | 'is_date_before' | 'is_date_after' | 'is_date_exact';
 
-export type CohortAggregationType = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'p90' | 'p95' | 'p99';
+export type CohortAggregationType = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'p75' | 'p90' | 'p95' | 'p99';
 
 export type CohortCountOperator = 'gte' | 'lte' | 'eq';
 
