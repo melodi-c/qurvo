@@ -19,15 +19,20 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
   const { data: propertyNames = [], descriptions } = usePersonPropertyNames();
 
   const isNoValueOp = condition.operator === 'is_set' || condition.operator === 'is_not_set';
-  const isMultiValueOp = condition.operator === 'in' || condition.operator === 'not_in';
+  const isMultiValueOp = condition.operator === 'in' || condition.operator === 'not_in'
+    || condition.operator === 'contains_multi' || condition.operator === 'not_contains_multi';
   const isRangeOp = condition.operator === 'between' || condition.operator === 'not_between';
-  const needsSingleValue = !isNoValueOp && !isMultiValueOp && !isRangeOp;
+  const isDateOp = condition.operator === 'is_date_before'
+    || condition.operator === 'is_date_after' || condition.operator === 'is_date_exact';
+  const needsSingleValue = !isNoValueOp && !isMultiValueOp && !isRangeOp && !isDateOp;
 
   const operators = useMemo(() => [
     { value: 'eq', label: t('equals') },
     { value: 'neq', label: t('notEquals') },
     { value: 'contains', label: t('contains') },
     { value: 'not_contains', label: t('notContains') },
+    { value: 'contains_multi', label: t('containsMulti') },
+    { value: 'not_contains_multi', label: t('notContainsMulti') },
     { value: 'in', label: t('in') },
     { value: 'not_in', label: t('notIn') },
     { value: 'is_set', label: t('isSet') },
@@ -40,21 +45,26 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
     { value: 'not_between', label: t('notBetween') },
     { value: 'regex', label: t('matchesRegex') },
     { value: 'not_regex', label: t('notMatchesRegex') },
+    { value: 'is_date_before', label: t('isDateBefore') },
+    { value: 'is_date_after', label: t('isDateAfter') },
+    { value: 'is_date_exact', label: t('isDateExact') },
   ] as const, [t]);
 
   const handleOperatorChange = useCallback((v: string) => {
     const op = v as CohortPropertyOperator;
-    const isNewMulti = op === 'in' || op === 'not_in';
+    const isNewMulti = op === 'in' || op === 'not_in'
+      || op === 'contains_multi' || op === 'not_contains_multi';
     const isNewRange = op === 'between' || op === 'not_between';
+    const isNewDate = op === 'is_date_before' || op === 'is_date_after' || op === 'is_date_exact';
 
     if (isNewMulti) {
-      // migrate single value to values array
       const currentVal = condition.value?.trim();
       onChange({ ...condition, operator: op, values: currentVal ? [currentVal] : [], value: undefined });
     } else if (isNewRange) {
       onChange({ ...condition, operator: op, values: ['', ''], value: undefined });
+    } else if (isNewDate) {
+      onChange({ ...condition, operator: op, value: condition.value ?? '', values: undefined });
     } else {
-      // migrate first value back to single value
       const firstVal = condition.values?.[0] ?? condition.value ?? '';
       onChange({ ...condition, operator: op, value: firstVal, values: undefined });
     }
@@ -134,6 +144,15 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
             className="h-8 text-xs flex-1"
           />
         </div>
+      )}
+
+      {isDateOp && (
+        <Input
+          type="date"
+          value={condition.value ?? ''}
+          onChange={(e) => onChange({ ...condition, value: e.target.value })}
+          className="h-8 text-xs flex-1"
+        />
       )}
     </div>
   );

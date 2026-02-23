@@ -527,6 +527,403 @@ describe('cohort filter integration with funnel', () => {
   });
 });
 
+// ── Date operators ──────────────────────────────────────────────────────────
+
+describe('countCohortMembers — date operators', () => {
+  it('is_date_before: filters persons by signup_date', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'early-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-01-15' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'late-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-06-20' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_before', value: '2025-03-01' },
+      ],
+    });
+
+    expect(count).toBe(1);
+  });
+
+  it('is_date_after: filters persons by signup_date', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'early-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-01-15' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'late-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-06-20' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_after', value: '2025-03-01' },
+      ],
+    });
+
+    expect(count).toBe(1);
+  });
+
+  it('is_date_exact: matches by day regardless of time', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'target-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-03-15T14:30:00Z' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'other-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-03-16' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_exact', value: '2025-03-15' },
+      ],
+    });
+
+    expect(count).toBe(1);
+  });
+});
+
+// ── Multi-substring operators ───────────────────────────────────────────────
+
+describe('countCohortMembers — multi-substring operators', () => {
+  it('contains_multi: matches persons with any of the substrings', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'gmail-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'alice@gmail.com' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'yahoo-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'bob@yahoo.com' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'outlook-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'carol@outlook.com' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'email', operator: 'contains_multi', values: ['gmail', 'yahoo'] },
+      ],
+    });
+
+    expect(count).toBe(2);
+  });
+
+  it('not_contains_multi: excludes persons with any of the substrings', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'gmail-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'alice@gmail.com' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'yahoo-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'bob@yahoo.com' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'outlook-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'carol@outlook.com' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'email', operator: 'not_contains_multi', values: ['gmail', 'yahoo'] },
+      ],
+    });
+
+    expect(count).toBe(1);
+  });
+});
+
+// ── Event aggregation math ──────────────────────────────────────────────────
+
+describe('countCohortMembers — event aggregation math', () => {
+  it('sum(revenue) >= threshold', async () => {
+    const projectId = randomUUID();
+    const bigSpender = randomUUID();
+    const smallSpender = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: bigSpender,
+        distinct_id: 'big',
+        event_name: 'purchase',
+        properties: JSON.stringify({ revenue: '500' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: bigSpender,
+        distinct_id: 'big',
+        event_name: 'purchase',
+        properties: JSON.stringify({ revenue: '700' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: smallSpender,
+        distinct_id: 'small',
+        event_name: 'purchase',
+        properties: JSON.stringify({ revenue: '50' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'event',
+          event_name: 'purchase',
+          count_operator: 'gte',
+          count: 1000,
+          time_window_days: 30,
+          aggregation_type: 'sum',
+          aggregation_property: 'properties.revenue',
+        },
+      ],
+    });
+
+    expect(count).toBe(1); // only bigSpender (500+700=1200 >= 1000)
+  });
+
+  it('avg(price) >= threshold', async () => {
+    const projectId = randomUUID();
+    const highAvg = randomUUID();
+    const lowAvg = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: highAvg,
+        distinct_id: 'high',
+        event_name: 'purchase',
+        properties: JSON.stringify({ price: '100' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: highAvg,
+        distinct_id: 'high',
+        event_name: 'purchase',
+        properties: JSON.stringify({ price: '200' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: lowAvg,
+        distinct_id: 'low',
+        event_name: 'purchase',
+        properties: JSON.stringify({ price: '10' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: lowAvg,
+        distinct_id: 'low',
+        event_name: 'purchase',
+        properties: JSON.stringify({ price: '20' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'event',
+          event_name: 'purchase',
+          count_operator: 'gte',
+          count: 50,
+          time_window_days: 30,
+          aggregation_type: 'avg',
+          aggregation_property: 'properties.price',
+        },
+      ],
+    });
+
+    expect(count).toBe(1); // only highAvg (avg=150 >= 50)
+  });
+
+  it('max(score) <= threshold', async () => {
+    const projectId = randomUUID();
+    const lowScorer = randomUUID();
+    const highScorer = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: lowScorer,
+        distinct_id: 'low',
+        event_name: 'game_round',
+        properties: JSON.stringify({ score: '30' }),
+        user_properties: JSON.stringify({ role: 'player' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: lowScorer,
+        distinct_id: 'low',
+        event_name: 'game_round',
+        properties: JSON.stringify({ score: '45' }),
+        user_properties: JSON.stringify({ role: 'player' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: highScorer,
+        distinct_id: 'high',
+        event_name: 'game_round',
+        properties: JSON.stringify({ score: '80' }),
+        user_properties: JSON.stringify({ role: 'player' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'event',
+          event_name: 'game_round',
+          count_operator: 'lte',
+          count: 50,
+          time_window_days: 30,
+          aggregation_type: 'max',
+          aggregation_property: 'properties.score',
+        },
+      ],
+    });
+
+    expect(count).toBe(1); // only lowScorer (max=45 <= 50)
+  });
+
+  it('backward compat: no aggregation_type defaults to count()', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      ...Array.from({ length: 3 }, (_, i) =>
+        buildEvent({
+          project_id: projectId,
+          person_id: personA,
+          distinct_id: 'a',
+          event_name: 'click',
+          user_properties: JSON.stringify({ role: 'user' }),
+          timestamp: msAgo(i * 1000),
+        }),
+      ),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'click',
+        user_properties: JSON.stringify({ role: 'user' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'event', event_name: 'click', count_operator: 'gte', count: 2, time_window_days: 30 },
+      ],
+    });
+
+    expect(count).toBe(1); // only personA has >= 2
+  });
+});
+
 describe('cohort filter integration with trend', () => {
   it('trend with inline cohort_filters restricts to cohort members', async () => {
     const projectId = randomUUID();

@@ -87,8 +87,12 @@ function condSummary(c: CohortCondition): string {
   switch (c.type) {
     case 'person_property':
       return `${c.property} ${c.operator} ${c.value ?? ''}`.trim();
-    case 'event':
-      return `${c.event_name} ${c.count_operator} ${c.count}x / ${c.time_window_days}d`;
+    case 'event': {
+      const agg = c.aggregation_type && c.aggregation_type !== 'count'
+        ? `${c.aggregation_type}(${c.aggregation_property ?? '?'})`
+        : c.event_name;
+      return `${agg} ${c.count_operator} ${c.count}${c.aggregation_type && c.aggregation_type !== 'count' ? '' : 'x'} / ${c.time_window_days}d`;
+    }
     case 'cohort':
       return `${c.negated ? 'NOT ' : ''}cohort:${c.cohort_id.slice(0, 8)}`;
     case 'first_time_event':

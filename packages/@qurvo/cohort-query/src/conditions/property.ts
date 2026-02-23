@@ -80,6 +80,26 @@ export function buildPropertyConditionSubquery(
       havingClause = `(toFloat64OrZero(${latestExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${latestExpr}) > {${maxPk}:Float64})`;
       break;
     }
+    case 'is_date_before':
+      ctx.queryParams[pk] = cond.value ?? '';
+      havingClause = `parseDateTimeBestEffortOrZero(${latestExpr}) < parseDateTimeBestEffort({${pk}:String})`;
+      break;
+    case 'is_date_after':
+      ctx.queryParams[pk] = cond.value ?? '';
+      havingClause = `parseDateTimeBestEffortOrZero(${latestExpr}) > parseDateTimeBestEffort({${pk}:String})`;
+      break;
+    case 'is_date_exact':
+      ctx.queryParams[pk] = cond.value ?? '';
+      havingClause = `toDate(parseDateTimeBestEffortOrZero(${latestExpr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`;
+      break;
+    case 'contains_multi':
+      ctx.queryParams[pk] = cond.values ?? [];
+      havingClause = `multiSearchAny(${latestExpr}, {${pk}:Array(String)})`;
+      break;
+    case 'not_contains_multi':
+      ctx.queryParams[pk] = cond.values ?? [];
+      havingClause = `NOT multiSearchAny(${latestExpr}, {${pk}:Array(String)})`;
+      break;
     default:
       havingClause = '1';
   }

@@ -20,7 +20,7 @@ export type {
   CohortCohortCondition, CohortFirstTimeEventCondition, CohortNotPerformedEventCondition,
   CohortEventSequenceCondition, CohortNotPerformedEventSequenceCondition, CohortPerformedRegularlyCondition,
   CohortStoppedPerformingCondition, CohortRestartedPerformingCondition,
-  CohortPropertyOperator, CohortCountOperator, CohortEventFilter,
+  CohortPropertyOperator, CohortCountOperator, CohortEventFilter, CohortAggregationType,
 } from './cohorts';
 export { marketingChannels, channelTypeEnum } from './marketing-channels';
 export { adSpend } from './ad-spend';

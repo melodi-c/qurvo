@@ -125,6 +125,26 @@ export function buildEventFilterClauses(
         parts.push(`(toFloat64OrZero(${expr}) < {${minPk}:Float64} OR toFloat64OrZero(${expr}) > {${maxPk}:Float64})`);
         break;
       }
+      case 'is_date_before':
+        queryParams[pk] = f.value ?? '';
+        parts.push(`parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String})`);
+        break;
+      case 'is_date_after':
+        queryParams[pk] = f.value ?? '';
+        parts.push(`parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String})`);
+        break;
+      case 'is_date_exact':
+        queryParams[pk] = f.value ?? '';
+        parts.push(`toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`);
+        break;
+      case 'contains_multi':
+        queryParams[pk] = f.values ?? [];
+        parts.push(`multiSearchAny(${expr}, {${pk}:Array(String)})`);
+        break;
+      case 'not_contains_multi':
+        queryParams[pk] = f.values ?? [];
+        parts.push(`NOT multiSearchAny(${expr}, {${pk}:Array(String)})`);
+        break;
     }
   }
 

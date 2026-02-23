@@ -6,11 +6,15 @@ import { users } from './users';
 
 export type CohortPropertyOperator =
   | 'eq' | 'neq' | 'contains' | 'not_contains'
+  | 'contains_multi' | 'not_contains_multi'
   | 'is_set' | 'is_not_set'
   | 'gt' | 'lt' | 'gte' | 'lte'
   | 'regex' | 'not_regex'
   | 'in' | 'not_in'
-  | 'between' | 'not_between';
+  | 'between' | 'not_between'
+  | 'is_date_before' | 'is_date_after' | 'is_date_exact';
+
+export type CohortAggregationType = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'p90' | 'p95' | 'p99';
 
 export type CohortCountOperator = 'gte' | 'lte' | 'eq';
 
@@ -40,6 +44,8 @@ export interface CohortEventCondition {
   count: number;
   time_window_days: number;
   event_filters?: CohortEventFilter[];
+  aggregation_type?: CohortAggregationType;
+  aggregation_property?: string;
 }
 
 export interface CohortCohortCondition {

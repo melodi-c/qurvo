@@ -2,11 +2,15 @@
 
 export type CohortPropertyOperator =
   | 'eq' | 'neq' | 'contains' | 'not_contains'
+  | 'contains_multi' | 'not_contains_multi'
   | 'is_set' | 'is_not_set'
   | 'gt' | 'lt' | 'gte' | 'lte'
   | 'regex' | 'not_regex'
   | 'in' | 'not_in'
-  | 'between' | 'not_between';
+  | 'between' | 'not_between'
+  | 'is_date_before' | 'is_date_after' | 'is_date_exact';
+
+export type CohortAggregationType = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'p90' | 'p95' | 'p99';
 
 export interface CohortEventFilter {
   property: string;
@@ -30,6 +34,8 @@ export interface EventCondition {
   count: number;
   time_window_days: number;
   event_filters?: CohortEventFilter[];
+  aggregation_type?: CohortAggregationType;
+  aggregation_property?: string;
 }
 
 export interface CohortRefCondition {
@@ -164,6 +170,8 @@ export function isConditionValid(cond: CohortCondition): boolean {
     case 'person_property':
       return cond.property.trim() !== '';
     case 'event':
+      if (cond.aggregation_type && cond.aggregation_type !== 'count' && !cond.aggregation_property?.trim()) return false;
+      return cond.event_name.trim() !== '';
     case 'first_time_event':
     case 'not_performed_event':
     case 'performed_regularly':

@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './EventConditionRow.translations';
-import type { EventCondition } from '../types';
+import type { EventCondition, CohortAggregationType } from '../types';
 
 interface EventConditionRowProps {
   condition: EventCondition;
@@ -16,10 +16,23 @@ interface EventConditionRowProps {
 export function EventConditionRow({ condition, onChange, onRemove }: EventConditionRowProps) {
   const { t } = useLocalTranslation(translations);
 
+  const isCount = !condition.aggregation_type || condition.aggregation_type === 'count';
+
   const countOperators = useMemo(() => [
     { value: 'gte', label: t('atLeast') },
     { value: 'lte', label: t('atMost') },
     { value: 'eq', label: t('exactly') },
+  ] as const, [t]);
+
+  const aggregationTypes = useMemo(() => [
+    { value: 'count', label: t('aggCount') },
+    { value: 'sum', label: t('aggSum') },
+    { value: 'avg', label: t('aggAvg') },
+    { value: 'min', label: t('aggMin') },
+    { value: 'max', label: t('aggMax') },
+    { value: 'p90', label: 'P90' },
+    { value: 'p95', label: 'P95' },
+    { value: 'p99', label: 'P99' },
   ] as const, [t]);
 
   return (
@@ -44,6 +57,40 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <Select
+            value={condition.aggregation_type ?? 'count'}
+            onValueChange={(v) => {
+              const aggType = v as CohortAggregationType;
+              onChange({
+                ...condition,
+                aggregation_type: aggType === 'count' ? undefined : aggType,
+                aggregation_property: aggType === 'count' ? undefined : condition.aggregation_property,
+              });
+            }}
+          >
+            <SelectTrigger size="sm" className="h-8 text-xs min-w-0 w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {aggregationTypes.map((at) => (
+                <SelectItem key={at.value} value={at.value} className="text-xs">
+                  {at.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {!isCount && (
+            <Input
+              value={condition.aggregation_property ?? ''}
+              onChange={(e) => onChange({ ...condition, aggregation_property: e.target.value })}
+              placeholder={t('propertyPlaceholder')}
+              className="h-8 text-xs flex-1"
+            />
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Select
             value={condition.count_operator}
             onValueChange={(v) => onChange({ ...condition, count_operator: v as EventCondition['count_operator'] })}
           >
@@ -62,12 +109,15 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           <Input
             type="number"
             min={0}
+            step={isCount ? 1 : 'any'}
             value={condition.count}
             onChange={(e) => onChange({ ...condition, count: Number(e.target.value) })}
-            className="h-8 text-xs w-16"
+            className="h-8 text-xs w-20"
           />
 
-          <span className="text-xs text-muted-foreground whitespace-nowrap">{t('times')}</span>
+          {isCount && (
+            <span className="text-xs text-muted-foreground whitespace-nowrap">{t('times')}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

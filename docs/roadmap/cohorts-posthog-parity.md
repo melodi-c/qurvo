@@ -55,18 +55,18 @@
 
 ### P2 — Средняя сложность
 
-- [ ] Date-операторы (`is_date_before`, `is_date_after`, `is_date_exact`)
+- [x] Date-операторы (`is_date_before`, `is_date_after`, `is_date_exact`)
   - SQL: `parseDateTimeBestEffort(expr)` + сравнение
   - Нужен date picker в UI
-- [ ] `contains_multi` / `not_contains_multi` — несколько подстрок
+- [x] `contains_multi` / `not_contains_multi` — несколько подстрок
   - SQL: `multiSearchAny(expr, ['v1','v2'])`
 
 ### P3 — Существенная фича
 
-- [ ] Event aggregation math — "sum(revenue) > 1000", "avg(price) >= 50"
+- [x] Event aggregation math — "sum(revenue) > 1000", "avg(price) >= 50"
   - PostHog: Total/Unique/WAU/MAU + property math (avg, sum, min, max, p75-p99)
-  - Qurvo: только count
-  - Добавить `aggregation_type` + `aggregation_property` к event-условиям, расширить SQL builder
+  - Qurvo: count, sum, avg, min, max, p90, p95, p99
+  - Добавлен `aggregation_type` + `aggregation_property` к event-условиям, расширен SQL builder
 
 ### Не планируется (PostHog-специфичные)
 

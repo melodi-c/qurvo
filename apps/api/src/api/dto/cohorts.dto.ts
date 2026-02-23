@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsIn,
   IsInt,
+  IsNumber,
   Min,
   Max,
   IsArray,
@@ -22,12 +23,14 @@ export class CohortEventFilterDto {
   @IsNotEmpty()
   property: string;
 
-  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set',
-    'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
-    'in', 'not_in', 'between', 'not_between'])
-  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set'
-    | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
-    | 'in' | 'not_in' | 'between' | 'not_between';
+  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
+    'is_set', 'is_not_set', 'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
+    'in', 'not_in', 'between', 'not_between',
+    'is_date_before', 'is_date_after', 'is_date_exact'])
+  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'contains_multi' | 'not_contains_multi'
+    | 'is_set' | 'is_not_set' | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
+    | 'in' | 'not_in' | 'between' | 'not_between'
+    | 'is_date_before' | 'is_date_after' | 'is_date_exact';
 
   @IsString()
   @IsOptional()
@@ -49,12 +52,14 @@ export class CohortPropertyConditionDto {
   @IsNotEmpty()
   property: string;
 
-  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set',
-    'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
-    'in', 'not_in', 'between', 'not_between'])
-  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set'
-    | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
-    | 'in' | 'not_in' | 'between' | 'not_between';
+  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
+    'is_set', 'is_not_set', 'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
+    'in', 'not_in', 'between', 'not_between',
+    'is_date_before', 'is_date_after', 'is_date_exact'])
+  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'contains_multi' | 'not_contains_multi'
+    | 'is_set' | 'is_not_set' | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
+    | 'in' | 'not_in' | 'between' | 'not_between'
+    | 'is_date_before' | 'is_date_after' | 'is_date_exact';
 
   @IsString()
   @IsOptional()
@@ -78,7 +83,7 @@ export class CohortEventConditionDto {
   count_operator: 'gte' | 'lte' | 'eq';
 
   @Type(() => Number)
-  @IsInt()
+  @IsNumber()
   @Min(0)
   count: number;
 
@@ -93,6 +98,14 @@ export class CohortEventConditionDto {
   @Type(() => CohortEventFilterDto)
   @IsOptional()
   event_filters?: CohortEventFilterDto[];
+
+  @IsIn(['count', 'sum', 'avg', 'min', 'max', 'p90', 'p95', 'p99'])
+  @IsOptional()
+  aggregation_type?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'p90' | 'p95' | 'p99';
+
+  @IsString()
+  @IsOptional()
+  aggregation_property?: string;
 }
 
 export class CohortCohortConditionDto {
