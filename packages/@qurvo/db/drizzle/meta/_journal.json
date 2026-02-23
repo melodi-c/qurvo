@@ -146,14 +146,7 @@
       "idx": 20,
       "version": "7",
       "when": 1773200000000,
-      "tag": "0020_add_persons_gin_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 21,
-      "version": "7",
-      "when": 1773300000000,
-      "tag": "0021_nullable_value_type",
+      "tag": "0020_nullable_value_type",
       "breakpoints": true
     },
     {
