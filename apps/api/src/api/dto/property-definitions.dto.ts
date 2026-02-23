@@ -39,7 +39,7 @@ export class PropertyDefinitionQueryDto {
 export class PropertyDefinitionDto {
   @ApiProperty() property_name: string;
   @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
-  @ApiProperty() value_type: string;
+  @ApiPropertyOptional() value_type: string | null;
   @ApiProperty() is_numerical: boolean;
   @ApiProperty() id: string;
   @ApiPropertyOptional() description: string | null;
@@ -54,7 +54,7 @@ export class UpsertPropertyDefinitionResponseDto {
   project_id: string;
   property_name: string;
   @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
-  @ApiProperty() value_type: string;
+  @ApiPropertyOptional() value_type: string | null;
   @ApiProperty() is_numerical: boolean;
   @ApiPropertyOptional() description: string | null;
   @ApiProperty({ type: [String] }) tags: string[];

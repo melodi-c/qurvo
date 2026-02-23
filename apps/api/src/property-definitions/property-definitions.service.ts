@@ -7,7 +7,7 @@ import { ProjectsService } from '../projects/projects.service';
 export interface PropertyDefinitionItem {
   property_name: string;
   property_type: 'event' | 'person';
-  value_type: string;
+  value_type: string | null;
   is_numerical: boolean;
   id: string;
   description: string | null;
@@ -61,7 +61,7 @@ export class PropertyDefinitionsService {
         return {
           property_name: ep.property_name,
           property_type: ep.property_type as 'event' | 'person',
-          value_type: meta?.value_type ?? 'String',
+          value_type: meta?.value_type ?? null,
           is_numerical: meta?.is_numerical ?? false,
           id: meta?.id ?? '',
           description: meta?.description ?? null,
