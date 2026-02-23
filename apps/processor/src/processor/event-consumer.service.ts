@@ -13,7 +13,7 @@ import {
 } from '../constants';
 import { FlushService, type BufferedEvent } from './flush.service';
 import { PersonResolverService } from './person-resolver.service';
-import { PersonWriterService } from './person-writer.service';
+import { PersonBatchStore } from './person-batch-store';
 import { parseRedisFields } from './utils';
 import { GeoService } from './geo.service';
 
@@ -32,7 +32,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     @Inject(REDIS) private readonly redis: Redis,
     private readonly flushService: FlushService,
     private readonly personResolver: PersonResolverService,
-    private readonly personWriter: PersonWriterService,
+    private readonly personBatchStore: PersonBatchStore,
     private readonly geoService: GeoService,
     @InjectPinoLogger(EventConsumerService.name) private readonly logger: PinoLogger,
   ) {}
@@ -181,17 +181,11 @@ export class EventConsumerService implements OnApplicationBootstrap {
       personId = await this.personResolver.resolve(projectId, data.distinct_id);
     }
 
-    // Fire-and-forget: sync person profile to PostgreSQL, then merge if needed.
-    // mergePersons must run after syncPerson to guarantee the FK target exists.
-    this.personWriter
-      .syncPerson(projectId, personId, data.distinct_id, data.user_properties || '{}')
-      .then(() => {
-        if (mergedFromPersonId) {
-          return this.personWriter.mergePersons(projectId, mergedFromPersonId, personId);
-        }
-        return undefined;
-      })
-      .catch((err) => this.logger.error({ err, personId }, 'PersonWriter failed'));
+    // Enqueue person profile update for batch flush (0 PG queries here)
+    this.personBatchStore.enqueue(projectId, personId, data.distinct_id, data.user_properties || '{}');
+    if (mergedFromPersonId) {
+      this.personBatchStore.enqueueMerge(projectId, mergedFromPersonId, personId);
+    }
 
     return {
       event_id: data.event_id || '',

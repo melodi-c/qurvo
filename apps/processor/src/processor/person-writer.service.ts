@@ -4,7 +4,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 
-interface ParsedUserProperties {
+export interface ParsedUserProperties {
   setProps: Record<string, unknown>;
   setOnceProps: Record<string, unknown>;
   unsetKeys: string[];
@@ -19,7 +19,7 @@ interface ParsedUserProperties {
  *  - $set_once object → only sets if property doesn't exist yet
  *  - $unset array → removes listed keys
  */
-function parseUserProperties(raw: string): ParsedUserProperties {
+export function parseUserProperties(raw: string): ParsedUserProperties {
   let obj: Record<string, unknown>;
   try {
     obj = JSON.parse(raw || '{}') as Record<string, unknown>;

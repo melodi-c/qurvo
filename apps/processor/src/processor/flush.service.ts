@@ -6,6 +6,8 @@ import { insertEvents } from './insert';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DefinitionSyncService } from './definition-sync.service';
+import { PersonBatchStore } from './person-batch-store';
+import { PersonWriterService } from './person-writer.service';
 import {
   PROCESSOR_BATCH_SIZE,
   PROCESSOR_FLUSH_INTERVAL_MS,
@@ -31,6 +33,8 @@ export class FlushService implements OnApplicationBootstrap {
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(FlushService.name) private readonly logger: PinoLogger,
     private readonly definitionSync: DefinitionSyncService,
+    private readonly personBatchStore: PersonBatchStore,
+    private readonly personWriter: PersonWriterService,
   ) {}
 
   onApplicationBootstrap() {
@@ -59,6 +63,14 @@ export class FlushService implements OnApplicationBootstrap {
     const batch = this.buffer.splice(0);
     const events = batch.map((b) => b.event);
     const messageIds = batch.map((b) => b.messageId);
+
+    // Flush person batch to PG before CH insert (non-critical, same timing as previous fire-and-forget)
+    try {
+      await this.personBatchStore.flush(this.personWriter);
+    } catch (err) {
+      this.logger.error({ err }, 'Person batch flush failed (non-critical)');
+    }
+
     let retries = 0;
 
     while (retries < PROCESSOR_MAX_RETRIES) {

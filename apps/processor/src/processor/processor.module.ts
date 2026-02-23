@@ -10,6 +10,7 @@ import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonWriterService } from './person-writer.service';
+import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { DefinitionSyncService } from './definition-sync.service';
 
@@ -24,6 +25,7 @@ import { DefinitionSyncService } from './definition-sync.service';
     CohortMembershipService,
     PersonResolverService,
     PersonWriterService,
+    PersonBatchStore,
     GeoService,
     EventConsumerService,
   ],
