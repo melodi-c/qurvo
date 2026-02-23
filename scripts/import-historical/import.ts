@@ -1,17 +1,20 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { execSync } from 'node:child_process';
 
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
-const REMOTE_CH_URL = requiredEnv('REMOTE_CH_URL');
-const REMOTE_CH_USER = requiredEnv('REMOTE_CH_USER');
-const REMOTE_CH_PASSWORD = requiredEnv('REMOTE_CH_PASSWORD');
-const REMOTE_CH_DB = requiredEnv('REMOTE_CH_DB');
+const SSH_HOST = process.env.SSH_HOST || 'root@46.182.24.93';
 
-const IMPORT_API_URL = requiredEnv('IMPORT_API_URL'); // e.g. https://ingest.qurvo.io/v1/import
-const IMPORT_API_KEY = requiredEnv('IMPORT_API_KEY');
+const CH_URL = 'https://rc1d-g3ks2ld3i0pdmci3.mdb.yandexcloud.net:8443';
+const CH_USER = 'analytics_clickhouse';
+const CH_PASSWORD = 'mb7mF5PwcXogQJXDK34Q';
+const CH_DB = 'analytics';
+
+const IMPORT_API_URL = process.env.IMPORT_API_URL || 'https://ingest.qurvo.ru/v1/import';
+const IMPORT_API_KEY = process.env.IMPORT_API_KEY || '4Z_-5DwMBY4a6wg7IjjoSVfsRJM5C3H-';
 
 const BATCH_SIZE = intEnv('BATCH_SIZE', 2000);
 const CH_PAGE_SIZE = intEnv('CH_PAGE_SIZE', 10000);
@@ -27,12 +30,14 @@ interface RemoteEvent {
   event_id: string;
   distinct_id: string;
   event_name: string;
-  properties: string; // JSON string
+  page_url: string | null;
+  session_id: string | null;
+  created_at: string;
   ingested_at: string;
 }
 
 interface Cursor {
-  ingested_at: string;
+  created_at: string;
   event_id: string;
   total_sent: number;
 }
@@ -40,15 +45,6 @@ interface Cursor {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function requiredEnv(name: string): string {
-  const val = process.env[name];
-  if (!val) {
-    console.error(`Missing required env var: ${name}`);
-    process.exit(1);
-  }
-  return val;
-}
 
 function intEnv(name: string, defaultVal: number): number {
   const val = process.env[name];
@@ -65,53 +61,32 @@ function saveCursor(cursor: Cursor): void {
 }
 
 // ---------------------------------------------------------------------------
-// Remote ClickHouse query
+// Remote ClickHouse query via SSH
 // ---------------------------------------------------------------------------
 
-async function queryRemoteCH(query: string): Promise<RemoteEvent[]> {
-  const url = new URL(REMOTE_CH_URL);
-  url.searchParams.set('user', REMOTE_CH_USER);
-  url.searchParams.set('password', REMOTE_CH_PASSWORD);
-  url.searchParams.set('database', REMOTE_CH_DB);
-  url.searchParams.set('default_format', 'JSONEachRow');
+function queryRemoteCH(query: string): RemoteEvent[] {
+  const chParams = `user=${CH_USER}&password=${CH_PASSWORD}&database=${CH_DB}&default_format=JSONEachRow`;
+  const escapedQuery = query.replace(/'/g, "'\\''");
+  const cmd = `ssh ${SSH_HOST} "curl -sk '${CH_URL}/?${chParams}' --data-binary '${escapedQuery}'"`;
 
-  const resp = await fetch(url.toString(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: query,
-  });
+  const output = execSync(cmd, { maxBuffer: 100 * 1024 * 1024, timeout: 120_000 }).toString().trim();
+  if (!output) return [];
 
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`ClickHouse query failed (${resp.status}): ${text}`);
-  }
-
-  const text = await resp.text();
-  if (!text.trim()) return [];
-
-  return text
-    .trim()
-    .split('\n')
-    .map((line) => JSON.parse(line));
+  return output.split('\n').map((line) => JSON.parse(line));
 }
 
 // ---------------------------------------------------------------------------
 // Fetch page from remote CH with keyset pagination
+// ORDER BY (created_at, event_id) matches primary key for fast scans
 // ---------------------------------------------------------------------------
 
-async function fetchPage(cursor: Cursor | null): Promise<RemoteEvent[]> {
+function fetchPage(cursor: Cursor | null): RemoteEvent[] {
   let whereClause = '';
   if (cursor) {
-    whereClause = `WHERE (ingested_at, event_id) > ('${cursor.ingested_at}', '${cursor.event_id}')`;
+    whereClause = `WHERE (created_at, event_id) > ('${cursor.created_at}', '${cursor.event_id}')`;
   }
 
-  const query = `
-    SELECT event_id, distinct_id, event_name, properties, ingested_at
-    FROM events
-    ${whereClause}
-    ORDER BY ingested_at ASC, event_id ASC
-    LIMIT ${CH_PAGE_SIZE}
-  `;
+  const query = `SELECT event_id, distinct_id, event_name, properties.page_url AS page_url, properties.session_id AS session_id, created_at, ingested_at FROM events ${whereClause} ORDER BY created_at, event_id LIMIT ${CH_PAGE_SIZE}`;
 
   return queryRemoteCH(query);
 }
@@ -121,25 +96,16 @@ async function fetchPage(cursor: Cursor | null): Promise<RemoteEvent[]> {
 // ---------------------------------------------------------------------------
 
 function mapEvent(raw: RemoteEvent): Record<string, unknown> {
-  let props: Record<string, unknown> = {};
-  try {
-    props = typeof raw.properties === 'string' ? JSON.parse(raw.properties) : raw.properties;
-  } catch {
-    // ignore malformed JSON
-  }
-
-  const { page_url, session_id, ...restProps } = props as Record<string, unknown>;
-
   const context: Record<string, unknown> = {};
-  if (page_url) context.url = String(page_url);
-  if (session_id) context.session_id = String(session_id);
+  if (raw.page_url) context.url = raw.page_url;
+  if (raw.session_id) context.session_id = raw.session_id;
 
   return {
     event: raw.event_name,
     distinct_id: raw.distinct_id,
     event_id: raw.event_id,
-    timestamp: new Date(raw.ingested_at).toISOString(),
-    properties: restProps,
+    timestamp: new Date(raw.ingested_at + 'Z').toISOString(),
+    properties: {},
     context,
   };
 }
@@ -185,7 +151,7 @@ async function sendWithConcurrency(
         ok += batch.length;
       } catch (err) {
         failed += batch.length;
-        console.error(`Batch ${batchIdx} failed:`, (err as Error).message);
+        console.error(`  Batch ${batchIdx} failed:`, (err as Error).message);
       }
     }
   }
@@ -200,14 +166,14 @@ async function sendWithConcurrency(
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log('Import historical events');
-  console.log(`Remote CH: ${REMOTE_CH_URL} (db: ${REMOTE_CH_DB})`);
+  console.log('=== Import historical events ===');
+  console.log(`SSH: ${SSH_HOST}`);
   console.log(`Import API: ${IMPORT_API_URL}`);
-  console.log(`Batch size: ${BATCH_SIZE}, CH page size: ${CH_PAGE_SIZE}, Concurrency: ${CONCURRENCY}`);
+  console.log(`Batch: ${BATCH_SIZE} | CH page: ${CH_PAGE_SIZE} | Concurrency: ${CONCURRENCY}`);
 
   let cursor = loadCursor();
   if (cursor) {
-    console.log(`Resuming from cursor: ingested_at=${cursor.ingested_at}, event_id=${cursor.event_id}, total_sent=${cursor.total_sent}`);
+    console.log(`Resuming: created_at=${cursor.created_at}, event_id=${cursor.event_id}, sent=${cursor.total_sent}`);
   } else {
     console.log('Starting from the beginning');
   }
@@ -217,15 +183,15 @@ async function main() {
   const startTime = Date.now();
 
   while (true) {
-    const page = await fetchPage(cursor);
+    const page = fetchPage(cursor);
     if (page.length === 0) {
-      console.log('No more events to import. Done!');
+      console.log('No more events. Done!');
       break;
     }
 
     const mapped = page.map(mapEvent);
 
-    // Split into batches
+    // Split into batches for the import API
     const batches: Record<string, unknown>[][] = [];
     for (let i = 0; i < mapped.length; i += BATCH_SIZE) {
       batches.push(mapped.slice(i, i + BATCH_SIZE));
@@ -235,24 +201,24 @@ async function main() {
     totalSent += ok;
     totalFailed += failed;
 
-    // Update cursor to last event in page
+    // Update cursor to last event in page (keyset by primary key)
     const lastEvent = page[page.length - 1];
     cursor = {
-      ingested_at: lastEvent.ingested_at,
+      created_at: lastEvent.created_at,
       event_id: lastEvent.event_id,
       total_sent: totalSent,
     };
     saveCursor(cursor);
 
     const elapsed = (Date.now() - startTime) / 1000;
-    const speed = Math.round(totalSent / elapsed);
+    const speed = elapsed > 0 ? Math.round(totalSent / elapsed) : 0;
     console.log(
-      `Sent: ${totalSent} | Failed: ${totalFailed} | Speed: ${speed} events/s | Last: ${cursor.ingested_at}`,
+      `Sent: ${totalSent} | Failed: ${totalFailed} | Speed: ${speed} ev/s | Page: ${page.length} | Last ingested: ${lastEvent.ingested_at}`,
     );
   }
 
   const elapsed = (Date.now() - startTime) / 1000;
-  console.log(`\nImport complete. Total sent: ${totalSent}, Failed: ${totalFailed}, Time: ${Math.round(elapsed)}s`);
+  console.log(`\nDone! Sent: ${totalSent} | Failed: ${totalFailed} | Time: ${Math.round(elapsed)}s`);
 }
 
 main().catch((err) => {
