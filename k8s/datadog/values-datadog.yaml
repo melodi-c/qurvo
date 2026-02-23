@@ -33,15 +33,17 @@ datadog:
 
   # --------------------------------------------------------------------------
   # Network Performance Monitoring (NPM)
+  # Disabled: requires seccomp profiles not available on k0s
   # --------------------------------------------------------------------------
   networkMonitoring:
-    enabled: true
+    enabled: false
 
   # --------------------------------------------------------------------------
   # Universal Service Monitoring (USM)
+  # Disabled: requires seccomp profiles not available on k0s
   # --------------------------------------------------------------------------
   serviceMonitoring:
-    enabled: true
+    enabled: false
 
   # --------------------------------------------------------------------------
   # Orchestrator Explorer
@@ -97,14 +99,6 @@ agents:
           cpu: "200m"
           memory: "256Mi"
     traceAgent:
-      resources:
-        requests:
-          cpu: "100m"
-          memory: "128Mi"
-        limits:
-          cpu: "200m"
-          memory: "256Mi"
-    systemProbe:
       resources:
         requests:
           cpu: "100m"
