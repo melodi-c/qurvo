@@ -8,6 +8,13 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|\s)/;
+const ONE_HOUR_MS = 3_600_000;
+const CACHE_MAX_SIZE = 100_000;
+
+/** Floor a Date to the start of its hour (e.g. 14:37:22 → 14:00:00). */
+function floorToHour(dt: Date): Date {
+  return new Date(Math.floor(dt.getTime() / ONE_HOUR_MS) * ONE_HOUR_MS);
+}
 
 function detectValueType(value: unknown): ValueType {
   if (typeof value === 'boolean') return 'Boolean';
@@ -35,14 +42,43 @@ interface EventPropEntry {
 
 @Injectable()
 export class DefinitionSyncService {
+  /** In-memory dedup caches: key → floored hour timestamp (ms). */
+  private readonly seenEvents = new Map<string, number>();
+  private readonly seenProps = new Map<string, number>();
+  private readonly seenEventProps = new Map<string, number>();
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @InjectPinoLogger(DefinitionSyncService.name) private readonly logger: PinoLogger,
   ) {}
 
+  /** Returns true if the key was NOT seen in the current floored hour. */
+  private isCached(cache: Map<string, number>, key: string, flooredMs: number): boolean {
+    return cache.get(key) === flooredMs;
+  }
+
+  /** Mark keys as seen. Respects CACHE_MAX_SIZE — skips insertion when full. */
+  private markSeen(cache: Map<string, number>, keys: Iterable<string>, flooredMs: number): void {
+    for (const key of keys) {
+      if (cache.size >= CACHE_MAX_SIZE) {
+        this.evict(cache, flooredMs);
+        if (cache.size >= CACHE_MAX_SIZE) return;
+      }
+      cache.set(key, flooredMs);
+    }
+  }
+
+  /** Remove entries from previous hours when cache is full. */
+  private evict(cache: Map<string, number>, currentFlooredMs: number): void {
+    for (const [k, v] of cache) {
+      if (v < currentFlooredMs) cache.delete(k);
+    }
+  }
+
   async syncFromBatch(events: Event[]): Promise<void> {
     try {
-      const now = new Date();
+      const now = floorToHour(new Date());
+      const flooredMs = now.getTime();
 
       // 1. Collect unique event names per project
       const eventKeys = new Map<string, { project_id: string; event_name: string }>();
@@ -53,7 +89,7 @@ export class DefinitionSyncService {
 
       for (const e of events) {
         const eventKey = `${e.project_id}:${e.event_name}`;
-        if (!eventKeys.has(eventKey)) {
+        if (!eventKeys.has(eventKey) && !this.isCached(this.seenEvents, eventKey, flooredMs)) {
           eventKeys.set(eventKey, { project_id: e.project_id, event_name: e.event_name });
         }
 
@@ -73,22 +109,21 @@ export class DefinitionSyncService {
 
             // Global property definition
             const propKey = `${e.project_id}:${property_name}:${type}`;
-            const existing = propMap.get(propKey);
-            if (!existing) {
+            if (!propMap.has(propKey) && !this.isCached(this.seenProps, propKey, flooredMs)) {
               propMap.set(propKey, { project_id: e.project_id, property_name, property_type: type, value_type: detected });
             }
             // Don't overwrite — first type wins (PostHog approach)
 
             // Event<->property association
             const epKey = `${e.project_id}:${e.event_name}:${property_name}:${type}`;
-            if (!eventPropMap.has(epKey)) {
+            if (!eventPropMap.has(epKey) && !this.isCached(this.seenEventProps, epKey, flooredMs)) {
               eventPropMap.set(epKey, { project_id: e.project_id, event_name: e.event_name, property_name, property_type: type });
             }
           }
         }
       }
 
-      // 3. Upsert event_definitions
+      // 4. Upsert event_definitions
       if (eventKeys.size > 0) {
         await this.db
           .insert(eventDefinitions)
@@ -100,10 +135,11 @@ export class DefinitionSyncService {
           .onConflictDoUpdate({
             target: [eventDefinitions.project_id, eventDefinitions.event_name],
             set: { last_seen_at: sql`excluded.last_seen_at` },
+            setWhere: sql`${eventDefinitions.last_seen_at} < excluded.last_seen_at`,
           });
       }
 
-      // 4. Upsert property_definitions (global, first type wins)
+      // 5. Upsert property_definitions (global, first type wins)
       if (propMap.size > 0) {
         await this.db
           .insert(propertyDefinitions)
@@ -118,11 +154,12 @@ export class DefinitionSyncService {
           .onConflictDoUpdate({
             target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
             set: { last_seen_at: sql`excluded.last_seen_at` },
+            setWhere: sql`${propertyDefinitions.last_seen_at} < excluded.last_seen_at`,
             // value_type NOT updated — first type wins
           });
       }
 
-      // 5. Upsert event_properties
+      // 6. Upsert event_properties
       if (eventPropMap.size > 0) {
         await this.db
           .insert(eventProperties)
@@ -136,8 +173,14 @@ export class DefinitionSyncService {
           .onConflictDoUpdate({
             target: [eventProperties.project_id, eventProperties.event_name, eventProperties.property_name, eventProperties.property_type],
             set: { last_seen_at: sql`excluded.last_seen_at` },
+            setWhere: sql`${eventProperties.last_seen_at} < excluded.last_seen_at`,
           });
       }
+
+      // 7. Mark as seen only after all upserts succeeded
+      this.markSeen(this.seenEvents, eventKeys.keys(), flooredMs);
+      this.markSeen(this.seenProps, propMap.keys(), flooredMs);
+      this.markSeen(this.seenEventProps, eventPropMap.keys(), flooredMs);
 
       this.logger.debug(
         { events: events.length, eventDefs: eventKeys.size, propDefs: propMap.size, eventProps: eventPropMap.size },

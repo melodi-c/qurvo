@@ -6,14 +6,14 @@
 
 ## A. Sync-механизм (Processor / Write path)
 
-### A1. [ ] Throttle `last_seen_at` (floor to hour)
+### A1. [x] Throttle `last_seen_at` (floor to hour)
 **Проблема**: Каждый flush (каждые 5с) обновляет `last_seen_at` для всех event/property definitions. Лишние PG writes.
 **PostHog**: Округляет `last_seen_at` к ближайшему часу (`get_floored_last_seen()`). Один event definition обновляется максимум 1 раз в час.
 **Решение**: Округлять `now` к часу. В SQL добавить `WHERE last_seen_at < excluded.last_seen_at`.
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая
 
-### A2. [ ] In-memory dedup cache
+### A2. [x] In-memory dedup cache
 **Проблема**: Каждый batch делает full upsert в PG, даже если те же пары были записаны 5 секунд назад.
 **PostHog**: 3-уровневая дедупликация — локальный batch (10K), shared cache (3×1M entries), consumer-side sort+dedup.
 **Решение**: `Map<string, number>` в памяти. Пропускать если ключ уже в кэше и прошло < 1 часа. TTL eviction. Capacity ~100K.
