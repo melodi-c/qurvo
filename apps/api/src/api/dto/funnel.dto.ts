@@ -34,6 +34,22 @@ export class FunnelStepDto {
   filters?: StepFilterDto[];
 }
 
+export class FunnelExclusionDto {
+  @IsString()
+  @IsNotEmpty()
+  event_name: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  funnel_from_step: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  funnel_to_step: number;
+}
+
 export class FunnelQueryDto {
   @IsUUID()
   project_id: string;
@@ -55,6 +71,18 @@ export class FunnelQueryDto {
   @Min(1)
   @Max(90)
   conversion_window_days: number = 14;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  conversion_window_value?: number;
+
+  @ApiPropertyOptional({ enum: ['second', 'minute', 'hour', 'day', 'week', 'month'] })
+  @IsIn(['second', 'minute', 'hour', 'day', 'week', 'month'])
+  @IsOptional()
+  conversion_window_unit?: string;
 
   @IsDateString()
   date_from: string;
@@ -79,6 +107,93 @@ export class FunnelQueryDto {
   @IsUUID('4', { each: true })
   @IsOptional()
   breakdown_cohort_ids?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  cohort_ids?: string[];
+
+  @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
+  @IsIn(['ordered', 'strict', 'unordered'])
+  @IsOptional()
+  funnel_order_type?: 'ordered' | 'strict' | 'unordered';
+
+  @ApiPropertyOptional({ type: [FunnelExclusionDto] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(FunnelExclusionDto, arr) : arr;
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FunnelExclusionDto)
+  @IsOptional()
+  exclusions?: FunnelExclusionDto[];
+
+  @IsUUID()
+  @IsOptional()
+  widget_id?: string;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  force?: boolean;
+}
+
+export class FunnelTimeToConvertQueryDto {
+  @IsUUID()
+  project_id: string;
+
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(FunnelStepDto, arr) : arr;
+  })
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => FunnelStepDto)
+  steps: FunnelStepDto[];
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  conversion_window_days: number = 14;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  conversion_window_value?: number;
+
+  @ApiPropertyOptional({ enum: ['second', 'minute', 'hour', 'day', 'week', 'month'] })
+  @IsIn(['second', 'minute', 'hour', 'day', 'week', 'month'])
+  @IsOptional()
+  conversion_window_unit?: string;
+
+  @IsDateString()
+  date_from: string;
+
+  @IsDateString()
+  date_to: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  from_step: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  to_step: number;
 
   @ApiPropertyOptional({ type: [String] })
   @Transform(({ value }) => {
@@ -126,6 +241,29 @@ export class FunnelResultDto {
 export class FunnelResponseDto {
   @Type(() => FunnelResultDto)
   data: FunnelResultDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export class TimeToConvertBinDto {
+  from_seconds: number;
+  to_seconds: number;
+  count: number;
+}
+
+export class TimeToConvertResultDto {
+  from_step: number;
+  to_step: number;
+  average_seconds: number | null;
+  median_seconds: number | null;
+  sample_size: number;
+  @Type(() => TimeToConvertBinDto)
+  bins: TimeToConvertBinDto[];
+}
+
+export class TimeToConvertResponseDto {
+  @Type(() => TimeToConvertResultDto)
+  data: TimeToConvertResultDto;
   cached_at: string;
   from_cache: boolean;
 }

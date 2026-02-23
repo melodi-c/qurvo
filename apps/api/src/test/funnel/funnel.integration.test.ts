@@ -9,7 +9,7 @@ import {
   msAgo,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryFunnel } from '../../funnel/funnel.query';
+import { queryFunnel, queryFunnelTimeToConvert } from '../../funnel/funnel.query';
 
 let ctx: ContainerContext;
 
@@ -246,5 +246,408 @@ describe('queryFunnel — with breakdown', () => {
       expect(result.aggregate_steps).toBeDefined();
       expect(result.aggregate_steps.find((s) => s.step === 1)?.count).toBe(3);
     }
+  });
+});
+
+// ── P1: Funnel order types ──────────────────────────────────────────────────
+
+describe('queryFunnel — strict order', () => {
+  it('requires events in strict consecutive order (no interleaved events)', async () => {
+    const projectId = randomUUID();
+    const personOk = randomUUID();
+    const personBad = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Person OK: signup → checkout (no other events between)
+      buildEvent({
+        project_id: projectId,
+        person_id: personOk,
+        distinct_id: 'ok',
+        event_name: 'signup',
+        timestamp: msAgo(30000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personOk,
+        distinct_id: 'ok',
+        event_name: 'checkout',
+        timestamp: msAgo(20000),
+      }),
+      // Person Bad: signup → page_view → checkout (interleaved event breaks strict)
+      buildEvent({
+        project_id: projectId,
+        person_id: personBad,
+        distinct_id: 'bad',
+        event_name: 'signup',
+        timestamp: msAgo(30000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personBad,
+        distinct_id: 'bad',
+        event_name: 'page_view',
+        timestamp: msAgo(25000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personBad,
+        distinct_id: 'bad',
+        event_name: 'checkout',
+        timestamp: msAgo(20000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict',
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(2); // both entered
+      expect(result.steps[1].count).toBe(1); // only personOk completes strict
+    }
+  });
+});
+
+describe('queryFunnel — unordered', () => {
+  it('counts users who did all steps in any order', async () => {
+    const projectId = randomUUID();
+    const personForward = randomUUID();
+    const personReverse = randomUUID();
+    const personPartial = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Forward: A → B → C
+      buildEvent({
+        project_id: projectId,
+        person_id: personForward,
+        distinct_id: 'fwd',
+        event_name: 'step_a',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personForward,
+        distinct_id: 'fwd',
+        event_name: 'step_b',
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personForward,
+        distinct_id: 'fwd',
+        event_name: 'step_c',
+        timestamp: msAgo(1000),
+      }),
+      // Reverse: C → B → A (should still count as all 3 steps done)
+      buildEvent({
+        project_id: projectId,
+        person_id: personReverse,
+        distinct_id: 'rev',
+        event_name: 'step_c',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personReverse,
+        distinct_id: 'rev',
+        event_name: 'step_b',
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personReverse,
+        distinct_id: 'rev',
+        event_name: 'step_a',
+        timestamp: msAgo(1000),
+      }),
+      // Partial: A → B only (missing C)
+      buildEvent({
+        project_id: projectId,
+        person_id: personPartial,
+        distinct_id: 'partial',
+        event_name: 'step_a',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personPartial,
+        distinct_id: 'partial',
+        event_name: 'step_b',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'A' },
+        { event_name: 'step_b', label: 'B' },
+        { event_name: 'step_c', label: 'C' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered',
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(3); // all 3 entered
+      expect(result.steps[1].count).toBe(3); // all 3 did at least 2 unique steps
+      expect(result.steps[2].count).toBe(2); // forward + reverse did all 3
+    }
+  });
+});
+
+// ── P1: Exclusion steps ─────────────────────────────────────────────────────
+
+describe('queryFunnel — exclusion steps', () => {
+  it('excludes users who performed an exclusion event between funnel steps', async () => {
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Clean: signup → purchase (no cancel between)
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'signup',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+      // Excluded: signup → cancel → purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded',
+        event_name: 'signup',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded',
+        event_name: 'cancel',
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(1); // only clean user
+      expect(result.steps[1].count).toBe(1);
+    }
+  });
+});
+
+// ── P1: Granular conversion window ──────────────────────────────────────────
+
+describe('queryFunnel — conversion window units', () => {
+  it('uses minute-based conversion window', async () => {
+    const projectId = randomUUID();
+    const personFast = randomUUID();
+    const personSlow = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // Fast: step_a → step_b within 30 seconds
+      buildEvent({
+        project_id: projectId,
+        person_id: personFast,
+        distinct_id: 'fast',
+        event_name: 'step_a',
+        timestamp: new Date(now - 60_000).toISOString(), // 60 sec ago
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFast,
+        distinct_id: 'fast',
+        event_name: 'step_b',
+        timestamp: new Date(now - 30_000).toISOString(), // 30 sec ago
+      }),
+      // Slow: step_a → step_b with 3 minutes gap
+      buildEvent({
+        project_id: projectId,
+        person_id: personSlow,
+        distinct_id: 'slow',
+        event_name: 'step_a',
+        timestamp: new Date(now - 300_000).toISOString(), // 5 min ago
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personSlow,
+        distinct_id: 'slow',
+        event_name: 'step_b',
+        timestamp: new Date(now - 120_000).toISOString(), // 2 min ago
+      }),
+    ]);
+
+    // 1-minute window: only fast user converts
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'A' },
+        { event_name: 'step_b', label: 'B' },
+      ],
+      conversion_window_days: 1, // fallback
+      conversion_window_value: 1,
+      conversion_window_unit: 'minute',
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(2); // both entered
+      expect(result.steps[1].count).toBe(1); // only fast within 1 min
+    }
+  });
+});
+
+// ── P1: Time to convert ─────────────────────────────────────────────────────
+
+describe('queryFunnelTimeToConvert', () => {
+  it('returns timing distribution for completed funnel users', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+    const personC = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // Person A: 10 seconds to convert
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'signup',
+        timestamp: new Date(now - 60_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'purchase',
+        timestamp: new Date(now - 50_000).toISOString(),
+      }),
+      // Person B: 30 seconds to convert
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'signup',
+        timestamp: new Date(now - 90_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'purchase',
+        timestamp: new Date(now - 60_000).toISOString(),
+      }),
+      // Person C: only signup, no purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personC,
+        distinct_id: 'c',
+        event_name: 'signup',
+        timestamp: new Date(now - 60_000).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(result.from_step).toBe(0);
+    expect(result.to_step).toBe(1);
+    expect(result.sample_size).toBe(2); // only A and B converted
+    expect(result.average_seconds).toBeGreaterThan(0);
+    expect(result.median_seconds).toBeGreaterThan(0);
+    expect(result.bins.length).toBeGreaterThan(0);
+
+    // Total count in bins should equal sample_size
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(2);
+  });
+
+  it('returns empty result when no one converts', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'lonely',
+        event_name: 'signup',
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(result.sample_size).toBe(0);
+    expect(result.average_seconds).toBeNull();
+    expect(result.median_seconds).toBeNull();
+    expect(result.bins).toHaveLength(0);
   });
 });

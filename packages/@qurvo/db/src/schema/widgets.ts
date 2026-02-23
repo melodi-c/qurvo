@@ -23,16 +23,35 @@ export interface FunnelWidgetStep {
   filters?: WidgetStepFilter[];
 }
 
+export type FunnelOrderType = 'ordered' | 'strict' | 'unordered';
+export type FunnelVizType = 'steps' | 'time_to_convert';
+export type ConversionWindowUnit = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month';
+export type ConversionRateDisplay = 'total' | 'relative';
+
+export interface FunnelExclusionConfig {
+  event_name: string;
+  funnel_from_step: number;
+  funnel_to_step: number;
+}
+
 export interface FunnelWidgetConfig {
   type: 'funnel';
   steps: FunnelWidgetStep[];
   conversion_window_days: number;
+  conversion_window_value?: number;
+  conversion_window_unit?: ConversionWindowUnit;
   date_from: string;
   date_to: string;
   breakdown_property?: string;
   breakdown_type?: 'property' | 'cohort';
   breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
+  funnel_order_type?: FunnelOrderType;
+  funnel_viz_type?: FunnelVizType;
+  conversion_rate_display?: ConversionRateDisplay;
+  exclusions?: FunnelExclusionConfig[];
+  time_to_convert_from_step?: number;
+  time_to_convert_to_step?: number;
 }
 
 export interface TrendWidgetSeries {

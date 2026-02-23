@@ -8,6 +8,7 @@ export interface FunnelChartProps {
   breakdown?: boolean;
   aggregateSteps?: FunnelStepResult[];
   compact?: boolean;
+  conversionRateDisplay?: 'total' | 'relative';
 }
 
 // ── Constants & helpers ───────────────────────────────────────────────────────
@@ -269,7 +270,7 @@ function StepLegend({
 
 // ── Non-breakdown chart ───────────────────────────────────────────────────────
 
-function PlainFunnel({ steps, compact }: { steps: FunnelStepResult[]; compact: boolean }) {
+function PlainFunnel({ steps, compact, relative }: { steps: FunnelStepResult[]; compact: boolean; relative: boolean }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const color = SERIES_COLORS[0];
   const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
@@ -280,6 +281,10 @@ function PlainFunnel({ steps, compact }: { steps: FunnelStepResult[]; compact: b
     const prev = steps[i - 1];
     return prev.count > 0 ? Math.round((s.count / prev.count) * 1000) / 10 : 0;
   });
+
+  const barRates = relative
+    ? steps.map((_, i) => (i === 0 ? 100 : (stepConvs[i] ?? 0)))
+    : steps.map((s) => s.conversion_rate);
 
   return (
     <div className="flex items-start gap-0 select-none">
@@ -306,7 +311,7 @@ function PlainFunnel({ steps, compact }: { steps: FunnelStepResult[]; compact: b
                 onMouseLeave={() => setHovered(null)}
               >
                 {isHov && <BarTooltip step={step} stepConv={stepConvs[i]} />}
-                <Bar color={color} conversionRate={step.conversion_rate} width={bw} height={barH} hovered={isHov} />
+                <Bar color={color} conversionRate={barRates[i]} width={bw} height={barH} hovered={isHov} />
               </div>
             </div>
 
@@ -338,10 +343,12 @@ function BreakdownFunnel({
   steps,
   aggregateSteps,
   compact,
+  relative,
 }: {
   steps: FunnelStepResult[];
   aggregateSteps: FunnelStepResult[];
   compact: boolean;
+  relative: boolean;
 }) {
   const [hovered, setHovered] = useState<{ si: number; gi: number } | null>(null);
   const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
@@ -437,7 +444,9 @@ function BreakdownFunnel({
                         )}
                         <Bar
                           color={color}
-                          conversionRate={gs?.conversion_rate ?? 0}
+                          conversionRate={relative
+                            ? (si === 0 ? 100 : (groupConvs.get(bv)?.[si] ?? 0))
+                            : (gs?.conversion_rate ?? 0)}
                           width={bw}
                           height={barH}
                           hovered={isHov}
@@ -473,9 +482,10 @@ function BreakdownFunnel({
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false }: FunnelChartProps) {
+export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false, conversionRateDisplay = 'total' }: FunnelChartProps) {
+  const relative = conversionRateDisplay === 'relative';
   if (steps.length === 0) return null;
-  if (!breakdown) return <PlainFunnel steps={steps} compact={compact} />;
+  if (!breakdown) return <PlainFunnel steps={steps} compact={compact} relative={relative} />;
 
   // Backend provides aggregate_steps; fall back to computing from steps for old cache entries
   const agg: FunnelStepResult[] = aggregateSteps ?? (() => {
@@ -501,5 +511,5 @@ export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false 
     });
   })();
 
-  return <BreakdownFunnel steps={steps} aggregateSteps={agg} compact={compact} />;
+  return <BreakdownFunnel steps={steps} aggregateSteps={agg} compact={compact} relative={relative} />;
 }

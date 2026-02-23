@@ -109,7 +109,7 @@ export default function FunnelEditorPage() {
                 <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
               </div>
               <div className="flex-1 overflow-auto p-6 pt-8">
-                <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={funnelResult?.aggregate_steps} />
+                <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={funnelResult?.aggregate_steps} conversionRateDisplay={(config as any).conversion_rate_display ?? 'total'} />
               </div>
             </div>
           )}

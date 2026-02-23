@@ -209,6 +209,14 @@ export interface ApiKeyCreated {
   created_at: string;
 }
 
+export interface FunnelExclusion {
+  event_name: string;
+  /** @min 0 */
+  funnel_from_step: number;
+  /** @min 1 */
+  funnel_to_step: number;
+}
+
 export interface StepFilter {
   property: string;
   operator: StepFilterDtoOperatorEnum;
@@ -242,6 +250,27 @@ export interface FunnelResult {
 
 export interface FunnelResponse {
   data: FunnelResult;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export interface TimeToConvertBin {
+  from_seconds: number;
+  to_seconds: number;
+  count: number;
+}
+
+export interface TimeToConvertResult {
+  from_step: number;
+  to_step: number;
+  average_seconds: number | null;
+  median_seconds: number | null;
+  sample_size: number;
+  bins: TimeToConvertBin[];
+}
+
+export interface TimeToConvertResponse {
+  data: TimeToConvertResult;
   cached_at: string;
   from_cache: boolean;
 }
@@ -1047,7 +1076,7 @@ export interface UpsertEventDefinitionResponse {
 export interface PropertyDefinition {
   property_name: string;
   property_type: PropertyDefinitionDtoPropertyTypeEnum;
-  value_type: string;
+  value_type?: string | null;
   is_numerical: boolean;
   id: string;
   description?: string | null;
@@ -1065,7 +1094,7 @@ export interface UpsertPropertyDefinition {
 
 export interface UpsertPropertyDefinitionResponse {
   property_type: UpsertPropertyDefinitionResponseDtoPropertyTypeEnum;
-  value_type: string;
+  value_type?: string | null;
   is_numerical: boolean;
   description?: string | null;
   tags: string[];
@@ -1228,9 +1257,14 @@ export interface ApiKeysControllerRevokeParams {
 }
 
 export interface FunnelControllerGetFunnelParams {
+  /** @min 1 */
+  conversion_window_value?: number;
+  conversion_window_unit?: ConversionWindowUnitEnum;
   breakdown_type?: BreakdownTypeEnum;
   breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
+  funnel_order_type?: FunnelOrderTypeEnum;
+  exclusions?: FunnelExclusion[];
   /** @format uuid */
   project_id: string;
   steps: FunnelStep[];
@@ -1248,11 +1282,75 @@ export interface FunnelControllerGetFunnelParams {
   force?: boolean;
 }
 
+export type ConversionWindowUnitEnum =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
 export type BreakdownTypeEnum = "property" | "cohort";
+
+export type FunnelOrderTypeEnum = "ordered" | "strict" | "unordered";
+
+export type FunnelControllerGetFunnelParams1ConversionWindowUnitEnum =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
 
 export type FunnelControllerGetFunnelParams1BreakdownTypeEnum =
   | "property"
   | "cohort";
+
+export type FunnelControllerGetFunnelParams1FunnelOrderTypeEnum =
+  | "ordered"
+  | "strict"
+  | "unordered";
+
+export interface FunnelControllerGetFunnelTimeToConvertParams {
+  /** @min 1 */
+  conversion_window_value?: number;
+  conversion_window_unit?: ConversionWindowUnitEnum1;
+  cohort_ids?: string[];
+  /** @format uuid */
+  project_id: string;
+  steps: FunnelStep[];
+  /**
+   * @min 1
+   * @max 90
+   * @default 14
+   */
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  /** @min 0 */
+  from_step: number;
+  /** @min 1 */
+  to_step: number;
+  /** @format uuid */
+  widget_id?: string;
+  force?: boolean;
+}
+
+export type ConversionWindowUnitEnum1 =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
+export type FunnelControllerGetFunnelTimeToConvertParams1ConversionWindowUnitEnum =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
 
 export interface EventsControllerGetEventsParams {
   event_name?: string;
@@ -2310,6 +2408,27 @@ export class Api<
     ) =>
       this.request<FunnelResponse, any>({
         path: `/api/analytics/funnel`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name FunnelControllerGetFunnelTimeToConvert
+     * @request GET:/api/analytics/funnel/time-to-convert
+     * @secure
+     */
+    funnelControllerGetFunnelTimeToConvert: (
+      query: FunnelControllerGetFunnelTimeToConvertParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<TimeToConvertResponse, any>({
+        path: `/api/analytics/funnel/time-to-convert`,
         method: "GET",
         query: query,
         secure: true,
