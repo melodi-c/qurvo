@@ -10,11 +10,12 @@ export function usePropertyDefinitions(type?: TypeEnum1, eventName?: string) {
   return useQuery({
     queryKey: ['property-definitions', projectId, type ?? '', eventName ?? ''],
     queryFn: async () => {
-      return api.propertyDefinitionsControllerList({
+      const res = await api.propertyDefinitionsControllerList({
         projectId,
         type,
         event_name: eventName,
       });
+      return res.items;
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,

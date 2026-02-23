@@ -123,7 +123,6 @@ export const routes = {
     detail: route('/cohorts/:cohortId', (cohortId: string) => `/cohorts/${cohortId}`),
   },
 
-  unitEconomics: route('/unit-economics'),
   events: route('/events'),
 
   persons: {

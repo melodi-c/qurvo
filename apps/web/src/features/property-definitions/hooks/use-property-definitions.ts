@@ -9,7 +9,7 @@ export function usePropertyDefinitions(type?: 'event' | 'person', eventName?: st
 
   return useQuery({
     queryKey: ['propertyDefinitions', projectId, type, eventName],
-    queryFn: () => api.propertyDefinitionsControllerList({ projectId, type, event_name: eventName }),
+    queryFn: () => api.propertyDefinitionsControllerList({ projectId, type, event_name: eventName }).then(r => r.items),
     enabled: !!projectId,
   });
 }

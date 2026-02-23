@@ -17,7 +17,6 @@ import { InsightsModule } from '../insights/insights.module';
 import { MembersModule } from '../members/members.module';
 import { MarketingChannelsModule } from '../marketing-channels/marketing-channels.module';
 import { AdSpendModule } from '../ad-spend/ad-spend.module';
-import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AiModule } from '../ai/ai.module';
 import { VerificationModule } from '../verification/verification.module';
 import { EventDefinitionsModule } from '../event-definitions/event-definitions.module';
@@ -37,11 +36,11 @@ import { PathsController } from './controllers/paths.controller';
 import { DashboardsController } from './controllers/dashboards.controller';
 import { PersonsController } from './controllers/persons.controller';
 import { CohortsController } from './controllers/cohorts.controller';
+import { StaticCohortsController } from './controllers/static-cohorts.controller';
 import { InsightsController } from './controllers/insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
 import { MarketingChannelsController } from './controllers/marketing-channels.controller';
 import { AdSpendController } from './controllers/ad-spend.controller';
-import { UnitEconomicsController, UnitEconomicsConfigController } from './controllers/unit-economics.controller';
 import { AiController } from './controllers/ai.controller';
 import { EventDefinitionsController } from './controllers/event-definitions.controller';
 import { PropertyDefinitionsController } from './controllers/property-definitions.controller';
@@ -57,7 +56,7 @@ import { VerificationFilter } from './filters/verification.filter';
 import { WrongPasswordFilter } from './filters/wrong-password.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, UnitEconomicsModule, AiModule, VerificationModule, EventDefinitionsModule, PropertyDefinitionsModule, WebAnalyticsModule, BillingModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, AiModule, VerificationModule, EventDefinitionsModule, PropertyDefinitionsModule, WebAnalyticsModule, BillingModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -72,14 +71,13 @@ import { WrongPasswordFilter } from './filters/wrong-password.filter';
     DashboardsController,
     PersonsController,
     CohortsController,
+    StaticCohortsController,
     InsightsController,
     MembersController,
     InvitesController,
     MyInvitesController,
     MarketingChannelsController,
     AdSpendController,
-    UnitEconomicsController,
-    UnitEconomicsConfigController,
     AiController,
     EventDefinitionsController,
     PropertyDefinitionsController,

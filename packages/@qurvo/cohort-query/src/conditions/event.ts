@@ -11,6 +11,8 @@ function buildAggregationExpr(type: CohortAggregationType | undefined, property:
     case 'avg': return `avg(${numExpr})`;
     case 'min': return `min(${numExpr})`;
     case 'max': return `max(${numExpr})`;
+    case 'median': return `quantile(0.50)(${numExpr})`;
+    case 'p75': return `quantile(0.75)(${numExpr})`;
     case 'p90': return `quantile(0.90)(${numExpr})`;
     case 'p95': return `quantile(0.95)(${numExpr})`;
     case 'p99': return `quantile(0.99)(${numExpr})`;
