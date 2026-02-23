@@ -6,6 +6,9 @@ import {
   ValidateNested,
   IsBoolean,
   IsUUID,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -89,10 +92,28 @@ export class CohortDto {
   @ApiPropertyOptional() description: string | null;
   definition: any;
   is_static: boolean;
+  errors_calculating: number;
+  @ApiPropertyOptional() last_error_at: string | null;
+  @ApiPropertyOptional() last_error_message: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export class CohortMemberCountDto {
+  count: number;
+}
+
+export class CohortSizeHistoryQueryDto {
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  @IsOptional()
+  @Type(() => Number)
+  @ApiPropertyOptional({ description: 'Number of days of history (default 30)', default: 30 })
+  days?: number;
+}
+
+export class CohortHistoryPointDto {
+  date: string;
   count: number;
 }
