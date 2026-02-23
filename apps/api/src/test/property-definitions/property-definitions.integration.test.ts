@@ -541,3 +541,65 @@ describe('property_definitions value_type edit', () => {
     expect(allRows).toHaveLength(1);
   });
 });
+
+// ── is_numerical filter ──────────────────────────────────────────────────────
+
+describe('property_definitions is_numerical filter', () => {
+  it('filters only numerical properties', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values([
+      { project_id: projectId, property_name: 'properties.amount', property_type: 'event', is_numerical: true, tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.price', property_type: 'event', is_numerical: true, tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.name', property_type: 'event', is_numerical: false, tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.email', property_type: 'person', is_numerical: false, tags: [], verified: false },
+    ]);
+
+    const where = and(
+      eq(propertyDefinitions.project_id, projectId),
+      eq(propertyDefinitions.is_numerical, true),
+    );
+
+    const rows = await ctx.db.select().from(propertyDefinitions).where(where);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.is_numerical)).toBe(true);
+  });
+
+  it('filters non-numerical properties', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values([
+      { project_id: projectId, property_name: 'properties.amount', property_type: 'event', is_numerical: true, tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.name', property_type: 'event', is_numerical: false, tags: [], verified: false },
+    ]);
+
+    const where = and(
+      eq(propertyDefinitions.project_id, projectId),
+      eq(propertyDefinitions.is_numerical, false),
+    );
+
+    const rows = await ctx.db.select().from(propertyDefinitions).where(where);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].property_name).toBe('properties.name');
+  });
+
+  it('combines is_numerical with type filter', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values([
+      { project_id: projectId, property_name: 'properties.amount', property_type: 'event', is_numerical: true, tags: [], verified: false },
+      { project_id: projectId, property_name: 'user_properties.age', property_type: 'person', is_numerical: true, tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.name', property_type: 'event', is_numerical: false, tags: [], verified: false },
+    ]);
+
+    const where = and(
+      eq(propertyDefinitions.project_id, projectId),
+      eq(propertyDefinitions.property_type, 'event'),
+      eq(propertyDefinitions.is_numerical, true),
+    );
+
+    const rows = await ctx.db.select().from(propertyDefinitions).where(where);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].property_name).toBe('properties.amount');
+  });
+});

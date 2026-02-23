@@ -97,7 +97,7 @@
 **Решение**: Добавить `Duration` в value_type когда понадобится форматирование длительности.
 **Сложность**: Низкая
 
-### B3. [ ] GIN trigram индекс для fuzzy search
+### B3. [x] GIN trigram индекс для fuzzy search
 **Проблема**: Только B-tree индексы — поиск по подстроке требует seq scan.
 **PostHog**: GIN trigram индексы на `name` для fuzzy matching (`gin_trgm_ops`).
 **Решение**: `CREATE INDEX ... USING GIN (event_name gin_trgm_ops)` — после добавления серверного поиска.
@@ -177,7 +177,7 @@
 **Решение**: Реализовать после B5.
 **Сложность**: Низкая (после B5)
 
-### C5. [ ] Фильтр `is_numerical`
+### C5. [x] Фильтр `is_numerical`
 **Проблема**: Нет серверного фильтра по числовым свойствам.
 **PostHog**: `?is_numerical=true` на property definitions.
 **Решение**: `?is_numerical=true` → `WHERE is_numerical = true`. Полезно для math aggregation selectors.
