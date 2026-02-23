@@ -491,8 +491,16 @@ export interface CreateDashboard {
 export interface FunnelWidgetConfig {
   type: FunnelWidgetConfigDtoTypeEnum;
   steps: FunnelStep[];
+  conversion_window_value?: number;
+  conversion_window_unit?: FunnelWidgetConfigDtoConversionWindowUnitEnum;
   breakdown_property?: string;
+  breakdown_type?: FunnelWidgetConfigDtoBreakdownTypeEnum;
+  breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
+  funnel_order_type?: FunnelWidgetConfigDtoFunnelOrderTypeEnum;
+  funnel_viz_type?: string;
+  conversion_rate_display?: FunnelWidgetConfigDtoConversionRateDisplayEnum;
+  exclusions?: FunnelExclusion[];
   conversion_window_days: number;
   date_from: string;
   date_to: string;
@@ -1146,6 +1154,25 @@ export type StepFilterDtoOperatorEnum =
   | "is_not_set";
 
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
+
+export type FunnelWidgetConfigDtoConversionWindowUnitEnum =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
+export type FunnelWidgetConfigDtoBreakdownTypeEnum = "property" | "cohort";
+
+export type FunnelWidgetConfigDtoFunnelOrderTypeEnum =
+  | "ordered"
+  | "strict"
+  | "unordered";
+
+export type FunnelWidgetConfigDtoConversionRateDisplayEnum =
+  | "total"
+  | "relative";
 
 export type TrendWidgetConfigDtoTypeEnum = "trend";
 

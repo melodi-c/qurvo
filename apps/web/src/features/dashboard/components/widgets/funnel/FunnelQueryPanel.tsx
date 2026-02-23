@@ -46,8 +46,6 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
     month: t('month'),
   }), [t]);
 
-  const cfg = config as any; // new fields not yet in generated types
-
   return (
     <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
       <div className="p-5 space-y-6">
@@ -76,8 +74,8 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           <SectionHeader icon={Shuffle} label={t('orderType')} />
           <PillToggleGroup
             options={orderOptions}
-            value={cfg.funnel_order_type ?? 'ordered'}
-            onChange={(funnel_order_type) => onChange({ ...config, funnel_order_type } as any)}
+            value={config.funnel_order_type ?? 'ordered'}
+            onChange={(funnel_order_type) => onChange({ ...config, funnel_order_type })}
           />
         </section>
 
@@ -91,29 +89,29 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
               type="number"
               min={1}
               max={9999}
-              value={cfg.conversion_window_value ?? config.conversion_window_days}
+              value={config.conversion_window_value ?? config.conversion_window_days}
               onChange={(e) => {
                 const val = Number(e.target.value);
-                const unit = cfg.conversion_window_unit ?? 'day';
+                const unit = config.conversion_window_unit ?? 'day';
                 onChange({
                   ...config,
                   conversion_window_value: val,
                   conversion_window_unit: unit,
                   conversion_window_days: unit === 'day' ? val : config.conversion_window_days,
-                } as any);
+                });
               }}
               className="h-8 w-20 text-sm"
             />
             <Select
-              value={cfg.conversion_window_unit ?? 'day'}
+              value={config.conversion_window_unit ?? 'day'}
               onValueChange={(unit) => {
-                const val = cfg.conversion_window_value ?? config.conversion_window_days;
+                const val = config.conversion_window_value ?? config.conversion_window_days;
                 onChange({
                   ...config,
-                  conversion_window_unit: unit,
+                  conversion_window_unit: unit as typeof WINDOW_UNITS[number],
                   conversion_window_value: val,
                   conversion_window_days: unit === 'day' ? val : config.conversion_window_days,
-                } as any);
+                });
               }}
             >
               <SelectTrigger size="sm" className="h-8 w-[80px] text-sm">
@@ -135,8 +133,8 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           <SectionHeader icon={BarChart3} label={t('conversionRate')} />
           <PillToggleGroup
             options={rateDisplayOptions}
-            value={cfg.conversion_rate_display ?? 'total'}
-            onChange={(conversion_rate_display) => onChange({ ...config, conversion_rate_display } as any)}
+            value={config.conversion_rate_display ?? 'total'}
+            onChange={(conversion_rate_display) => onChange({ ...config, conversion_rate_display })}
           />
         </section>
 
@@ -146,8 +144,8 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
         <section className="space-y-3">
           <SectionHeader icon={Ban} label={t('exclusions')} />
           <FunnelExclusionBuilder
-            exclusions={cfg.exclusions ?? []}
-            onChange={(exclusions) => onChange({ ...config, exclusions } as any)}
+            exclusions={config.exclusions ?? []}
+            onChange={(exclusions) => onChange({ ...config, exclusions })}
             stepCount={config.steps.length}
           />
         </section>
@@ -166,17 +164,17 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
           propertyNames={propertyNames}
           propertyDescriptions={propDescriptions}
-          breakdownType={cfg.breakdown_type ?? 'property'}
+          breakdownType={config.breakdown_type ?? 'property'}
           onBreakdownTypeChange={(type) => onChange({
             ...config,
             breakdown_type: type,
             ...(type === 'cohort' ? { breakdown_property: undefined } : { breakdown_cohort_ids: undefined }),
-          } as any)}
-          breakdownCohortIds={cfg.breakdown_cohort_ids ?? []}
+          })}
+          breakdownCohortIds={config.breakdown_cohort_ids ?? []}
           onBreakdownCohortIdsChange={(ids) => onChange({
             ...config,
             breakdown_cohort_ids: ids.length ? ids : undefined,
-          } as any)}
+          })}
         />
       </div>
     </aside>
