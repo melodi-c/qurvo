@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, UseGuards,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CohortsService } from '../../cohorts/cohorts.service';
@@ -11,6 +11,8 @@ import {
   CohortPreviewDto,
   CohortDto,
   CohortMemberCountDto,
+  CohortSizeHistoryQueryDto,
+  CohortHistoryPointDto,
 } from '../dto/cohorts.dto';
 
 @ApiTags('Cohorts')
@@ -63,6 +65,16 @@ export class CohortsController {
     @Param('cohortId') cohortId: string,
   ): Promise<void> {
     await this.cohortsService.remove(user.user_id, projectId, cohortId);
+  }
+
+  @Get(':cohortId/history')
+  async getSizeHistory(
+    @CurrentUser() user: RequestUser,
+    @Param('projectId') projectId: string,
+    @Param('cohortId') cohortId: string,
+    @Query() query: CohortSizeHistoryQueryDto,
+  ): Promise<CohortHistoryPointDto[]> {
+    return this.cohortsService.getSizeHistory(user.user_id, projectId, cohortId, query.days ?? 30) as any;
   }
 
   @Get(':cohortId/count')

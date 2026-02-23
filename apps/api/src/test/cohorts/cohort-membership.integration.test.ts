@@ -10,6 +10,7 @@ import {
 import {
   countCohortMembers,
   countCohortMembersFromTable,
+  queryCohortSizeHistory,
 } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { materializeCohort } from './helpers';
@@ -179,6 +180,61 @@ describe('materialized cohort membership', () => {
     await materializeCohort(ctx.ch, projectId, cohortId, definition);
     const count2 = await countCohortMembersFromTable(ctx.ch, projectId, cohortId);
     expect(count2).toBe(2);
+  });
+});
+
+// ── Cohort size history ─────────────────────────────────────────────────────
+
+describe('queryCohortSizeHistory', () => {
+  it('returns history points sorted by date ASC', async () => {
+    const projectId = randomUUID();
+    const cohortId = randomUUID();
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+    await ctx.ch.insert({
+      table: 'cohort_membership_history',
+      values: [
+        { project_id: projectId, cohort_id: cohortId, date: yesterday, count: 10 },
+        { project_id: projectId, cohort_id: cohortId, date: today, count: 15 },
+      ],
+      format: 'JSONEachRow',
+    });
+
+    const history = await queryCohortSizeHistory(ctx.ch, projectId, cohortId, 30);
+    expect(history.length).toBe(2);
+    expect(history[0].date).toBe(yesterday);
+    expect(history[0].count).toBe(10);
+    expect(history[1].date).toBe(today);
+    expect(history[1].count).toBe(15);
+  });
+
+  it('filters by days parameter', async () => {
+    const projectId = randomUUID();
+    const cohortId = randomUUID();
+    const today = new Date().toISOString().slice(0, 10);
+    const oldDate = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
+
+    await ctx.ch.insert({
+      table: 'cohort_membership_history',
+      values: [
+        { project_id: projectId, cohort_id: cohortId, date: oldDate, count: 5 },
+        { project_id: projectId, cohort_id: cohortId, date: today, count: 20 },
+      ],
+      format: 'JSONEachRow',
+    });
+
+    const history = await queryCohortSizeHistory(ctx.ch, projectId, cohortId, 7);
+    expect(history.length).toBe(1);
+    expect(history[0].date).toBe(today);
+  });
+
+  it('returns empty array for no history', async () => {
+    const projectId = randomUUID();
+    const cohortId = randomUUID();
+
+    const history = await queryCohortSizeHistory(ctx.ch, projectId, cohortId, 30);
+    expect(history).toEqual([]);
   });
 });
 

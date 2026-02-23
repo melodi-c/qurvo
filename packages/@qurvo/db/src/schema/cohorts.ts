@@ -144,6 +144,9 @@ export const cohorts = pgTable('cohorts', {
   is_static: boolean('is_static').notNull().default(false),
   membership_version: bigint('membership_version', { mode: 'number' }),
   membership_computed_at: timestamp('membership_computed_at', { withTimezone: true }),
+  errors_calculating: bigint('errors_calculating', { mode: 'number' }).notNull().default(0),
+  last_error_at: timestamp('last_error_at', { withTimezone: true }),
+  last_error_message: varchar('last_error_message', { length: 500 }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
