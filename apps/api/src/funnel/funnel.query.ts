@@ -1,6 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
 import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import type { CohortConditionGroup } from '@qurvo/db';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 import { resolvePropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
 
@@ -50,7 +52,7 @@ export interface FunnelQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
-  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean }[];
+  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean; materialized: boolean; definition: CohortConditionGroup }[];
   cohort_filters?: CohortFilterInput[];
   funnel_order_type?: FunnelOrderType;
   exclusions?: FunnelExclusion[];
@@ -380,11 +382,22 @@ export async function queryFunnel(
     for (const cb of cohortBreakdowns) {
       const cbParamKey = `cohort_bd_${cb.cohort_id.replace(/-/g, '')}`;
       const cbQueryParams = { ...queryParams, [cbParamKey]: cb.cohort_id };
-      const table = cb.is_static ? 'person_static_cohort' : 'cohort_members';
-      const cohortFilter = ` AND ${RESOLVED_PERSON} IN (
-        SELECT person_id FROM ${table} FINAL
-        WHERE cohort_id = {${cbParamKey}:UUID} AND project_id = {project_id:UUID}
-      )`;
+
+      let cohortFilter: string;
+      if (cb.is_static) {
+        cohortFilter = ` AND ${RESOLVED_PERSON} IN (
+          SELECT person_id FROM person_static_cohort FINAL
+          WHERE cohort_id = {${cbParamKey}:UUID} AND project_id = {project_id:UUID}
+        )`;
+      } else if (cb.materialized) {
+        cohortFilter = ` AND ${RESOLVED_PERSON} IN (
+          SELECT person_id FROM cohort_members FINAL
+          WHERE cohort_id = {${cbParamKey}:UUID} AND project_id = {project_id:UUID}
+        )`;
+      } else {
+        const subquery = buildCohortSubquery(cb.definition, 900 + cohortBreakdowns.indexOf(cb), 'project_id', cbQueryParams);
+        cohortFilter = ` AND ${RESOLVED_PERSON} IN (${subquery})`;
+      }
 
       // Rebuild exclusion columns for this cohort's queryParams
       const cbExclColumns = exclusions.length > 0

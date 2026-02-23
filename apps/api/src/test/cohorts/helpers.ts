@@ -24,3 +24,22 @@ export async function materializeCohort(
   await ch.query({ query: insertSql, query_params: queryParams });
   return version;
 }
+
+export async function insertStaticCohortMembers(
+  ch: ClickHouseClient,
+  projectId: string,
+  cohortId: string,
+  personIds: string[],
+): Promise<void> {
+  if (personIds.length === 0) return;
+  await ch.insert({
+    table: 'person_static_cohort',
+    values: personIds.map((pid) => ({
+      project_id: projectId,
+      cohort_id: cohortId,
+      person_id: pid,
+    })),
+    format: 'JSONEachRow',
+    clickhouse_settings: { async_insert: 0 },
+  });
+}
