@@ -15,5 +15,6 @@ export const persons = pgTable(
   (table) => [
     index('persons_project_id_idx').on(table.project_id),
     index('persons_project_updated_at_idx').on(table.project_id, table.updated_at),
+    index('persons_properties_gin_idx').using('gin', table.properties),
   ],
 );
