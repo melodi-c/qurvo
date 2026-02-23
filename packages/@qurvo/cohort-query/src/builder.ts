@@ -106,6 +106,7 @@ export function buildCohortFilterClause(
   cohorts: CohortFilterInput[],
   projectIdParam: string,
   queryParams: Record<string, unknown>,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): string {
   if (cohorts.length === 0) return '';
 
@@ -126,7 +127,7 @@ export function buildCohortFilterClause(
         WHERE cohort_id = {${idParam}:UUID} AND project_id = {${projectIdParam}:UUID}
       )`;
     }
-    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams);
+    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic);
     return `${RESOLVED_PERSON} IN (${subquery})`;
   });
 

@@ -65,6 +65,8 @@ export class TrendService {
         cohort_id: c.id,
         name: c.name,
         is_static: c.is_static,
+        materialized: c.membership_version !== null,
+        definition: c.definition,
       }));
     }
     const cacheKey = this.buildCacheKey(widget_id, queryParams);

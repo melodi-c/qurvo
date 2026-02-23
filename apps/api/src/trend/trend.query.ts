@@ -1,6 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
 import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import type { CohortConditionGroup } from '@qurvo/db';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 import { resolvePropertyExpr, buildPropertyFilterConditions } from '../utils/property-filter';
 
@@ -40,7 +42,7 @@ export interface TrendQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
-  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean }[];
+  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean; materialized: boolean; definition: CohortConditionGroup }[];
   compare?: boolean;
   cohort_filters?: CohortFilterInput[];
 }
@@ -236,11 +238,24 @@ async function executeTrendQuery(
       cohortBreakdowns.forEach((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
         queryParams[paramKey] = cb.cohort_id;
-        const table = cb.is_static ? 'person_static_cohort' : 'cohort_members';
-        const cohortFilter = `${RESOLVED_PERSON} IN (
-          SELECT person_id FROM ${table} FINAL
-          WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
-        )`;
+
+        let cohortFilter: string;
+        if (cb.is_static) {
+          cohortFilter = `${RESOLVED_PERSON} IN (
+            SELECT person_id FROM person_static_cohort FINAL
+            WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
+          )`;
+        } else if (cb.materialized) {
+          cohortFilter = `${RESOLVED_PERSON} IN (
+            SELECT person_id FROM cohort_members FINAL
+            WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
+          )`;
+        } else {
+          const cbQueryParams = { ...queryParams };
+          const subquery = buildCohortSubquery(cb.definition, 900 + cbIdx, 'project_id', cbQueryParams);
+          Object.assign(queryParams, cbQueryParams);
+          cohortFilter = `${RESOLVED_PERSON} IN (${subquery})`;
+        }
         arms.push(`
           SELECT
             ${seriesIdx} AS series_idx,
