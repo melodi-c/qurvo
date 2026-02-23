@@ -51,7 +51,8 @@ FROM base AS nestjs-builder
 
 ARG APP
 
-RUN pnpm --filter @qurvo/${APP}... build
+RUN pnpm --filter @qurvo/${APP}... build && \
+    mkdir -p packages/@qurvo/cohort-query/dist
 
 # ==============================================================================
 # Stage: nestjs — production runtime for api/ingest/processor
