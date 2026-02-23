@@ -1023,6 +1023,11 @@ export interface EventDefinition {
   updated_at: string;
 }
 
+export interface EventDefinitionsListResponse {
+  items: EventDefinition[];
+  total: number;
+}
+
 export interface UpsertEventDefinition {
   description?: string;
   tags?: string[];
@@ -1047,7 +1052,7 @@ export interface UpsertEventDefinitionResponse {
 export interface PropertyDefinition {
   property_name: string;
   property_type: PropertyDefinitionDtoPropertyTypeEnum;
-  value_type: string;
+  value_type?: string | null;
   is_numerical: boolean;
   id: string;
   description?: string | null;
@@ -1057,15 +1062,22 @@ export interface PropertyDefinition {
   updated_at: string;
 }
 
+export interface PropertyDefinitionsListResponse {
+  items: PropertyDefinition[];
+  total: number;
+}
+
 export interface UpsertPropertyDefinition {
   description?: string;
   tags?: string[];
   verified?: boolean;
+  value_type?: string;
+  is_numerical?: boolean;
 }
 
 export interface UpsertPropertyDefinitionResponse {
   property_type: UpsertPropertyDefinitionResponseDtoPropertyTypeEnum;
-  value_type: string;
+  value_type?: string | null;
   is_numerical: boolean;
   description?: string | null;
   tags: string[];
@@ -1700,10 +1712,51 @@ export interface AiControllerDeleteConversationParams {
 }
 
 export interface EventDefinitionsControllerListParams {
+  search?: string;
+  /**
+   * @min 1
+   * @max 500
+   * @default 100
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @default "last_seen_at" */
+  order_by?: OrderByEnum;
+  /** @default "desc" */
+  order?: OrderEnum;
   projectId: string;
 }
 
+/** @default "last_seen_at" */
+export type OrderByEnum =
+  | "last_seen_at"
+  | "event_name"
+  | "created_at"
+  | "updated_at";
+
+/** @default "desc" */
+export type OrderEnum = "asc" | "desc";
+
+/** @default "last_seen_at" */
+export type EventDefinitionsControllerListParams1OrderByEnum =
+  | "last_seen_at"
+  | "event_name"
+  | "created_at"
+  | "updated_at";
+
+/** @default "desc" */
+export type EventDefinitionsControllerListParams1OrderEnum = "asc" | "desc";
+
 export interface EventDefinitionsControllerUpsertParams {
+  projectId: string;
+  eventName: string;
+}
+
+export interface EventDefinitionsControllerRemoveParams {
   projectId: string;
   eventName: string;
 }
@@ -1711,16 +1764,58 @@ export interface EventDefinitionsControllerUpsertParams {
 export interface PropertyDefinitionsControllerListParams {
   type?: TypeEnum1;
   event_name?: string;
+  search?: string;
+  /**
+   * @min 1
+   * @max 500
+   * @default 100
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @default "last_seen_at" */
+  order_by?: OrderByEnum1;
+  /** @default "desc" */
+  order?: OrderEnum1;
   projectId: string;
 }
 
 export type TypeEnum1 = "event" | "person";
 
+/** @default "last_seen_at" */
+export type OrderByEnum1 =
+  | "last_seen_at"
+  | "property_name"
+  | "created_at"
+  | "updated_at";
+
+/** @default "desc" */
+export type OrderEnum1 = "asc" | "desc";
+
 export type PropertyDefinitionsControllerListParams1TypeEnum =
   | "event"
   | "person";
 
+/** @default "last_seen_at" */
+export type PropertyDefinitionsControllerListParams1OrderByEnum =
+  | "last_seen_at"
+  | "property_name"
+  | "created_at"
+  | "updated_at";
+
+/** @default "desc" */
+export type PropertyDefinitionsControllerListParams1OrderEnum = "asc" | "desc";
+
 export interface PropertyDefinitionsControllerUpsertParams {
+  projectId: string;
+  propertyType: string;
+  propertyName: string;
+}
+
+export interface PropertyDefinitionsControllerRemoveParams {
   projectId: string;
   propertyType: string;
   propertyName: string;
@@ -3695,9 +3790,10 @@ export class Api<
       { projectId, ...query }: EventDefinitionsControllerListParams,
       params: RequestParams = {},
     ) =>
-      this.request<EventDefinition[], any>({
+      this.request<EventDefinitionsListResponse, any>({
         path: `/api/projects/${projectId}/event-definitions`,
         method: "GET",
+        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -3733,6 +3829,29 @@ export class Api<
     /**
      * No description
      *
+     * @tags Event Definitions
+     * @name EventDefinitionsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/event-definitions/{eventName}
+     * @secure
+     */
+    eventDefinitionsControllerRemove: (
+      {
+        projectId,
+        eventName,
+        ...query
+      }: EventDefinitionsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/event-definitions/${eventName}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
      * @tags Property Definitions
      * @name PropertyDefinitionsControllerList
      * @request GET:/api/projects/{projectId}/property-definitions
@@ -3742,7 +3861,7 @@ export class Api<
       { projectId, ...query }: PropertyDefinitionsControllerListParams,
       params: RequestParams = {},
     ) =>
-      this.request<PropertyDefinition[], any>({
+      this.request<PropertyDefinitionsListResponse, any>({
         path: `/api/projects/${projectId}/property-definitions`,
         method: "GET",
         query: query,
@@ -3776,6 +3895,30 @@ export class Api<
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Property Definitions
+     * @name PropertyDefinitionsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/property-definitions/{propertyType}/{propertyName}
+     * @secure
+     */
+    propertyDefinitionsControllerRemove: (
+      {
+        projectId,
+        propertyType,
+        propertyName,
+        ...query
+      }: PropertyDefinitionsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/property-definitions/${propertyType}/${propertyName}`,
+        method: "DELETE",
+        secure: true,
         ...params,
       }),
 
