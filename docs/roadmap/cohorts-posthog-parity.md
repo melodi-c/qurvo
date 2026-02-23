@@ -43,13 +43,13 @@
 
 ### P1 — Простые и полезные
 
-- [ ] `not_performed_event_sequence` — "Не выполнил последовательность событий"
+- [x] `not_performed_event_sequence` — "Не выполнил последовательность событий"
   - Обернуть SQL event_sequence в `NOT IN`
   - Файлы: `@qurvo/cohort-query/src/conditions/sequence.ts`, типы в `@qurvo/db`, фронтенд-компонент
-- [ ] `in` / `not_in` (multi-value) — "country in [US, UK, DE]"
+- [x] `in` / `not_in` (multi-value) — "country in [US, UK, DE]"
   - SQL: `expr IN ('v1','v2','v3')`
   - Файлы: `@qurvo/cohort-query/src/conditions/property.ts`, `PropertyConditionRow` (UI мульти-значений)
-- [ ] `between` / `not_between` — числовой диапазон
+- [x] `between` / `not_between` — числовой диапазон
   - SQL: `toFloat64OrZero(expr) BETWEEN {min} AND {max}`
   - Файлы: те же + UI два инпута (min/max)
 
