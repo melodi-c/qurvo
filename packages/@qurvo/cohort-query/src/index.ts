@@ -9,5 +9,6 @@ export { buildEventSequenceSubquery } from './conditions/sequence';
 export { buildPerformedRegularlySubquery } from './conditions/regularity';
 export { buildStoppedPerformingSubquery } from './conditions/stopped';
 export { buildRestartedPerformingSubquery } from './conditions/restarted';
+export { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
 export { extractCohortReferences, detectCircularDependency } from './validation';
 export type { CohortFilterInput, BuildContext } from './types';

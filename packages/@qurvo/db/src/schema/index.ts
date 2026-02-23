@@ -18,7 +18,7 @@ export type {
   CohortDefinition, CohortDefinitionV2, CohortConditionGroup,
   CohortCondition, CohortPropertyCondition, CohortEventCondition,
   CohortCohortCondition, CohortFirstTimeEventCondition, CohortNotPerformedEventCondition,
-  CohortEventSequenceCondition, CohortPerformedRegularlyCondition,
+  CohortEventSequenceCondition, CohortNotPerformedEventSequenceCondition, CohortPerformedRegularlyCondition,
   CohortStoppedPerformingCondition, CohortRestartedPerformingCondition,
   CohortPropertyOperator, CohortCountOperator, CohortEventFilter,
 } from './cohorts';

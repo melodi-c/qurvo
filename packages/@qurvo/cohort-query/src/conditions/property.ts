@@ -58,6 +58,28 @@ export function buildPropertyConditionSubquery(
       ctx.queryParams[pk] = cond.value ?? '';
       havingClause = `NOT match(${latestExpr}, {${pk}:String})`;
       break;
+    case 'in':
+      ctx.queryParams[pk] = cond.values ?? [];
+      havingClause = `${latestExpr} IN {${pk}:Array(String)}`;
+      break;
+    case 'not_in':
+      ctx.queryParams[pk] = cond.values ?? [];
+      havingClause = `${latestExpr} NOT IN {${pk}:Array(String)}`;
+      break;
+    case 'between': {
+      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+      ctx.queryParams[minPk] = Number(cond.values?.[0] ?? 0);
+      ctx.queryParams[maxPk] = Number(cond.values?.[1] ?? 0);
+      havingClause = `toFloat64OrZero(${latestExpr}) >= {${minPk}:Float64} AND toFloat64OrZero(${latestExpr}) <= {${maxPk}:Float64}`;
+      break;
+    }
+    case 'not_between': {
+      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+      ctx.queryParams[minPk] = Number(cond.values?.[0] ?? 0);
+      ctx.queryParams[maxPk] = Number(cond.values?.[1] ?? 0);
+      havingClause = `(toFloat64OrZero(${latestExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${latestExpr}) > {${maxPk}:Float64})`;
+      break;
+    }
     default:
       havingClause = '1';
   }

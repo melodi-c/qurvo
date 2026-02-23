@@ -103,6 +103,28 @@ export function buildEventFilterClauses(
         queryParams[pk] = f.value ?? '';
         parts.push(`NOT match(${expr}, {${pk}:String})`);
         break;
+      case 'in':
+        queryParams[pk] = f.values ?? [];
+        parts.push(`${expr} IN {${pk}:Array(String)}`);
+        break;
+      case 'not_in':
+        queryParams[pk] = f.values ?? [];
+        parts.push(`${expr} NOT IN {${pk}:Array(String)}`);
+        break;
+      case 'between': {
+        const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+        queryParams[minPk] = Number(f.values?.[0] ?? 0);
+        queryParams[maxPk] = Number(f.values?.[1] ?? 0);
+        parts.push(`toFloat64OrZero(${expr}) >= {${minPk}:Float64} AND toFloat64OrZero(${expr}) <= {${maxPk}:Float64}`);
+        break;
+      }
+      case 'not_between': {
+        const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+        queryParams[minPk] = Number(f.values?.[0] ?? 0);
+        queryParams[maxPk] = Number(f.values?.[1] ?? 0);
+        parts.push(`(toFloat64OrZero(${expr}) < {${minPk}:Float64} OR toFloat64OrZero(${expr}) > {${maxPk}:Float64})`);
+        break;
+      }
     }
   }
 

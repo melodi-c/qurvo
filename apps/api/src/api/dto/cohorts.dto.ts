@@ -23,13 +23,20 @@ export class CohortEventFilterDto {
   property: string;
 
   @IsIn(['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set',
-    'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex'])
+    'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
+    'in', 'not_in', 'between', 'not_between'])
   operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set'
-    | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex';
+    | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
+    | 'in' | 'not_in' | 'between' | 'not_between';
 
   @IsString()
   @IsOptional()
   value?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  values?: string[];
 }
 
 // ── Condition DTOs ───────────────────────────────────────────────────────────
@@ -43,13 +50,20 @@ export class CohortPropertyConditionDto {
   property: string;
 
   @IsIn(['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set',
-    'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex'])
+    'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
+    'in', 'not_in', 'between', 'not_between'])
   operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set'
-    | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex';
+    | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
+    | 'in' | 'not_in' | 'between' | 'not_between';
 
   @IsString()
   @IsOptional()
   value?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  values?: string[];
 }
 
 export class CohortEventConditionDto {
@@ -149,6 +163,23 @@ export class EventSequenceStepDto {
 export class CohortEventSequenceConditionDto {
   @IsIn(['event_sequence'])
   type: 'event_sequence';
+
+  @IsArray()
+  @ArrayMinSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => EventSequenceStepDto)
+  steps: EventSequenceStepDto[];
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  time_window_days: number;
+}
+
+export class CohortNotPerformedEventSequenceConditionDto {
+  @IsIn(['not_performed_event_sequence'])
+  type: 'not_performed_event_sequence';
 
   @IsArray()
   @ArrayMinSize(2)
@@ -276,6 +307,7 @@ export class CohortConditionGroupDto {
         { value: CohortFirstTimeEventConditionDto, name: 'first_time_event' },
         { value: CohortNotPerformedEventConditionDto, name: 'not_performed_event' },
         { value: CohortEventSequenceConditionDto, name: 'event_sequence' },
+        { value: CohortNotPerformedEventSequenceConditionDto, name: 'not_performed_event_sequence' },
         { value: CohortPerformedRegularlyConditionDto, name: 'performed_regularly' },
         { value: CohortStoppedPerformingConditionDto, name: 'stopped_performing' },
         { value: CohortRestartedPerformingConditionDto, name: 'restarted_performing' },

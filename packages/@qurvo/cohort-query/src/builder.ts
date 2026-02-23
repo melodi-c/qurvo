@@ -11,6 +11,7 @@ import { buildEventSequenceSubquery } from './conditions/sequence';
 import { buildPerformedRegularlySubquery } from './conditions/regularity';
 import { buildStoppedPerformingSubquery } from './conditions/stopped';
 import { buildRestartedPerformingSubquery } from './conditions/restarted';
+import { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
 
 // ── Single condition dispatch ────────────────────────────────────────────────
 
@@ -38,6 +39,8 @@ function buildConditionSubquery(
       return buildStoppedPerformingSubquery(cond, ctx);
     case 'restarted_performing':
       return buildRestartedPerformingSubquery(cond, ctx);
+    case 'not_performed_event_sequence':
+      return buildNotPerformedEventSequenceSubquery(cond, ctx);
   }
 }
 

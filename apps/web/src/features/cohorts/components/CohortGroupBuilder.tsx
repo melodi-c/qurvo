@@ -17,6 +17,7 @@ import { EventSequenceRow } from './EventSequenceRow';
 import { PerformedRegularlyRow } from './PerformedRegularlyRow';
 import { StoppedPerformingRow } from './StoppedPerformingRow';
 import { RestartedPerformingRow } from './RestartedPerformingRow';
+import { NotPerformedEventSequenceRow } from './NotPerformedEventSequenceRow';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
 import { createDefaultCondition, type CohortCondition, type CohortConditionGroup } from '../types';
@@ -116,6 +117,7 @@ function AndGroupCard({
       { type: 'first_time_event' as const, label: t('firstTimeEvent') },
       { type: 'not_performed_event' as const, label: t('notPerformedEvent') },
       { type: 'event_sequence' as const, label: t('eventSequence') },
+      { type: 'not_performed_event_sequence' as const, label: t('notPerformedEventSequence') },
       { type: 'performed_regularly' as const, label: t('performedRegularly') },
       { type: 'stopped_performing' as const, label: t('stoppedPerforming') },
       { type: 'restarted_performing' as const, label: t('restartedPerforming') },
@@ -212,6 +214,8 @@ function ConditionSwitch({
       return <NotPerformedEventRow condition={condition} onChange={onChange} onRemove={onRemove} />;
     case 'event_sequence':
       return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+    case 'not_performed_event_sequence':
+      return <NotPerformedEventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} />;
     case 'performed_regularly':
       return <PerformedRegularlyRow condition={condition} onChange={onChange} onRemove={onRemove} />;
     case 'stopped_performing':

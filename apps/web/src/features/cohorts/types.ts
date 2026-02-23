@@ -4,12 +4,15 @@ export type CohortPropertyOperator =
   | 'eq' | 'neq' | 'contains' | 'not_contains'
   | 'is_set' | 'is_not_set'
   | 'gt' | 'lt' | 'gte' | 'lte'
-  | 'regex' | 'not_regex';
+  | 'regex' | 'not_regex'
+  | 'in' | 'not_in'
+  | 'between' | 'not_between';
 
 export interface CohortEventFilter {
   property: string;
   operator: CohortPropertyOperator;
   value?: string;
+  values?: string[];
 }
 
 export interface PropertyCondition {
@@ -17,6 +20,7 @@ export interface PropertyCondition {
   property: string;
   operator: CohortPropertyOperator;
   value?: string;
+  values?: string[];
 }
 
 export interface EventCondition {
@@ -50,6 +54,12 @@ export interface NotPerformedEventCondition {
 
 export interface EventSequenceCondition {
   type: 'event_sequence';
+  steps: { event_name: string; event_filters?: CohortEventFilter[] }[];
+  time_window_days: number;
+}
+
+export interface NotPerformedEventSequenceCondition {
+  type: 'not_performed_event_sequence';
   steps: { event_name: string; event_filters?: CohortEventFilter[] }[];
   time_window_days: number;
 }
@@ -88,6 +98,7 @@ export type CohortCondition =
   | FirstTimeEventCondition
   | NotPerformedEventCondition
   | EventSequenceCondition
+  | NotPerformedEventSequenceCondition
   | PerformedRegularlyCondition
   | StoppedPerformingCondition
   | RestartedPerformingCondition;
@@ -115,6 +126,7 @@ export const CONDITION_TYPES = [
   'first_time_event',
   'not_performed_event',
   'event_sequence',
+  'not_performed_event_sequence',
   'performed_regularly',
   'stopped_performing',
   'restarted_performing',
@@ -135,6 +147,8 @@ export function createDefaultCondition(type: CohortCondition['type']): CohortCon
       return { type: 'not_performed_event', event_name: '', time_window_days: 30 };
     case 'event_sequence':
       return { type: 'event_sequence', steps: [{ event_name: '' }, { event_name: '' }], time_window_days: 30 };
+    case 'not_performed_event_sequence':
+      return { type: 'not_performed_event_sequence', steps: [{ event_name: '' }, { event_name: '' }], time_window_days: 30 };
     case 'performed_regularly':
       return { type: 'performed_regularly', event_name: '', period_type: 'week', total_periods: 4, min_periods: 3, time_window_days: 30 };
     case 'stopped_performing':
@@ -173,6 +187,7 @@ export function isConditionValid(cond: CohortCondition): boolean {
     case 'restarted_performing':
       return cond.event_name.trim() !== '';
     case 'event_sequence':
+    case 'not_performed_event_sequence':
       return cond.steps.length >= 2 && cond.steps.every((s) => s.event_name.trim() !== '');
     case 'cohort':
       return cond.cohort_id !== '';

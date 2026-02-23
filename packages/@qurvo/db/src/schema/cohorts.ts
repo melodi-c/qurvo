@@ -8,7 +8,9 @@ export type CohortPropertyOperator =
   | 'eq' | 'neq' | 'contains' | 'not_contains'
   | 'is_set' | 'is_not_set'
   | 'gt' | 'lt' | 'gte' | 'lte'
-  | 'regex' | 'not_regex';
+  | 'regex' | 'not_regex'
+  | 'in' | 'not_in'
+  | 'between' | 'not_between';
 
 export type CohortCountOperator = 'gte' | 'lte' | 'eq';
 
@@ -18,6 +20,7 @@ export interface CohortEventFilter {
   property: string;
   operator: CohortPropertyOperator;
   value?: string;
+  values?: string[];
 }
 
 // ── Condition types ──────────────────────────────────────────────────────────
@@ -27,6 +30,7 @@ export interface CohortPropertyCondition {
   property: string;
   operator: CohortPropertyOperator;
   value?: string;
+  values?: string[];
 }
 
 export interface CohortEventCondition {
@@ -60,6 +64,12 @@ export interface CohortNotPerformedEventCondition {
 
 export interface CohortEventSequenceCondition {
   type: 'event_sequence';
+  steps: { event_name: string; event_filters?: CohortEventFilter[] }[];
+  time_window_days: number;
+}
+
+export interface CohortNotPerformedEventSequenceCondition {
+  type: 'not_performed_event_sequence';
   steps: { event_name: string; event_filters?: CohortEventFilter[] }[];
   time_window_days: number;
 }
@@ -98,6 +108,7 @@ export type CohortCondition =
   | CohortFirstTimeEventCondition
   | CohortNotPerformedEventCondition
   | CohortEventSequenceCondition
+  | CohortNotPerformedEventSequenceCondition
   | CohortPerformedRegularlyCondition
   | CohortStoppedPerformingCondition
   | CohortRestartedPerformingCondition;
