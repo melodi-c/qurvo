@@ -123,7 +123,7 @@ function AndGroupCard({
   }), [t]);
 
   return (
-    <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-2">
+    <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-2.5">
       {onRemove && (
         <div className="flex justify-end">
           <button

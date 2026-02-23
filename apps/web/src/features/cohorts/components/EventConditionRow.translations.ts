@@ -7,7 +7,8 @@ export default createTranslations({
     atLeast: 'at least',
     atMost: 'at most',
     exactly: 'exactly',
-    timesInLast: 'times in last',
+    times: 'times',
+    inLast: 'in last',
     days: 'days',
   },
   ru: {
@@ -16,7 +17,8 @@ export default createTranslations({
     atLeast: 'не менее',
     atMost: 'не более',
     exactly: 'ровно',
-    timesInLast: 'раз за последние',
+    times: 'раз',
+    inLast: 'за последние',
     days: 'дн.',
   },
 });
