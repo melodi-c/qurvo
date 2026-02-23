@@ -57,7 +57,7 @@ export function InsightCardHeader({
       </Badge>
 
       {/* Title */}
-      <span className="text-sm font-medium truncate flex-1 min-w-0">
+      <span className="text-sm font-medium line-clamp-2 flex-1 min-w-0">
         {isTextTile ? t('textTile') : displayName}
       </span>
 
