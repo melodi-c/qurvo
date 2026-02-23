@@ -30,6 +30,8 @@ export interface FunnelWidgetConfig {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
+  breakdown_type?: 'property' | 'cohort';
+  breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
 }
 
@@ -56,6 +58,8 @@ export interface TrendWidgetConfig {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
+  breakdown_type?: 'property' | 'cohort';
+  breakdown_cohort_ids?: string[];
   compare: boolean;
   cohort_ids?: string[];
   formulas?: TrendFormula[];

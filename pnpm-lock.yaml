@@ -35,6 +35,9 @@ importers:
       '@qurvo/clickhouse':
         specifier: workspace:*
         version: link:../../packages/@qurvo/clickhouse
+      '@qurvo/cohort-query':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/cohort-query
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
@@ -251,6 +254,9 @@ importers:
       '@qurvo/clickhouse':
         specifier: workspace:*
         version: link:../../packages/@qurvo/clickhouse
+      '@qurvo/cohort-query':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/cohort-query
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
@@ -431,6 +437,19 @@ importers:
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/@qurvo/cohort-query:
+    dependencies:
+      '@qurvo/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@qurvo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

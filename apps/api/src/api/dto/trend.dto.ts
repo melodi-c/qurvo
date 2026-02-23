@@ -69,6 +69,21 @@ export class TrendQueryDto {
   @IsOptional()
   breakdown_property?: string;
 
+  @ApiPropertyOptional({ enum: ['property', 'cohort'] })
+  @IsIn(['property', 'cohort'])
+  @IsOptional()
+  breakdown_type?: 'property' | 'cohort';
+
+  @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  breakdown_cohort_ids?: string[];
+
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()

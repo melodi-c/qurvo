@@ -5,14 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './EventConditionRow.translations';
-
-export interface EventCondition {
-  type: 'event';
-  event_name: string;
-  count_operator: 'gte' | 'lte' | 'eq';
-  count: number;
-  time_window_days: number;
-}
+import type { EventCondition } from '../types';
 
 interface EventConditionRowProps {
   condition: EventCondition;

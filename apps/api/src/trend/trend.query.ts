@@ -40,6 +40,7 @@ export interface TrendQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
+  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean }[];
   compare?: boolean;
   cohort_filters?: CohortFilterInput[];
 }
@@ -217,13 +218,53 @@ async function executeTrendQuery(
   };
 
   const bucketExpr = granularityExpr(params.granularity);
-  const hasBreakdown = !!params.breakdown_property;
+  const hasCohortBreakdown = !!params.breakdown_cohort_ids?.length;
+  const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
   const aggCol = buildAggColumn(params.metric, params.metric_property);
 
   // Cohort filter clause
   const cohortClause = params.cohort_filters?.length
     ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
     : '';
+
+  // Cohort breakdown path: one arm per (series x cohort)
+  if (hasCohortBreakdown) {
+    const cohortBreakdowns = params.breakdown_cohort_ids!;
+    const arms: string[] = [];
+    params.series.forEach((s, seriesIdx) => {
+      const cond = buildSeriesConditions(s, seriesIdx, queryParams);
+      cohortBreakdowns.forEach((cb, cbIdx) => {
+        const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
+        queryParams[paramKey] = cb.cohort_id;
+        const table = cb.is_static ? 'person_static_cohort' : 'cohort_members';
+        const cohortFilter = `${RESOLVED_PERSON} IN (
+          SELECT person_id FROM ${table} FINAL
+          WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
+        )`;
+        arms.push(`
+          SELECT
+            ${seriesIdx} AS series_idx,
+            '${cb.name.replace(/'/g, "\\'")}' AS breakdown_value,
+            ${bucketExpr} AS bucket,
+            count() AS raw_value,
+            uniqExact(${RESOLVED_PERSON}) AS uniq_value,
+            ${aggCol}
+          FROM events FINAL
+          WHERE
+            project_id = {project_id:UUID}
+            AND timestamp >= {from:DateTime64(3)}
+            AND timestamp <= {to:DateTime64(3)}
+            AND ${cond}${cohortClause}
+            AND ${cohortFilter}
+          GROUP BY bucket`);
+      });
+    });
+
+    const sql = `${arms.join('\nUNION ALL\n')}\nORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
+    const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+    const rows = await result.json<RawBreakdownRow>();
+    return assembleBreakdown(rows, params.metric, params.series);
+  }
 
   if (!hasBreakdown) {
     const arms = params.series.map((s, idx) => {
@@ -308,14 +349,17 @@ export async function queryTrend(
 ): Promise<TrendQueryResult> {
   const currentSeries = await executeTrendQuery(ch, params, params.date_from, params.date_to);
 
+  const hasAnyBreakdown = !!params.breakdown_property || !!params.breakdown_cohort_ids?.length;
+  const breakdownLabel = params.breakdown_cohort_ids?.length ? '$cohort' : params.breakdown_property;
+
   if (!params.compare) {
-    if (!params.breakdown_property) {
+    if (!hasAnyBreakdown) {
       return { compare: false, breakdown: false, series: currentSeries };
     }
     return {
       compare: false,
       breakdown: true,
-      breakdown_property: params.breakdown_property,
+      breakdown_property: breakdownLabel!,
       series: currentSeries,
     };
   }
@@ -323,13 +367,13 @@ export async function queryTrend(
   const prev = shiftPeriod(params.date_from, params.date_to);
   const previousSeries = await executeTrendQuery(ch, params, prev.from, prev.to);
 
-  if (!params.breakdown_property) {
+  if (!hasAnyBreakdown) {
     return { compare: true, breakdown: false, series: currentSeries, series_previous: previousSeries };
   }
   return {
     compare: true,
     breakdown: true,
-    breakdown_property: params.breakdown_property,
+    breakdown_property: breakdownLabel!,
     series: currentSeries,
     series_previous: previousSeries,
   };

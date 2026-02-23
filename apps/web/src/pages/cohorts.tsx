@@ -1,9 +1,11 @@
 import { UsersRound } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { CrudListPage } from '@/components/crud-list-page';
 import { useCohorts, useDeleteCohort } from '@/features/cohorts/hooks/use-cohorts';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './cohorts.translations';
+import { normalizeToV2, isGroup, type CohortCondition, type CohortConditionGroup } from '@/features/cohorts/types';
 import type { Column } from '@/components/ui/data-table';
 import type { Cohort } from '@/api/generated/Api';
 
@@ -15,11 +17,20 @@ export default function CohortsPage() {
 
   const extraColumns: Column<Cohort>[] = [
     {
+      key: 'type',
+      header: t('type'),
+      render: (row) => (
+        <Badge variant="secondary" className="text-[10px]">
+          {(row as any).is_static ? t('static') : t('dynamic')}
+        </Badge>
+      ),
+    },
+    {
       key: 'conditions',
       header: t('conditions'),
       render: (row) => (
         <span className="text-xs text-muted-foreground font-mono truncate block max-w-[300px]">
-          {conditionsSummary(row.definition as any, t('noConditions'))}
+          {conditionsSummary(row.definition, t('noConditions'))}
         </span>
       ),
     },
@@ -53,15 +64,43 @@ export default function CohortsPage() {
   );
 }
 
-function conditionsSummary(
-  definition: { match: string; conditions: Array<{ type: string; [k: string]: unknown }> },
-  noConditionsLabel: string,
-): string {
-  const parts = definition.conditions.map((c) => {
-    if (c.type === 'person_property') return `${c.property} ${c.operator} ${c.value ?? ''}`.trim();
-    if (c.type === 'event') return `${c.event_name} ${c.count_operator} ${c.count}x / ${c.time_window_days}d`;
-    return '?';
+function conditionsSummary(definition: unknown, noConditionsLabel: string): string {
+  try {
+    const root = normalizeToV2(definition);
+    return groupSummary(root) || noConditionsLabel;
+  } catch {
+    return noConditionsLabel;
+  }
+}
+
+function groupSummary(group: CohortConditionGroup): string {
+  const parts = group.values.map((v) => {
+    if (isGroup(v)) return `(${groupSummary(v)})`;
+    return condSummary(v as CohortCondition);
   });
-  const joiner = definition.match === 'all' ? ' AND ' : ' OR ';
-  return parts.join(joiner) || noConditionsLabel;
+  const joiner = group.type === 'AND' ? ' AND ' : ' OR ';
+  return parts.filter(Boolean).join(joiner);
+}
+
+function condSummary(c: CohortCondition): string {
+  switch (c.type) {
+    case 'person_property':
+      return `${c.property} ${c.operator} ${c.value ?? ''}`.trim();
+    case 'event':
+      return `${c.event_name} ${c.count_operator} ${c.count}x / ${c.time_window_days}d`;
+    case 'cohort':
+      return `${c.negated ? 'NOT ' : ''}cohort:${c.cohort_id.slice(0, 8)}`;
+    case 'first_time_event':
+      return `first(${c.event_name}) / ${c.time_window_days}d`;
+    case 'not_performed_event':
+      return `!${c.event_name} / ${c.time_window_days}d`;
+    case 'event_sequence':
+      return `seq(${c.steps.map((s) => s.event_name).join(' > ')})`;
+    case 'performed_regularly':
+      return `reg(${c.event_name}) ${c.min_periods}/${c.total_periods}`;
+    case 'stopped_performing':
+      return `stopped(${c.event_name})`;
+    case 'restarted_performing':
+      return `restarted(${c.event_name})`;
+  }
 }

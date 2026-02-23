@@ -37,6 +37,7 @@ export interface FunnelQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
+  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean }[];
   cohort_filters?: CohortFilterInput[];
 }
 
@@ -80,6 +81,95 @@ export async function queryFunnel(
   const cohortClause = params.cohort_filters?.length
     ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
     : '';
+
+  // Cohort breakdown: run funnel per cohort
+  if (params.breakdown_cohort_ids?.length) {
+    const cohortBreakdowns = params.breakdown_cohort_ids;
+    const allBreakdownSteps: FunnelBreakdownStepResult[] = [];
+
+    for (const cb of cohortBreakdowns) {
+      const cbParamKey = `cohort_bd_${cb.cohort_id.replace(/-/g, '')}`;
+      const cbQueryParams = { ...queryParams, [cbParamKey]: cb.cohort_id };
+      const table = cb.is_static ? 'person_static_cohort' : 'cohort_members';
+      const cohortFilter = ` AND ${RESOLVED_PERSON} IN (
+        SELECT person_id FROM ${table} FINAL
+        WHERE cohort_id = {${cbParamKey}:UUID} AND project_id = {project_id:UUID}
+      )`;
+
+      const sql = `
+        WITH
+          funnel_per_user AS (
+            SELECT
+              ${RESOLVED_PERSON} AS person_id,
+              windowFunnel({window:UInt64})(toDateTime(timestamp), ${stepConditions}) AS max_step
+            FROM events FINAL
+            WHERE
+              project_id = {project_id:UUID}
+              AND timestamp >= {from:DateTime64(3)}
+              AND timestamp <= {to:DateTime64(3)}
+              AND event_name IN ({step_names:Array(String)})${cohortClause}${cohortFilter}
+            GROUP BY person_id
+          )
+        SELECT
+          step_num,
+          countIf(max_step >= step_num) AS entered,
+          countIf(max_step >= step_num + 1) AS next_step
+        FROM funnel_per_user
+        CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps
+        GROUP BY step_num
+        ORDER BY step_num`;
+
+      const result = await ch.query({ query: sql, query_params: cbQueryParams, format: 'JSONEachRow' });
+      const rows = await result.json<{ step_num: string; entered: string; next_step: string }>();
+
+      const firstCount = Number(rows[0]?.entered ?? 0);
+      for (const row of rows) {
+        const stepIdx = Number(row.step_num) - 1;
+        const entered = Number(row.entered);
+        const nextStep = Number(row.next_step);
+        const isLast = stepIdx === numSteps - 1;
+        const converted = isLast ? 0 : nextStep;
+        const dropOff = entered - converted;
+        allBreakdownSteps.push({
+          step: Number(row.step_num),
+          label: steps[stepIdx]?.label ?? '',
+          event_name: steps[stepIdx]?.event_name ?? '',
+          count: entered,
+          conversion_rate: firstCount > 0 ? Math.round((entered / firstCount) * 1000) / 10 : 0,
+          drop_off: dropOff,
+          drop_off_rate: entered > 0 ? Math.round((dropOff / entered) * 1000) / 10 : 0,
+          avg_time_to_convert_seconds: null,
+          breakdown_value: cb.name,
+        });
+      }
+    }
+
+    // Compute aggregate steps
+    const stepTotals = new Map<number, number>();
+    for (const r of allBreakdownSteps) {
+      stepTotals.set(r.step, (stepTotals.get(r.step) ?? 0) + r.count);
+    }
+    const stepNums = [...stepTotals.keys()].sort((a, b) => a - b);
+    const step1Total = stepTotals.get(stepNums[0]) ?? 0;
+    const aggregate_steps: FunnelStepResult[] = stepNums.map((sn, idx) => {
+      const total = stepTotals.get(sn) ?? 0;
+      const isFirst = idx === 0;
+      const prevTotal = isFirst ? total : (stepTotals.get(stepNums[idx - 1]) ?? total);
+      const dropOff = isFirst ? 0 : prevTotal - total;
+      return {
+        step: sn,
+        label: steps[idx]?.label ?? '',
+        event_name: steps[idx]?.event_name ?? '',
+        count: total,
+        conversion_rate: step1Total > 0 ? Math.round((total / step1Total) * 1000) / 10 : 0,
+        drop_off: dropOff,
+        drop_off_rate: !isFirst && prevTotal > 0 ? Math.round((dropOff / prevTotal) * 1000) / 10 : 0,
+        avg_time_to_convert_seconds: null,
+      };
+    });
+
+    return { breakdown: true, breakdown_property: '$cohort', steps: allBreakdownSteps, aggregate_steps };
+  }
 
   if (!params.breakdown_property) {
     // Non-breakdown funnel: count users per step + time-to-convert for full completions
