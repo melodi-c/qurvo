@@ -1,21 +1,19 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { eq, and, desc, asc } from 'drizzle-orm';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
-import { REDIS } from '../providers/redis.provider';
+import { DRIZZLE } from '../providers/drizzle.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type Redis from 'ioredis';
+import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
-import { queryEventNames } from './event-names.query';
-import { queryEventPropertyNames } from './event-property-names.query';
+import { DIRECT_COLUMNS } from '../utils/property-filter';
 import { NotFoundException } from '@nestjs/common';
-
-const EVENT_PROPERTY_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour — fallback if tracking sets get lost
 
 @Injectable()
 export class EventsService {
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
-    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(DRIZZLE) private readonly db: Database,
     private readonly projectsService: ProjectsService,
   ) {}
 
@@ -33,18 +31,43 @@ export class EventsService {
 
   async getEventNames(userId: string, projectId: string): Promise<string[]> {
     await this.projectsService.getMembership(userId, projectId);
-    return queryEventNames(this.ch, { project_id: projectId });
+    const rows = await this.db
+      .select({ event_name: eventDefinitions.event_name })
+      .from(eventDefinitions)
+      .where(eq(eventDefinitions.project_id, projectId))
+      .orderBy(desc(eventDefinitions.last_seen_at));
+    return rows.map((r) => r.event_name);
   }
 
   async getEventPropertyNames(userId: string, projectId: string, eventName?: string): Promise<string[]> {
     await this.projectsService.getMembership(userId, projectId);
-    const cacheKey = eventName
-      ? `event_property_names:${projectId}:${eventName}`
-      : `event_property_names:${projectId}`;
-    const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached) as string[];
-    const names = await queryEventPropertyNames(this.ch, { project_id: projectId, event_name: eventName });
-    await this.redis.set(cacheKey, JSON.stringify(names), 'EX', EVENT_PROPERTY_NAMES_CACHE_TTL_SECONDS);
-    return names;
+
+    if (eventName) {
+      // Event-scoped: query event_properties
+      const rows = await this.db
+        .select({ property_name: eventProperties.property_name })
+        .from(eventProperties)
+        .where(and(
+          eq(eventProperties.project_id, projectId),
+          eq(eventProperties.event_name, eventName),
+        ))
+        .orderBy(desc(eventProperties.last_seen_at));
+
+      const jsonKeys = rows.map((r) => r.property_name);
+      const directCols = [...DIRECT_COLUMNS].sort();
+      return [...directCols, ...jsonKeys];
+    }
+
+    // Global: query all distinct property names from event_properties
+    const rows = await this.db
+      .select({ property_name: eventProperties.property_name })
+      .from(eventProperties)
+      .where(eq(eventProperties.project_id, projectId))
+      .groupBy(eventProperties.property_name)
+      .orderBy(asc(eventProperties.property_name));
+
+    const jsonKeys = rows.map((r) => r.property_name);
+    const directCols = [...DIRECT_COLUMNS].sort();
+    return [...directCols, ...jsonKeys];
   }
 }

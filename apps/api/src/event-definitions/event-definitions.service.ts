@@ -1,55 +1,44 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
-import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { eventDefinitions, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
-import { queryEventNamesWithCount } from '../events/event-names.query';
 
 export interface EventDefinitionItem {
   event_name: string;
-  count: number;
-  id: string | null;
+  id: string;
   description: string | null;
   tags: string[];
   verified: boolean;
-  updated_at: string | null;
+  last_seen_at: string;
+  updated_at: string;
 }
 
 @Injectable()
 export class EventDefinitionsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string): Promise<EventDefinitionItem[]> {
     await this.projectsService.getMembership(userId, projectId);
 
-    const [chRows, pgRows] = await Promise.all([
-      queryEventNamesWithCount(this.ch, { project_id: projectId }),
-      this.db
-        .select()
-        .from(eventDefinitions)
-        .where(eq(eventDefinitions.project_id, projectId)),
-    ]);
+    const rows = await this.db
+      .select()
+      .from(eventDefinitions)
+      .where(eq(eventDefinitions.project_id, projectId))
+      .orderBy(desc(eventDefinitions.last_seen_at));
 
-    const metaMap = new Map(pgRows.map((r) => [r.event_name, r]));
-
-    return chRows.map((ch) => {
-      const meta = metaMap.get(ch.event_name);
-      return {
-        event_name: ch.event_name,
-        count: ch.count,
-        id: meta?.id ?? null,
-        description: meta?.description ?? null,
-        tags: meta?.tags ?? [],
-        verified: meta?.verified ?? false,
-        updated_at: meta?.updated_at?.toISOString() ?? null,
-      };
-    });
+    return rows.map((r) => ({
+      event_name: r.event_name,
+      id: r.id,
+      description: r.description ?? null,
+      tags: r.tags,
+      verified: r.verified,
+      last_seen_at: r.last_seen_at.toISOString(),
+      updated_at: r.updated_at.toISOString(),
+    }));
   }
 
   async upsert(

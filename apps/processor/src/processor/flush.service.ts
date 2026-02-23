@@ -5,6 +5,7 @@ import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { insertEvents } from './insert';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { DefinitionSyncService } from './definition-sync.service';
 import {
   PROCESSOR_BATCH_SIZE,
   PROCESSOR_FLUSH_INTERVAL_MS,
@@ -29,6 +30,7 @@ export class FlushService implements OnApplicationBootstrap {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(FlushService.name) private readonly logger: PinoLogger,
+    private readonly definitionSync: DefinitionSyncService,
   ) {}
 
   onApplicationBootstrap() {
@@ -65,6 +67,7 @@ export class FlushService implements OnApplicationBootstrap {
         this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
         await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
         await this.invalidateMetadataCaches(events);
+        void this.definitionSync.syncFromBatch(events);
         return;
       } catch (err) {
         retries++;

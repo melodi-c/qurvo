@@ -24,13 +24,13 @@ export class UpsertEventDefinitionDto {
 // ── Response DTOs ─────────────────────────────────────────────────────────────
 
 export class EventDefinitionDto {
-  event_name: string;
-  count: number;
-  @ApiPropertyOptional() id: string | null;
+  @ApiProperty() event_name: string;
+  @ApiProperty() id: string;
   @ApiPropertyOptional() description: string | null;
   @ApiProperty({ type: [String] }) tags: string[];
-  verified: boolean;
-  @ApiPropertyOptional() updated_at: string | null;
+  @ApiProperty() verified: boolean;
+  @ApiProperty() last_seen_at: string;
+  @ApiProperty() updated_at: string;
 }
 
 export class UpsertEventDefinitionResponseDto {
@@ -40,6 +40,7 @@ export class UpsertEventDefinitionResponseDto {
   @ApiPropertyOptional() description: string | null;
   @ApiProperty({ type: [String] }) tags: string[];
   verified: boolean;
+  last_seen_at: Date;
   created_at: Date;
   updated_at: Date;
 }

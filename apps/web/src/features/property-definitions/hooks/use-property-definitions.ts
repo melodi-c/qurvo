@@ -23,17 +23,15 @@ export function useUpsertPropertyDefinition() {
     mutationFn: ({
       propertyName,
       propertyType,
-      eventName,
       data,
     }: {
       propertyName: string;
       propertyType: 'event' | 'person';
-      eventName: string;
-      data: Omit<UpsertPropertyDefinition, 'event_name'>;
+      data: UpsertPropertyDefinition;
     }) =>
       api.propertyDefinitionsControllerUpsert(
         { projectId, propertyType, propertyName },
-        { ...data, event_name: eventName },
+        data,
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['propertyDefinitions', projectId] });

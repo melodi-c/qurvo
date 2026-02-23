@@ -1,69 +1,100 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
-import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { propertyDefinitions, type Database } from '@qurvo/db';
+import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
-import { queryPropertyNamesWithCount } from '../events/property-names-with-count.query';
 
 export interface PropertyDefinitionItem {
   property_name: string;
   property_type: 'event' | 'person';
-  event_name: string;
-  count: number;
-  id: string | null;
+  value_type: string;
+  is_numerical: boolean;
+  id: string;
   description: string | null;
   tags: string[];
   verified: boolean;
-  updated_at: string | null;
+  last_seen_at: string;
+  updated_at: string;
 }
 
 @Injectable()
 export class PropertyDefinitionsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string, type?: 'event' | 'person', eventName?: string): Promise<PropertyDefinitionItem[]> {
     await this.projectsService.getMembership(userId, projectId);
 
-    const pgWhere = eventName
-      ? and(eq(propertyDefinitions.project_id, projectId), eq(propertyDefinitions.event_name, eventName))
-      : eq(propertyDefinitions.project_id, projectId);
+    if (eventName) {
+      // Event-scoped: get property names from event_properties, join with property_definitions for metadata
+      const epRows = await this.db
+        .select({
+          property_name: eventProperties.property_name,
+          property_type: eventProperties.property_type,
+          ep_last_seen_at: eventProperties.last_seen_at,
+        })
+        .from(eventProperties)
+        .where(and(
+          eq(eventProperties.project_id, projectId),
+          eq(eventProperties.event_name, eventName),
+          ...(type ? [eq(eventProperties.property_type, type)] : []),
+        ));
 
-    const [chRows, pgRows] = await Promise.all([
-      queryPropertyNamesWithCount(this.ch, { project_id: projectId, event_name: eventName }),
-      this.db
+      if (epRows.length === 0) return [];
+
+      // Get metadata from property_definitions
+      const conditions = [eq(propertyDefinitions.project_id, projectId)];
+      if (type) conditions.push(eq(propertyDefinitions.property_type, type));
+      const pdRows = await this.db
         .select()
         .from(propertyDefinitions)
-        .where(pgWhere),
-    ]);
+        .where(and(...conditions));
 
-    const metaMap = new Map(
-      pgRows.map((r) => [`${r.property_name}:${r.property_type}`, r]),
-    );
+      const metaMap = new Map(
+        pdRows.map((r) => [`${r.property_name}:${r.property_type}`, r]),
+      );
 
-    const items = chRows
-      .filter((ch) => !type || ch.property_type === type)
-      .map((ch) => {
-        const meta = metaMap.get(`${ch.property_name}:${ch.property_type}`);
+      return epRows.map((ep) => {
+        const meta = metaMap.get(`${ep.property_name}:${ep.property_type}`);
         return {
-          property_name: ch.property_name,
-          property_type: ch.property_type,
-          event_name: eventName ?? '',
-          count: ch.count,
-          id: meta?.id ?? null,
+          property_name: ep.property_name,
+          property_type: ep.property_type as 'event' | 'person',
+          value_type: meta?.value_type ?? 'String',
+          is_numerical: meta?.is_numerical ?? false,
+          id: meta?.id ?? '',
           description: meta?.description ?? null,
           tags: meta?.tags ?? [],
           verified: meta?.verified ?? false,
-          updated_at: meta?.updated_at?.toISOString() ?? null,
+          last_seen_at: ep.ep_last_seen_at.toISOString(),
+          updated_at: meta?.updated_at?.toISOString() ?? '',
         };
       });
+    }
 
-    return items;
+    // Global: read directly from property_definitions
+    const conditions = [eq(propertyDefinitions.project_id, projectId)];
+    if (type) conditions.push(eq(propertyDefinitions.property_type, type));
+
+    const rows = await this.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(...conditions))
+      .orderBy(desc(propertyDefinitions.last_seen_at));
+
+    return rows.map((r) => ({
+      property_name: r.property_name,
+      property_type: r.property_type as 'event' | 'person',
+      value_type: r.value_type,
+      is_numerical: r.is_numerical,
+      id: r.id,
+      description: r.description ?? null,
+      tags: r.tags,
+      verified: r.verified,
+      last_seen_at: r.last_seen_at.toISOString(),
+      updated_at: r.updated_at.toISOString(),
+    }));
   }
 
   async upsert(
@@ -71,7 +102,6 @@ export class PropertyDefinitionsService {
     projectId: string,
     propertyName: string,
     propertyType: 'event' | 'person',
-    eventName: string,
     input: { description?: string; tags?: string[]; verified?: boolean },
   ) {
     await this.projectsService.getMembership(userId, projectId);
@@ -82,13 +112,12 @@ export class PropertyDefinitionsService {
         project_id: projectId,
         property_name: propertyName,
         property_type: propertyType,
-        event_name: eventName,
         description: input.description ?? null,
         tags: input.tags ?? [],
         verified: input.verified ?? false,
       })
       .onConflictDoUpdate({
-        target: [propertyDefinitions.project_id, propertyDefinitions.event_name, propertyDefinitions.property_name, propertyDefinitions.property_type],
+        target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
         set: {
           ...(input.description !== undefined ? { description: input.description } : {}),
           ...(input.tags !== undefined ? { tags: input.tags } : {}),

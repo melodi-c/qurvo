@@ -43,13 +43,13 @@ export default function EventDefinitionsPage() {
       ),
     },
     {
-      key: 'count',
-      header: t('volume30d'),
-      headerClassName: 'w-32',
+      key: 'last_seen_at',
+      header: t('lastSeen'),
+      headerClassName: 'w-40',
       hideOnMobile: true,
       render: (row) => (
         <span className="text-sm text-muted-foreground tabular-nums">
-          {row.count.toLocaleString()}
+          {row.last_seen_at ? new Date(row.last_seen_at).toLocaleDateString() : '—'}
         </span>
       ),
     },

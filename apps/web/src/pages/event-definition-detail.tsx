@@ -83,7 +83,7 @@ export default function EventDefinitionDetailPage() {
 interface EventInfoCardProps {
   eventName: string;
   eventDef: {
-    count: number;
+    last_seen_at?: string | null;
     description?: string | null;
     tags?: string[] | null;
     verified?: boolean | null;
@@ -161,7 +161,7 @@ function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
               {t('verified')}
             </button>
             <span className="text-sm text-muted-foreground">
-              {t('volume30d')} <span className="tabular-nums font-medium text-foreground">{eventDef.count.toLocaleString()}</span>
+              {t('lastSeen')} <span className="tabular-nums font-medium text-foreground">{eventDef.last_seen_at ? new Date(eventDef.last_seen_at).toLocaleDateString() : '—'}</span>
             </span>
           </div>
 
@@ -221,7 +221,6 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
       await upsertMutation.mutateAsync({
         propertyName: row.property_name,
         propertyType: row.property_type,
-        eventName,
         data: {
           description: editValues.description || undefined,
           tags: parsedTags,
@@ -232,7 +231,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
     } catch {
       toast.error(t('propertyUpdateFailed'));
     }
-  }, [editValues, upsertMutation, eventName, t]);
+  }, [editValues, upsertMutation, t]);
 
   const typeFilterLabels: Record<'all' | 'event' | 'person', string> = useMemo(() => ({
     all: t('all'),
@@ -260,14 +259,14 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
       ),
     },
     {
-      key: 'count',
-      header: t('volume30d'),
-      headerClassName: 'w-32',
+      key: 'value_type',
+      header: t('valueType'),
+      headerClassName: 'w-28',
       hideOnMobile: true,
       render: (row) => (
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {row.count.toLocaleString()}
-        </span>
+        <Badge variant="outline" className="text-xs">
+          {(row as any).value_type ?? 'String'}
+        </Badge>
       ),
     },
     {

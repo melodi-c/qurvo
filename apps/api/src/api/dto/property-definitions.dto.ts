@@ -5,10 +5,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpsertPropertyDefinitionDto {
   @IsString()
-  @ApiProperty()
-  event_name: string;
-
-  @IsString()
   @IsOptional()
   @ApiPropertyOptional()
   description?: string;
@@ -41,15 +37,16 @@ export class PropertyDefinitionQueryDto {
 // ── Response DTOs ─────────────────────────────────────────────────────────────
 
 export class PropertyDefinitionDto {
-  property_name: string;
+  @ApiProperty() property_name: string;
   @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
-  @ApiProperty() event_name: string;
-  count: number;
-  @ApiPropertyOptional() id: string | null;
+  @ApiProperty() value_type: string;
+  @ApiProperty() is_numerical: boolean;
+  @ApiProperty() id: string;
   @ApiPropertyOptional() description: string | null;
   @ApiProperty({ type: [String] }) tags: string[];
-  verified: boolean;
-  @ApiPropertyOptional() updated_at: string | null;
+  @ApiProperty() verified: boolean;
+  @ApiProperty() last_seen_at: string;
+  @ApiProperty() updated_at: string;
 }
 
 export class UpsertPropertyDefinitionResponseDto {
@@ -57,10 +54,12 @@ export class UpsertPropertyDefinitionResponseDto {
   project_id: string;
   property_name: string;
   @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
-  @ApiProperty() event_name: string;
+  @ApiProperty() value_type: string;
+  @ApiProperty() is_numerical: boolean;
   @ApiPropertyOptional() description: string | null;
   @ApiProperty({ type: [String] }) tags: string[];
   verified: boolean;
+  last_seen_at: Date;
   created_at: Date;
   updated_at: Date;
 }

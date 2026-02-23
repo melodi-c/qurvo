@@ -8,6 +8,7 @@ export const eventDefinitions = pgTable('event_definitions', {
   description: varchar('description', { length: 1000 }),
   tags: text('tags').array().notNull().default([]),
   verified: boolean('verified').notNull().default(false),
+  last_seen_at: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
