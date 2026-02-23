@@ -1,10 +1,10 @@
-import type { CohortCondition, CohortConditionGroup, CohortDefinitionV2 } from '@qurvo/db';
+import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
 
 /**
- * Extracts all cohort_id references from a V2 definition (recursive).
+ * Extracts all cohort_id references from a definition (recursive).
  */
-export function extractCohortReferences(group: CohortDefinitionV2): string[] {
+export function extractCohortReferences(group: CohortConditionGroup): string[] {
   const ids: string[] = [];
 
   function walk(node: CohortCondition | CohortConditionGroup): void {
@@ -33,13 +33,13 @@ export function extractCohortReferences(group: CohortDefinitionV2): string[] {
  */
 export async function detectCircularDependency(
   cohortId: string,
-  definition: CohortDefinitionV2,
-  resolveDefinition: (id: string) => Promise<CohortDefinitionV2 | null>,
+  definition: CohortConditionGroup,
+  resolveDefinition: (id: string) => Promise<CohortConditionGroup | null>,
 ): Promise<boolean> {
   const visited = new Set<string>();
   visited.add(cohortId);
 
-  async function check(def: CohortDefinitionV2): Promise<boolean> {
+  async function check(def: CohortConditionGroup): Promise<boolean> {
     const refs = extractCohortReferences(def);
     for (const refId of refs) {
       if (visited.has(refId)) return true;

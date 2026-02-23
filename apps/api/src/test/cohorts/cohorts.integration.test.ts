@@ -16,7 +16,7 @@ import {
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import { queryFunnel } from '../../funnel/funnel.query';
 import { queryTrend } from '../../trend/trend.query';
-import type { CohortDefinition } from '@qurvo/db';
+import type { CohortConditionGroup } from '@qurvo/db';
 
 let ctx: ContainerContext;
 
@@ -30,7 +30,7 @@ async function materializeCohort(
   ch: typeof ctx.ch,
   projectId: string,
   cohortId: string,
-  definition: CohortDefinition,
+  definition: CohortConditionGroup,
 ): Promise<number> {
   const version = Date.now();
   const queryParams: Record<string, unknown> = { project_id: projectId };
@@ -76,8 +76,8 @@ describe('countCohortMembers — person_property conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
       ],
     });
@@ -117,8 +117,8 @@ describe('countCohortMembers — person_property conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'neq', value: 'premium' },
       ],
     });
@@ -150,8 +150,8 @@ describe('countCohortMembers — person_property conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'company', operator: 'contains', value: 'Acme' },
       ],
     });
@@ -186,8 +186,8 @@ describe('countCohortMembers — event conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 2, time_window_days: 30 },
       ],
     });
@@ -207,8 +207,8 @@ describe('countCohortMembers — event conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'event', event_name: 'login', count_operator: 'eq', count: 1, time_window_days: 30 },
       ],
     });
@@ -218,7 +218,7 @@ describe('countCohortMembers — event conditions', () => {
 });
 
 describe('countCohortMembers — combined conditions', () => {
-  it('match=all: INTERSECT of conditions', async () => {
+  it('type=AND: INTERSECT of conditions', async () => {
     const projectId = randomUUID();
     const personBoth = randomUUID();
     const personOnlyProp = randomUUID();
@@ -243,8 +243,8 @@ describe('countCohortMembers — combined conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
         { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 1, time_window_days: 30 },
       ],
@@ -253,7 +253,7 @@ describe('countCohortMembers — combined conditions', () => {
     expect(count).toBe(1); // only personBoth satisfies both
   });
 
-  it('match=any: UNION of conditions', async () => {
+  it('type=OR: UNION of conditions', async () => {
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
@@ -278,8 +278,8 @@ describe('countCohortMembers — combined conditions', () => {
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
-      match: 'any',
-      conditions: [
+      type: 'OR',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
         { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 1, time_window_days: 30 },
       ],
@@ -295,9 +295,9 @@ describe('materialized cohort membership', () => {
   it('countCohortMembersFromTable matches inline count', async () => {
     const projectId = randomUUID();
     const cohortId = randomUUID();
-    const definition: CohortDefinition = {
-      match: 'all',
-      conditions: [
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
       ],
     };
@@ -335,9 +335,9 @@ describe('materialized cohort membership', () => {
   it('stale membership is replaced on recomputation', async () => {
     const projectId = randomUUID();
     const cohortId = randomUUID();
-    const definition: CohortDefinition = {
-      match: 'all',
-      conditions: [
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
       ],
     };
@@ -423,8 +423,8 @@ describe('cohort filter integration with funnel', () => {
     const cohortFilter: CohortFilterInput = {
       cohort_id: randomUUID(),
       definition: {
-        match: 'all',
-        conditions: [
+        type: 'AND',
+        values: [
           { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
         ],
       },
@@ -492,9 +492,9 @@ describe('cohort filter integration with funnel', () => {
       }),
     ]);
 
-    const definition: CohortDefinition = {
-      match: 'all',
-      conditions: [
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
       ],
     };
@@ -563,8 +563,8 @@ describe('cohort filter integration with trend', () => {
       cohort_filters: [{
         cohort_id: randomUUID(),
         definition: {
-          match: 'all',
-          conditions: [
+          type: 'AND',
+          values: [
             { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
           ],
         },
@@ -604,9 +604,9 @@ describe('cohort filter integration with trend', () => {
       }),
     ]);
 
-    const definition: CohortDefinition = {
-      match: 'all',
-      conditions: [
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
       ],
     };

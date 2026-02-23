@@ -1,5 +1,5 @@
-import type { CohortCondition, CohortConditionGroup, CohortDefinition, CohortDefinitionV2 } from '@qurvo/db';
-import { isConditionGroup, normalizeDefinition } from '@qurvo/db';
+import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
+import { isConditionGroup } from '@qurvo/db';
 import { RESOLVED_PERSON } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
 import { buildPropertyConditionSubquery } from './conditions/property';
@@ -76,26 +76,24 @@ export function buildGroupSubquery(
   return subqueries.join(`\n${joiner}\n`);
 }
 
-// ── Legacy-compatible entry point ────────────────────────────────────────────
+// ── Entry point ──────────────────────────────────────────────────────────────
 
 /**
- * Builds a subquery from either V1 or V2 definition.
- * Accepts the same counter-based context as the old API for backward compat.
+ * Builds a subquery from a CohortConditionGroup definition.
  */
 export function buildCohortSubquery(
-  definition: CohortDefinition | CohortDefinitionV2,
+  definition: CohortConditionGroup,
   cohortIdx: number,
   projectIdParam: string,
   queryParams: Record<string, unknown>,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): string {
-  const v2 = normalizeDefinition(definition);
   const ctx: BuildContext = {
     projectIdParam,
     queryParams,
     counter: { value: cohortIdx * 100 },
   };
-  return buildGroupSubquery(v2, ctx, resolveCohortIsStatic);
+  return buildGroupSubquery(definition, ctx, resolveCohortIsStatic);
 }
 
 // ── Filter clause builder ────────────────────────────────────────────────────

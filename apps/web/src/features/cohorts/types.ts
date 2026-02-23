@@ -158,22 +158,6 @@ export function createDefaultCondition(type: CohortCondition['type']): CohortCon
   }
 }
 
-/** Normalize V1 flat definition to V2 nested group */
-export function normalizeToV2(def: unknown): CohortConditionGroup {
-  const d = def as { type?: string; match?: string; values?: unknown[]; conditions?: unknown[] };
-  if (d.type === 'AND' || d.type === 'OR') {
-    return d as unknown as CohortConditionGroup;
-  }
-  // V1: { match: 'all'|'any', conditions: [...] }
-  if ('match' in d && 'conditions' in d) {
-    return {
-      type: d.match === 'any' ? 'OR' : 'AND',
-      values: (d.conditions as CohortCondition[]) ?? [],
-    };
-  }
-  return createEmptyGroup();
-}
-
 /** Check if condition is valid enough for preview */
 export function isConditionValid(cond: CohortCondition): boolean {
   switch (cond.type) {

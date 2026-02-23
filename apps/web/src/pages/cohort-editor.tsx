@@ -11,7 +11,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './cohort-editor.translations';
 import { toast } from 'sonner';
-import { normalizeToV2, isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
+import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
 
 export default function CohortEditorPage() {
   const { t } = useLocalTranslation(translations);
@@ -35,7 +35,7 @@ export default function CohortEditorPage() {
     if (existingCohort && !initialized) {
       setName(existingCohort.name);
       setDescription(existingCohort.description ?? '');
-      const rootGroup = normalizeToV2(existingCohort.definition);
+      const rootGroup = existingCohort.definition as CohortConditionGroup;
       // Top-level is OR of AND groups. If the root is AND, wrap it in an array of one group.
       if (rootGroup.type === 'AND') {
         setGroups([rootGroup]);

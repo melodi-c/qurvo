@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { type Database, cohorts, type CohortDefinition, type CohortDefinitionV2, normalizeDefinition } from '@qurvo/db';
+import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery, RESOLVED_PERSON } from '@qurvo/cohort-query';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
@@ -104,7 +104,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   private async computeMembership(
     cohortId: string,
     projectId: string,
-    definition: CohortDefinition | CohortDefinitionV2,
+    definition: CohortConditionGroup,
     version: number,
   ): Promise<void> {
     const queryParams: Record<string, unknown> = { project_id: projectId };

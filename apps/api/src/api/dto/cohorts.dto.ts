@@ -320,28 +320,6 @@ export class CohortConditionGroupDto {
   values: any[];
 }
 
-// ── V1 Definition (legacy compat) ────────────────────────────────────────────
-
-export class CohortDefinitionDto {
-  @IsIn(['all', 'any'])
-  match: 'all' | 'any';
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @ValidateNested({ each: true })
-  @Type(() => Object, {
-    discriminator: {
-      property: 'type',
-      subTypes: [
-        { value: CohortPropertyConditionDto, name: 'person_property' },
-        { value: CohortEventConditionDto, name: 'event' },
-      ],
-    },
-    keepDiscriminatorProperty: true,
-  })
-  conditions: (CohortPropertyConditionDto | CohortEventConditionDto)[];
-}
-
 // ── CRUD DTOs ────────────────────────────────────────────────────────────────
 
 export class CreateCohortDto {
@@ -357,11 +335,6 @@ export class CreateCohortDto {
   @Type(() => CohortConditionGroupDto)
   @IsOptional()
   definition?: CohortConditionGroupDto;
-
-  @ValidateNested()
-  @Type(() => CohortDefinitionDto)
-  @IsOptional()
-  legacy_definition?: CohortDefinitionDto;
 
   @IsBoolean()
   @IsOptional()
@@ -382,11 +355,6 @@ export class UpdateCohortDto {
   @Type(() => CohortConditionGroupDto)
   @IsOptional()
   definition?: CohortConditionGroupDto;
-
-  @ValidateNested()
-  @Type(() => CohortDefinitionDto)
-  @IsOptional()
-  legacy_definition?: CohortDefinitionDto;
 }
 
 export class CohortPreviewDto {
@@ -394,11 +362,6 @@ export class CohortPreviewDto {
   @Type(() => CohortConditionGroupDto)
   @IsOptional()
   definition?: CohortConditionGroupDto;
-
-  @ValidateNested()
-  @Type(() => CohortDefinitionDto)
-  @IsOptional()
-  legacy_definition?: CohortDefinitionDto;
 }
 
 export class CreateStaticCohortDto {

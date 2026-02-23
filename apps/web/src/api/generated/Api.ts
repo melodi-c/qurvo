@@ -697,17 +697,10 @@ export interface CohortConditionGroup {
   values: object[];
 }
 
-export interface CohortDefinition {
-  match: CohortDefinitionDtoMatchEnum;
-  /** @minItems 1 */
-  conditions: object[];
-}
-
 export interface CreateCohort {
   name: string;
   description?: string;
   definition?: CohortConditionGroup;
-  legacy_definition?: CohortDefinition;
   is_static?: boolean;
 }
 
@@ -715,7 +708,6 @@ export interface UpdateCohort {
   name?: string;
   description?: string;
   definition?: CohortConditionGroup;
-  legacy_definition?: CohortDefinition;
 }
 
 export interface CohortMemberCount {
@@ -724,7 +716,6 @@ export interface CohortMemberCount {
 
 export interface CohortPreview {
   definition?: CohortConditionGroup;
-  legacy_definition?: CohortDefinition;
 }
 
 export interface CreateStaticCohort {
@@ -1186,8 +1177,6 @@ export type StickinessWidgetConfigDtoTypeEnum = "stickiness";
 export type PathsWidgetConfigDtoTypeEnum = "paths";
 
 export type CohortConditionGroupDtoTypeEnum = "AND" | "OR";
-
-export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 

@@ -113,38 +113,17 @@ export type CohortCondition =
   | CohortStoppedPerformingCondition
   | CohortRestartedPerformingCondition;
 
-// ── V1 flat definition (legacy) ──────────────────────────────────────────────
-
-export interface CohortDefinition {
-  match: 'all' | 'any';
-  conditions: CohortCondition[];
-}
-
-// ── V2 nested group definition ───────────────────────────────────────────────
+// ── Nested group definition ──────────────────────────────────────────────────
 
 export interface CohortConditionGroup {
   type: 'AND' | 'OR';
   values: (CohortCondition | CohortConditionGroup)[];
 }
 
-export type CohortDefinitionV2 = CohortConditionGroup;
-
-// ── Type guards & helpers ────────────────────────────────────────────────────
-
-export function isV2Definition(def: CohortDefinition | CohortDefinitionV2): def is CohortDefinitionV2 {
-  return 'type' in def && (def.type === 'AND' || def.type === 'OR') && 'values' in def;
-}
+// ── Type guards ──────────────────────────────────────────────────────────────
 
 export function isConditionGroup(val: CohortCondition | CohortConditionGroup): val is CohortConditionGroup {
   return 'type' in val && (val.type === 'AND' || val.type === 'OR') && 'values' in val;
-}
-
-export function normalizeDefinition(def: CohortDefinition | CohortDefinitionV2): CohortDefinitionV2 {
-  if (isV2Definition(def)) return def;
-  return {
-    type: def.match === 'all' ? 'AND' : 'OR',
-    values: def.conditions,
-  };
 }
 
 // ── Table ────────────────────────────────────────────────────────────────────
@@ -155,7 +134,7 @@ export const cohorts = pgTable('cohorts', {
   created_by: uuid('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 200 }).notNull(),
   description: varchar('description', { length: 1000 }),
-  definition: jsonb('definition').notNull().$type<CohortDefinition | CohortDefinitionV2>(),
+  definition: jsonb('definition').notNull().$type<CohortConditionGroup>(),
   is_static: boolean('is_static').notNull().default(false),
   membership_version: bigint('membership_version', { mode: 'number' }),
   membership_computed_at: timestamp('membership_computed_at', { withTimezone: true }),

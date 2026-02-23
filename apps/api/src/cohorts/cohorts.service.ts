@@ -4,8 +4,8 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
-  cohorts, normalizeDefinition,
-  type CohortDefinition, type CohortDefinitionV2, type Database,
+  cohorts,
+  type CohortConditionGroup, type Database,
 } from '@qurvo/db';
 import { detectCircularDependency } from '@qurvo/cohort-query';
 import { ProjectsService } from '../projects/projects.service';
@@ -50,15 +50,13 @@ export class CohortsService {
     input: {
       name: string;
       description?: string;
-      definition?: CohortDefinitionV2;
-      legacy_definition?: CohortDefinition;
+      definition?: CohortConditionGroup;
       is_static?: boolean;
     },
   ) {
     await this.projectsService.getMembership(userId, projectId);
 
-    // Normalize: accept either V2 or legacy V1
-    const definition = input.definition ?? (input.legacy_definition ? normalizeDefinition(input.legacy_definition) : null);
+    const definition = input.definition ?? null;
     if (!definition && !input.is_static) {
       throw new BadRequestException('definition is required for dynamic cohorts');
     }
@@ -90,8 +88,7 @@ export class CohortsService {
     input: {
       name?: string;
       description?: string;
-      definition?: CohortDefinitionV2;
-      legacy_definition?: CohortDefinition;
+      definition?: CohortConditionGroup;
     },
   ) {
     await this.projectsService.getMembership(userId, projectId);
@@ -103,8 +100,7 @@ export class CohortsService {
 
     if (existing.length === 0) throw new CohortNotFoundException();
 
-    // Normalize definition
-    const definition = input.definition ?? (input.legacy_definition ? normalizeDefinition(input.legacy_definition) : undefined);
+    const definition = input.definition;
 
     if (definition) {
       await this.checkCircularDependency(cohortId, definition, userId, projectId);
@@ -172,7 +168,7 @@ export class CohortsService {
   async previewCount(
     userId: string,
     projectId: string,
-    definition: CohortDefinition | CohortDefinitionV2,
+    definition: CohortConditionGroup,
   ): Promise<number> {
     await this.projectsService.getMembership(userId, projectId);
     return countCohortMembers(this.ch, projectId, definition);
@@ -182,7 +178,7 @@ export class CohortsService {
     userId: string,
     projectId: string,
     cohortId: string,
-  ): Promise<CohortDefinition | CohortDefinitionV2> {
+  ): Promise<CohortConditionGroup> {
     const cohort = await this.getById(userId, projectId, cohortId);
     return cohort.definition;
   }
@@ -342,7 +338,7 @@ export class CohortsService {
 
   private async checkCircularDependency(
     cohortId: string,
-    definition: CohortDefinitionV2,
+    definition: CohortConditionGroup,
     userId: string,
     projectId: string,
   ) {
@@ -352,7 +348,7 @@ export class CohortsService {
       async (refId: string) => {
         try {
           const refCohort = await this.getById(userId, projectId, refId);
-          return normalizeDefinition(refCohort.definition);
+          return refCohort.definition;
         } catch {
           return null;
         }

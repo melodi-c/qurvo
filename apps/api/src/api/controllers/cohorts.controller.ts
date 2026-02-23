@@ -2,7 +2,6 @@ import {
   Controller, Get, Post, Put, Delete, Body, Param, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { normalizeDefinition } from '@qurvo/db';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
@@ -84,11 +83,10 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Body() body: CohortPreviewDto,
   ): Promise<CohortMemberCountDto> {
-    const definition = body.definition ?? (body.legacy_definition ? normalizeDefinition(body.legacy_definition) : null);
-    if (!definition) {
+    if (!body.definition) {
       return { count: 0 };
     }
-    const count = await this.cohortsService.previewCount(user.user_id, projectId, definition);
+    const count = await this.cohortsService.previewCount(user.user_id, projectId, body.definition);
     return { count };
   }
 

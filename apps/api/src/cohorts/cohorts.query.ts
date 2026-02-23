@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type { CohortDefinition, CohortDefinitionV2 } from '@qurvo/db';
+import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 
 // Re-export for backward compat with insight query files
@@ -14,7 +14,7 @@ export type { CohortFilterInput } from '@qurvo/cohort-query';
 export async function countCohortMembers(
   ch: ClickHouseClient,
   projectId: string,
-  definition: CohortDefinition | CohortDefinitionV2,
+  definition: CohortConditionGroup,
 ): Promise<number> {
   const queryParams: Record<string, unknown> = { project_id: projectId };
   const subquery = buildCohortSubquery(definition, 0, 'project_id', queryParams);

@@ -12,10 +12,10 @@ export { insights } from './insights';
 export type { InsightType, InsightConfig } from './insights';
 export { persons } from './persons';
 export { personDistinctIds } from './person-distinct-ids';
-export { cohorts, isV2Definition, isConditionGroup, normalizeDefinition } from './cohorts';
+export { cohorts, isConditionGroup } from './cohorts';
 export { projectInvites, inviteStatusEnum } from './project-invites';
 export type {
-  CohortDefinition, CohortDefinitionV2, CohortConditionGroup,
+  CohortConditionGroup,
   CohortCondition, CohortPropertyCondition, CohortEventCondition,
   CohortCohortCondition, CohortFirstTimeEventCondition, CohortNotPerformedEventCondition,
   CohortEventSequenceCondition, CohortNotPerformedEventSequenceCondition, CohortPerformedRegularlyCondition,

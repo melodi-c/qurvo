@@ -5,7 +5,7 @@ import { useCohorts, useDeleteCohort } from '@/features/cohorts/hooks/use-cohort
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './cohorts.translations';
-import { normalizeToV2, isGroup, type CohortCondition, type CohortConditionGroup } from '@/features/cohorts/types';
+import { isGroup, type CohortCondition, type CohortConditionGroup } from '@/features/cohorts/types';
 import type { Column } from '@/components/ui/data-table';
 import type { Cohort } from '@/api/generated/Api';
 
@@ -66,7 +66,8 @@ export default function CohortsPage() {
 
 function conditionsSummary(definition: unknown, noConditionsLabel: string): string {
   try {
-    const root = normalizeToV2(definition);
+    const root = definition as CohortConditionGroup;
+    if (!root || !root.values) return noConditionsLabel;
     return groupSummary(root) || noConditionsLabel;
   } catch {
     return noConditionsLabel;

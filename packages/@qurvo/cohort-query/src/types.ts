@@ -1,8 +1,8 @@
-import type { CohortDefinition, CohortDefinitionV2 } from '@qurvo/db';
+import type { CohortConditionGroup } from '@qurvo/db';
 
 export interface CohortFilterInput {
   cohort_id: string;
-  definition: CohortDefinition | CohortDefinitionV2;
+  definition: CohortConditionGroup;
   materialized: boolean;
   is_static: boolean;
 }
