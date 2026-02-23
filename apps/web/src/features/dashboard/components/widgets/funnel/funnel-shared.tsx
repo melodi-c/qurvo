@@ -11,14 +11,15 @@ export function defaultFunnelConfig(): FunnelWidgetConfig {
       { event_name: '', label: 'Step 2' },
     ],
     conversion_window_days: 14,
-    conversion_window_value: 14,
-    conversion_window_unit: 'day',
     date_from: from,
     date_to: to,
+    // Fields not yet in generated Api.ts — will be typed after next swagger regeneration
+    conversion_window_value: 14,
+    conversion_window_unit: 'day',
     funnel_order_type: 'ordered',
     funnel_viz_type: 'steps',
     conversion_rate_display: 'total',
     exclusions: [],
-  };
+  } as FunnelWidgetConfig;
 }
 

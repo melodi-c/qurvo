@@ -16,19 +16,20 @@ function cleanSteps(config: FunnelWidgetConfig) {
 }
 
 function configHash(config: FunnelWidgetConfig): string {
+  const c = config as any;
   return JSON.stringify({
     steps: config.steps,
     window: config.conversion_window_days,
-    window_value: config.conversion_window_value,
-    window_unit: config.conversion_window_unit,
+    window_value: c.conversion_window_value,
+    window_unit: c.conversion_window_unit,
     from: config.date_from,
     to: config.date_to,
     breakdown: config.breakdown_property,
-    breakdown_type: config.breakdown_type,
-    breakdown_cohort_ids: config.breakdown_cohort_ids,
+    breakdown_type: c.breakdown_type,
+    breakdown_cohort_ids: c.breakdown_cohort_ids,
     cohort_ids: config.cohort_ids,
-    order_type: config.funnel_order_type,
-    exclusions: config.exclusions,
+    order_type: c.funnel_order_type,
+    exclusions: c.exclusions,
   });
 }
 
@@ -49,6 +50,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
   const hash = configHash(config);
   const queryKey = ['funnel', projectId, widgetId, hash];
 
+  const c = config as any;
   const query = useQuery<FunnelResponse>({
     queryKey,
     queryFn: () =>
@@ -56,17 +58,17 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
         project_id: projectId,
         steps: cleanSteps(config),
         conversion_window_days: config.conversion_window_days,
-        ...(config.conversion_window_value != null ? { conversion_window_value: config.conversion_window_value } : {}),
-        ...(config.conversion_window_unit ? { conversion_window_unit: config.conversion_window_unit } : {}),
+        ...(c.conversion_window_value != null ? { conversion_window_value: c.conversion_window_value } : {}),
+        ...(c.conversion_window_unit ? { conversion_window_unit: c.conversion_window_unit } : {}),
         date_from: config.date_from,
         date_to: config.date_to,
         ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
-        ...(config.breakdown_type ? { breakdown_type: config.breakdown_type } : {}),
-        ...(config.breakdown_cohort_ids?.length ? { breakdown_cohort_ids: config.breakdown_cohort_ids } : {}),
+        ...(c.breakdown_type ? { breakdown_type: c.breakdown_type } : {}),
+        ...(c.breakdown_cohort_ids?.length ? { breakdown_cohort_ids: c.breakdown_cohort_ids } : {}),
         ...(widgetUuid ? { widget_id: widgetUuid } : {}),
         ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
-        ...(config.funnel_order_type ? { funnel_order_type: config.funnel_order_type } : {}),
-        ...(config.exclusions?.length ? { exclusions: config.exclusions } : {}),
+        ...(c.funnel_order_type ? { funnel_order_type: c.funnel_order_type } : {}),
+        ...(c.exclusions?.length ? { exclusions: c.exclusions } : {}),
       }),
     enabled,
     placeholderData: keepPreviousData,
@@ -94,17 +96,17 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
       project_id: projectId,
       steps: cleanSteps(config),
       conversion_window_days: config.conversion_window_days,
-      ...(config.conversion_window_value != null ? { conversion_window_value: config.conversion_window_value } : {}),
-      ...(config.conversion_window_unit ? { conversion_window_unit: config.conversion_window_unit } : {}),
+      ...(c.conversion_window_value != null ? { conversion_window_value: c.conversion_window_value } : {}),
+      ...(c.conversion_window_unit ? { conversion_window_unit: c.conversion_window_unit } : {}),
       date_from: config.date_from,
       date_to: config.date_to,
       ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
-      ...(config.breakdown_type ? { breakdown_type: config.breakdown_type } : {}),
-      ...(config.breakdown_cohort_ids?.length ? { breakdown_cohort_ids: config.breakdown_cohort_ids } : {}),
+      ...(c.breakdown_type ? { breakdown_type: c.breakdown_type } : {}),
+      ...(c.breakdown_cohort_ids?.length ? { breakdown_cohort_ids: c.breakdown_cohort_ids } : {}),
       ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
-      ...(config.funnel_order_type ? { funnel_order_type: config.funnel_order_type } : {}),
-      ...(config.exclusions?.length ? { exclusions: config.exclusions } : {}),
+      ...(c.funnel_order_type ? { funnel_order_type: c.funnel_order_type } : {}),
+      ...(c.exclusions?.length ? { exclusions: c.exclusions } : {}),
       force: true,
     });
 
