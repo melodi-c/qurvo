@@ -679,33 +679,43 @@ export interface PersonEventRow {
   user_properties: string;
 }
 
-export interface CohortDefinition {
-  match: CohortDefinitionDtoMatchEnum;
-  /** @minItems 1 */
-  conditions: object[];
-}
-
 export interface Cohort {
   description?: string | null;
   id: string;
   project_id: string;
   created_by: string;
   name: string;
-  definition: CohortDefinition;
+  definition: object;
+  is_static: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface CohortConditionGroup {
+  type: CohortConditionGroupDtoTypeEnum;
+  /** @minItems 1 */
+  values: object[];
+}
+
+export interface CohortDefinition {
+  match: CohortDefinitionDtoMatchEnum;
+  /** @minItems 1 */
+  conditions: object[];
 }
 
 export interface CreateCohort {
   name: string;
   description?: string;
-  definition: CohortDefinition;
+  definition?: CohortConditionGroup;
+  legacy_definition?: CohortDefinition;
+  is_static?: boolean;
 }
 
 export interface UpdateCohort {
   name?: string;
   description?: string;
-  definition?: CohortDefinition;
+  definition?: CohortConditionGroup;
+  legacy_definition?: CohortDefinition;
 }
 
 export interface CohortMemberCount {
@@ -713,7 +723,18 @@ export interface CohortMemberCount {
 }
 
 export interface CohortPreview {
-  definition: CohortDefinition;
+  definition?: CohortConditionGroup;
+  legacy_definition?: CohortDefinition;
+}
+
+export interface CreateStaticCohort {
+  name: string;
+  description?: string;
+  person_ids?: string[];
+}
+
+export interface StaticCohortMembers {
+  person_ids: string[];
 }
 
 export interface CreateInsight {
@@ -1002,13 +1023,13 @@ export interface AiConversationDetail {
 }
 
 export interface EventDefinition {
-  id?: string | null;
+  event_name: string;
+  id: string;
   description?: string | null;
   tags: string[];
-  updated_at?: string | null;
-  event_name: string;
-  count: number;
   verified: boolean;
+  last_seen_at: string;
+  updated_at: string;
 }
 
 export interface UpsertEventDefinition {
@@ -1025,25 +1046,27 @@ export interface UpsertEventDefinitionResponse {
   event_name: string;
   verified: boolean;
   /** @format date-time */
+  last_seen_at: string;
+  /** @format date-time */
   created_at: string;
   /** @format date-time */
   updated_at: string;
 }
 
 export interface PropertyDefinition {
+  property_name: string;
   property_type: PropertyDefinitionDtoPropertyTypeEnum;
-  event_name: string;
-  id?: string | null;
+  value_type: string;
+  is_numerical: boolean;
+  id: string;
   description?: string | null;
   tags: string[];
-  updated_at?: string | null;
-  property_name: string;
-  count: number;
   verified: boolean;
+  last_seen_at: string;
+  updated_at: string;
 }
 
 export interface UpsertPropertyDefinition {
-  event_name: string;
   description?: string;
   tags?: string[];
   verified?: boolean;
@@ -1051,13 +1074,16 @@ export interface UpsertPropertyDefinition {
 
 export interface UpsertPropertyDefinitionResponse {
   property_type: UpsertPropertyDefinitionResponseDtoPropertyTypeEnum;
-  event_name: string;
+  value_type: string;
+  is_numerical: boolean;
   description?: string | null;
   tags: string[];
   id: string;
   project_id: string;
   property_name: string;
   verified: boolean;
+  /** @format date-time */
+  last_seen_at: string;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
@@ -1159,6 +1185,8 @@ export type StickinessWidgetConfigDtoTypeEnum = "stickiness";
 
 export type PathsWidgetConfigDtoTypeEnum = "paths";
 
+export type CohortConditionGroupDtoTypeEnum = "AND" | "OR";
+
 export type CohortDefinitionDtoMatchEnum = "all" | "any";
 
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
@@ -1211,6 +1239,8 @@ export interface ApiKeysControllerRevokeParams {
 }
 
 export interface FunnelControllerGetFunnelParams {
+  breakdown_type?: BreakdownTypeEnum;
+  breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
@@ -1228,6 +1258,12 @@ export interface FunnelControllerGetFunnelParams {
   widget_id?: string;
   force?: boolean;
 }
+
+export type BreakdownTypeEnum = "property" | "cohort";
+
+export type FunnelControllerGetFunnelParams1BreakdownTypeEnum =
+  | "property"
+  | "cohort";
 
 export interface EventsControllerGetEventsParams {
   event_name?: string;
@@ -1269,6 +1305,8 @@ export interface EventsControllerGetEventPropertyNamesParams {
 export interface TrendControllerGetTrendParams {
   metric: TrendMetric;
   granularity: TrendGranularity;
+  breakdown_type?: BreakdownTypeEnum1;
+  breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
   /** @format uuid */
   project_id: string;
@@ -1282,6 +1320,12 @@ export interface TrendControllerGetTrendParams {
   widget_id?: string;
   force?: boolean;
 }
+
+export type BreakdownTypeEnum1 = "property" | "cohort";
+
+export type TrendControllerGetTrendParams1BreakdownTypeEnum =
+  | "property"
+  | "cohort";
 
 export interface RetentionControllerGetRetentionParams {
   retention_type: RetentionType;
@@ -1468,6 +1512,30 @@ export interface CohortsControllerGetMemberCountParams {
 
 export interface CohortsControllerPreviewCountParams {
   projectId: string;
+}
+
+export interface CohortsControllerCreateStaticCohortParams {
+  projectId: string;
+}
+
+export interface CohortsControllerDuplicateAsStaticParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerUploadCsvParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerAddMembersParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerRemoveMembersParams {
+  projectId: string;
+  cohortId: string;
 }
 
 export interface InsightsControllerListParams {
@@ -2858,6 +2926,116 @@ export class Api<
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerCreateStaticCohort
+     * @request POST:/api/projects/{projectId}/cohorts/static
+     * @secure
+     */
+    cohortsControllerCreateStaticCohort: (
+      { projectId, ...query }: CohortsControllerCreateStaticCohortParams,
+      data: CreateStaticCohort,
+      params: RequestParams = {},
+    ) =>
+      this.request<Cohort, any>({
+        path: `/api/projects/${projectId}/cohorts/static`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerDuplicateAsStatic
+     * @request POST:/api/projects/{projectId}/cohorts/{cohortId}/duplicate-static
+     * @secure
+     */
+    cohortsControllerDuplicateAsStatic: (
+      {
+        projectId,
+        cohortId,
+        ...query
+      }: CohortsControllerDuplicateAsStaticParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Cohort, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/duplicate-static`,
+        method: "POST",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerUploadCsv
+     * @request POST:/api/projects/{projectId}/cohorts/{cohortId}/upload-csv
+     * @secure
+     */
+    cohortsControllerUploadCsv: (
+      { projectId, cohortId, ...query }: CohortsControllerUploadCsvParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/upload-csv`,
+        method: "POST",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerAddMembers
+     * @request POST:/api/projects/{projectId}/cohorts/{cohortId}/members
+     * @secure
+     */
+    cohortsControllerAddMembers: (
+      { projectId, cohortId, ...query }: CohortsControllerAddMembersParams,
+      data: StaticCohortMembers,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/members`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerRemoveMembers
+     * @request DELETE:/api/projects/{projectId}/cohorts/{cohortId}/members
+     * @secure
+     */
+    cohortsControllerRemoveMembers: (
+      { projectId, cohortId, ...query }: CohortsControllerRemoveMembersParams,
+      data: StaticCohortMembers,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/members`,
+        method: "DELETE",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         ...params,
       }),
 
