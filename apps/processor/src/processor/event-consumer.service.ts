@@ -23,6 +23,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private loopPromise: Promise<void> | null = null;
   private pendingTimer: NodeJS.Timeout | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  private lastLoopActivity = 0;
+  private static readonly LOOP_STALE_MS = 30_000;
   private readonly consumerName = process.env.PROCESSOR_CONSUMER_NAME || `processor-${process.pid}`;
   private static readonly HEARTBEAT_PATH = '/tmp/processor.heartbeat';
 
@@ -57,6 +59,11 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
   private writeHeartbeat() {
     try {
+      const loopAge = Date.now() - this.lastLoopActivity;
+      if (this.lastLoopActivity > 0 && loopAge > EventConsumerService.LOOP_STALE_MS) {
+        this.logger.warn({ loopAge }, 'Consumer loop stale, skipping heartbeat');
+        return;
+      }
       writeFileSync(EventConsumerService.HEARTBEAT_PATH, Date.now().toString());
     } catch {
       // non-critical: liveness probe will detect stale heartbeat
@@ -78,6 +85,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
         // Backpressure: wait for buffer to drain before reading more
         while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
           await this.flushService.flush();
+          this.lastLoopActivity = Date.now();
           if (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
             await new Promise((r) => setTimeout(r, 500));
           }
@@ -89,6 +97,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
           'BLOCK', '2000',
           'STREAMS', REDIS_STREAM_EVENTS, '>',
         ) as [string, [string, string[]][]][] | null;
+
+        this.lastLoopActivity = Date.now();
 
         if (!results || results.length === 0) continue;
 
@@ -106,6 +116,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           await this.flushService.flush();
         }
       } catch (err) {
+        this.lastLoopActivity = Date.now();
         this.logger.error({ err }, 'Error processing messages');
         await new Promise((r) => setTimeout(r, 1000));
       }
