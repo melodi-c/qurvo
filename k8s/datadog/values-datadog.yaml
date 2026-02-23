@@ -9,7 +9,6 @@ datadog:
   site: "datadoghq.eu"
   apiKeyExistingSecret: "datadog-api-key"
   clusterName: "qurvo-prod"
-  env: "qurvo-prod"
 
   # --------------------------------------------------------------------------
   # Logs
