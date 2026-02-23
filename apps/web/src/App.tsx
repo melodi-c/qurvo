@@ -28,7 +28,6 @@ import StickinessEditorPage from '@/pages/stickiness-editor';
 import PathsEditorPage from '@/pages/paths-editor';
 import CohortsPage from '@/pages/cohorts';
 import CohortEditorPage from '@/pages/cohort-editor';
-import UnitEconomicsPage from '@/pages/unit-economics';
 import AiPage from '@/pages/ai/index';
 import VerifyEmailPage from '@/pages/verify-email';
 import EventDefinitionsPage from '@/pages/event-definitions';
@@ -97,7 +96,6 @@ function AppRoutes() {
         <Route path={routes.legacy.trends.pattern} element={<Navigate to="/insights?type=trend" replace />} />
         <Route path={routes.legacy.funnels.pattern} element={<Navigate to="/insights?type=funnel" replace />} />
         <Route path={routes.legacy.retentions.pattern} element={<Navigate to="/insights?type=retention" replace />} />
-        <Route path={routes.unitEconomics.pattern} element={<UnitEconomicsPage />} />
         <Route path={routes.events.pattern} element={<EventsPage />} />
         <Route path={routes.cohorts.list.pattern} element={<CohortsPage />} />
         <Route path={routes.cohorts.new.pattern} element={<CohortEditorPage />} />

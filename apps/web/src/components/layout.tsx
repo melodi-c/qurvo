@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Calculator, Sparkles, User, Database, Globe, Languages } from 'lucide-react';
+import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Sparkles, User, Database, Globe, Languages } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
 import { routes } from '@/lib/routes';
 import translations from './layout.translations';
@@ -39,7 +39,6 @@ export default function Layout() {
         { path: routes.dashboards.list.pattern, label: t('dashboards'), icon: LayoutDashboard },
         { path: routes.webAnalytics.pattern,    label: t('webAnalytics'),   icon: Globe },
         { path: routes.insights.list.pattern,   label: t('insights'),        icon: Lightbulb },
-        { path: routes.unitEconomics.pattern,   label: t('unitEconomics'),  icon: Calculator },
         { path: routes.cohorts.list.pattern,    label: t('cohorts'),         icon: UsersRound },
         { path: routes.persons.list.pattern,    label: t('persons'),    icon: Users },
         { path: routes.events.pattern,          label: t('events'),     icon: List },

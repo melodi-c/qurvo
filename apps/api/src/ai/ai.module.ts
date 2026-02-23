@@ -11,7 +11,6 @@ import { StickinessModule } from '../stickiness/stickiness.module';
 import { PathsModule } from '../paths/paths.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
-import { UnitEconomicsModule } from '../unit-economics/unit-economics.module';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { TrendTool } from './tools/trend.tool';
@@ -19,7 +18,6 @@ import { FunnelTool } from './tools/funnel.tool';
 import { RetentionTool } from './tools/retention.tool';
 import { LifecycleTool } from './tools/lifecycle.tool';
 import { StickinessTool } from './tools/stickiness.tool';
-import { UnitEconomicsTool } from './tools/unit-economics.tool';
 import { ListEventNamesTool } from './tools/list-event-names.tool';
 import { PathsTool } from './tools/paths.tool';
 
@@ -29,7 +27,6 @@ const TOOL_CLASSES = [
   RetentionTool,
   LifecycleTool,
   StickinessTool,
-  UnitEconomicsTool,
   ListEventNamesTool,
   PathsTool,
 ];
@@ -45,7 +42,6 @@ const TOOL_CLASSES = [
     PathsModule,
     EventsModule,
     PersonsModule,
-    UnitEconomicsModule,
   ],
   providers: [
     AiService,

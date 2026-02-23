@@ -24,7 +24,6 @@ export type {
 } from './cohorts';
 export { marketingChannels, channelTypeEnum } from './marketing-channels';
 export { adSpend } from './ad-spend';
-export { unitEconomicsConfig } from './unit-economics-config';
 export { aiConversations, aiMessages } from './ai-conversations';
 export { emailVerificationCodes } from './email-verification-codes';
 export { eventDefinitions } from './event-definitions';

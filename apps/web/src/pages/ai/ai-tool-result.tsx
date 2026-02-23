@@ -6,8 +6,6 @@ import { RetentionChart } from '@/features/dashboard/components/widgets/retentio
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
-import { UEMetricsGrid } from '@/features/unit-economics/components/UEMetricsGrid';
-import { UEChart } from '@/features/unit-economics/components/UEChart';
 
 interface AiToolResultProps {
   toolName: string;
@@ -82,17 +80,6 @@ export function AiToolResult({ result, visualizationType }: AiToolResultProps) {
             transitions={result.transitions}
             topPaths={result.top_paths ?? []}
           />
-        )}
-        {visualizationType === 'unit_economics' && result.totals && (
-          <>
-            <UEMetricsGrid metrics={result.totals} />
-            {result.data?.length > 1 && (
-              <UEChart
-                buckets={result.data}
-                selectedMetrics={['arpu', 'ltv', 'cac']}
-              />
-            )}
-          </>
         )}
       </CardContent>
     </Card>

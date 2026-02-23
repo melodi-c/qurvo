@@ -916,66 +916,6 @@ export interface AdSpendSummary {
   record_count: number;
 }
 
-export interface UnitEconomicsMetrics {
-  ua: number;
-  c1: number;
-  c2: number;
-  apc: number;
-  avp: number;
-  arppu: number;
-  arpu: number;
-  churn_rate: number;
-  lifetime_periods: number;
-  ltv: number;
-  cac: number;
-  roi_percent: number;
-  cm: number;
-  total_revenue: number;
-  total_purchases: number;
-  paying_users: number;
-  total_ad_spend: number;
-}
-
-export interface UEBucket {
-  bucket: string;
-  metrics: UnitEconomicsMetrics;
-}
-
-export interface UEData {
-  granularity: string;
-  data: UEBucket[];
-  totals: UnitEconomicsMetrics;
-}
-
-export interface UnitEconomicsResponse {
-  data: UEData;
-  cached_at: string;
-  from_cache: boolean;
-}
-
-export interface UpsertUEConfig {
-  purchase_event_name?: string;
-  revenue_property?: string;
-  currency?: string;
-  /**
-   * @min 7
-   * @max 365
-   */
-  churn_window_days?: number;
-}
-
-export interface UEConfig {
-  id: string;
-  project_id: string;
-  created_by: string;
-  purchase_event_name: string | null;
-  revenue_property: string;
-  currency: string;
-  churn_window_days: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface AiChat {
   /** @format uuid */
   conversation_id?: string;
@@ -1047,7 +987,7 @@ export interface UpsertEventDefinitionResponse {
 export interface PropertyDefinition {
   property_name: string;
   property_type: PropertyDefinitionDtoPropertyTypeEnum;
-  value_type: string;
+  value_type?: string | null;
   is_numerical: boolean;
   id: string;
   description?: string | null;
@@ -1065,7 +1005,7 @@ export interface UpsertPropertyDefinition {
 
 export interface UpsertPropertyDefinitionResponse {
   property_type: UpsertPropertyDefinitionResponseDtoPropertyTypeEnum;
-  value_type: string;
+  value_type?: string | null;
   is_numerical: boolean;
   description?: string | null;
   tags: string[];
@@ -1648,33 +1588,6 @@ export interface AdSpendControllerRemoveParams {
 export interface AdSpendControllerSummaryParams {
   date_from?: string;
   date_to?: string;
-  projectId: string;
-}
-
-export interface UnitEconomicsControllerGetUnitEconomicsParams {
-  granularity: Granularity;
-  /** @format uuid */
-  project_id: string;
-  date_from: string;
-  date_to: string;
-  purchase_event_name?: string;
-  revenue_property?: string;
-  /**
-   * @min 7
-   * @max 365
-   */
-  churn_window_days?: number;
-  /** @format uuid */
-  channel_id?: string;
-  widget_id?: string;
-  force?: boolean;
-}
-
-export interface UnitEconomicsConfigControllerGetConfigParams {
-  projectId: string;
-}
-
-export interface UnitEconomicsConfigControllerUpsertConfigParams {
   projectId: string;
 }
 
@@ -3536,70 +3449,6 @@ export class Api<
         method: "GET",
         query: query,
         secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Analytics
-     * @name UnitEconomicsControllerGetUnitEconomics
-     * @request GET:/api/analytics/unit-economics
-     * @secure
-     */
-    unitEconomicsControllerGetUnitEconomics: (
-      query: UnitEconomicsControllerGetUnitEconomicsParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<UnitEconomicsResponse, any>({
-        path: `/api/analytics/unit-economics`,
-        method: "GET",
-        query: query,
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Unit Economics
-     * @name UnitEconomicsConfigControllerGetConfig
-     * @request GET:/api/projects/{projectId}/unit-economics/config
-     * @secure
-     */
-    unitEconomicsConfigControllerGetConfig: (
-      { projectId, ...query }: UnitEconomicsConfigControllerGetConfigParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<object, any>({
-        path: `/api/projects/${projectId}/unit-economics/config`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Unit Economics
-     * @name UnitEconomicsConfigControllerUpsertConfig
-     * @request PUT:/api/projects/{projectId}/unit-economics/config
-     * @secure
-     */
-    unitEconomicsConfigControllerUpsertConfig: (
-      { projectId, ...query }: UnitEconomicsConfigControllerUpsertConfigParams,
-      data: UpsertUEConfig,
-      params: RequestParams = {},
-    ) =>
-      this.request<UEConfig, any>({
-        path: `/api/projects/${projectId}/unit-economics/config`,
-        method: "PUT",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
         format: "json",
         ...params,
       }),
