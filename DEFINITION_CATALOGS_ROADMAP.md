@@ -20,55 +20,55 @@
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Средняя
 
-### A3. [ ] Retry механизм для sync
+### A3. [x] Retry механизм для sync
 **Проблема**: При ошибке PG sync логирует warning и теряет данные до следующего batch.
 **PostHog**: 3 retry с exponential backoff + jitter (50ms base). При полном провале — uncache для повторной попытки.
 **Решение**: Обернуть upsert'ы в retry-логику (3 попытки, 100/200/400ms).
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая–Средняя
 
-### A4. [ ] Не ставить тип для null/object/array
+### A4. [x] Не ставить тип для null/object/array
 **Проблема**: `detectValueType()` возвращает `'String'` для null, object, array — некорректно.
 **PostHog**: Возвращает `None` для непримитивов — `property_type` остаётся NULL, будет заполнен позже.
 **Решение**: Возвращать `null`. В `syncFromBatch()` — не включать `value_type` в insert для таких свойств.
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая
 
-### A5. [ ] Hard-coded overrides для типов свойств
+### A5. [x] Hard-coded overrides для типов свойств
 **Проблема**: UTM `utm_campaign=12345` определится как Numeric, хотя это String.
 **PostHog**: Overrides: `utm_*` → String, `$feature/*` → String, `$survey_response*` → String. Ключи с `time`/`date`/`_at` → усиленная DateTime эвристика.
 **Решение**: Массив override-правил в `detectValueType()`.
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая
 
-### A6. [ ] Лимит на длину имени event/property
+### A6. [x] Лимит на длину имени event/property
 **Проблема**: Нет ограничения — event/property name может быть любой длины, потенциально мусорные данные.
 **PostHog**: Дропает events с `name.len() > 200` или `property_name.len() > 200`.
 **Решение**: Пропускать events/properties с именем длиннее 200 символов в `syncFromBatch()`.
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая
 
-### A7. [ ] Лимит на количество свойств в одном event
+### A7. [x] Лимит на количество свойств в одном event
 **Проблема**: Нет ограничения — event с 100K свойств может положить sync.
 **PostHog**: Дропает events с > 10,000 свойств (`update_count_skip_threshold`).
 **Решение**: `if (Object.keys(bag).length > 10_000) continue;`
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая
 
-### A8. [ ] Очистить мёртвый Redis кэш
+### A8. [x] Очистить мёртвый Redis кэш
 **Проблема**: `FlushService.invalidateMetadataCaches()` инвалидирует Redis ключи (`event_names:*`, `event_property_names:*`), которые больше никто не читает — API теперь ходит в PG.
 **Решение**: Удалить `invalidateMetadataCaches()` и связанные Redis operations.
 **Файлы**: `apps/processor/src/processor/flush.service.ts`
 **Сложность**: Низкая
 
-### A9. [ ] Пропуск служебных свойств при sync
+### A9. [x] Пропуск служебных свойств при sync
 **Проблема**: Все свойства из properties/user_properties записываются как definitions, включая служебные.
 **PostHog**: Пропускает `$set`, `$set_once`, `$unset`, `$group_0`–`$group_4`, `$groups` при извлечении свойств.
 **Решение**: Список skip-свойств, проверка перед добавлением в propMap.
 **Файлы**: `apps/processor/src/processor/definition-sync.service.ts`
 **Сложность**: Низкая
 
-### A10. [ ] Специальная обработка $set/$set_once как person properties
+### A10. [x] Специальная обработка $set/$set_once как person properties
 **Проблема**: `$set` и `$set_once` внутри `properties` — это person-свойства, но мы их трекаем как event properties.
 **PostHog**: Свойства из `$set`/`$set_once` вложенных в `properties` тегируются как `PropertyParentType::Person`.
 **Решение**: Если `properties` содержит `$set` или `$set_once`, извлечь их значения как person property definitions.

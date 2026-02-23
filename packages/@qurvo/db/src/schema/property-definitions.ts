@@ -6,7 +6,7 @@ export const propertyDefinitions = pgTable('property_definitions', {
   project_id: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   property_name: varchar('property_name', { length: 500 }).notNull(),
   property_type: varchar('property_type', { length: 20 }).notNull().default('event'),
-  value_type: varchar('value_type', { length: 20 }).notNull().default('String'),
+  value_type: varchar('value_type', { length: 20 }),
   is_numerical: boolean('is_numerical').notNull().default(false),
   description: varchar('description', { length: 1000 }),
   tags: text('tags').array().notNull().default([]),

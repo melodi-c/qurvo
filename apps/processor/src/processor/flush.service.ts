@@ -78,7 +78,6 @@ export class FlushService implements OnApplicationBootstrap {
         await insertEvents(this.ch, events);
         this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
         await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
-        await this.invalidateMetadataCaches(events);
         void this.definitionSync.syncFromBatch(events);
         return;
       } catch (err) {
@@ -95,83 +94,6 @@ export class FlushService implements OnApplicationBootstrap {
     }
     await pipeline.exec();
     await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
-  }
-
-  /**
-   * Tracks known event names and property keys per project in Redis SETs.
-   * Only invalidates caches when genuinely new names/keys appear (SADD returns > 0).
-   */
-  private async invalidateMetadataCaches(events: Event[]) {
-    const projectEventNames = new Map<string, Set<string>>();
-    const projectPropKeys = new Map<string, Set<string>>();
-
-    for (const e of events) {
-      if (!projectEventNames.has(e.project_id)) {
-        projectEventNames.set(e.project_id, new Set());
-      }
-      projectEventNames.get(e.project_id)!.add(e.event_name);
-
-      if (!projectPropKeys.has(e.project_id)) {
-        projectPropKeys.set(e.project_id, new Set());
-      }
-      const keys = projectPropKeys.get(e.project_id)!;
-
-      if (e.properties && e.properties !== '{}') {
-        try {
-          for (const k of Object.keys(JSON.parse(e.properties))) keys.add(`properties.${k}`);
-        } catch {}
-      }
-      if (e.user_properties && e.user_properties !== '{}') {
-        try {
-          for (const k of Object.keys(JSON.parse(e.user_properties))) keys.add(`user_properties.${k}`);
-        } catch {}
-      }
-    }
-
-    // Pipeline: SADD known names + known prop keys for each project
-    const pipeline = this.redis.pipeline();
-    const ops: Array<{ projectId: string; type: 'names' | 'props'; eventNames: string[] }> = [];
-
-    for (const [projectId, names] of projectEventNames) {
-      pipeline.sadd(`known_event_names:${projectId}`, ...names);
-      ops.push({ projectId, type: 'names', eventNames: [...names] });
-    }
-    for (const [projectId, keys] of projectPropKeys) {
-      if (keys.size > 0) {
-        pipeline.sadd(`known_prop_keys:${projectId}`, ...keys);
-        ops.push({ projectId, type: 'props', eventNames: [...(projectEventNames.get(projectId) || [])] });
-      }
-    }
-
-    try {
-      const results = await pipeline.exec();
-      if (!results) return;
-
-      const keysToDelete: string[] = [];
-
-      for (let i = 0; i < results.length; i++) {
-        const [err, added] = results[i]!;
-        if (err || (added as number) === 0) continue;
-
-        const op = ops[i]!;
-        if (op.type === 'names') {
-          keysToDelete.push(`event_names:${op.projectId}`);
-        } else {
-          // Invalidate global + event-scoped property name caches
-          keysToDelete.push(`event_property_names:${op.projectId}`);
-          for (const en of op.eventNames) {
-            keysToDelete.push(`event_property_names:${op.projectId}:${en}`);
-          }
-        }
-      }
-
-      if (keysToDelete.length > 0) {
-        await this.redis.del(...keysToDelete);
-        this.logger.info({ keys: keysToDelete }, 'Invalidated metadata caches (new names/properties detected)');
-      }
-    } catch (err) {
-      this.logger.warn({ err }, 'Failed to invalidate metadata caches');
-    }
   }
 
   private scheduleFlush() {

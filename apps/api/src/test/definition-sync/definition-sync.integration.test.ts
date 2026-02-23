@@ -18,26 +18,64 @@ beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
 
-// ── Helper: replicate DefinitionSyncService.syncFromBatch logic ──────────────
+// ── Helper: replicate DefinitionSyncService logic for tests ──────────────────
 
 type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|\s)/;
 
-function detectValueType(value: unknown): ValueType {
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|\s)/;
+const DATE_RE = /^((\d{4}[/-][0-2]\d[/-][0-3]\d)|([0-2]\d[/-][0-3]\d[/-]\d{4}))([ T][0-2]\d:[0-6]\d:[0-6]\d.*)?$/;
+const MAX_NAME_LENGTH = 200;
+const MAX_PROPERTIES_PER_EVENT = 10_000;
+const SIX_MONTHS_S = 15_768_000;
+
+const DATETIME_NAME_KEYWORDS = ['time', 'timestamp', 'date', '_at', '-at', 'createdat', 'updatedat'];
+
+function isLikelyDateString(s: string): boolean {
+  return ISO_DATE_RE.test(s) || DATE_RE.test(s.trim());
+}
+
+function isLikelyUnixTimestamp(n: number): boolean {
+  if (!Number.isFinite(n) || n < 0) return false;
+  const threshold = Math.floor(Date.now() / 1000) - SIX_MONTHS_S;
+  return n >= threshold;
+}
+
+function detectValueType(key: string, value: unknown): ValueType | null {
+  const lowerKey = key.toLowerCase();
+
+  if (lowerKey.startsWith('utm_') || lowerKey.startsWith('$initial_utm_')) return 'String';
+  if (lowerKey.startsWith('$feature/')) return 'String';
+  if (lowerKey === '$feature_flag_response') return 'String';
+  if (lowerKey.startsWith('$survey_response')) return 'String';
+
+  if (DATETIME_NAME_KEYWORDS.some((kw) => lowerKey.includes(kw))) {
+    if (typeof value === 'string' && isLikelyDateString(value)) return 'DateTime';
+    if (typeof value === 'number' && isLikelyUnixTimestamp(value)) return 'DateTime';
+  }
+
   if (typeof value === 'boolean') return 'Boolean';
   if (typeof value === 'number') return 'Numeric';
   if (typeof value === 'string') {
-    if (ISO_DATE_RE.test(value)) return 'DateTime';
-    if (value.trim() !== '' && !isNaN(Number(value))) return 'Numeric';
+    const trimmed = value.trim();
+    if (trimmed === 'true' || trimmed === 'false' || trimmed === 'TRUE' || trimmed === 'FALSE') return 'Boolean';
+    if (isLikelyDateString(value)) return 'DateTime';
+    if (trimmed !== '' && !isNaN(Number(trimmed))) return 'Numeric';
+    return 'String';
   }
-  return 'String';
+
+  return null;
 }
+
+const SKIP_EVENT_PROPERTIES = new Set([
+  '$set', '$set_once', '$unset',
+  '$group_0', '$group_1', '$group_2', '$group_3', '$group_4', '$groups',
+]);
 
 interface PropEntry {
   project_id: string;
   property_name: string;
   property_type: 'event' | 'person';
-  value_type: ValueType;
+  value_type: ValueType | null;
 }
 
 interface EventPropEntry {
@@ -47,6 +85,34 @@ interface EventPropEntry {
   property_type: 'event' | 'person';
 }
 
+function extractProps(
+  bag: Record<string, unknown>,
+  projectId: string,
+  eventName: string,
+  type: 'event' | 'person',
+  prefix: string,
+  propMap: Map<string, PropEntry>,
+  eventPropMap: Map<string, EventPropEntry>,
+) {
+  for (const [k, v] of Object.entries(bag)) {
+    if (type === 'event' && SKIP_EVENT_PROPERTIES.has(k)) continue;
+    if (k.length > MAX_NAME_LENGTH) continue;
+
+    const property_name = `${prefix}${k}`;
+    const detected = detectValueType(k, v);
+
+    const propKey = `${projectId}:${property_name}:${type}`;
+    if (!propMap.has(propKey)) {
+      propMap.set(propKey, { project_id: projectId, property_name, property_type: type, value_type: detected });
+    }
+
+    const epKey = `${projectId}:${eventName}:${property_name}:${type}`;
+    if (!eventPropMap.has(epKey)) {
+      eventPropMap.set(epKey, { project_id: projectId, event_name: eventName, property_name, property_type: type });
+    }
+  }
+}
+
 async function syncFromBatch(events: Event[]) {
   const now = new Date();
   const eventKeys = new Map<string, { project_id: string; event_name: string }>();
@@ -54,32 +120,44 @@ async function syncFromBatch(events: Event[]) {
   const eventPropMap = new Map<string, EventPropEntry>();
 
   for (const e of events) {
+    // A6: Skip events with name > 200 chars
+    if (e.event_name.length > MAX_NAME_LENGTH) continue;
+
+    let parsedProps: Record<string, unknown> | null = null;
+    if (e.properties && e.properties !== '{}') {
+      try { parsedProps = JSON.parse(e.properties); } catch {}
+    }
+    let parsedUserProps: Record<string, unknown> | null = null;
+    if (e.user_properties && e.user_properties !== '{}') {
+      try { parsedUserProps = JSON.parse(e.user_properties); } catch {}
+    }
+
+    // A7: Skip entire event (including definition) with too many properties
+    const propCount = (parsedProps ? Object.keys(parsedProps).length : 0) +
+                      (parsedUserProps ? Object.keys(parsedUserProps).length : 0);
+    if (propCount > MAX_PROPERTIES_PER_EVENT) continue;
+
     const eventKey = `${e.project_id}:${e.event_name}`;
     if (!eventKeys.has(eventKey)) {
       eventKeys.set(eventKey, { project_id: e.project_id, event_name: e.event_name });
     }
 
-    const bags: Array<{ bag: Record<string, unknown>; type: 'event' | 'person'; prefix: string }> = [];
-    if (e.properties && e.properties !== '{}') {
-      try { bags.push({ bag: JSON.parse(e.properties), type: 'event', prefix: 'properties.' }); } catch {}
-    }
-    if (e.user_properties && e.user_properties !== '{}') {
-      try { bags.push({ bag: JSON.parse(e.user_properties), type: 'person', prefix: 'user_properties.' }); } catch {}
+    if (parsedProps) {
+      extractProps(parsedProps, e.project_id, e.event_name, 'event', 'properties.', propMap, eventPropMap);
+
+      // A10: Extract person properties from $set/$set_once
+      const $set = parsedProps['$set'];
+      if ($set && typeof $set === 'object' && !Array.isArray($set)) {
+        extractProps($set as Record<string, unknown>, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap);
+      }
+      const $setOnce = parsedProps['$set_once'];
+      if ($setOnce && typeof $setOnce === 'object' && !Array.isArray($setOnce)) {
+        extractProps($setOnce as Record<string, unknown>, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap);
+      }
     }
 
-    for (const { bag, type, prefix } of bags) {
-      for (const [k, v] of Object.entries(bag)) {
-        const property_name = `${prefix}${k}`;
-        const detected = detectValueType(v);
-        const propKey = `${e.project_id}:${property_name}:${type}`;
-        if (!propMap.has(propKey)) {
-          propMap.set(propKey, { project_id: e.project_id, property_name, property_type: type, value_type: detected });
-        }
-        const epKey = `${e.project_id}:${e.event_name}:${property_name}:${type}`;
-        if (!eventPropMap.has(epKey)) {
-          eventPropMap.set(epKey, { project_id: e.project_id, event_name: e.event_name, property_name, property_type: type });
-        }
-      }
+    if (parsedUserProps) {
+      extractProps(parsedUserProps, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap);
     }
   }
 
@@ -106,7 +184,11 @@ async function syncFromBatch(events: Event[]) {
       })))
       .onConflictDoUpdate({
         target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
-        set: { last_seen_at: sql`excluded.last_seen_at` },
+        set: {
+          last_seen_at: sql`excluded.last_seen_at`,
+          value_type: sql`COALESCE(${propertyDefinitions.value_type}, excluded.value_type)`,
+          is_numerical: sql`CASE WHEN ${propertyDefinitions.value_type} IS NULL THEN excluded.is_numerical ELSE ${propertyDefinitions.is_numerical} END`,
+        },
       });
   }
 
@@ -160,7 +242,6 @@ describe('event_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    // First batch
     await syncFromBatch([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'signup' }),
     ]);
@@ -173,10 +254,8 @@ describe('event_definitions auto-population', () => {
     expect(before).toHaveLength(1);
     const firstSeenAt = before[0].last_seen_at;
 
-    // Wait a tiny bit so timestamp differs
     await new Promise((r) => setTimeout(r, 50));
 
-    // Second batch
     await syncFromBatch([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'signup' }),
     ]);
@@ -194,7 +273,6 @@ describe('event_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    // User manually sets metadata
     await ctx.db.insert(eventDefinitions).values({
       project_id: projectId,
       event_name: 'purchase',
@@ -203,7 +281,6 @@ describe('event_definitions auto-population', () => {
       verified: true,
     });
 
-    // Processor sync overwrites only last_seen_at
     await syncFromBatch([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'purchase' }),
     ]);
@@ -314,7 +391,6 @@ describe('property_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    // First batch: amount is a number
     await syncFromBatch([
       buildEvent({
         project_id: projectId,
@@ -334,7 +410,6 @@ describe('property_definitions auto-population', () => {
 
     expect(before[0].value_type).toBe('Numeric');
 
-    // Second batch: amount is a string (different type)
     await syncFromBatch([
       buildEvent({
         project_id: projectId,
@@ -352,7 +427,6 @@ describe('property_definitions auto-population', () => {
         eq(propertyDefinitions.property_name, 'properties.amount'),
       ));
 
-    // Type should NOT have changed — first type wins
     expect(after[0].value_type).toBe('Numeric');
     expect(after).toHaveLength(1);
   });
@@ -376,7 +450,6 @@ describe('property_definitions auto-population', () => {
       }),
     ]);
 
-    // property_definitions should have one entry for properties.url (global)
     const rows = await ctx.db
       .select()
       .from(propertyDefinitions)
@@ -498,7 +571,6 @@ describe('API queries from PostgreSQL', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    // Insert older event
     const olderTime = new Date(Date.now() - 60_000);
     await ctx.db.insert(eventDefinitions).values({
       project_id: projectId,
@@ -506,7 +578,6 @@ describe('API queries from PostgreSQL', () => {
       last_seen_at: olderTime,
     });
 
-    // Insert newer event via sync
     await syncFromBatch([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'new_event' }),
     ]);
@@ -541,7 +612,6 @@ describe('API queries from PostgreSQL', () => {
       }),
     ]);
 
-    // Event-scoped query
     const purchaseProps = await ctx.db
       .select({ property_name: eventProperties.property_name })
       .from(eventProperties)
@@ -553,7 +623,6 @@ describe('API queries from PostgreSQL', () => {
 
     expect(purchaseProps.map((r) => r.property_name)).toEqual(['properties.amount', 'properties.currency']);
 
-    // Should NOT include page_view properties
     const pvProps = await ctx.db
       .select({ property_name: eventProperties.property_name })
       .from(eventProperties)
@@ -584,7 +653,6 @@ describe('API queries from PostgreSQL', () => {
       }),
     ]);
 
-    // Global: distinct property names via groupBy
     const rows = await ctx.db
       .select({ property_name: eventProperties.property_name })
       .from(eventProperties)
@@ -593,7 +661,6 @@ describe('API queries from PostgreSQL', () => {
       .orderBy(asc(eventProperties.property_name));
 
     const names = rows.map((r) => r.property_name);
-    // url appears in both events but should be deduplicated
     expect(names).toEqual(['properties.amount', 'properties.url']);
   });
 
@@ -610,7 +677,6 @@ describe('API queries from PostgreSQL', () => {
       }),
     ]);
 
-    // Set description on one property
     await ctx.db
       .insert(propertyDefinitions)
       .values({
@@ -643,5 +709,652 @@ describe('API queries from PostgreSQL', () => {
     const activeProp = rows.find((r) => r.property_name === 'properties.active');
     expect(activeProp).toBeDefined();
     expect(activeProp!.value_type).toBe('Boolean');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// A4: Null/object/array → value_type NULL
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('A4: null/object/array value type handling', () => {
+  it('sets value_type to NULL for null values', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ nullable_prop: null }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.nullable_prop'),
+      ));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].value_type).toBeNull();
+    expect(rows[0].is_numerical).toBe(false);
+  });
+
+  it('sets value_type to NULL for object/array values', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({
+          nested_obj: { a: 1 },
+          arr_prop: [1, 2, 3],
+        }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    const objProp = rows.find((r) => r.property_name === 'properties.nested_obj');
+    expect(objProp).toBeDefined();
+    expect(objProp!.value_type).toBeNull();
+
+    const arrProp = rows.find((r) => r.property_name === 'properties.arr_prop');
+    expect(arrProp).toBeDefined();
+    expect(arrProp!.value_type).toBeNull();
+  });
+
+  it('fills value_type when a primitive value comes after null', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    // First batch: null value → value_type = NULL
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ flexible_prop: null }),
+      }),
+    ]);
+
+    const before = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.flexible_prop'),
+      ));
+    expect(before[0].value_type).toBeNull();
+
+    // Second batch: numeric value → value_type should be filled
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ flexible_prop: 42 }),
+      }),
+    ]);
+
+    const after = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.flexible_prop'),
+      ));
+    expect(after[0].value_type).toBe('Numeric');
+    expect(after[0].is_numerical).toBe(true);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// A5: Hard-coded type overrides
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('A5: hard-coded type overrides', () => {
+  it('detects utm_* properties as String even when value is numeric', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ utm_campaign: 12345, utm_source: 'google' }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    const utmCampaign = rows.find((r) => r.property_name === 'properties.utm_campaign');
+    expect(utmCampaign).toBeDefined();
+    expect(utmCampaign!.value_type).toBe('String');
+    expect(utmCampaign!.is_numerical).toBe(false);
+
+    const utmSource = rows.find((r) => r.property_name === 'properties.utm_source');
+    expect(utmSource!.value_type).toBe('String');
+  });
+
+  it('detects $feature/* properties as String', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ '$feature/dark_mode': true }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.$feature/dark_mode'),
+      ));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].value_type).toBe('String');
+  });
+
+  it('detects DateTime by property name keyword + value', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    const unixTimestamp = Math.floor(Date.now() / 1000);
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({
+          login_time: unixTimestamp,
+          updated_at: '2025-06-15 12:30:00',
+        }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    const loginTime = rows.find((r) => r.property_name === 'properties.login_time');
+    expect(loginTime).toBeDefined();
+    expect(loginTime!.value_type).toBe('DateTime');
+
+    const updatedAt = rows.find((r) => r.property_name === 'properties.updated_at');
+    expect(updatedAt).toBeDefined();
+    expect(updatedAt!.value_type).toBe('DateTime');
+  });
+
+  it('detects boolean string values ("true"/"false")', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ is_enabled: 'true', is_disabled: 'FALSE' }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    expect(rows.find((r) => r.property_name === 'properties.is_enabled')!.value_type).toBe('Boolean');
+    expect(rows.find((r) => r.property_name === 'properties.is_disabled')!.value_type).toBe('Boolean');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// A6: Name length limits
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('A6: name length limits', () => {
+  it('skips events with name longer than 200 chars', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+    const longName = 'a'.repeat(201);
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: longName,
+        properties: JSON.stringify({ url: '/home' }),
+      }),
+    ]);
+
+    const eventRows = await ctx.db
+      .select()
+      .from(eventDefinitions)
+      .where(eq(eventDefinitions.project_id, projectId));
+
+    expect(eventRows).toHaveLength(0);
+
+    // Properties from skipped events should also not be created
+    const propRows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    expect(propRows).toHaveLength(0);
+  });
+
+  it('skips properties with name longer than 200 chars', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+    const longPropName = 'p'.repeat(201);
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({ [longPropName]: 'value', short_name: 'ok' }),
+      }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    // Only short_name should exist
+    expect(rows).toHaveLength(1);
+    expect(rows[0].property_name).toBe('properties.short_name');
+  });
+
+  it('allows event names exactly 200 chars long', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+    const exactName = 'x'.repeat(200);
+
+    await syncFromBatch([
+      buildEvent({ project_id: projectId, person_id: personId, event_name: exactName }),
+    ]);
+
+    const rows = await ctx.db
+      .select()
+      .from(eventDefinitions)
+      .where(eq(eventDefinitions.project_id, projectId));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].event_name).toBe(exactName);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// A7: Property count limits
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('A7: property count limits', () => {
+  it('skips events with more than 10K properties', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    // Create an event with 10,001 properties
+    const hugeProps: Record<string, string> = {};
+    for (let i = 0; i < 10_001; i++) {
+      hugeProps[`prop_${i}`] = 'value';
+    }
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'huge_event',
+        properties: JSON.stringify(hugeProps),
+      }),
+    ]);
+
+    // Entire event is skipped including its definition (PostHog behavior)
+    const eventRows = await ctx.db
+      .select()
+      .from(eventDefinitions)
+      .where(eq(eventDefinitions.project_id, projectId));
+    expect(eventRows).toHaveLength(0);
+
+    // No properties should be created
+    const propRows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+    expect(propRows).toHaveLength(0);
+  });
+
+  it('allows events with exactly 10K properties', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    const props: Record<string, string> = {};
+    for (let i = 0; i < 10_000; i++) {
+      props[`p${i}`] = 'v';
+    }
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'big_event',
+        properties: JSON.stringify(props),
+      }),
+    ]);
+
+    const eventRows = await ctx.db
+      .select()
+      .from(eventDefinitions)
+      .where(eq(eventDefinitions.project_id, projectId));
+    expect(eventRows).toHaveLength(1);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// A9: Skip service properties
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('A9: skip service properties', () => {
+  it('skips $set, $set_once, $unset, $group_*, $groups in event properties', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({
+          url: '/home',
+          $set: { email: 'a@b.com' },
+          $set_once: { first_visit: '2025-01-01' },
+          $unset: ['old_prop'],
+          $group_0: 'org_123',
+          $group_1: 'team_456',
+          $group_2: 'x',
+          $group_3: 'y',
+          $group_4: 'z',
+          $groups: { company: 'org_123' },
+        }),
+      }),
+    ]);
+
+    const eventProps = await ctx.db
+      .select()
+      .from(eventProperties)
+      .where(and(
+        eq(eventProperties.project_id, projectId),
+        eq(eventProperties.property_type, 'event'),
+      ));
+
+    const eventPropNames = eventProps.map((r) => r.property_name);
+
+    // Only url should be tracked as event property
+    expect(eventPropNames).toContain('properties.url');
+    expect(eventPropNames).not.toContain('properties.$set');
+    expect(eventPropNames).not.toContain('properties.$set_once');
+    expect(eventPropNames).not.toContain('properties.$unset');
+    expect(eventPropNames).not.toContain('properties.$group_0');
+    expect(eventPropNames).not.toContain('properties.$groups');
+  });
+
+  it('does NOT skip service property names when they appear in user_properties', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    // Edge case: if $groups somehow appears in user_properties bag, it should NOT be skipped
+    // because the skip list only applies to event properties
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        user_properties: JSON.stringify({ $groups: 'some_value', email: 'test@test.com' }),
+      }),
+    ]);
+
+    const personProps = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_type, 'person'),
+      ));
+
+    const names = personProps.map((r) => r.property_name);
+    expect(names).toContain('user_properties.$groups');
+    expect(names).toContain('user_properties.email');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// A10: $set/$set_once → person property definitions
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('A10: $set/$set_once as person properties', () => {
+  it('extracts $set contents as person property definitions', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'signup',
+        properties: JSON.stringify({
+          url: '/register',
+          $set: { email: 'user@example.com', plan: 'pro' },
+        }),
+      }),
+    ]);
+
+    // Event properties
+    const eventPropDefs = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_type, 'event'),
+      ));
+
+    expect(eventPropDefs.map((r) => r.property_name)).toContain('properties.url');
+    // $set itself should not appear as event property
+    expect(eventPropDefs.map((r) => r.property_name)).not.toContain('properties.$set');
+
+    // Person properties from $set
+    const personPropDefs = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_type, 'person'),
+      ))
+      .orderBy(asc(propertyDefinitions.property_name));
+
+    const personNames = personPropDefs.map((r) => r.property_name);
+    expect(personNames).toContain('user_properties.email');
+    expect(personNames).toContain('user_properties.plan');
+  });
+
+  it('extracts $set_once contents as person property definitions', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'first_visit',
+        properties: JSON.stringify({
+          $set_once: { first_seen_at: '2025-01-01T00:00:00Z', referrer: 'google' },
+        }),
+      }),
+    ]);
+
+    const personPropDefs = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_type, 'person'),
+      ));
+
+    const names = personPropDefs.map((r) => r.property_name);
+    expect(names).toContain('user_properties.first_seen_at');
+    expect(names).toContain('user_properties.referrer');
+  });
+
+  it('merges $set person props with user_properties bag', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({
+          $set: { email: 'a@b.com' },
+        }),
+        user_properties: JSON.stringify({ name: 'Alice' }),
+      }),
+    ]);
+
+    const personPropDefs = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_type, 'person'),
+      ));
+
+    const names = personPropDefs.map((r) => r.property_name);
+    expect(names).toContain('user_properties.email');
+    expect(names).toContain('user_properties.name');
+  });
+
+  it('ignores $set when it is not an object', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = randomUUID();
+
+    await syncFromBatch([
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        event_name: 'test',
+        properties: JSON.stringify({
+          url: '/home',
+          $set: 'not_an_object',
+          $set_once: [1, 2, 3],
+        }),
+      }),
+    ]);
+
+    const personPropDefs = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_type, 'person'),
+      ));
+
+    // No person properties should be created from invalid $set/$set_once
+    expect(personPropDefs).toHaveLength(0);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// detectValueType unit tests
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('detectValueType', () => {
+  it('returns correct types for primitives', () => {
+    expect(detectValueType('count', 42)).toBe('Numeric');
+    expect(detectValueType('count', 3.14)).toBe('Numeric');
+    expect(detectValueType('active', true)).toBe('Boolean');
+    expect(detectValueType('active', false)).toBe('Boolean');
+    expect(detectValueType('url', '/home')).toBe('String');
+    expect(detectValueType('url', '')).toBe('String');
+  });
+
+  it('returns null for non-primitives', () => {
+    expect(detectValueType('data', null)).toBeNull();
+    expect(detectValueType('data', { a: 1 })).toBeNull();
+    expect(detectValueType('data', [1, 2])).toBeNull();
+    expect(detectValueType('data', undefined)).toBeNull();
+  });
+
+  it('handles numeric strings', () => {
+    expect(detectValueType('count', '42')).toBe('Numeric');
+    expect(detectValueType('price', '99.50')).toBe('Numeric');
+    expect(detectValueType('count', '  ')).toBe('String');
+  });
+
+  it('handles boolean strings', () => {
+    expect(detectValueType('flag', 'true')).toBe('Boolean');
+    expect(detectValueType('flag', 'false')).toBe('Boolean');
+    expect(detectValueType('flag', 'TRUE')).toBe('Boolean');
+    expect(detectValueType('flag', 'FALSE')).toBe('Boolean');
+  });
+
+  it('handles ISO date strings', () => {
+    expect(detectValueType('when', '2025-01-15T10:30:00Z')).toBe('DateTime');
+    expect(detectValueType('when', '2025-01-15 10:30:00')).toBe('DateTime');
+  });
+
+  it('utm_* overrides return String regardless of value', () => {
+    expect(detectValueType('utm_campaign', 12345)).toBe('String');
+    expect(detectValueType('utm_source', true)).toBe('String');
+    expect(detectValueType('$initial_utm_source', 42)).toBe('String');
+  });
+
+  it('$feature/* overrides return String', () => {
+    expect(detectValueType('$feature/dark_mode', true)).toBe('String');
+    expect(detectValueType('$feature/experiment', 1)).toBe('String');
+  });
+
+  it('$survey_response* overrides return String', () => {
+    expect(detectValueType('$survey_response', 5)).toBe('String');
+    expect(detectValueType('$survey_response_1', true)).toBe('String');
+  });
+
+  it('DateTime keyword + numeric unix timestamp', () => {
+    const now = Math.floor(Date.now() / 1000);
+    expect(detectValueType('login_time', now)).toBe('DateTime');
+    expect(detectValueType('created_at', now)).toBe('DateTime');
+    expect(detectValueType('updated_at', now)).toBe('DateTime');
+  });
+
+  it('DateTime keyword + date string', () => {
+    expect(detectValueType('created_at', '2025-06-15 12:30:00')).toBe('DateTime');
+    expect(detectValueType('login_time', '2025-01-01T00:00:00Z')).toBe('DateTime');
+  });
+
+  it('DateTime keyword does NOT override when value is not a timestamp', () => {
+    expect(detectValueType('login_time', 'hello')).toBe('String');
+    expect(detectValueType('created_at', 42)).toBe('Numeric'); // too small for unix timestamp
   });
 });
