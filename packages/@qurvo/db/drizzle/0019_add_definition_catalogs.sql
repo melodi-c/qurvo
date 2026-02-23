@@ -13,6 +13,18 @@ ALTER TABLE "property_definitions" ADD COLUMN "last_seen_at" timestamp with time
 -- Remove event_name from property_definitions unique index (make it a global catalog)
 DROP INDEX IF EXISTS "property_definitions_project_event_name_type_idx";
 --> statement-breakpoint
+
+-- Deduplicate property_definitions before creating the new unique index:
+-- Keep the row with the latest updated_at for each (project_id, property_name, property_type)
+DELETE FROM "property_definitions" a
+  USING "property_definitions" b
+  WHERE a.id <> b.id
+    AND a.project_id = b.project_id
+    AND a.property_name = b.property_name
+    AND a.property_type = b.property_type
+    AND (a.updated_at < b.updated_at OR (a.updated_at = b.updated_at AND a.id < b.id));
+--> statement-breakpoint
+
 CREATE UNIQUE INDEX IF NOT EXISTS "property_definitions_project_name_type_idx" ON "property_definitions" USING btree ("project_id","property_name","property_type");
 --> statement-breakpoint
 
