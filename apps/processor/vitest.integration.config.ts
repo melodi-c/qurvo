@@ -11,8 +11,15 @@ export default defineConfig({
         singleFork: true,
       },
     },
-    testTimeout: 90_000,
+    env: {
+      // Prevent GeoService from attempting a network download that may hang
+      GEOLITE2_COUNTRY_URL: 'http://127.0.0.1:1/noop',
+      // Fast flush interval for tests (200ms instead of 5s)
+      PROCESSOR_FLUSH_INTERVAL_MS: '200',
+    },
+    testTimeout: 30_000,
     hookTimeout: 120_000,
+    teardownTimeout: 10_000,
     reporters: ['verbose'],
   },
   plugins: [
