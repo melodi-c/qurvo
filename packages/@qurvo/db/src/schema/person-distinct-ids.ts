@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { projects } from './projects';
 import { persons } from './persons';
 
@@ -18,5 +19,6 @@ export const personDistinctIds = pgTable(
   (table) => [
     uniqueIndex('person_distinct_ids_project_distinct_idx').on(table.project_id, table.distinct_id),
     index('person_distinct_ids_person_id_idx').on(table.person_id),
+    index('person_distinct_ids_distinct_id_trgm_idx').using('gin', sql`${table.distinct_id} gin_trgm_ops`),
   ],
 );

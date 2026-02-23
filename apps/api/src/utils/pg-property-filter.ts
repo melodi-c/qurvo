@@ -22,7 +22,8 @@ export function buildPgPropertyFilterConditions(filters: PersonPropertyFilter[])
 
     switch (f.operator) {
       case 'eq':
-        parts.push(sql`${keyExpr} = ${f.value ?? ''}`);
+        // Use @> containment operator for GIN index compatibility
+        parts.push(sql`properties @> ${JSON.stringify({ [f.property]: f.value ?? '' })}::jsonb`);
         break;
       case 'neq':
         parts.push(sql`(${keyExpr} IS NULL OR ${keyExpr} != ${f.value ?? ''})`);
