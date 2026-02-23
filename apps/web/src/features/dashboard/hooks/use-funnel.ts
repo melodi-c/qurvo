@@ -9,10 +9,14 @@ const STALE_AFTER_MS = 30 * 60 * 1000; // 30 minutes
 
 /** Strip filters with empty property so they don't fail backend validation. */
 function cleanSteps(config: FunnelWidgetConfig) {
-  return config.steps.map((s) => ({
-    ...s,
-    filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
-  }));
+  return config.steps.map((s) => {
+    const eventNames = (s.event_names ?? []).filter((n) => n.trim() !== '');
+    return {
+      ...s,
+      filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
+      event_names: eventNames.length ? eventNames : undefined,
+    };
+  });
 }
 
 function configHash(config: FunnelWidgetConfig): string {
@@ -29,6 +33,7 @@ function configHash(config: FunnelWidgetConfig): string {
     cohort_ids: config.cohort_ids,
     order_type: config.funnel_order_type,
     exclusions: config.exclusions,
+    sampling_factor: config.sampling_factor,
   });
 }
 
@@ -67,6 +72,7 @@ export function useFunnelData(config: FunnelWidgetConfig, widgetId: string) {
         ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
         ...(config.funnel_order_type ? { funnel_order_type: config.funnel_order_type } : {}),
         ...(config.exclusions?.length ? { exclusions: config.exclusions } : {}),
+        ...(config.sampling_factor && config.sampling_factor < 1 ? { sampling_factor: config.sampling_factor } : {}),
       }),
     enabled,
     placeholderData: keepPreviousData,

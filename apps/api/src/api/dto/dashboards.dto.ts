@@ -58,6 +58,7 @@ export class FunnelWidgetConfigDto {
   @ApiPropertyOptional() funnel_viz_type?: string;
   @ApiPropertyOptional({ enum: ['total', 'relative'] }) conversion_rate_display?: 'total' | 'relative';
   @ApiPropertyOptional({ type: [FunnelExclusionDto] }) exclusions?: FunnelExclusionDto[];
+  @ApiPropertyOptional({ description: 'Sampling factor 0.0-1.0 (1.0 = no sampling)' }) sampling_factor?: number;
 }
 
 export class TrendFormulaDto {

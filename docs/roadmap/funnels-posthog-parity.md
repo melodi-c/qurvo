@@ -52,6 +52,18 @@
 
 - [x] Redis cache — 1h TTL, `force` bypass, keyed by widget_id + params hash
 
+### Sampling
+
+- [x] WHERE-based sampling: `sipHash64(distinct_id) % 100 < N` — детерминистический per-user
+- [x] `sampling_factor` параметр (0.01–1.0) во всех SQL путях (ordered/strict/unordered + breakdown + time-to-convert)
+- [x] Frontend: PillToggleGroup (100%/10%/25%/50%) + amber badge "Sampled X%"
+
+### Inline Event Combination (OR-логика)
+
+- [x] `event_names?: string[]` на шаге — OR-логика через `event_name IN (...)`
+- [x] Backward compatible: пустой/отсутствующий `event_names` → fallback на `event_name`
+- [x] Frontend: OR-события в QueryItemCard с EventNameCombobox + кнопка "OR событие"
+
 ### Frontend
 
 - [x] Drag-and-drop reorder шагов — HTML5 DnD
@@ -73,7 +85,7 @@
 
 ### Тесты
 
-- [x] 11 интеграционных тестов: 3-step funnel, window enforcement, empty, step filters, breakdown, strict order, unordered, exclusions, conversion window units, time-to-convert (2)
+- [x] 16 интеграционных тестов: 3-step funnel, window enforcement, empty, step filters, breakdown, strict order, unordered, exclusions, conversion window units, time-to-convert (2), sampling (2), inline event combination (3)
 
 ---
 
@@ -107,14 +119,6 @@
   - Файлы: `FunnelChart.tsx`
   - Сложность: **S** (~1-2 дня)
 
-- [ ] **Inline Event Combination (OR-логика в шаге)**
-  - PostHog: один шаг может содержать несколько event types через OR
-  - Qurvo: один шаг = один `event_name`
-  - Backend: `buildStepCondition()` → `event_name IN (X, Y, Z)` вместо `event_name = X`
-  - DTO: `FunnelStepDto.event_name` → `event_names: string[]`
-  - Файлы: `funnel.query.ts`, `funnel.dto.ts`, `widgets.ts`, `FunnelStepBuilder.tsx`
-  - Сложность: **M** (~2-3 дня)
-
 - [ ] **FunnelMathType (подсчёт событий)**
   - PostHog `FunnelMathType`: `TOTAL` (default), `FIRST_TIME_FOR_USER` (первое вхождение вообще), `FIRST_TIME_FOR_USER_WITH_FILTERS` (первое с фильтрами)
   - Qurvo: только Total
@@ -129,13 +133,6 @@
   - Зависимости: нужен endpoint person details
   - Файлы: новый controller/service, `FunnelChart.tsx` (click handler)
   - Сложность: **L** (~5-8 дней)
-
-- [ ] **Sampling для больших датасетов**
-  - PostHog: query-level sampling (~10% → 3-10x speedup, 1-2% accuracy loss)
-  - ClickHouse нативно поддерживает `SAMPLE 0.1`
-  - Frontend: toggle/slider sampling rate
-  - Файлы: `funnel.query.ts`, DTO, `FunnelQueryPanel.tsx`
-  - Сложность: **S** (~1-2 дня)
 
 - [ ] **Export PNG / CSV**
   - PostHog: export графика как PNG, user list как CSV
@@ -205,12 +202,12 @@
 
 | Сложность | Кол-во фич | Ориентировочно |
 |---|---|---|
-| **S (< 2 дня)** | 2 | ~2-4 дня |
-| **M (2-5 дней)** | 5 | ~11-18 дней |
+| **S (< 2 дня)** | 1 | ~1-2 дня |
+| **M (2-5 дней)** | 4 | ~9-15 дней |
 | **L (5-10 дней)** | 3 | ~18-26 дней |
 | **XL (10+ дней)** | 5 | ~60-75 дней |
-| **Итого без XL** | 10 | ~31-48 дней |
-| **Итого всё** | 15 | ~91-123 дней |
+| **Итого без XL** | 8 | ~28-43 дней |
+| **Итого всё** | 13 | ~88-118 дней |
 
 ---
 
@@ -222,5 +219,5 @@
 - Qurvo funnel query: `apps/api/src/funnel/funnel.query.ts`
 - Qurvo funnel service: `apps/api/src/funnel/funnel.service.ts`
 - Qurvo funnel DTO: `apps/api/src/api/dto/funnel.dto.ts`
-- Qurvo funnel tests: `apps/api/src/test/funnel/funnel.integration.test.ts` (11 tests)
+- Qurvo funnel tests: `apps/api/src/test/funnel/funnel.integration.test.ts` (16 tests)
 - Qurvo frontend: `apps/web/src/features/dashboard/components/widgets/funnel/`

@@ -651,3 +651,303 @@ describe('queryFunnelTimeToConvert', () => {
     expect(result.bins).toHaveLength(0);
   });
 });
+
+// ── P2: Sampling ─────────────────────────────────────────────────────────────
+
+describe('queryFunnel — sampling', () => {
+  it('returns sampling_factor in result and deterministic per-user counts', async () => {
+    const projectId = randomUUID();
+
+    // Create 20 users who all complete step_a → step_b
+    const events = [];
+    for (let i = 0; i < 20; i++) {
+      const pid = randomUUID();
+      const did = `sample-user-${i}`;
+      events.push(
+        buildEvent({
+          project_id: projectId,
+          person_id: pid,
+          distinct_id: did,
+          event_name: 'step_a',
+          timestamp: msAgo(3000 + i),
+        }),
+        buildEvent({
+          project_id: projectId,
+          person_id: pid,
+          distinct_id: did,
+          event_name: 'step_b',
+          timestamp: msAgo(1000 + i),
+        }),
+      );
+    }
+    await insertTestEvents(ctx.ch, events);
+
+    // Full query — no sampling
+    const full = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'A' },
+        { event_name: 'step_b', label: 'B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+
+    expect(full.breakdown).toBe(false);
+    if (!full.breakdown) {
+      expect(full.steps[0].count).toBe(20);
+      expect(full.steps[1].count).toBe(20);
+      expect(full.sampling_factor).toBeUndefined();
+    }
+
+    // Sampled query — 50%
+    const sampled = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'A' },
+        { event_name: 'step_b', label: 'B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      sampling_factor: 0.5,
+    });
+
+    expect(sampled.breakdown).toBe(false);
+    if (!sampled.breakdown) {
+      expect(sampled.sampling_factor).toBe(0.5);
+      // With 20 users and 50% sampling, we expect roughly 10 (±5 due to hash distribution)
+      expect(sampled.steps[0].count).toBeGreaterThan(0);
+      expect(sampled.steps[0].count).toBeLessThanOrEqual(20);
+      // Conversion rate should remain 100% (all sampled users complete both steps)
+      expect(sampled.steps[1].conversion_rate).toBe(100);
+    }
+
+    // Sampling is deterministic — same result on repeated call
+    const sampled2 = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'A' },
+        { event_name: 'step_b', label: 'B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      sampling_factor: 0.5,
+    });
+
+    if (!sampled.breakdown && !sampled2.breakdown) {
+      expect(sampled2.steps[0].count).toBe(sampled.steps[0].count);
+    }
+  });
+
+  it('sampling_factor=1 returns same result as no sampling', async () => {
+    const projectId = randomUUID();
+    const pid = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: pid,
+        distinct_id: 'user-1',
+        event_name: 'step_a',
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: pid,
+        distinct_id: 'user-1',
+        event_name: 'step_b',
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const params = {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'A' },
+        { event_name: 'step_b', label: 'B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    };
+
+    const noSampling = await queryFunnel(ctx.ch, params);
+    const factor1 = await queryFunnel(ctx.ch, { ...params, sampling_factor: 1 });
+
+    if (!noSampling.breakdown && !factor1.breakdown) {
+      expect(factor1.steps[0].count).toBe(noSampling.steps[0].count);
+      expect(factor1.steps[1].count).toBe(noSampling.steps[1].count);
+    }
+  });
+});
+
+// ── P2: Inline Event Combination (OR-logic) ──────────────────────────────────
+
+describe('queryFunnel — inline event combination (OR-logic)', () => {
+  it('matches multiple event names within a single step using event_names', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+    const personC = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Person A: click_signup → purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'click_signup',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+      // Person B: submit_signup → purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'submit_signup',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+      // Person C: only page_view → purchase (neither signup event)
+      buildEvent({
+        project_id: projectId,
+        person_id: personC,
+        distinct_id: 'c',
+        event_name: 'page_view',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personC,
+        distinct_id: 'c',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        {
+          event_name: 'click_signup',
+          event_names: ['click_signup', 'submit_signup'],
+          label: 'Any Signup',
+        },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(2); // A + B (both signup variants)
+      expect(result.steps[1].count).toBe(2); // both purchased
+    }
+  });
+
+  it('falls back to single event_name when event_names is empty', async () => {
+    const projectId = randomUUID();
+    const pid = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: pid,
+        distinct_id: 'user',
+        event_name: 'signup',
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: pid,
+        distinct_id: 'user',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    // event_names is empty array — should fall back to event_name
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', event_names: [], label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(1);
+      expect(result.steps[1].count).toBe(1);
+    }
+  });
+
+  it('works with event_names in unordered mode', async () => {
+    const projectId = randomUUID();
+    const pid = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: pid,
+        distinct_id: 'user',
+        event_name: 'checkout_start',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: pid,
+        distinct_id: 'user',
+        event_name: 'payment_submit',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        {
+          event_name: 'checkout_start',
+          event_names: ['checkout_start', 'checkout_begin'],
+          label: 'Start Checkout',
+        },
+        {
+          event_name: 'payment_submit',
+          event_names: ['payment_submit', 'payment_complete'],
+          label: 'Payment',
+        },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered',
+    });
+
+    expect(result.breakdown).toBe(false);
+    if (!result.breakdown) {
+      expect(result.steps[0].count).toBe(1);
+      expect(result.steps[1].count).toBe(1);
+    }
+  });
+});

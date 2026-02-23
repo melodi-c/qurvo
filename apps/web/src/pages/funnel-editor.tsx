@@ -1,4 +1,4 @@
-import { GitFork, TrendingDown } from 'lucide-react';
+import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,10 +16,14 @@ import type { FunnelWidgetConfig } from '@/api/generated/Api';
 function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
   return {
     ...config,
-    steps: config.steps.map((s) => ({
-      ...s,
-      filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
-    })),
+    steps: config.steps.map((s) => {
+      const eventNames = (s.event_names ?? []).filter((n) => n.trim() !== '');
+      return {
+        ...s,
+        filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
+        event_names: eventNames.length ? eventNames : undefined,
+      };
+    }),
   };
 }
 
@@ -107,6 +111,15 @@ export default function FunnelEditorPage() {
                 <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
                 <div className="w-px h-8 bg-border/50 mx-6" />
                 <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
+                {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
+                  <>
+                    <div className="w-px h-8 bg-border/50 mx-6" />
+                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-400/80">
+                      <FlaskConical className="h-3.5 w-3.5" />
+                      {t('sampled', { pct: String(Math.round(funnelResult.sampling_factor * 100)) })}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="flex-1 overflow-auto p-6 pt-8">
                 <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={funnelResult?.aggregate_steps} conversionRateDisplay={config.conversion_rate_display ?? 'total'} />

@@ -48,6 +48,7 @@ export class FunnelService {
       cohort_ids?: string[];
       breakdown_type?: 'property' | 'cohort';
       breakdown_cohort_ids?: string[];
+      sampling_factor?: number;
     },
   ): Promise<FunnelCacheEntry> {
     await this.projectsService.getMembership(userId, params.project_id);

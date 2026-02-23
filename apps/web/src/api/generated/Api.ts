@@ -224,6 +224,8 @@ export interface StepFilter {
 }
 
 export interface FunnelStep {
+  /** Additional event names for OR-logic within step */
+  event_names?: string[];
   event_name: string;
   label: string;
   filters?: StepFilter[];
@@ -243,6 +245,8 @@ export interface FunnelStepResult {
 
 export interface FunnelResult {
   breakdown_property?: string;
+  /** Sampling factor used (if < 1.0, results are sampled) */
+  sampling_factor?: number;
   aggregate_steps?: FunnelStepResult[];
   breakdown: boolean;
   steps: FunnelStepResult[];
@@ -501,6 +505,8 @@ export interface FunnelWidgetConfig {
   funnel_viz_type?: string;
   conversion_rate_display?: FunnelWidgetConfigDtoConversionRateDisplayEnum;
   exclusions?: FunnelExclusion[];
+  /** Sampling factor 0.0-1.0 (1.0 = no sampling) */
+  sampling_factor?: number;
   conversion_window_days: number;
   date_from: string;
   date_to: string;
@@ -1244,6 +1250,12 @@ export interface FunnelControllerGetFunnelParams {
   cohort_ids?: string[];
   funnel_order_type?: FunnelOrderTypeEnum;
   exclusions?: FunnelExclusion[];
+  /**
+   * Sampling factor 0.0-1.0 (1.0 = no sampling)
+   * @min 0.01
+   * @max 1
+   */
+  sampling_factor?: number;
   /** @format uuid */
   project_id: string;
   steps: FunnelStep[];
@@ -1295,6 +1307,12 @@ export interface FunnelControllerGetFunnelTimeToConvertParams {
   conversion_window_value?: number;
   conversion_window_unit?: ConversionWindowUnitEnum1;
   cohort_ids?: string[];
+  /**
+   * Sampling factor 0.0-1.0 (1.0 = no sampling)
+   * @min 0.01
+   * @max 1
+   */
+  sampling_factor?: number;
   /** @format uuid */
   project_id: string;
   steps: FunnelStep[];

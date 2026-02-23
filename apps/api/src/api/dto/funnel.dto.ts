@@ -6,6 +6,7 @@ import {
   IsString,
   IsNotEmpty,
   IsInt,
+  IsNumber,
   Min,
   Max,
   IsDateString,
@@ -22,6 +23,12 @@ export class FunnelStepDto {
   @IsString()
   @IsNotEmpty()
   event_name: string;
+
+  @ApiPropertyOptional({ type: [String], description: 'Additional event names for OR-logic within step' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  event_names?: string[];
 
   @IsString()
   @IsNotEmpty()
@@ -135,6 +142,14 @@ export class FunnelQueryDto {
   @IsOptional()
   exclusions?: FunnelExclusionDto[];
 
+  @ApiPropertyOptional({ description: 'Sampling factor 0.0-1.0 (1.0 = no sampling)' })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  @Max(1)
+  @IsOptional()
+  sampling_factor?: number;
+
   @IsUUID()
   @IsOptional()
   widget_id?: string;
@@ -205,6 +220,14 @@ export class FunnelTimeToConvertQueryDto {
   @IsOptional()
   cohort_ids?: string[];
 
+  @ApiPropertyOptional({ description: 'Sampling factor 0.0-1.0 (1.0 = no sampling)' })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  @Max(1)
+  @IsOptional()
+  sampling_factor?: number;
+
   @IsUUID()
   @IsOptional()
   widget_id?: string;
@@ -231,6 +254,8 @@ export class FunnelStepResultDto {
 export class FunnelResultDto {
   breakdown: boolean;
   @ApiPropertyOptional() breakdown_property?: string;
+  @ApiPropertyOptional({ description: 'Sampling factor used (if < 1.0, results are sampled)' })
+  sampling_factor?: number;
   @Type(() => FunnelStepResultDto)
   steps: FunnelStepResultDto[];
   @ApiPropertyOptional()

@@ -12,6 +12,7 @@ export default createTranslations({
     overallConversion: 'Overall conversion',
     enteredFunnel: 'Entered funnel',
     completed: 'Completed',
+    sampled: 'Sampled {{pct}}%',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -24,5 +25,6 @@ export default createTranslations({
     overallConversion: 'Общая конверсия',
     enteredFunnel: 'Вошли в воронку',
     completed: 'Завершили',
+    sampled: 'Сэмпл {{pct}}%',
   },
 });

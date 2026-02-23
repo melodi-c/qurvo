@@ -11,6 +11,7 @@ export type FunnelOrderType = 'ordered' | 'strict' | 'unordered';
 
 export interface FunnelStep {
   event_name: string;
+  event_names?: string[];
   label: string;
   filters?: StepFilter[];
 }
@@ -37,8 +38,8 @@ export interface FunnelBreakdownStepResult extends FunnelStepResult {
 }
 
 export type FunnelQueryResult =
-  | { breakdown: false; steps: FunnelStepResult[] }
-  | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[]; aggregate_steps: FunnelStepResult[] };
+  | { breakdown: false; steps: FunnelStepResult[]; sampling_factor?: number }
+  | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[]; aggregate_steps: FunnelStepResult[]; sampling_factor?: number };
 
 export interface FunnelQueryParams {
   project_id: string;
@@ -53,6 +54,7 @@ export interface FunnelQueryParams {
   cohort_filters?: CohortFilterInput[];
   funnel_order_type?: FunnelOrderType;
   exclusions?: FunnelExclusion[];
+  sampling_factor?: number;
 }
 
 export interface TimeToConvertBin {
@@ -81,6 +83,7 @@ export interface TimeToConvertParams {
   from_step: number;
   to_step: number;
   cohort_filters?: CohortFilterInput[];
+  sampling_factor?: number;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,6 +105,12 @@ function resolveWindowSeconds(params: { conversion_window_days: number; conversi
   return params.conversion_window_days * 86400;
 }
 
+/** Returns all event names for a step (supports OR-logic via event_names). */
+function resolveStepEventNames(step: FunnelStep): string[] {
+  if (step.event_names?.length) return step.event_names;
+  return [step.event_name];
+}
+
 /** Builds the windowFunnel condition for one step, injecting filter params into queryParams. */
 export function buildStepCondition(
   step: FunnelStep,
@@ -113,13 +122,28 @@ export function buildStepCondition(
     `step_${idx}`,
     queryParams,
   );
-  return [`event_name = {step_${idx}:String}`, ...filterParts].join(' AND ');
+  const names = resolveStepEventNames(step);
+  const eventCond = names.length === 1
+    ? `event_name = {step_${idx}:String}`
+    : `event_name IN ({step_${idx}_names:Array(String)})`;
+  return [eventCond, ...filterParts].join(' AND ');
 }
 
 function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclusion[] = []): string[] {
-  const names = new Set(steps.map((s) => s.event_name));
+  const names = new Set<string>();
+  for (const s of steps) {
+    for (const n of resolveStepEventNames(s)) names.add(n);
+  }
   for (const e of exclusions) names.add(e.event_name);
-  return [...names];
+  return Array.from(names);
+}
+
+/** WHERE-based sampling: deterministic per distinct_id, no SAMPLE BY needed on table. */
+function buildSamplingClause(samplingFactor: number | undefined, queryParams: Record<string, unknown>): string {
+  if (!samplingFactor || samplingFactor >= 1) return '';
+  const pct = Math.round(samplingFactor * 100);
+  queryParams.sample_pct = pct;
+  return '\n                AND sipHash64(distinct_id) % 100 < {sample_pct:UInt8}';
 }
 
 function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: string): string {
@@ -186,6 +210,7 @@ function buildUnorderedCTE(
   queryParams: Record<string, unknown>,
   cohortClause: string,
   breakdownExpr?: string,
+  samplingClause: string = '',
 ): string {
   const sentinel = 'toInt64(9007199254740992)';
 
@@ -219,7 +244,7 @@ function buildUnorderedCTE(
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
         AND timestamp <= {to:DateTime64(3)}
-        AND event_name IN ({all_event_names:Array(String)})${cohortClause}
+        AND event_name IN ({all_event_names:Array(String)})${cohortClause}${samplingClause}
       GROUP BY person_id
     ),
     funnel_per_user AS (
@@ -316,7 +341,11 @@ export async function queryFunnel(
     all_event_names: allEventNames,
   };
   steps.forEach((s, i) => {
-    queryParams[`step_${i}`] = s.event_name;
+    const names = resolveStepEventNames(s);
+    queryParams[`step_${i}`] = names[0]; // backward compat for single-event condition
+    if (names.length > 1) {
+      queryParams[`step_${i}_names`] = names;
+    }
   });
 
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
@@ -339,6 +368,9 @@ export async function queryFunnel(
   const exclFilter = exclusions.length > 0
     ? '\n      WHERE person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
+
+  // Sampling clause
+  const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
 
   // ── Cohort breakdown ────────────────────────────────────────────────────
   if (params.breakdown_cohort_ids?.length) {
@@ -363,7 +395,7 @@ export async function queryFunnel(
       let sql: string;
       if (orderType === 'unordered') {
         cbQueryParams.all_event_names = allEventNames;
-        const cte = buildUnorderedCTE(steps, cbQueryParams, `${cohortClause}${cohortFilter}`);
+        const cte = buildUnorderedCTE(steps, cbQueryParams, `${cohortClause}${cohortFilter}`, undefined, samplingClause);
         sql = `
           WITH ${cte}
           SELECT step_num, countIf(max_step >= step_num) AS entered, countIf(max_step >= step_num + 1) AS next_step
@@ -387,7 +419,7 @@ export async function queryFunnel(
               WHERE
                 project_id = {project_id:UUID}
                 AND timestamp >= {from:DateTime64(3)}
-                AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}${cohortFilter}
+                AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}${cohortFilter}${samplingClause}
               GROUP BY person_id
             )${cbExclCTE}
           SELECT
@@ -430,6 +462,7 @@ export async function queryFunnel(
       breakdown_property: '$cohort',
       steps: allBreakdownSteps,
       aggregate_steps: computeAggregateSteps(allBreakdownSteps, steps),
+      ...(params.sampling_factor && params.sampling_factor < 1 ? { sampling_factor: params.sampling_factor } : {}),
     };
   }
 
@@ -437,7 +470,7 @@ export async function queryFunnel(
   if (!params.breakdown_property) {
     let sql: string;
     if (orderType === 'unordered') {
-      const cte = buildUnorderedCTE(steps, queryParams, cohortClause);
+      const cte = buildUnorderedCTE(steps, queryParams, cohortClause, undefined, samplingClause);
       sql = `
         WITH ${cte}${exclCTE}
         SELECT
@@ -466,7 +499,7 @@ export async function queryFunnel(
             WHERE
               project_id = {project_id:UUID}
               AND timestamp >= {from:DateTime64(3)}
-              AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}
+              AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}${samplingClause}
             GROUP BY person_id
           )${exclCTE}
         SELECT
@@ -491,14 +524,18 @@ export async function queryFunnel(
       avg_time_seconds: string | null;
     }>();
 
-    return { breakdown: false, steps: computeStepResults(rows, steps, numSteps) };
+    return {
+      breakdown: false,
+      steps: computeStepResults(rows, steps, numSteps),
+      ...(params.sampling_factor && params.sampling_factor < 1 ? { sampling_factor: params.sampling_factor } : {}),
+    };
   }
 
   // ── Property breakdown funnel ───────────────────────────────────────────
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
   let sql: string;
   if (orderType === 'unordered') {
-    const cte = buildUnorderedCTE(steps, queryParams, cohortClause, breakdownExpr);
+    const cte = buildUnorderedCTE(steps, queryParams, cohortClause, breakdownExpr, samplingClause);
     sql = `
       WITH ${cte}${exclCTE}
       SELECT
@@ -523,7 +560,7 @@ export async function queryFunnel(
           WHERE
             project_id = {project_id:UUID}
             AND timestamp >= {from:DateTime64(3)}
-            AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}
+            AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}${samplingClause}
           GROUP BY person_id
         )${exclCTE}
       SELECT
@@ -582,6 +619,7 @@ export async function queryFunnel(
     breakdown_property: params.breakdown_property,
     steps: stepResults,
     aggregate_steps: computeAggregateSteps(stepResults, steps),
+    ...(params.sampling_factor && params.sampling_factor < 1 ? { sampling_factor: params.sampling_factor } : {}),
   };
 }
 
@@ -618,6 +656,8 @@ export async function queryFunnelTimeToConvert(
     ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
     : '';
 
+  const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
+
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
   // Per-step minIf timestamps
@@ -653,7 +693,7 @@ export async function queryFunnelTimeToConvert(
             project_id = {project_id:UUID}
             AND timestamp >= {from:DateTime64(3)}
             AND timestamp <= {to:DateTime64(3)}
-            AND event_name IN ({step_names:Array(String)})${cohortClause}
+            AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
           GROUP BY person_id
         )
         WHERE max_step >= {to_step_num:UInt64}

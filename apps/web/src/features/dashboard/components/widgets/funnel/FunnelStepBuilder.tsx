@@ -59,6 +59,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
             canRemove={steps.length > 2}
             onLabelChange={(label) => updateStep(i, { label })}
             onEventChange={(event_name) => updateStep(i, { event_name })}
+            onEventNamesChange={(event_names) => updateStep(i, { event_names: event_names.length ? event_names : undefined })}
             onRemove={() => removeStep(i)}
             onFilterAdd={() => addFilter(i)}
             onFilterChange={(fi, f) => updateFilter(i, fi, f)}

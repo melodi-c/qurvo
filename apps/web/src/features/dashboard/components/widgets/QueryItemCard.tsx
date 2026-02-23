@@ -10,6 +10,7 @@ import type { StepFilter } from '@/api/generated/Api';
 
 export interface QueryItem {
   event_name: string;
+  event_names?: string[];
   label?: string;
   filters?: StepFilter[];
 }
@@ -28,6 +29,8 @@ interface QueryItemCardProps {
 
   onLabelChange: (label: string) => void;
   onEventChange: (event: string) => void;
+  /** OR-event names support */
+  onEventNamesChange?: (names: string[]) => void;
   onRemove: () => void;
   onFilterAdd: () => void;
   onFilterChange: (filterIdx: number, filter: StepFilter) => void;
@@ -49,6 +52,7 @@ export function QueryItemCard({
   canRemove,
   onLabelChange,
   onEventChange,
+  onEventNamesChange,
   onRemove,
   onFilterAdd,
   onFilterChange,
@@ -101,12 +105,47 @@ export function QueryItemCard({
       </div>
 
       {/* Event name */}
-      <div className="px-2 py-1.5">
+      <div className="px-2 py-1.5 space-y-1.5">
         <EventNameCombobox
           value={item.event_name}
           onChange={onEventChange}
           placeholder={t('selectEvent')}
         />
+
+        {/* OR event names */}
+        {onEventNamesChange && (item.event_names ?? []).map((name, ei) => (
+          <div key={ei} className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground/60 w-5 text-center shrink-0">or</span>
+            <EventNameCombobox
+              value={name}
+              onChange={(v) => {
+                const next = [...(item.event_names ?? [])];
+                next[ei] = v;
+                onEventNamesChange(next);
+              }}
+              placeholder={t('selectEvent')}
+              className="flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => onEventNamesChange((item.event_names ?? []).filter((_, idx) => idx !== ei))}
+              className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground/40 transition-colors hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+
+        {onEventNamesChange && (
+          <button
+            type="button"
+            onClick={() => onEventNamesChange([...(item.event_names ?? []), ''])}
+            className="flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-foreground"
+          >
+            <Plus className="h-3 w-3" />
+            {t('addOrEvent')}
+          </button>
+        )}
       </div>
 
       {/* Filters */}

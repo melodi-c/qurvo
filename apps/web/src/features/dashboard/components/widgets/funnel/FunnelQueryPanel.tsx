@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Timer, TrendingDown, Shuffle, Ban, BarChart3 } from 'lucide-react';
+import { Timer, TrendingDown, Shuffle, Ban, BarChart3, FlaskConical } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -35,6 +35,13 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   const rateDisplayOptions = useMemo(() => [
     { label: t('total'), value: 'total' as const },
     { label: t('relative'), value: 'relative' as const },
+  ], [t]);
+
+  const samplingOptions = useMemo(() => [
+    { label: t('noSampling'), value: '1' },
+    { label: '10%', value: '0.1' },
+    { label: '25%', value: '0.25' },
+    { label: '50%', value: '0.5' },
   ], [t]);
 
   const windowUnitLabels = useMemo(() => ({
@@ -147,6 +154,18 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
             exclusions={config.exclusions ?? []}
             onChange={(exclusions) => onChange({ ...config, exclusions })}
             stepCount={config.steps.length}
+          />
+        </section>
+
+        <Separator />
+
+        {/* Sampling */}
+        <section className="space-y-3">
+          <SectionHeader icon={FlaskConical} label={t('sampling')} />
+          <PillToggleGroup
+            options={samplingOptions}
+            value={String(config.sampling_factor ?? 1)}
+            onChange={(v) => onChange({ ...config, sampling_factor: Number(v) === 1 ? undefined : Number(v) })}
           />
         </section>
 
