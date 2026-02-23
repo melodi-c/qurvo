@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBuilder';
-import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount } from '@/features/cohorts/hooks/use-cohorts';
+import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount, useCohortMemberCount, useCohortSizeHistory } from '@/features/cohorts/hooks/use-cohorts';
+import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -23,6 +24,9 @@ export default function CohortEditorPage() {
   const createMutation = useCreateCohort();
   const updateMutation = useUpdateCohort();
   const previewMutation = useCohortPreviewCount();
+
+  const { data: memberCount } = useCohortMemberCount(isNew ? '' : cohortId!);
+  const { data: sizeHistory } = useCohortSizeHistory(isNew ? '' : cohortId!);
 
   const [name, setName] = useState(t('defaultName'));
   const [description, setDescription] = useState('');
@@ -162,38 +166,59 @@ export default function CohortEditorPage() {
           </div>
         </aside>
 
-        {/* Right panel: Preview */}
-        <main className="flex-1 overflow-auto flex flex-col items-center justify-center">
-          <div className="text-center space-y-3">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
-              <UsersRound className="h-8 w-8 text-muted-foreground" />
+        {/* Right panel */}
+        {!isNew && existingCohort ? (
+          <main className="flex-1 overflow-auto flex flex-col">
+            <div className="border-b px-6 py-6 text-center">
+              <p className="text-4xl font-bold tabular-nums text-primary">
+                {memberCount ? memberCount.count.toLocaleString() : '—'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
             </div>
-            {!hasValidConditions ? (
-              <div>
-                <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {t('addConditionsDescription')}
-                </p>
-              </div>
-            ) : previewMutation.isPending ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">{t('calculating')}</span>
-              </div>
-            ) : previewMutation.data ? (
-              <div>
-                <p className="text-4xl font-bold tabular-nums text-primary">
-                  {previewMutation.data.count.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm font-medium">{t('previewPlaceholder')}</p>
+            <div className="flex-1 p-6 space-y-3">
+              <p className="text-sm font-medium">{t('sizeHistory')}</p>
+              <CohortSizeChart data={sizeHistory ?? []} />
+            </div>
+            {existingCohort.last_error_message && (
+              <div className="border-t px-6 py-4">
+                <p className="text-sm text-destructive font-medium">{t('calculationError')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{existingCohort.last_error_message}</p>
               </div>
             )}
-          </div>
-        </main>
+          </main>
+        ) : (
+          <main className="flex-1 overflow-auto flex flex-col items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
+                <UsersRound className="h-8 w-8 text-muted-foreground" />
+              </div>
+              {!hasValidConditions ? (
+                <div>
+                  <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t('addConditionsDescription')}
+                  </p>
+                </div>
+              ) : previewMutation.isPending ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">{t('calculating')}</span>
+                </div>
+              ) : previewMutation.data ? (
+                <div>
+                  <p className="text-4xl font-bold tabular-nums text-primary">
+                    {previewMutation.data.count.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm font-medium">{t('previewPlaceholder')}</p>
+                </div>
+              )}
+            </div>
+          </main>
+        )}
       </div>
     </div>
   );

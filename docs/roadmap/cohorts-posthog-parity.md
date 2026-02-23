@@ -97,9 +97,9 @@
   - Записывается при каждом успешном пересчёте
 - [x] Cohort size history API — `GET :cohortId/history?days=30`
   - API endpoint для получения истории размера когорты по дням
-- [ ] Cohort size over time chart — визуализация роста/спада когорты
-  - 8 часов, **высокая ценность**, **PostHog этого не имеет**
-  - React chart на странице деталей когорты (backend API ready)
+- [x] Cohort size over time chart — визуализация роста/спада когорты
+  - AreaChart (Recharts) на странице редактора когорты
+  - Правая панель: count + history chart + error badge
 
 ### Не планируется (PostHog-специфичные)
 

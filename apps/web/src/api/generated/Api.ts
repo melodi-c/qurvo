@@ -718,12 +718,15 @@ export interface PersonEventRow {
 
 export interface Cohort {
   description?: string | null;
+  last_error_at?: string | null;
+  last_error_message?: string | null;
   id: string;
   project_id: string;
   created_by: string;
   name: string;
   definition: object;
   is_static: boolean;
+  errors_calculating: number;
   created_at: string;
   updated_at: string;
 }
@@ -745,6 +748,11 @@ export interface UpdateCohort {
   name?: string;
   description?: string;
   definition?: CohortConditionGroup;
+}
+
+export interface CohortHistoryPoint {
+  date: string;
+  count: number;
 }
 
 export interface CohortMemberCount {
@@ -1567,6 +1575,18 @@ export interface CohortsControllerUpdateParams {
 }
 
 export interface CohortsControllerRemoveParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface CohortsControllerGetSizeHistoryParams {
+  /**
+   * Number of days of history (default 30)
+   * @min 1
+   * @max 365
+   * @default 30
+   */
+  days?: number;
   projectId: string;
   cohortId: string;
 }
@@ -3027,6 +3047,27 @@ export class Api<
         path: `/api/projects/${projectId}/cohorts/${cohortId}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name CohortsControllerGetSizeHistory
+     * @request GET:/api/projects/{projectId}/cohorts/{cohortId}/history
+     * @secure
+     */
+    cohortsControllerGetSizeHistory: (
+      { projectId, cohortId, ...query }: CohortsControllerGetSizeHistoryParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<CohortHistoryPoint[], any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/history`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
         ...params,
       }),
 

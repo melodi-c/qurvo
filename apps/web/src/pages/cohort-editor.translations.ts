@@ -16,6 +16,9 @@ export default createTranslations({
     cohortCreated: 'Cohort created',
     cohortUpdated: 'Cohort updated',
     saveFailed: 'Failed to save',
+    currentMembers: 'current members',
+    sizeHistory: 'Size over time',
+    calculationError: 'Calculation error',
   },
   ru: {
     backLabel: 'Когорты',
@@ -32,5 +35,8 @@ export default createTranslations({
     cohortCreated: 'Когорта создана',
     cohortUpdated: 'Когорта обновлена',
     saveFailed: 'Не удалось сохранить',
+    currentMembers: 'участников сейчас',
+    sizeHistory: 'Размер во времени',
+    calculationError: 'Ошибка вычисления',
   },
 });
