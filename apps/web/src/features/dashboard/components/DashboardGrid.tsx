@@ -50,8 +50,8 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     );
   }
 
-  const smLayout = localLayout;
-  const xsLayout = localLayout.map((l) => ({ ...l, x: 0, w: 1 }));
+  const smLayout = localLayout.map((l) => ({ ...l, minH: 2 }));
+  const xsLayout = localLayout.map((l) => ({ ...l, x: 0, w: 1, minH: 2 }));
 
   return (
     <div ref={containerRef} data-editing={isEditing || undefined}>
