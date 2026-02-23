@@ -4,7 +4,7 @@ export const REDIS_STREAM_DLQ = 'events:dlq';
 export const REDIS_CONSUMER_GROUP = 'processor-group';
 
 export const PROCESSOR_BATCH_SIZE = 1000;
-export const PROCESSOR_FLUSH_INTERVAL_MS = 5000;
+export const PROCESSOR_FLUSH_INTERVAL_MS = Number(process.env.PROCESSOR_FLUSH_INTERVAL_MS) || 5000;
 export const PROCESSOR_MAX_RETRIES = 3;
 
 export const PENDING_CLAIM_INTERVAL_MS = 30_000;
