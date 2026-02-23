@@ -23,6 +23,7 @@ export interface ListParams {
   type?: 'event' | 'person';
   eventName?: string;
   search?: string;
+  is_numerical?: boolean;
   limit: number;
   offset: number;
   order_by: string;
@@ -58,6 +59,7 @@ export class PropertyDefinitionsService {
     const conditions: SQL[] = [eq(propertyDefinitions.project_id, projectId)];
     if (params.type) conditions.push(eq(propertyDefinitions.property_type, params.type));
     if (params.search) conditions.push(ilike(propertyDefinitions.property_name, `%${params.search}%`));
+    if (params.is_numerical !== undefined) conditions.push(eq(propertyDefinitions.is_numerical, params.is_numerical));
 
     const where = and(...conditions)!;
     const orderCol = columnMap[params.order_by] ?? propertyDefinitions.last_seen_at;

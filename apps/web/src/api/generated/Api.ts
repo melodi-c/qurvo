@@ -491,8 +491,16 @@ export interface CreateDashboard {
 export interface FunnelWidgetConfig {
   type: FunnelWidgetConfigDtoTypeEnum;
   steps: FunnelStep[];
+  conversion_window_value?: number;
+  conversion_window_unit?: FunnelWidgetConfigDtoConversionWindowUnitEnum;
   breakdown_property?: string;
+  breakdown_type?: FunnelWidgetConfigDtoBreakdownTypeEnum;
+  breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
+  funnel_order_type?: FunnelWidgetConfigDtoFunnelOrderTypeEnum;
+  funnel_viz_type?: string;
+  conversion_rate_display?: FunnelWidgetConfigDtoConversionRateDisplayEnum;
+  exclusions?: FunnelExclusion[];
   conversion_window_days: number;
   date_from: string;
   date_to: string;
@@ -1147,6 +1155,25 @@ export type StepFilterDtoOperatorEnum =
 
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
+export type FunnelWidgetConfigDtoConversionWindowUnitEnum =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
+export type FunnelWidgetConfigDtoBreakdownTypeEnum = "property" | "cohort";
+
+export type FunnelWidgetConfigDtoFunnelOrderTypeEnum =
+  | "ordered"
+  | "strict"
+  | "unordered";
+
+export type FunnelWidgetConfigDtoConversionRateDisplayEnum =
+  | "total"
+  | "relative";
+
 export type TrendWidgetConfigDtoTypeEnum = "trend";
 
 export type RetentionWidgetConfigDtoTypeEnum = "retention";
@@ -1553,26 +1580,26 @@ export interface CohortsControllerPreviewCountParams {
   projectId: string;
 }
 
-export interface CohortsControllerCreateStaticCohortParams {
+export interface StaticCohortsControllerCreateStaticCohortParams {
   projectId: string;
 }
 
-export interface CohortsControllerDuplicateAsStaticParams {
-  projectId: string;
-  cohortId: string;
-}
-
-export interface CohortsControllerUploadCsvParams {
+export interface StaticCohortsControllerDuplicateAsStaticParams {
   projectId: string;
   cohortId: string;
 }
 
-export interface CohortsControllerAddMembersParams {
+export interface StaticCohortsControllerUploadCsvParams {
   projectId: string;
   cohortId: string;
 }
 
-export interface CohortsControllerRemoveMembersParams {
+export interface StaticCohortsControllerAddMembersParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface StaticCohortsControllerRemoveMembersParams {
   projectId: string;
   cohortId: string;
 }
@@ -1776,6 +1803,7 @@ export interface PropertyDefinitionsControllerListParams {
   type?: TypeEnum1;
   event_name?: string;
   search?: string;
+  is_numerical?: boolean;
   /**
    * @min 1
    * @max 500
@@ -3049,12 +3077,12 @@ export class Api<
      * No description
      *
      * @tags Cohorts
-     * @name CohortsControllerCreateStaticCohort
+     * @name StaticCohortsControllerCreateStaticCohort
      * @request POST:/api/projects/{projectId}/cohorts/static
      * @secure
      */
-    cohortsControllerCreateStaticCohort: (
-      { projectId, ...query }: CohortsControllerCreateStaticCohortParams,
+    staticCohortsControllerCreateStaticCohort: (
+      { projectId, ...query }: StaticCohortsControllerCreateStaticCohortParams,
       data: CreateStaticCohort,
       params: RequestParams = {},
     ) =>
@@ -3072,16 +3100,16 @@ export class Api<
      * No description
      *
      * @tags Cohorts
-     * @name CohortsControllerDuplicateAsStatic
+     * @name StaticCohortsControllerDuplicateAsStatic
      * @request POST:/api/projects/{projectId}/cohorts/{cohortId}/duplicate-static
      * @secure
      */
-    cohortsControllerDuplicateAsStatic: (
+    staticCohortsControllerDuplicateAsStatic: (
       {
         projectId,
         cohortId,
         ...query
-      }: CohortsControllerDuplicateAsStaticParams,
+      }: StaticCohortsControllerDuplicateAsStaticParams,
       params: RequestParams = {},
     ) =>
       this.request<Cohort, any>({
@@ -3096,12 +3124,12 @@ export class Api<
      * No description
      *
      * @tags Cohorts
-     * @name CohortsControllerUploadCsv
+     * @name StaticCohortsControllerUploadCsv
      * @request POST:/api/projects/{projectId}/cohorts/{cohortId}/upload-csv
      * @secure
      */
-    cohortsControllerUploadCsv: (
-      { projectId, cohortId, ...query }: CohortsControllerUploadCsvParams,
+    staticCohortsControllerUploadCsv: (
+      { projectId, cohortId, ...query }: StaticCohortsControllerUploadCsvParams,
       params: RequestParams = {},
     ) =>
       this.request<void, any>({
@@ -3115,12 +3143,16 @@ export class Api<
      * No description
      *
      * @tags Cohorts
-     * @name CohortsControllerAddMembers
+     * @name StaticCohortsControllerAddMembers
      * @request POST:/api/projects/{projectId}/cohorts/{cohortId}/members
      * @secure
      */
-    cohortsControllerAddMembers: (
-      { projectId, cohortId, ...query }: CohortsControllerAddMembersParams,
+    staticCohortsControllerAddMembers: (
+      {
+        projectId,
+        cohortId,
+        ...query
+      }: StaticCohortsControllerAddMembersParams,
       data: StaticCohortMembers,
       params: RequestParams = {},
     ) =>
@@ -3137,12 +3169,16 @@ export class Api<
      * No description
      *
      * @tags Cohorts
-     * @name CohortsControllerRemoveMembers
+     * @name StaticCohortsControllerRemoveMembers
      * @request DELETE:/api/projects/{projectId}/cohorts/{cohortId}/members
      * @secure
      */
-    cohortsControllerRemoveMembers: (
-      { projectId, cohortId, ...query }: CohortsControllerRemoveMembersParams,
+    staticCohortsControllerRemoveMembers: (
+      {
+        projectId,
+        cohortId,
+        ...query
+      }: StaticCohortsControllerRemoveMembersParams,
       data: StaticCohortMembers,
       params: RequestParams = {},
     ) =>

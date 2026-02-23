@@ -49,6 +49,12 @@ export class PropertyDefinitionQueryDto {
   @ApiPropertyOptional()
   search?: string;
 
+  @Type(() => Boolean)
+  @IsBoolean()
+  @IsOptional()
+  @ApiPropertyOptional()
+  is_numerical?: boolean;
+
   @Type(() => Number)
   @IsNumber()
   @IsOptional()

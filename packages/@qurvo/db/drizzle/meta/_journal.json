@@ -160,7 +160,14 @@
       "idx": 23,
       "version": "7",
       "when": 1773500000000,
-      "tag": "0023_add_cohort_error_tracking",
+      "tag": "0023_gin_trigram_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1773600000000,
+      "tag": "0024_add_cohort_error_tracking",
       "breakpoints": true
     }
   ]

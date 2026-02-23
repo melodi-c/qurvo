@@ -27,6 +27,7 @@ export class PropertyDefinitionsController {
       type: query.type,
       eventName: query.event_name,
       search: query.search,
+      is_numerical: query.is_numerical,
       limit: query.limit ?? 100,
       offset: query.offset ?? 0,
       order_by: query.order_by ?? 'last_seen_at',

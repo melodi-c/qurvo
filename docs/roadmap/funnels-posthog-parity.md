@@ -7,10 +7,13 @@
 ### Типы воронок
 
 - [x] Ordered (sequential) — `windowFunnel()` strict order, 2-10 шагов
+- [x] Strict — `windowFunnel('strict_order')`, убран `event_name IN(...)` фильтр чтобы все события были видны
+- [x] Unordered (Any Order) — кастомный CTE с `minIf` per-step, `least()` для anchor timestamp
 
 ### Конверсионное окно
 
 - [x] Configurable 1-90 days — передаётся в секундах в `windowFunnel()`
+- [x] Гранулярные единицы: second, minute, hour, day, week, month — `UNIT_TO_SECONDS` маппинг
 
 ### Per-step фильтры
 
@@ -31,6 +34,19 @@
 
 - [x] Per-step: count, conversion_rate (vs step 1), drop_off, drop_off_rate (vs prev step)
 - [x] Avg time to convert — step 1 → last step для полных конверсий
+- [x] Conversion Rate Display — toggle Overall (vs step 1) / Relative (vs previous step) в UI
+
+### Time to Convert
+
+- [x] Отдельный endpoint `GET funnel/time-to-convert` — распределение времени конверсии между любыми двумя шагами
+- [x] Auto-binning гистограмма (cube root rule), average/median/sample_size
+- [x] Backend: `groupArrayIf()` + TypeScript-side histogram binning
+
+### Exclusion Steps
+
+- [x] Per-step range exclusions (`funnel_from_step` → `funnel_to_step`)
+- [x] Двухпроходный SQL: `funnel_per_user` CTE + `excluded_users` CTE + `NOT IN` фильтр
+- [x] Frontend: `FunnelExclusionBuilder` компонент с event combobox и step range selectors
 
 ### Кэширование
 
@@ -45,62 +61,25 @@
 - [x] Date presets (7d/30d/90d/6m/1y) + custom range
 - [x] Metrics bar (Overall Conversion, Entered, Completed)
 - [x] Auto-refresh при stale > 30 минут
+- [x] Order type selector (PillToggleGroup: ordered/strict/unordered)
+- [x] Conversion window: value input + unit selector (second → month)
+- [x] Conversion rate display toggle (total/relative)
+- [x] Exclusion steps builder
 
 ### Persistence & Integration
 
 - [x] Saved insights — JSONB в PostgreSQL `insights` таблице
 - [x] AI tool access — `query_funnel` для AI assistant
 
+### Тесты
+
+- [x] 11 интеграционных тестов: 3-step funnel, window enforcement, empty, step filters, breakdown, strict order, unordered, exclusions, conversion window units, time-to-convert (2)
+
 ---
 
 ## TODO
 
-### Bugfix
-
-- [ ] **Cohort breakdown не передаётся из фронтенда**
-  - `use-funnel.ts` передаёт только `breakdown_property`, не передаёт `breakdown_type` и `breakdown_cohort_ids`
-  - Файлы: `apps/web/src/features/dashboard/hooks/use-funnel.ts`
-  - Сложность: **S** (~30 минут)
-
----
-
 ### P1 — Высокий приоритет (ключевые аналитические фичи)
-
-- [ ] **Conversion Rate Display: Overall vs Relative to Previous**
-  - PostHog: переключатель `TOTAL` / `PREVIOUS` в визуализации
-  - Qurvo: backend уже считает оба (`conversion_rate` vs step 1 + `drop_off_rate` vs prev), нет toggle в UI
-  - Файлы: `apps/web/src/features/dashboard/components/widgets/funnel/FunnelChart.tsx`
-  - Сложность: **S** (~0.5-1 день)
-
-- [ ] **Conversion Window — гранулярные единицы**
-  - PostHog: second, minute, hour, day, week, month
-  - Qurvo: только days (1-90)
-  - Backend уже передаёт в секундах — только конвертация + UI select
-  - Файлы: `apps/api/src/api/dto/funnel.dto.ts`, `apps/api/src/funnel/funnel.query.ts`, `FunnelQueryPanel.tsx`
-  - Сложность: **S** (~0.5-1 день)
-
-- [ ] **Типы порядка шагов: Sequential / Strict / Any Order**
-  - PostHog `FunnelOrderType`: `ORDERED` (default, между шагами могут быть другие события), `STRICT` (шаги строго подряд), `UNORDERED` (шаги в любом порядке)
-  - Qurvo: только один режим через `windowFunnel()` ≈ ORDERED
-  - Strict: `sequenceMatch()` или кастомный SQL с row_number
-  - Any Order: `countIf` по каждому шагу отдельно, без `windowFunnel()`
-  - Файлы: `apps/api/src/funnel/funnel.query.ts`, DTO, `FunnelQueryPanel.tsx`, `widgets.ts`
-  - Сложность: **M** (~3-5 дней)
-
-- [ ] **Time to Convert — распределение между шагами**
-  - PostHog viz type `TIME_TO_CONVERT`: гистограмма времени конверсии между любыми двумя шагами
-  - Qurvo: только общий `avg_time_to_convert_seconds` (step 1 → last step), нет per-step и нет распределения
-  - Backend: вычислить `minIf(timestamp, step_condition)` для каждого шага, бакетирование для гистограммы
-  - Frontend: новый Recharts BarChart компонент
-  - Файлы: `funnel.query.ts`, новый viz component, `FunnelQueryPanel.tsx` (viz type selector)
-  - Сложность: **M** (~3-5 дней)
-
-- [ ] **Exclusion Steps (исключающие шаги)**
-  - PostHog: события между шагами X и Y исключают пользователя из всей воронки
-  - Конфигурация: `funnel_from_step`, `funnel_to_step`, event definition
-  - Нужна пост-фильтрация в SQL: `AND NOT EXISTS (SELECT ... WHERE event_name = 'excluded' AND timestamp BETWEEN step_X_time AND step_Y_time)` или двухпроходный подход
-  - Файлы: `funnel.query.ts`, DTO, `FunnelStepBuilder.tsx` (UI exclusion steps)
-  - Сложность: **M** (~4-6 дней)
 
 - [ ] **Historical Trends (конверсия во времени)**
   - PostHog viz type `TRENDS`: line chart конверсии по дням/неделям/месяцам
@@ -222,17 +201,16 @@
 
 ---
 
-## Оценка трудозатрат
+## Оценка трудозатрат (оставшееся)
 
 | Сложность | Кол-во фич | Ориентировочно |
 |---|---|---|
-| **Bugfix** | 1 | ~0.5 дня |
-| **S (< 2 дня)** | 5 | ~5-8 дней |
-| **M (2-5 дней)** | 7 | ~18-29 дней |
-| **L (5-10 дней)** | 2 | ~13-18 дней |
+| **S (< 2 дня)** | 2 | ~2-4 дня |
+| **M (2-5 дней)** | 5 | ~11-18 дней |
+| **L (5-10 дней)** | 3 | ~18-26 дней |
 | **XL (10+ дней)** | 5 | ~60-75 дней |
-| **Итого без XL** | 15 | ~37-56 дней |
-| **Итого всё** | 20 | ~97-131 дней |
+| **Итого без XL** | 10 | ~31-48 дней |
+| **Итого всё** | 15 | ~91-123 дней |
 
 ---
 
@@ -244,5 +222,5 @@
 - Qurvo funnel query: `apps/api/src/funnel/funnel.query.ts`
 - Qurvo funnel service: `apps/api/src/funnel/funnel.service.ts`
 - Qurvo funnel DTO: `apps/api/src/api/dto/funnel.dto.ts`
-- Qurvo funnel tests: `apps/api/src/test/funnel/funnel.integration.test.ts` (5 tests)
+- Qurvo funnel tests: `apps/api/src/test/funnel/funnel.integration.test.ts` (11 tests)
 - Qurvo frontend: `apps/web/src/features/dashboard/components/widgets/funnel/`
