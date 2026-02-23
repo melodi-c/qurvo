@@ -151,21 +151,21 @@
 
 ## C. API Layer (Read path)
 
-### C1. [ ] Серверный search
+### C1. [x] Серверный search
 **Проблема**: Нет серверного поиска, client-side substring filter.
 **PostHog**: GIN trigram fuzzy search + alias expansion + "latest means not initial".
 **Решение**: `?search=query` → `WHERE event_name ILIKE '%query%'`. GIN trigram позже.
 **Файлы**: services + DTOs + controllers + frontend hooks
 **Сложность**: Средняя
 
-### C2. [ ] Пагинация
+### C2. [x] Пагинация
 **Проблема**: Все list-эндпоинты возвращают неограниченный набор.
 **PostHog**: `LimitOffsetPagination` без count (`NotCountingLimitOffsetPaginator`).
 **Решение**: limit/offset. Дефолт 100, max 500. Frontend DataTable уже поддерживает пагинацию.
 **Файлы**: services + DTOs + controllers + frontend
 **Сложность**: Средняя
 
-### C3. [ ] Настраиваемый ordering
+### C3. [x] Настраиваемый ordering
 **Проблема**: Фиксированный `ORDER BY last_seen_at DESC`.
 **PostHog**: Supports `name`, `last_seen_at`, `-last_seen_at`, `last_seen_at::date`.
 **Решение**: `?ordering=name|-name|last_seen_at|-last_seen_at` query parameter.
@@ -232,13 +232,13 @@
 **Решение**: Endpoint с `SELECT count() FROM events WHERE event_name = ? AND timestamp > now() - INTERVAL 30 DAY`. Redis cache 24h.
 **Сложность**: Средняя
 
-### C14. [ ] DELETE endpoint
+### C14. [x] DELETE endpoint
 **Проблема**: Definitions append-only, нельзя удалить устаревшие.
 **PostHog**: `DELETE` endpoint на обоих ViewSet'ах.
 **Решение**: Добавить DELETE endpoint. Каскадно удалить event_properties при удалении event_definition.
 **Сложность**: Низкая
 
-### C15. [ ] value_type editable через API
+### C15. [x] value_type editable через API
 **Проблема**: First type wins, нет ручного override. Если тип определился неправильно — нельзя исправить.
 **PostHog**: Free users могут менять `property_type` через PATCH.
 **Решение**: Добавить `value_type` и `is_numerical` в `UpsertPropertyDefinitionDto`.

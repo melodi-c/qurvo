@@ -36,6 +36,7 @@ import { PathsController } from './controllers/paths.controller';
 import { DashboardsController } from './controllers/dashboards.controller';
 import { PersonsController } from './controllers/persons.controller';
 import { CohortsController } from './controllers/cohorts.controller';
+import { StaticCohortsController } from './controllers/static-cohorts.controller';
 import { InsightsController } from './controllers/insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
 import { MarketingChannelsController } from './controllers/marketing-channels.controller';
@@ -70,6 +71,7 @@ import { WrongPasswordFilter } from './filters/wrong-password.filter';
     DashboardsController,
     PersonsController,
     CohortsController,
+    StaticCohortsController,
     InsightsController,
     MembersController,
     InvitesController,

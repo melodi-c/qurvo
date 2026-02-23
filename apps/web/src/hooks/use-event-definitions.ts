@@ -10,7 +10,8 @@ export function useEventDefinitions() {
   return useQuery({
     queryKey: ['event-definitions', projectId],
     queryFn: async () => {
-      return api.eventDefinitionsControllerList({ projectId });
+      const res = await api.eventDefinitionsControllerList({ projectId });
+      return res.items;
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,

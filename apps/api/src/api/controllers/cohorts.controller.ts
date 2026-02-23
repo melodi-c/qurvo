@@ -11,8 +11,6 @@ import {
   CohortPreviewDto,
   CohortDto,
   CohortMemberCountDto,
-  CreateStaticCohortDto,
-  StaticCohortMembersDto,
 } from '../dto/cohorts.dto';
 
 @ApiTags('Cohorts')
@@ -88,55 +86,5 @@ export class CohortsController {
     }
     const count = await this.cohortsService.previewCount(user.user_id, projectId, body.definition);
     return { count };
-  }
-
-  // ── Static cohort endpoints ──────────────────────────────────────────────
-
-  @Post('static')
-  async createStaticCohort(
-    @CurrentUser() user: RequestUser,
-    @Param('projectId') projectId: string,
-    @Body() body: CreateStaticCohortDto,
-  ): Promise<CohortDto> {
-    return this.cohortsService.createStaticCohort(user.user_id, projectId, body) as any;
-  }
-
-  @Post(':cohortId/duplicate-static')
-  async duplicateAsStatic(
-    @CurrentUser() user: RequestUser,
-    @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
-  ): Promise<CohortDto> {
-    return this.cohortsService.duplicateAsStatic(user.user_id, projectId, cohortId) as any;
-  }
-
-  @Post(':cohortId/upload-csv')
-  async uploadCsv(
-    @CurrentUser() user: RequestUser,
-    @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
-    @Body() body: { csv_content: string },
-  ) {
-    return this.cohortsService.importStaticCohortCsv(user.user_id, projectId, cohortId, body.csv_content);
-  }
-
-  @Post(':cohortId/members')
-  async addMembers(
-    @CurrentUser() user: RequestUser,
-    @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
-    @Body() body: StaticCohortMembersDto,
-  ): Promise<void> {
-    await this.cohortsService.addStaticMembers(user.user_id, projectId, cohortId, body.person_ids);
-  }
-
-  @Delete(':cohortId/members')
-  async removeMembers(
-    @CurrentUser() user: RequestUser,
-    @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
-    @Body() body: StaticCohortMembersDto,
-  ): Promise<void> {
-    await this.cohortsService.removeStaticMembers(user.user_id, projectId, cohortId, body.person_ids);
   }
 }

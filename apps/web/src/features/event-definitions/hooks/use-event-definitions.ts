@@ -9,7 +9,7 @@ export function useEventDefinitions() {
 
   return useQuery({
     queryKey: ['eventDefinitions', projectId],
-    queryFn: () => api.eventDefinitionsControllerList({ projectId }),
+    queryFn: () => api.eventDefinitionsControllerList({ projectId }).then(r => r.items),
     enabled: !!projectId,
   });
 }

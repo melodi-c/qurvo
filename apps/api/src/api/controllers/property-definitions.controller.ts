@@ -1,11 +1,11 @@
-import { Controller, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertyDefinitionsService } from '../../property-definitions/property-definitions.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
-  PropertyDefinitionDto,
   PropertyDefinitionQueryDto,
+  PropertyDefinitionsListResponseDto,
   UpsertPropertyDefinitionDto,
   UpsertPropertyDefinitionResponseDto,
 } from '../dto/property-definitions.dto';
@@ -22,8 +22,16 @@ export class PropertyDefinitionsController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Query() query: PropertyDefinitionQueryDto,
-  ): Promise<PropertyDefinitionDto[]> {
-    return this.propertyDefinitionsService.list(user.user_id, projectId, query.type, query.event_name) as any;
+  ): Promise<PropertyDefinitionsListResponseDto> {
+    return this.propertyDefinitionsService.list(user.user_id, projectId, {
+      type: query.type,
+      eventName: query.event_name,
+      search: query.search,
+      limit: query.limit ?? 100,
+      offset: query.offset ?? 0,
+      order_by: query.order_by ?? 'last_seen_at',
+      order: query.order ?? 'desc',
+    }) as any;
   }
 
   @Patch(':propertyType/:propertyName')
@@ -41,5 +49,15 @@ export class PropertyDefinitionsController {
       propertyType,
       body,
     ) as any;
+  }
+
+  @Delete(':propertyType/:propertyName')
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('projectId') projectId: string,
+    @Param('propertyType') propertyType: 'event' | 'person',
+    @Param('propertyName') propertyName: string,
+  ): Promise<{ ok: boolean }> {
+    return this.propertyDefinitionsService.delete(user.user_id, projectId, propertyName, propertyType);
   }
 }

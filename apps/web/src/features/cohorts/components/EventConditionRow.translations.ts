@@ -15,6 +15,7 @@ export default createTranslations({
     aggAvg: 'Average',
     aggMin: 'Min',
     aggMax: 'Max',
+    aggMedian: 'Median',
     propertyPlaceholder: 'property name',
   },
   ru: {
@@ -31,6 +32,7 @@ export default createTranslations({
     aggAvg: 'Среднее',
     aggMin: 'Мин',
     aggMax: 'Макс',
+    aggMedian: 'Медиана',
     propertyPlaceholder: 'имя свойства',
   },
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, asc, ilike, count } from 'drizzle-orm';
 import {
   setupContainers,
   insertTestEvents,
@@ -343,5 +343,201 @@ describe('property definitions merge (ClickHouse + PostgreSQL)', () => {
     expect(amount!.tags).toEqual([]);
     expect(amount!.verified).toBe(false);
     expect(amount!.id).toBeNull();
+  });
+});
+
+// ── Pagination ───────────────────────────────────────────────────────────────
+
+describe('property_definitions pagination', () => {
+  it('returns paginated results with total', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    for (let i = 0; i < 5; i++) {
+      await ctx.db.insert(propertyDefinitions).values({
+        project_id: projectId,
+        property_name: `properties.prop_${i}`,
+        property_type: 'event',
+        tags: [],
+        verified: false,
+      });
+    }
+
+    const where = eq(propertyDefinitions.project_id, projectId);
+
+    const [rows, countResult] = await Promise.all([
+      ctx.db.select().from(propertyDefinitions).where(where).limit(2).offset(0),
+      ctx.db.select({ count: count() }).from(propertyDefinitions).where(where),
+    ]);
+
+    expect(rows).toHaveLength(2);
+    expect(countResult[0].count).toBe(5);
+  });
+});
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+describe('property_definitions search', () => {
+  it('filters by property_name ILIKE', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values([
+      { project_id: projectId, property_name: 'properties.email', property_type: 'event', tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.plan', property_type: 'event', tags: [], verified: false },
+      { project_id: projectId, property_name: 'user_properties.email', property_type: 'person', tags: [], verified: false },
+    ]);
+
+    const where = and(
+      eq(propertyDefinitions.project_id, projectId),
+      ilike(propertyDefinitions.property_name, '%email%'),
+    );
+
+    const rows = await ctx.db.select().from(propertyDefinitions).where(where);
+    expect(rows).toHaveLength(2);
+  });
+
+  it('combines type filter with search', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values([
+      { project_id: projectId, property_name: 'properties.email', property_type: 'event', tags: [], verified: false },
+      { project_id: projectId, property_name: 'user_properties.email', property_type: 'person', tags: [], verified: false },
+    ]);
+
+    const where = and(
+      eq(propertyDefinitions.project_id, projectId),
+      eq(propertyDefinitions.property_type, 'event'),
+      ilike(propertyDefinitions.property_name, '%email%'),
+    );
+
+    const rows = await ctx.db.select().from(propertyDefinitions).where(where);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].property_type).toBe('event');
+  });
+});
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+
+describe('property_definitions delete', () => {
+  it('deletes by (project_id, property_name, property_type)', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values({
+      project_id: projectId,
+      property_name: 'properties.to_delete',
+      property_type: 'event',
+      tags: [],
+      verified: false,
+    });
+
+    await ctx.db
+      .delete(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.to_delete'),
+        eq(propertyDefinitions.property_type, 'event'),
+      ));
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it('does not delete property with same name but different type', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values([
+      { project_id: projectId, property_name: 'properties.email', property_type: 'event', tags: [], verified: false },
+      { project_id: projectId, property_name: 'properties.email', property_type: 'person', tags: [], verified: false },
+    ]);
+
+    await ctx.db
+      .delete(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.email'),
+        eq(propertyDefinitions.property_type, 'event'),
+      ));
+
+    const rows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(eq(propertyDefinitions.project_id, projectId));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].property_type).toBe('person');
+  });
+});
+
+// ── value_type edit ──────────────────────────────────────────────────────────
+
+describe('property_definitions value_type edit', () => {
+  it('inserts with value_type and is_numerical', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    const rows = await ctx.db
+      .insert(propertyDefinitions)
+      .values({
+        project_id: projectId,
+        property_name: 'properties.amount',
+        property_type: 'event',
+        value_type: 'Numeric',
+        is_numerical: true,
+        tags: [],
+        verified: false,
+      })
+      .returning();
+
+    expect(rows[0].value_type).toBe('Numeric');
+    expect(rows[0].is_numerical).toBe(true);
+  });
+
+  it('updates value_type via conflict update', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    await ctx.db.insert(propertyDefinitions).values({
+      project_id: projectId,
+      property_name: 'properties.amount',
+      property_type: 'event',
+      value_type: 'String',
+      is_numerical: false,
+      tags: [],
+      verified: false,
+    });
+
+    const rows = await ctx.db
+      .insert(propertyDefinitions)
+      .values({
+        project_id: projectId,
+        property_name: 'properties.amount',
+        property_type: 'event',
+        value_type: 'Numeric',
+        is_numerical: true,
+        tags: [],
+        verified: false,
+      })
+      .onConflictDoUpdate({
+        target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
+        set: {
+          value_type: 'Numeric',
+          is_numerical: true,
+          updated_at: new Date(),
+        },
+      })
+      .returning();
+
+    expect(rows[0].value_type).toBe('Numeric');
+    expect(rows[0].is_numerical).toBe(true);
+
+    const allRows = await ctx.db
+      .select()
+      .from(propertyDefinitions)
+      .where(and(
+        eq(propertyDefinitions.project_id, projectId),
+        eq(propertyDefinitions.property_name, 'properties.amount'),
+      ));
+    expect(allRows).toHaveLength(1);
   });
 });
