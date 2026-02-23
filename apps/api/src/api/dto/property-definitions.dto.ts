@@ -1,6 +1,7 @@
-import { IsString, IsOptional, IsBoolean, IsArray, IsIn, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { PaginatedQueryDto } from './shared/paginated-query.dto';
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export class UpsertPropertyDefinitionDto {
   is_numerical?: boolean;
 }
 
-export class PropertyDefinitionQueryDto {
+export class PropertyDefinitionQueryDto extends PaginatedQueryDto {
   @IsString()
   @IsOptional()
   @IsIn(['event', 'person'])
@@ -44,43 +45,17 @@ export class PropertyDefinitionQueryDto {
   @ApiPropertyOptional()
   event_name?: string;
 
-  @IsString()
-  @IsOptional()
-  @ApiPropertyOptional()
-  search?: string;
-
   @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   @ApiPropertyOptional()
   is_numerical?: boolean;
 
-  @Type(() => Number)
-  @IsNumber()
-  @IsOptional()
-  @Min(1)
-  @Max(500)
-  @ApiPropertyOptional({ default: 100 })
-  limit?: number = 100;
-
-  @Type(() => Number)
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  @ApiPropertyOptional({ default: 0 })
-  offset?: number = 0;
-
   @IsString()
   @IsOptional()
   @IsIn(['last_seen_at', 'property_name', 'created_at', 'updated_at'])
   @ApiPropertyOptional({ enum: ['last_seen_at', 'property_name', 'created_at', 'updated_at'], default: 'last_seen_at' })
   order_by?: string = 'last_seen_at';
-
-  @IsString()
-  @IsOptional()
-  @IsIn(['asc', 'desc'])
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
-  order?: 'asc' | 'desc' = 'desc';
 }
 
 // ── Response DTOs ─────────────────────────────────────────────────────────────
