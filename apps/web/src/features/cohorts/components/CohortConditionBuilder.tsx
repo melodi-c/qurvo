@@ -8,8 +8,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
-import { PropertyConditionRow, type PropertyCondition } from './PropertyConditionRow';
-import { EventConditionRow, type EventCondition } from './EventConditionRow';
+import { PropertyConditionRow } from './PropertyConditionRow';
+import { EventConditionRow } from './EventConditionRow';
+import type { PropertyCondition, EventCondition } from '../types';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortConditionBuilder.translations';
 

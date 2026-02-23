@@ -37,6 +37,7 @@ COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
 COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
 COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
 COPY packages/@qurvo/testing/package.json       packages/@qurvo/testing/
+COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
 
 RUN pnpm install --frozen-lockfile
 
@@ -75,6 +76,7 @@ COPY packages/@qurvo/sdk-browser/package.json   packages/@qurvo/sdk-browser/
 COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
 COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
 COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
+COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
 
 RUN pnpm install --frozen-lockfile --prod
 
@@ -83,6 +85,7 @@ COPY --from=nestjs-builder /repo/apps/${APP}/dist                   apps/${APP}/
 COPY --from=nestjs-builder /repo/packages/@qurvo/db/dist             packages/@qurvo/db/dist/
 COPY --from=nestjs-builder /repo/packages/@qurvo/db/drizzle          packages/@qurvo/db/drizzle/
 COPY --from=nestjs-builder /repo/packages/@qurvo/clickhouse/dist     packages/@qurvo/clickhouse/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/cohort-query/dist   packages/@qurvo/cohort-query/dist/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
