@@ -183,6 +183,161 @@ describe('materialized cohort membership', () => {
   });
 });
 
+// ── Cohort reference condition (type: 'cohort') ────────────────────────────
+
+describe('countCohortMembers — cohort reference condition', () => {
+  it('in cohort (negated=false): returns only members of referenced cohort', async () => {
+    const projectId = randomUUID();
+    const refCohortId = randomUUID();
+    const personPremium = randomUUID();
+    const personFree = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personPremium,
+        distinct_id: 'premium',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFree,
+        distinct_id: 'free',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    // Materialize a "premium" cohort
+    await materializeCohort(ctx.ch, projectId, refCohortId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
+      ],
+    });
+
+    // Query: persons IN that cohort
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'cohort', cohort_id: refCohortId, negated: false },
+      ],
+    });
+
+    expect(count).toBe(1); // only personPremium
+  });
+
+  it('not in cohort (negated=true): returns persons NOT in referenced cohort', async () => {
+    const projectId = randomUUID();
+    const refCohortId = randomUUID();
+    const personPremium = randomUUID();
+    const personFreeA = randomUUID();
+    const personFreeB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personPremium,
+        distinct_id: 'premium',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFreeA,
+        distinct_id: 'free-a',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFreeB,
+        distinct_id: 'free-b',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    // Materialize a "premium" cohort (1 member)
+    await materializeCohort(ctx.ch, projectId, refCohortId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
+      ],
+    });
+
+    // Query: persons NOT IN that cohort
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'cohort', cohort_id: refCohortId, negated: true },
+      ],
+    });
+
+    expect(count).toBe(2); // personFreeA + personFreeB
+  });
+
+  it('negated cohort AND property: intersects correctly', async () => {
+    const projectId = randomUUID();
+    const refCohortId = randomUUID();
+    const personPremiumGold = randomUUID();
+    const personFreeGold = randomUUID();
+    const personFreeSilver = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personPremiumGold,
+        distinct_id: 'premium-gold',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium', tier: 'gold' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFreeGold,
+        distinct_id: 'free-gold',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free', tier: 'gold' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFreeSilver,
+        distinct_id: 'free-silver',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free', tier: 'silver' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    // Materialize a "premium" cohort (1 member: personPremiumGold)
+    await materializeCohort(ctx.ch, projectId, refCohortId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' },
+      ],
+    });
+
+    // Query: NOT in premium cohort AND tier = gold
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'cohort', cohort_id: refCohortId, negated: true },
+        { type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' },
+      ],
+    });
+
+    expect(count).toBe(1); // only personFreeGold (free + gold)
+  });
+});
+
 // ── Cohort size history ─────────────────────────────────────────────────────
 
 describe('queryCohortSizeHistory', () => {

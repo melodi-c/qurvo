@@ -1,4 +1,5 @@
 import type { CohortCohortCondition } from '@qurvo/db';
+import { RESOLVED_PERSON } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildCohortRefConditionSubquery(
@@ -19,15 +20,11 @@ export function buildCohortRefConditionSubquery(
 
   if (cond.negated) {
     return `
-      SELECT DISTINCT ${resolvedPersonSelect()}
+      SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
       FROM events FINAL
       WHERE project_id = {${ctx.projectIdParam}:UUID}
-        AND ${resolvedPersonSelect()} NOT IN (${subquery})`;
+        AND ${RESOLVED_PERSON} NOT IN (${subquery})`;
   }
 
   return subquery;
-}
-
-function resolvedPersonSelect(): string {
-  return `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 }
