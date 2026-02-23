@@ -37,7 +37,7 @@ ingest:
       memory: "512Mi"
 
 processor:
-  replicas: 1
+  replicas: 5
   resources:
     requests:
       cpu: "150m"
