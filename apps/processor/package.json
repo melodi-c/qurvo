@@ -14,6 +14,7 @@
     "@nestjs/core": "^11.0.0",
     "@qurvo/clickhouse": "workspace:*",
     "@qurvo/db": "workspace:*",
+    "dd-trace": "^5.0.0",
     "drizzle-orm": "^0.39.0",
     "maxmind": "^4.3.0",
     "dotenv": "^16.4.0",

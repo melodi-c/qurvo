@@ -42,6 +42,55 @@ Usage: {{ include "qurvo.image" (dict "svc" .Values.api "root" .) }}
 {{- end }}
 
 {{/*
+Datadog unified service tagging labels.
+Usage: {{ include "qurvo.datadogLabels" (dict "component" "api" "root" .) }}
+*/}}
+{{- define "qurvo.datadogLabels" -}}
+{{- if .root.Values.datadog.enabled }}
+tags.datadoghq.com/service: qurvo-{{ .component }}
+tags.datadoghq.com/env: {{ .root.Values.datadog.env }}
+tags.datadoghq.com/version: {{ .root.Values.global.imageTag | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Datadog log annotations for a container.
+Usage: {{ include "qurvo.datadogLogAnnotations" (dict "container" "api" "source" "nodejs" "root" .) }}
+*/}}
+{{- define "qurvo.datadogLogAnnotations" -}}
+{{- if .root.Values.datadog.enabled }}
+ad.datadoghq.com/{{ .container }}.logs: '[{"source":"{{ .source }}","service":"qurvo-{{ .container }}"}]'
+{{- end }}
+{{- end }}
+
+{{/*
+Datadog APM env vars for NestJS containers.
+Usage: {{ include "qurvo.datadogEnvVars" (dict "component" "api" "root" .) | nindent 12 }}
+*/}}
+{{- define "qurvo.datadogEnvVars" -}}
+{{- if .root.Values.datadog.enabled }}
+- name: DD_SERVICE
+  value: qurvo-{{ .component }}
+- name: DD_ENV
+  value: {{ .root.Values.datadog.env }}
+- name: DD_VERSION
+  value: {{ .root.Values.global.imageTag | quote }}
+- name: DD_AGENT_HOST
+  valueFrom:
+    fieldRef:
+      fieldPath: status.hostIP
+- name: DD_TRACE_AGENT_PORT
+  value: "8126"
+- name: DD_RUNTIME_METRICS_ENABLED
+  value: "true"
+- name: DD_LOGS_INJECTION
+  value: "true"
+- name: DD_PROFILING_ENABLED
+  value: "true"
+{{- end }}
+{{- end }}
+
+{{/*
 Common envFrom: shared Secret + ConfigMap.
 */}}
 {{- define "qurvo.commonEnvFrom" -}}

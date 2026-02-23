@@ -1,0 +1,114 @@
+# ==============================================================================
+# Datadog Agent — Helm chart values for Qurvo production cluster
+#
+# Install: helm install datadog-agent datadog/datadog -f values-datadog.yaml
+# Docs: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
+# ==============================================================================
+
+datadog:
+  site: "datadoghq.eu"
+  apiKeyExistingSecret: "datadog-api-key"
+  clusterName: "qurvo-production"
+
+  # --------------------------------------------------------------------------
+  # Logs
+  # --------------------------------------------------------------------------
+  logs:
+    enabled: true
+    containerCollectAll: true
+
+  # --------------------------------------------------------------------------
+  # APM (traces)
+  # --------------------------------------------------------------------------
+  apm:
+    portEnabled: true
+    socketEnabled: true
+
+  # --------------------------------------------------------------------------
+  # Process monitoring
+  # --------------------------------------------------------------------------
+  processAgent:
+    enabled: true
+    processCollection: true
+
+  # --------------------------------------------------------------------------
+  # Network Performance Monitoring (NPM)
+  # --------------------------------------------------------------------------
+  networkMonitoring:
+    enabled: true
+
+  # --------------------------------------------------------------------------
+  # Universal Service Monitoring (USM)
+  # --------------------------------------------------------------------------
+  serviceMonitoring:
+    enabled: true
+
+  # --------------------------------------------------------------------------
+  # Orchestrator Explorer
+  # --------------------------------------------------------------------------
+  orchestratorExplorer:
+    enabled: true
+
+  # --------------------------------------------------------------------------
+  # Kube State Metrics Core
+  # --------------------------------------------------------------------------
+  kubeStateMetricsCore:
+    enabled: true
+
+  # --------------------------------------------------------------------------
+  # DogStatsD
+  # --------------------------------------------------------------------------
+  dogstatsd:
+    useHostPort: true
+
+# ==============================================================================
+# Cluster Agent
+# ==============================================================================
+clusterAgent:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "200m"
+      memory: "512Mi"
+
+# ==============================================================================
+# Node Agent resources
+# ==============================================================================
+agents:
+  containers:
+    agent:
+      resources:
+        requests:
+          cpu: "200m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+    processAgent:
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "200m"
+          memory: "256Mi"
+    traceAgent:
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "200m"
+          memory: "256Mi"
+    systemProbe:
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "200m"
+          memory: "256Mi"

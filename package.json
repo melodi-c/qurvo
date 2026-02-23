@@ -17,7 +17,19 @@
     "test:integration": "turbo test:integration"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@nestjs/core", "argon2", "@swc/core"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@nestjs/core",
+      "argon2",
+      "@swc/core",
+      "dd-trace",
+      "@datadog/native-appsec",
+      "@datadog/native-iast-taint-tracking",
+      "@datadog/native-metrics",
+      "@datadog/pprof",
+      "cpu-features",
+      "protobufjs"
+    ]
   },
   "devDependencies": {
     "turbo": "^2.8.0"

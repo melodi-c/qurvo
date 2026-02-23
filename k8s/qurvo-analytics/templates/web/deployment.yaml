@@ -20,8 +20,10 @@ spec:
     metadata:
       labels:
         {{- include "qurvo.selectorLabels" (dict "component" "web" "root" .) | nindent 8 }}
+        {{- include "qurvo.datadogLabels" (dict "component" "web" "root" .) | nindent 8 }}
       annotations:
         checksum/nginx: {{ include (print $.Template.BasePath "/web/configmap-nginx.yaml") . | sha256sum }}
+        {{- include "qurvo.datadogLogAnnotations" (dict "container" "web" "source" "nginx" "root" .) | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
