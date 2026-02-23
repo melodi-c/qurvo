@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
-import { eq } from 'drizzle-orm';
+import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
@@ -9,7 +9,13 @@ import { buildCohortSubquery, RESOLVED_PERSON } from '@qurvo/cohort-query';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { COHORT_MEMBERSHIP_INTERVAL_MS } from '../constants';
+import {
+  COHORT_MEMBERSHIP_INTERVAL_MS,
+  COHORT_STALE_THRESHOLD_MINUTES,
+  COHORT_ERROR_BACKOFF_BASE_MINUTES,
+  COHORT_ERROR_BACKOFF_MAX_EXPONENT,
+} from '../constants';
+import { topologicalSortCohorts } from './cohort-toposort';
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
@@ -59,41 +65,86 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     }
 
     try {
-      const allCohorts = await this.db.select().from(cohorts);
+      // ── 1. Selective: fetch only stale dynamic cohorts ──────────────────
+      const staleCohorts = await this.db
+        .select()
+        .from(cohorts)
+        .where(
+          and(
+            eq(cohorts.is_static, false),
+            or(
+              isNull(cohorts.membership_computed_at),
+              sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '${sql.raw(String(COHORT_STALE_THRESHOLD_MINUTES))} minutes'`,
+            ),
+          ),
+        );
 
-      // Filter out static cohorts — they are managed manually
-      const dynamicCohorts = allCohorts.filter((c) => !c.is_static);
-
-      if (dynamicCohorts.length === 0) {
-        this.logger.debug('No dynamic cohorts to compute membership for');
+      if (staleCohorts.length === 0) {
+        this.logger.debug('No stale dynamic cohorts to recompute');
         return;
       }
 
-      const version = Date.now();
-      const activeIds: string[] = [];
+      // ── 2. Error backoff filter ─────────────────────────────────────────
+      const now = Date.now();
+      const eligible = staleCohorts.filter((c) => {
+        if (c.errors_calculating === 0 || !c.last_error_at) return true;
+        const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
+        const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
+        return now >= c.last_error_at.getTime() + backoffMs;
+      });
 
-      for (const cohort of dynamicCohorts) {
+      if (eligible.length === 0) {
+        this.logger.debug('All stale cohorts are in error backoff');
+        return;
+      }
+
+      // ── 3. Topological sort ─────────────────────────────────────────────
+      const { sorted, cyclic } = topologicalSortCohorts(
+        eligible.map((c) => ({ id: c.id, definition: c.definition })),
+      );
+
+      if (cyclic.length > 0) {
+        this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
+      }
+
+      // ── 4. Compute each cohort ──────────────────────────────────────────
+      const version = Date.now();
+      let computed = 0;
+
+      for (const { id, definition } of sorted) {
+        const cohort = eligible.find((c) => c.id === id)!;
         try {
-          await this.computeMembership(cohort.id, cohort.project_id, cohort.definition, version);
-          activeIds.push(cohort.id);
+          await this.computeMembership(id, cohort.project_id, definition, version);
+          await this.recordSuccess(id);
+          await this.recordSizeHistory(id, cohort.project_id);
+          computed++;
         } catch (err) {
+          await this.recordError(id, err);
           this.logger.error(
-            { err, cohortId: cohort.id, projectId: cohort.project_id },
+            { err, cohortId: id, projectId: cohort.project_id },
             'Failed to compute membership for cohort',
           );
         }
       }
 
-      // Garbage-collect orphaned memberships
-      if (activeIds.length > 0) {
-        const idList = activeIds.map((id) => `'${id}'`).join(',');
+      // ── 5. Garbage-collect orphaned memberships ─────────────────────────
+      // Use ALL dynamic cohort IDs (not just recomputed ones) to avoid
+      // deleting memberships of fresh cohorts that weren't in this cycle.
+      const allDynamic = await this.db
+        .select({ id: cohorts.id })
+        .from(cohorts)
+        .where(eq(cohorts.is_static, false));
+
+      const allDynamicIds = allDynamic.map((c) => c.id);
+      if (allDynamicIds.length > 0) {
+        const idList = allDynamicIds.map((id) => `'${id}'`).join(',');
         await this.ch.command({
           query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN (${idList})`,
         });
       }
 
       this.logger.info(
-        { computed: activeIds.length, total: dynamicCohorts.length, version },
+        { computed, stale: staleCohorts.length, eligible: eligible.length, version },
         'Cohort membership cycle completed',
       );
     } finally {
@@ -140,6 +191,52 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       .where(eq(cohorts.id, cohortId));
 
     this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
+  }
+
+  private async recordSuccess(cohortId: string): Promise<void> {
+    await this.db
+      .update(cohorts)
+      .set({
+        errors_calculating: 0,
+        last_error_at: null,
+        last_error_message: null,
+      })
+      .where(eq(cohorts.id, cohortId));
+  }
+
+  private async recordError(cohortId: string, err: unknown): Promise<void> {
+    const message = err instanceof Error ? err.message.slice(0, 500) : 'Unknown error';
+    await this.db
+      .update(cohorts)
+      .set({
+        errors_calculating: sql`${cohorts.errors_calculating} + 1`,
+        last_error_at: new Date(),
+        last_error_message: message,
+      })
+      .where(eq(cohorts.id, cohortId));
+  }
+
+  private async recordSizeHistory(cohortId: string, projectId: string): Promise<void> {
+    try {
+      const countResult = await this.ch.query({
+        query: `
+          SELECT uniqExact(person_id) AS cnt
+          FROM cohort_members FINAL
+          WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
+        query_params: { project_id: projectId, cohort_id: cohortId },
+        format: 'JSONEachRow',
+      });
+      const rows = await countResult.json<{ cnt: string }>();
+      const count = Number(rows[0]?.cnt ?? 0);
+
+      await this.ch.insert({
+        table: 'cohort_membership_history',
+        values: [{ project_id: projectId, cohort_id: cohortId, date: new Date().toISOString().slice(0, 10), count }],
+        format: 'JSONEachRow',
+      });
+    } catch (err) {
+      this.logger.warn({ err, cohortId, projectId }, 'Failed to record cohort size history');
+    }
   }
 
   private async tryAcquireLock(): Promise<boolean> {
