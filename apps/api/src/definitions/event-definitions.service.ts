@@ -3,8 +3,9 @@ import { eq, desc, asc, ilike, and, count, SQL } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
-import { EventDefinitionNotFoundException } from './exceptions/event-definition-not-found.exception';
+import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
 import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface EventDefinitionItem {
   event_name: string;
@@ -16,7 +17,7 @@ export interface EventDefinitionItem {
   updated_at: string;
 }
 
-export interface ListParams {
+export interface EventDefinitionListParams {
   search?: string;
   limit: number;
   offset: number;
@@ -39,7 +40,7 @@ export class EventDefinitionsService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async list(userId: string, projectId: string, params: ListParams): Promise<{ items: EventDefinitionItem[]; total: number }> {
+  async list(userId: string, projectId: string, params: EventDefinitionListParams): Promise<{ items: EventDefinitionItem[]; total: number }> {
     await this.projectsService.getMembership(userId, projectId);
 
     const conditions: SQL[] = [eq(eventDefinitions.project_id, projectId)];
@@ -99,9 +100,7 @@ export class EventDefinitionsService {
       .onConflictDoUpdate({
         target: [eventDefinitions.project_id, eventDefinitions.event_name],
         set: {
-          ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.tags !== undefined ? { tags: input.tags } : {}),
-          ...(input.verified !== undefined ? { verified: input.verified } : {}),
+          ...buildConditionalUpdate(input, ['description', 'tags', 'verified']),
           updated_at: new Date(),
         },
       })
@@ -119,7 +118,7 @@ export class EventDefinitionsService {
       .from(eventDefinitions)
       .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)));
 
-    if (existing.length === 0) throw new EventDefinitionNotFoundException();
+    if (existing.length === 0) throw new DefinitionNotFoundException('event', eventName);
 
     await this.db.transaction(async (tx) => {
       await tx

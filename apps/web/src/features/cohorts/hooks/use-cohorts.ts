@@ -67,6 +67,17 @@ export function useDeleteCohort() {
   });
 }
 
+export function useCohortSizeHistory(cohortId: string, days = 90) {
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project') || '';
+
+  return useQuery({
+    queryKey: ['cohorts', projectId, cohortId, 'history', days],
+    queryFn: () => api.cohortsControllerGetSizeHistory({ projectId, cohortId, days }),
+    enabled: !!projectId && !!cohortId,
+  });
+}
+
 export function useCohortMemberCount(cohortId: string) {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project') || '';

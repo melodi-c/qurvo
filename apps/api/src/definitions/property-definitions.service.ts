@@ -3,8 +3,9 @@ import { eq, and, desc, asc, ilike, count, SQL } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
-import { PropertyDefinitionNotFoundException } from './exceptions/property-definition-not-found.exception';
+import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
 import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface PropertyDefinitionItem {
   property_name: string;
@@ -19,7 +20,7 @@ export interface PropertyDefinitionItem {
   updated_at: string;
 }
 
-export interface ListParams {
+export interface PropertyDefinitionListParams {
   type?: 'event' | 'person';
   eventName?: string;
   search?: string;
@@ -45,7 +46,7 @@ export class PropertyDefinitionsService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async list(userId: string, projectId: string, params: ListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
+  async list(userId: string, projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     await this.projectsService.getMembership(userId, projectId);
 
     if (params.eventName) {
@@ -55,7 +56,7 @@ export class PropertyDefinitionsService {
     return this.listGlobal(projectId, params);
   }
 
-  private async listGlobal(projectId: string, params: ListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
+  private async listGlobal(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     const conditions: SQL[] = [eq(propertyDefinitions.project_id, projectId)];
     if (params.type) conditions.push(eq(propertyDefinitions.property_type, params.type));
     if (params.search) conditions.push(ilike(propertyDefinitions.property_name, `%${params.search}%`));
@@ -96,7 +97,7 @@ export class PropertyDefinitionsService {
     };
   }
 
-  private async listEventScoped(projectId: string, params: ListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
+  private async listEventScoped(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     const epConditions: SQL[] = [
       eq(eventProperties.project_id, projectId),
       eq(eventProperties.event_name, params.eventName!),
@@ -182,11 +183,7 @@ export class PropertyDefinitionsService {
       .onConflictDoUpdate({
         target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
         set: {
-          ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.tags !== undefined ? { tags: input.tags } : {}),
-          ...(input.verified !== undefined ? { verified: input.verified } : {}),
-          ...(input.value_type !== undefined ? { value_type: input.value_type } : {}),
-          ...(input.is_numerical !== undefined ? { is_numerical: input.is_numerical } : {}),
+          ...buildConditionalUpdate(input, ['description', 'tags', 'verified', 'value_type', 'is_numerical']),
           updated_at: new Date(),
         },
       })
@@ -208,7 +205,7 @@ export class PropertyDefinitionsService {
         eq(propertyDefinitions.property_type, propertyType),
       ));
 
-    if (existing.length === 0) throw new PropertyDefinitionNotFoundException(propertyName);
+    if (existing.length === 0) throw new DefinitionNotFoundException('property', propertyName);
 
     await this.db
       .delete(propertyDefinitions)

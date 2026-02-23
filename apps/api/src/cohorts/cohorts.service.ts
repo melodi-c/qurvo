@@ -10,7 +10,7 @@ import {
 import { detectCircularDependency } from '@qurvo/cohort-query';
 import { ProjectsService } from '../projects/projects.service';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
-import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers } from './cohorts.query';
+import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
 
 @Injectable()
 export class CohortsService {
@@ -114,6 +114,10 @@ export class CohortsService {
       // Reset materialized membership — force fallback until recomputation
       updateData.membership_version = null;
       updateData.membership_computed_at = null;
+      // Reset error tracking — definition changed, give it a fresh chance
+      updateData.errors_calculating = 0;
+      updateData.last_error_at = null;
+      updateData.last_error_message = null;
     }
 
     const rows = await this.db
@@ -181,6 +185,16 @@ export class CohortsService {
   ): Promise<CohortConditionGroup> {
     const cohort = await this.getById(userId, projectId, cohortId);
     return cohort.definition;
+  }
+
+  async getSizeHistory(
+    userId: string,
+    projectId: string,
+    cohortId: string,
+    days: number = 30,
+  ) {
+    await this.getById(userId, projectId, cohortId);
+    return queryCohortSizeHistory(this.ch, projectId, cohortId, days);
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────

@@ -6,6 +6,11 @@ import { buildCohortSubquery } from '@qurvo/cohort-query';
 export { buildCohortFilterClause } from '@qurvo/cohort-query';
 export type { CohortFilterInput } from '@qurvo/cohort-query';
 
+export interface CohortHistoryPoint {
+  date: string;
+  count: number;
+}
+
 // ── Counting helpers ─────────────────────────────────────────────────────────
 
 /**
@@ -65,4 +70,33 @@ export async function countStaticCohortMembers(
   });
   const rows = await result.json<{ cnt: string }>();
   return Number(rows[0]?.cnt ?? 0);
+}
+
+/**
+ * Queries cohort size history from cohort_membership_history table.
+ * Returns daily points sorted ascending by date.
+ */
+export async function queryCohortSizeHistory(
+  ch: ClickHouseClient,
+  projectId: string,
+  cohortId: string,
+  days: number,
+): Promise<CohortHistoryPoint[]> {
+  const sql = `
+    SELECT
+      toString(h.date) AS date,
+      h.count AS count
+    FROM cohort_membership_history AS h FINAL
+    WHERE h.project_id = {project_id:UUID}
+      AND h.cohort_id = {cohort_id:UUID}
+      AND h.date >= today() - {days:UInt32}
+    ORDER BY h.date ASC`;
+
+  const result = await ch.query({
+    query: sql,
+    query_params: { project_id: projectId, cohort_id: cohortId, days },
+    format: 'JSONEachRow',
+  });
+  const rows = await result.json<{ date: string; count: string }>();
+  return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
 }

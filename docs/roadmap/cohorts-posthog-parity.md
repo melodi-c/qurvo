@@ -10,9 +10,9 @@
 | Lifecycle conditions (4) | 4/4 | 4/4 | 100% |
 | Property operators (значимые) | 22 | 22 | 100% |
 | Aggregation math | count + 9 property math | count + 9 property math | 100% |
-| Cohort nesting (in/not in) | + topo sort | + circular detection | ~95% |
+| Cohort nesting (in/not in) | + topo sort | + circular detection + topo sort | 100% |
 | Static cohorts + CSV | 3 типа ID (person_id, distinct_id, email) | distinct_id + email | 90% |
-| Dynamic cohort calculation | 15 мин, selective | configurable, all | ~85% |
+| Dynamic cohort calculation | 15 мин, selective | 15 мин, selective + toposort + error backoff | 100% |
 | Cohort as breakdown | Да | Да | 100% |
 | AND/OR nesting | 2 уровня (UI) | Рекурсивный (∞) | Qurvo лучше |
 
@@ -80,32 +80,26 @@
 
 ### P2 — Инфраструктура вычисления когорт
 
-- [ ] Selective recomputation — пересчитывать только stale когорты
-  - 4 часа, **высокая ценность** при масштабе
+- [x] Selective recomputation — пересчитывать только stale когорты
   - Файл: `apps/processor/src/processor/cohort-membership.service.ts`
-  - Логика: `WHERE membership_computed_at < now() - interval '15 min'`
-  - PostHog: MAX_AGE_MINUTES = 15
-- [ ] Topological computation order — зависимые когорты вычисляются первыми
-  - 3 часа, средняя ценность
-  - Без этого: вложенная когорта может быть stale при вычислении родительской
-  - PostHog: `sort_cohorts_topologically()` + BFS для зависимостей
-- [ ] Error tracking + exponential backoff
-  - 3 часа, средняя ценность
-  - Добавить `errors_calculating` (int), `last_error_at` (timestamp) в PG cohorts
-  - Backoff: `2^errors * 30 min`, пропускать «сломанные» когорты
-  - PostHog: полная история вычислений в `CohortCalculationHistory`
+  - Логика: `WHERE membership_computed_at IS NULL OR < now() - interval '15 min'`
+- [x] Topological computation order — зависимые когорты вычисляются первыми
+  - Файл: `apps/processor/src/processor/cohort-toposort.ts` — Kahn's algorithm
+- [x] Error tracking + exponential backoff
+  - PG колонки: `errors_calculating`, `last_error_at`, `last_error_message`
+  - Backoff: `2^min(errors, 10) * 30 min`, cap ~21 дней
+  - Error reset при обновлении definition
 
 ### P3 — Cohort Growth (дифференциатор)
 
-- [ ] Cohort size history table — хранить count по дням
-  - 4 часа, **высокая ценность**
-  - Новая CH таблица: `cohort_membership_history(cohort_id, project_id, date, count)`
-  - Заполнять при каждом цикле materialization
-  - Открывает возможность для chart
-- [ ] Cohort size over time chart — визуализация роста/спада когорты
-  - 8 часов, **высокая ценность**, **PostHog этого не имеет**
-  - API endpoint + React chart на странице деталей когорты
-  - Показывает как membership меняется day-over-day
+- [x] Cohort size history table — хранить count по дням
+  - CH таблица: `cohort_membership_history` (ReplacingMergeTree)
+  - Записывается при каждом успешном пересчёте
+- [x] Cohort size history API — `GET :cohortId/history?days=30`
+  - API endpoint для получения истории размера когорты по дням
+- [x] Cohort size over time chart — визуализация роста/спада когорты
+  - AreaChart (Recharts) на странице редактора когорты
+  - Правая панель: count + history chart + error badge
 
 ### Не планируется (PostHog-специфичные)
 

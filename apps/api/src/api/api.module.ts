@@ -19,8 +19,7 @@ import { MarketingChannelsModule } from '../marketing-channels/marketing-channel
 import { AdSpendModule } from '../ad-spend/ad-spend.module';
 import { AiModule } from '../ai/ai.module';
 import { VerificationModule } from '../verification/verification.module';
-import { EventDefinitionsModule } from '../event-definitions/event-definitions.module';
-import { PropertyDefinitionsModule } from '../property-definitions/property-definitions.module';
+import { DefinitionsModule } from '../definitions/definitions.module';
 import { WebAnalyticsModule } from '../web-analytics/web-analytics.module';
 import { BillingModule } from '../billing/billing.module';
 import { AuthController } from './controllers/auth.controller';
@@ -56,7 +55,7 @@ import { VerificationFilter } from './filters/verification.filter';
 import { WrongPasswordFilter } from './filters/wrong-password.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, AiModule, VerificationModule, EventDefinitionsModule, PropertyDefinitionsModule, WebAnalyticsModule, BillingModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, AiModule, VerificationModule, DefinitionsModule, WebAnalyticsModule, BillingModule],
   controllers: [
     AuthController,
     ProjectsController,
