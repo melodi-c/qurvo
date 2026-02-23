@@ -112,7 +112,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
 
         {/* Compact chart */}
         <div className="flex-1 overflow-auto min-h-0">
-          <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={aggregateSteps} compact conversionRateDisplay={(config as any).conversion_rate_display ?? 'total'} />
+          <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={aggregateSteps} compact conversionRateDisplay={config.conversion_rate_display ?? 'total'} />
         </div>
       </div>
     </WidgetTransition>

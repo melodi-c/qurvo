@@ -1,7 +1,7 @@
 import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNotEmpty, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FunnelStepDto } from './funnel.dto';
+import { FunnelStepDto, FunnelExclusionDto } from './funnel.dto';
 import { TrendSeriesDto } from './trend.dto';
 import { InsightDto } from './insights.dto';
 
@@ -46,10 +46,18 @@ export class FunnelWidgetConfigDto {
   steps: FunnelStepDto[];
 
   conversion_window_days: number;
+  @ApiPropertyOptional() conversion_window_value?: number;
+  @ApiPropertyOptional({ enum: ['second', 'minute', 'hour', 'day', 'week', 'month'] }) conversion_window_unit?: 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month';
   date_from: string;
   date_to: string;
   @ApiPropertyOptional() breakdown_property?: string;
+  @ApiPropertyOptional({ enum: ['property', 'cohort'] }) breakdown_type?: 'property' | 'cohort';
+  @ApiPropertyOptional({ type: [String] }) breakdown_cohort_ids?: string[];
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
+  @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] }) funnel_order_type?: 'ordered' | 'strict' | 'unordered';
+  @ApiPropertyOptional() funnel_viz_type?: string;
+  @ApiPropertyOptional({ enum: ['total', 'relative'] }) conversion_rate_display?: 'total' | 'relative';
+  @ApiPropertyOptional({ type: [FunnelExclusionDto] }) exclusions?: FunnelExclusionDto[];
 }
 
 export class TrendFormulaDto {

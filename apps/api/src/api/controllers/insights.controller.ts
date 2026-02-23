@@ -29,7 +29,7 @@ export class InsightsController {
     @Param('projectId') projectId: string,
     @Body() body: CreateInsightDto,
   ): Promise<InsightDto> {
-    return this.insightsService.create(user.user_id, projectId, body) as any;
+    return this.insightsService.create(user.user_id, projectId, body as any) as any;
   }
 
   @Get(':insightId')
@@ -48,7 +48,7 @@ export class InsightsController {
     @Param('insightId') insightId: string,
     @Body() body: UpdateInsightDto,
   ): Promise<InsightDto> {
-    return this.insightsService.update(user.user_id, projectId, insightId, body) as any;
+    return this.insightsService.update(user.user_id, projectId, insightId, body as any) as any;
   }
 
   @Delete(':insightId')
