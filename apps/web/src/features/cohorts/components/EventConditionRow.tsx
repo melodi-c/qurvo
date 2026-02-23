@@ -23,7 +23,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
   ] as const, [t]);
 
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 p-2.5 space-y-2">
+    <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">{t('performedEvent')}</span>
         <button
@@ -41,43 +41,49 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
         placeholder={t('selectEvent')}
       />
 
-      <div className="flex items-center gap-2">
-        <Select
-          value={condition.count_operator}
-          onValueChange={(v) => onChange({ ...condition, count_operator: v as EventCondition['count_operator'] })}
-        >
-          <SelectTrigger size="sm" className="h-8 text-xs w-[100px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {countOperators.map((op) => (
-              <SelectItem key={op.value} value={op.value} className="text-xs">
-                {op.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <Select
+            value={condition.count_operator}
+            onValueChange={(v) => onChange({ ...condition, count_operator: v as EventCondition['count_operator'] })}
+          >
+            <SelectTrigger size="sm" className="h-8 text-xs min-w-0 flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {countOperators.map((op) => (
+                <SelectItem key={op.value} value={op.value} className="text-xs">
+                  {op.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Input
-          type="number"
-          min={0}
-          value={condition.count}
-          onChange={(e) => onChange({ ...condition, count: Number(e.target.value) })}
-          className="h-8 text-xs w-16"
-        />
+          <Input
+            type="number"
+            min={0}
+            value={condition.count}
+            onChange={(e) => onChange({ ...condition, count: Number(e.target.value) })}
+            className="h-8 text-xs w-16"
+          />
 
-        <span className="text-xs text-muted-foreground whitespace-nowrap">{t('timesInLast')}</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">{t('times')}</span>
+        </div>
 
-        <Input
-          type="number"
-          min={1}
-          max={365}
-          value={condition.time_window_days}
-          onChange={(e) => onChange({ ...condition, time_window_days: Number(e.target.value) })}
-          className="h-8 text-xs w-16"
-        />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">{t('inLast')}</span>
 
-        <span className="text-xs text-muted-foreground">{t('days')}</span>
+          <Input
+            type="number"
+            min={1}
+            max={365}
+            value={condition.time_window_days}
+            onChange={(e) => onChange({ ...condition, time_window_days: Number(e.target.value) })}
+            className="h-8 text-xs w-20"
+          />
+
+          <span className="text-xs text-muted-foreground">{t('days')}</span>
+        </div>
       </div>
     </div>
   );

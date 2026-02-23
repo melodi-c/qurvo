@@ -39,7 +39,7 @@ export function CohortConditionRow({ condition, onChange, onRemove, excludeCohor
   ] as const, [t]);
 
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 p-2.5 space-y-2">
+    <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400">{t('cohortMembership')}</span>
         <button

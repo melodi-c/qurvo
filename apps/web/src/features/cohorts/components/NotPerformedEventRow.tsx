@@ -15,7 +15,7 @@ export function NotPerformedEventRow({ condition, onChange, onRemove }: NotPerfo
   const { t } = useLocalTranslation(translations);
 
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 p-2.5 space-y-2">
+    <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400">{t('notPerformedEvent')}</span>
         <button type="button" onClick={onRemove} className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive">
@@ -35,7 +35,7 @@ export function NotPerformedEventRow({ condition, onChange, onRemove }: NotPerfo
           type="number" min={1} max={365}
           value={condition.time_window_days}
           onChange={(e) => onChange({ ...condition, time_window_days: Number(e.target.value) })}
-          className="h-8 text-xs w-16"
+          className="h-8 text-xs w-20"
         />
         <span className="text-xs text-muted-foreground">{t('days')}</span>
       </div>
