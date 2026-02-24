@@ -17,7 +17,9 @@ export class ShutdownService implements OnApplicationShutdown {
   async onApplicationShutdown() {
     // stop() awaits in-flight runCycle() including its finally (lock release).
     // Redis/CH must be closed AFTER stop() to ensure lock release succeeds.
-    await this.cohortMembershipService.stop();
+    await this.cohortMembershipService
+      .stop()
+      .catch((err) => this.logger.warn({ err }, 'CohortMembershipService stop failed'));
     await this.ch.close().catch((err) =>
       this.logger.warn({ err }, 'ClickHouse close failed'),
     );
