@@ -1,6 +1,6 @@
 # Ingest App
 
-NestJS event collection service. Port 3001. Receives SDK events, validates, enriches, writes to Redis Stream.
+NestJS event collection service. Port 3001. Receives SDK events, validates per-event, enriches, writes to Redis Stream.
 
 ## Commands
 
@@ -17,7 +17,7 @@ pnpm --filter @qurvo/ingest test:integration
 
 ```
 src/
-├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, ThrottlerModule, guards, filters, graceful shutdown
+├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, filters, graceful shutdown
 ├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, port 3001)
 ├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, billing keys
 ├── ingest/
@@ -25,14 +25,14 @@ src/
 │   ├── ingest.service.ts     # Event building + Redis stream writing
 │   └── ingest.service.test.ts # Unit tests (resolveTimestamp)
 ├── guards/
-│   ├── api-key.guard.ts      # Validates x-api-key header against DB, caches in Redis
-│   └── billing.guard.ts      # Checks monthly event limit from Redis billing counter
+│   ├── api-key.guard.ts      # Validates API key (header or body) against DB, caches in Redis
+│   └── billing.guard.ts      # Checks monthly event limit, returns quota_limited response
 ├── decorators/
 │   └── project-id.decorator.ts  # @ProjectId() param decorator — reads request.projectId
 ├── filters/
 │   └── zod-exception.filter.ts  # Maps ZodError → 400
 ├── schemas/
-│   ├── event.ts              # TrackEventSchema, BatchEventsSchema (Zod)
+│   ├── event.ts              # TrackEventSchema, BatchWrapperSchema, BatchEventsSchema (Zod)
 │   └── import-event.ts       # ImportEventSchema (extends TrackEventSchema), ImportBatchSchema
 ├── hooks/
 │   └── gzip-preparsing.ts    # Fastify preParsing hook for gzip decompression
@@ -46,23 +46,29 @@ src/
 
 ## Endpoints
 
-| Method | Path | Auth | Throttle | Response | Description |
-|---|---|---|---|---|---|
-| GET | `/health` | No | No | 200 `{ status: 'ok' }` | Health check |
-| POST | `/v1/batch` | `x-api-key` | Yes | 202 `{ ok: true, count }` | Batch event ingestion (1-500) |
-| POST | `/v1/import` | `x-api-key` | No | 202 `{ ok: true, count }` | Historical import (1-5000, no billing) |
+| Method | Path | Auth | Response | Description |
+|---|---|---|---|---|
+| GET | `/health` | No | 200 `{ status: 'ok' }` | Health check |
+| POST | `/v1/batch` | `x-api-key` header or `api_key` body field | 202 `{ ok, count, dropped }` | Batch event ingestion (1-500, per-event validation) |
+| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | Historical import (1-5000, strict validation, no billing) |
 
 ## Key Patterns
 
 ### Event Pipeline
 ```
-SDK POST → ApiKeyGuard → BillingGuard → Zod validation → IngestService.buildPayload()
+SDK POST → ApiKeyGuard → BillingGuard → Per-event Zod validation → IngestService.buildPayload()
   → UA parsing (ua-parser-js) → Redis XADD (events:incoming)
 ```
 
 ### Guard Chain
-- **`ApiKeyGuard`** — authenticates API key (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit` (typed via `src/types/fastify.d.ts` module augmentation)
-- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, returns 429 if exceeded. Only applied to `/v1/batch`.
+- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit`
+- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, returns 429 with `{ quota_limited: true }` if exceeded. Only applied to `/v1/batch`.
+
+### Per-Event Validation (Soft Validation)
+Batch endpoint validates each event individually via `TrackEventSchema.safeParse()`. Valid events are ingested, invalid events are dropped with a warning log. Response includes `dropped` count. If ALL events are invalid → 400. Import endpoint uses strict batch-level validation (all-or-nothing).
+
+### Billing Quota
+No per-IP rate limiting — billing quota per project is the only throttle. When exceeded, returns `{ quota_limited: true }` so SDKs can stop sending. DDoS protection should be at the reverse proxy/CDN layer.
 
 ### Payload Enrichment
 `buildPayload()` merges SDK event with server-side context via `BuildPayloadOpts`:
@@ -73,20 +79,14 @@ SDK POST → ApiKeyGuard → BillingGuard → Zod validation → IngestService.b
 ### Batch Writes
 Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stream.
 
-### Throttling
-- Short: 50 req/s per IP
-- Medium: 1000 req/min per IP
-- Backed by `@nest-lab/throttler-storage-redis` (Lua script, fixed-window, atomic INCR + conditional PEXPIRE)
-- `/health` and `/v1/import` skip throttling via `@SkipThrottle()`
+### Validation Schemas
+- `BatchWrapperSchema` — loose wrapper: validates array structure (1-500 items) + `sent_at`, events are `z.unknown()`
+- `TrackEventSchema` — per-event schema with all field validations
+- `ImportEventSchema` extends `TrackEventSchema` — makes `timestamp` required, adds optional `event_id`
 
-### Validation
-Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) validate payloads. `ZodExceptionFilter` (registered as `APP_FILTER` in `AppModule`) converts `ZodError` to 400 with field-level details.
-
-`ImportEventSchema` extends `TrackEventSchema` via `.extend()` — makes `timestamp` required and adds optional `event_id`.
+`ZodExceptionFilter` (registered as `APP_FILTER`) converts `ZodError` to 400 with field-level details (applies to import endpoint and batch wrapper validation).
 
 ### Module Configuration
-`@Global()` + `exports: [RedisProvider]` on `AppModule` is required — `ThrottlerModule.forRootAsync` injects the `REDIS` token, which must be globally exported for cross-module DI resolution.
-
 `AppModule` implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
 
 ## Important: Do NOT Delete
@@ -100,9 +100,9 @@ Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) valid
 - Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
 
 ### Integration tests
-`src/test/ingest/`. 18 tests covering:
-- Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key
+`src/test/ingest/`. 21 tests covering:
+- Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key, per-event validation (partial success), all-invalid batch → 400
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
-- API key auth: 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache)
-- Billing guard: 429 over limit, 202 under limit, billing counter increment
+- API key auth: api_key in body, 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache)
+- Billing guard: 429 + quota_limited over limit, 202 under limit, billing counter increment

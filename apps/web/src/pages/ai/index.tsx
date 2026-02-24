@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Plus, MessageSquare, Trash2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import { AiChatPanel } from './ai-chat-panel';
 export default function AiPage() {
   const { t } = useLocalTranslation(translations);
   const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const chatId = searchParams.get('chat');
 
   if (!projectId) {

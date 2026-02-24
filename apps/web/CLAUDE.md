@@ -66,6 +66,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `CohortFilterSection` | `cohort-filter-section.tsx` | `value: string[]`, `onChange(cohortIds)` | Cohort multi-select filter with section header. Use in query panels |
 | `BreakdownSection` | `breakdown-section.tsx` | `value: string`, `onChange(value)` | Breakdown property input with section header. Use in query panels |
 | `Breadcrumbs` | `breadcrumbs.tsx` | `items: BreadcrumbItem[]`, `className?` | Navigation breadcrumbs. Each item has `label` + optional `path`. Last item renders as plain text, rest as links. Use in editor headers |
+| `QueryPanelShell` | `query-panel-shell.tsx` | `children` | Shared `<aside>` wrapper for all 6 query panels (trend, funnel, retention, lifecycle, stickiness, paths). Provides responsive layout + scrollable container. Use instead of inline `<aside className="...">` |
 
 ## Shared Components (`src/components/`)
 
@@ -109,8 +110,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Module | File | Exports | When to use |
 |---|---|---|---|
-| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS` | Single source of truth for all chart/visualization colors. Import instead of defining local color arrays |
-| Formatting | `formatting.ts` | `formatBucket(bucket, granularity)`, `formatSeconds(s)`, `formatRelativeTime(iso)`, `eventBadgeVariant(eventName)` | Shared formatting for chart axes, durations, relative timestamps, and event badge variants. Import instead of defining local formatters |
+| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS`, `CHART_TOOLTIP_STYLE`, `CHART_AXIS_TICK_COLOR`, `CHART_GRID_COLOR` | Single source of truth for all chart/visualization colors and Recharts styles. Use `CHART_TOOLTIP_STYLE` for Tooltip `contentStyle`, `CHART_AXIS_TICK_COLOR` for axis `tick.fill`, `CHART_GRID_COLOR` for CartesianGrid `stroke`. Never hardcode hex color values in chart components |
+| Formatting | `formatting.ts` | `formatBucket(bucket, granularity, compact?)`, `formatSeconds(s)`, `formatRelativeTime(iso)`, `eventBadgeVariant(eventName)` | Shared formatting for chart axes, durations, relative timestamps, and event badge variants. Import instead of defining local formatters. `compact` mode produces shorter labels for dashboard widgets |
 | Auth fetch | `auth-fetch.ts` | `getAuthHeaders()`, `authFetch(path, init?)` | Auth-aware fetch helpers for calls that bypass the generated API client (e.g. SSE streaming). Use instead of manually reading `localStorage` token |
 
 ## Dashboard Widget Components
@@ -195,15 +196,16 @@ PageHeader (title + "New" button)
 ```
 
 ### Query Panel Sections
-Query panels (TrendQueryPanel, FunnelQueryPanel) compose reusable section components separated by `<Separator />`:
+All 6 query panels wrap their content in `<QueryPanelShell>` from `components/ui/query-panel-shell.tsx`, then compose reusable section components separated by `<Separator />`:
 ```
-DateRangeSection (date presets + from/to inputs)
-Separator
-[Widget-specific sections] (Series builder, Steps, Display, etc.)
-Separator
-CohortFilterSection (multi-select cohort filter)
-Separator
-BreakdownSection (breakdown property input)
+QueryPanelShell
+  DateRangeSection (date presets + from/to inputs)
+  Separator
+  [Widget-specific sections] (Series builder, Steps, Display, etc.)
+  Separator
+  CohortFilterSection (multi-select cohort filter)
+  Separator
+  BreakdownSection (breakdown property input)
 ```
 All query panel sections are self-contained components in `components/ui/`. Widget-specific sections stay in the widget's own directory.
 

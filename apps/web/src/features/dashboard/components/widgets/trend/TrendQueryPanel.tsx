@@ -12,6 +12,7 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { FormulaBuilder } from './FormulaBuilder';
@@ -58,8 +59,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
   ], [t]);
 
   return (
-    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
-      <div className="p-5 space-y-6">
+    <QueryPanelShell>
 
         <DateRangeSection
           dateFrom={config.date_from}
@@ -210,7 +210,6 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
             breakdown_cohort_ids: ids.length ? ids : undefined,
           } as any)}
         />
-      </div>
-    </aside>
+    </QueryPanelShell>
   );
 }

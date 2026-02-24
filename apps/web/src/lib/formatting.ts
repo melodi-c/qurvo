@@ -29,11 +29,13 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
   return 'outline';
 }
 
-/** Format a time bucket string for chart axes. */
-export function formatBucket(bucket: string, granularity: string): string {
+/** Format a time bucket string for chart axes. When compact=true, produces shorter labels for small spaces. */
+export function formatBucket(bucket: string, granularity: string, compact?: boolean): string {
+  if (!bucket) return '';
   const locale = getLocale();
   const d = new Date(bucket);
   if (granularity === 'hour') {
+    if (compact) return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}h`;
     return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric' });
   }
   if (granularity === 'week') {
@@ -43,6 +45,7 @@ export function formatBucket(bucket: string, granularity: string): string {
     return d.toLocaleString(locale, { month: 'short', year: '2-digit' });
   }
   // day (default)
+  if (compact) return d.toLocaleString(locale, { month: 'numeric', day: 'numeric' });
   return d.toLocaleString(locale, { month: 'short', day: 'numeric' });
 }
 

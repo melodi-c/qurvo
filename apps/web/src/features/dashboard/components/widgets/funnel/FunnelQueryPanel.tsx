@@ -7,6 +7,7 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
 import { FunnelExclusionBuilder } from './FunnelExclusionBuilder';
@@ -54,8 +55,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   }), [t]);
 
   return (
-    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
-      <div className="p-5 space-y-6">
+    <QueryPanelShell>
 
         <DateRangeSection
           dateFrom={config.date_from}
@@ -195,7 +195,6 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
             breakdown_cohort_ids: ids.length ? ids : undefined,
           })}
         />
-      </div>
-    </aside>
+    </QueryPanelShell>
   );
 }

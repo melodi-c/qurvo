@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { StickinessResult } from '@/api/generated/Api';
+import { CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './StickinessChart.translations';
 
@@ -56,27 +57,22 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
         data={data}
         margin={compact ? { top: 5, right: 10, bottom: 5, left: 0 } : { top: 10, right: 30, bottom: 10, left: 10 }}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} opacity={0.5} />
         <XAxis
           dataKey="label"
-          tick={{ fill: '#a1a1aa', fontSize: compact ? 10 : 12 }}
+          tick={{ fill: CHART_AXIS_TICK_COLOR, fontSize: compact ? 10 : 12 }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fill: '#a1a1aa', fontSize: compact ? 10 : 12 }}
+          tick={{ fill: CHART_AXIS_TICK_COLOR, fontSize: compact ? 10 : 12 }}
           axisLine={false}
           tickLine={false}
           width={compact ? 35 : 45}
         />
         {!compact && (
           <Tooltip
-            contentStyle={{
-              backgroundColor: '#18181b',
-              border: '1px solid #27272a',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value: number, _name: string, entry: any) => [
               `${value} ${usersLabel.toLowerCase()} (${entry.payload.pct}%)`,
               usersLabel,

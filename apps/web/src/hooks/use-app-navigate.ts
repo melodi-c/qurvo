@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { routes, wrapRoutes } from '@/lib/routes';
 
 export function useAppNavigate() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   const withProject = useCallback(
     (path: string): string => {

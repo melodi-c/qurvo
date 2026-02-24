@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { PageHeader } from '@/components/ui/page-header';
 import { TabNav } from '@/components/ui/tab-nav';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -12,7 +13,7 @@ type TabId = 'general' | 'members' | 'keys' | 'billing';
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const activeTab = (searchParams.get('tab') as TabId) || 'general';
   const { t } = useLocalTranslation(translations);
 

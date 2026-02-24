@@ -1,4 +1,5 @@
 import type { Transport, LogFn } from './types';
+import { QuotaExceededError } from './types';
 
 export class EventQueue {
   private queue: unknown[] = [];
@@ -73,9 +74,15 @@ export class EventQueue {
         clearTimeout(timeout);
       }
     } catch (err) {
-      this.queue.unshift(...batch);
-      this.scheduleBackoff();
-      this.logger?.(`flush error, ${batch.length} events re-queued`, err);
+      if (err instanceof QuotaExceededError) {
+        this.queue.length = 0;
+        this.stop();
+        this.logger?.('quota exceeded, events dropped and queue stopped');
+      } else {
+        this.queue.unshift(...batch);
+        this.scheduleBackoff();
+        this.logger?.(`flush error, ${batch.length} events re-queued`, err);
+      }
     } finally {
       this.flushing = false;
     }

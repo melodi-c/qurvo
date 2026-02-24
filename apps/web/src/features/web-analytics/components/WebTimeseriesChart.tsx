@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { WEB_METRIC_COLORS } from '@/lib/chart-colors';
+import { WEB_METRIC_COLORS, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { formatBucket } from '@/lib/formatting';
 import translations from './WebTimeseriesChart.translations';
 
@@ -68,27 +68,22 @@ export function WebTimeseriesChart({
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} opacity={0.5} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: '#a1a1aa' }}
+                tick={{ fontSize: 11, fill: CHART_AXIS_TICK_COLOR }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#a1a1aa' }}
+                tick={{ fontSize: 11, fill: CHART_AXIS_TICK_COLOR }}
                 tickLine={false}
                 axisLine={false}
                 width={50}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: '#18181b',
-                  border: '1px solid #27272a',
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: '#a1a1aa' }}
+                contentStyle={CHART_TOOLTIP_STYLE}
+                labelStyle={{ color: CHART_AXIS_TICK_COLOR }}
               />
               <Line
                 type="monotone"
