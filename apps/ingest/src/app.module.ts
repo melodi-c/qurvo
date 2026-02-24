@@ -5,31 +5,35 @@ import type { Options } from 'pino-http';
 import Redis from 'ioredis';
 import { createDb, type Database } from '@qurvo/db';
 import { REDIS, DRIZZLE } from './constants';
+import { env } from './env';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
 import { ZodExceptionFilter } from './filters/zod-exception.filter';
 import { BillingGuard } from './guards/billing.guard';
+import { RateLimitGuard } from './guards/rate-limit.guard';
 
 const RedisProvider = {
   provide: REDIS,
-  useFactory: () => new Redis(process.env.REDIS_URL || 'redis://localhost:6379'),
+  useFactory: () => new Redis(env().REDIS_URL),
 };
 
 const DrizzleProvider = {
   provide: DRIZZLE,
-  useFactory: () => createDb(process.env.DATABASE_URL),
+  useFactory: () => createDb(env().DATABASE_URL),
 };
 
 @Module({
   imports: [
-    LoggerModule.forRoot({
-      pinoHttp: {
-        level: process.env.LOG_LEVEL || 'info',
-        redact: ['req.headers["x-api-key"]'],
-        transport: process.env.NODE_ENV !== 'production'
-          ? { target: 'pino-pretty' }
-          : undefined,
-      } as Options,
+    LoggerModule.forRootAsync({
+      useFactory: () => ({
+        pinoHttp: {
+          level: env().LOG_LEVEL,
+          redact: ['req.headers["x-api-key"]'],
+          transport: env().NODE_ENV !== 'production'
+            ? { target: 'pino-pretty' }
+            : undefined,
+        } as Options,
+      }),
     }),
   ],
   controllers: [IngestController],
@@ -38,6 +42,7 @@ const DrizzleProvider = {
     DrizzleProvider,
     IngestService,
     BillingGuard,
+    RateLimitGuard,
     { provide: APP_FILTER, useClass: ZodExceptionFilter },
   ],
 })

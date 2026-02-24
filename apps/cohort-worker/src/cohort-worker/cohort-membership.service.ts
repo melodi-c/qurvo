@@ -3,10 +3,9 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import Redis from 'ioredis';
-import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery, topologicalSortCohorts } from '@qurvo/cohort-query';
-import { REDIS, CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
+import { type Database, cohorts } from '@qurvo/db';
+import { topologicalSortCohorts } from '@qurvo/cohort-query';
+import { REDIS, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
   COHORT_STALE_THRESHOLD_MINUTES,
@@ -15,8 +14,10 @@ import {
   COHORT_LOCK_KEY,
   COHORT_LOCK_TTL_SECONDS,
   COHORT_INITIAL_DELAY_MS,
+  COHORT_GC_EVERY_N_CYCLES,
 } from '../constants';
 import { DistributedLock } from '@qurvo/distributed-lock';
+import { CohortComputationService } from './cohort-computation.service';
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
@@ -25,14 +26,15 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private cycleInFlight: Promise<void> | null = null;
+  private gcCycleCounter = 1;
   private readonly lock: DistributedLock;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
-    @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(DRIZZLE) private readonly db: Database,
     @InjectPinoLogger(CohortMembershipService.name)
     private readonly logger: PinoLogger,
+    private readonly computation: CohortComputationService,
   ) {
     this.lock = new DistributedLock(redis, COHORT_LOCK_KEY, randomUUID(), COHORT_LOCK_TTL_SECONDS);
   }
@@ -53,27 +55,27 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   }
 
   private async scheduledCycle() {
-    const cycle = this.runCycle().catch((err) => {
+    this.cycleInFlight = this.runCycle().catch((err) => {
       this.logger.error({ err }, 'Cohort membership cycle failed');
     });
-    this.cycleInFlight = cycle;
-    await cycle;
+    await this.cycleInFlight;
     this.cycleInFlight = null;
     if (!this.stopped) {
       this.timer = setTimeout(() => this.scheduledCycle(), COHORT_MEMBERSHIP_INTERVAL_MS);
     }
   }
 
-  private async runCycle(): Promise<void> {
+  /** @internal — exposed for integration tests */
+  async runCycle(): Promise<void> {
     const hasLock = await this.lock.acquire();
     if (!hasLock) {
       this.logger.debug('Cohort membership cycle skipped: another instance holds the lock');
+      // gcCycleCounter not incremented — GC only runs by the lock holder
       return;
     }
 
     try {
       let computed = 0;
-      let staleCount = 0;
       let eligibleCount = 0;
 
       // ── 1. Selective: fetch only stale dynamic cohorts ──────────────────
@@ -89,8 +91,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
             ),
           ),
         );
-
-      staleCount = staleCohorts.length;
 
       if (staleCohorts.length > 0) {
         // ── 2. Error backoff filter ───────────────────────────────────────
@@ -121,11 +121,15 @@ export class CohortMembershipService implements OnApplicationBootstrap {
           for (const { id, definition } of sorted) {
             const cohort = eligibleMap.get(id)!;
             try {
-              await this.computeMembership(id, cohort.project_id, definition, version);
-              await this.recordSizeHistory(id, cohort.project_id);
+              await this.computation.computeMembership(id, cohort.project_id, definition, version);
+              await this.computation.recordSizeHistory(id, cohort.project_id);
               computed++;
             } catch (err) {
-              await this.recordError(id, err);
+              try {
+                await this.computation.recordError(id, err);
+              } catch (recordErr) {
+                this.logger.error({ err: recordErr, cohortId: id }, 'Failed to record error');
+              }
               this.logger.error(
                 { err, cohortId: id, projectId: cohort.project_id },
                 'Failed to compute membership for cohort',
@@ -139,119 +143,20 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         this.logger.debug('No stale dynamic cohorts to recompute');
       }
 
-      // ── 5. Garbage-collect orphaned memberships ─────────────────────────
-      // Always runs: deleted cohorts should be cleaned up even when no stale cohorts exist.
-      await this.gcOrphanedMemberships().catch((err) =>
-        this.logger.error({ err }, 'Orphan GC failed'),
-      );
+      // ── 5. Garbage-collect orphaned memberships (every N cycles) ──────
+      if (this.gcCycleCounter % COHORT_GC_EVERY_N_CYCLES === 0) {
+        await this.computation.gcOrphanedMemberships().catch((err) =>
+          this.logger.error({ err }, 'Orphan GC failed'),
+        );
+      }
+      this.gcCycleCounter++;
 
       this.logger.info(
-        { computed, stale: staleCount, eligible: eligibleCount },
+        { computed, stale: staleCohorts.length, eligible: eligibleCount },
         'Cohort membership cycle completed',
       );
     } finally {
-      await this.lock.release().catch((err) => this.logger.warn({ err }, 'Cohort lock release failed'));
-    }
-  }
-
-  private async gcOrphanedMemberships(): Promise<void> {
-    const allDynamic = await this.db
-      .select({ id: cohorts.id })
-      .from(cohorts)
-      .where(eq(cohorts.is_static, false));
-
-    const allDynamicIds = allDynamic.map((c) => c.id);
-
-    if (allDynamicIds.length > 0) {
-      await this.ch.command({
-        query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN ({ids:Array(UUID)})`,
-        query_params: { ids: allDynamicIds },
-      });
-    } else {
-      this.logger.warn('No dynamic cohorts found — deleting all cohort_members rows (orphan GC)');
-      await this.ch.command({
-        query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
-      });
-    }
-  }
-
-  private async computeMembership(
-    cohortId: string,
-    projectId: string,
-    definition: CohortConditionGroup,
-    version: number,
-  ): Promise<void> {
-    const queryParams: Record<string, unknown> = { project_id: projectId };
-    const subquery = buildCohortSubquery(definition, 0, 'project_id', queryParams);
-
-    // Insert new membership rows with current version
-    const insertSql = `
-      INSERT INTO cohort_members (cohort_id, project_id, person_id, version)
-      SELECT
-        {cm_cohort_id:UUID} AS cohort_id,
-        {cm_project_id:UUID} AS project_id,
-        person_id,
-        {cm_version:UInt64} AS version
-      FROM (${subquery})`;
-
-    await this.ch.command({
-      query: insertSql,
-      query_params: { ...queryParams, cm_cohort_id: cohortId, cm_project_id: projectId, cm_version: version },
-    });
-
-    // Remove old versions
-    await this.ch.command({
-      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id = {cm_cohort_id:UUID} AND version < {cm_version:UInt64}`,
-      query_params: { cm_cohort_id: cohortId, cm_version: version },
-    });
-
-    // Update PostgreSQL tracking columns + reset error state
-    await this.db
-      .update(cohorts)
-      .set({
-        membership_version: version,
-        membership_computed_at: new Date(),
-        errors_calculating: 0,
-        last_error_at: null,
-        last_error_message: null,
-      })
-      .where(eq(cohorts.id, cohortId));
-
-    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
-  }
-
-  private async recordError(cohortId: string, err: unknown): Promise<void> {
-    const message = err instanceof Error ? err.message.slice(0, 500) : 'Unknown error';
-    await this.db
-      .update(cohorts)
-      .set({
-        errors_calculating: sql`${cohorts.errors_calculating} + 1`,
-        last_error_at: new Date(),
-        last_error_message: message,
-      })
-      .where(eq(cohorts.id, cohortId));
-  }
-
-  private async recordSizeHistory(cohortId: string, projectId: string): Promise<void> {
-    try {
-      const countResult = await this.ch.query({
-        query: `
-          SELECT uniqExact(person_id) AS cnt
-          FROM cohort_members FINAL
-          WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
-        query_params: { project_id: projectId, cohort_id: cohortId },
-        format: 'JSONEachRow',
-      });
-      const rows = await countResult.json<{ cnt: string }>();
-      const count = Number(rows[0]?.cnt ?? 0);
-
-      await this.ch.insert({
-        table: 'cohort_membership_history',
-        values: [{ project_id: projectId, cohort_id: cohortId, date: new Date().toISOString().slice(0, 10), count }],
-        format: 'JSONEachRow',
-      });
-    } catch (err) {
-      this.logger.warn({ err, cohortId, projectId }, 'Failed to record cohort size history');
+      await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
     }
   }
 }

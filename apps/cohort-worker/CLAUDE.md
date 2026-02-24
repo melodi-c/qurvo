@@ -23,7 +23,8 @@ src/
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── cohort-worker/
 │   ├── cohort-worker.module.ts          # Providers from @qurvo/nestjs-infra + services
-│   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
+│   ├── cohort-computation.service.ts    # CH/PG operations for individual cohorts
+│   ├── cohort-membership.service.ts     # Cycle orchestration: scheduling, lock, backoff
 │   └── shutdown.service.ts              # Graceful shutdown: stops service, closes CH + Redis
 └── test/
     ├── setup.ts
@@ -39,7 +40,8 @@ src/
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), orphan GC (error-isolated) |
+| `CohortComputationService` | CH/PG operations: compute membership, record errors/history, GC orphans | — |
+| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff, delegates to computation. `runCycle()` is `@internal` public for tests | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
 | `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + Redis with error logging |
 
 ## Key Patterns
@@ -47,12 +49,12 @@ src/
 ### Cohort Membership Cycle
 
 1. Acquire distributed lock (`cohort_membership:lock`, TTL 300s) — only one instance runs at a time
-2. Fetch stale dynamic cohorts from PostgreSQL (`membership_computed_at < NOW() - 15 minutes`)
+2. Fetch stale dynamic cohorts from PostgreSQL (`membership_computed_at < NOW() - COHORT_STALE_THRESHOLD_MINUTES minutes`)
 3. Filter by error backoff (cohorts with errors skip cycles exponentially)
 4. Topological sort (cohorts referencing other cohorts must be computed in dependency order)
 5. For each cohort: `buildCohortSubquery()` → INSERT INTO `cohort_members` → DELETE old versions
 6. Record size history in `cohort_membership_history`
-7. Garbage-collect orphaned memberships (deleted cohorts)
+7. Garbage-collect orphaned memberships (every 6 cycles ≈ 1 hour, skips first cycle after startup, skips if no dynamic cohorts found in PG)
 
 ### Distributed Lock
 

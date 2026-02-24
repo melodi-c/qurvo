@@ -2,7 +2,16 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { v7 as uuidv7 } from 'uuid';
 import { UAParser } from 'ua-parser-js';
-import { REDIS, REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, billingCounterKey } from '../constants';
+import {
+  REDIS,
+  REDIS_STREAM_EVENTS,
+  REDIS_STREAM_MAXLEN,
+  BILLING_EVENTS_TTL_SECONDS,
+  billingCounterKey,
+  RATE_LIMIT_KEY_PREFIX,
+  RATE_LIMIT_WINDOW_SECONDS,
+  RATE_LIMIT_BUCKET_SECONDS,
+} from '../constants';
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
 
@@ -77,6 +86,7 @@ export class IngestService {
     const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, ua, batchId, sentAt }));
     await this.writeToStream(payloads);
     this.incrementBillingCounter(projectId, events.length);
+    this.incrementRateLimitCounter(projectId, events.length);
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
   }
 
@@ -145,6 +155,19 @@ export class IngestService {
     if (failed.length > 0) {
       throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
     }
+  }
+
+  private incrementRateLimitCounter(projectId: string, count: number): void {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const bucket = Math.floor(nowSec / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
+    const key = `${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`;
+    const ttl = RATE_LIMIT_WINDOW_SECONDS + RATE_LIMIT_BUCKET_SECONDS;
+    const pipeline = this.redis.pipeline();
+    pipeline.incrby(key, count);
+    pipeline.expire(key, ttl);
+    pipeline.exec().catch((err: unknown) =>
+      this.logger.warn({ err, projectId }, 'Failed to increment rate limit counter'),
+    );
   }
 
   private incrementBillingCounter(projectId: string, count: number): void {

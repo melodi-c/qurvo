@@ -11,7 +11,7 @@ import {
 import { detectCircularDependency } from '@qurvo/cohort-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory, type CohortFilterInput } from './cohorts.query';
-import type { CohortBreakdownEntry } from '../utils/cohort-breakdown.util';
+import type { CohortBreakdownEntry } from './cohort-breakdown.util';
 
 @Injectable()
 export class CohortsService {

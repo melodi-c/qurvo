@@ -23,9 +23,7 @@
     "ioredis": "^5.4.0",
     "nestjs-pino": "^4.6.0",
     "pino": "^10.3.1",
-    "pino-http": "^11.0.0",
-    "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0"
+    "reflect-metadata": "^0.2.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -35,7 +33,6 @@
     "typescript": "^5.7.0",
     "vitest": "^3.2.1",
     "@qurvo/testing": "workspace:*",
-    "@nestjs/testing": "^11.0.0",
     "unplugin-swc": "^1.5.0",
     "@swc/core": "^1.10.0"
   }

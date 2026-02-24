@@ -34,15 +34,9 @@ export const TrackEventSchema = z.object({
   timestamp: z.string().datetime().optional(),
 });
 
-export const BatchEventsSchema = z.object({
-  events: z.array(TrackEventSchema).min(1).max(500),
-  sent_at: z.string().datetime().optional(),
-});
-
 export const BatchWrapperSchema = z.object({
   events: z.array(z.unknown()).min(1).max(500),
   sent_at: z.string().datetime().optional(),
 });
 
 export type TrackEvent = z.infer<typeof TrackEventSchema>;
-export type BatchEvents = z.infer<typeof BatchEventsSchema>;

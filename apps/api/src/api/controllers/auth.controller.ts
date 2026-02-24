@@ -8,9 +8,10 @@ import { Public } from '../decorators/public.decorator';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   RegisterDto, LoginDto, AuthResponseDto, MeResponseDto,
-  OkResponseDto, VerifyEmailByCodeDto, VerifyEmailByTokenDto, ResendVerificationResponseDto,
+  VerifyEmailByCodeDto, VerifyEmailByTokenDto, ResendVerificationResponseDto,
   UpdateProfileDto, ChangePasswordDto, ProfileResponseDto,
 } from '../dto/auth.dto';
+import { OkResponseDto } from '../dto/shared/ok-response.dto';
 
 @ApiTags('Auth')
 @Controller('api/auth')

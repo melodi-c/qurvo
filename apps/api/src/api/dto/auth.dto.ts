@@ -63,10 +63,6 @@ export class MeResponseDto {
   user: SessionUserDto;
 }
 
-export class OkResponseDto {
-  ok: boolean;
-}
-
 export class ResendVerificationResponseDto {
   cooldown_seconds: number;
 }

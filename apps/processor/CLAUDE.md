@@ -32,7 +32,7 @@ src/
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
 │   ├── dlq.service.ts                   # Dead letter queue replay
-│   ├── event-utils.ts                   # safeScreenDimension() — shared screen dimension sanitizer
+│   ├── event-utils.ts                   # safeScreenDimension() + groupByKey() — shared utilities
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
 │   ├── shutdown.service.ts              # Graceful shutdown orchestrator with error isolation
@@ -55,6 +55,8 @@ src/
 ```
 Redis Stream (events:incoming)
   → XREADGROUP (consumer group: processor-group)
+  → Validate (drop events missing project_id/event_name/distinct_id, XACK them)
+  → GroupBy project_id:distinct_id (concurrent between users, sequential within)
   → EventConsumerService: GeoIP lookup + person resolution → Event DTO
   → Buffer (max 1000 events)
   → FlushService: batch insert to ClickHouse (every 5s or on threshold, concurrency-guarded)
@@ -66,7 +68,7 @@ Redis Stream (events:incoming)
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD` |
+| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, validation, groupBy distinctId, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` |
 | `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, concurrency guard (coalesces parallel flush calls), `shutdown()` = wait for in-progress flush + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |

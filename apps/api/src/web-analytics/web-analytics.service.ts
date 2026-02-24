@@ -6,7 +6,7 @@ import type Redis from 'ioredis';
 import { withAnalyticsCache } from '../analytics/with-analytics-cache';
 import {
   queryOverview,
-  queryPaths,
+  queryTopPages,
   querySources,
   queryDevices,
   queryGeography,
@@ -32,7 +32,7 @@ export class WebAnalyticsService {
   }
 
   async getPaths(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<PathsResult> {
-    return this.runQuery(userId, params, 'wa:paths', queryPaths);
+    return this.runQuery(userId, params, 'wa:paths', queryTopPages);
   }
 
   async getSources(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<SourcesResult> {
