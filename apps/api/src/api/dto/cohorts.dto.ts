@@ -98,7 +98,8 @@ export class CohortDto {
   created_by: string;
   name: string;
   @ApiPropertyOptional() description: string | null;
-  definition: any;
+  @ApiPropertyOptional({ type: CohortConditionGroupDto })
+  definition: CohortConditionGroupDto | null;
   is_static: boolean;
   errors_calculating: number;
   @ApiPropertyOptional() last_error_at: string | null;
