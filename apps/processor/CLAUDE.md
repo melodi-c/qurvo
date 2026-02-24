@@ -28,11 +28,13 @@ src/
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── value-type.ts                    # detectValueType() + helpers (extracted from definition-sync)
 │   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync + person-batch-store)
-│   ├── person-resolver.service.ts       # Person ID resolution + $identify
+│   ├── person-resolver.service.ts       # Deterministic person ID resolution (UUIDv5) + batch prefetch + $identify
+│   ├── deterministic-person-id.ts       # UUIDv5 person ID generation (fixed namespace — NEVER change)
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
 │   ├── dlq.service.ts                   # Dead letter queue replay
 │   ├── event-utils.ts                   # safeScreenDimension() + groupByKey() — shared utilities
+│   ├── time-utils.ts                    # floorToHourMs() + ONE_HOUR_MS — shared time utilities
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
 │   ├── shutdown.service.ts              # Graceful shutdown orchestrator with error isolation
@@ -71,7 +73,7 @@ Redis Stream (events:incoming)
 | `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, validation, groupBy distinctId, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` or with illegal distinct_ids (e.g. "null", "undefined", "[object Object]"), exits after 100 consecutive errors for K8s restart |
 | `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, concurrency guard (coalesces parallel flush calls), `shutdown()` = wait for in-progress flush + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
-| `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
+| `PersonResolverService` | Deterministic person_id resolution via UUIDv5 + Redis cache + PG fallback | Batch MGET prefetch, deterministic UUIDs (same project+distinct_id → same person_id), Redis SET NX with 90d TTL, PG cold-start fallback for legacy data |
 | `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge with retry (3×200ms), `HourlyCache` for knownDistinctIds dedup |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, cross-instance circuit breaker via Redis (5 failures, 5min reset) |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
@@ -86,11 +88,15 @@ Uses `@qurvo/heartbeat` package — framework-agnostic file-based liveness heart
 
 ### Person Resolution
 ```
-1. Redis GET person:{projectId}:{distinctId}
-2. Miss → PostgreSQL lookup
-3. Miss → Create new person (UUID) + Redis SET NX
-4. $identify → merge anonymous + known person, write override to ClickHouse
+1. Batch MGET prefetch all person:{projectId}:{distinctId} keys for the batch (single RTT)
+2. For each event: check prefetched cache → hit = return cached person_id
+3. Cache miss → compute deterministic UUIDv5(projectId:distinctId) → Redis SET NX
+4. SET NX succeeded (new key) → PG lookup for legacy data (backward compat) → return PG or deterministic ID
+5. SET NX failed (key existed) → Redis GET → return existing value
+6. $identify → merge anonymous + known person, write override to ClickHouse, update cache
 ```
+Person IDs are deterministic: same project+distinct_id always produces the same UUID (via UUIDv5 with a fixed namespace).
+PG fallback is kept for backward compatibility with pre-deterministic person IDs in production.
 
 ### Identity Merging ($identify)
 When `$identify` event arrives with `anonymous_id`:
@@ -120,7 +126,7 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 - **Redis Streams, not Kafka** — Kafka justified at >100k events/sec or multi-datacenter. Redis Streams gives consumer groups + XAUTOCLAIM + backpressure at our scale without extra infra.
 - **Direct CH INSERT, not Kafka table engine** — PostHog uses Kafka engine (CH pulls from Kafka). We use `async_insert: 1` + batch flush (1000/5s). Sufficient at current scale; Kafka engine requires Kafka.
 - **Single-threaded, no Piscina** — Person resolution + definition sync are I/O bound. Worker threads add complexity without throughput gain for async I/O workloads.
-- **PersonResolver SET NX is correct** — Two instances cannot both create person for the same distinct_id: SET NX is atomic, only one succeeds, the other GETs the winner's value. PG fallback handles cold Redis (restart/eviction). Not a race condition.
+- **PersonResolver uses deterministic UUIDs (UUIDv5)** — person_id = UUIDv5(projectId:distinctId) with a fixed namespace. Two processor instances always compute the same UUID for the same input, eliminating races entirely. Redis SET NX + PG fallback kept for backward compat with legacy random UUIDs. Batch MGET prefetch reduces per-event Redis RTTs to a single batch call. The namespace in `deterministic-person-id.ts` must NEVER change.
 - **Pipeline steps refactor (PostHog V2 style)** — `buildEvent()` is ~80 lines of linear code, not complex enough to justify discrete named steps. Revisit when adding a new pipeline step (webhooks, transformations, etc).
 - **Overflow routing for noisy tenants** — Not needed at current scale. If one project dominates traffic, consider a second Redis Stream `events:overflow` + separate consumer routed by project_id.
 
