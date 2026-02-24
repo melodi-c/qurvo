@@ -57,16 +57,20 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
   }
 
+  private async drainIfOverfull(): Promise<void> {
+    while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
+      await this.flushService.flush();
+      this.heartbeat.touch();
+      if (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+  }
+
   private async startLoop() {
     while (this.running) {
       try {
-        while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
-          await this.flushService.flush();
-          this.heartbeat.touch();
-          if (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
-            await new Promise((r) => setTimeout(r, 500));
-          }
-        }
+        await this.drainIfOverfull();
 
         const results = await this.redis.xreadgroup(
           'GROUP', REDIS_CONSUMER_GROUP, this.consumerName,

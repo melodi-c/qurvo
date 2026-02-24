@@ -100,7 +100,11 @@ export class FlushService implements OnApplicationBootstrap {
 
   private scheduleFlush() {
     this.flushTimer = setTimeout(async () => {
-      await this.flush();
+      try {
+        await this.flush();
+      } catch (err) {
+        this.logger.error({ err }, 'Scheduled flush failed');
+      }
       this.scheduleFlush();
     }, PROCESSOR_FLUSH_INTERVAL_MS);
   }

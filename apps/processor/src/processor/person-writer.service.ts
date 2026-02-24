@@ -4,6 +4,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 
+
 export interface ParsedUserProperties {
   setProps: Record<string, unknown>;
   setOnceProps: Record<string, unknown>;
@@ -50,57 +51,6 @@ export class PersonWriterService {
   ) {}
 
   /**
-   * Upserts a person record in PostgreSQL and ensures the distinct_id mapping exists.
-   * Called fire-and-forget from EventConsumerService after every event.
-   *
-   * Property merge order (rightmost wins):
-   *   $set_once → existing → $set
-   * Then $unset keys are removed from the result.
-   *
-   * The merge is done atomically in a single INSERT ... ON CONFLICT DO UPDATE statement
-   * using PostgreSQL jsonb || operator to avoid race conditions between concurrent calls.
-   */
-  async syncPerson(
-    projectId: string,
-    personId: string,
-    distinctId: string,
-    userPropertiesJson: string,
-  ): Promise<void> {
-    const { setProps, setOnceProps, unsetKeys } = parseUserProperties(userPropertiesJson);
-
-    // Initial properties for a new person: setOnce + set (no existing state to consider)
-    const initialProps: Record<string, unknown> = { ...setOnceProps, ...setProps };
-    for (const key of unsetKeys) delete initialProps[key];
-
-    // Atomic merge expression for ON CONFLICT DO UPDATE:
-    //   (setOnce || existing || set) - unsetKey1 - unsetKey2 - ...
-    // PostgreSQL || merges jsonb objects with rightmost key winning, so:
-    //   - existing overwrites setOnce  → $set_once only applies to missing keys ✓
-    //   - set overwrites existing       → $set always wins ✓
-    const setOnceJson = JSON.stringify(setOnceProps);
-    const setJson = JSON.stringify(setProps);
-
-    let mergeExpr = sql`(${setOnceJson}::jsonb || persons.properties || ${setJson}::jsonb)`;
-    for (const key of unsetKeys) {
-      mergeExpr = sql`${mergeExpr} - ${key}`;
-    }
-
-    await this.db
-      .insert(persons)
-      .values({ id: personId, project_id: projectId, properties: initialProps })
-      .onConflictDoUpdate({
-        target: persons.id,
-        set: { properties: mergeExpr, updated_at: new Date() },
-      });
-
-    // Ensure distinct_id → person mapping exists (idempotent)
-    await this.db
-      .insert(personDistinctIds)
-      .values({ project_id: projectId, person_id: personId, distinct_id: distinctId })
-      .onConflictDoNothing();
-  }
-
-  /**
    * Merges the anonymous person into the identified user's person.
    * Called when $identify event merges two previously separate persons.
    *
@@ -109,12 +59,10 @@ export class PersonWriterService {
    * - Deletes the now-orphaned anon persons row
    *
    * All mutations run inside a single transaction to prevent partial states.
-   * Must be called after syncPerson(intoPersonId) to ensure the target row exists.
    */
   async mergePersons(projectId: string, fromPersonId: string, intoPersonId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       // 1. Remove any fromPerson distinct_id rows that are already claimed by intoPerson
-      //    (can happen when concurrent syncPerson runs after Redis was updated)
       await tx
         .delete(personDistinctIds)
         .where(
