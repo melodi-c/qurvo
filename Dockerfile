@@ -38,6 +38,7 @@ COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
 COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
 COPY packages/@qurvo/testing/package.json       packages/@qurvo/testing/
 COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
+COPY packages/@qurvo/distributed-lock/package.json packages/@qurvo/distributed-lock/
 
 RUN pnpm install --frozen-lockfile
 
@@ -52,7 +53,8 @@ FROM base AS nestjs-builder
 ARG APP
 
 RUN pnpm --filter @qurvo/${APP}... build && \
-    mkdir -p packages/@qurvo/cohort-query/dist
+    mkdir -p packages/@qurvo/cohort-query/dist && \
+    mkdir -p packages/@qurvo/distributed-lock/dist
 
 # ==============================================================================
 # Stage: nestjs — production runtime for api/ingest/processor
@@ -78,6 +80,7 @@ COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
 COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
 COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
 COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
+COPY packages/@qurvo/distributed-lock/package.json packages/@qurvo/distributed-lock/
 
 RUN pnpm install --frozen-lockfile --prod
 
@@ -87,6 +90,7 @@ COPY --from=nestjs-builder /repo/packages/@qurvo/db/dist             packages/@q
 COPY --from=nestjs-builder /repo/packages/@qurvo/db/drizzle          packages/@qurvo/db/drizzle/
 COPY --from=nestjs-builder /repo/packages/@qurvo/clickhouse/dist     packages/@qurvo/clickhouse/dist/
 COPY --from=nestjs-builder /repo/packages/@qurvo/cohort-query/dist   packages/@qurvo/cohort-query/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/distributed-lock/dist packages/@qurvo/distributed-lock/dist/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
