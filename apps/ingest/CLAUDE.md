@@ -103,8 +103,14 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 
 `ZodExceptionFilter` (registered as `APP_FILTER`) converts `ZodError` to 400 with field-level details (applies to import endpoint and batch wrapper validation).
 
+### Error Handling: Retryable vs Non-Retryable
+Controller wraps `IngestService` calls in try-catch. Redis stream write failures → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`.
+
+### Event Type Mapping
+`EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
+
 ### Module Configuration
-`AppModule` implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
+`AppModule` registers all guards (`ApiKeyGuard`, `RateLimitGuard`, `BillingGuard`) as explicit providers. Implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
 
 ## Important: Do NOT Delete
 

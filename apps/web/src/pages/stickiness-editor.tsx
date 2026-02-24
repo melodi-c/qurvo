@@ -8,6 +8,7 @@ import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { StickinessQueryPanel } from '@/features/dashboard/components/widgets/stickiness/StickinessQueryPanel';
 import { defaultStickinessConfig } from '@/features/dashboard/components/widgets/stickiness/stickiness-shared';
+import { formatGranularity } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './stickiness-editor.translations';
 import type { StickinessWidgetConfig } from '@/api/generated/Api';
@@ -64,7 +65,7 @@ export default function StickinessEditorPage() {
         <>
           <Metric label={t('totalUsers')} value={String(totalUsers)} accent />
           <MetricsDivider />
-          <Metric label={t('mostCommon')} value={`${modePeriod} ${result!.granularity}${modePeriod !== 1 ? 's' : ''}`} />
+          <Metric label={t('mostCommon')} value={`${modePeriod} ${formatGranularity(modePeriod, result!.granularity)}`} />
           <MetricsDivider />
           <Metric label={t('totalPeriods')} value={String(result!.total_periods)} />
         </>

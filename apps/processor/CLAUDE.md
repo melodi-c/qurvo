@@ -55,7 +55,7 @@ src/
 ```
 Redis Stream (events:incoming)
   → XREADGROUP (consumer group: processor-group)
-  → Validate (drop events missing project_id/event_name/distinct_id, XACK them)
+  → Validate (drop events missing required fields or with illegal distinct_ids, XACK them)
   → GroupBy project_id:distinct_id (concurrent between users, sequential within)
   → EventConsumerService: GeoIP lookup + person resolution → Event DTO
   → Buffer (max 1000 events)
@@ -68,11 +68,11 @@ Redis Stream (events:incoming)
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, validation, groupBy distinctId, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` |
+| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, validation, groupBy distinctId, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` or with illegal distinct_ids (e.g. "null", "undefined", "[object Object]"), exits after 100 consecutive errors for K8s restart |
 | `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, concurrency guard (coalesces parallel flush calls), `shutdown()` = wait for in-progress flush + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
-| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge, `HourlyCache` for knownDistinctIds dedup |
+| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge with retry (3×200ms), `HourlyCache` for knownDistinctIds dedup |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, cross-instance circuit breaker via Redis (5 failures, 5min reset) |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
@@ -128,7 +128,7 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 `redis-utils.ts` contains `parseRedisFields()` — converts flat Redis `[key, value, key, value, ...]` arrays into `Record<string, string>`. Used by both `EventConsumerService` and `DlqService`. Do NOT inline this back into individual services or duplicate it — keep it in `redis-utils.ts`.
 
 ### GeoIP
-`GeoService` downloads MaxMind MMDB from `DEFAULT_MMDB_URL` (hardcoded selstorage.ru) or `GEOLITE2_COUNTRY_URL` env var. This is intentional — the URL is a controlled bucket. If download fails, geo lookup silently degrades to empty string.
+`GeoService` downloads MaxMind MMDB from `DEFAULT_MMDB_URL` (hardcoded selstorage.ru) or `GEOLITE2_COUNTRY_URL` env var. This is intentional — the URL is a controlled bucket. Downloads retry 3 times with linear backoff (2s × attempt). If all attempts fail, geo lookup silently degrades to empty string.
 
 ## Integration Tests
 

@@ -56,6 +56,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SuspenseLoading() {
+  const { t } = useLocalTranslation(appTranslations);
+  return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;
+}
+
 function AppRoutes() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
 
@@ -71,7 +76,7 @@ function AppRoutes() {
       <Route
         element={
           <ProtectedRoute>
-            <Suspense fallback={<div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>}>
+            <Suspense fallback={<SuspenseLoading />}>
               <Layout />
             </Suspense>
           </ProtectedRoute>
