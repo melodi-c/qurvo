@@ -5,8 +5,7 @@ import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { withRetry } from './retry';
 import { parseRedisFields } from './redis-utils';
-import { REDIS } from '../providers/redis.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import {
   DLQ_CIRCUIT_BREAKER_RESET_MS,
   DLQ_CIRCUIT_BREAKER_THRESHOLD,

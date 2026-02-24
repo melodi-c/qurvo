@@ -3,7 +3,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import type { Event } from '@qurvo/clickhouse';
 import { Heartbeat } from '@qurvo/heartbeat';
-import { REDIS } from '../providers/redis.provider';
+import { REDIS } from '@qurvo/nestjs-infra';
 import {
   PENDING_CLAIM_INTERVAL_MS,
   PENDING_IDLE_MS,

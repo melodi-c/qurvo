@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { sql, inArray, eq, and } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
-import { DRIZZLE } from '../providers/drizzle.provider';
+import { DRIZZLE } from '@qurvo/nestjs-infra';
 import { parseUserProperties } from './person-utils';
 import { withRetry } from './retry';
 import { RETRY_POSTGRES } from '../constants';

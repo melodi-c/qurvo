@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
-import { RedisProvider } from '../providers/redis.provider';
-import { ClickHouseProvider } from '../providers/clickhouse.provider';
-import { DrizzleProvider } from '../providers/drizzle.provider';
+import { RedisProvider, ClickHouseProvider, DrizzleProvider } from '@qurvo/nestjs-infra';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
 import { EventConsumerService } from './event-consumer.service';
