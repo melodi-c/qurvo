@@ -6,6 +6,7 @@ import {
   REDIS,
   REDIS_STREAM_EVENTS,
   REDIS_STREAM_MAXLEN,
+  STREAM_SCHEMA_VERSION,
   BILLING_EVENTS_TTL_SECONDS,
   billingCounterKey,
   RATE_LIMIT_KEY_PREFIX,
@@ -109,6 +110,7 @@ export class IngestService {
     const ua = opts.ua ?? EMPTY_UA;
 
     const payload: Record<string, string> = {
+      schema_version: STREAM_SCHEMA_VERSION,
       event_id: opts.event_id || uuidv7(),
       project_id: projectId,
       event_name: event.event,
