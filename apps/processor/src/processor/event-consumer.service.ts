@@ -18,6 +18,7 @@ import { FlushService } from './flush.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
+import { parseRedisFields } from './redis-utils';
 
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
@@ -142,21 +143,13 @@ export class EventConsumerService implements OnApplicationBootstrap {
     const buffered = await Promise.all(
       items.map(async ([id, fields]) => ({
         messageId: id,
-        event: await this.buildEvent(this.parseRedisFields(fields)),
+        event: await this.buildEvent(parseRedisFields(fields)),
       })),
     );
     this.flushService.addToBuffer(buffered);
     if (this.flushService.isBufferFull()) {
       await this.flushService.flush();
     }
-  }
-
-  private parseRedisFields(fields: string[]): Record<string, string> {
-    const obj: Record<string, string> = {};
-    for (let i = 0; i < fields.length; i += 2) {
-      obj[fields[i]] = fields[i + 1];
-    }
-    return obj;
   }
 
   private async buildEvent(data: Record<string, string>): Promise<Event> {
