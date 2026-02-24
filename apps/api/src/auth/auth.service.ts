@@ -10,7 +10,8 @@ import { REDIS } from '../providers/redis.provider';
 import type { Database } from '@qurvo/db';
 import { SESSION_TOKEN_LENGTH, SESSION_TTL_DAYS, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS, MAX_ACTIVE_SESSIONS_PER_USER } from '../constants';
 import { hashToken } from '../utils/hash';
-import { TooManyRequestsException } from './exceptions/too-many-requests.exception';
+import { invalidateUserSessionCaches } from '../utils/session-cache';
+import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 import { EmailConflictException } from './exceptions/email-conflict.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
 import { WrongPasswordException } from './exceptions/wrong-password.exception';
@@ -176,7 +177,7 @@ export class AuthService {
         email_verified: users.email_verified,
       });
 
-    await this.invalidateUserSessionCaches(userId);
+    await invalidateUserSessionCaches(this.db, this.redis, userId);
     this.logger.log({ userId }, 'Profile updated');
 
     return { user: updated };
@@ -204,19 +205,8 @@ export class AuthService {
       .set({ password_hash, updated_at: new Date() })
       .where(eq(users.id, userId));
 
-    await this.invalidateUserSessionCaches(userId);
+    await invalidateUserSessionCaches(this.db, this.redis, userId);
     this.logger.log({ userId }, 'Password changed');
   }
 
-  private async invalidateUserSessionCaches(userId: string): Promise<void> {
-    const userSessions = await this.db
-      .select({ token_hash: sessions.token_hash })
-      .from(sessions)
-      .where(eq(sessions.user_id, userId));
-
-    if (userSessions.length > 0) {
-      const cacheKeys = userSessions.map((s) => `session:${s.token_hash}`);
-      await this.redis.del(...cacheKeys);
-    }
-  }
 }
