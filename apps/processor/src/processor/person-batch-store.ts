@@ -5,6 +5,7 @@ import { persons, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { parseUserProperties } from './person-writer.service';
 import { type IPersonWriter, PERSON_WRITER } from './person-writer.interface';
+import { withRetry } from './retry';
 
 interface PendingPerson {
   projectId: string;
@@ -101,14 +102,24 @@ export class PersonBatchStore {
       return;
     }
 
-    // 1. Bulk upsert persons
+    // 1. Bulk upsert persons (with retry to avoid silent data loss)
     if (pendingPersons.size > 0) {
-      await this.flushPersons(pendingPersons);
+      await withRetry(
+        () => this.flushPersons(pendingPersons),
+        'flushPersons',
+        this.logger,
+        { maxAttempts: 3, baseDelayMs: 200 },
+      );
     }
 
-    // 2. Bulk upsert distinct_ids
+    // 2. Bulk upsert distinct_ids (with retry; uses WHERE EXISTS to avoid FK violations)
     if (pendingDistinctIds.size > 0) {
-      await this.flushDistinctIds(pendingDistinctIds);
+      await withRetry(
+        () => this.flushDistinctIds(pendingDistinctIds),
+        'flushDistinctIds',
+        this.logger,
+        { maxAttempts: 3, baseDelayMs: 200 },
+      );
     }
 
     // 3. Execute pending merges (rare, sequential)
@@ -177,13 +188,16 @@ export class PersonBatchStore {
       a.distinctId < b.distinctId ? -1 : a.distinctId > b.distinctId ? 1 : 0,
     );
 
+    // Use INSERT...SELECT...WHERE EXISTS to skip entries referencing deleted/missing persons (FK safety)
     const valuesList = sql.join(
-      entries.map((e) => sql`(${e.projectId}::uuid, ${e.personId}::uuid, ${e.distinctId})`),
+      entries.map((e) => sql`(${e.projectId}::uuid, ${e.personId}::uuid, ${e.distinctId}::text)`),
       sql`, `,
     );
     await this.db.execute(sql`
       INSERT INTO person_distinct_ids (project_id, person_id, distinct_id)
-      VALUES ${valuesList}
+      SELECT v.project_id, v.person_id, v.distinct_id
+      FROM (VALUES ${valuesList}) AS v(project_id, person_id, distinct_id)
+      WHERE EXISTS (SELECT 1 FROM persons WHERE id = v.person_id)
       ON CONFLICT DO NOTHING
     `);
 

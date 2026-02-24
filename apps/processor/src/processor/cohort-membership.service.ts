@@ -27,6 +27,7 @@ const INITIAL_DELAY_MS = 30_000;
 @Injectable()
 export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
+  private stopped = false;
   private readonly lock: DistributedLock;
 
   constructor(
@@ -40,23 +41,25 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   }
 
   onApplicationBootstrap() {
-    setTimeout(() => {
-      this.runCycle().catch((err) =>
-        this.logger.error({ err }, 'Initial cohort membership cycle failed'),
-      );
-    }, INITIAL_DELAY_MS);
-
-    this.timer = setInterval(() => {
-      this.runCycle().catch((err) =>
-        this.logger.error({ err }, 'Cohort membership cycle failed'),
-      );
-    }, COHORT_MEMBERSHIP_INTERVAL_MS);
+    this.timer = setTimeout(() => this.scheduledCycle(), INITIAL_DELAY_MS);
   }
 
   stop() {
+    this.stopped = true;
     if (this.timer) {
-      clearInterval(this.timer);
+      clearTimeout(this.timer);
       this.timer = null;
+    }
+  }
+
+  private async scheduledCycle() {
+    try {
+      await this.runCycle();
+    } catch (err) {
+      this.logger.error({ err }, 'Cohort membership cycle failed');
+    }
+    if (!this.stopped) {
+      this.timer = setTimeout(() => this.scheduledCycle(), COHORT_MEMBERSHIP_INTERVAL_MS);
     }
   }
 

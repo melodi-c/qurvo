@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { open, Reader, CountryResponse } from 'maxmind';
-import { createWriteStream } from 'fs';
+import { createWriteStream, existsSync } from 'fs';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 
@@ -21,8 +21,14 @@ export class GeoService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const url = process.env.GEOLITE2_COUNTRY_URL || DEFAULT_MMDB_URL;
     try {
+      if (existsSync(MMDB_PATH)) {
+        this.reader = await open<CountryResponse>(MMDB_PATH);
+        this.logger.info('GeoLite2-Country reader initialized from cached file');
+        return;
+      }
+
+      const url = process.env.GEOLITE2_COUNTRY_URL || DEFAULT_MMDB_URL;
       this.logger.info({ url }, 'Downloading GeoLite2-Country MMDB');
       const res = await fetch(url);
       if (!res.ok || !res.body) {

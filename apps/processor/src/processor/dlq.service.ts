@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { insertEvents } from './insert';
+import { withRetry } from './retry';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import {
@@ -71,7 +72,12 @@ export class DlqService implements OnApplicationBootstrap {
         })
         .filter((e): e is Event => e !== null);
 
-      await insertEvents(this.ch, events);
+      await withRetry(
+        () => insertEvents(this.ch, events),
+        'DLQ ClickHouse insert',
+        this.logger,
+        { maxAttempts: 3, baseDelayMs: 1000 },
+      );
       await this.redis.xdel(REDIS_STREAM_DLQ, ...ids);
       this.consecutiveFailures = 0;
       this.circuitOpenedAt = null;

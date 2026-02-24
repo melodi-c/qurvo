@@ -27,6 +27,7 @@ export interface BufferedEvent {
 export class FlushService implements OnApplicationBootstrap {
   private buffer: BufferedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
+  private stopped = false;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -41,6 +42,7 @@ export class FlushService implements OnApplicationBootstrap {
   }
 
   stopTimer() {
+    this.stopped = true;
     if (this.flushTimer) clearTimeout(this.flushTimer);
   }
 
@@ -106,7 +108,7 @@ export class FlushService implements OnApplicationBootstrap {
       } catch (err) {
         this.logger.error({ err }, 'Scheduled flush failed');
       }
-      this.scheduleFlush();
+      if (!this.stopped) this.scheduleFlush();
     }, PROCESSOR_FLUSH_INTERVAL_MS);
   }
 }

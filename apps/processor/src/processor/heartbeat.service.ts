@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { writeFileSync } from 'fs';
-
-const HEARTBEAT_PATH = '/tmp/processor.heartbeat';
-const HEARTBEAT_INTERVAL_MS = 15_000;
-const LOOP_STALE_MS = 30_000;
+import { HEARTBEAT_PATH, HEARTBEAT_INTERVAL_MS, HEARTBEAT_LOOP_STALE_MS } from '../constants';
 
 @Injectable()
 export class HeartbeatService {
@@ -35,7 +32,7 @@ export class HeartbeatService {
   private write() {
     try {
       const loopAge = Date.now() - this.lastLoopActivity;
-      if (this.lastLoopActivity > 0 && loopAge > LOOP_STALE_MS) {
+      if (this.lastLoopActivity > 0 && loopAge > HEARTBEAT_LOOP_STALE_MS) {
         this.logger.warn({ loopAge }, 'Consumer loop stale, skipping heartbeat');
         return;
       }

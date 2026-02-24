@@ -126,7 +126,10 @@ export class DefinitionSyncService {
     for (const key of keys) {
       if (cache.size >= CACHE_MAX_SIZE) {
         this.evict(cache, flooredMs);
-        if (cache.size >= CACHE_MAX_SIZE) return;
+        if (cache.size >= CACHE_MAX_SIZE) {
+          this.logger.warn({ cacheSize: cache.size, maxSize: CACHE_MAX_SIZE }, 'Definition cache full after eviction, skipping remaining keys');
+          return;
+        }
       }
       cache.set(key, flooredMs);
     }
