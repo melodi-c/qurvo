@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
-import * as crypto from 'crypto';
+import { v7 as uuidv7 } from 'uuid';
 import { UAParser } from 'ua-parser-js';
 import { REDIS, REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, billingCounterKey } from '../constants';
 import type { TrackEvent } from '../schemas/event';
@@ -72,7 +72,7 @@ export class IngestService {
 
   async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
     const serverTime = new Date().toISOString();
-    const batchId = crypto.randomUUID();
+    const batchId = uuidv7();
     const ua = parseUa(userAgent);
     const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, ua, batchId, sentAt }));
     await this.writeToStream(payloads);
@@ -81,7 +81,7 @@ export class IngestService {
   }
 
   async importBatch(projectId: string, events: ImportEvent[]) {
-    const batchId = `import-${crypto.randomUUID()}`;
+    const batchId = `import-${uuidv7()}`;
     const payloads = events.map((event) =>
       this.buildPayload(projectId, event, event.timestamp, { batchId, event_id: event.event_id }),
     );
@@ -99,7 +99,7 @@ export class IngestService {
     const ua = opts.ua ?? EMPTY_UA;
 
     const payload: Record<string, string> = {
-      event_id: opts.event_id || crypto.randomUUID(),
+      event_id: opts.event_id || uuidv7(),
       project_id: projectId,
       event_name: event.event,
       event_type: resolveEventType(event.event),
