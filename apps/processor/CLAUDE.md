@@ -70,12 +70,12 @@ Redis Stream (events:incoming)
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, 4-step pipeline (parse → validate → prefetch → resolve+build) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` or with illegal distinct_ids (e.g. "null", "undefined", "[object object]"), exits after 100 consecutive errors for K8s restart |
+| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, 4-step pipeline (parse → validate → prefetch → resolve+build) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` or with illegal distinct_ids (e.g. "null", "undefined", "[object object]"), exits after 100 consecutive errors for K8s restart, group-level error isolation via `Promise.allSettled` (one failing distinct_id doesn't block others) |
 | `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, PG person flush is critical (failure → DLQ), 3 CH retries then DLQ, concurrency guard, `shutdown()` = wait for in-progress flush + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Deterministic person_id resolution via UUIDv5 + Redis cache + PG fallback | Batch MGET prefetch, deterministic UUIDs (same project+distinct_id → same person_id), Redis SET NX with 90d TTL, PG cold-start fallback for legacy data |
-| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids with conditional WHERE (skip unchanged), updated_at floored to hour, re-queues pending data on flush failure, transactional merge with retry (3×200ms), `HourlyCache` for knownDistinctIds dedup |
-| `DlqService` | Replay dead-letter events with full pipeline | 100 events every 5min, re-enqueues person data + runs definition sync during replay, cross-instance circuit breaker via Redis (5 failures, 5min reset) |
+| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids with conditional WHERE (skip unchanged), updated_at floored to hour, re-queues pending data on flush failure, transactional merge (single query for both person rows) with retry (3×200ms), `HourlyCache` for knownDistinctIds dedup |
+| `DlqService` | Replay dead-letter events with full pipeline | 100 events every 5min, re-enqueues person data + runs definition sync during replay, cross-instance circuit breaker via Redis (5 failures, 5min reset). DLQ events are already-processed Event DTOs — no re-parsing of screen dimensions needed |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
 ## Key Patterns
@@ -127,7 +127,7 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 - **Direct CH INSERT, not Kafka table engine** — PostHog uses Kafka engine (CH pulls from Kafka). We use `async_insert: 1` + batch flush (1000/5s). Sufficient at current scale; Kafka engine requires Kafka.
 - **Single-threaded, no Piscina** — Person resolution + definition sync are I/O bound. Worker threads add complexity without throughput gain for async I/O workloads.
 - **PersonResolver uses deterministic UUIDs (UUIDv5)** — person_id = UUIDv5(projectId:distinctId) with a fixed namespace. Two processor instances always compute the same UUID for the same input, eliminating races entirely. Redis SET NX + PG fallback kept for backward compat with legacy random UUIDs. Batch MGET prefetch reduces per-event Redis RTTs to a single batch call. The namespace in `deterministic-person-id.ts` must NEVER change.
-- **Pipeline steps are method-level, not class-level** — `processMessages()` orchestrates 4 named steps: `parseMessages()`, `validateMessages()`, `prefetchPersons()`, `resolveAndBuildEvents()`. Each step is a private method with a clear signature. Full class-level pipeline (PostHog V2 style with PipelineResult<T>) is overkill at current scale.
+- **Pipeline steps are method-level, not class-level** — `processMessages()` orchestrates 4 named steps: `parseMessages()`, `validateMessages()`, `prefetchPersons()`, `resolveAndBuildEvents()`. Each step is a private method with a clear signature. Full class-level pipeline (PostHog V2 style with PipelineResult<T>) is overkill at current scale. Group-level error isolation is achieved via `Promise.allSettled` — if one distinct_id group fails, others still succeed; failed messages stay in PEL for XAUTOCLAIM re-delivery.
 - **Overflow routing for noisy tenants** — Not needed at current scale. If one project dominates traffic, consider a second Redis Stream `events:overflow` + separate consumer routed by project_id.
 
 ### Noisy Person Property Filtering

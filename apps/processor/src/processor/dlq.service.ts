@@ -5,7 +5,6 @@ import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { withRetry } from './retry';
 import { parseRedisFields } from './redis-utils';
-import { safeScreenDimension } from './event-utils';
 import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import {
   DLQ_CIRCUIT_BREAKER_RESET_MS,
@@ -77,10 +76,7 @@ export class DlqService implements OnApplicationBootstrap {
         .map(([, fields]) => {
           const obj = parseRedisFields(fields);
           if (!obj.data) return null;
-          const event = JSON.parse(obj.data) as Event;
-          event.screen_width = safeScreenDimension(event.screen_width);
-          event.screen_height = safeScreenDimension(event.screen_height);
-          return event;
+          return JSON.parse(obj.data) as Event;
         })
         .filter((e): e is Event => e !== null);
 
