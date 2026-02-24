@@ -55,8 +55,6 @@ export class EventEnrichmentService {
       screen_width: Math.max(0, data.screen_width ? parseInt(data.screen_width) : 0),
       screen_height: Math.max(0, data.screen_height ? parseInt(data.screen_height) : 0),
       country,
-      region: '',
-      city: '',
       language: data.language,
       timezone: data.timezone,
       properties: data.properties,

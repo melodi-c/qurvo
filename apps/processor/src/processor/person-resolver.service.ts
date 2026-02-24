@@ -9,7 +9,7 @@ import type { Database } from '@qurvo/db';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { PERSON_REDIS_TTL_SECONDS } from '../constants';
+import { PERSON_REDIS_TTL_SECONDS, RETRY_CLICKHOUSE } from '../constants';
 import { withRetry } from './retry';
 
 @Injectable()
@@ -127,7 +127,7 @@ export class PersonResolverService {
       }),
       'writeOverride',
       this.logger,
-      { maxAttempts: 3, baseDelayMs: 1000 },
+      RETRY_CLICKHOUSE,
     );
   }
 

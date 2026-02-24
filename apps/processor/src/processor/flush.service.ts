@@ -11,11 +11,11 @@ import { PersonBatchStore } from './person-batch-store';
 import {
   PROCESSOR_BATCH_SIZE,
   PROCESSOR_FLUSH_INTERVAL_MS,
-  PROCESSOR_MAX_RETRIES,
   REDIS_CONSUMER_GROUP,
   REDIS_DLQ_MAXLEN,
   REDIS_STREAM_DLQ,
   REDIS_STREAM_EVENTS,
+  RETRY_CLICKHOUSE,
 } from '../constants';
 
 export interface BufferedEvent {
@@ -77,7 +77,7 @@ export class FlushService implements OnApplicationBootstrap {
         () => insertEvents(this.ch, events),
         'ClickHouse insert',
         this.logger,
-        { maxAttempts: PROCESSOR_MAX_RETRIES, baseDelayMs: 1000 },
+        RETRY_CLICKHOUSE,
       );
       this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
       await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
@@ -93,7 +93,7 @@ export class FlushService implements OnApplicationBootstrap {
   }
 
   private async moveToDlq(events: Event[]): Promise<void> {
-    this.logger.error({ eventCount: events.length, maxRetries: PROCESSOR_MAX_RETRIES }, 'Moving events to DLQ after max retries');
+    this.logger.error({ eventCount: events.length, maxRetries: RETRY_CLICKHOUSE.maxAttempts }, 'Moving events to DLQ after max retries');
     const pipeline = this.redis.pipeline();
     for (const event of events) {
       pipeline.xadd(REDIS_STREAM_DLQ, 'MAXLEN', '~', String(REDIS_DLQ_MAXLEN), '*', 'data', JSON.stringify(event));

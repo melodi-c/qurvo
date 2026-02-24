@@ -19,7 +19,8 @@ pnpm --filter @qurvo/processor test:integration
 src/
 ├── app.module.ts                        # Root: LoggerModule + ProcessorModule
 ├── main.ts                              # NestFactory.createApplicationContext (no HTTP)
-├── constants.ts                         # Stream, flush, DLQ configuration
+├── constants.ts                         # Stream, flush, DLQ, retry presets
+├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── processor/
 │   ├── processor.module.ts              # All providers + services, OnApplicationShutdown
 │   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM (orchestrator)
@@ -27,13 +28,15 @@ src/
 │   ├── heartbeat.service.ts             # Liveness heartbeat file writing (SRP)
 │   ├── flush.service.ts                 # Buffer → ClickHouse batch insert
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
+│   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync)
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
-│   ├── person-writer.service.ts         # PostgreSQL person upsert + merge (implements IPersonWriter)
-│   ├── person-writer.interface.ts       # IPersonWriter interface + DI token (PERSON_WRITER)
-│   ├── person-batch-store.ts            # Batched person writes (uses IPersonWriter via DI)
+│   ├── person-writer.service.ts         # PostgreSQL person merge
+│   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
+│   ├── person-batch-store.ts            # Batched person writes (injects PersonWriterService)
 │   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
 │   ├── cohort-toposort.ts               # Topological sort for cohort dependencies
 │   ├── dlq.service.ts                   # Dead letter queue replay
+│   ├── retry.ts                         # withRetry() linear backoff + jitter
 │   ├── insert.ts                        # ClickHouse insert helper
 │   ├── utils.ts                         # Redis field parsing
 │   └── geo.service.ts                   # GeoIP lookup
@@ -45,6 +48,8 @@ src/
     ├── setup.ts
     ├── context.ts                       # Shared test context (containers + NestJS app)
     ├── helpers/
+    │   ├── poll.ts                      # pollUntil<T>() generic polling utility
+    │   └── ...
     └── processor/
 ```
 
@@ -68,20 +73,14 @@ Redis Stream (events:incoming)
 | `EventEnrichmentService` | GeoIP + person resolution → Event DTO | Extracted from consumer for SRP |
 | `HeartbeatService` | Liveness heartbeat file writing | 15s interval, stale detection at 30s |
 | `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ |
-| `DefinitionSyncService` | Upsert event/property definitions to PG | Hourly in-memory dedup cache, cache invalidation via Redis DEL |
+| `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
-| `PersonWriterService` | Person/mapping upserts, identity merge | `$set`/`$set_once`/`$unset` property merge, transactional |
-| `PersonBatchStore` | Batched person writes | Uses `IPersonWriter` via DI (no circular dep) |
+| `PersonWriterService` | Identity merge transaction | Re-points distinct_ids, merges properties, deletes anon person |
+| `PersonBatchStore` | Batched person writes | Injects `PersonWriterService` directly |
 | `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
 
 ## Key Patterns
-
-### DI: IPersonWriter Interface
-`PersonBatchStore` depends on person merge logic, but `PersonWriterService` is a heavy service. To avoid circular deps, `IPersonWriter` interface + DI token (`PERSON_WRITER`) is used:
-```typescript
-{ provide: PERSON_WRITER, useExisting: PersonWriterService }
-```
 
 ### Distributed Lock
 Both `DlqService` and `CohortMembershipService` use `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.
@@ -104,11 +103,15 @@ When `$identify` event arrives with `anonymous_id`:
 ### Dead Letter Queue
 Failed batches (3 retries exhausted) → `events:dlq` stream (MAXLEN 100k). `DlqService` replays with circuit breaker and distributed lock.
 
+### Retry Presets
+Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_POSTGRES` (3×200ms), `RETRY_DEFINITIONS` (3×50ms). Used by all `withRetry()` call sites — centralizes tuning.
+
 ### Graceful Shutdown
-`ProcessorModule` implements `OnApplicationShutdown`:
+`ShutdownService` implements `OnApplicationShutdown`:
 1. Stop consumer loop
-2. Final flush of remaining buffer
-3. Close Redis/ClickHouse/PostgreSQL connections
+2. Stop DLQ + cohort timers
+3. Final flush of remaining buffer
+4. Close Redis/ClickHouse connections
 
 ## Integration Tests
 

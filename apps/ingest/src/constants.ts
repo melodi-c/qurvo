@@ -1,4 +1,5 @@
-// NOTE: must match apps/processor/src/constants.ts
+// Intentionally duplicated in apps/processor/src/constants.ts — both apps share
+// the same Redis stream contract but have no shared runtime dependency.
 export const REDIS_STREAM_EVENTS = 'events:incoming';
 export const REDIS_STREAM_MAXLEN = 1_000_000;
 

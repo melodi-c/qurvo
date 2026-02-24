@@ -13,6 +13,7 @@ import {
   DLQ_REPLAY_BATCH,
   DLQ_REPLAY_INTERVAL_MS,
   REDIS_STREAM_DLQ,
+  RETRY_CLICKHOUSE,
 } from '../constants';
 import { parseRedisFields } from './utils';
 import { DistributedLock } from '@qurvo/distributed-lock';
@@ -20,6 +21,7 @@ import { DistributedLock } from '@qurvo/distributed-lock';
 @Injectable()
 export class DlqService implements OnApplicationBootstrap {
   private dlqTimer: NodeJS.Timeout | null = null;
+  private stopped = false;
   private consecutiveFailures = 0;
   private circuitOpenedAt: number | null = null;
   private readonly lock: DistributedLock;
@@ -33,11 +35,22 @@ export class DlqService implements OnApplicationBootstrap {
   }
 
   onApplicationBootstrap() {
-    this.dlqTimer = setInterval(() => this.replayDlq(), DLQ_REPLAY_INTERVAL_MS);
+    this.scheduleReplay();
   }
 
   stop() {
-    if (this.dlqTimer) clearInterval(this.dlqTimer);
+    this.stopped = true;
+    if (this.dlqTimer) {
+      clearTimeout(this.dlqTimer);
+      this.dlqTimer = null;
+    }
+  }
+
+  private scheduleReplay() {
+    this.dlqTimer = setTimeout(async () => {
+      await this.replayDlq();
+      if (!this.stopped) this.scheduleReplay();
+    }, DLQ_REPLAY_INTERVAL_MS);
   }
 
   private async replayDlq() {
@@ -76,7 +89,7 @@ export class DlqService implements OnApplicationBootstrap {
         () => insertEvents(this.ch, events),
         'DLQ ClickHouse insert',
         this.logger,
-        { maxAttempts: 3, baseDelayMs: 1000 },
+        RETRY_CLICKHOUSE,
       );
       await this.redis.xdel(REDIS_STREAM_DLQ, ...ids);
       this.consecutiveFailures = 0;

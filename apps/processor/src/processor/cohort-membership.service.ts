@@ -165,7 +165,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         query_params: { ids: allDynamicIds },
       });
     } else {
-      // No dynamic cohorts exist — delete ALL membership rows
       await this.ch.command({
         query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
       });
@@ -191,7 +190,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         {cm_version:UInt64} AS version
       FROM (${subquery})`;
 
-    await this.ch.query({
+    await this.ch.command({
       query: insertSql,
       query_params: { ...queryParams, cm_cohort_id: cohortId, cm_project_id: projectId, cm_version: version },
     });

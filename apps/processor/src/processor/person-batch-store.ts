@@ -3,9 +3,10 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { sql, inArray } from 'drizzle-orm';
 import { persons, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { parseUserProperties } from './person-writer.service';
-import { type IPersonWriter, PERSON_WRITER } from './person-writer.interface';
+import { parseUserProperties } from './person-utils';
+import { PersonWriterService } from './person-writer.service';
 import { withRetry } from './retry';
+import { RETRY_POSTGRES } from '../constants';
 
 interface PendingPerson {
   projectId: string;
@@ -37,7 +38,7 @@ export class PersonBatchStore {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(PERSON_WRITER) private readonly personWriter: IPersonWriter,
+    private readonly personWriter: PersonWriterService,
     @InjectPinoLogger(PersonBatchStore.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -108,7 +109,7 @@ export class PersonBatchStore {
         () => this.flushPersons(pendingPersons),
         'flushPersons',
         this.logger,
-        { maxAttempts: 3, baseDelayMs: 200 },
+        RETRY_POSTGRES,
       );
     }
 
@@ -118,7 +119,7 @@ export class PersonBatchStore {
         () => this.flushDistinctIds(pendingDistinctIds),
         'flushDistinctIds',
         this.logger,
-        { maxAttempts: 3, baseDelayMs: 200 },
+        RETRY_POSTGRES,
       );
     }
 

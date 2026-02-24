@@ -13,7 +13,8 @@ import {
 import { AppModule } from '../../app.module';
 import { REDIS_STREAM_EVENTS } from '../../constants';
 import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
-import { postTrack, postBatch, postTrackGzip, postBatchGzip, getBaseUrl, parseRedisFields } from '../helpers';
+import { postTrack, postBatch, postTrackGzip, postBatchGzip, postImport, getBaseUrl, parseRedisFields } from '../helpers';
+import { billingCounterKey } from '../../constants';
 
 let ctx: ContainerContext;
 let app: INestApplication;
@@ -191,5 +192,83 @@ describe('POST /v1/batch', () => {
     });
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /v1/import', () => {
+  it('returns 202 and pushes all events to Redis stream', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await postImport(app, testProject.apiKey, {
+      events: [
+        { event: 'signup', distinct_id: 'import-user-1', timestamp: new Date().toISOString() },
+        { event: 'purchase', distinct_id: 'import-user-2', timestamp: new Date().toISOString() },
+        { event: 'login', distinct_id: 'import-user-1', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ ok: true, count: 3 });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 3);
+  });
+
+  it('preserves event_id when provided', async () => {
+    const customEventId = '11111111-1111-4111-a111-111111111111';
+
+    const res = await postImport(app, testProject.apiKey, {
+      events: [
+        { event: 'custom_event', distinct_id: 'import-user-3', timestamp: new Date().toISOString(), event_id: customEventId },
+      ],
+    });
+
+    expect(res.status).toBe(202);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    expect(fields.event_id).toBe(customEventId);
+  });
+
+  it('does not increment billing counter', async () => {
+    const counterKey = billingCounterKey(testProject.projectId);
+    const counterBefore = await ctx.redis.get(counterKey);
+
+    await postImport(app, testProject.apiKey, {
+      events: [
+        { event: 'imported', distinct_id: 'import-user-4', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    // Wait a bit for any fire-and-forget operations to complete
+    await new Promise((r) => setTimeout(r, 100));
+
+    const counterAfter = await ctx.redis.get(counterKey);
+    expect(counterAfter).toBe(counterBefore);
+  });
+
+  it('returns 400 when timestamp is missing', async () => {
+    const res = await postImport(app, testProject.apiKey, {
+      events: [
+        { event: 'no_timestamp', distinct_id: 'import-user-5' },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('sets batch_id with import- prefix', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    await postImport(app, testProject.apiKey, {
+      events: [
+        { event: 'prefixed', distinct_id: 'import-user-6', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    expect(fields.batch_id).toMatch(/^import-/);
   });
 });
