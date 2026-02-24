@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/funnel/PropertyNameCombobox';
 import { usePersonPropertyNames } from '@/pages/persons/use-person-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { ConditionRowWrapper } from './ConditionRowWrapper';
 import translations from './PropertyConditionRow.translations';
 import type { PropertyCondition, CohortPropertyOperator } from '../types';
 
@@ -71,18 +72,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
   }, [condition, onChange]);
 
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">{t('personProperty')}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-
+    <ConditionRowWrapper label={t('personProperty')} labelColor="text-blue-400" onRemove={onRemove}>
       <PropertyNameCombobox
         value={condition.property}
         onChange={(v) => onChange({ ...condition, property: v })}
@@ -154,7 +144,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
           className="h-8 text-xs flex-1"
         />
       )}
-    </div>
+    </ConditionRowWrapper>
   );
 }
 

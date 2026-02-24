@@ -13,23 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { WEB_METRIC_COLORS } from '@/lib/chart-colors';
+import { formatBucket } from '@/lib/formatting';
 import translations from './WebTimeseriesChart.translations';
 
 type MetricKey = 'unique_visitors' | 'pageviews' | 'sessions';
 
-const METRIC_COLORS: Record<MetricKey, string> = {
-  unique_visitors: '#818cf8',
-  pageviews: '#34d399',
-  sessions: '#fbbf24',
-};
-
-function formatBucket(bucket: string, granularity: string): string {
-  const d = new Date(bucket);
-  if (granularity === 'hour') {
-    return d.toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric' });
-  }
-  return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
-}
+const METRIC_COLORS = WEB_METRIC_COLORS;
 
 interface WebTimeseriesChartProps {
   data?: WebAnalyticsTimeseriesPoint[];

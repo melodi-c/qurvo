@@ -29,29 +29,11 @@ import { SERIES_LETTERS } from './trend-shared';
 
 // ── Colors ──
 
-const COLORS = [
-  'hsl(221, 83%, 53%)',   // blue-600
-  'hsl(160, 84%, 39%)',   // emerald-600
-  'hsl(38, 92%, 50%)',    // amber-500
-  'hsl(263, 70%, 50%)',   // violet-500
-  'hsl(350, 89%, 60%)',   // rose-500
-];
+import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL } from '@/lib/chart-colors';
 
-const COMPARE_COLORS = [
-  'hsl(221, 60%, 75%)',
-  'hsl(160, 60%, 70%)',
-  'hsl(38, 60%, 75%)',
-  'hsl(263, 50%, 75%)',
-  'hsl(350, 60%, 78%)',
-];
-
-const FORMULA_COLORS = [
-  'hsl(45, 93%, 58%)',    // yellow-400
-  'hsl(180, 70%, 50%)',   // cyan-500
-  'hsl(330, 80%, 60%)',   // pink-500
-  'hsl(90, 60%, 50%)',    // lime-500
-  'hsl(270, 60%, 65%)',   // purple-400
-];
+const COLORS = CHART_COLORS_HSL;
+const COMPARE_COLORS = CHART_COMPARE_COLORS_HSL;
+const FORMULA_COLORS = CHART_FORMULA_COLORS_HSL;
 
 // ── Types ──
 

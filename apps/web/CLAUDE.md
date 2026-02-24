@@ -85,6 +85,29 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | Hook | File | Signature | When to use |
 |---|---|---|---|
 | `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling |
+| `createWidgetDataHook` | `features/dashboard/hooks/create-widget-data-hook.ts` | `<Config, Response>(options) => useHook(config, widgetId)` | Factory for creating widget data fetching hooks. Handles projectId, auto-refresh, stale data detection, refresh limiter. All widget hooks (useTrendData, useFunnelData, etc.) use this factory |
+
+## Shared Utilities (`src/lib/`)
+
+| Module | File | Exports | When to use |
+|---|---|---|---|
+| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS` | Single source of truth for all chart/visualization colors. Import instead of defining local color arrays |
+| Formatting | `formatting.ts` | `formatBucket(bucket, granularity)`, `formatSeconds(s)` | Shared formatting for chart axes and durations. Import instead of defining local formatters |
+
+## Dashboard Widget Components
+
+| Component | File | When to use |
+|---|---|---|
+| `WidgetShell` | `features/dashboard/components/widgets/WidgetShell.tsx` | Wrapper for all dashboard widgets. Handles loading/error/empty states, metric header with refresh button, cache info. Pass type-specific chart as children |
+| `WidgetSkeleton` | `features/dashboard/components/widgets/WidgetSkeleton.tsx` | Loading skeleton, variant: chart/table/flow |
+| `WidgetTransition` | `features/dashboard/components/widgets/WidgetTransition.tsx` | Fade-in transition wrapper with opacity during refetch |
+
+## Cohort Condition Row Components
+
+| Component | File | When to use |
+|---|---|---|
+| `ConditionRowWrapper` | `features/cohorts/components/ConditionRowWrapper.tsx` | Shared wrapper for all condition rows. Provides container, colored label, remove button. Use for all cohort condition types |
+| `TimeWindowInput` | `features/cohorts/components/TimeWindowInput.tsx` | Shared "in last N days" input. Use in all condition rows that have a time window field |
 
 ## Code Rules
 

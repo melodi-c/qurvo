@@ -1,12 +1,8 @@
-import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { WidgetSkeleton } from '../WidgetSkeleton';
-import { WidgetTransition } from '../WidgetTransition';
+import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
 import { RetentionTable } from './RetentionTable';
 import type { Widget, RetentionWidgetConfig } from '@/api/generated/Api';
-import { formatDistanceToNow } from 'date-fns';
 import translations from './RetentionWidget.translations';
 
 interface RetentionWidgetProps {
@@ -16,81 +12,27 @@ interface RetentionWidgetProps {
 export function RetentionWidget({ widget }: RetentionWidgetProps) {
   const { t } = useLocalTranslation(translations);
   const config = widget.insight?.config as RetentionWidgetConfig | undefined;
-  if (!config) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        {t('noInsight')}
-      </div>
-    );
-  }
-
-  const { data, isLoading, isFetching, error, refresh } = useRetentionData(config, widget.id);
-
-  if (!config.target_event) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        {t('configureEvent')}
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return <WidgetSkeleton variant="table" />;
-  }
-
-  if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2">
-        <p className="text-muted-foreground text-sm">{t('loadFailed')}</p>
-        <Button size="sm" variant="ghost" onClick={() => refresh()}>
-          {t('retry')}
-        </Button>
-      </div>
-    );
-  }
-
-  const result = data.data;
-  if (result.cohorts.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-1 text-center">
-        <p className="text-muted-foreground text-sm">{t('noData')}</p>
-        <p className="text-muted-foreground/60 text-xs">{t('adjustDateRange')}</p>
-      </div>
-    );
-  }
+  const hasConfig = !!config;
+  const query = useRetentionData(config ?? { target_event: '', retention_type: 'first_time', granularity: 'day', periods: 7, date_from: '', date_to: '' } as any, widget.id);
+  const result = query.data?.data;
 
   return (
-    <WidgetTransition isFetching={isFetching}>
-      <div className="h-full flex flex-col min-h-0">
-        <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-xl font-bold tabular-nums text-primary">
-              {result.cohorts.length}
-            </span>
-            <span className="text-xs text-muted-foreground">{t('cohorts')}</span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
-              {data.from_cache
-                ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
-                : t('fresh')}
-            </span>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-5 w-5"
-              onClick={() => refresh()}
-              disabled={isFetching}
-              title={t('refresh')}
-            >
-              <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto min-h-0">
-          <RetentionTable result={result} compact />
-        </div>
+    <WidgetShell
+      query={query}
+      isConfigValid={hasConfig && !!config.target_event}
+      configureMessage={hasConfig ? t('configureEvent') : t('noInsight')}
+      isEmpty={!result || result.cohorts.length === 0}
+      emptyMessage={t('noData')}
+      emptyHint={t('adjustDateRange')}
+      skeletonVariant="table"
+      metric={<span className="text-xl font-bold tabular-nums text-primary">{result?.cohorts.length ?? 0}</span>}
+      metricSecondary={<span className="text-xs text-muted-foreground">{t('cohorts')}</span>}
+      cachedAt={query.data?.cached_at}
+      fromCache={query.data?.from_cache}
+    >
+      <div className="h-full overflow-auto">
+        <RetentionTable result={result!} compact />
       </div>
-    </WidgetTransition>
+    </WidgetShell>
   );
 }

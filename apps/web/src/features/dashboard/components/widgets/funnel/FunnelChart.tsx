@@ -16,18 +16,11 @@ export interface FunnelChartProps {
 const BAR_AREA_H_FULL = 240;
 const BAR_AREA_H_COMPACT = 130;
 
-/** Hex colors for breakdown series (no opacity needed — applied per-element). */
-const SERIES_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
-  '#ef4444', '#ec4899', '#06b6d4', '#84cc16',
-];
+import { CHART_COLORS_HEX } from '@/lib/chart-colors';
+import { formatSeconds } from '@/lib/formatting';
 
-function formatSeconds(s: number | null | undefined): string | null {
-  if (s == null) return null;
-  if (s < 60) return `${Math.round(s)}s`;
-  if (s < 3600) return `${Math.round(s / 60)}m`;
-  return `${(s / 3600).toFixed(1)}h`;
-}
+/** Hex colors for breakdown series (no opacity needed — applied per-element). */
+const SERIES_COLORS = CHART_COLORS_HEX;
 
 /** PostHog bar-width ladder based on number of series. */
 function barWidthPx(n: number, compact: boolean): number {

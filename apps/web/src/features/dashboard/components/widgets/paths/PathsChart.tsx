@@ -21,10 +21,9 @@ interface SankeyLink {
   value: number;
 }
 
-const COLORS = [
-  '#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
-  '#ef4444', '#ec4899', '#14b8a6', '#6366f1', '#84cc16',
-];
+import { CHART_COLORS_HEX } from '@/lib/chart-colors';
+
+const COLORS = CHART_COLORS_HEX;
 
 function toSankeyData(transitions: PathTransition[]) {
   const nodeMap = new Map<string, number>();
