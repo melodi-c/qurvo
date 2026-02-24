@@ -1,6 +1,7 @@
 import { TrendingUp, BarChart3 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
+import { MetricsDivider } from '@/components/ui/metrics-divider';
+import { EditorSkeleton } from '@/components/ui/editor-skeleton';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
@@ -72,23 +73,15 @@ export default function TrendEditorPage() {
       noResultsIcon={TrendingUp}
       noResultsTitle={t('noResultsTitle')}
       noResultsDescription={t('noResultsDescription')}
-      skeleton={
-        <>
-          <div className="flex gap-8">
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-          </div>
-          <Skeleton className="h-[300px] w-full" />
-        </>
-      }
+      skeleton={<EditorSkeleton metricCount={2} />}
       metricsBar={
         <>
           <Metric label={metricLabel} value={totalValue.toLocaleString()} accent />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('series')} value={String(seriesCount)} />
           {result?.compare && result.series_previous && (
             <>
-              <div className="w-px h-8 bg-border/50 mx-6" />
+              <MetricsDivider />
               <Metric
                 label={t('previousPeriod')}
                 value={result.series_previous

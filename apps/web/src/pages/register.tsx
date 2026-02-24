@@ -43,7 +43,7 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="space-y-2">
               <Label htmlFor="name">{t('name')}</Label>
               <Input id="name" value={form.display_name} onChange={update('display_name')} required />

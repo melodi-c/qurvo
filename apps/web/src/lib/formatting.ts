@@ -1,5 +1,11 @@
 /** Shared formatting utilities for charts and data display. */
 
+import { useLanguageStore } from '@/stores/language';
+
+function getLocale(): string {
+  return useLanguageStore.getState().language;
+}
+
 /** Format an ISO timestamp into a relative time string (e.g. "5m ago"). */
 export function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -10,7 +16,7 @@ export function formatRelativeTime(iso: string): string {
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString(getLocale());
 }
 
 /** Return a badge variant for a given event name. */
@@ -25,18 +31,19 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
 
 /** Format a time bucket string for chart axes. */
 export function formatBucket(bucket: string, granularity: string): string {
+  const locale = getLocale();
   const d = new Date(bucket);
   if (granularity === 'hour') {
-    return d.toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric' });
+    return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric' });
   }
   if (granularity === 'week') {
-    return `W${getISOWeek(d)} ${d.toLocaleString('en', { month: 'short' })}`;
+    return `W${getISOWeek(d)} ${d.toLocaleString(locale, { month: 'short' })}`;
   }
   if (granularity === 'month') {
-    return d.toLocaleString('en', { month: 'short', year: '2-digit' });
+    return d.toLocaleString(locale, { month: 'short', year: '2-digit' });
   }
   // day (default)
-  return d.toLocaleString('en', { month: 'short', day: 'numeric' });
+  return d.toLocaleString(locale, { month: 'short', day: 'numeric' });
 }
 
 /** Format seconds into a human-readable duration. */

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
 interface InsightEditorLayoutProps {
   /** EditorHeader props */
@@ -114,7 +115,7 @@ export function InsightEditorLayout({
           )}
 
           {isConfigValid && !showSkeleton && !isEmpty && (
-            <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
+            <div className={cn('flex flex-col h-full transition-opacity', isFetching && 'opacity-60')}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                 {metricsBar}
               </div>

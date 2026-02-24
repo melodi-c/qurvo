@@ -86,6 +86,7 @@ function AppRoutes() {
         <Route path={routes.settings.pattern} element={<SettingsPage />} />
         <Route path={routes.profile.pattern} element={<ProfilePage />} />
         <Route path={routes.invites.pattern} element={<Navigate to={routes.profile({ tab: 'invites' })} replace />} />
+
         <Route path={routes.insights.list.pattern} element={<InsightsPage />} />
         <Route path={routes.insights.trends.new.pattern} element={<TrendEditorPage />} />
         <Route path={routes.insights.trends.detail.pattern} element={<TrendEditorPage />} />
@@ -100,9 +101,9 @@ function AppRoutes() {
         <Route path={routes.insights.paths.new.pattern} element={<PathsEditorPage />} />
         <Route path={routes.insights.paths.detail.pattern} element={<PathsEditorPage />} />
         {/* Redirects from old routes */}
-        <Route path={routes.legacy.trends.pattern} element={<Navigate to="/insights?type=trend" replace />} />
-        <Route path={routes.legacy.funnels.pattern} element={<Navigate to="/insights?type=funnel" replace />} />
-        <Route path={routes.legacy.retentions.pattern} element={<Navigate to="/insights?type=retention" replace />} />
+        <Route path={routes.legacy.trends.pattern} element={<Navigate to={`${routes.insights.list()}?type=trend`} replace />} />
+        <Route path={routes.legacy.funnels.pattern} element={<Navigate to={`${routes.insights.list()}?type=funnel`} replace />} />
+        <Route path={routes.legacy.retentions.pattern} element={<Navigate to={`${routes.insights.list()}?type=retention`} replace />} />
         <Route path={routes.events.pattern} element={<EventsPage />} />
         <Route path={routes.cohorts.list.pattern} element={<CohortsPage />} />
         <Route path={routes.cohorts.new.pattern} element={<CohortEditorPage />} />

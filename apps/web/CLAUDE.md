@@ -13,6 +13,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `--color-muted` | `#27272a` | Muted surfaces, skeleton bg |
 | `--color-muted-foreground` | `#a1a1aa` | Subdued text, labels |
 | `--color-destructive` | `#7f1d1d` | Danger actions |
+| `--color-sidebar` | `#0f0f11` | Sidebar and topbar background |
 | `--color-border` | `#27272a` | Borders |
 | `--radius` | `0.5rem` | Border radius base |
 
@@ -56,6 +57,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `TablePagination` | `table-pagination.tsx` | `page`, `onPageChange`, `hasMore`, `className?` | Previous/Next pagination. Prefer using DataTable's built-in `page`/`onPageChange`/`hasMore` props instead of standalone usage |
 | `EditorHeader` | `editor-header.tsx` | `backPath`, `backLabel`, `name`, `onNameChange`, `placeholder`, `onSave`, `isSaving`, `isValid`, `saveError?` | Editor page header with breadcrumbs (`backLabel > name input`) + save/discard buttons. Use for all editor pages (trends, funnels, cohorts) |
 | `Metric` | `metric.tsx` | `label`, `value`, `accent?` | Large numeric display for KPIs in editor results panels |
+| `MetricsDivider` | `metrics-divider.tsx` | — | Vertical divider between `Metric` components in editor metrics bar |
+| `EditorSkeleton` | `editor-skeleton.tsx` | `metricCount?` (default 2), `children?` | Loading skeleton for editor pages. Shows metric placeholders + optional custom body (defaults to single 300px skeleton). Funnel editor uses custom `children` for its unique skeleton shape |
 | `SectionHeader` | `section-header.tsx` | `icon: ElementType`, `label` | Uppercase section labels with icon in query panels |
 | `PillToggleGroup` | `pill-toggle-group.tsx` | `options: { label, value }[]`, `value`, `onChange`, `className?` | Toggle between small set of options (chart type, match mode). Renders pill-shaped buttons |
 | `TabNav` | `tab-nav.tsx` | `tabs: { id, label }[]`, `value`, `onChange`, `className?` | Underline-style tab navigation. Active tab has white bottom border. Use for page-level tab switching (settings, event detail). Generic `<T extends string>` for type-safe tab IDs |
@@ -71,7 +74,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `InsightEditorLayout` | `InsightEditorLayout.tsx` | `queryPanel`, `isConfigValid`, `showSkeleton`, `isEmpty`, `isFetching`, `skeleton`, `metricsBar`, `children`, `configureIcon/Title/Description`, `noResultsIcon/Title/Description`, `chartClassName?` + EditorHeader props | Shared layout for all insight editor pages. Wraps EditorHeader + QueryPanel + main area with 4 conditional states (configure, loading, empty, results). All 6 editor pages use this |
 | `ErrorBoundary` | `ErrorBoundary.tsx` | `children`, `fallback?` | React error boundary. Wraps WidgetShell children and AppRoutes. Catches render errors with retry button |
 | `EventNameCombobox` | `EventNameCombobox.tsx` | `value`, `onChange`, `placeholder?`, `className?` | Searchable event name selector (Popover + Command). Used across all widgets, cohort rows, filter panels |
-| `PropertyNameCombobox` | `PropertyNameCombobox.tsx` | `value`, `onChange`, `propertyNames`, `descriptions?`, `className?` | Searchable property name selector. Used in StepFilterRow and cohort PropertyConditionRow |
+| `PropertyNameCombobox` | `PropertyNameCombobox.tsx` | `value`, `onChange`, `propertyNames`, `descriptions?`, `className?` | Searchable property name selector. **Must be used for ALL property selection UI** — filters, breakdowns, metric properties, cohort aggregation properties. Never use plain `Input` or `Select` for property selection |
 | `StepFilterRow` | `StepFilterRow.tsx` | `filter`, `onChange`, `onRemove`, `propertyNames?`, `propertyDescriptions?` | Property filter row (property + operator + value). Also exports `NO_VALUE_OPS` set. Used in QueryItemCard, FilterListSection |
 | `FilterListSection` | `FilterListSection.tsx` | `label`, `addLabel`, `filters`, `onFiltersChange`, `propertyNames?`, `propertyDescriptions?`, `icon?` | Self-contained filter list with add/update/remove logic, SectionHeader, and "Add filter" button. Encapsulates the repeated pattern from EventsFilterPanel, PersonsFilterPanel, DashboardFilterBar |
 | `EventTypeIcon` | `EventTypeIcon.tsx` | `eventName: string` | Event type icon by event name ($pageview, $identify, etc.). Used in EventTable, EventDetail |
@@ -84,11 +87,15 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Hook | File | Signature | When to use |
 |---|---|---|---|
+| `useProjectId` | `use-project-id.ts` | `() => string` | Read current project ID from `?project=` URL param. Canonical source — use instead of local `useSearchParams().get('project')` |
+| `useEventPropertyNames` | `use-event-property-names.ts` | `(eventName?) => { data: string[], descriptions: Record }` | Fetch property names (optionally filtered by event). Returns flat names + description map. Use with `PropertyNameCombobox` |
 | `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
 | `useConfirmDelete` | `confirm-dialog.tsx` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
 | `useDragReorder<T>` | `use-drag-reorder.ts` | `(items: T[], onChange: (items: T[]) => void) => { dragIdx, overIdx, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave }` | Reorderable lists via native HTML5 drag events. Used in FunnelStepBuilder and TrendSeriesBuilder |
 
 ## Feature Hooks (`src/features/`)
+
+**Canonical hooks live in `src/hooks/`**. Feature-level hooks in `src/features/*/hooks/` are thin re-exports (e.g. `use-event-definitions.ts` re-exports from `@/hooks/use-event-definitions`). Always import from `@/hooks/` for new code.
 
 | Hook | File | Signature | When to use |
 |---|---|---|---|
@@ -132,6 +139,11 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 ### Reusability
 - **Prefer creating reusable components over inline implementations.** If a UI pattern appears (or could appear) in more than one place, extract it into a shared component in `components/ui/`. Use existing components whenever possible instead of writing custom markup.
 - Before writing a new component, check if an existing one in `components/ui/` already solves the problem or can be composed to solve it.
+
+### Property Selection
+- **Always use `PropertyNameCombobox` for property selection** — never plain `Input` or `Select`. This provides searchable dropdown with descriptions.
+- Pair with `useEventPropertyNames(eventName?)` hook to get property names and descriptions.
+- For custom (user-defined) properties only, filter with `.filter(n => n.startsWith('properties.'))`.
 
 ### Dialogs Over Native APIs
 - **Never use `confirm()`, `alert()`, or `prompt()`**. Use `ConfirmDialog` for destructive confirmations and `Dialog` for other modal interactions.
@@ -196,7 +208,7 @@ BreakdownSection (breakdown property input)
 All query panel sections are self-contained components in `components/ui/`. Widget-specific sections stay in the widget's own directory.
 
 ### Project Context
-Current project ID is always passed via `?project=<uuid>` in URL search params. Read with `useSearchParams()`. Layout preserves `project` param on navigation via `navLink()` helper.
+Current project ID is always passed via `?project=<uuid>` in URL search params. Read with `useProjectId()` hook from `@/hooks/use-project-id`. Layout preserves `project` param on navigation via `navLink()` helper.
 
 ### Toast Notifications
 Use `toast.success()` / `toast.error()` from `sonner` for user feedback after mutations. Never use `alert()`.

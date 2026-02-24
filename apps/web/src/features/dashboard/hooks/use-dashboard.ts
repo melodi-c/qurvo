@@ -1,12 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
+import { useProjectId } from '@/hooks/use-project-id';
 import type { CreateWidget, Widget } from '@/api/generated/Api';
-
-function useProjectId() {
-  const [searchParams] = useSearchParams();
-  return searchParams.get('project') || '';
-}
 
 export function useDashboardList() {
   const projectId = useProjectId();
