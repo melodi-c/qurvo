@@ -27,7 +27,7 @@ export class FunnelController {
     @CurrentUser() user: RequestUser,
     @Query() query: FunnelQueryDto,
   ): Promise<FunnelResponseDto> {
-    return this.funnelService.query(user.user_id, query) as any;
+    return this.funnelService.query(query) as any;
   }
 
   @Get('funnel/time-to-convert')
@@ -35,6 +35,6 @@ export class FunnelController {
     @CurrentUser() user: RequestUser,
     @Query() query: FunnelTimeToConvertQueryDto,
   ): Promise<TimeToConvertResponseDto> {
-    return this.ttcService.query(user.user_id, query) as any;
+    return this.ttcService.query(query) as any;
   }
 }

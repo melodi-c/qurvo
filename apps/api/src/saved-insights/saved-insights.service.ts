@@ -11,7 +11,7 @@ export class SavedInsightsService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  async list(userId: string, projectId: string, type?: InsightType) {
+  async list(projectId: string, type?: InsightType) {
     const conditions = [eq(insights.project_id, projectId)];
     if (type) conditions.push(eq(insights.type, type));
 
@@ -22,7 +22,7 @@ export class SavedInsightsService {
       .orderBy(insights.created_at);
   }
 
-  async getById(userId: string, projectId: string, insightId: string) {
+  async getById(projectId: string, insightId: string) {
     const rows = await this.db
       .select()
       .from(insights)
@@ -53,7 +53,6 @@ export class SavedInsightsService {
   }
 
   async update(
-    userId: string,
     projectId: string,
     insightId: string,
     input: { name?: string; description?: string; config?: InsightConfig; is_favorite?: boolean },
@@ -70,7 +69,7 @@ export class SavedInsightsService {
     return rows[0];
   }
 
-  async remove(userId: string, projectId: string, insightId: string) {
+  async remove(projectId: string, insightId: string) {
     const rows = await this.db
       .delete(insights)
       .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)))

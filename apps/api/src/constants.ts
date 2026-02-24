@@ -1,5 +1,6 @@
 export const SESSION_TOKEN_LENGTH = 32;
 export const SESSION_TTL_DAYS = 30;
+export const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
 
 export const LOGIN_MAX_ATTEMPTS = 5;
 export const LOGIN_WINDOW_SECONDS = 60;

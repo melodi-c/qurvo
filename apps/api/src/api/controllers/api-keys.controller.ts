@@ -15,18 +15,18 @@ export class ApiKeysController {
 
   @Get()
   async list(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string): Promise<ApiKeyDto[]> {
-    return this.apiKeysService.list(user.user_id, projectId);
+    return this.apiKeysService.list(projectId);
   }
 
   @RequireRole('editor')
   @Post()
   async create(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string, @Body() body: CreateApiKeyDto): Promise<ApiKeyCreatedDto> {
-    return this.apiKeysService.create(user.user_id, projectId, body);
+    return this.apiKeysService.create(projectId, body);
   }
 
   @RequireRole('editor')
   @Delete(':keyId')
   async revoke(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string, @Param('keyId') keyId: string): Promise<void> {
-    await this.apiKeysService.revoke(user.user_id, projectId, keyId);
+    await this.apiKeysService.revoke(projectId, keyId);
   }
 }

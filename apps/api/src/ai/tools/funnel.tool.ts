@@ -35,7 +35,7 @@ export class FunnelTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.funnelService.query(userId, {
+    const result = await this.funnelService.query({
       project_id: projectId,
       conversion_window_days: args.conversion_window_days ?? 14,
       ...args,

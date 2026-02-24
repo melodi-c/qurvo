@@ -15,17 +15,17 @@ export class EventsService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  async getEvents(userId: string, params: EventsQueryParams): Promise<EventRow[]> {
+  async getEvents(params: EventsQueryParams): Promise<EventRow[]> {
     return queryEvents(this.ch, params);
   }
 
-  async getEventDetail(userId: string, projectId: string, eventId: string): Promise<EventDetailRow> {
+  async getEventDetail(projectId: string, eventId: string): Promise<EventDetailRow> {
     const row = await queryEventDetail(this.ch, { project_id: projectId, event_id: eventId });
     if (!row) throw new EventNotFoundException();
     return row;
   }
 
-  async getEventNames(userId: string, projectId: string): Promise<string[]> {
+  async getEventNames(projectId: string): Promise<string[]> {
     const rows = await this.db
       .select({ event_name: eventDefinitions.event_name })
       .from(eventDefinitions)
@@ -34,7 +34,7 @@ export class EventsService {
     return rows.map((r) => r.event_name);
   }
 
-  async getEventPropertyNames(userId: string, projectId: string, eventName?: string): Promise<string[]> {
+  async getEventPropertyNames(projectId: string, eventName?: string): Promise<string[]> {
     if (eventName) {
       // Event-scoped: query event_properties
       const rows = await this.db

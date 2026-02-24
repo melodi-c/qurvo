@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ProjectsService } from '../../projects/projects.service';
 import { InsufficientPermissionsException } from '../../projects/exceptions/insufficient-permissions.exception';
+import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { REQUIRED_ROLE_KEY, type ProjectRole } from '../decorators/require-role.decorator';
 
 const ROLE_LEVEL: Record<string, number> = { owner: 3, editor: 2, viewer: 1 };
@@ -20,7 +21,7 @@ export class ProjectMemberGuard implements CanActivate {
 
     const projectId: string | undefined =
       request.params?.projectId ?? request.query?.project_id;
-    if (!projectId) return false;
+    if (!projectId) throw new AppBadRequestException('projectId is required');
 
     const membership = await this.projectsService.getMembership(
       user.user_id,
@@ -38,7 +39,6 @@ export class ProjectMemberGuard implements CanActivate {
       throw new InsufficientPermissionsException();
     }
 
-    request.projectMembership = membership;
     return true;
   }
 }

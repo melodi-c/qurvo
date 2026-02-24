@@ -28,7 +28,7 @@ export class CohortsController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<CohortDto[]> {
-    return this.cohortsService.list(user.user_id, projectId) as any;
+    return this.cohortsService.list(projectId) as any;
   }
 
   @RequireRole('editor')
@@ -47,7 +47,7 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
   ): Promise<CohortDto> {
-    return this.cohortsService.getById(user.user_id, projectId, cohortId) as any;
+    return this.cohortsService.getById(projectId, cohortId) as any;
   }
 
   @RequireRole('editor')
@@ -58,7 +58,7 @@ export class CohortsController {
     @Param('cohortId') cohortId: string,
     @Body() body: UpdateCohortDto,
   ): Promise<CohortDto> {
-    return this.cohortsService.update(user.user_id, projectId, cohortId, body) as any;
+    return this.cohortsService.update(projectId, cohortId, body) as any;
   }
 
   @RequireRole('editor')
@@ -68,7 +68,7 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
   ): Promise<void> {
-    await this.cohortsService.remove(user.user_id, projectId, cohortId);
+    await this.cohortsService.remove(projectId, cohortId);
   }
 
   @Get(':cohortId/history')
@@ -78,7 +78,7 @@ export class CohortsController {
     @Param('cohortId') cohortId: string,
     @Query() query: CohortSizeHistoryQueryDto,
   ): Promise<CohortHistoryPointDto[]> {
-    return this.cohortsService.getSizeHistory(user.user_id, projectId, cohortId, query.days ?? 30) as any;
+    return this.cohortsService.getSizeHistory(projectId, cohortId, query.days ?? 30) as any;
   }
 
   @Get(':cohortId/count')
@@ -87,7 +87,7 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
   ): Promise<CohortMemberCountDto> {
-    const count = await this.cohortsService.getMemberCount(user.user_id, projectId, cohortId);
+    const count = await this.cohortsService.getMemberCount(projectId, cohortId);
     return { count };
   }
 
@@ -97,7 +97,7 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Body() body: CohortPreviewDto,
   ): Promise<CohortMemberCountDto> {
-    const count = await this.cohortsService.previewCount(user.user_id, projectId, body.definition);
+    const count = await this.cohortsService.previewCount(projectId, body.definition);
     return { count };
   }
 }

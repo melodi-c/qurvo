@@ -13,6 +13,16 @@ export interface CohortHistoryPoint {
 
 // ── Counting helpers ─────────────────────────────────────────────────────────
 
+async function queryCount(
+  ch: ClickHouseClient,
+  query: string,
+  query_params: Record<string, unknown>,
+): Promise<number> {
+  const result = await ch.query({ query, query_params, format: 'JSONEachRow' });
+  const rows = await result.json<{ cnt: string }>();
+  return Number(rows[0]?.cnt ?? 0);
+}
+
 /**
  * Counts the number of unique persons matching a cohort definition (inline).
  */
@@ -21,13 +31,9 @@ export async function countCohortMembers(
   projectId: string,
   definition: CohortConditionGroup,
 ): Promise<number> {
-  const queryParams: Record<string, unknown> = { project_id: projectId };
-  const subquery = buildCohortSubquery(definition, 0, 'project_id', queryParams);
-
-  const sql = `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`;
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  const rows = await result.json<{ cnt: string }>();
-  return Number(rows[0]?.cnt ?? 0);
+  const params: Record<string, unknown> = { project_id: projectId };
+  const subquery = buildCohortSubquery(definition, 0, 'project_id', params);
+  return queryCount(ch, `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`, params);
 }
 
 /**
@@ -38,17 +44,12 @@ export async function countCohortMembersFromTable(
   projectId: string,
   cohortId: string,
 ): Promise<number> {
-  const sql = `
+  return queryCount(ch, `
     SELECT uniqExact(person_id) AS cnt
     FROM cohort_members FINAL
-    WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`;
-  const result = await ch.query({
-    query: sql,
-    query_params: { project_id: projectId, cohort_id: cohortId },
-    format: 'JSONEachRow',
-  });
-  const rows = await result.json<{ cnt: string }>();
-  return Number(rows[0]?.cnt ?? 0);
+    WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
+    { project_id: projectId, cohort_id: cohortId },
+  );
 }
 
 /**
@@ -59,17 +60,12 @@ export async function countStaticCohortMembers(
   projectId: string,
   cohortId: string,
 ): Promise<number> {
-  const sql = `
+  return queryCount(ch, `
     SELECT uniqExact(person_id) AS cnt
     FROM person_static_cohort FINAL
-    WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`;
-  const result = await ch.query({
-    query: sql,
-    query_params: { project_id: projectId, cohort_id: cohortId },
-    format: 'JSONEachRow',
-  });
-  const rows = await result.json<{ cnt: string }>();
-  return Number(rows[0]?.cnt ?? 0);
+    WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
+    { project_id: projectId, cohort_id: cohortId },
+  );
 }
 
 /**

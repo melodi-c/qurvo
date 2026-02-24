@@ -19,6 +19,6 @@ export class StickinessController {
     @CurrentUser() user: RequestUser,
     @Query() query: StickinessQueryDto,
   ): Promise<StickinessResponseDto> {
-    return this.stickinessService.query(user.user_id, query);
+    return this.stickinessService.query(query);
   }
 }

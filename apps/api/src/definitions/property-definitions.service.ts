@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and, desc, asc, ilike, inArray, count, SQL } from 'drizzle-orm';
+import { eq, and, desc, asc, ilike, inArray, count, SQL, type AnyColumn } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
@@ -29,8 +29,7 @@ export interface PropertyDefinitionListParams {
   order: 'asc' | 'desc';
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const columnMap: Record<string, any> = {
+const columnMap: Record<string, AnyColumn> = {
   last_seen_at: propertyDefinitions.last_seen_at,
   property_name: propertyDefinitions.property_name,
   created_at: propertyDefinitions.created_at,
@@ -43,7 +42,7 @@ export class PropertyDefinitionsService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  async list(userId: string, projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
+  async list(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     if (params.eventName) {
       return this.listEventScoped(projectId, params);
     }
@@ -159,7 +158,6 @@ export class PropertyDefinitionsService {
   }
 
   async upsert(
-    userId: string,
     projectId: string,
     propertyName: string,
     propertyType: 'event' | 'person',
@@ -189,7 +187,7 @@ export class PropertyDefinitionsService {
     return rows[0];
   }
 
-  async delete(userId: string, projectId: string, propertyName: string, propertyType: 'event' | 'person') {
+  async delete(projectId: string, propertyName: string, propertyType: 'event' | 'person') {
     const rows = await this.db
       .delete(propertyDefinitions)
       .where(and(

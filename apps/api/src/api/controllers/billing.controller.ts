@@ -17,6 +17,6 @@ export class BillingController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<BillingStatusDto> {
-    return this.billingService.getStatus(user.user_id, projectId) as any;
+    return this.billingService.getStatus(projectId) as any;
   }
 }

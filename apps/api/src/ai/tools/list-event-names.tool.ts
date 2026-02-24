@@ -19,7 +19,7 @@ export class ListEventNamesTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (_args, userId, projectId) => {
-    const names = await this.eventsService.getEventNames(userId, projectId);
+    const names = await this.eventsService.getEventNames(projectId);
     return { event_names: names };
   });
 }

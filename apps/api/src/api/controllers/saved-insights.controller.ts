@@ -19,7 +19,7 @@ export class SavedInsightsController {
     @Param('projectId') projectId: string,
     @Query() query: ListInsightsQueryDto,
   ): Promise<InsightDto[]> {
-    return this.insightsService.list(user.user_id, projectId, query.type) as any;
+    return this.insightsService.list(projectId, query.type) as any;
   }
 
   @RequireRole('editor')
@@ -38,7 +38,7 @@ export class SavedInsightsController {
     @Param('projectId') projectId: string,
     @Param('insightId') insightId: string,
   ): Promise<InsightDto> {
-    return this.insightsService.getById(user.user_id, projectId, insightId) as any;
+    return this.insightsService.getById(projectId, insightId) as any;
   }
 
   @RequireRole('editor')
@@ -49,7 +49,7 @@ export class SavedInsightsController {
     @Param('insightId') insightId: string,
     @Body() body: UpdateInsightDto,
   ): Promise<InsightDto> {
-    return this.insightsService.update(user.user_id, projectId, insightId, body as any) as any;
+    return this.insightsService.update(projectId, insightId, body as any) as any;
   }
 
   @RequireRole('editor')
@@ -59,6 +59,6 @@ export class SavedInsightsController {
     @Param('projectId') projectId: string,
     @Param('insightId') insightId: string,
   ): Promise<void> {
-    await this.insightsService.remove(user.user_id, projectId, insightId);
+    await this.insightsService.remove(projectId, insightId);
   }
 }
