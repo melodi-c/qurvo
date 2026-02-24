@@ -7,6 +7,7 @@ export const PENDING_IDLE_MS = 60_000;
 
 // ── Flush / Batch ────────────────────────────────────────────────────────────
 export const PROCESSOR_BATCH_SIZE = 1000;
+export const PROCESSOR_BACKPRESSURE_THRESHOLD = PROCESSOR_BATCH_SIZE * 2;
 export const PROCESSOR_FLUSH_INTERVAL_MS = Number(process.env.PROCESSOR_FLUSH_INTERVAL_MS) || 5000;
 
 // ── DLQ ──────────────────────────────────────────────────────────────────────
