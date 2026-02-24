@@ -1,18 +1,28 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import type Redis from 'ioredis';
-import { IngestModule } from './ingest/ingest.module';
-import { REDIS } from './providers/redis.provider';
+import Redis from 'ioredis';
+import { createDb } from '@qurvo/db';
+import { REDIS, DRIZZLE } from './constants';
+import { IngestController } from './ingest/ingest.controller';
+import { IngestService } from './ingest/ingest.service';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
-import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { ZodExceptionFilter } from './filters/zod-exception.filter';
 
+const RedisProvider = {
+  provide: REDIS,
+  useFactory: () => new Redis(process.env.REDIS_URL || 'redis://localhost:6379'),
+};
+
+const DrizzleProvider = {
+  provide: DRIZZLE,
+  useFactory: () => createDb(process.env.DATABASE_URL),
+};
+
+@Global()
 @Module({
   imports: [
-    InfrastructureModule,
-    // nestjs-pino pinoHttp type doesn't match Fastify's request/response generics
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
@@ -32,11 +42,15 @@ import { ZodExceptionFilter } from './filters/zod-exception.filter';
         storage: new RedisThrottlerStorage(redis),
       }),
     }),
-    IngestModule,
   ],
+  controllers: [IngestController],
   providers: [
+    RedisProvider,
+    DrizzleProvider,
+    IngestService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: ZodExceptionFilter },
   ],
+  exports: [RedisProvider, DrizzleProvider],
 })
 export class AppModule {}

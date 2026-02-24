@@ -2,8 +2,7 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { UAParser } from 'ua-parser-js';
-import { REDIS } from '../providers/redis.provider';
-import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, billingCounterKey } from '../constants';
+import { REDIS, REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, billingCounterKey } from '../constants';
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
 
@@ -41,7 +40,7 @@ interface BuildPayloadOpts {
   ua?: ParsedUa;
   batchId?: string;
   sentAt?: string;
-  eventId?: string;
+  event_id?: string;
 }
 
 @Injectable()
@@ -49,15 +48,6 @@ export class IngestService {
   private readonly logger = new Logger(IngestService.name);
 
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
-
-  async trackEvent(projectId: string, event: TrackEvent, ip?: string, userAgent?: string) {
-    const serverTime = new Date().toISOString();
-    const ua = parseUa(userAgent);
-    const payload = this.buildPayload(projectId, event, serverTime, { ip, ua });
-    await this.writeToStream([payload]);
-    this.incrementBillingCounter(projectId, 1);
-    this.logger.log({ projectId, eventName: event.event }, 'Event ingested');
-  }
 
   async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
     const serverTime = new Date().toISOString();
@@ -72,7 +62,7 @@ export class IngestService {
   async importBatch(projectId: string, events: ImportEvent[]) {
     const batchId = `import-${crypto.randomUUID()}`;
     const payloads = events.map((event) =>
-      this.buildPayload(projectId, event, event.timestamp, { batchId, eventId: event.event_id }),
+      this.buildPayload(projectId, event, event.timestamp, { batchId, event_id: event.event_id }),
     );
     await this.writeToStream(payloads);
     // Billing intentionally skipped for imports
@@ -88,7 +78,7 @@ export class IngestService {
     const ua = opts.ua ?? EMPTY_UA;
 
     const payload: Record<string, string> = {
-      event_id: opts.eventId || crypto.randomUUID(),
+      event_id: opts.event_id || crypto.randomUUID(),
       project_id: projectId,
       event_name: event.event,
       event_type: resolveEventType(event.event),

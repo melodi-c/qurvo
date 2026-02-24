@@ -17,25 +17,23 @@ pnpm --filter @qurvo/ingest test:integration
 
 ```
 src/
-├── app.module.ts        # Root: InfrastructureModule, LoggerModule, ThrottlerModule, IngestModule, ZodExceptionFilter
+├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, ThrottlerModule, controller, service, guards, filters
 ├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, port 3001)
-├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN
-├── infrastructure/      # @Global: REDIS + DRIZZLE providers
+├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, billing keys
 ├── ingest/
-│   ├── ingest.controller.ts  # GET /health, POST /v1/track, POST /v1/batch, POST /v1/import
-│   ├── ingest.service.ts     # Event building + Redis stream writing
-│   └── ingest.module.ts      # IngestModule
+│   ├── ingest.controller.ts  # GET /health, POST /v1/batch, POST /v1/import
+│   └── ingest.service.ts     # Event building + Redis stream writing
 ├── guards/
-│   └── api-key.guard.ts      # Validates x-api-key header against DB
-├── decorators/
-│   └── project-id.decorator.ts  # Extracts projectId from validated key
+│   └── api-key.guard.ts      # Validates x-api-key header against DB, caches in Redis, checks billing limits
 ├── filters/
 │   └── zod-exception.filter.ts  # Maps ZodError → 400
 ├── schemas/
 │   ├── event.ts              # TrackEventSchema, BatchEventsSchema (Zod)
 │   └── import-event.ts       # ImportEventSchema (extends TrackEventSchema), ImportBatchSchema
+├── hooks/
+│   └── gzip-preparsing.ts    # Fastify preParsing hook for gzip decompression
 ├── throttler/
-│   └── redis-throttler.storage.ts  # Distributed rate limiting
+│   └── redis-throttler.storage.ts  # Distributed rate limiting (INCR + PEXPIRE)
 └── test/                # Integration tests
     ├── setup.ts
     ├── helpers/
@@ -47,7 +45,6 @@ src/
 | Method | Path | Auth | Throttle | Response | Description |
 |---|---|---|---|---|---|
 | GET | `/health` | No | No | 200 `{ status: 'ok' }` | Health check |
-| POST | `/v1/track` | `x-api-key` | Yes | 202 `{ ok: true }` | Single event ingestion |
 | POST | `/v1/batch` | `x-api-key` | Yes | 202 `{ ok: true, count }` | Batch event ingestion (1-500) |
 | POST | `/v1/import` | `x-api-key` | No | 202 `{ ok: true, count }` | Historical import (1-5000, no billing) |
 
@@ -71,7 +68,7 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 ### Throttling
 - Short: 50 req/s per IP
 - Medium: 1000 req/min per IP
-- Backed by `RedisThrottlerStorage` (sorted sets)
+- Backed by `RedisThrottlerStorage` (INCR + PEXPIRE per key)
 
 ### Validation
 Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) validate payloads. `ZodExceptionFilter` (registered as `APP_FILTER` in `AppModule`) converts `ZodError` to 400 with field-level details.
@@ -84,7 +81,6 @@ Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) valid
 
 ## Integration Tests
 
-Tests in `src/test/ingest/`. 15 tests covering:
-- Track: 202 + stream write, enrichment, 401 invalid key, 400 missing fields
-- Batch: 202 + multi-event write, 400 empty array, gzip batch, gzip single, invalid gzip, 401 no key
+Tests in `src/test/ingest/`. 10 tests covering:
+- Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
