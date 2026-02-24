@@ -15,6 +15,7 @@
     "@qurvo/clickhouse": "workspace:*",
     "@qurvo/cohort-query": "workspace:*",
     "@qurvo/db": "workspace:*",
+    "@qurvo/distributed-lock": "workspace:*",
     "dd-trace": "^5.0.0",
     "drizzle-orm": "^0.39.0",
     "maxmind": "^4.3.0",

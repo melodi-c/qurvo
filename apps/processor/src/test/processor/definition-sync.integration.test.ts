@@ -27,7 +27,7 @@ const noopLogger = {
 
 /** Create a fresh DefinitionSyncService instance (empty caches). */
 function createSyncService(): DefinitionSyncService {
-  return new DefinitionSyncService(ctx.db as any, noopLogger);
+  return new DefinitionSyncService(ctx.db as any, ctx.redis as any, noopLogger);
 }
 
 /** Convenience: create a fresh service and sync a batch. */

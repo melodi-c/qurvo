@@ -8,7 +8,7 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
-import { cohorts, type CohortDefinition } from '@qurvo/db';
+import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { getTestContext } from '../context';
 import { getCohortMembers } from '../helpers';
 import { CohortMembershipService } from '../../processor/cohort-membership.service';
@@ -28,7 +28,7 @@ async function createCohort(
   projectId: string,
   userId: string,
   name: string,
-  definition: CohortDefinition,
+  definition: CohortConditionGroup,
 ): Promise<string> {
   const cohortId = randomUUID();
   await ctx.db.insert(cohorts).values({
@@ -67,8 +67,8 @@ describe('cohort membership', () => {
     ]);
 
     const cohortId = await createCohort(projectId, testProject.userId, 'Pro Users', {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' },
       ],
     });
@@ -116,8 +116,8 @@ describe('cohort membership', () => {
     await insertTestEvents(ctx.ch, events);
 
     const cohortId = await createCohort(projectId, testProject.userId, 'Frequent Buyers', {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 3, time_window_days: 30 },
       ],
     });
@@ -131,7 +131,7 @@ describe('cohort membership', () => {
     expect(members).not.toContain(personInactive);
   });
 
-  it('match: all (INTERSECT) — only persons matching ALL conditions', async () => {
+  it('type: AND (INTERSECT) — only persons matching ALL conditions', async () => {
     const projectId = testProject.projectId;
     const personBoth = randomUUID();
     const personOnlyProp = randomUUID();
@@ -166,8 +166,8 @@ describe('cohort membership', () => {
     ]);
 
     const cohortId = await createCohort(projectId, testProject.userId, 'Pro + Frequent', {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' },
         { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 2, time_window_days: 30 },
       ],
@@ -182,7 +182,7 @@ describe('cohort membership', () => {
     expect(members).not.toContain(personOnlyProp);
   });
 
-  it('match: any (UNION) — persons matching ANY condition', async () => {
+  it('type: OR (UNION) — persons matching ANY condition', async () => {
     const projectId = testProject.projectId;
     const personPropOnly = randomUUID();
     const personEventOnly = randomUUID();
@@ -218,8 +218,8 @@ describe('cohort membership', () => {
     ]);
 
     const cohortId = await createCohort(projectId, testProject.userId, 'Enterprise OR Frequent', {
-      match: 'any',
-      conditions: [
+      type: 'OR',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'enterprise' },
         { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 3, time_window_days: 30 },
       ],
@@ -251,8 +251,8 @@ describe('cohort membership', () => {
     ]);
 
     const cohortId = await createCohort(projectId, testProject.userId, 'Version Test', {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' },
       ],
     });
@@ -306,14 +306,17 @@ describe('cohort membership', () => {
     const svc = processorApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
-    await new Promise((r) => setTimeout(r, 2000));
-
-    members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    // ALTER TABLE DELETE is an async mutation in ClickHouse — poll until it completes
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      members = await getCohortMembers(ctx.ch, projectId, cohortId);
+      if (!members.includes(personId)) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
     expect(members).not.toContain(personId);
   });
 
   it('distributed lock blocks runCycle', async () => {
-    // Set lock FIRST (force, no NX) to prevent auto-timer from running
     await ctx.redis.set('cohort_membership:lock', 'other-instance', 'EX', 120);
 
     const personId = randomUUID();
@@ -331,8 +334,8 @@ describe('cohort membership', () => {
     ]);
 
     const cohortId = await createCohort(testProject.projectId, testProject.userId, 'Lock Test', {
-      match: 'all',
-      conditions: [
+      type: 'AND',
+      values: [
         { type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan },
       ],
     });

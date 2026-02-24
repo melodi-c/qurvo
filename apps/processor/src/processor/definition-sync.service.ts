@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { sql } from 'drizzle-orm';
+import Redis from 'ioredis';
 import type { Event } from '@qurvo/clickhouse';
 import { type Database, eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
+import { REDIS } from '../providers/redis.provider';
 
 export type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
 
@@ -109,6 +111,7 @@ export class DefinitionSyncService {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
+    @Inject(REDIS) private readonly redis: Redis,
     @InjectPinoLogger(DefinitionSyncService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -345,9 +348,47 @@ export class DefinitionSyncService {
     this.markSeen(this.seenProps, propMap.keys(), flooredMs);
     this.markSeen(this.seenEventProps, eventPropMap.keys(), flooredMs);
 
+    // 8. Invalidate API metadata caches for affected projects
+    await this.invalidateCaches(eventKeys, propMap, eventPropMap);
+
     this.logger.debug(
       { events: events.length, eventDefs: eventKeys.size, propDefs: propMap.size, eventProps: eventPropMap.size },
       'Definition sync completed',
     );
+  }
+
+  private async invalidateCaches(
+    eventKeys: Map<string, { project_id: string; event_name: string }>,
+    propMap: Map<string, PropEntry>,
+    eventPropMap: Map<string, EventPropEntry>,
+  ): Promise<void> {
+    const projectsWithNewEvents = new Set<string>();
+    const projectsWithNewProps = new Set<string>();
+
+    for (const { project_id } of eventKeys.values()) {
+      projectsWithNewEvents.add(project_id);
+    }
+    for (const { project_id } of propMap.values()) {
+      projectsWithNewProps.add(project_id);
+    }
+    for (const { project_id } of eventPropMap.values()) {
+      projectsWithNewProps.add(project_id);
+    }
+
+    const keysToDelete: string[] = [];
+    for (const pid of projectsWithNewEvents) {
+      keysToDelete.push(`event_names:${pid}`);
+    }
+    for (const pid of projectsWithNewProps) {
+      keysToDelete.push(`event_property_names:${pid}`);
+    }
+
+    if (keysToDelete.length > 0) {
+      try {
+        await this.redis.del(...keysToDelete);
+      } catch (err) {
+        this.logger.warn({ err }, 'Failed to invalidate metadata caches');
+      }
+    }
   }
 }

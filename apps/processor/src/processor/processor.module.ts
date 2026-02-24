@@ -8,8 +8,11 @@ import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
 import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
+import { EventEnrichmentService } from './event-enrichment.service';
+import { HeartbeatService } from './heartbeat.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonWriterService } from './person-writer.service';
+import { PERSON_WRITER } from './person-writer.interface';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { DefinitionSyncService } from './definition-sync.service';
@@ -25,8 +28,11 @@ import { DefinitionSyncService } from './definition-sync.service';
     CohortMembershipService,
     PersonResolverService,
     PersonWriterService,
+    { provide: PERSON_WRITER, useExisting: PersonWriterService },
     PersonBatchStore,
     GeoService,
+    EventEnrichmentService,
+    HeartbeatService,
     EventConsumerService,
   ],
 })

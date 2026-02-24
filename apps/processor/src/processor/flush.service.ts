@@ -7,7 +7,6 @@ import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DefinitionSyncService } from './definition-sync.service';
 import { PersonBatchStore } from './person-batch-store';
-import { PersonWriterService } from './person-writer.service';
 import {
   PROCESSOR_BATCH_SIZE,
   PROCESSOR_FLUSH_INTERVAL_MS,
@@ -34,7 +33,6 @@ export class FlushService implements OnApplicationBootstrap {
     @InjectPinoLogger(FlushService.name) private readonly logger: PinoLogger,
     private readonly definitionSync: DefinitionSyncService,
     private readonly personBatchStore: PersonBatchStore,
-    private readonly personWriter: PersonWriterService,
   ) {}
 
   onApplicationBootstrap() {
@@ -66,7 +64,7 @@ export class FlushService implements OnApplicationBootstrap {
 
     // Flush person batch to PG before CH insert (non-critical, same timing as previous fire-and-forget)
     try {
-      await this.personBatchStore.flush(this.personWriter);
+      await this.personBatchStore.flush();
     } catch (err) {
       this.logger.error({ err }, 'Person batch flush failed (non-critical)');
     }
@@ -78,7 +76,11 @@ export class FlushService implements OnApplicationBootstrap {
         await insertEvents(this.ch, events);
         this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
         await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
-        void this.definitionSync.syncFromBatch(events);
+        try {
+          await this.definitionSync.syncFromBatch(events);
+        } catch (err) {
+          this.logger.warn({ err }, 'Definition sync failed (non-critical)');
+        }
         return;
       } catch (err) {
         retries++;
