@@ -9,7 +9,7 @@ import { api } from '@/api/client';
 import { getPersonFields } from '@/lib/person';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
-import { NO_VALUE_OPS } from '@/components/StepFilterRow';
+import { isValidFilter } from '@/lib/filter-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './index.translations';
 import { PersonsFilterPanel } from './PersonsFilterPanel';
@@ -48,11 +48,7 @@ export default function PersonsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['persons', projectId, stateHash, page],
     queryFn: () => {
-      const validFilters = debouncedState.filters.filter((f) => {
-        if (f.property.trim() === '') return false;
-        if (!NO_VALUE_OPS.has(f.operator) && (!f.value || f.value.trim() === '')) return false;
-        return true;
-      });
+      const validFilters = debouncedState.filters.filter(isValidFilter);
       return api.personsControllerGetPersons({
         project_id: projectId,
         ...(debouncedState.search ? { search: debouncedState.search } : {}),

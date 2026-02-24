@@ -103,16 +103,14 @@ export class CohortComputationService {
 
     const allDynamicIds = allDynamic.map((c) => c.id);
 
-    if (allDynamicIds.length > 0) {
-      await this.ch.command({
-        query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN ({ids:Array(UUID)})`,
-        query_params: { ids: allDynamicIds },
-      });
-    } else {
-      this.logger.warn('No dynamic cohorts found — deleting all cohort_members rows (orphan GC)');
-      await this.ch.command({
-        query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
-      });
+    if (allDynamicIds.length === 0) {
+      this.logger.warn('Orphan GC skipped — no dynamic cohorts found in PostgreSQL');
+      return;
     }
+
+    await this.ch.command({
+      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN ({ids:Array(UUID)})`,
+      query_params: { ids: allDynamicIds },
+    });
   }
 }
