@@ -138,11 +138,12 @@ export class IngestService {
       pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...Object.entries(payload).flat());
     }
     const results = await pipeline.exec();
-    if (results) {
-      const failed = results.filter(([err]) => err !== null);
-      if (failed.length > 0) {
-        throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
-      }
+    if (!results) {
+      throw new Error('Redis pipeline returned null — connection lost');
+    }
+    const failed = results.filter(([err]) => err !== null);
+    if (failed.length > 0) {
+      throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
     }
   }
 
