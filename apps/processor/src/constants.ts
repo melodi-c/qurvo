@@ -8,7 +8,6 @@ export const PENDING_IDLE_MS = 60_000;
 // ── Flush / Batch ────────────────────────────────────────────────────────────
 export const PROCESSOR_BATCH_SIZE = 1000;
 export const PROCESSOR_FLUSH_INTERVAL_MS = Number(process.env.PROCESSOR_FLUSH_INTERVAL_MS) || 5000;
-export const PROCESSOR_MAX_RETRIES = 3;
 
 // ── DLQ ──────────────────────────────────────────────────────────────────────
 export const REDIS_STREAM_DLQ = 'events:dlq';
@@ -31,3 +30,8 @@ export const COHORT_ERROR_BACKOFF_MAX_EXPONENT = 10; // cap: ~21 days
 export const HEARTBEAT_PATH = '/tmp/processor.heartbeat';
 export const HEARTBEAT_INTERVAL_MS = 15_000;
 export const HEARTBEAT_LOOP_STALE_MS = 30_000;
+
+// ── Retry presets ─────────────────────────────────────────────────────────
+export const RETRY_CLICKHOUSE = { maxAttempts: 3, baseDelayMs: 1000 } as const;
+export const RETRY_POSTGRES = { maxAttempts: 3, baseDelayMs: 200 } as const;
+export const RETRY_DEFINITIONS = { maxAttempts: 3, baseDelayMs: 50 } as const;

@@ -6,18 +6,17 @@ import type { Event } from '@qurvo/clickhouse';
 import { type Database, eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
+import { RETRY_DEFINITIONS } from '../constants';
 import { withRetry } from './retry';
+import { HourlyCache } from './hourly-cache';
 
 export type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|\s)/;
 const DATE_RE = /^((\d{4}[/-][0-2]\d[/-][0-3]\d)|([0-2]\d[/-][0-3]\d[/-]\d{4}))([ T][0-2]\d:[0-6]\d:[0-6]\d.*)?$/;
 const ONE_HOUR_MS = 3_600_000;
-const CACHE_MAX_SIZE = 100_000;
 const MAX_NAME_LENGTH = 200;
 const MAX_PROPERTIES_PER_EVENT = 10_000;
-const RETRY_MAX_ATTEMPTS = 3;
-const RETRY_BASE_DELAY_MS = 50;
 const SIX_MONTHS_S = 15_768_000;
 
 /** Properties to skip when extracting event property definitions (PostHog: SKIP_PROPERTIES). */
@@ -103,49 +102,26 @@ interface EventPropEntry {
   property_type: 'event' | 'person';
 }
 
+/** Shared context for property extraction within a single event. */
+interface SyncContext {
+  projectId: string;
+  eventName: string;
+  flooredMs: number;
+  propMap: Map<string, PropEntry>;
+  eventPropMap: Map<string, EventPropEntry>;
+}
+
 @Injectable()
 export class DefinitionSyncService {
-  /** In-memory dedup caches: key → floored hour timestamp (ms). */
-  private readonly seenEvents = new Map<string, number>();
-  private readonly seenProps = new Map<string, number>();
-  private readonly seenEventProps = new Map<string, number>();
+  private readonly seenEvents = new HourlyCache();
+  private readonly seenProps = new HourlyCache();
+  private readonly seenEventProps = new HourlyCache();
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,
     @InjectPinoLogger(DefinitionSyncService.name) private readonly logger: PinoLogger,
   ) {}
-
-  /** Returns true if the key was already seen in the current floored hour. */
-  private isCached(cache: Map<string, number>, key: string, flooredMs: number): boolean {
-    return cache.get(key) === flooredMs;
-  }
-
-  /** Mark keys as seen. Respects CACHE_MAX_SIZE — skips insertion when full. */
-  private markSeen(cache: Map<string, number>, keys: Iterable<string>, flooredMs: number): void {
-    for (const key of keys) {
-      if (cache.size >= CACHE_MAX_SIZE) {
-        this.evict(cache, flooredMs);
-        if (cache.size >= CACHE_MAX_SIZE) {
-          this.logger.warn({ cacheSize: cache.size, maxSize: CACHE_MAX_SIZE }, 'Definition cache full after eviction, skipping remaining keys');
-          return;
-        }
-      }
-      cache.set(key, flooredMs);
-    }
-  }
-
-  /** Remove all entries from the given cache that match the specified keys. */
-  private uncache(cache: Map<string, number>, keys: Iterable<string>): void {
-    for (const key of keys) cache.delete(key);
-  }
-
-  /** Remove entries from previous hours when cache is full. */
-  private evict(cache: Map<string, number>, currentFlooredMs: number): void {
-    for (const [k, v] of cache) {
-      if (v < currentFlooredMs) cache.delete(k);
-    }
-  }
 
   /**
    * Extract properties from a parsed JSON object, applying skip-list and name-length limits.
@@ -154,13 +130,9 @@ export class DefinitionSyncService {
    */
   private extractProps(
     bag: Record<string, unknown>,
-    projectId: string,
-    eventName: string,
     type: 'event' | 'person',
     prefix: string,
-    propMap: Map<string, PropEntry>,
-    eventPropMap: Map<string, EventPropEntry>,
-    flooredMs: number,
+    ctx: SyncContext,
   ): void {
     for (const [k, v] of Object.entries(bag)) {
       // A9: Skip service properties for event type only
@@ -173,15 +145,15 @@ export class DefinitionSyncService {
       const detected = detectValueType(k, v);
 
       // Global property definition
-      const propKey = `${projectId}:${property_name}:${type}`;
-      if (!propMap.has(propKey) && !this.isCached(this.seenProps, propKey, flooredMs)) {
-        propMap.set(propKey, { project_id: projectId, property_name, property_type: type, value_type: detected });
+      const propKey = `${ctx.projectId}:${property_name}:${type}`;
+      if (!ctx.propMap.has(propKey) && !this.seenProps.has(propKey, ctx.flooredMs)) {
+        ctx.propMap.set(propKey, { project_id: ctx.projectId, property_name, property_type: type, value_type: detected });
       }
 
       // Event<->property association
-      const epKey = `${projectId}:${eventName}:${property_name}:${type}`;
-      if (!eventPropMap.has(epKey) && !this.isCached(this.seenEventProps, epKey, flooredMs)) {
-        eventPropMap.set(epKey, { project_id: projectId, event_name: eventName, property_name, property_type: type });
+      const epKey = `${ctx.projectId}:${ctx.eventName}:${property_name}:${type}`;
+      if (!ctx.eventPropMap.has(epKey) && !this.seenEventProps.has(epKey, ctx.flooredMs)) {
+        ctx.eventPropMap.set(epKey, { project_id: ctx.projectId, event_name: ctx.eventName, property_name, property_type: type });
       }
     }
   }
@@ -224,28 +196,30 @@ export class DefinitionSyncService {
       }
 
       const eventKey = `${e.project_id}:${e.event_name}`;
-      if (!eventKeys.has(eventKey) && !this.isCached(this.seenEvents, eventKey, flooredMs)) {
+      if (!eventKeys.has(eventKey) && !this.seenEvents.has(eventKey, flooredMs)) {
         eventKeys.set(eventKey, { project_id: e.project_id, event_name: e.event_name });
       }
 
+      const ctx: SyncContext = { projectId: e.project_id, eventName: e.event_name, flooredMs, propMap, eventPropMap };
+
       // Extract event properties
       if (parsedProps) {
-        this.extractProps(parsedProps, e.project_id, e.event_name, 'event', 'properties.', propMap, eventPropMap, flooredMs);
+        this.extractProps(parsedProps, 'event', 'properties.', ctx);
 
         // A10: Extract person properties from $set/$set_once inside properties
         const $set = parsedProps['$set'];
         if ($set && typeof $set === 'object' && !Array.isArray($set)) {
-          this.extractProps($set as Record<string, unknown>, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap, flooredMs);
+          this.extractProps($set as Record<string, unknown>, 'person', 'user_properties.', ctx);
         }
         const $setOnce = parsedProps['$set_once'];
         if ($setOnce && typeof $setOnce === 'object' && !Array.isArray($setOnce)) {
-          this.extractProps($setOnce as Record<string, unknown>, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap, flooredMs);
+          this.extractProps($setOnce as Record<string, unknown>, 'person', 'user_properties.', ctx);
         }
       }
 
       // Extract user/person properties
       if (parsedUserProps) {
-        this.extractProps(parsedUserProps, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap, flooredMs);
+        this.extractProps(parsedUserProps, 'person', 'user_properties.', ctx);
       }
     }
 
@@ -266,7 +240,7 @@ export class DefinitionSyncService {
           }),
         'event_definitions upsert',
         this.logger,
-        { baseDelayMs: RETRY_BASE_DELAY_MS, maxAttempts: RETRY_MAX_ATTEMPTS, onExhausted: () => this.uncache(this.seenEvents, eventKeys.keys()) },
+        { ...RETRY_DEFINITIONS, onExhausted: () => this.seenEvents.uncache(eventKeys.keys()) },
       );
     }
 
@@ -295,7 +269,7 @@ export class DefinitionSyncService {
           }),
         'property_definitions upsert',
         this.logger,
-        { baseDelayMs: RETRY_BASE_DELAY_MS, maxAttempts: RETRY_MAX_ATTEMPTS, onExhausted: () => this.uncache(this.seenProps, propMap.keys()) },
+        { ...RETRY_DEFINITIONS, onExhausted: () => this.seenProps.uncache(propMap.keys()) },
       );
     }
 
@@ -318,14 +292,20 @@ export class DefinitionSyncService {
           }),
         'event_properties upsert',
         this.logger,
-        { baseDelayMs: RETRY_BASE_DELAY_MS, maxAttempts: RETRY_MAX_ATTEMPTS, onExhausted: () => this.uncache(this.seenEventProps, eventPropMap.keys()) },
+        { ...RETRY_DEFINITIONS, onExhausted: () => this.seenEventProps.uncache(eventPropMap.keys()) },
       );
     }
 
     // 7. Mark as seen only after all upserts succeeded
-    this.markSeen(this.seenEvents, eventKeys.keys(), flooredMs);
-    this.markSeen(this.seenProps, propMap.keys(), flooredMs);
-    this.markSeen(this.seenEventProps, eventPropMap.keys(), flooredMs);
+    if (!this.seenEvents.markSeen(eventKeys.keys(), flooredMs)) {
+      this.logger.warn({ cacheSize: this.seenEvents.size }, 'Event definitions cache full after eviction');
+    }
+    if (!this.seenProps.markSeen(propMap.keys(), flooredMs)) {
+      this.logger.warn({ cacheSize: this.seenProps.size }, 'Property definitions cache full after eviction');
+    }
+    if (!this.seenEventProps.markSeen(eventPropMap.keys(), flooredMs)) {
+      this.logger.warn({ cacheSize: this.seenEventProps.size }, 'Event-property cache full after eviction');
+    }
 
     // 8. Invalidate API metadata caches for affected projects
     await this.invalidateCaches(eventKeys, propMap, eventPropMap);

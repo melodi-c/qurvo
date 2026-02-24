@@ -8,9 +8,7 @@ import {
   type TestProject,
 } from '@qurvo/testing';
 import { AppModule } from '../app.module';
-
-const REDIS_STREAM_EVENTS = 'events:incoming';
-const REDIS_CONSUMER_GROUP = 'processor-group';
+import { REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP } from '../constants';
 
 interface TestContext {
   ctx: ContainerContext;

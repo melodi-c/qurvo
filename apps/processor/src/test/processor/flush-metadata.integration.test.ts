@@ -9,8 +9,7 @@ import {
   waitForEventByBatchId,
   flushBuffer,
 } from '../helpers';
-
-const REDIS_CONSUMER_GROUP = 'processor-group';
+import { REDIS_CONSUMER_GROUP } from '../../constants';
 
 let ctx: ContainerContext;
 let processorApp: INestApplicationContext;

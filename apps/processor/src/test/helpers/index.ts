@@ -1,4 +1,6 @@
-export { REDIS_STREAM_EVENTS, writeEventToStream, getEventCount, waitForEventByBatchId } from './stream';
+export { REDIS_STREAM_EVENTS } from '../../constants';
+export { writeEventToStream, getEventCount, waitForEventByBatchId } from './stream';
+export { pollUntil, type PollOptions } from './poll';
 export {
   waitForPersonInPg,
   getPersonProperties,

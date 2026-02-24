@@ -13,6 +13,7 @@ import {
   DLQ_REPLAY_BATCH,
   DLQ_REPLAY_INTERVAL_MS,
   REDIS_STREAM_DLQ,
+  RETRY_CLICKHOUSE,
 } from '../constants';
 import { parseRedisFields } from './utils';
 import { DistributedLock } from '@qurvo/distributed-lock';
@@ -76,7 +77,7 @@ export class DlqService implements OnApplicationBootstrap {
         () => insertEvents(this.ch, events),
         'DLQ ClickHouse insert',
         this.logger,
-        { maxAttempts: 3, baseDelayMs: 1000 },
+        RETRY_CLICKHOUSE,
       );
       await this.redis.xdel(REDIS_STREAM_DLQ, ...ids);
       this.consecutiveFailures = 0;
