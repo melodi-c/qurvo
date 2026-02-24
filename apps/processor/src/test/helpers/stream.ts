@@ -1,8 +1,8 @@
 import type Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { randomUUID } from 'crypto';
-import { REDIS_STREAM_EVENTS } from '../../constants';
-export { REDIS_STREAM_EVENTS };
+
+export const REDIS_STREAM_EVENTS = 'events:incoming';
 
 export async function writeEventToStream(
   redis: Redis,
