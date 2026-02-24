@@ -1,4 +1,5 @@
-import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -49,7 +50,7 @@ export class StaticCohortsService {
     // Get current members
     const memberCount = await this.cohortsService.getMemberCount(userId, projectId, cohortId);
     if (memberCount === 0) {
-      throw new BadRequestException('Source cohort has no members');
+      throw new AppBadRequestException('Source cohort has no members');
     }
 
     // Create static cohort
@@ -84,7 +85,7 @@ export class StaticCohortsService {
   async addStaticMembers(userId: string, projectId: string, cohortId: string, personIds: string[]) {
     const cohort = await this.cohortsService.getById(userId, projectId, cohortId);
     if (!cohort.is_static) {
-      throw new BadRequestException('Cannot add members to a dynamic cohort');
+      throw new AppBadRequestException('Cannot add members to a dynamic cohort');
     }
     await this.insertStaticMembers(projectId, cohortId, personIds);
   }
@@ -92,7 +93,7 @@ export class StaticCohortsService {
   async removeStaticMembers(userId: string, projectId: string, cohortId: string, personIds: string[]) {
     const cohort = await this.cohortsService.getById(userId, projectId, cohortId);
     if (!cohort.is_static) {
-      throw new BadRequestException('Cannot remove members from a dynamic cohort');
+      throw new AppBadRequestException('Cannot remove members from a dynamic cohort');
     }
 
     await this.ch.command({
@@ -112,14 +113,14 @@ export class StaticCohortsService {
   ) {
     const cohort = await this.cohortsService.getById(userId, projectId, cohortId);
     if (!cohort.is_static) {
-      throw new BadRequestException('Cannot import CSV to a dynamic cohort');
+      throw new AppBadRequestException('Cannot import CSV to a dynamic cohort');
     }
 
     // Parse CSV — expect one ID per line (or comma-separated)
     const lines = csvContent.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean);
 
     if (lines.length === 0) {
-      throw new BadRequestException('CSV file is empty');
+      throw new AppBadRequestException('CSV file is empty');
     }
 
     // Detect column type from header
@@ -137,7 +138,7 @@ export class StaticCohortsService {
     const ids = lines.slice(start);
 
     if (ids.length === 0) {
-      throw new BadRequestException('No valid IDs found in CSV');
+      throw new AppBadRequestException('No valid IDs found in CSV');
     }
 
     let personIds: string[];

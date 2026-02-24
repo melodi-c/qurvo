@@ -2,10 +2,7 @@ import {
   IsArray,
   IsString,
   IsNotEmpty,
-  IsDateString,
   IsOptional,
-  IsUUID,
-  IsBoolean,
   IsInt,
   Min,
   Max,
@@ -14,6 +11,7 @@ import {
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { parseJsonArray } from './shared/transforms';
+import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
 export class PathCleaningRuleDto {
   @IsString()
@@ -35,16 +33,7 @@ export class WildcardGroupDto {
   alias: string;
 }
 
-export class PathsQueryDto {
-  @IsUUID()
-  project_id: string;
-
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
+export class PathsQueryDto extends BaseAnalyticsQueryDto {
   @Transform(({ value }) => (value != null ? Number(value) : 5))
   @IsInt()
   @Min(3)
@@ -88,22 +77,6 @@ export class PathsQueryDto {
   @Type(() => WildcardGroupDto)
   @IsOptional()
   wildcard_groups?: WildcardGroupDto[];
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  cohort_ids?: string[];
-
-  @IsUUID()
-  @IsOptional()
-  widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }
 
 export class PathTransitionDto {

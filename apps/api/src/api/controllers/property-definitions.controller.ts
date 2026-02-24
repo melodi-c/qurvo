@@ -1,7 +1,6 @@
-import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertyDefinitionsService } from '../../definitions/property-definitions.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   PropertyDefinitionQueryDto,
@@ -13,7 +12,6 @@ import {
 @ApiTags('Property Definitions')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/property-definitions')
-@UseGuards(SessionAuthGuard)
 export class PropertyDefinitionsController {
   constructor(private readonly propertyDefinitionsService: PropertyDefinitionsService) {}
 

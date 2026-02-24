@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { BadRequestException } from '@nestjs/common';
+import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { CohortFilterInput } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortFilterForBreakdown } from '../../utils/cohort-breakdown.util';
@@ -96,7 +96,7 @@ function resolveNumericPropertyExpr(prop: string): string {
     const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
     return `toFloat64OrZero(JSONExtractRaw(user_properties, '${key}'))`;
   }
-  throw new BadRequestException(`Unknown metric property: ${prop}`);
+  throw new AppBadRequestException(`Unknown metric property: ${prop}`);
 }
 
 const AGG_FUNCTIONS: Record<string, string> = {
@@ -109,7 +109,7 @@ const AGG_FUNCTIONS: Record<string, string> = {
 function buildAggColumn(metric: TrendMetric, metricProperty?: string): string {
   const fn = AGG_FUNCTIONS[metric];
   if (!fn) return '0 AS agg_value';
-  if (!metricProperty) throw new BadRequestException('metric_property is required for property aggregation metrics');
+  if (!metricProperty) throw new AppBadRequestException('metric_property is required for property aggregation metrics');
   const expr = resolveNumericPropertyExpr(metricProperty);
   return `${fn}(${expr}) AS agg_value`;
 }

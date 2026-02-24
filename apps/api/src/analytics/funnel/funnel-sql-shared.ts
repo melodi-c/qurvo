@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
@@ -91,12 +91,12 @@ export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions
 export function validateExclusions(exclusions: FunnelExclusion[], numSteps: number): void {
   for (const excl of exclusions) {
     if (excl.funnel_from_step >= excl.funnel_to_step) {
-      throw new BadRequestException(
+      throw new AppBadRequestException(
         `Exclusion "${excl.event_name}": funnel_from_step must be < funnel_to_step`,
       );
     }
     if (excl.funnel_to_step >= numSteps) {
-      throw new BadRequestException(
+      throw new AppBadRequestException(
         `Exclusion "${excl.event_name}": funnel_to_step ${excl.funnel_to_step} out of range (max ${numSteps - 1})`,
       );
     }

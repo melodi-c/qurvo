@@ -1,21 +1,13 @@
 import {
   IsString,
   IsNotEmpty,
-  IsDateString,
-  IsOptional,
-  IsUUID,
-  IsBoolean,
   IsIn,
-  IsArray,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { parseJsonArray } from './shared/transforms';
+import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
-export class LifecycleQueryDto {
-  @IsUUID()
-  project_id: string;
-
+export class LifecycleQueryDto extends BaseAnalyticsQueryDto {
   @IsString()
   @IsNotEmpty()
   target_event: string;
@@ -23,28 +15,6 @@ export class LifecycleQueryDto {
   @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'Granularity' })
   @IsIn(['day', 'week', 'month'])
   granularity: 'day' | 'week' | 'month';
-
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  cohort_ids?: string[];
-
-  @IsUUID()
-  @IsOptional()
-  widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }
 
 export class LifecycleDataPointDto {

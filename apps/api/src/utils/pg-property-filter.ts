@@ -1,5 +1,5 @@
 import { sql, type SQL } from 'drizzle-orm';
-import { BadRequestException } from '@nestjs/common';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import type { FilterOperator } from './property-filter';
 
 export interface PersonPropertyFilter {
@@ -16,7 +16,7 @@ export function buildPgPropertyFilterConditions(filters: PersonPropertyFilter[])
   const parts: SQL[] = [];
   for (const f of filters) {
     if (!/^\w+$/.test(f.property)) {
-      throw new BadRequestException(`Invalid property name: ${f.property}`);
+      throw new AppBadRequestException(`Invalid property name: ${f.property}`);
     }
     const keyExpr = sql.raw(`properties->>'${f.property}'`);
 

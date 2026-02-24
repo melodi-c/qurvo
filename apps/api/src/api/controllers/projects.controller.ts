@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from '../../projects/projects.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateProjectDto, UpdateProjectDto, ProjectDto, ProjectWithRoleDto } from '../dto/projects.dto';
 import { OkResponseDto } from '../dto/auth.dto';
@@ -9,7 +8,6 @@ import { OkResponseDto } from '../dto/auth.dto';
 @ApiTags('Projects')
 @ApiBearerAuth()
 @Controller('api/projects')
-@UseGuards(SessionAuthGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
