@@ -4,9 +4,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { apiKeys, projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
-import { API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, billingCounterKey } from '../constants';
-import { REDIS } from '../providers/redis.provider';
-import { DRIZZLE } from '../providers/drizzle.provider';
+import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, billingCounterKey } from '../constants';
 
 interface CachedKeyInfo {
   project_id: string;
@@ -44,7 +42,6 @@ export class ApiKeyGuard implements CanActivate {
       }
       await this.checkEventsLimit(info);
       request.projectId = info.project_id;
-      request.apiKeyId = info.key_id;
       return true;
     }
 
@@ -92,7 +89,6 @@ export class ApiKeyGuard implements CanActivate {
     await this.checkEventsLimit(info);
 
     request.projectId = keyInfo.project_id;
-    request.apiKeyId = keyInfo.key_id;
     return true;
   }
 
