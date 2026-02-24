@@ -1,6 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
 import { gzipSync } from 'node:zlib';
 
+export { parseRedisFields } from '@qurvo/testing';
+
 export function getBaseUrl(app: INestApplication): string {
   const server = app.getHttpServer();
   const address = server.address();
@@ -44,12 +46,4 @@ export async function postImport(app: INestApplication, apiKey: string, body: un
     body: JSON.stringify(body),
   });
   return { status: res.status, body: await res.json() };
-}
-
-export function parseRedisFields(fields: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (let i = 0; i < fields.length; i += 2) {
-    result[fields[i]] = fields[i + 1];
-  }
-  return result;
 }

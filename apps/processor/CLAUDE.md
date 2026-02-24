@@ -26,12 +26,13 @@ src/
 │   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM + heartbeat + event enrichment (GeoIP, person resolution → Event DTO)
 │   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + concurrency guard + shutdown()
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
+│   ├── value-type.ts                    # detectValueType() + helpers (extracted from definition-sync)
 │   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync)
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
 │   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
-│   ├── cohort-toposort.ts               # Topological sort for cohort dependencies
+│   ├── cohort-toposort.ts               # Re-exports topologicalSortCohorts from @qurvo/cohort-query
 │   ├── dlq.service.ts                   # Dead letter queue replay
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
@@ -109,7 +110,8 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 1. Stop consumer loop (+ heartbeat) — errors caught, logged, don't block next steps
 2. Stop DLQ + cohort timers
 3. `FlushService.shutdown()` — stop timer + final flush — errors caught separately
-4. Close Redis/ClickHouse connections — errors swallowed
+4. `PersonBatchStore.flush()` — explicit final flush for pending persons/distinct_ids — errors caught separately
+5. Close Redis/ClickHouse connections — errors swallowed
 
 ### Shared Utilities
 `redis-utils.ts` contains `parseRedisFields()` — converts flat Redis `[key, value, key, value, ...]` arrays into `Record<string, string>`. Used by both `EventConsumerService` and `DlqService`. Do NOT inline this back into individual services or duplicate it — keep it in `redis-utils.ts`.
