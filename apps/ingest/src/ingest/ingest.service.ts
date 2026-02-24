@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import { REDIS } from '../providers/redis.provider';
-import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_KEY_PREFIX, BILLING_EVENTS_TTL_SECONDS } from '../constants';
+import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, billingCounterKey } from '../constants';
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
 
@@ -151,9 +151,7 @@ export class IngestService {
   }
 
   private incrementBillingCounter(projectId: string, count: number): void {
-    const now = new Date();
-    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-    const counterKey = `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;
+    const counterKey = billingCounterKey(projectId);
 
     const pipeline = this.redis.pipeline();
     pipeline.incrby(counterKey, count);

@@ -4,7 +4,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { apiKeys, projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
-import { API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, BILLING_EVENTS_KEY_PREFIX } from '../constants';
+import { API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, billingCounterKey } from '../constants';
 import { REDIS } from '../providers/redis.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
 
@@ -101,9 +101,7 @@ export class ApiKeyGuard implements CanActivate {
   private async checkEventsLimit(info: CachedKeyInfo): Promise<void> {
     if (info.events_limit === null) return;
 
-    const now = new Date();
-    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-    const counterKey = `${BILLING_EVENTS_KEY_PREFIX}:${info.project_id}:${monthKey}`;
+    const counterKey = billingCounterKey(info.project_id);
     const current = await this.redis.get(counterKey);
 
     if (current !== null && parseInt(current, 10) >= info.events_limit) {
