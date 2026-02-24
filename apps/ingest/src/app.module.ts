@@ -9,6 +9,7 @@ import { env } from './env';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
 import { ZodExceptionFilter } from './filters/zod-exception.filter';
+import { ApiKeyGuard } from './guards/api-key.guard';
 import { BillingGuard } from './guards/billing.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 
@@ -41,6 +42,7 @@ const DrizzleProvider = {
     RedisProvider,
     DrizzleProvider,
     IngestService,
+    ApiKeyGuard,
     BillingGuard,
     RateLimitGuard,
     { provide: APP_FILTER, useClass: ZodExceptionFilter },
