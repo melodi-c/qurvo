@@ -18,8 +18,10 @@ function resolveEventType(eventName: string): string {
 
 type ParsedUa = { browser: string; browser_version: string; os: string; os_version: string; device_type: string };
 
+const EMPTY_UA: ParsedUa = { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
+
 function parseUa(userAgent?: string): ParsedUa {
-  if (!userAgent) return { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
+  if (!userAgent) return EMPTY_UA;
   const result = new UAParser(userAgent).getResult();
   return {
     browser: result.browser.name ?? '',
@@ -28,6 +30,14 @@ function parseUa(userAgent?: string): ParsedUa {
     os_version: result.os.version ?? '',
     device_type: result.device.type ?? 'desktop',
   };
+}
+
+interface BuildPayloadOpts {
+  ip?: string;
+  ua?: ParsedUa;
+  batchId?: string;
+  sentAt?: string;
+  eventId?: string;
 }
 
 @Injectable()
@@ -39,7 +49,7 @@ export class IngestService {
   async trackEvent(projectId: string, event: TrackEvent, ip?: string, userAgent?: string) {
     const serverTime = new Date().toISOString();
     const ua = parseUa(userAgent);
-    const payload = this.buildPayload(projectId, event, serverTime, ip, ua);
+    const payload = this.buildPayload(projectId, event, serverTime, { ip, ua });
     await this.writeToStream([payload]);
     this.incrementBillingCounter(projectId, 1);
     this.logger.log({ projectId, eventName: event.event }, 'Event ingested');
@@ -49,7 +59,7 @@ export class IngestService {
     const serverTime = new Date().toISOString();
     const batchId = crypto.randomUUID();
     const ua = parseUa(userAgent);
-    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, ip, ua, batchId, sentAt));
+    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, ua, batchId, sentAt }));
     await this.writeToStream(payloads);
     this.incrementBillingCounter(projectId, events.length);
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
@@ -57,12 +67,9 @@ export class IngestService {
 
   async importBatch(projectId: string, events: ImportEvent[]) {
     const batchId = `import-${crypto.randomUUID()}`;
-    const payloads = events.map((event) => {
-      const payload = this.buildPayload(projectId, event, event.timestamp);
-      if (event.event_id) payload.event_id = event.event_id;
-      payload.batch_id = batchId;
-      return payload;
-    });
+    const payloads = events.map((event) =>
+      this.buildPayload(projectId, event, event.timestamp, { batchId, eventId: event.event_id }),
+    );
     await this.writeToStream(payloads);
     // Billing intentionally skipped for imports
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Import batch ingested');
@@ -72,15 +79,12 @@ export class IngestService {
     projectId: string,
     event: TrackEvent,
     serverTime: string,
-    ip?: string,
-    ua?: ParsedUa,
-    batchId?: string,
-    sentAt?: string,
+    opts: BuildPayloadOpts = {},
   ): Record<string, string> {
-    const resolvedUa: ParsedUa = ua ?? { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
+    const ua = opts.ua ?? EMPTY_UA;
 
     const payload: Record<string, string> = {
-      event_id: crypto.randomUUID(),
+      event_id: opts.eventId || crypto.randomUUID(),
       project_id: projectId,
       event_name: event.event,
       event_type: resolveEventType(event.event),
@@ -92,24 +96,24 @@ export class IngestService {
       referrer: event.context?.referrer || '',
       page_title: event.context?.page_title || '',
       page_path: event.context?.page_path || '',
-      device_type: event.context?.device_type || resolvedUa.device_type,
-      browser: event.context?.browser || resolvedUa.browser,
-      browser_version: event.context?.browser_version || resolvedUa.browser_version,
-      os: event.context?.os || resolvedUa.os,
-      os_version: event.context?.os_version || resolvedUa.os_version,
+      device_type: event.context?.device_type || ua.device_type,
+      browser: event.context?.browser || ua.browser,
+      browser_version: event.context?.browser_version || ua.browser_version,
+      os: event.context?.os || ua.os,
+      os_version: event.context?.os_version || ua.os_version,
       screen_width: String(Math.max(0, event.context?.screen_width || 0)),
       screen_height: String(Math.max(0, event.context?.screen_height || 0)),
       language: event.context?.language || '',
       timezone: event.context?.timezone || '',
-      ip: ip || '',
+      ip: opts.ip || '',
       sdk_name: event.context?.sdk_name || '',
       sdk_version: event.context?.sdk_version || '',
       properties: JSON.stringify(event.properties || {}),
       user_properties: JSON.stringify(event.user_properties || {}),
-      timestamp: this.resolveTimestamp(event.timestamp, serverTime, sentAt),
+      timestamp: this.resolveTimestamp(event.timestamp, serverTime, opts.sentAt),
     };
 
-    if (batchId) payload.batch_id = batchId;
+    if (opts.batchId) payload.batch_id = opts.batchId;
     return payload;
   }
 

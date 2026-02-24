@@ -60,6 +60,18 @@ export async function postTrackGzip(app: INestApplication, apiKey: string, body:
   return { status: res.status, body: await res.json() };
 }
 
+export async function postImport(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
+  const res = await fetch(`${getBaseUrl(app)}/v1/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 export function parseRedisFields(fields: string[]): Record<string, string> {
   const result: Record<string, string> = {};
   for (let i = 0; i < fields.length; i += 2) {

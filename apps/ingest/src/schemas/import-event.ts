@@ -1,13 +1,7 @@
 import { z } from 'zod';
-import { EventPropertiesSchema, EventContextSchema } from './event';
+import { TrackEventSchema } from './event';
 
-export const ImportEventSchema = z.object({
-  event: z.string().min(1).max(255),
-  distinct_id: z.string().min(1).max(255),
-  anonymous_id: z.string().max(255).optional(),
-  properties: EventPropertiesSchema,
-  user_properties: EventPropertiesSchema,
-  context: EventContextSchema,
+export const ImportEventSchema = TrackEventSchema.extend({
   timestamp: z.string().datetime(),
   event_id: z.string().uuid().optional(),
 });

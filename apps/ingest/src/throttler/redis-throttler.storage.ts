@@ -37,12 +37,11 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
 
     if (totalHits > limit) {
       await this.redis.set(blockKey, '1', 'PX', blockDuration);
-      const blockTimeToExpire = await this.redis.pttl(blockKey);
       return {
         totalHits,
         timeToExpire,
         isBlocked: true,
-        timeToBlockExpire: blockTimeToExpire > 0 ? blockTimeToExpire : blockDuration,
+        timeToBlockExpire: blockDuration,
       };
     }
 
