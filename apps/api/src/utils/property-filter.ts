@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
 export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
 
@@ -28,7 +28,7 @@ export function resolvePropertyExpr(prop: string): string {
     return `JSONExtractString(user_properties, '${key}')`;
   }
   if (DIRECT_COLUMNS.has(prop)) return prop;
-  throw new BadRequestException(`Unknown filter property: ${prop}`);
+  throw new AppBadRequestException(`Unknown filter property: ${prop}`);
 }
 
 /**

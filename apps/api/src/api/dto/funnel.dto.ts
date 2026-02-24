@@ -9,16 +9,15 @@ import {
   IsNumber,
   Min,
   Max,
-  IsDateString,
   IsOptional,
   IsUUID,
-  IsBoolean,
   IsIn,
 } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray } from './shared/transforms';
+import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
 export class FunnelStepDto {
   @IsString()
@@ -58,10 +57,7 @@ export class FunnelExclusionDto {
   funnel_to_step: number;
 }
 
-class FunnelBaseQueryDto {
-  @IsUUID()
-  project_id: string;
-
+class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Transform(({ value }) => {
     if (!value) return undefined;
     const arr = typeof value === 'string' ? JSON.parse(value) : value;
@@ -92,19 +88,6 @@ class FunnelBaseQueryDto {
   @IsOptional()
   conversion_window_unit?: string;
 
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  cohort_ids?: string[];
-
   @ApiPropertyOptional({ description: 'Sampling factor 0.0-1.0 (1.0 = no sampling)' })
   @Type(() => Number)
   @IsNumber()
@@ -112,15 +95,6 @@ class FunnelBaseQueryDto {
   @Max(1)
   @IsOptional()
   sampling_factor?: number;
-
-  @IsUUID()
-  @IsOptional()
-  widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }
 
 export class FunnelQueryDto extends FunnelBaseQueryDto {

@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardsService } from '../../dashboards/dashboards.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   CreateDashboardDto,
@@ -16,7 +15,6 @@ import {
 @ApiTags('Dashboards')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/dashboards')
-@UseGuards(SessionAuthGuard)
 export class DashboardsController {
   constructor(private readonly dashboardsService: DashboardsService) {}
 

@@ -46,6 +46,7 @@ import { AppNotFoundException } from '../exceptions/app-not-found.exception';
 import { AppConflictException } from '../exceptions/app-conflict.exception';
 import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
 import { AppUnauthorizedException } from '../exceptions/app-unauthorized.exception';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
 import { WrongPasswordException } from '../auth/exceptions/wrong-password.exception';
@@ -55,6 +56,7 @@ const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundExcepti
 const ConflictFilter = createHttpFilter(HttpStatus.CONFLICT, AppConflictException);
 const ForbiddenFilter = createHttpFilter(HttpStatus.FORBIDDEN, AppForbiddenException);
 const UnauthorizedFilter = createHttpFilter(HttpStatus.UNAUTHORIZED, AppUnauthorizedException);
+const BadRequestFilter = createHttpFilter(HttpStatus.BAD_REQUEST, AppBadRequestException);
 const TooManyRequestsFilter = createHttpFilter(HttpStatus.TOO_MANY_REQUESTS, TooManyRequestsException);
 const AiNotConfiguredFilter = createHttpFilter(HttpStatus.NOT_IMPLEMENTED, AiNotConfiguredException);
 const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, WrongPasswordException, InvalidVerificationCodeException);
@@ -111,6 +113,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     { provide: APP_FILTER, useClass: ConflictFilter },
     { provide: APP_FILTER, useClass: ForbiddenFilter },
     { provide: APP_FILTER, useClass: UnauthorizedFilter },
+    { provide: APP_FILTER, useClass: BadRequestFilter },
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },
     { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
     { provide: APP_FILTER, useClass: UnprocessableEntityFilter },

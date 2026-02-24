@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApiKeysService } from '../../api-keys/api-keys.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateApiKeyDto, ApiKeyDto, ApiKeyCreatedDto } from '../dto/api-keys.dto';
 import { OkResponseDto } from '../dto/auth.dto';
@@ -9,7 +8,6 @@ import { OkResponseDto } from '../dto/auth.dto';
 @ApiTags('API Keys')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/keys')
-@UseGuards(SessionAuthGuard)
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 

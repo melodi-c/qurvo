@@ -1,4 +1,5 @@
-import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { eq, and, inArray } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
@@ -59,7 +60,7 @@ export class CohortsService {
 
     const definition = input.definition ?? null;
     if (!definition && !input.is_static) {
-      throw new BadRequestException('definition is required for dynamic cohorts');
+      throw new AppBadRequestException('definition is required for dynamic cohorts');
     }
 
     // Check circular dependency if definition references other cohorts
@@ -270,7 +271,7 @@ export class CohortsService {
     );
 
     if (isCircular) {
-      throw new BadRequestException('Circular cohort reference detected');
+      throw new AppBadRequestException('Circular cohort reference detected');
     }
   }
 }

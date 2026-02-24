@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, Logger } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { eq, and, gt } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { sessions, users } from '@qurvo/db';
@@ -8,6 +9,7 @@ import type { Database } from '@qurvo/db';
 import { hashToken } from '../../utils/hash';
 import { SESSION_CACHE_TTL_SECONDS } from '../../constants';
 import { InvalidSessionException } from '../../auth/exceptions/invalid-session.exception';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
@@ -16,9 +18,16 @@ export class SessionAuthGuard implements CanActivate {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers['authorization'];
     if (!authHeader?.startsWith('Bearer ')) {

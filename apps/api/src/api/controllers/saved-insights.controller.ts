@@ -1,14 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateInsightDto, UpdateInsightDto, InsightDto, ListInsightsQueryDto } from '../dto/insights.dto';
 
 @ApiTags('Insights')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/insights')
-@UseGuards(SessionAuthGuard)
 export class SavedInsightsController {
   constructor(private readonly insightsService: SavedInsightsService) {}
 
