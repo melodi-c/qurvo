@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
-import type { CreateCohort, UpdateCohort } from '@/api/generated/Api';
+import { authFetch } from '@/lib/auth-fetch';
+import type { CreateCohort, UpdateCohort, CohortPreview, CreateStaticCohort } from '@/api/generated/Api';
 
 export function useCohorts() {
   const projectId = useProjectId();
@@ -86,8 +87,8 @@ export function useCohortPreviewCount() {
   const projectId = useProjectId();
 
   return useMutation({
-    mutationFn: (definition: unknown) =>
-      api.cohortsControllerPreviewCount({ projectId }, { definition } as any),
+    mutationFn: (data: CohortPreview) =>
+      api.cohortsControllerPreviewCount({ projectId }, data),
   });
 }
 
@@ -96,8 +97,8 @@ export function useCreateStaticCohort() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { name: string; description?: string; person_ids: string[] }) =>
-      (api as any).cohortsControllerCreateStatic({ projectId }, data),
+    mutationFn: (data: CreateStaticCohort) =>
+      api.staticCohortsControllerCreateStaticCohort({ projectId }, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
@@ -110,7 +111,7 @@ export function useDuplicateAsStatic() {
 
   return useMutation({
     mutationFn: (cohortId: string) =>
-      (api as any).cohortsControllerDuplicateAsStatic({ projectId, cohortId }),
+      api.staticCohortsControllerDuplicateAsStatic({ projectId, cohortId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
@@ -122,8 +123,14 @@ export function useUploadCohortCsv() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) =>
-      (api as any).cohortsControllerUploadCsv({ projectId, cohortId }, { csv_content: csvContent }),
+    mutationFn: async ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) => {
+      const res = await authFetch(`/api/projects/${projectId}/cohorts/${cohortId}/upload-csv`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv_content: csvContent }),
+      });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },

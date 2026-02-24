@@ -1,6 +1,7 @@
 import { WidgetShell } from '../WidgetShell';
 import { usePathsData } from '@/features/dashboard/hooks/use-paths';
 import { PathsChart } from './PathsChart';
+import { defaultPathsConfig } from './paths-shared';
 import type { Widget, PathsWidgetConfig } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './PathsWidget.translations';
@@ -13,7 +14,7 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
   const { t } = useLocalTranslation(translations);
   const config = widget.insight?.config as PathsWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = usePathsData(config ?? { date_from: '', date_to: '', step_limit: 5 } as any, widget.id);
+  const query = usePathsData(config ?? defaultPathsConfig(), widget.id);
   const result = query.data?.data;
 
   return (

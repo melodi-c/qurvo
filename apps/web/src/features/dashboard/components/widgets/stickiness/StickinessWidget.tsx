@@ -2,6 +2,7 @@ import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
 import { StickinessChart } from './StickinessChart';
+import { defaultStickinessConfig } from './stickiness-shared';
 import type { Widget, StickinessWidgetConfig } from '@/api/generated/Api';
 import translations from './StickinessWidget.translations';
 
@@ -13,7 +14,7 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
   const { t } = useLocalTranslation(translations);
   const config = widget.insight?.config as StickinessWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useStickinessData(config ?? { target_event: '', granularity: 'day', date_from: '', date_to: '' } as any, widget.id);
+  const query = useStickinessData(config ?? defaultStickinessConfig(), widget.id);
   const result = query.data?.data;
 
   const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;

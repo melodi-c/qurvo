@@ -4,7 +4,7 @@ import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
-import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
+import { useFunnelData, cleanSteps } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
 import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel/FunnelQueryPanel';
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
@@ -14,17 +14,7 @@ import translations from './funnel-editor.translations';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
-  return {
-    ...config,
-    steps: config.steps.map((s) => {
-      const eventNames = (s.event_names ?? []).filter((n) => n.trim() !== '');
-      return {
-        ...s,
-        filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
-        event_names: eventNames.length ? eventNames : undefined,
-      };
-    }),
-  };
+  return { ...config, steps: cleanSteps(config) };
 }
 
 export default function FunnelEditorPage() {

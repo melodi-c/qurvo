@@ -1,20 +1,22 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { useLanguageStore } from './language';
+import type { User } from '../api/generated/Api';
+import type { Language } from '@/i18n/types';
 
-interface AppUser {
-  id?: string;
-  email: string;
-  display_name: string;
-  language?: string;
-  email_verified: boolean;
+function isLanguage(v: string): v is Language {
+  return v === 'ru' || v === 'en';
+}
+
+function syncLanguage(lang: string) {
+  if (isLanguage(lang)) useLanguageStore.getState().setLanguage(lang);
 }
 
 interface AuthState {
-  user: AppUser | null;
+  user: User | null;
   loading: boolean;
   pendingVerification: boolean;
-  setUser: (user: AppUser | null) => void;
+  setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; password: string; display_name: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -34,10 +36,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     const res = await api.authControllerLogin({ email, password });
     localStorage.setItem('qurvo_token', res.token);
-    const user = res.user as AppUser;
-    if (user.language) useLanguageStore.getState().setLanguage(user.language as 'ru' | 'en');
+    syncLanguage(res.user.language);
     set({
-      user,
+      user: res.user,
       pendingVerification: !res.user.email_verified,
     });
   },
@@ -45,10 +46,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (data) => {
     const res = await api.authControllerRegister(data);
     localStorage.setItem('qurvo_token', res.token);
-    const user = res.user as AppUser;
-    if (user.language) useLanguageStore.getState().setLanguage(user.language as 'ru' | 'en');
+    syncLanguage(res.user.language);
     set({
-      user,
+      user: res.user,
       pendingVerification: !res.user.email_verified,
     });
   },
@@ -67,12 +67,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     try {
       const res = await api.authControllerMe();
-      const user = res.user as unknown as AppUser;
-      if (user.language) useLanguageStore.getState().setLanguage(user.language as 'ru' | 'en');
+      const s = res.user;
+      const user: User = {
+        id: s.user_id,
+        email: s.email,
+        display_name: s.display_name,
+        language: s.language,
+        email_verified: s.email_verified,
+      };
+      syncLanguage(user.language);
       set({
         user,
         loading: false,
-        pendingVerification: !res.user.email_verified,
+        pendingVerification: !user.email_verified,
       });
     } catch {
       localStorage.removeItem('qurvo_token');

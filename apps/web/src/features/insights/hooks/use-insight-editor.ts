@@ -2,16 +2,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
-import type { InsightType } from '@/api/generated/Api';
+import type { InsightType, CreateInsight } from '@/api/generated/Api';
 
-interface UseInsightEditorOptions<T> {
+interface UseInsightEditorOptions<T extends CreateInsight['config']> {
   type: InsightType;
   defaultName: string;
   defaultConfig: () => T;
   cleanConfig: (config: T) => T;
 }
 
-export function useInsightEditor<T>({
+export function useInsightEditor<T extends CreateInsight['config']>({
   type,
   defaultName,
   defaultConfig,
@@ -47,16 +47,13 @@ export function useInsightEditor<T>({
     setSaveError(null);
 
     try {
+      const config_ = cleanConfig(config);
       if (isNew) {
-        await createMutation.mutateAsync({
-          type,
-          name,
-          config: cleanConfig(config) as any,
-        });
+        await createMutation.mutateAsync({ type, name, config: config_ });
       } else {
         await updateMutation.mutateAsync({
           insightId: insightId!,
-          data: { name, config: cleanConfig(config) as any },
+          data: { name, config: config_ },
         });
       }
       go.insights.list();

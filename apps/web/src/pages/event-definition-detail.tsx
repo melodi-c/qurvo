@@ -265,7 +265,7 @@ function EventPropertiesSection({ eventName }: { eventName: string }) {
       hideOnMobile: true,
       render: (row) => (
         <Badge variant="outline" className="text-xs">
-          {(row as any).value_type ?? 'String'}
+          {row.value_type ?? 'String'}
         </Badge>
       ),
     },

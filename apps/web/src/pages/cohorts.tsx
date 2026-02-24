@@ -21,7 +21,7 @@ export default function CohortsPage() {
       header: t('type'),
       render: (row) => (
         <Badge variant="secondary" className="text-[10px]">
-          {(row as any).is_static ? t('static') : t('dynamic')}
+          {row.is_static ? t('static') : t('dynamic')}
         </Badge>
       ),
     },

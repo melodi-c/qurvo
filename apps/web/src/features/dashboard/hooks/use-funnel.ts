@@ -1,9 +1,9 @@
 import { api } from '@/api/client';
-import type { FunnelWidgetConfig, FunnelResponse } from '@/api/generated/Api';
+import type { FunnelWidgetConfig, FunnelResponse, FunnelControllerGetFunnelParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
 /** Strip filters with empty property so they don't fail backend validation. */
-function cleanSteps(config: FunnelWidgetConfig) {
+export function cleanSteps(config: FunnelWidgetConfig) {
   return config.steps.map((s) => {
     const eventNames = (s.event_names ?? []).filter((n) => n.trim() !== '');
     return {
@@ -14,9 +14,9 @@ function cleanSteps(config: FunnelWidgetConfig) {
   });
 }
 
-export const useFunnelData = createWidgetDataHook<FunnelWidgetConfig, FunnelResponse>({
+export const useFunnelData = createWidgetDataHook<FunnelWidgetConfig, FunnelResponse, FunnelControllerGetFunnelParams>({
   queryKeyPrefix: 'funnel',
-  apiFn: (params) => api.funnelControllerGetFunnel(params as any),
+  apiFn: (params) => api.funnelControllerGetFunnel(params),
   configHash: (config) =>
     JSON.stringify({
       steps: config.steps,

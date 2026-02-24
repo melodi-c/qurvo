@@ -38,7 +38,7 @@ export function InsightCardMenu({ widget, onRefresh, onEditText, onExpand }: Ins
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {insight && (
-          <DropdownMenuItem onClick={() => go.insights.detailByType(insight.type as any, insight.id)}>
+          <DropdownMenuItem onClick={() => go.insights.detailByType(insight.type, insight.id)}>
             <ExternalLink />
             {t('openInsight')}
           </DropdownMenuItem>

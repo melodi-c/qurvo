@@ -1,18 +1,18 @@
 import { api } from '@/api/client';
-import type { TrendWidgetConfig, TrendResponse } from '@/api/generated/Api';
+import type { TrendWidgetConfig, TrendResponse, TrendControllerGetTrendParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
 /** Strip filters with empty property so they don't fail backend validation. */
-function cleanSeries(config: TrendWidgetConfig) {
+export function cleanSeries(config: TrendWidgetConfig) {
   return config.series.map((s) => ({
     ...s,
     filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
   }));
 }
 
-export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendResponse>({
+export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendResponse, TrendControllerGetTrendParams>({
   queryKeyPrefix: 'trend',
-  apiFn: (params) => api.trendControllerGetTrend(params as any),
+  apiFn: (params) => api.trendControllerGetTrend(params),
   configHash: (config) =>
     JSON.stringify({
       series: config.series,
