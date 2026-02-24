@@ -13,10 +13,10 @@ import {
   IsUUID,
   IsIn,
 } from 'class-validator';
-import { Type, Transform, plainToInstance } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
-import { parseJsonArray } from './shared/transforms';
+import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
 export class FunnelStepDto {
@@ -58,11 +58,7 @@ export class FunnelExclusionDto {
 }
 
 class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value) : value;
-    return Array.isArray(arr) ? plainToInstance(FunnelStepDto, arr) : arr;
-  })
+  @Transform(makeJsonArrayTransform(FunnelStepDto))
   @IsArray()
   @ArrayMinSize(2)
   @ArrayMaxSize(10)
@@ -119,11 +115,7 @@ export class FunnelQueryDto extends FunnelBaseQueryDto {
   funnel_order_type?: 'ordered' | 'strict' | 'unordered';
 
   @ApiPropertyOptional({ type: [FunnelExclusionDto] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value) : value;
-    return Array.isArray(arr) ? plainToInstance(FunnelExclusionDto, arr) : arr;
-  })
+  @Transform(makeJsonArrayTransform(FunnelExclusionDto))
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => FunnelExclusionDto)

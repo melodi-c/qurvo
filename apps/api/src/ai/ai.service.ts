@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import OpenAI from 'openai';
 import type {
   ChatCompletionAssistantMessageParam,
@@ -24,10 +24,10 @@ export type AiStreamChunk =
   | { type: 'done' };
 
 @Injectable()
-export class AiService {
+export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private client: OpenAI | null = null;
-  private model: string;
+  private readonly model: string;
   private readonly toolMap: Map<string, AiTool>;
   private readonly toolDefinitions: ChatCompletionTool[];
 
@@ -42,14 +42,21 @@ export class AiService {
     this.toolDefinitions = tools.map((t) => t.definition());
   }
 
-  private getClient(): OpenAI {
-    if (this.client) return this.client;
+  onModuleInit() {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new AiNotConfiguredException();
-    this.client = new OpenAI({
-      apiKey,
-      baseURL: process.env.OPENAI_API_BASE_URL || undefined,
-    });
+    if (apiKey) {
+      this.client = new OpenAI({
+        apiKey,
+        baseURL: process.env.OPENAI_API_BASE_URL || undefined,
+      });
+      this.logger.log('OpenAI client initialized');
+    } else {
+      this.logger.warn('OPENAI_API_KEY not set — AI features will be unavailable');
+    }
+  }
+
+  private getClient(): OpenAI {
+    if (!this.client) throw new AiNotConfiguredException();
     return this.client;
   }
 

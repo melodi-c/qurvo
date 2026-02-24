@@ -10,10 +10,10 @@ import {
   IsBoolean,
   IsIn,
 } from 'class-validator';
-import { Type, Transform, plainToInstance } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
-import { parseJsonArray } from './shared/transforms';
+import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
 export class TrendSeriesDto {
@@ -33,11 +33,7 @@ export class TrendSeriesDto {
 }
 
 export class TrendQueryDto extends BaseAnalyticsQueryDto {
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value) : value;
-    return Array.isArray(arr) ? plainToInstance(TrendSeriesDto, arr) : arr;
-  })
+  @Transform(makeJsonArrayTransform(TrendSeriesDto))
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(5)

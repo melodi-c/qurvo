@@ -91,9 +91,6 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Body() body: CohortPreviewDto,
   ): Promise<CohortMemberCountDto> {
-    if (!body.definition) {
-      return { count: 0 };
-    }
     const count = await this.cohortsService.previewCount(user.user_id, projectId, body.definition);
     return { count };
   }
