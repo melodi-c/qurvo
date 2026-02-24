@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, Inject, HttpException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Inject, HttpException, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import {
   REDIS,
@@ -10,6 +10,8 @@ import {
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
+  private readonly logger = new Logger(RateLimitGuard.name);
+
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -25,7 +27,14 @@ export class RateLimitGuard implements CanActivate {
       keys.push(`${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`);
     }
 
-    const values = await this.redis.mget(...keys);
+    let values: (string | null)[];
+    try {
+      values = await this.redis.mget(...keys);
+    } catch (err) {
+      this.logger.error({ err, projectId }, 'Redis error in rate limit check — failing open');
+      return true;
+    }
+
     const total = values.reduce((sum, v) => sum + (v !== null ? parseInt(v, 10) : 0), 0);
 
     if (total >= RATE_LIMIT_MAX_EVENTS) {

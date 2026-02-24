@@ -482,6 +482,89 @@ describe('UUIDv7 event IDs', () => {
   });
 });
 
+describe('Max batch size enforcement', () => {
+  it('returns 400 when batch exceeds 500 events', async () => {
+    const events = Array.from({ length: 501 }, (_, i) => ({
+      event: `event_${i}`,
+      distinct_id: `user_${i}`,
+      timestamp: new Date().toISOString(),
+    }));
+
+    const res = await postBatch(app, testProject.apiKey, { events });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when import batch exceeds 5000 events', async () => {
+    const events = Array.from({ length: 5001 }, (_, i) => ({
+      event: `event_${i}`,
+      distinct_id: `user_${i}`,
+      timestamp: new Date().toISOString(),
+    }));
+
+    const res = await postImport(app, testProject.apiKey, { events });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('UA enrichment', () => {
+  it('parses User-Agent header and writes browser/os/device fields to stream', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': testProject.apiKey,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({
+        events: [{ event: 'ua_test', distinct_id: 'ua-user', timestamp: new Date().toISOString() }],
+      }),
+    });
+
+    expect(res.status).toBe(202);
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    expect(fields.browser).toBe('Chrome');
+    expect(fields.os).toBe('macOS');
+    expect(fields.device_type).toBe('desktop');
+  });
+
+  it('prefers SDK-reported context fields over UA-parsed values', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': testProject.apiKey,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0',
+      },
+      body: JSON.stringify({
+        events: [{
+          event: 'ctx_override_test',
+          distinct_id: 'ctx-user',
+          timestamp: new Date().toISOString(),
+          context: { browser: 'CustomBrowser', os: 'CustomOS', device_type: 'mobile' },
+        }],
+      }),
+    });
+
+    expect(res.status).toBe(202);
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    expect(fields.browser).toBe('CustomBrowser');
+    expect(fields.os).toBe('CustomOS');
+    expect(fields.device_type).toBe('mobile');
+  });
+});
+
 describe('Rate limiting', () => {
   function seedRateLimitBuckets(projectId: string, count: number): Promise<void> {
     const nowSec = Math.floor(Date.now() / 1000);

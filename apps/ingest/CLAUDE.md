@@ -64,9 +64,9 @@ SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod v
 ```
 
 ### Guard Chain
-- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit`
-- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Only applied to `/v1/batch`.
-- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`.
+- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit`. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
+- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Only applied to `/v1/batch`. **Fails open** on Redis errors (allows request through).
+- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
 
 ### Billing Quota
 Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceeded (PostHog pattern). This prevents SDKs from retrying on quota limits.
@@ -107,7 +107,7 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 Controller wraps `IngestService` calls in try-catch. Redis stream write failures → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`.
 
 ### Event Type Mapping
-`EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
+`EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$pageleave` → `pageleave`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
 
 ### Module Configuration
 `AppModule` registers all guards (`ApiKeyGuard`, `RateLimitGuard`, `BillingGuard`) as explicit providers. Implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
@@ -123,7 +123,7 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
 
 ### Integration tests
-`src/test/ingest/`. 29 tests covering:
+`src/test/ingest/`. 33 tests covering:
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key, per-event validation (partial success), all-invalid batch → 400
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
@@ -132,4 +132,6 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Beacon: 204 No Content with ?beacon=1
 - Gzip auto-detect: compressed body without Content-Encoding header
 - UUIDv7: event_id format validation
+- Max batch size: 400 on >500 batch events, 400 on >5000 import events
+- UA enrichment: browser/os/device from User-Agent header, SDK context overrides UA-parsed values
 - Rate limiting: 429 when exceeded, 202 under limit, no rate limit on import, counter increment
