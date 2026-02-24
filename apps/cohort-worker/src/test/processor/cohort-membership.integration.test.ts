@@ -12,12 +12,14 @@ import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { getTestContext } from '../context';
 import { getCohortMembers } from '../helpers/ch';
 import { CohortMembershipService } from '../../cohort-worker/cohort-membership.service';
+import { CohortComputationService } from '../../cohort-worker/cohort-computation.service';
 import { COHORT_LOCK_KEY } from '../../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
 let testProject: TestProject;
 let svc: CohortMembershipService;
+let computation: CohortComputationService;
 
 beforeAll(async () => {
   const tc = await getTestContext();
@@ -25,6 +27,7 @@ beforeAll(async () => {
   workerApp = tc.app;
   testProject = tc.testProject;
   svc = workerApp.get(CohortMembershipService);
+  computation = workerApp.get(CohortComputationService);
 }, 120_000);
 
 async function createCohort(
@@ -33,20 +36,16 @@ async function createCohort(
   name: string,
   definition: CohortConditionGroup,
 ): Promise<string> {
-  const cohortId = randomUUID();
-  await ctx.db.insert(cohorts).values({
-    id: cohortId,
-    project_id: projectId,
-    created_by: userId,
-    name,
-    definition,
-  } as any);
-  return cohortId;
+  const [row] = await ctx.db
+    .insert(cohorts)
+    .values({ project_id: projectId, created_by: userId, name, definition })
+    .returning({ id: cohorts.id });
+  return row.id;
 }
 
 async function runCycle(): Promise<void> {
   await ctx.redis.del(COHORT_LOCK_KEY);
-  await (svc as any).runCycle();
+  await svc.runCycle();
 }
 
 describe('cohort membership', () => {
@@ -260,7 +259,19 @@ describe('cohort membership', () => {
     await runCycle();
     await runCycle();
 
-    await new Promise((r) => setTimeout(r, 2000));
+    // Poll until ALTER DELETE mutation completes (same pattern as orphan GC test)
+    const deadline = Date.now() + 15_000;
+    let physicalCount = Infinity;
+    while (Date.now() < deadline) {
+      const res = await ctx.ch.query({
+        query: `SELECT count() AS cnt FROM cohort_members WHERE cohort_id = {c:UUID} AND person_id = {p:UUID}`,
+        query_params: { c: cohortId, p: personId },
+        format: 'JSONEachRow',
+      });
+      physicalCount = Number((await res.json<{ cnt: string }>())[0].cnt);
+      if (physicalCount <= 1) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personId);
@@ -298,7 +309,7 @@ describe('cohort membership', () => {
     let members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personId);
 
-    await runCycle();
+    await computation.gcOrphanedMemberships();
 
     // ALTER TABLE DELETE is an async mutation in ClickHouse — poll until it completes
     const deadline = Date.now() + 15_000;
@@ -334,7 +345,7 @@ describe('cohort membership', () => {
       ],
     });
 
-    await (svc as any).runCycle();
+    await svc.runCycle();
 
     const members = await getCohortMembers(ctx.ch, testProject.projectId, cohortId);
     expect(members).not.toContain(personId);

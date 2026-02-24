@@ -1,5 +1,5 @@
 import type { Transport, SendOptions, CompressFn } from './types';
-import { QuotaExceededError } from './types';
+import { QuotaExceededError, NonRetryableError } from './types';
 
 export class FetchTransport implements Transport {
   constructor(private readonly compress?: CompressFn) {}
@@ -38,6 +38,13 @@ export class FetchTransport implements Transport {
     }
 
     const responseBody = await response.text().catch(() => '');
+
+    // 4xx = client error, retrying won't help (bad data, auth, validation)
+    if (response.status >= 400 && response.status < 500) {
+      throw new NonRetryableError(response.status, `HTTP ${response.status}: ${responseBody}`);
+    }
+
+    // 5xx = server error, retryable
     throw new Error(`HTTP ${response.status}: ${responseBody}`);
   }
 }

@@ -16,6 +16,12 @@ export const BILLING_EVENTS_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
 // Gzip bomb protection: max allowed size after decompression (matches Fastify bodyLimit)
 export const MAX_DECOMPRESSED_BYTES = 5 * 1024 * 1024; // 5 MB
 
+// Per-project rate limiting (sliding window via Redis buckets)
+export const RATE_LIMIT_KEY_PREFIX = 'ratelimit';
+export const RATE_LIMIT_WINDOW_SECONDS = 60;
+export const RATE_LIMIT_MAX_EVENTS = 100_000; // 100K events per 60s per project
+export const RATE_LIMIT_BUCKET_SECONDS = 10;
+
 export function billingCounterKey(projectId: string, now = new Date()): string {
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   return `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;

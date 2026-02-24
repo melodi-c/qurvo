@@ -1,5 +1,5 @@
 import type { Transport, LogFn } from './types';
-import { QuotaExceededError } from './types';
+import { QuotaExceededError, NonRetryableError } from './types';
 
 export class EventQueue {
   private queue: unknown[] = [];
@@ -78,6 +78,9 @@ export class EventQueue {
         this.queue.length = 0;
         this.stop();
         this.logger?.('quota exceeded, events dropped and queue stopped');
+      } else if (err instanceof NonRetryableError) {
+        // 4xx: bad data or auth — drop batch, don't retry (retrying won't help)
+        this.logger?.(`non-retryable error (${err.statusCode}), ${batch.length} events dropped`, err);
       } else {
         this.queue.unshift(...batch);
         this.scheduleBackoff();

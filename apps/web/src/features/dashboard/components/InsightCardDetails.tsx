@@ -2,9 +2,10 @@ import { CalendarDays, Filter, Layers, Users, AlertCircle } from 'lucide-react';
 import type { DashboardFilterOverrides } from '../lib/filter-overrides';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightCardDetails.translations';
+import type { Insight } from '@/api/generated/Api';
 
 interface InsightCardDetailsProps {
-  config: Record<string, any>;
+  config: Insight['config'];
   filterOverrides: DashboardFilterOverrides;
 }
 
@@ -12,10 +13,10 @@ export function InsightCardDetails({ config, filterOverrides }: InsightCardDetai
   const { t } = useLocalTranslation(translations);
   const hasDateOverride = !!(filterOverrides.dateFrom || filterOverrides.dateTo);
   const hasPropertyOverride = filterOverrides.propertyFilters.length > 0;
-  const dateFrom = config.date_from;
-  const dateTo = config.date_to;
-  const breakdown = config.breakdown_property;
-  const cohortIds = config.cohort_ids as string[] | undefined;
+  const dateFrom = 'date_from' in config ? config.date_from : undefined;
+  const dateTo = 'date_to' in config ? config.date_to : undefined;
+  const breakdown = 'breakdown_property' in config ? config.breakdown_property : undefined;
+  const cohortIds = 'cohort_ids' in config ? config.cohort_ids : undefined;
 
   return (
     <div className="px-3 py-2 border-b border-border/50 bg-muted/20 space-y-1.5 text-xs text-muted-foreground">

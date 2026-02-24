@@ -8,6 +8,7 @@ import { topologicalSortCohorts } from '@qurvo/cohort-query';
 import { REDIS, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
+  COHORT_STALE_THRESHOLD_MINUTES,
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
   COHORT_LOCK_KEY,
@@ -25,7 +26,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private cycleInFlight: Promise<void> | null = null;
-  private gcCycleCounter = 0;
+  private gcCycleCounter = 1;
   private readonly lock: DistributedLock;
 
   constructor(
@@ -64,10 +65,12 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     }
   }
 
-  private async runCycle(): Promise<void> {
+  /** @internal — exposed for integration tests */
+  async runCycle(): Promise<void> {
     const hasLock = await this.lock.acquire();
     if (!hasLock) {
       this.logger.debug('Cohort membership cycle skipped: another instance holds the lock');
+      // gcCycleCounter not incremented — GC only runs by the lock holder
       return;
     }
 
@@ -77,15 +80,20 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
       // ── 1. Selective: fetch only stale dynamic cohorts ──────────────────
       const staleCohorts = await this.db
-        .select()
+        .select({
+          id: cohorts.id,
+          project_id: cohorts.project_id,
+          definition: cohorts.definition,
+          errors_calculating: cohorts.errors_calculating,
+          last_error_at: cohorts.last_error_at,
+        })
         .from(cohorts)
         .where(
           and(
             eq(cohorts.is_static, false),
             or(
               isNull(cohorts.membership_computed_at),
-              // COHORT_STALE_THRESHOLD_MINUTES = 15
-              sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '15 minutes'`,
+              sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '1 minute' * ${COHORT_STALE_THRESHOLD_MINUTES}`,
             ),
           ),
         );
@@ -110,6 +118,11 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
           if (cyclic.length > 0) {
             this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
+            for (const id of cyclic) {
+              await this.computation
+                .recordError(id, new Error('Cyclic cohort dependency detected'))
+                .catch((err) => this.logger.error({ err, cohortId: id }, 'Failed to record cyclic dependency error'));
+            }
           }
 
           // ── 4. Compute each cohort ────────────────────────────────────────

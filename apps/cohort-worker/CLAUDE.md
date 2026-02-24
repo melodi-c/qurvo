@@ -18,7 +18,7 @@ pnpm --filter @qurvo/cohort-worker test:integration
 ```
 src/
 ├── app.module.ts                        # Root: LoggerModule + CohortWorkerModule
-├── main.ts                              # NestFactory.createApplicationContext (no HTTP)
+├── main.ts                              # Entry point: env validation + NestFactory (no HTTP)
 ├── constants.ts                         # Cohort interval, backoff, lock config
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── cohort-worker/
@@ -41,7 +41,7 @@ src/
 | Service | Responsibility | Key config |
 |---|---|---|
 | `CohortComputationService` | CH/PG operations: compute membership, record errors/history, GC orphans | — |
-| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff, delegates to computation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr) |
+| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff, delegates to computation. `runCycle()` is `@internal` public for tests | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
 | `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + Redis with error logging |
 
 ## Key Patterns
@@ -49,12 +49,12 @@ src/
 ### Cohort Membership Cycle
 
 1. Acquire distributed lock (`cohort_membership:lock`, TTL 300s) — only one instance runs at a time
-2. Fetch stale dynamic cohorts from PostgreSQL (`membership_computed_at < NOW() - 15 minutes`)
+2. Fetch stale dynamic cohorts from PostgreSQL (`membership_computed_at < NOW() - COHORT_STALE_THRESHOLD_MINUTES minutes`)
 3. Filter by error backoff (cohorts with errors skip cycles exponentially)
-4. Topological sort (cohorts referencing other cohorts must be computed in dependency order)
+4. Topological sort (cohorts referencing other cohorts must be computed in dependency order); cyclic cohorts get error recorded and are skipped
 5. For each cohort: `buildCohortSubquery()` → INSERT INTO `cohort_members` → DELETE old versions
 6. Record size history in `cohort_membership_history`
-7. Garbage-collect orphaned memberships (every 6 cycles ≈ 1 hour)
+7. Garbage-collect orphaned memberships (every 6 cycles ≈ 1 hour, skips first cycle after startup, skips if no dynamic cohorts found in PG)
 
 ### Distributed Lock
 
@@ -63,6 +63,10 @@ Uses `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent m
 ### Error Backoff
 
 Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 30 minutes`, capped at ~21 days (exponent max 10).
+
+### Startup Env Validation
+
+`main.ts` requires `DATABASE_URL` and `REDIS_URL` — fails fast before NestJS bootstrap if missing.
 
 ## Integration Tests
 

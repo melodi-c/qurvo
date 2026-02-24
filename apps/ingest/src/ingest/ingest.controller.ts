@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body, Ip, Headers, Query, Req, Res, UseGuards, HttpCode, HttpException, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Body, Ip, Headers, Query, Req, Res, UseGuards, HttpCode, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { IngestService } from './ingest.service';
 import { ApiKeyGuard } from '../guards/api-key.guard';
+import { RateLimitGuard } from '../guards/rate-limit.guard';
 import { BillingGuard } from '../guards/billing.guard';
 import { ProjectId } from '../decorators/project-id.decorator';
 import { BatchWrapperSchema, TrackEventSchema, type TrackEvent } from '../schemas/event';
@@ -19,7 +20,7 @@ export class IngestController {
   }
 
   @Post('v1/batch')
-  @UseGuards(ApiKeyGuard, BillingGuard)
+  @UseGuards(ApiKeyGuard, RateLimitGuard, BillingGuard)
   async batch(
     @ProjectId() projectId: string,
     @Ip() ip: string,
@@ -63,7 +64,15 @@ export class IngestController {
       this.logger.warn({ projectId, dropped, total: rawEvents.length }, 'Some events dropped due to validation');
     }
 
-    await this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at);
+    try {
+      await this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at);
+    } catch (err) {
+      this.logger.error({ err, projectId, eventCount: validEvents.length }, 'Failed to write events to stream');
+      throw new HttpException(
+        { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
 
     // sendBeacon() — return 204 No Content (browser ignores response body)
     if (beacon === '1') {
@@ -83,7 +92,15 @@ export class IngestController {
     @Body() body: unknown,
   ) {
     const { events } = ImportBatchSchema.parse(body);
-    await this.ingestService.importBatch(projectId, events);
+    try {
+      await this.ingestService.importBatch(projectId, events);
+    } catch (err) {
+      this.logger.error({ err, projectId, eventCount: events.length }, 'Failed to write import events to stream');
+      throw new HttpException(
+        { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
     return { ok: true, count: events.length };
   }
 }

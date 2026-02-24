@@ -14,7 +14,13 @@ import {
 import { eq } from 'drizzle-orm';
 import { apiKeys, plans, projects } from '@qurvo/db';
 import { AppModule } from '../../app.module';
-import { REDIS_STREAM_EVENTS, billingCounterKey } from '../../constants';
+import {
+  REDIS_STREAM_EVENTS,
+  billingCounterKey,
+  RATE_LIMIT_KEY_PREFIX,
+  RATE_LIMIT_MAX_EVENTS,
+  RATE_LIMIT_BUCKET_SECONDS,
+} from '../../constants';
 import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
 import { postBatch, postBatchBeacon, postBatchGzip, postBatchGzipNoHeader, postBatchWithBodyKey, postImport, getBaseUrl, parseRedisFields } from '../helpers';
 
@@ -473,5 +479,69 @@ describe('UUIDv7 event IDs', () => {
     const fields = parseRedisFields(messages[0][1]);
     // UUIDv7: version nibble is '7', variant nibble is 8/9/a/b
     expect(fields.event_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+});
+
+describe('Rate limiting', () => {
+  function seedRateLimitBuckets(projectId: string, count: number): Promise<void> {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const bucket = Math.floor(nowSec / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
+    const key = `${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`;
+    return ctx.redis.set(key, String(count), 'EX', 120).then(() => undefined);
+  }
+
+  it('returns 429 when rate limit exceeded', async () => {
+    const tp = await createTestProject(ctx.db);
+    await seedRateLimitBuckets(tp.projectId, RATE_LIMIT_MAX_EVENTS);
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+
+    expect(res.status).toBe(429);
+    expect(res.body.message).toBe('Rate limit exceeded');
+    expect(res.body.retry_after).toBe(RATE_LIMIT_BUCKET_SECONDS);
+  });
+
+  it('allows request when under limit', async () => {
+    const tp = await createTestProject(ctx.db);
+    await seedRateLimitBuckets(tp.projectId, 50);
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+
+    expect(res.status).toBe(202);
+  });
+
+  it('does not rate-limit import endpoint', async () => {
+    const tp = await createTestProject(ctx.db);
+    await seedRateLimitBuckets(tp.projectId, RATE_LIMIT_MAX_EVENTS * 2);
+
+    const res = await postImport(app, tp.apiKey, {
+      events: [{ event: 'imported', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+
+    expect(res.status).toBe(202);
+  });
+
+  it('increments rate limit counter after successful batch', async () => {
+    const tp = await createTestProject(ctx.db);
+
+    await postBatch(app, tp.apiKey, {
+      events: [
+        { event: 'e1', distinct_id: 'u1', timestamp: new Date().toISOString() },
+        { event: 'e2', distinct_id: 'u2', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    // Wait for fire-and-forget increment
+    await new Promise((r) => setTimeout(r, 100));
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const bucket = Math.floor(nowSec / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
+    const key = `${RATE_LIMIT_KEY_PREFIX}:${tp.projectId}:${bucket}`;
+    const counter = await ctx.redis.get(key);
+    expect(parseInt(counter!, 10)).toBe(2);
   });
 });

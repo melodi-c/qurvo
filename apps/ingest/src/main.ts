@@ -5,8 +5,16 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { addGzipPreParsing } from './hooks/gzip-preparsing';
+import { validateEnv, env } from './env';
 
 async function bootstrap() {
+  try {
+    validateEnv();
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ bodyLimit: 5242880, trustProxy: true }),
@@ -17,8 +25,7 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
   app.enableCors({ origin: '*' });
-  const port = process.env.INGEST_PORT || 3001;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(env().INGEST_PORT, '0.0.0.0');
 }
 
 bootstrap();

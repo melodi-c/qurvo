@@ -8,6 +8,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
+import { isValidFilter } from '@/lib/filter-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './index.translations';
 import { EventsFilterPanel } from './EventsFilterPanel';
@@ -38,12 +39,7 @@ export default function EventsPage() {
   const { data: events, isLoading } = useQuery({
     queryKey: ['events', projectId, filtersHash, page],
     queryFn: () => {
-      const validFilters = debouncedFilters.filters.filter((f) => {
-        if (f.property.trim() === '') return false;
-        const needsValue = !['is_set', 'is_not_set'].includes(f.operator);
-        if (needsValue && (!f.value || f.value.trim() === '')) return false;
-        return true;
-      });
+      const validFilters = debouncedFilters.filters.filter(isValidFilter);
       return api.eventsControllerGetEvents({
         project_id: projectId,
         ...(debouncedFilters.eventName ? { event_name: debouncedFilters.eventName } : {}),
