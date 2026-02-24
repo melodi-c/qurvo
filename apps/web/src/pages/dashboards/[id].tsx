@@ -24,10 +24,6 @@ export default function DashboardBuilderPage() {
 
   const isEditing = useDashboardStore((s) => s.isEditing);
   const isDirty = useDashboardStore((s) => s.isDirty);
-  const localWidgets = useDashboardStore((s) => s.localWidgets);
-  const localLayout = useDashboardStore((s) => s.localLayout);
-  const localName = useDashboardStore((s) => s.localName);
-  const widgetMeta = useDashboardStore((s) => s.widgetMeta);
   const initSession = useDashboardStore((s) => s.initSession);
   const markSaved = useDashboardStore((s) => s.markSaved);
   const setEditing = useDashboardStore((s) => s.setEditing);
@@ -65,6 +61,9 @@ export default function DashboardBuilderPage() {
   }
 
   const handleSave = async () => {
+    // Read latest state imperatively — avoids subscribing to frequent layout/widget updates
+    const { localWidgets, localLayout, localName, widgetMeta } = useDashboardStore.getState();
+
     // Merge layout positions back into widget objects, include text content
     const mergedWidgets = localWidgets.map((widget) => {
       const layoutItem = localLayout.find((l) => l.i === widget.id);

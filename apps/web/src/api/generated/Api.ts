@@ -775,6 +775,10 @@ export interface CreateStaticCohort {
   person_ids?: string[];
 }
 
+export interface UploadCsv {
+  csv_content: string;
+}
+
 export interface StaticCohortMembers {
   person_ids: string[];
 }
@@ -1186,11 +1190,11 @@ export interface FunnelControllerGetFunnelParams {
    */
   conversion_window_days: number;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -1246,11 +1250,11 @@ export interface FunnelControllerGetFunnelTimeToConvertParams {
    */
   conversion_window_days: number;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -1318,11 +1322,11 @@ export interface TrendControllerGetTrendParams {
   breakdown_property?: string;
   compare?: boolean;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -1344,11 +1348,11 @@ export interface RetentionControllerGetRetentionParams {
    */
   periods: number;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -1357,11 +1361,11 @@ export interface LifecycleControllerGetLifecycleParams {
   granularity: Granularity;
   target_event: string;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -1370,11 +1374,11 @@ export interface StickinessControllerGetStickinessParams {
   granularity: Granularity;
   target_event: string;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -1394,11 +1398,11 @@ export interface PathsControllerGetPathsParams {
   /** @min 1 */
   min_persons?: number;
   /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
   project_id: string;
   date_from: string;
   date_to: string;
-  /** @format uuid */
-  widget_id?: string;
   force?: boolean;
 }
 
@@ -3054,12 +3058,15 @@ export class Api<
      */
     staticCohortsControllerUploadCsv: (
       { projectId, cohortId, ...query }: StaticCohortsControllerUploadCsvParams,
+      data: UploadCsv,
       params: RequestParams = {},
     ) =>
       this.request<void, any>({
         path: `/api/projects/${projectId}/cohorts/${cohortId}/upload-csv`,
         method: "POST",
+        body: data,
         secure: true,
+        type: ContentType.Json,
         ...params,
       }),
 

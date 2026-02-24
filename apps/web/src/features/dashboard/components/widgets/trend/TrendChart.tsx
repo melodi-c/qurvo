@@ -24,6 +24,7 @@ import type {
   ChartType,
   TrendGranularity,
 } from '@/api/generated/Api';
+import { cn } from '@/lib/utils';
 import { evaluateFormula, validateFormula } from './formula-evaluator';
 import { SERIES_LETTERS } from './trend-shared';
 
@@ -120,7 +121,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   // Compute valid formula results
   const validFormulas = useMemo(() => {
     if (!formulas?.length) return [];
-    const availableLetters = SERIES_LETTERS.slice(0, series.length) as unknown as string[];
+    const availableLetters = SERIES_LETTERS.slice(0, series.length);
     return formulas.filter((f) => {
       if (!f.expression.trim()) return false;
       const result = validateFormula(f.expression, availableLetters);
@@ -390,7 +391,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 return (
                   <TableRow
                     key={key}
-                    className={`cursor-pointer ${isHidden ? 'opacity-35' : ''}`}
+                    className={cn('cursor-pointer', isHidden && 'opacity-35')}
                     onClick={() => toggleSeries(key)}
                   >
                     <TableCell className="py-1.5">
@@ -399,7 +400,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                           className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: isHidden ? 'var(--color-muted-foreground)' : color }}
                         />
-                        <span className={`truncate ${isHidden ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                        <span className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')}>
                           {key}
                         </span>
                       </div>
@@ -423,7 +424,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 return (
                   <TableRow
                     key={key}
-                    className={`cursor-pointer ${isHidden ? 'opacity-35' : ''}`}
+                    className={cn('cursor-pointer', isHidden && 'opacity-35')}
                     onClick={() => toggleSeries(key)}
                   >
                     <TableCell className="py-1.5">
@@ -432,7 +433,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                           className="inline-block h-2.5 w-2.5 rounded-full shrink-0 border border-dashed"
                           style={{ borderColor: isHidden ? 'var(--color-muted-foreground)' : color }}
                         />
-                        <span className={`truncate ${isHidden ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                        <span className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')}>
                           {key}
                         </span>
                       </div>

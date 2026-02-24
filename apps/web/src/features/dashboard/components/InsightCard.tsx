@@ -23,7 +23,7 @@ export function InsightCard({ widget }: InsightCardProps) {
   const [fullscreen, setFullscreen] = useState(false);
 
   const isTextTile = !widget.insight;
-  const baseConfig = widget.insight?.config as Record<string, any> | undefined;
+  const baseConfig = widget.insight?.config;
 
   // Apply dashboard-level filter overrides (date + property filters)
   const mergedConfig = baseConfig

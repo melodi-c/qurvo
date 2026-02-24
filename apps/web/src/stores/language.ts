@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/api/client';
 import type { Language } from '@/i18n/types';
-import type { UpdateProfileDtoLanguageEnum } from '@/api/generated/Api';
 
 export const languages: Record<Language, string> = {
   ru: 'Русский',
@@ -24,7 +23,7 @@ export const useLanguageStore = create<LanguageState>()(
 
       changeLanguage: (language) => {
         set({ language });
-        api.authControllerUpdateProfile({ language: language as UpdateProfileDtoLanguageEnum }).catch(console.error);
+        api.authControllerUpdateProfile({ language }).catch(console.error);
       },
     }),
     {

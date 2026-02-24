@@ -17,6 +17,8 @@ export const DLQ_REPLAY_INTERVAL_MS = 5 * 60_000;
 export const DLQ_REPLAY_BATCH = 100;
 export const DLQ_CIRCUIT_BREAKER_THRESHOLD = 5;
 export const DLQ_CIRCUIT_BREAKER_RESET_MS = 5 * 60_000;
+export const DLQ_FAILURES_KEY = 'dlq:replay:failures';
+export const DLQ_CIRCUIT_KEY = 'dlq:replay:circuit';
 
 // ── Person ───────────────────────────────────────────────────────────────────
 export const PERSON_REDIS_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days

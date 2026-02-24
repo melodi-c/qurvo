@@ -19,7 +19,9 @@ import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { parseRedisFields } from './redis-utils';
-import { safeScreenDimension } from './event-utils';
+import { safeScreenDimension, groupByKey } from './event-utils';
+
+const REQUIRED_FIELDS = ['project_id', 'event_name', 'distinct_id'] as const;
 
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
@@ -141,13 +143,50 @@ export class EventConsumerService implements OnApplicationBootstrap {
     filterEmpty = false,
   ): Promise<void> {
     const items = filterEmpty ? messages.filter(([, fields]) => !!fields) : messages;
-    const buffered = await Promise.all(
-      items.map(async ([id, fields]) => ({
-        messageId: id,
-        event: await this.buildEvent(parseRedisFields(fields)),
-      })),
+
+    const parsed = items.map(([id, fields]) => ({
+      id,
+      fields: parseRedisFields(fields),
+    }));
+
+    // Validate: drop events missing required fields
+    const valid: typeof parsed = [];
+    const invalidIds: string[] = [];
+    for (const item of parsed) {
+      const missing = REQUIRED_FIELDS.filter((f) => !item.fields[f]);
+      if (missing.length > 0) {
+        this.logger.warn({ messageId: item.id, missingFields: missing }, 'Dropping invalid event');
+        invalidIds.push(item.id);
+      } else {
+        valid.push(item);
+      }
+    }
+
+    // XACK invalid messages so they don't get stuck in PEL
+    if (invalidIds.length > 0) {
+      await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
+    }
+    if (valid.length === 0) return;
+
+    // Group by project+distinctId: concurrent between users, sequential within
+    const groups = groupByKey(valid, (item) =>
+      `${item.fields.project_id}:${item.fields.distinct_id}`,
     );
-    this.flushService.addToBuffer(buffered);
+
+    const groupResults = await Promise.all(
+      [...groups.values()].map(async (group) => {
+        const results: { messageId: string; event: Event }[] = [];
+        for (const item of group) {
+          results.push({
+            messageId: item.id,
+            event: await this.buildEvent(item.fields),
+          });
+        }
+        return results;
+      }),
+    );
+
+    this.flushService.addToBuffer(groupResults.flat());
     if (this.flushService.isBufferFull()) {
       await this.flushService.flush();
     }

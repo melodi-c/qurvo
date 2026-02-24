@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { api } from '@/api/client';
+import { getPersonDisplayName } from '@/lib/person';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './person-detail.translations';
 
@@ -39,12 +40,7 @@ export default function PersonDetailPage() {
   });
 
   const props = (person?.properties ?? {}) as Record<string, unknown>;
-  const displayName =
-    String(props['name'] ?? props['$name'] ?? '') ||
-    String(props['email'] ?? props['$email'] ?? '') ||
-    person?.distinct_ids[0] ||
-    person?.id?.slice(0, 8) ||
-    personId;
+  const displayName = getPersonDisplayName(person, personId);
 
   return (
     <div className="space-y-6">

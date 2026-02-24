@@ -111,18 +111,11 @@ describe('dead letter queue', () => {
     await ctx.redis.del('dlq:replay:lock');
   });
 
-  it('circuit breaker opens after threshold failures and resets', async () => {
+  it('circuit breaker blocks replay when open and allows after reset', async () => {
     const dlq = processorApp.get(DlqService);
 
-    (dlq as any).consecutiveFailures = 0;
-    (dlq as any).circuitOpenedAt = null;
+    await ctx.redis.del('events:dlq', 'dlq:replay:lock', 'dlq:replay:circuit', 'dlq:replay:failures');
 
-    (dlq as any).consecutiveFailures = 5;
-    (dlq as any).circuitOpenedAt = Date.now();
-
-    await ctx.redis.del('dlq:replay:lock');
-
-    await ctx.redis.del('events:dlq');
     await pushToDlq(ctx.redis, {
       event_id: randomUUID(),
       project_id: testProject.projectId,
@@ -137,17 +130,24 @@ describe('dead letter queue', () => {
       screen_height: 0,
     });
 
-    await (dlq as any).replayDlq();
     expect(await getDlqLength(ctx.redis)).toBeGreaterThanOrEqual(1);
 
-    (dlq as any).circuitOpenedAt = Date.now() - 6 * 60_000;
+    // Open circuit breaker via Redis (as real DlqService does)
+    await ctx.redis.set('dlq:replay:circuit', '1', 'PX', 300_000);
 
-    await ctx.redis.del('dlq:replay:lock');
     await (dlq as any).replayDlq();
+    // DLQ not drained — circuit open
+    expect(await getDlqLength(ctx.redis)).toBeGreaterThanOrEqual(1);
 
+    // Reset circuit (simulate TTL expiry)
+    await ctx.redis.del('dlq:replay:circuit', 'dlq:replay:lock');
+
+    await (dlq as any).replayDlq();
+    // Now DLQ is drained
     expect(await getDlqLength(ctx.redis)).toBe(0);
 
-    expect((dlq as any).consecutiveFailures).toBe(0);
-    expect((dlq as any).circuitOpenedAt).toBeNull();
+    // After successful replay both keys are deleted (dlq.service.ts:94)
+    expect(await ctx.redis.exists('dlq:replay:circuit')).toBe(0);
+    expect(await ctx.redis.exists('dlq:replay:failures')).toBe(0);
   });
 });

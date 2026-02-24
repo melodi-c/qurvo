@@ -19,12 +19,13 @@ pnpm --filter @qurvo/cohort-worker test:integration
 src/
 ├── app.module.ts                        # Root: LoggerModule + CohortWorkerModule
 ├── main.ts                              # NestFactory.createApplicationContext (no HTTP)
-├── constants.ts                         # Cohort interval, backoff config
+├── constants.ts                         # Cohort interval, backoff, lock config
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── cohort-worker/
 │   ├── cohort-worker.module.ts          # Providers from @qurvo/nestjs-infra + services
-│   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
-│   └── shutdown.service.ts              # Graceful shutdown (awaits in-flight cycle)
+│   ├── cohort-computation.service.ts    # CH/PG operations for individual cohorts
+│   ├── cohort-membership.service.ts     # Cycle orchestration: scheduling, lock, backoff
+│   └── shutdown.service.ts              # Graceful shutdown: stops service, closes CH + Redis
 └── test/
     ├── setup.ts
     ├── teardown.ts                      # afterAll: closes NestJS app + connections per fork
@@ -39,8 +40,9 @@ src/
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), orphan GC |
-| `ShutdownService` | Graceful shutdown | Delegates to `CohortMembershipService.stop()` which awaits in-flight cycle, then closes CH + Redis |
+| `CohortComputationService` | CH/PG operations: compute membership, record errors/history, GC orphans | — |
+| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff, delegates to computation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr) |
+| `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + Redis with error logging |
 
 ## Key Patterns
 
@@ -52,7 +54,7 @@ src/
 4. Topological sort (cohorts referencing other cohorts must be computed in dependency order)
 5. For each cohort: `buildCohortSubquery()` → INSERT INTO `cohort_members` → DELETE old versions
 6. Record size history in `cohort_membership_history`
-7. Garbage-collect orphaned memberships (deleted cohorts)
+7. Garbage-collect orphaned memberships (every 6 cycles ≈ 1 hour)
 
 ### Distributed Lock
 
