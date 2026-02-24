@@ -23,16 +23,14 @@ src/
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── processor/
 │   ├── processor.module.ts              # All providers + services, OnApplicationShutdown
-│   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM (orchestrator)
+│   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM + heartbeat (via @qurvo/heartbeat)
 │   ├── event-enrichment.service.ts      # GeoIP + person resolution → Event DTO (SRP)
-│   ├── heartbeat.service.ts             # Liveness heartbeat file writing (SRP)
-│   ├── flush.service.ts                 # Buffer → ClickHouse batch insert
+│   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + shutdown()
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync)
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
-│   ├── person-writer.service.ts         # PostgreSQL person merge
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
-│   ├── person-batch-store.ts            # Batched person writes (injects PersonWriterService)
+│   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
 │   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
 │   ├── cohort-toposort.ts               # Topological sort for cohort dependencies
 │   ├── dlq.service.ts                   # Dead letter queue replay
@@ -69,18 +67,19 @@ Redis Stream (events:incoming)
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending | Claim idle >60s every 30s, backpressure on full buffer |
+| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD` |
 | `EventEnrichmentService` | GeoIP + person resolution → Event DTO | Extracted from consumer for SRP |
-| `HeartbeatService` | Liveness heartbeat file writing | 15s interval, stale detection at 30s |
-| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ |
+| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, `shutdown()` = stop + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
-| `PersonWriterService` | Identity merge transaction | Re-points distinct_ids, merges properties, deletes anon person |
-| `PersonBatchStore` | Batched person writes | Injects `PersonWriterService` directly |
+| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge |
 | `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
 
 ## Key Patterns
+
+### Heartbeat
+Uses `@qurvo/heartbeat` package — framework-agnostic file-based liveness heartbeat. Created in `EventConsumerService` constructor, started/stopped with the consumer loop. If the loop doesn't call `touch()` within 30s, heartbeat writes are skipped (stale detection).
 
 ### Distributed Lock
 Both `DlqService` and `CohortMembershipService` use `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.
@@ -97,7 +96,7 @@ Both `DlqService` and `CohortMembershipService` use `@qurvo/distributed-lock` (R
 When `$identify` event arrives with `anonymous_id`:
 1. Resolve both anonymous and user person_ids
 2. Write override to `person_distinct_id_overrides` table (ClickHouse)
-3. Merge PostgreSQL person records (fire-and-forget)
+3. Merge PostgreSQL person records (transactional, inside `PersonBatchStore`)
 4. Update Redis cache
 
 ### Dead Letter Queue
@@ -108,9 +107,9 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 
 ### Graceful Shutdown
 `ShutdownService` implements `OnApplicationShutdown`:
-1. Stop consumer loop
+1. Stop consumer loop (+ heartbeat)
 2. Stop DLQ + cohort timers
-3. Final flush of remaining buffer
+3. `FlushService.shutdown()` — stop timer + final flush of remaining buffer
 4. Close Redis/ClickHouse connections
 
 ## Integration Tests

@@ -266,6 +266,9 @@ importers:
       '@qurvo/distributed-lock':
         specifier: workspace:*
         version: link:../../packages/@qurvo/distributed-lock
+      '@qurvo/heartbeat':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/heartbeat
       dd-trace:
         specifier: ^5.0.0
         version: 5.87.0
@@ -515,6 +518,18 @@ importers:
       eslint:
         specifier: ^9.0.0
         version: 9.39.2(jiti@2.6.1)
+
+  packages/@qurvo/heartbeat:
+    devDependencies:
+      '@qurvo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
   packages/@qurvo/sdk-browser:
     dependencies:

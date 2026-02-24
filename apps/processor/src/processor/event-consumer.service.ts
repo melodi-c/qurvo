@@ -1,17 +1,20 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
+import { Heartbeat } from '@qurvo/heartbeat';
 import { REDIS } from '../providers/redis.provider';
 import {
   PENDING_CLAIM_INTERVAL_MS,
   PENDING_IDLE_MS,
-  PROCESSOR_BATCH_SIZE,
+  PROCESSOR_BACKPRESSURE_THRESHOLD,
   REDIS_CONSUMER_GROUP,
   REDIS_STREAM_EVENTS,
+  HEARTBEAT_PATH,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_LOOP_STALE_MS,
 } from '../constants';
 import { FlushService } from './flush.service';
 import { EventEnrichmentService } from './event-enrichment.service';
-import { HeartbeatService } from './heartbeat.service';
 import { parseRedisFields } from './utils';
 
 @Injectable()
@@ -20,14 +23,21 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private loopPromise: Promise<void> | null = null;
   private pendingTimer: NodeJS.Timeout | null = null;
   private readonly consumerName = process.env.PROCESSOR_CONSUMER_NAME || `processor-${process.pid}`;
+  private readonly heartbeat: Heartbeat;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     private readonly flushService: FlushService,
     private readonly enrichment: EventEnrichmentService,
-    private readonly heartbeat: HeartbeatService,
     @InjectPinoLogger(EventConsumerService.name) private readonly logger: PinoLogger,
-  ) {}
+  ) {
+    this.heartbeat = new Heartbeat({
+      path: HEARTBEAT_PATH,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      staleMs: HEARTBEAT_LOOP_STALE_MS,
+      onStale: (loopAge) => this.logger.warn({ loopAge }, 'Consumer loop stale, skipping heartbeat'),
+    });
+  }
 
   onApplicationBootstrap() {
     this.running = true;
@@ -58,7 +68,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
   }
 
   private async drainIfOverfull(): Promise<void> {
-    while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
+    while (this.flushService.getBufferSize() > PROCESSOR_BACKPRESSURE_THRESHOLD) {
       await this.flushService.flush();
       this.heartbeat.touch();
       await new Promise((r) => setTimeout(r, 500));
