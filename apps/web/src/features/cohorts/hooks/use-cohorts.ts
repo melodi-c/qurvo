@@ -1,11 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
 import type { CreateCohort, UpdateCohort } from '@/api/generated/Api';
 
 export function useCohorts() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
     queryKey: ['cohorts', projectId],
@@ -15,8 +14,7 @@ export function useCohorts() {
 }
 
 export function useCohort(cohortId: string) {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
     queryKey: ['cohorts', projectId, cohortId],
@@ -26,8 +24,7 @@ export function useCohort(cohortId: string) {
 }
 
 export function useCreateCohort() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const qc = useQueryClient();
 
   return useMutation({
@@ -40,8 +37,7 @@ export function useCreateCohort() {
 }
 
 export function useUpdateCohort() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const qc = useQueryClient();
 
   return useMutation({
@@ -54,8 +50,7 @@ export function useUpdateCohort() {
 }
 
 export function useDeleteCohort() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const qc = useQueryClient();
 
   return useMutation({
@@ -68,8 +63,7 @@ export function useDeleteCohort() {
 }
 
 export function useCohortSizeHistory(cohortId: string, days = 90) {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
     queryKey: ['cohorts', projectId, cohortId, 'history', days],
@@ -79,8 +73,7 @@ export function useCohortSizeHistory(cohortId: string, days = 90) {
 }
 
 export function useCohortMemberCount(cohortId: string) {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
     queryKey: ['cohorts', projectId, cohortId, 'count'],
@@ -90,8 +83,7 @@ export function useCohortMemberCount(cohortId: string) {
 }
 
 export function useCohortPreviewCount() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useMutation({
     mutationFn: (definition: unknown) =>
@@ -100,8 +92,7 @@ export function useCohortPreviewCount() {
 }
 
 export function useCreateStaticCohort() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const qc = useQueryClient();
 
   return useMutation({
@@ -114,8 +105,7 @@ export function useCreateStaticCohort() {
 }
 
 export function useDuplicateAsStatic() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const qc = useQueryClient();
 
   return useMutation({
@@ -128,8 +118,7 @@ export function useDuplicateAsStatic() {
 }
 
 export function useUploadCohortCsv() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const qc = useQueryClient();
 
   return useMutation({

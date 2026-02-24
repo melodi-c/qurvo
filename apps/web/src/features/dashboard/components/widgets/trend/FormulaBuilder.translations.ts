@@ -4,8 +4,6 @@ export default createTranslations({
   en: {
     formulas: 'Formulas',
     addFormula: 'Add formula',
-    formulaLabel: 'Label',
-    formulaExpression: 'Expression',
     formulaPlaceholder: 'e.g. B / A * 100',
     labelPlaceholder: 'e.g. Conversion Rate',
     errorEmpty: 'Expression is empty',
@@ -16,8 +14,6 @@ export default createTranslations({
   ru: {
     formulas: 'Формулы',
     addFormula: 'Добавить формулу',
-    formulaLabel: 'Название',
-    formulaExpression: 'Выражение',
     formulaPlaceholder: 'напр. B / A * 100',
     labelPlaceholder: 'напр. Конверсия',
     errorEmpty: 'Выражение пустое',

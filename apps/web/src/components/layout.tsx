@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation, useSearchParams, Navigate, useNavigate } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { useLanguageStore, languages } from '@/stores/language';
@@ -24,7 +25,7 @@ import type { Language } from '@/i18n/types';
 export default function Layout() {
   const { t } = useLocalTranslation(translations);
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const { isOpen, open, close } = useSidebar();
@@ -67,7 +68,7 @@ export default function Layout() {
 
   const pendingInvitesCount = myInvites?.length ?? 0;
 
-  const currentProject = searchParams.get('project');
+  const currentProject = useProjectId();
   const currentProjectName = projects?.find((p) => p.id === currentProject)?.name;
 
   const hasProjects = projects && projects.length > 0;

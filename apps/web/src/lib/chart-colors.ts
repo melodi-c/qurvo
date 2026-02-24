@@ -45,3 +45,18 @@ export const WEB_METRIC_COLORS = {
   pageviews: '#34d399',
   sessions: '#fbbf24',
 } as const;
+
+/** Shared Recharts tooltip contentStyle — use instead of hardcoded hex values. */
+export const CHART_TOOLTIP_STYLE = {
+  backgroundColor: 'var(--color-popover)',
+  border: '1px solid var(--color-border)',
+  borderRadius: '8px',
+  fontSize: '12px',
+  color: 'var(--color-popover-foreground)',
+} as const;
+
+/** Shared axis tick fill color — use instead of hardcoded '#a1a1aa'. */
+export const CHART_AXIS_TICK_COLOR = 'var(--color-muted-foreground)';
+
+/** Shared grid stroke color — use instead of hardcoded '#27272a'. */
+export const CHART_GRID_COLOR = 'var(--color-border)';

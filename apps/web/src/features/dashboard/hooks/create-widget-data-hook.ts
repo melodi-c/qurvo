@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { refreshLimiter } from '../lib/refresh-limiter';
 
 const STALE_AFTER_MS = 30 * 60 * 1000; // 30 minutes
@@ -31,8 +31,7 @@ export function createWidgetDataHook<Config, Response extends CachedResponse>(
   options: WidgetDataHookOptions<Config, Response>,
 ) {
   return function useWidgetData(config: Config, widgetId: string): WidgetDataResult<Response> {
-    const [searchParams] = useSearchParams();
-    const projectId = searchParams.get('project') || '';
+    const projectId = useProjectId();
     const qc = useQueryClient();
     const autoRefreshTriggered = useRef(false);
     const widgetUuid = UUID_RE.test(widgetId) ? widgetId : undefined;

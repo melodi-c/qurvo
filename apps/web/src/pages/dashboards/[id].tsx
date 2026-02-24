@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
@@ -15,8 +16,7 @@ import translations from './[id].translations';
 export default function DashboardBuilderPage() {
   const { t } = useLocalTranslation(translations);
   const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const { data: dashboard, isLoading } = useDashboard(id!);
   const { save, isPending } = useSaveDashboard(id!);
   const [showAddWidget, setShowAddWidget] = useState(false);
