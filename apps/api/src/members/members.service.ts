@@ -10,6 +10,7 @@ import { InviteConflictException } from './exceptions/invite-conflict.exception'
 import { AlreadyMemberException } from './exceptions/already-member.exception';
 import { CannotRemoveOwnerException } from './exceptions/cannot-remove-owner.exception';
 import { MemberNotFoundException } from './exceptions/member-not-found.exception';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
 
 @Injectable()
@@ -134,7 +135,7 @@ export class MembersService {
       .from(users)
       .where(eq(users.email, input.email))
       .limit(1);
-    if (!targetUser) throw new InviteConflictException('Unable to invite this email');
+    if (!targetUser) throw new AppBadRequestException('Unable to invite this email');
 
     // Check if already a member
     const [existingMember] = await this.db

@@ -122,9 +122,9 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - Session cache key prefix: use `SESSION_CACHE_KEY_PREFIX` from `constants.ts` — never hardcode `"session:"` prefix
 
 `src/api/dto/shared/` contains shared DTO utilities:
-- `base-analytics-query.dto.ts` — `BaseAnalyticsQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `cohort_ids?`, `widget_id?`, `force?`). All analytics query DTOs extend it.
+- `base-analytics-query.dto.ts` — `CoreQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `force?`). `BaseAnalyticsQueryDto` extends it adding `cohort_ids?` and `widget_id?`. Analytics query DTOs extend `BaseAnalyticsQueryDto`; `WebAnalyticsQueryDto` extends `CoreQueryDto`.
 - `filters.dto.ts` — `StepFilterDto` class, re-exports `FilterOperator` from `utils/property-filter.ts`
-- `transforms.ts` — `parseJsonArray()` — shared `@Transform` for query params that arrive as JSON strings in GET requests
+- `transforms.ts` — `parseJsonArray()` for query params arriving as JSON strings; `makeJsonArrayTransform(TargetClass)` for JSON-encoded arrays that need `plainToInstance` instantiation
 
 ### Module Cohesion
 All code is grouped by module. Controllers, services, guards, and exceptions for a feature all live inside that feature's directory. Base exception classes live in `src/exceptions/`, filter factory and custom filters live in `src/api/filters/`.

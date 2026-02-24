@@ -1,26 +1,15 @@
 import {
   IsArray,
-  IsDateString,
   IsOptional,
-  IsUUID,
-  IsBoolean,
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray } from './shared/transforms';
+import { CoreQueryDto } from './shared/base-analytics-query.dto';
 
-export class WebAnalyticsQueryDto {
-  @IsUUID()
-  project_id: string;
-
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
+export class WebAnalyticsQueryDto extends CoreQueryDto {
   @ApiPropertyOptional({ type: [StepFilterDto] })
   @Transform(parseJsonArray)
   @IsArray()
@@ -28,11 +17,6 @@ export class WebAnalyticsQueryDto {
   @Type(() => StepFilterDto)
   @IsOptional()
   filters?: StepFilterDto[];
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }
 
 export class WebAnalyticsKPIsDto {

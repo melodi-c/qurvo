@@ -147,8 +147,8 @@ export class AuthService {
   }
 
   private async incrementLoginAttempts(key: string): Promise<void> {
-    await this.redis.incr(key);
-    await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
+    const count = await this.redis.incr(key);
+    if (count === 1) await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
   }
 
   async logout(token: string) {
