@@ -1,8 +1,8 @@
 import type Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { randomUUID } from 'crypto';
-
-export const REDIS_STREAM_EVENTS = 'events:incoming';
+import { REDIS_STREAM_EVENTS } from '../../constants';
+import { pollUntil } from './poll';
 
 export async function writeEventToStream(
   redis: Redis,
@@ -65,21 +65,19 @@ export async function waitForEventByBatchId(
   batchId: string,
   opts: { minCount?: number; timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<void> {
-  const { minCount = 1, timeoutMs = 10_000, intervalMs = 200 } = opts;
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const result = await ch.query({
-      query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
-      query_params: { p: projectId, b: batchId },
-      format: 'JSONEachRow',
-    });
-    const rows = await result.json<{ cnt: string }>();
-    if (Number(rows[0].cnt) >= minCount) return;
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-
-  throw new Error(
-    `waitForEventByBatchId timed out after ${timeoutMs}ms for batch_id=${batchId} (expected >=${minCount})`,
+  const { minCount = 1, ...pollOpts } = opts;
+  await pollUntil(
+    async () => {
+      const result = await ch.query({
+        query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+        query_params: { p: projectId, b: batchId },
+        format: 'JSONEachRow',
+      });
+      const rows = await result.json<{ cnt: string }>();
+      return Number(rows[0].cnt);
+    },
+    (count) => count >= minCount,
+    `waitForEventByBatchId(${batchId}, expected>=${minCount})`,
+    pollOpts,
   );
 }
