@@ -12,16 +12,19 @@ import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { getTestContext } from '../context';
 import { getCohortMembers } from '../helpers/ch';
 import { CohortMembershipService } from '../../cohort-worker/cohort-membership.service';
+import { COHORT_LOCK_KEY } from '../../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
 let testProject: TestProject;
+let svc: CohortMembershipService;
 
 beforeAll(async () => {
   const tc = await getTestContext();
   ctx = tc.ctx;
   workerApp = tc.app;
   testProject = tc.testProject;
+  svc = workerApp.get(CohortMembershipService);
 }, 120_000);
 
 async function createCohort(
@@ -39,6 +42,11 @@ async function createCohort(
     definition,
   } as any);
   return cohortId;
+}
+
+async function runCycle(): Promise<void> {
+  await ctx.redis.del(COHORT_LOCK_KEY);
+  await (svc as any).runCycle();
 }
 
 describe('cohort membership', () => {
@@ -73,9 +81,7 @@ describe('cohort membership', () => {
       ],
     });
 
-    await ctx.redis.del('cohort_membership:lock');
-    const svc = workerApp.get(CohortMembershipService);
-    await (svc as any).runCycle();
+    await runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personPro);
@@ -122,9 +128,7 @@ describe('cohort membership', () => {
       ],
     });
 
-    await ctx.redis.del('cohort_membership:lock');
-    const svc = workerApp.get(CohortMembershipService);
-    await (svc as any).runCycle();
+    await runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personActive);
@@ -173,9 +177,7 @@ describe('cohort membership', () => {
       ],
     });
 
-    await ctx.redis.del('cohort_membership:lock');
-    const svc = workerApp.get(CohortMembershipService);
-    await (svc as any).runCycle();
+    await runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personBoth);
@@ -225,9 +227,7 @@ describe('cohort membership', () => {
       ],
     });
 
-    await ctx.redis.del('cohort_membership:lock');
-    const svc = workerApp.get(CohortMembershipService);
-    await (svc as any).runCycle();
+    await runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personPropOnly);
@@ -257,12 +257,8 @@ describe('cohort membership', () => {
       ],
     });
 
-    await ctx.redis.del('cohort_membership:lock');
-    const svc = workerApp.get(CohortMembershipService);
-    await (svc as any).runCycle();
-
-    await ctx.redis.del('cohort_membership:lock');
-    await (svc as any).runCycle();
+    await runCycle();
+    await runCycle();
 
     await new Promise((r) => setTimeout(r, 2000));
 
@@ -302,9 +298,7 @@ describe('cohort membership', () => {
     let members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personId);
 
-    await ctx.redis.del('cohort_membership:lock');
-    const svc = workerApp.get(CohortMembershipService);
-    await (svc as any).runCycle();
+    await runCycle();
 
     // ALTER TABLE DELETE is an async mutation in ClickHouse — poll until it completes
     const deadline = Date.now() + 15_000;
@@ -317,7 +311,7 @@ describe('cohort membership', () => {
   });
 
   it('distributed lock blocks runCycle', async () => {
-    await ctx.redis.set('cohort_membership:lock', 'other-instance', 'EX', 120);
+    await ctx.redis.set(COHORT_LOCK_KEY, 'other-instance', 'EX', 120);
 
     const personId = randomUUID();
     const uniquePlan = `locked_test_${randomUUID().slice(0, 8)}`;
@@ -340,12 +334,11 @@ describe('cohort membership', () => {
       ],
     });
 
-    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     const members = await getCohortMembers(ctx.ch, testProject.projectId, cohortId);
     expect(members).not.toContain(personId);
 
-    await ctx.redis.del('cohort_membership:lock');
+    await ctx.redis.del(COHORT_LOCK_KEY);
   });
 });

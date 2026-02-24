@@ -19,12 +19,12 @@ pnpm --filter @qurvo/cohort-worker test:integration
 src/
 ├── app.module.ts                        # Root: LoggerModule + CohortWorkerModule
 ├── main.ts                              # NestFactory.createApplicationContext (no HTTP)
-├── constants.ts                         # Cohort interval, backoff config
+├── constants.ts                         # Cohort interval, backoff, lock config
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── cohort-worker/
 │   ├── cohort-worker.module.ts          # Providers from @qurvo/nestjs-infra + services
 │   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
-│   └── shutdown.service.ts              # Graceful shutdown (awaits in-flight cycle)
+│   └── shutdown.service.ts              # Graceful shutdown: stops service, closes CH + Redis
 └── test/
     ├── setup.ts
     ├── teardown.ts                      # afterAll: closes NestJS app + connections per fork
@@ -39,8 +39,8 @@ src/
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), orphan GC |
-| `ShutdownService` | Graceful shutdown | Delegates to `CohortMembershipService.stop()` which awaits in-flight cycle, then closes CH + Redis |
+| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), orphan GC (error-isolated) |
+| `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + Redis with error logging |
 
 ## Key Patterns
 
