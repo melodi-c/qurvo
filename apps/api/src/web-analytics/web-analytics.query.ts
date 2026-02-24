@@ -79,6 +79,14 @@ function autoGranularity(dateFrom: string, dateTo: string): WebAnalyticsGranular
 }
 
 
+function buildBaseQueryParams(params: WebAnalyticsQueryParams): Record<string, unknown> {
+  return {
+    project_id: params.project_id,
+    from: toChTs(params.date_from),
+    to: toChTs(params.date_to, true),
+  };
+}
+
 function buildFilterConditions(
   filters: PropertyFilter[] | undefined,
   queryParams: Record<string, unknown>,
@@ -179,11 +187,7 @@ export async function queryOverview(
   params: WebAnalyticsQueryParams,
 ): Promise<OverviewResult> {
   const granularity = autoGranularity(params.date_from, params.date_to);
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
-  };
+  const queryParams = buildBaseQueryParams(params);
   const filterConditions = buildFilterConditions(params.filters, queryParams);
 
   // Current KPIs
@@ -262,19 +266,15 @@ async function queryDimension(
 
 // ── Paths Query ───────────────────────────────────────────────────────────────
 
-export async function queryPaths(
+export async function queryTopPages(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<PathsResult> {
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
-  };
+  const queryParams = buildBaseQueryParams(params);
   const filterConditions = buildFilterConditions(params.filters, queryParams);
 
   const [top_pages, entry_pages, exit_pages] = await Promise.all([
-    queryTopPages(ch, queryParams, filterConditions),
+    queryTopPagesDimension(ch, queryParams, filterConditions),
     queryDimension(ch, { ...queryParams }, filterConditions, 'entry_page'),
     queryDimension(ch, { ...queryParams }, filterConditions, 'exit_page'),
   ]);
@@ -282,7 +282,7 @@ export async function queryPaths(
   return { top_pages, entry_pages, exit_pages };
 }
 
-async function queryTopPages(
+async function queryTopPagesDimension(
   ch: ClickHouseClient,
   queryParams: Record<string, unknown>,
   filterConditions: string,
@@ -319,11 +319,7 @@ export async function querySources(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<SourcesResult> {
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
-  };
+  const queryParams = buildBaseQueryParams(params);
   const filterConditions = buildFilterConditions(params.filters, queryParams);
 
   const [referrers, utm_sources, utm_mediums, utm_campaigns] = await Promise.all([
@@ -342,11 +338,7 @@ export async function queryDevices(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<DevicesResult> {
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
-  };
+  const queryParams = buildBaseQueryParams(params);
   const filterConditions = buildFilterConditions(params.filters, queryParams);
 
   const [device_types, browsers, oses] = await Promise.all([
@@ -364,11 +356,7 @@ export async function queryGeography(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<GeographyResult> {
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
-  };
+  const queryParams = buildBaseQueryParams(params);
   const filterConditions = buildFilterConditions(params.filters, queryParams);
 
   const [countries, regions, cities] = await Promise.all([
