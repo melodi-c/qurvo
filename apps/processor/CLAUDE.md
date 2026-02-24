@@ -23,9 +23,8 @@ src/
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── processor/
 │   ├── processor.module.ts              # All providers + services, OnApplicationShutdown
-│   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM + heartbeat (via @qurvo/heartbeat)
-│   ├── event-enrichment.service.ts      # GeoIP + person resolution → Event DTO (SRP)
-│   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + shutdown()
+│   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM + heartbeat + event enrichment (GeoIP, person resolution → Event DTO)
+│   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + concurrency guard + shutdown()
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync)
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
@@ -35,9 +34,8 @@ src/
 │   ├── cohort-toposort.ts               # Topological sort for cohort dependencies
 │   ├── dlq.service.ts                   # Dead letter queue replay
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
-│   ├── insert.ts                        # ClickHouse insert helper
-│   ├── utils.ts                         # Redis field parsing
-│   └── geo.service.ts                   # GeoIP lookup
+│   ├── shutdown.service.ts              # Graceful shutdown orchestrator with error isolation
+│   └── geo.service.ts                   # GeoIP lookup (hardcoded DEFAULT_MMDB_URL to selstorage.ru — intentional, not a concern)
 ├── providers/
 │   ├── redis.provider.ts
 │   ├── clickhouse.provider.ts
@@ -56,9 +54,9 @@ src/
 ```
 Redis Stream (events:incoming)
   → XREADGROUP (consumer group: processor-group)
-  → EventEnrichmentService: GeoIP lookup + person resolution → Event DTO
+  → EventConsumerService: GeoIP lookup + person resolution → Event DTO
   → Buffer (max 1000 events)
-  → FlushService: batch insert to ClickHouse (every 5s or on threshold)
+  → FlushService: batch insert to ClickHouse (every 5s or on threshold, concurrency-guarded)
   → XACK (confirm consumption)
   → DefinitionSyncService: upsert event/property definitions + cache invalidation
 ```
@@ -67,14 +65,14 @@ Redis Stream (events:incoming)
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD` |
-| `EventEnrichmentService` | GeoIP + person resolution → Event DTO | Extracted from consumer for SRP |
-| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, `shutdown()` = stop + final flush |
+| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD` |
+| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, concurrency guard (coalesces parallel flush calls), `shutdown()` = stop + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
 | `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge |
-| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC |
+| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC (skips heavy DELETE when table empty) |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
+| `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
 ## Key Patterns
 
@@ -106,11 +104,14 @@ Failed batches (3 retries exhausted) → `events:dlq` stream (MAXLEN 100k). `Dlq
 Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_POSTGRES` (3×200ms), `RETRY_DEFINITIONS` (3×50ms). Used by all `withRetry()` call sites — centralizes tuning.
 
 ### Graceful Shutdown
-`ShutdownService` implements `OnApplicationShutdown`:
-1. Stop consumer loop (+ heartbeat)
+`ShutdownService` implements `OnApplicationShutdown` with error isolation:
+1. Stop consumer loop (+ heartbeat) — errors caught, logged, don't block next steps
 2. Stop DLQ + cohort timers
-3. `FlushService.shutdown()` — stop timer + final flush of remaining buffer
-4. Close Redis/ClickHouse connections
+3. `FlushService.shutdown()` — stop timer + final flush — errors caught separately
+4. Close Redis/ClickHouse connections — errors swallowed
+
+### GeoIP
+`GeoService` downloads MaxMind MMDB from `DEFAULT_MMDB_URL` (hardcoded selstorage.ru) or `GEOLITE2_COUNTRY_URL` env var. This is intentional — the URL is a controlled bucket. If download fails, geo lookup silently degrades to empty string.
 
 ## Integration Tests
 
