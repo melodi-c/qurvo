@@ -58,7 +58,6 @@ src/
 ├── dashboards/        # DashboardsService, DashboardsController
 ├── database/          # DatabaseModule (DRIZZLE, CLICKHOUSE, REDIS providers)
 ├── providers/         # Provider factories
-├── throttler/         # RedisThrottlerStorage
 ├── utils/             # Shared utilities
 └── test/              # Integration tests
 ```
@@ -137,7 +136,7 @@ const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundExcepti
 ```
 
 ### Throttle Limits
-20 req/s, 300 req/min per IP. Backed by `RedisThrottlerStorage` (sorted sets) in `src/throttler/`.
+20 req/s, 300 req/min per IP. Backed by `@nest-lab/throttler-storage-redis` (Lua script, fixed-window, atomic INCR + conditional PEXPIRE).
 
 ### Controller Return Types & `as any`
 Controllers declare explicit return types (e.g. `Promise<CohortDto>`) so Swagger can generate correct response schemas. Drizzle ORM returns `InferSelectModel<T>` which is structurally compatible but not assignable to DTO classes, so `as any` is required on `return` statements. **Never remove `as any` from controller returns** — it will break Swagger generation.

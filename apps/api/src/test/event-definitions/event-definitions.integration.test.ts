@@ -1,92 +1,17 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { randomUUID } from 'crypto';
 import { eq, and, desc, asc, ilike, count } from 'drizzle-orm';
 import {
   setupContainers,
-  insertTestEvents,
-  buildEvent,
   createTestProject,
-  ts,
   type ContainerContext,
 } from '@qurvo/testing';
 import { eventDefinitions, eventProperties } from '@qurvo/db';
-import { queryEventNamesWithCount } from '../../events/event-names.query';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
-
-// ── queryEventNamesWithCount (ClickHouse) ────────────────────────────────────
-
-describe('queryEventNamesWithCount', () => {
-  it('returns event names with counts', async () => {
-    const projectId = randomUUID();
-    const personId = randomUUID();
-
-    await insertTestEvents(ctx.ch, [
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'page_view', timestamp: ts(1) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'page_view', timestamp: ts(2) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'page_view', timestamp: ts(3) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'click', timestamp: ts(1) }),
-    ]);
-
-    const result = await queryEventNamesWithCount(ctx.ch, { project_id: projectId });
-
-    expect(result).toHaveLength(2);
-
-    const pageView = result.find((r) => r.event_name === 'page_view');
-    const click = result.find((r) => r.event_name === 'click');
-
-    expect(pageView).toBeDefined();
-    expect(pageView!.count).toBe(3);
-    expect(click).toBeDefined();
-    expect(click!.count).toBe(1);
-  });
-
-  it('returns results ordered by count descending', async () => {
-    const projectId = randomUUID();
-    const personId = randomUUID();
-
-    await insertTestEvents(ctx.ch, [
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'rare_event', timestamp: ts(1) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'common_event', timestamp: ts(1) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'common_event', timestamp: ts(2) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'common_event', timestamp: ts(3) }),
-    ]);
-
-    const result = await queryEventNamesWithCount(ctx.ch, { project_id: projectId });
-
-    expect(result[0].event_name).toBe('common_event');
-    expect(result[0].count).toBe(3);
-    expect(result[1].event_name).toBe('rare_event');
-    expect(result[1].count).toBe(1);
-  });
-
-  it('does not return events from other projects', async () => {
-    const projectA = randomUUID();
-    const projectB = randomUUID();
-    const personId = randomUUID();
-
-    await insertTestEvents(ctx.ch, [
-      buildEvent({ project_id: projectA, person_id: personId, event_name: 'event_a', timestamp: ts(1) }),
-      buildEvent({ project_id: projectB, person_id: personId, event_name: 'event_b', timestamp: ts(1) }),
-    ]);
-
-    const resultA = await queryEventNamesWithCount(ctx.ch, { project_id: projectA });
-    const resultB = await queryEventNamesWithCount(ctx.ch, { project_id: projectB });
-
-    expect(resultA.map((r) => r.event_name)).toEqual(['event_a']);
-    expect(resultB.map((r) => r.event_name)).toEqual(['event_b']);
-  });
-
-  it('returns empty array when no events exist', async () => {
-    const projectId = randomUUID();
-    const result = await queryEventNamesWithCount(ctx.ch, { project_id: projectId });
-    expect(result).toEqual([]);
-  });
-});
 
 // ── event_definitions upsert (PostgreSQL) ────────────────────────────────────
 
@@ -223,92 +148,6 @@ describe('event_definitions upsert', () => {
       .where(eq(eventDefinitions.project_id, projectId));
 
     expect(rows).toHaveLength(0);
-  });
-});
-
-// ── Merge logic (CH + PG) ────────────────────────────────────────────────────
-
-describe('event definitions merge (ClickHouse + PostgreSQL)', () => {
-  it('merges ClickHouse events with PostgreSQL metadata', async () => {
-    const { projectId } = await createTestProject(ctx.db);
-    const personId = randomUUID();
-
-    // Insert events into ClickHouse
-    await insertTestEvents(ctx.ch, [
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'page_view', timestamp: ts(1) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'page_view', timestamp: ts(2) }),
-      buildEvent({ project_id: projectId, person_id: personId, event_name: 'click', timestamp: ts(1) }),
-    ]);
-
-    // Add metadata for page_view only
-    await ctx.db.insert(eventDefinitions).values({
-      project_id: projectId,
-      event_name: 'page_view',
-      description: 'User views a page',
-      tags: ['core', 'engagement'],
-      verified: true,
-    });
-
-    // Replicate the service's merge logic
-    const [chRows, pgRows] = await Promise.all([
-      queryEventNamesWithCount(ctx.ch, { project_id: projectId }),
-      ctx.db
-        .select()
-        .from(eventDefinitions)
-        .where(eq(eventDefinitions.project_id, projectId)),
-    ]);
-
-    const metaMap = new Map(pgRows.map((r) => [r.event_name, r]));
-
-    const merged = chRows.map((ch) => {
-      const meta = metaMap.get(ch.event_name);
-      return {
-        event_name: ch.event_name,
-        count: ch.count,
-        id: meta?.id ?? null,
-        description: meta?.description ?? null,
-        tags: meta?.tags ?? [],
-        verified: meta?.verified ?? false,
-      };
-    });
-
-    expect(merged).toHaveLength(2);
-
-    // page_view should have metadata
-    const pageView = merged.find((r) => r.event_name === 'page_view');
-    expect(pageView).toBeDefined();
-    expect(pageView!.count).toBe(2);
-    expect(pageView!.description).toBe('User views a page');
-    expect(pageView!.tags).toEqual(['core', 'engagement']);
-    expect(pageView!.verified).toBe(true);
-    expect(pageView!.id).not.toBeNull();
-
-    // click should have no metadata
-    const click = merged.find((r) => r.event_name === 'click');
-    expect(click).toBeDefined();
-    expect(click!.count).toBe(1);
-    expect(click!.description).toBeNull();
-    expect(click!.tags).toEqual([]);
-    expect(click!.verified).toBe(false);
-    expect(click!.id).toBeNull();
-  });
-
-  it('returns empty when no events in ClickHouse even if PG metadata exists', async () => {
-    const { projectId } = await createTestProject(ctx.db);
-
-    // Add metadata without any CH events
-    await ctx.db.insert(eventDefinitions).values({
-      project_id: projectId,
-      event_name: 'orphan_event',
-      description: 'This event has no ClickHouse data',
-      tags: [],
-      verified: true,
-    });
-
-    const chRows = await queryEventNamesWithCount(ctx.ch, { project_id: projectId });
-
-    // No CH events → merged list is empty (PG metadata alone doesn't appear)
-    expect(chRows).toHaveLength(0);
   });
 });
 

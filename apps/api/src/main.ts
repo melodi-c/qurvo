@@ -25,7 +25,7 @@ async function bootstrap() {
   }));
 
   const config = new DocumentBuilder()
-    .setTitle('Shot Analytics API')
+    .setTitle('Qurvo API')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
