@@ -36,6 +36,17 @@ export async function postBatchGzip(app: INestApplication, apiKey: string, body:
   return { status: res.status, body: await res.json() };
 }
 
+export async function postBatchWithBodyKey(app: INestApplication, apiKey: string, body: Record<string, unknown>): Promise<{ status: number; body: any }> {
+  const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ...body, api_key: apiKey }),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
 export async function postImport(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
   const res = await fetch(`${getBaseUrl(app)}/v1/import`, {
     method: 'POST',

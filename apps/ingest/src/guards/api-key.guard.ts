@@ -24,9 +24,12 @@ export class ApiKeyGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
-    const apiKey = request.headers[API_KEY_HEADER];
 
-    if (!apiKey || typeof apiKey !== 'string') {
+    const fromHeader = request.headers[API_KEY_HEADER];
+    const fromBody = (request.body as Record<string, unknown> | null)?.api_key;
+    const apiKey = (typeof fromHeader === 'string' && fromHeader) || (typeof fromBody === 'string' && fromBody) || null;
+
+    if (!apiKey) {
       throw new UnauthorizedException('Missing API key');
     }
 

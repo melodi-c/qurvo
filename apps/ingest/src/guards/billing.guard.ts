@@ -21,7 +21,10 @@ export class BillingGuard implements CanActivate {
 
     if (!Number.isNaN(count) && count >= eventsLimit) {
       this.logger.warn({ projectId, count, limit: eventsLimit }, 'Event limit exceeded');
-      throw new HttpException('Monthly event limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: 'Monthly event limit exceeded', quota_limited: true },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     return true;
