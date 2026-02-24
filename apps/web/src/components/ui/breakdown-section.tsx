@@ -3,7 +3,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
-import { PropertyNameCombobox } from '@/features/dashboard/components/widgets/funnel/PropertyNameCombobox';
+import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { CohortSelector } from '@/features/cohorts/components/CohortSelector';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './breakdown-section.translations';

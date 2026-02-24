@@ -1,6 +1,7 @@
 import { Plus, ArrowDown } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { QueryItemCard, useDragReorder } from '../QueryItemCard';
+import { QueryItemCard } from '../QueryItemCard';
+import { useDragReorder } from '@/hooks/use-drag-reorder';
 import translations from './FunnelStepBuilder.translations';
 import type { FunnelStep, StepFilter } from '@/api/generated/Api';
 

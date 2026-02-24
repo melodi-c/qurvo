@@ -8,7 +8,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { api } from '@/api/client';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
-import { NO_VALUE_OPS } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { NO_VALUE_OPS } from '@/components/StepFilterRow';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './index.translations';
 import { PersonsFilterPanel } from './PersonsFilterPanel';
