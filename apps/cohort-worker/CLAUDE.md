@@ -19,10 +19,10 @@ pnpm --filter @qurvo/cohort-worker test:integration
 src/
 ├── app.module.ts                        # Root: LoggerModule + CohortWorkerModule
 ├── main.ts                              # Entry point: env validation + NestFactory (no HTTP)
-├── constants.ts                         # Cohort interval, backoff, lock config
+├── constants.ts                         # DI tokens, cohort interval, backoff, lock config
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── cohort-worker/
-│   ├── cohort-worker.module.ts          # Providers from @qurvo/nestjs-infra + services
+│   ├── cohort-worker.module.ts          # Providers from @qurvo/nestjs-infra + DistributedLockProvider + services
 │   ├── cohort-computation.service.ts    # CH/PG operations for individual cohorts
 │   ├── cohort-membership.service.ts     # Cycle orchestration: scheduling, lock, backoff
 │   └── shutdown.service.ts              # Graceful shutdown: stops service, closes CH + Redis
@@ -58,7 +58,7 @@ src/
 
 ### Distributed Lock
 
-Uses `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same computation.
+Injected via `DISTRIBUTED_LOCK` DI token (provider in `cohort-worker.module.ts`). Uses `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same computation.
 
 ### Error Backoff
 
@@ -66,7 +66,7 @@ Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 3
 
 ### Startup Env Validation
 
-`main.ts` requires `DATABASE_URL` and `REDIS_URL` — fails fast before NestJS bootstrap if missing.
+`main.ts` requires `DATABASE_URL`, `REDIS_URL`, and `CLICKHOUSE_URL` — fails fast before NestJS bootstrap if missing.
 
 ## Integration Tests
 
