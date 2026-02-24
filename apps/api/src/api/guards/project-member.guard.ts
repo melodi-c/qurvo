@@ -20,7 +20,7 @@ export class ProjectMemberGuard implements CanActivate {
 
     const projectId: string | undefined =
       request.params?.projectId ?? request.query?.project_id;
-    if (!projectId) return true;
+    if (!projectId) return false;
 
     const membership = await this.projectsService.getMembership(
       user.user_id,

@@ -94,7 +94,9 @@ Project-scoped endpoints use `ProjectMemberGuard` (from `src/api/guards/project-
 1. Guard reads `projectId` from `request.params.projectId` or `request.query.project_id`
 2. Calls `ProjectsService.getMembership()` once, attaches result to `request.projectMembership`
 3. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy: `owner (3) > editor (2) > viewer (1)`
-4. Controllers access membership via `@ProjectMembership()` param decorator if needed
+4. Guard is **fail-closed** — returns `false` when `projectId` is missing from request
+5. Controllers access membership via `@ProjectMembership()` param decorator if needed
+6. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
 
 **Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id sometimes in body — `AiService` calls `getMembership()` directly).
 
@@ -152,7 +154,7 @@ const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundExcepti
 20 req/s, 300 req/min per IP. Backed by `@nest-lab/throttler-storage-redis` (Lua script, fixed-window, atomic INCR + conditional PEXPIRE).
 
 ### Controller Return Types & `as any`
-Controllers declare explicit return types (e.g. `Promise<CohortDto>`) so Swagger can generate correct response schemas. Drizzle ORM returns `InferSelectModel<T>` which is structurally compatible but not assignable to DTO classes, so `as any` is required on `return` statements. **Never remove `as any` from controller returns** — it will break Swagger generation.
+Controllers declare explicit return types (e.g. `Promise<CohortDto>`) so Swagger can generate correct response schemas. Drizzle ORM returns `InferSelectModel<T>` which is structurally compatible but not assignable to DTO classes, so `as any` is required on `return` statements. **Never remove `as any` from controller returns** — it will break Swagger generation. Void actions (delete, revoke, etc.) return `Promise<void>` — never `{ ok: true }`.
 
 ### Query Parameters as DTO
 When a controller accepts optional query parameters, group them into a DTO class with `@ApiPropertyOptional()` + `@IsOptional()` instead of using separate `@Query('name')` parameters. This ensures the generated API client types are correct (optional fields). Use `@Query() query: MyQueryDto` pattern.
@@ -167,4 +169,4 @@ Tests in `src/test/{module}/`. Run with `vitest.integration.config.ts`.
 - Use `setupContainers()` from `@qurvo/testing` for PostgreSQL + Redis + ClickHouse
 - Date helpers (`daysAgo`, `ts`, `msAgo`, `dateOffset`) from `@qurvo/testing`
 - API-specific `sumSeriesValues()` in `src/test/helpers/`
-- 150 tests: trends (7), funnels (5), cohorts (9), retention (8), lifecycle (5), stickiness (7), paths, web-analytics, etc.
+- 132 tests: trends (11), funnels (14), cohorts (20), retention (8), lifecycle (5), stickiness (7), paths (11), persons (9), event/property-definitions (27), etc.

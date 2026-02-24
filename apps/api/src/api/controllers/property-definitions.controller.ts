@@ -60,7 +60,7 @@ export class PropertyDefinitionsController {
     @Param('projectId') projectId: string,
     @Param('propertyType') propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
-  ): Promise<{ ok: boolean }> {
-    return this.propertyDefinitionsService.delete(user.user_id, projectId, propertyName, propertyType);
+  ): Promise<void> {
+    await this.propertyDefinitionsService.delete(user.user_id, projectId, propertyName, propertyType);
   }
 }

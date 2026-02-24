@@ -22,7 +22,6 @@ import {
 
 // Re-export public API for consumers (funnel.service.ts, integration tests, etc.)
 export * from './funnel.types';
-export { buildStepCondition } from './funnel-sql-shared';
 export { queryFunnelTimeToConvert } from './funnel-time-to-convert';
 
 // ── Main funnel query ────────────────────────────────────────────────────────

@@ -113,7 +113,6 @@ export class ProjectsService {
 
     await this.db.delete(projects).where(eq(projects.id, projectId));
     this.logger.log({ projectId, userId }, 'Project deleted');
-    return { ok: true };
   }
 
   async getMembership(userId: string, projectId: string) {

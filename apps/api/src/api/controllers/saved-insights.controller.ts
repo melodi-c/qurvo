@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import { CreateInsightDto, UpdateInsightDto, InsightDto, ListInsightsQueryDto } from '../dto/insights.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
@@ -21,6 +22,7 @@ export class SavedInsightsController {
     return this.insightsService.list(user.user_id, projectId, query.type) as any;
   }
 
+  @RequireRole('editor')
   @Post()
   async create(
     @CurrentUser() user: RequestUser,
@@ -39,6 +41,7 @@ export class SavedInsightsController {
     return this.insightsService.getById(user.user_id, projectId, insightId) as any;
   }
 
+  @RequireRole('editor')
   @Put(':insightId')
   async update(
     @CurrentUser() user: RequestUser,
@@ -49,6 +52,7 @@ export class SavedInsightsController {
     return this.insightsService.update(user.user_id, projectId, insightId, body as any) as any;
   }
 
+  @RequireRole('editor')
   @Delete(':insightId')
   async remove(
     @CurrentUser() user: RequestUser,

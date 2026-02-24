@@ -38,10 +38,10 @@ export class AiController {
         reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      this.logger.error(`AI chat error: ${message}`, err instanceof Error ? err.stack : undefined);
+      const internalMsg = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`AI chat error: ${internalMsg}`, err instanceof Error ? err.stack : undefined);
       if (!reply.raw.destroyed) {
-        reply.raw.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`);
+        reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'An internal error occurred' })}\n\n`);
       }
     } finally {
       if (!reply.raw.destroyed) {

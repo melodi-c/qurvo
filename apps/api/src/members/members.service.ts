@@ -42,7 +42,7 @@ export class MembersService {
 
   async updateMemberRole(userId: string, projectId: string, memberId: string, role: 'editor' | 'viewer') {
     const [target] = await this.db
-      .select()
+      .select({ role: projectMembers.role })
       .from(projectMembers)
       .where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)))
       .limit(1);
@@ -52,10 +52,9 @@ export class MembersService {
     await this.db
       .update(projectMembers)
       .set({ role })
-      .where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)));
+      .where(eq(projectMembers.id, memberId));
     this.logger.log({ memberId, projectId, userId, role }, 'Member role updated');
 
-    // Return updated member with user info
     const [updated] = await this.db
       .select({
         id: projectMembers.id,
@@ -85,7 +84,6 @@ export class MembersService {
 
     await this.db.delete(projectMembers).where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)));
     this.logger.log({ memberId, projectId, userId }, 'Member removed');
-    return { ok: true };
   }
 
   // ── Invites ────────────────────────────────────────────────────────────────
@@ -164,7 +162,6 @@ export class MembersService {
       .set({ status: 'cancelled', responded_at: new Date() })
       .where(eq(projectInvites.id, inviteId));
     this.logger.log({ inviteId, projectId }, 'Invite cancelled');
-    return { ok: true };
   }
 
   // ── Recipient side ─────────────────────────────────────────────────────────
@@ -212,7 +209,6 @@ export class MembersService {
       }
     });
     this.logger.log({ inviteId, userId, action }, 'Invite responded');
-    return { ok: true };
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ export function buildPgPropertyFilterConditions(filters: PropertyFilter[]): SQL[
     if (!/^\w+$/.test(f.property)) {
       throw new AppBadRequestException(`Invalid property name: ${f.property}`);
     }
-    const keyExpr = sql.raw(`properties->>'${f.property}'`);
+    const keyExpr = sql`properties->>${f.property}`;
 
     switch (f.operator) {
       case 'eq':
