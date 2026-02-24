@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { StickinessResult } from '@/api/generated/Api';
-import { CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
+import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './StickinessChart.translations';
 
@@ -79,7 +79,7 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
             ]}
           />
         )}
-        <Bar dataKey="user_count" fill="#f59e0b" name={usersLabel} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="user_count" fill={CHART_COLORS_HEX[2]} name={usersLabel} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

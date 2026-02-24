@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Responsive as ResponsiveGridLayout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -27,6 +27,11 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     (currentLayout: readonly RglItem[]) => updateLayout(currentLayout),
     [updateLayout],
   );
+  const smLayout = useMemo(() => localLayout.map((l) => ({ ...l, minH: 4 })), [localLayout]);
+  const xsLayout = useMemo(
+    () => localLayout.map((l) => ({ ...l, x: 0, w: 1, minH: 4 })),
+    [localLayout],
+  );
 
   if (localWidgets.length === 0) {
     return (
@@ -49,9 +54,6 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
       </div>
     );
   }
-
-  const smLayout = localLayout.map((l) => ({ ...l, minH: 4 }));
-  const xsLayout = localLayout.map((l) => ({ ...l, x: 0, w: 1, minH: 4 }));
 
   return (
     <div ref={containerRef} data-editing={isEditing || undefined}>
