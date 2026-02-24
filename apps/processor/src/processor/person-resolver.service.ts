@@ -123,7 +123,6 @@ export class PersonResolverService {
         table: 'person_distinct_id_overrides',
         values: [{ project_id: projectId, distinct_id: distinctId, person_id: personId, version: Date.now() }],
         format: 'JSONEachRow',
-        clickhouse_settings: { date_time_input_format: 'best_effort' },
       }),
       'writeOverride',
       this.logger,

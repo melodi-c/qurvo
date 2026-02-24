@@ -31,8 +31,6 @@ src/
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
-│   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
-│   ├── cohort-toposort.ts               # Re-exports topologicalSortCohorts from @qurvo/cohort-query
 │   ├── dlq.service.ts                   # Dead letter queue replay
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
@@ -72,7 +70,6 @@ Redis Stream (events:incoming)
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
 | `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge |
-| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC (skips heavy DELETE when table empty) |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
@@ -82,7 +79,7 @@ Redis Stream (events:incoming)
 Uses `@qurvo/heartbeat` package — framework-agnostic file-based liveness heartbeat. Created in `EventConsumerService` constructor, started/stopped with the consumer loop. If the loop doesn't call `touch()` within 30s, heartbeat writes are skipped (stale detection).
 
 ### Distributed Lock
-Both `DlqService` and `CohortMembershipService` use `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.
+`DlqService` uses `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.
 
 ### Person Resolution
 ```
@@ -108,7 +105,7 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 ### Graceful Shutdown
 `ShutdownService` implements `OnApplicationShutdown` with error isolation:
 1. Stop consumer loop (+ heartbeat) — errors caught, logged, don't block next steps
-2. Stop DLQ + cohort timers
+2. Stop DLQ timer
 3. `FlushService.shutdown()` — stop timer + final flush — errors caught separately
 4. `PersonBatchStore.flush()` — explicit final flush for pending persons/distinct_ids — errors caught separately
 5. Close Redis/ClickHouse connections — errors swallowed
@@ -121,11 +118,10 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 
 ## Integration Tests
 
-Tests in `src/test/processor/`. 85 tests across 9 files:
+Tests in `src/test/processor/`. 78 tests across 8 files:
 - Pipeline: event processing, batch processing, person_id assignment, $identify merging
 - Person resolution: resolve, merge, properties, $set/$set_once/$unset
 - Flush & metadata: batch flush, PEL cleanup, cache invalidation (event_names, event_property_names)
 - Definition sync: event/property upserts, dedup, value type detection, skip rules
-- Cohort membership: property/event conditions, AND/OR logic, version cleanup, orphan GC, distributed lock
 - Distributed lock: acquire/release semantics, contention, TTL expiry, Lua-guarded release
 - DLQ: replay, circuit breaker

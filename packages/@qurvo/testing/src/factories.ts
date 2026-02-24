@@ -88,7 +88,6 @@ export async function insertTestEvents(ch: ClickHouseClient, events: Event[]): P
     values: events.map((e) => ({ ...OPTIONAL_STRING_DEFAULTS, ...e })),
     format: 'JSONEachRow',
     clickhouse_settings: {
-      date_time_input_format: 'best_effort',
       async_insert: 0,
     },
   });

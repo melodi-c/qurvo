@@ -1,5 +1,5 @@
 {
-  "name": "@qurvo/processor",
+  "name": "@qurvo/cohort-worker",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -13,12 +13,11 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@qurvo/clickhouse": "workspace:*",
+    "@qurvo/cohort-query": "workspace:*",
     "@qurvo/db": "workspace:*",
     "@qurvo/distributed-lock": "workspace:*",
-    "@qurvo/heartbeat": "workspace:*",
     "dd-trace": "^5.0.0",
     "drizzle-orm": "^0.39.0",
-    "maxmind": "^4.3.0",
     "dotenv": "^16.4.0",
     "ioredis": "^5.4.0",
     "nestjs-pino": "^4.6.0",

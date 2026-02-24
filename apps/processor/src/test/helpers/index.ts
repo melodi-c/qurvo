@@ -9,5 +9,5 @@ export {
   waitForPersonDeleted,
   waitForPersonProperties,
 } from './pg';
-export { getOverrides, getCohortMembers, getDlqLength, pushToDlq } from './ch';
+export { getOverrides, getDlqLength, pushToDlq } from './ch';
 export { flushBuffer } from './flush';
