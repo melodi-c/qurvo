@@ -76,10 +76,12 @@ constructor(
 ```
 
 ### Exception Layering
-- Services throw plain domain exceptions (extend `Error`), never `HttpException`
-- Each module owns its exceptions in `{module}/exceptions/`
-- Controllers/filters map domain exceptions to HTTP responses
-- All `ExceptionFilter` implementations live in `src/api/filters/`
+- Services throw plain domain exceptions (extend base exception classes), never `HttpException`
+- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`
+- Each module owns its concrete exceptions in `{module}/exceptions/`, extending the appropriate base class
+- Exception filters use `createHttpFilter()` factory from `src/api/filters/create-http-filter.ts` — catches base class, maps to HTTP status
+- Only `VerificationCooldownFilter` is a custom filter (returns `seconds_remaining` payload)
+- Adding a new exception: extend the right base class, the filter catches it automatically via inheritance
 
 ### Auth Flow
 1. Login/register → create session → return opaque bearer token
@@ -117,12 +119,14 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `buildCohortFilterClause()` — low-level clause builder (used by `buildCohortClause`)
 
 ### Module Cohesion
-All code is grouped by module. Controllers, services, guards, filters, and exceptions for a feature all live inside that feature's directory. No cross-cutting `src/filters/`, `src/exceptions/`, or similar dumps.
+All code is grouped by module. Controllers, services, guards, and exceptions for a feature all live inside that feature's directory. Base exception classes live in `src/exceptions/`, filter factory and custom filters live in `src/api/filters/`.
 
 ### Filter Registration
-Filters registered via `APP_FILTER` provider in their module, never via `app.useGlobalFilters()`:
+Filters registered via `APP_FILTER` provider in `ApiModule`, never via `app.useGlobalFilters()`. Most filters are created via `createHttpFilter(status, ...ExceptionClasses)` factory:
 ```typescript
-{ provide: APP_FILTER, useClass: SomeExceptionFilter }
+const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundException);
+// ...
+{ provide: APP_FILTER, useClass: NotFoundFilter }
 ```
 
 ### Throttle Limits

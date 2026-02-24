@@ -15,16 +15,16 @@ export class ApiKeysController {
 
   @Get()
   async list(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string): Promise<ApiKeyDto[]> {
-    return this.apiKeysService.list(projectId, user.user_id);
+    return this.apiKeysService.list(user.user_id, projectId);
   }
 
   @Post()
   async create(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string, @Body() body: CreateApiKeyDto): Promise<ApiKeyCreatedDto> {
-    return this.apiKeysService.create(projectId, user.user_id, body);
+    return this.apiKeysService.create(user.user_id, projectId, body);
   }
 
   @Delete(':keyId')
   async revoke(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string, @Param('keyId') keyId: string): Promise<OkResponseDto> {
-    return this.apiKeysService.revoke(keyId, projectId, user.user_id);
+    return this.apiKeysService.revoke(user.user_id, projectId, keyId);
   }
 }
