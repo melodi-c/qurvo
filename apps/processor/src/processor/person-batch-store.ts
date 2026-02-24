@@ -5,7 +5,14 @@ import { persons, personDistinctIds, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { parseUserProperties } from './person-utils';
 import { withRetry } from './retry';
+import { HourlyCache } from './hourly-cache';
 import { RETRY_POSTGRES } from '../constants';
+
+const ONE_HOUR_MS = 3_600_000;
+
+function floorToHour(nowMs: number): number {
+  return Math.floor(nowMs / ONE_HOUR_MS) * ONE_HOUR_MS;
+}
 
 interface PendingPerson {
   projectId: string;
@@ -26,14 +33,12 @@ interface PendingMerge {
   intoPersonId: string;
 }
 
-const KNOWN_DISTINCT_IDS_CAP = 100_000;
-
 @Injectable()
 export class PersonBatchStore {
   private pendingPersons = new Map<string, PendingPerson>();
   private pendingDistinctIds = new Map<string, PendingDistinctId>();
   private pendingMerges: PendingMerge[] = [];
-  private knownDistinctIds = new Set<string>();
+  private readonly knownDistinctIds = new HourlyCache(100_000);
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -76,9 +81,10 @@ export class PersonBatchStore {
       });
     }
 
-    // Track distinct_id if not already known
+    // Track distinct_id if not already known (auto-expires hourly for self-healing)
     const cacheKey = `${projectId}:${distinctId}`;
-    if (!this.knownDistinctIds.has(cacheKey)) {
+    const hourMs = floorToHour(Date.now());
+    if (!this.knownDistinctIds.has(cacheKey, hourMs)) {
       this.pendingDistinctIds.set(cacheKey, { projectId, personId, distinctId });
     }
   }
@@ -289,19 +295,11 @@ export class PersonBatchStore {
       ON CONFLICT DO NOTHING
     `);
 
-    // Mark as known
-    for (const key of pending.keys()) {
-      this.knownDistinctIds.add(key);
-    }
-
-    // Prevent unbounded growth — evict older half (Set preserves insertion order)
-    if (this.knownDistinctIds.size > KNOWN_DISTINCT_IDS_CAP) {
-      const evictCount = Math.floor(this.knownDistinctIds.size / 2);
-      let i = 0;
-      for (const key of this.knownDistinctIds) {
-        if (i++ >= evictCount) break;
-        this.knownDistinctIds.delete(key);
-      }
+    // Mark as known (auto-expires hourly; HourlyCache handles eviction internally)
+    const hourMs = floorToHour(Date.now());
+    const ok = this.knownDistinctIds.markSeen(pending.keys(), hourMs);
+    if (!ok) {
+      this.logger.warn({ cacheSize: this.knownDistinctIds.size }, 'knownDistinctIds cache full after eviction');
     }
 
     this.logger.debug({ count: entries.length }, 'Batch upserted person_distinct_ids');

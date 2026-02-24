@@ -44,6 +44,10 @@ export class FlushService implements OnApplicationBootstrap {
   async shutdown() {
     this.stopped = true;
     if (this.flushTimer) clearTimeout(this.flushTimer);
+    // Wait for in-progress flush to complete before the final flush
+    while (this.isFlushing) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     await this.flush();
   }
 
