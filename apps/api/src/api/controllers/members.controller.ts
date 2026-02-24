@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MembersService } from '../../members/members.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
-import { OkResponseDto } from '../dto/auth.dto';
+import { OkResponseDto } from '../dto/shared/ok-response.dto';
 import {
   CreateInviteDto,
   UpdateMemberRoleDto,
