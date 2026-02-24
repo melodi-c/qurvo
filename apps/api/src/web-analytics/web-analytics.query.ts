@@ -243,8 +243,9 @@ async function queryDimension(
   dimensionExpr: string,
   limit = 20,
 ): Promise<DimensionRow[]> {
+  const dimParams = { ...queryParams, dim_limit: limit };
   const sql = `
-    WITH ${buildSessionStatsCTE(queryParams, filterConditions)}
+    WITH ${buildSessionStatsCTE(dimParams, filterConditions)}
     SELECT
       ${dimensionExpr} AS name,
       uniqExact(resolved_person) AS visitors,
@@ -253,9 +254,9 @@ async function queryDimension(
     WHERE name != ''
     GROUP BY name
     ORDER BY visitors DESC
-    LIMIT ${limit}`;
+    LIMIT {dim_limit:UInt32}`;
 
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const result = await ch.query({ query: sql, query_params: dimParams, format: 'JSONEachRow' });
   const rows = await result.json<RawDimensionRow>();
   return rows.map((r) => ({
     name: r.name,

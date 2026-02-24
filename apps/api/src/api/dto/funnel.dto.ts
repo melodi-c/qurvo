@@ -99,6 +99,7 @@ export class FunnelQueryDto extends FunnelBaseQueryDto {
   breakdown_property?: string;
 
   @ApiPropertyOptional({ enum: ['property', 'cohort'] })
+  @IsIn(['property', 'cohort'])
   @IsOptional()
   breakdown_type?: 'property' | 'cohort';
 

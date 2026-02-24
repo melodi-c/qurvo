@@ -4,7 +4,6 @@ import { ApiKeysService } from '../../api-keys/api-keys.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
 import { CreateApiKeyDto, ApiKeyDto, ApiKeyCreatedDto } from '../dto/api-keys.dto';
-import { OkResponseDto } from '../dto/shared/ok-response.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 @ApiTags('API Keys')
@@ -27,7 +26,7 @@ export class ApiKeysController {
 
   @RequireRole('editor')
   @Delete(':keyId')
-  async revoke(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string, @Param('keyId') keyId: string): Promise<OkResponseDto> {
-    return this.apiKeysService.revoke(user.user_id, projectId, keyId);
+  async revoke(@CurrentUser() user: RequestUser, @Param('projectId') projectId: string, @Param('keyId') keyId: string): Promise<void> {
+    await this.apiKeysService.revoke(user.user_id, projectId, keyId);
   }
 }

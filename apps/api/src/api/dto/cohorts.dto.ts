@@ -9,6 +9,7 @@ import {
   IsInt,
   Min,
   Max,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -85,6 +86,7 @@ export class StaticCohortMembersDto {
 export class UploadCsvDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5_000_000)
   csv_content: string;
 }
 

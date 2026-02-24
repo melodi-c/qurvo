@@ -89,7 +89,6 @@ export class DashboardsService {
 
     await this.db.delete(dashboards).where(eq(dashboards.id, dashboardId));
     this.logger.log({ dashboardId, projectId, userId }, 'Dashboard deleted');
-    return { ok: true };
   }
 
   async addWidget(
@@ -138,7 +137,6 @@ export class DashboardsService {
 
     await this.db.delete(widgets).where(eq(widgets.id, widgetId));
     this.logger.log({ widgetId, dashboardId, projectId, userId }, 'Widget removed');
-    return { ok: true };
   }
 
   private async assertDashboardExists(projectId: string, dashboardId: string) {

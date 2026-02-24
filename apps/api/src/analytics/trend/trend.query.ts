@@ -206,10 +206,12 @@ async function executeTrendQuery(
       cohortBreakdowns.forEach((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
         const cohortFilter = buildCohortFilterForBreakdown(cb, paramKey, 900 + cbIdx, queryParams);
+        const nameKey = `cohort_name_${seriesIdx}_${cbIdx}`;
+        queryParams[nameKey] = cb.name;
         arms.push(`
           SELECT
             ${seriesIdx} AS series_idx,
-            '${cb.name.replace(/'/g, "\\'")}' AS breakdown_value,
+            {${nameKey}:String} AS breakdown_value,
             ${bucketExpr} AS bucket,
             count() AS raw_value,
             uniqExact(${RESOLVED_PERSON}) AS uniq_value,

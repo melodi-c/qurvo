@@ -11,7 +11,6 @@ import {
   VerifyEmailByCodeDto, VerifyEmailByTokenDto, ResendVerificationResponseDto,
   UpdateProfileDto, ChangePasswordDto, ProfileResponseDto,
 } from '../dto/auth.dto';
-import { OkResponseDto } from '../dto/shared/ok-response.dto';
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -39,10 +38,9 @@ export class AuthController {
   @Post('logout')
   @ApiBearerAuth()
   @HttpCode(200)
-  async logout(@Headers('authorization') auth: string): Promise<OkResponseDto> {
+  async logout(@Headers('authorization') auth: string): Promise<void> {
     const token = auth?.slice(7);
     await this.authService.logout(token);
-    return { ok: true };
   }
 
   @Get('me')
@@ -55,18 +53,16 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(200)
   @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 20, ttl: 60000 } })
-  async verifyByCode(@Body() body: VerifyEmailByCodeDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
+  async verifyByCode(@Body() body: VerifyEmailByCodeDto, @CurrentUser() user: RequestUser): Promise<void> {
     await this.verificationService.verifyByCode(user.user_id, body.code);
-    return { ok: true };
   }
 
   @Post('verify-email/token')
   @Public()
   @HttpCode(200)
   @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 20, ttl: 60000 } })
-  async verifyByToken(@Body() body: VerifyEmailByTokenDto): Promise<OkResponseDto> {
+  async verifyByToken(@Body() body: VerifyEmailByTokenDto): Promise<void> {
     await this.verificationService.verifyByToken(body.token);
-    return { ok: true };
   }
 
   @Post('resend-verification')
@@ -87,8 +83,7 @@ export class AuthController {
   @Post('change-password')
   @ApiBearerAuth()
   @HttpCode(200)
-  async changePassword(@Body() body: ChangePasswordDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
+  async changePassword(@Body() body: ChangePasswordDto, @CurrentUser() user: RequestUser): Promise<void> {
     await this.authService.changePassword(user.user_id, body.current_password, body.new_password);
-    return { ok: true };
   }
 }
