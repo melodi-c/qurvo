@@ -201,6 +201,51 @@ describe('person properties', () => {
     expect(remappedPersonId).toBe(userPersonId);
   });
 
+  it('batch upsert handles multiple persons in a single flush', async () => {
+    const projectId = testProject.projectId;
+    const userCount = 5;
+    const batchId = randomUUID();
+    const users = Array.from({ length: userCount }, (_, i) => ({
+      distinctId: `batch-user-${i}-${randomUUID()}`,
+      name: `User${i}`,
+    }));
+
+    // Send all events rapidly so they land in the same flush batch
+    for (const user of users) {
+      await writeEventToStream(ctx.redis, projectId, {
+        distinct_id: user.distinctId,
+        event_name: 'batch_test_event',
+        user_properties: JSON.stringify({ name: user.name }),
+        batch_id: batchId,
+      });
+    }
+
+    await waitForEventByBatchId(ctx.ch, projectId, batchId, { minCount: userCount });
+
+    // Verify all persons exist in PG with correct properties
+    const result = await ctx.ch.query({
+      query: `SELECT person_id, properties FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query_params: { p: projectId, b: batchId },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ person_id: string; properties: string }>();
+    expect(rows).toHaveLength(userCount);
+
+    const personIds = new Set(rows.map((r) => r.person_id));
+    expect(personIds.size).toBe(userCount);
+
+    for (const personId of personIds) {
+      await waitForPersonInPg(ctx.db, personId, { timeoutMs: 10_000 });
+      const props = await waitForPersonProperties(
+        ctx.db,
+        personId,
+        (p) => typeof p.name === 'string',
+        { timeoutMs: 5_000 },
+      );
+      expect(props.name).toMatch(/^User\d$/);
+    }
+  });
+
   it('invalid JSON in user_properties — person created with {}', async () => {
     const projectId = testProject.projectId;
     const distinctId = `invalid-json-${randomUUID()}`;

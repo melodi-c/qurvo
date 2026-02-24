@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { sql } from 'drizzle-orm';
+import { sql, inArray } from 'drizzle-orm';
 import { persons, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { parseUserProperties } from './person-writer.service';
@@ -127,7 +127,7 @@ export class PersonBatchStore {
     const existingRows = await this.db
       .select({ id: persons.id, properties: persons.properties })
       .from(persons)
-      .where(sql`${persons.id} = ANY(${personIds}::uuid[])`);
+      .where(inArray(persons.id, personIds));
 
     const existingMap = new Map<string, Record<string, unknown>>();
     for (const row of existingRows) {
