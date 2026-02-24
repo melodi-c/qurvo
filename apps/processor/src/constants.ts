@@ -9,6 +9,7 @@ export const PENDING_IDLE_MS = 60_000;
 export const PROCESSOR_BATCH_SIZE = 1000;
 export const PROCESSOR_BACKPRESSURE_THRESHOLD = PROCESSOR_BATCH_SIZE * 2;
 export const PROCESSOR_FLUSH_INTERVAL_MS = Number(process.env.PROCESSOR_FLUSH_INTERVAL_MS) || 5000;
+export const BACKPRESSURE_DRAIN_DELAY_MS = 500;
 
 // ── DLQ ──────────────────────────────────────────────────────────────────────
 export const REDIS_STREAM_DLQ = 'events:dlq';

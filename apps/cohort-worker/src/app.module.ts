@@ -8,7 +8,7 @@ import { CohortWorkerModule } from './cohort-worker/cohort-worker.module';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
-        transport: process.env.NODE_ENV !== 'production'
+        transport: process.env.NODE_ENV === 'development'
           ? { target: 'pino-pretty' }
           : undefined,
       } as Options,

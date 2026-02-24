@@ -20,7 +20,7 @@ src/
 ├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, filters, graceful shutdown
 ├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, env validation, port 3001)
 ├── env.ts               # Zod env validation (DATABASE_URL, REDIS_URL, INGEST_PORT, LOG_LEVEL, NODE_ENV)
-├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES
+├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS
 ├── ingest/
 │   ├── ingest.controller.ts  # GET /health, POST /v1/batch, POST /v1/import
 │   ├── ingest.service.ts     # Event building + Redis stream writing
@@ -37,7 +37,7 @@ src/
 │   ├── event.ts              # TrackEventSchema, BatchWrapperSchema (Zod)
 │   └── import-event.ts       # ImportEventSchema (extends TrackEventSchema), ImportBatchSchema
 ├── hooks/
-│   └── gzip-preparsing.ts    # Fastify preParsing: gzip decompression, bomb protection, magic byte auto-detect
+│   └── gzip-preparsing.ts    # Fastify preParsing: gzip decompression, bomb protection, magic byte auto-detect, body read timeout
 ├── types/
 │   └── fastify.d.ts          # Fastify request augmentation (projectId, eventsLimit, quotaLimited)
 └── test/                # Integration tests
@@ -64,9 +64,9 @@ SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod v
 ```
 
 ### Guard Chain
-- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit`
-- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Only applied to `/v1/batch`.
-- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`.
+- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 300s Redis cache, DB fallback), sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
+- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Only applied to `/v1/batch`. **Fails open** on Redis errors (allows request through).
+- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
 
 ### Billing Quota
 Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceeded (PostHog pattern). This prevents SDKs from retrying on quota limits.
@@ -80,6 +80,7 @@ Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceed
 ### Gzip Handling
 - **Explicit gzip**: `Content-Encoding: gzip` — decompressed with 5MB size limit (bomb protection)
 - **Auto-detect**: Non-JSON content types checked for gzip magic bytes (`0x1f 0x8b`) — transparent decompression even without Content-Encoding header
+- **Body read timeout**: All request streams are wrapped with a 30s per-chunk read timeout (`BODY_READ_TIMEOUT_MS`) that destroys stalled connections (protects against mobile clients that stop sending data mid-upload)
 
 ### UUIDv7 Event IDs
 Uses `uuid` v7 (time-ordered) instead of UUIDv4 for `event_id` and `batch_id`. Better for ClickHouse merge tree ordering.
@@ -107,7 +108,7 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 Controller wraps `IngestService` calls in try-catch. Redis stream write failures → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`.
 
 ### Event Type Mapping
-`EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
+`EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$pageleave` → `pageleave`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
 
 ### Module Configuration
 `AppModule` registers all guards (`ApiKeyGuard`, `RateLimitGuard`, `BillingGuard`) as explicit providers. Implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
@@ -123,7 +124,7 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
 
 ### Integration tests
-`src/test/ingest/`. 29 tests covering:
+`src/test/ingest/`. 33 tests covering:
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key, per-event validation (partial success), all-invalid batch → 400
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
@@ -132,4 +133,6 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Beacon: 204 No Content with ?beacon=1
 - Gzip auto-detect: compressed body without Content-Encoding header
 - UUIDv7: event_id format validation
+- Max batch size: 400 on >500 batch events, 400 on >5000 import events
+- UA enrichment: browser/os/device from User-Agent header, SDK context overrides UA-parsed values
 - Rate limiting: 429 when exceeded, 202 under limit, no rate limit on import, counter increment
