@@ -4,7 +4,7 @@ import { sql, inArray } from 'drizzle-orm';
 import { persons, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { parseUserProperties } from './person-writer.service';
-import type { PersonWriterService } from './person-writer.service';
+import { type IPersonWriter, PERSON_WRITER } from './person-writer.interface';
 
 interface PendingPerson {
   projectId: string;
@@ -36,6 +36,7 @@ export class PersonBatchStore {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
+    @Inject(PERSON_WRITER) private readonly personWriter: IPersonWriter,
     @InjectPinoLogger(PersonBatchStore.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -86,7 +87,7 @@ export class PersonBatchStore {
     this.pendingMerges.push({ projectId, fromPersonId, intoPersonId });
   }
 
-  async flush(personWriter: PersonWriterService): Promise<void> {
+  async flush(): Promise<void> {
     const pendingPersons = this.pendingPersons;
     const pendingDistinctIds = this.pendingDistinctIds;
     const pendingMerges = this.pendingMerges;
@@ -113,7 +114,7 @@ export class PersonBatchStore {
     // 3. Execute pending merges (rare, sequential)
     for (const merge of pendingMerges) {
       try {
-        await personWriter.mergePersons(merge.projectId, merge.fromPersonId, merge.intoPersonId);
+        await this.personWriter.mergePersons(merge.projectId, merge.fromPersonId, merge.intoPersonId);
       } catch (err) {
         this.logger.error({ err, ...merge }, 'Person merge failed');
       }

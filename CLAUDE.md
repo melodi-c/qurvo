@@ -84,4 +84,5 @@ Each package has its own `CLAUDE.md` with detailed docs.
 - **`@qurvo/clickhouse`** — ClickHouse client factory, `Event` type, versioned migration system
 - **`@qurvo/sdk-core`** — fetch-based transport with queue
 - **`@qurvo/sdk-browser`** / **`@qurvo/sdk-node`** — platform-specific SDK wrappers
+- **`@qurvo/distributed-lock`** — Redis-based distributed lock (SET NX + Lua-guarded release). Used by processor's DLQ replay and cohort membership services.
 - **`@qurvo/testing`** — testcontainers (PostgreSQL, Redis, ClickHouse) + factories + date helpers

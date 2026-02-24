@@ -1,8 +1,6 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { writeFileSync } from 'fs';
 import Redis from 'ioredis';
-import type { Event } from '@qurvo/clickhouse';
 import { REDIS } from '../providers/redis.provider';
 import {
   PENDING_CLAIM_INTERVAL_MS,
@@ -12,28 +10,22 @@ import {
   REDIS_STREAM_EVENTS,
 } from '../constants';
 import { FlushService, type BufferedEvent } from './flush.service';
-import { PersonResolverService } from './person-resolver.service';
-import { PersonBatchStore } from './person-batch-store';
+import { EventEnrichmentService } from './event-enrichment.service';
+import { HeartbeatService } from './heartbeat.service';
 import { parseRedisFields } from './utils';
-import { GeoService } from './geo.service';
 
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
   private running = false;
   private loopPromise: Promise<void> | null = null;
   private pendingTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
-  private lastLoopActivity = 0;
-  private static readonly LOOP_STALE_MS = 30_000;
   private readonly consumerName = process.env.PROCESSOR_CONSUMER_NAME || `processor-${process.pid}`;
-  private static readonly HEARTBEAT_PATH = '/tmp/processor.heartbeat';
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     private readonly flushService: FlushService,
-    private readonly personResolver: PersonResolverService,
-    private readonly personBatchStore: PersonBatchStore,
-    private readonly geoService: GeoService,
+    private readonly enrichment: EventEnrichmentService,
+    private readonly heartbeat: HeartbeatService,
     @InjectPinoLogger(EventConsumerService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -44,8 +36,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
         this.logger.info({ consumer: this.consumerName }, 'Processor started');
         this.loopPromise = this.startLoop();
         this.pendingTimer = setInterval(() => this.claimPendingMessages(), PENDING_CLAIM_INTERVAL_MS);
-        this.writeHeartbeat();
-        this.heartbeatTimer = setInterval(() => this.writeHeartbeat(), 15_000);
+        this.heartbeat.start();
       })
       .catch((err) => this.logger.error({ err }, 'Failed to initialize consumer group'));
   }
@@ -53,21 +44,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
   async shutdown() {
     this.running = false;
     if (this.pendingTimer) clearInterval(this.pendingTimer);
-    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeat.stop();
     await this.loopPromise;
-  }
-
-  private writeHeartbeat() {
-    try {
-      const loopAge = Date.now() - this.lastLoopActivity;
-      if (this.lastLoopActivity > 0 && loopAge > EventConsumerService.LOOP_STALE_MS) {
-        this.logger.warn({ loopAge }, 'Consumer loop stale, skipping heartbeat');
-        return;
-      }
-      writeFileSync(EventConsumerService.HEARTBEAT_PATH, Date.now().toString());
-    } catch {
-      // non-critical: liveness probe will detect stale heartbeat
-    }
   }
 
   private async ensureConsumerGroup() {
@@ -82,10 +60,9 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private async startLoop() {
     while (this.running) {
       try {
-        // Backpressure: wait for buffer to drain before reading more
         while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
           await this.flushService.flush();
-          this.lastLoopActivity = Date.now();
+          this.heartbeat.touch();
           if (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
             await new Promise((r) => setTimeout(r, 500));
           }
@@ -98,7 +75,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           'STREAMS', REDIS_STREAM_EVENTS, '>',
         ) as [string, [string, string[]][]][] | null;
 
-        this.lastLoopActivity = Date.now();
+        this.heartbeat.touch();
 
         if (!results || results.length === 0) continue;
 
@@ -106,7 +83,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           results.flatMap(([, messages]) =>
             messages.map(async ([id, fields]) => ({
               messageId: id,
-              event: await this.buildEvent(parseRedisFields(fields)),
+              event: await this.enrichment.buildEvent(parseRedisFields(fields)),
             }))
           )
         );
@@ -116,7 +93,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           await this.flushService.flush();
         }
       } catch (err) {
-        this.lastLoopActivity = Date.now();
+        this.heartbeat.touch();
         this.logger.error({ err }, 'Error processing messages');
         await new Promise((r) => setTimeout(r, 1000));
       }
@@ -151,7 +128,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
             .filter(([, fields]) => !!fields)
             .map(async ([id, fields]) => ({
               messageId: id,
-              event: await this.buildEvent(parseRedisFields(fields)),
+              event: await this.enrichment.buildEvent(parseRedisFields(fields)),
             }))
         );
         this.flushService.addToBuffer(buffered);
@@ -163,63 +140,5 @@ export class EventConsumerService implements OnApplicationBootstrap {
     } catch (err) {
       this.logger.error({ err }, 'Error claiming pending messages');
     }
-  }
-
-  private async buildEvent(data: Record<string, string>): Promise<Event> {
-    const ip = data.ip || '';
-    const country = this.geoService.lookupCountry(ip);
-    const projectId = data.project_id || '';
-
-    let personId: string;
-    let mergedFromPersonId: string | null = null;
-
-    if (data.event_name === '$identify' && data.anonymous_id) {
-      const result = await this.personResolver.handleIdentify(projectId, data.distinct_id, data.anonymous_id);
-      personId = result.personId;
-      mergedFromPersonId = result.mergedFromPersonId;
-    } else {
-      personId = await this.personResolver.resolve(projectId, data.distinct_id);
-    }
-
-    // Enqueue person profile update for batch flush (0 PG queries here)
-    this.personBatchStore.enqueue(projectId, personId, data.distinct_id, data.user_properties || '{}');
-    if (mergedFromPersonId) {
-      this.personBatchStore.enqueueMerge(projectId, mergedFromPersonId, personId);
-    }
-
-    return {
-      event_id: data.event_id || '',
-      project_id: projectId,
-      event_name: data.event_name || '',
-      event_type: data.event_type || 'track',
-      distinct_id: data.distinct_id || '',
-      anonymous_id: data.anonymous_id,
-      user_id: data.user_id,
-      person_id: personId,
-      session_id: data.session_id,
-      url: data.url,
-      referrer: data.referrer,
-      page_title: data.page_title,
-      page_path: data.page_path,
-      device_type: data.device_type,
-      browser: data.browser,
-      browser_version: data.browser_version,
-      os: data.os,
-      os_version: data.os_version,
-      screen_width: Math.max(0, data.screen_width ? parseInt(data.screen_width) : 0),
-      screen_height: Math.max(0, data.screen_height ? parseInt(data.screen_height) : 0),
-      country,
-      region: '',
-      city: '',
-      language: data.language,
-      timezone: data.timezone,
-      properties: data.properties,
-      user_properties: data.user_properties,
-      sdk_name: data.sdk_name,
-      sdk_version: data.sdk_version,
-      timestamp: data.timestamp || new Date().toISOString(),
-      batch_id: data.batch_id,
-      ip,
-    };
   }
 }

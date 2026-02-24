@@ -90,10 +90,7 @@ describe('flush and metadata cache invalidation', () => {
     const knownEventName = `known_event_${randomUUID()}`;
     const cacheKey = `event_names:${projectId}`;
 
-    // Pre-seed known_event_names SET with the event name
-    await ctx.redis.sadd(`known_event_names:${projectId}`, knownEventName);
-
-    // Send first event so the processor sees this name
+    // 1. Send first event — new event name WILL trigger cache invalidation
     const batchId1 = randomUUID();
     await writeEventToStream(ctx.redis, projectId, {
       distinct_id: `no-inv-${randomUUID()}`,
@@ -102,10 +99,24 @@ describe('flush and metadata cache invalidation', () => {
     });
     await waitForEventByBatchId(ctx.ch, projectId, batchId1);
 
-    // Now set the cache key
+    // 2. Set a probe key and wait until it's invalidated — proves syncFromBatch finished
+    await ctx.redis.set(cacheKey, 'probe');
+    const probeDeadline = Date.now() + 10_000;
+    while (Date.now() < probeDeadline) {
+      // Trigger extra flush in case the timer-driven flush already ran
+      await flushBuffer(processorApp);
+      await new Promise((r) => setTimeout(r, 200));
+      const probeExists = await ctx.redis.exists(cacheKey);
+      if (probeExists === 0) break;
+    }
+
+    // If probe was never deleted, the first event's sync already completed before we set it.
+    // Either way, the event name is now in the in-memory seenEvents cache.
+
+    // 3. Set the real cache key
     await ctx.redis.set(cacheKey, 'cached_value');
 
-    // Send another event with same known name
+    // 4. Send second event with same known name — should NOT invalidate
     const batchId2 = randomUUID();
     await writeEventToStream(ctx.redis, projectId, {
       distinct_id: `no-inv-2-${randomUUID()}`,
@@ -114,7 +125,11 @@ describe('flush and metadata cache invalidation', () => {
     });
     await waitForEventByBatchId(ctx.ch, projectId, batchId2);
 
-    // Cache key should still exist (not invalidated)
+    // 5. Wait for second event's syncFromBatch to complete
+    await flushBuffer(processorApp);
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Cache key should still exist (not invalidated — event name was already seen)
     const exists = await ctx.redis.exists(cacheKey);
     expect(exists).toBe(1);
   });

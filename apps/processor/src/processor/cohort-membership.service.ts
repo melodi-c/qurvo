@@ -16,6 +16,7 @@ import {
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
 } from '../constants';
 import { topologicalSortCohorts } from './cohort-toposort';
+import { DistributedLock } from '@qurvo/distributed-lock';
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ const INITIAL_DELAY_MS = 30_000;
 @Injectable()
 export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
-  private readonly instanceId = randomUUID();
+  private readonly lock: DistributedLock;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -34,7 +35,9 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     @Inject(DRIZZLE) private readonly db: Database,
     @InjectPinoLogger(CohortMembershipService.name)
     private readonly logger: PinoLogger,
-  ) {}
+  ) {
+    this.lock = new DistributedLock(redis, LOCK_KEY, randomUUID(), LOCK_TTL_SECONDS);
+  }
 
   onApplicationBootstrap() {
     setTimeout(() => {
@@ -58,13 +61,17 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   }
 
   private async runCycle(): Promise<void> {
-    const hasLock = await this.tryAcquireLock();
+    const hasLock = await this.lock.acquire();
     if (!hasLock) {
       this.logger.debug('Cohort membership cycle skipped: another instance holds the lock');
       return;
     }
 
     try {
+      let computed = 0;
+      let staleCount = 0;
+      let eligibleCount = 0;
+
       // ── 1. Selective: fetch only stale dynamic cohorts ──────────────────
       const staleCohorts = await this.db
         .select()
@@ -79,76 +86,86 @@ export class CohortMembershipService implements OnApplicationBootstrap {
           ),
         );
 
-      if (staleCohorts.length === 0) {
-        this.logger.debug('No stale dynamic cohorts to recompute');
-        return;
-      }
+      staleCount = staleCohorts.length;
 
-      // ── 2. Error backoff filter ─────────────────────────────────────────
-      const now = Date.now();
-      const eligible = staleCohorts.filter((c) => {
-        if (c.errors_calculating === 0 || !c.last_error_at) return true;
-        const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
-        const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
-        return now >= c.last_error_at.getTime() + backoffMs;
-      });
+      if (staleCohorts.length > 0) {
+        // ── 2. Error backoff filter ───────────────────────────────────────
+        const now = Date.now();
+        const eligible = staleCohorts.filter((c) => {
+          if (c.errors_calculating === 0 || !c.last_error_at) return true;
+          const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
+          const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
+          return now >= c.last_error_at.getTime() + backoffMs;
+        });
 
-      if (eligible.length === 0) {
-        this.logger.debug('All stale cohorts are in error backoff');
-        return;
-      }
+        eligibleCount = eligible.length;
 
-      // ── 3. Topological sort ─────────────────────────────────────────────
-      const { sorted, cyclic } = topologicalSortCohorts(
-        eligible.map((c) => ({ id: c.id, definition: c.definition })),
-      );
-
-      if (cyclic.length > 0) {
-        this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
-      }
-
-      // ── 4. Compute each cohort ──────────────────────────────────────────
-      const version = Date.now();
-      let computed = 0;
-
-      for (const { id, definition } of sorted) {
-        const cohort = eligible.find((c) => c.id === id)!;
-        try {
-          await this.computeMembership(id, cohort.project_id, definition, version);
-          await this.recordSuccess(id);
-          await this.recordSizeHistory(id, cohort.project_id);
-          computed++;
-        } catch (err) {
-          await this.recordError(id, err);
-          this.logger.error(
-            { err, cohortId: id, projectId: cohort.project_id },
-            'Failed to compute membership for cohort',
+        if (eligible.length > 0) {
+          // ── 3. Topological sort ───────────────────────────────────────────
+          const { sorted, cyclic } = topologicalSortCohorts(
+            eligible.map((c) => ({ id: c.id, definition: c.definition })),
           );
+
+          if (cyclic.length > 0) {
+            this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
+          }
+
+          // ── 4. Compute each cohort ────────────────────────────────────────
+          const version = Date.now();
+
+          for (const { id, definition } of sorted) {
+            const cohort = eligible.find((c) => c.id === id)!;
+            try {
+              await this.computeMembership(id, cohort.project_id, definition, version);
+              await this.recordSuccess(id);
+              await this.recordSizeHistory(id, cohort.project_id);
+              computed++;
+            } catch (err) {
+              await this.recordError(id, err);
+              this.logger.error(
+                { err, cohortId: id, projectId: cohort.project_id },
+                'Failed to compute membership for cohort',
+              );
+            }
+          }
+        } else {
+          this.logger.debug('All stale cohorts are in error backoff');
         }
+      } else {
+        this.logger.debug('No stale dynamic cohorts to recompute');
       }
 
       // ── 5. Garbage-collect orphaned memberships ─────────────────────────
-      // Use ALL dynamic cohort IDs (not just recomputed ones) to avoid
-      // deleting memberships of fresh cohorts that weren't in this cycle.
-      const allDynamic = await this.db
-        .select({ id: cohorts.id })
-        .from(cohorts)
-        .where(eq(cohorts.is_static, false));
-
-      const allDynamicIds = allDynamic.map((c) => c.id);
-      if (allDynamicIds.length > 0) {
-        const idList = allDynamicIds.map((id) => `'${id}'`).join(',');
-        await this.ch.command({
-          query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN (${idList})`,
-        });
-      }
+      // Always runs: deleted cohorts should be cleaned up even when no stale cohorts exist.
+      await this.gcOrphanedMemberships();
 
       this.logger.info(
-        { computed, stale: staleCohorts.length, eligible: eligible.length, version },
+        { computed, stale: staleCount, eligible: eligibleCount },
         'Cohort membership cycle completed',
       );
     } finally {
-      await this.releaseLock();
+      await this.lock.release();
+    }
+  }
+
+  private async gcOrphanedMemberships(): Promise<void> {
+    const allDynamic = await this.db
+      .select({ id: cohorts.id })
+      .from(cohorts)
+      .where(eq(cohorts.is_static, false));
+
+    const allDynamicIds = allDynamic.map((c) => c.id);
+
+    if (allDynamicIds.length > 0) {
+      const idList = allDynamicIds.map((id) => `'${id}'`).join(',');
+      await this.ch.command({
+        query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN (${idList})`,
+      });
+    } else {
+      // No dynamic cohorts exist — delete ALL membership rows
+      await this.ch.command({
+        query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
+      });
     }
   }
 
@@ -239,25 +256,4 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     }
   }
 
-  private async tryAcquireLock(): Promise<boolean> {
-    const result = await this.redis.set(
-      LOCK_KEY,
-      this.instanceId,
-      'EX',
-      LOCK_TTL_SECONDS,
-      'NX',
-    );
-    return result !== null;
-  }
-
-  private async releaseLock(): Promise<void> {
-    const script = `
-      if redis.call('get', KEYS[1]) == ARGV[1] then
-        return redis.call('del', KEYS[1])
-      else
-        return 0
-      end
-    `;
-    await this.redis.eval(script, 1, LOCK_KEY, this.instanceId);
-  }
 }
