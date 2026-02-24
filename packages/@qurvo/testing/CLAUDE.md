@@ -7,11 +7,41 @@ Test infrastructure with testcontainers. Used directly as TypeScript source (no 
 ```typescript
 import {
   setupContainers, teardownContainers,
+  createGlobalSetup,
   insertTestEvents, buildEvent, createTestProject,
   waitForClickHouseCount, waitForRedisStreamLength,
   DAY_MS, daysAgo, dateOffset, ts, msAgo,
 } from '@qurvo/testing';
 ```
+
+## Architecture: Shared Containers + Per-Worker Databases
+
+```
+globalSetup (main process)
+  └─ startGlobalContainers() → 3 containers (PG, Redis, CH)
+  └─ writes coordinates to process.env.TEST_*
+       ↓
+vitest forks (maxForks: 4)
+  └─ setupContainers() detects TEST_PG_HOST → setupWorkerContext()
+       ├─ PG:    CREATE DATABASE qurvo_worker_N + Drizzle migrations
+       ├─ CH:    CREATE DATABASE qurvo_worker_N + SQL migrations
+       └─ Redis: SELECT N (db = VITEST_POOL_ID) + FLUSHDB
+```
+
+Each fork gets isolated PG database, CH database, and Redis database. One set of containers per app run, not per fork.
+
+### globalSetup in each app
+
+```typescript
+// apps/{api,processor,ingest}/src/test/setup.ts
+import { createGlobalSetup } from '@qurvo/testing';
+const { setup, teardown } = createGlobalSetup();
+export { setup, teardown };
+```
+
+### Legacy mode
+
+If `TEST_PG_HOST` is not set (e.g., running a single test file without globalSetup), `setupContainers()` falls back to legacy mode — starts its own containers as before.
 
 ## Exports
 
@@ -19,10 +49,17 @@ import {
 
 | Function | Description |
 |---|---|
-| `setupContainers()` | Spins up PostgreSQL 17, Redis 7, ClickHouse 24.8. Singleton — cached across tests |
-| `teardownContainers()` | Stops all containers. Call in globalSetup teardown or afterAll |
+| `createGlobalSetup()` | Factory for vitest globalSetup. Returns `{ setup, teardown }` that start/stop shared containers |
+| `setupContainers()` | Shim: delegates to `setupWorkerContext()` if shared infra is running, otherwise starts own containers (legacy) |
+| `teardownContainers()` | Shim: closes worker clients or stops legacy containers |
+| `startGlobalContainers()` | Starts 3 Docker containers, returns `ContainerCoords` |
+| `stopGlobalContainers()` | Stops shared containers |
+| `setupWorkerContext()` | Per-worker: creates databases, applies migrations, returns `ContainerContext` |
+| `teardownWorkerContext()` | Closes worker clients (does NOT stop containers) |
 
 `ContainerContext` provides: `db`, `ch`, `redis`, `pgUrl`, `redisUrl`, `clickhouseUrl`, `clickhouseDb`, `clickhouseUser`, `clickhousePassword`
+
+`ContainerCoords` provides: `pgHost`, `pgPort`, `pgUser`, `pgPassword`, `redisHost`, `redisPort`, `chHost`, `chPort`, `chUser`, `chPassword`
 
 ### Factories
 
@@ -54,18 +91,23 @@ import {
 ```
 src/
 ├── index.ts              # Re-exports everything
-├── containers.ts         # Testcontainers setup (singleton)
+├── containers.ts         # Shim: delegates to worker-context or legacy
+├── global-containers.ts  # Start/stop Docker containers (no databases)
+├── worker-context.ts     # Per-worker database creation + client setup
+├── vitest-global-setup.ts # createGlobalSetup() factory
 ├── factories.ts          # buildEvent, insertTestEvents, createTestProject
 ├── wait.ts               # Polling wait helpers
 ├── date-helpers.ts       # Date utility functions
-├── migrate-postgres.ts   # Test PostgreSQL migration
-└── migrate-clickhouse.ts # Test ClickHouse migration
+├── migrate-postgres.ts   # Drizzle migration runner
+└── migrate-clickhouse.ts # ClickHouse SQL migration runner
 ```
 
 ## Key Patterns
 
 - **No build step**: `"main": "src/index.ts"` — vitest resolves TypeScript directly
-- **Singleton containers**: `setupContainers()` caches promise, safe to call from multiple test files
+- **Shared containers**: `createGlobalSetup()` starts 3 containers once in the main process; forks inherit coordinates via `process.env.TEST_*`
+- **Per-worker isolation**: each fork creates `qurvo_worker_N` databases (PG + CH) and uses Redis DB N
+- **maxForks: 4**: up to 4 parallel forks per app. Redis has 16 DBs (0-15), so max 15 workers
 - **Recent timestamps required**: ClickHouse `events` table has `TTL 365 DAY`. Always use relative dates (`daysAgo`, `ts`, `msAgo`), never hardcoded past dates
 - **Synchronous inserts**: `insertTestEvents` uses `async_insert: 0` to ensure data is queryable immediately
 - **Cohort tests**: `argMax(user_properties, timestamp)` picks latest event — set `user_properties` on ALL test events, not just the first

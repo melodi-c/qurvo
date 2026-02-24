@@ -84,4 +84,15 @@ Each package has its own `CLAUDE.md` with detailed docs.
 - **`@qurvo/clickhouse`** — ClickHouse client factory, `Event` type, versioned migration system
 - **`@qurvo/sdk-core`** — fetch-based transport with queue
 - **`@qurvo/sdk-browser`** / **`@qurvo/sdk-node`** — platform-specific SDK wrappers
-- **`@qurvo/testing`** — testcontainers (PostgreSQL, Redis, ClickHouse) + factories + date helpers
+- **`@qurvo/testing`** — shared testcontainers + per-worker DB isolation + factories + date helpers. See `packages/@qurvo/testing/CLAUDE.md`
+
+### Integration Tests
+
+```bash
+# Per-app
+pnpm --filter @qurvo/api exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/processor exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/ingest exec vitest run --config vitest.integration.config.ts
+```
+
+Each app uses `createGlobalSetup()` from `@qurvo/testing` in its `globalSetup`. This starts **3 shared containers** (PG, Redis, CH) once in the main process, then vitest forks (up to `maxForks: 4`) each create isolated databases (`qurvo_worker_N`) and Redis DB N. No `singleFork` — tests run in parallel across forks.
