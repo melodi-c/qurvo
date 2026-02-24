@@ -5,7 +5,7 @@ import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery, RESOLVED_PERSON, topologicalSortCohorts } from '@qurvo/cohort-query';
+import { buildCohortSubquery, topologicalSortCohorts } from '@qurvo/cohort-query';
 import { REDIS, CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
@@ -51,6 +51,8 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     if (this.cycleInFlight) {
       await this.cycleInFlight;
     }
+    await this.ch.close().catch(() => {});
+    await this.redis.quit().catch(() => {});
   }
 
   private async scheduledCycle() {
@@ -167,6 +169,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         query_params: { ids: allDynamicIds },
       });
     } else {
+      this.logger.warn('No dynamic cohorts found — deleting all cohort_members rows (orphan GC)');
       await this.ch.command({
         query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
       });

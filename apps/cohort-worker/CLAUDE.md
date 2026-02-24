@@ -27,12 +27,12 @@ src/
 │   └── shutdown.service.ts              # Graceful shutdown (awaits in-flight cycle)
 └── test/
     ├── setup.ts
+    ├── teardown.ts                      # afterAll: closes NestJS app + connections per fork
     ├── context.ts                       # Shared test context (containers + NestJS app)
     ├── helpers/
     │   └── ch.ts                        # getCohortMembers helper
     └── processor/
-        ├── cohort-membership.integration.test.ts
-        └── cohort-toposort.test.ts
+        └── cohort-membership.integration.test.ts
 ```
 
 ## Service
@@ -40,7 +40,7 @@ src/
 | Service | Responsibility | Key config |
 |---|---|---|
 | `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), orphan GC |
-| `ShutdownService` | Graceful shutdown | Awaits in-flight cycle, then closes CH + Redis connections |
+| `ShutdownService` | Graceful shutdown | Delegates to `CohortMembershipService.stop()` which awaits in-flight cycle, then closes CH + Redis |
 
 ## Key Patterns
 
@@ -64,10 +64,9 @@ Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 3
 
 ## Integration Tests
 
-Tests in `src/test/processor/`. 7 integration tests + 6 unit tests:
+Tests in `src/test/processor/`. 7 integration tests:
 - Property/event condition cohorts (eq, gte)
 - AND (INTERSECT) / OR (UNION) logic
 - Version cleanup (old rows removed)
 - Orphan GC (deleted cohort memberships removed)
 - Distributed lock blocks concurrent runs
-- Topological sort (unit tests)
