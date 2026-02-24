@@ -1,27 +1,29 @@
 import { createGunzip } from 'node:zlib';
 import { Transform } from 'node:stream';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { MAX_DECOMPRESSED_BYTES } from '../constants';
+import { MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS } from '../constants';
 
 const GZIP_MAGIC_0 = 0x1f;
 const GZIP_MAGIC_1 = 0x8b;
 
 export function addGzipPreParsing(fastify: FastifyInstance): void {
   fastify.addHook('preParsing', async (request, _reply, payload) => {
+    const guarded = withReadTimeout(payload);
+
     if (request.headers['content-encoding'] === 'gzip') {
       delete request.headers['content-encoding'];
       delete request.headers['content-length'];
       request.headers['content-type'] = 'application/json';
-      return createBoundedGunzip(payload);
+      return createBoundedGunzip(guarded);
     }
 
     // Auto-detect gzip by magic bytes for non-JSON content types
     // (handles SDKs/proxies that compress but omit Content-Encoding)
     if (!String(request.headers['content-type']).includes('application/json')) {
-      return createGzipAutoDetect(request, payload);
+      return createGzipAutoDetect(request, guarded);
     }
 
-    return payload;
+    return guarded;
   });
 }
 
@@ -108,4 +110,38 @@ function createGzipAutoDetect(request: FastifyRequest, source: NodeJS.ReadableSt
   source.on('error', (e) => out.destroy(e));
 
   return out;
+}
+
+/**
+ * Wraps a readable stream with a per-chunk read timeout.
+ * If no data arrives within BODY_READ_TIMEOUT_MS the stream is destroyed,
+ * protecting against stalled mobile uploads that hold connections open.
+ */
+function withReadTimeout(source: NodeJS.ReadableStream): NodeJS.ReadableStream {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const resetTimer = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      wrapper.destroy(new Error('Body read timeout — client stopped sending data'));
+    }, BODY_READ_TIMEOUT_MS);
+  };
+
+  const wrapper = new Transform({
+    transform(chunk: Buffer, _enc, cb) {
+      resetTimer();
+      cb(null, chunk);
+    },
+    flush(cb) {
+      if (timer) clearTimeout(timer);
+      cb();
+    },
+  });
+
+  source.pipe(wrapper);
+  source.on('error', (e) => wrapper.destroy(e));
+  wrapper.on('close', () => { if (timer) clearTimeout(timer); });
+
+  resetTimer();
+  return wrapper;
 }
