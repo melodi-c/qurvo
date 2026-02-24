@@ -23,6 +23,14 @@ import { safeScreenDimension, groupByKey } from './event-utils';
 
 const REQUIRED_FIELDS = ['project_id', 'event_name', 'distinct_id'] as const;
 
+// Garbage distinct_ids that SDKs or broken clients may send — silently drop these events
+const ILLEGAL_DISTINCT_IDS = new Set([
+  'anonymous', 'null', 'undefined', 'none', 'nil',
+  '[object Object]', 'NaN', 'true', 'false', '0',
+]);
+
+const MAX_CONSECUTIVE_ERRORS = 100;
+
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
   private running = false;
@@ -84,6 +92,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
   }
 
   private async startLoop() {
+    let consecutiveErrors = 0;
+
     while (this.running) {
       try {
         await this.drainIfOverfull();
@@ -96,13 +106,21 @@ export class EventConsumerService implements OnApplicationBootstrap {
         ) as [string, [string, string[]][]][] | null;
 
         this.heartbeat.touch();
+        consecutiveErrors = 0;
 
         if (!results || results.length === 0) continue;
 
         await this.processMessages(results.flatMap(([, msgs]) => msgs));
       } catch (err) {
         this.heartbeat.touch();
-        this.logger.error({ err }, 'Error processing messages');
+        consecutiveErrors++;
+        this.logger.error({ err, consecutiveErrors }, 'Error processing messages');
+
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          this.logger.fatal({ consecutiveErrors }, 'Too many consecutive errors — exiting for K8s restart');
+          process.exit(1);
+        }
+
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
@@ -112,6 +130,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
     try {
       let cursor = '0-0';
       do {
+        if (!this.running) break;
+
         const result = await this.redis.call(
           'XAUTOCLAIM',
           REDIS_STREAM_EVENTS,
@@ -149,13 +169,16 @@ export class EventConsumerService implements OnApplicationBootstrap {
       fields: parseRedisFields(fields),
     }));
 
-    // Validate: drop events missing required fields
+    // Validate: drop events missing required fields or with garbage distinct_ids
     const valid: typeof parsed = [];
     const invalidIds: string[] = [];
     for (const item of parsed) {
       const missing = REQUIRED_FIELDS.filter((f) => !item.fields[f]);
       if (missing.length > 0) {
         this.logger.warn({ messageId: item.id, missingFields: missing }, 'Dropping invalid event');
+        invalidIds.push(item.id);
+      } else if (ILLEGAL_DISTINCT_IDS.has(item.fields.distinct_id.trim().toLowerCase())) {
+        this.logger.warn({ messageId: item.id, distinctId: item.fields.distinct_id }, 'Dropping event with illegal distinct_id');
         invalidIds.push(item.id);
       } else {
         valid.push(item);
