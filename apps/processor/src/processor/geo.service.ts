@@ -30,7 +30,7 @@ export class GeoService implements OnModuleInit {
 
       const url = process.env.GEOLITE2_COUNTRY_URL || DEFAULT_MMDB_URL;
       this.logger.info({ url }, 'Downloading GeoLite2-Country MMDB');
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok || !res.body) {
         throw new Error(`HTTP ${res.status} ${res.statusText}`);
       }
