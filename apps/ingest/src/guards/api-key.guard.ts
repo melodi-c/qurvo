@@ -1,10 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, Inject, UnauthorizedException, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Inject, UnauthorizedException, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { eq, and, isNull } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { apiKeys, projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
-import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, billingCounterKey } from '../constants';
+import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS } from '../constants';
 
 interface CachedKeyInfo {
   project_id: string;
@@ -40,8 +40,8 @@ export class ApiKeyGuard implements CanActivate {
       if (info.expires_at && new Date(info.expires_at) < new Date()) {
         throw new UnauthorizedException('API key expired');
       }
-      await this.checkEventsLimit(info);
       request.projectId = info.project_id;
+      request.eventsLimit = info.events_limit;
       return true;
     }
 
@@ -86,24 +86,8 @@ export class ApiKeyGuard implements CanActivate {
 
     this.logger.debug({ projectId: keyInfo.project_id }, 'API key authenticated');
 
-    await this.checkEventsLimit(info);
-
     request.projectId = keyInfo.project_id;
+    request.eventsLimit = keyInfo.events_limit;
     return true;
-  }
-
-  // Soft limit: check and increment are non-atomic. Under concurrent load, a small
-  // over-count is possible. This is acceptable for billing — events are never lost,
-  // and the counter self-corrects. For hard limits, use a Lua script.
-  private async checkEventsLimit(info: CachedKeyInfo): Promise<void> {
-    if (info.events_limit === null) return;
-
-    const counterKey = billingCounterKey(info.project_id);
-    const current = await this.redis.get(counterKey);
-
-    if (current !== null && parseInt(current, 10) >= info.events_limit) {
-      this.logger.warn({ projectId: info.project_id, current, limit: info.events_limit }, 'Event limit exceeded');
-      throw new HttpException('Monthly event limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
-    }
   }
 }

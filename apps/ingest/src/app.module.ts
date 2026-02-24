@@ -1,14 +1,16 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Module, Inject, OnApplicationShutdown } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import type { Options } from 'pino-http';
 import Redis from 'ioredis';
-import { createDb } from '@qurvo/db';
+import { createDb, type Database } from '@qurvo/db';
 import { REDIS, DRIZZLE } from './constants';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 import { ZodExceptionFilter } from './filters/zod-exception.filter';
+import { BillingGuard } from './guards/billing.guard';
 
 const RedisProvider = {
   provide: REDIS,
@@ -20,6 +22,7 @@ const DrizzleProvider = {
   useFactory: () => createDb(process.env.DATABASE_URL),
 };
 
+// @Global + exports required: ThrottlerModule.forRootAsync injects REDIS, which must be globally exported
 @Global()
 @Module({
   imports: [
@@ -30,7 +33,7 @@ const DrizzleProvider = {
         transport: process.env.NODE_ENV !== 'production'
           ? { target: 'pino-pretty' }
           : undefined,
-      } as any,
+      } as Options,
     }),
     ThrottlerModule.forRootAsync({
       inject: [REDIS],
@@ -48,9 +51,20 @@ const DrizzleProvider = {
     RedisProvider,
     DrizzleProvider,
     IngestService,
+    BillingGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: ZodExceptionFilter },
   ],
-  exports: [RedisProvider, DrizzleProvider],
+  exports: [RedisProvider],
 })
-export class AppModule {}
+export class AppModule implements OnApplicationShutdown {
+  constructor(
+    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(DRIZZLE) private readonly db: Database,
+  ) {}
+
+  async onApplicationShutdown() {
+    await this.redis.quit();
+    await this.db.$pool.end();
+  }
+}

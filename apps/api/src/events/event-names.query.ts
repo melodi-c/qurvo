@@ -10,7 +10,7 @@ export async function queryEventNames(
 ): Promise<string[]> {
   const sql = `
     SELECT event_name, count() AS cnt
-    FROM events
+    FROM events FINAL
     WHERE
       project_id = {project_id:UUID}
       AND timestamp >= now() - INTERVAL 90 DAY
@@ -40,7 +40,7 @@ export async function queryEventNamesWithCount(
 ): Promise<EventNameWithCount[]> {
   const sql = `
     SELECT event_name, toUInt64(count()) AS cnt
-    FROM events
+    FROM events FINAL
     WHERE
       project_id = {project_id:UUID}
       AND timestamp >= now() - INTERVAL 30 DAY

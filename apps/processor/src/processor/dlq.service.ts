@@ -3,7 +3,6 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
-import { insertEvents } from './insert';
 import { withRetry } from './retry';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
@@ -15,7 +14,6 @@ import {
   REDIS_STREAM_DLQ,
   RETRY_CLICKHOUSE,
 } from '../constants';
-import { parseRedisFields } from './utils';
 import { DistributedLock } from '@qurvo/distributed-lock';
 
 @Injectable()
@@ -76,7 +74,10 @@ export class DlqService implements OnApplicationBootstrap {
       const ids = entries.map(([id]) => id);
       const events: Event[] = entries
         .map(([, fields]) => {
-          const obj = parseRedisFields(fields);
+          const obj: Record<string, string> = {};
+          for (let i = 0; i < fields.length; i += 2) {
+            obj[fields[i]] = fields[i + 1];
+          }
           if (!obj.data) return null;
           const event = JSON.parse(obj.data) as Event;
           if (event.screen_width != null) event.screen_width = Math.max(0, event.screen_width);
@@ -86,7 +87,12 @@ export class DlqService implements OnApplicationBootstrap {
         .filter((e): e is Event => e !== null);
 
       await withRetry(
-        () => insertEvents(this.ch, events),
+        () => this.ch.insert({
+          table: 'events',
+          values: events,
+          format: 'JSONEachRow',
+          clickhouse_settings: { date_time_input_format: 'best_effort' },
+        }),
         'DLQ ClickHouse insert',
         this.logger,
         RETRY_CLICKHOUSE,

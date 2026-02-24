@@ -27,4 +27,8 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
       timeToBlockExpire: 0,
     };
   }
+
+  async quit(): Promise<void> {
+    // No-op: Redis lifecycle is managed by AppModule.onApplicationShutdown
+  }
 }

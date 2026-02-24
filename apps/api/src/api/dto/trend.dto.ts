@@ -14,6 +14,7 @@ import {
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
+import { parseJsonArray } from './shared/transforms';
 
 export class TrendSeriesDto {
   @IsString()
@@ -75,10 +76,7 @@ export class TrendQueryDto {
   breakdown_type?: 'property' | 'cohort';
 
   @ApiPropertyOptional({ type: [String] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()
@@ -90,10 +88,7 @@ export class TrendQueryDto {
   compare?: boolean;
 
   @ApiPropertyOptional({ type: [String] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()

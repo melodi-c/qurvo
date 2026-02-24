@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { parseJsonArray } from './shared/transforms';
 
 export class RetentionQueryDto {
   @IsUUID()
@@ -43,10 +44,7 @@ export class RetentionQueryDto {
   date_to: string;
 
   @ApiPropertyOptional({ type: [String] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()
