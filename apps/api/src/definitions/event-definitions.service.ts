@@ -2,9 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { eq, desc, asc, ilike, and, count, SQL } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
-import { ProjectsService } from '../projects/projects.service';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
-import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface EventDefinitionItem {
@@ -37,12 +35,9 @@ const columnMap: Record<string, any> = {
 export class EventDefinitionsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string, params: EventDefinitionListParams): Promise<{ items: EventDefinitionItem[]; total: number }> {
-    await this.projectsService.getMembership(userId, projectId);
-
     const conditions: SQL[] = [eq(eventDefinitions.project_id, projectId)];
     if (params.search) {
       conditions.push(ilike(eventDefinitions.event_name, `%${params.search}%`));
@@ -86,8 +81,6 @@ export class EventDefinitionsService {
     eventName: string,
     input: { description?: string; tags?: string[]; verified?: boolean },
   ) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const rows = await this.db
       .insert(eventDefinitions)
       .values({
@@ -110,9 +103,6 @@ export class EventDefinitionsService {
   }
 
   async delete(userId: string, projectId: string, eventName: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
-
     const existing = await this.db
       .select({ id: eventDefinitions.id })
       .from(eventDefinitions)

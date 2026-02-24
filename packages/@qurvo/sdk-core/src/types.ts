@@ -49,3 +49,10 @@ export type CompressFn = (data: string) => Promise<Blob>;
 export interface Transport {
   send(endpoint: string, apiKey: string, payload: unknown, options?: SendOptions): Promise<boolean>;
 }
+
+export class QuotaExceededError extends Error {
+  constructor() {
+    super('Monthly event limit exceeded');
+    this.name = 'QuotaExceededError';
+  }
+}

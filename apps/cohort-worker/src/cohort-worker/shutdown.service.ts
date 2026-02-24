@@ -16,7 +16,11 @@ export class ShutdownService implements OnApplicationShutdown {
 
   async onApplicationShutdown() {
     await this.cohortMembershipService.stop();
-    await this.ch.close().catch(() => {});
-    await this.redis.quit().catch(() => {});
+    await this.ch.close().catch((err) =>
+      this.logger.warn({ err }, 'ClickHouse close failed'),
+    );
+    await this.redis.quit().catch((err) =>
+      this.logger.warn({ err }, 'Redis quit failed'),
+    );
   }
 }

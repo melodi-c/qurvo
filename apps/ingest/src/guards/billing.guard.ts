@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, Inject, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS, billingCounterKey } from '../constants';
 
@@ -21,7 +21,9 @@ export class BillingGuard implements CanActivate {
 
     if (!Number.isNaN(count) && count >= eventsLimit) {
       this.logger.warn({ projectId, count, limit: eventsLimit }, 'Event limit exceeded');
-      throw new HttpException('Monthly event limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+      // Return 200 instead of 429 to prevent SDK retries (PostHog pattern).
+      // The controller checks request.quotaLimited and returns early.
+      request.quotaLimited = true;
     }
 
     return true;

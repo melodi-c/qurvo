@@ -89,6 +89,7 @@ export async function insertTestEvents(ch: ClickHouseClient, events: Event[]): P
     format: 'JSONEachRow',
     clickhouse_settings: {
       async_insert: 0,
+      date_time_input_format: 'best_effort',
     },
   });
 }

@@ -5,21 +5,20 @@ import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery, RESOLVED_PERSON, topologicalSortCohorts } from '@qurvo/cohort-query';
+import { buildCohortSubquery, topologicalSortCohorts } from '@qurvo/cohort-query';
 import { REDIS, CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
   COHORT_STALE_THRESHOLD_MINUTES,
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
+  COHORT_LOCK_KEY,
+  COHORT_LOCK_TTL_SECONDS,
+  COHORT_INITIAL_DELAY_MS,
 } from '../constants';
 import { DistributedLock } from '@qurvo/distributed-lock';
 
 // ── Service ──────────────────────────────────────────────────────────────────
-
-const LOCK_KEY = 'cohort_membership:lock';
-const LOCK_TTL_SECONDS = 300;
-const INITIAL_DELAY_MS = 30_000;
 
 @Injectable()
 export class CohortMembershipService implements OnApplicationBootstrap {
@@ -35,11 +34,11 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     @InjectPinoLogger(CohortMembershipService.name)
     private readonly logger: PinoLogger,
   ) {
-    this.lock = new DistributedLock(redis, LOCK_KEY, randomUUID(), LOCK_TTL_SECONDS);
+    this.lock = new DistributedLock(redis, COHORT_LOCK_KEY, randomUUID(), COHORT_LOCK_TTL_SECONDS);
   }
 
   onApplicationBootstrap() {
-    this.timer = setTimeout(() => this.scheduledCycle(), INITIAL_DELAY_MS);
+    this.timer = setTimeout(() => this.scheduledCycle(), COHORT_INITIAL_DELAY_MS);
   }
 
   async stop(): Promise<void> {
@@ -142,7 +141,9 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
       // ── 5. Garbage-collect orphaned memberships ─────────────────────────
       // Always runs: deleted cohorts should be cleaned up even when no stale cohorts exist.
-      await this.gcOrphanedMemberships();
+      await this.gcOrphanedMemberships().catch((err) =>
+        this.logger.error({ err }, 'Orphan GC failed'),
+      );
 
       this.logger.info(
         { computed, stale: staleCount, eligible: eligibleCount },
@@ -167,6 +168,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         query_params: { ids: allDynamicIds },
       });
     } else {
+      this.logger.warn('No dynamic cohorts found — deleting all cohort_members rows (orphan GC)');
       await this.ch.command({
         query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
       });

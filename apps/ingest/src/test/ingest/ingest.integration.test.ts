@@ -16,7 +16,7 @@ import { apiKeys, plans, projects } from '@qurvo/db';
 import { AppModule } from '../../app.module';
 import { REDIS_STREAM_EVENTS, billingCounterKey } from '../../constants';
 import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
-import { postBatch, postBatchGzip, postImport, getBaseUrl, parseRedisFields } from '../helpers';
+import { postBatch, postBatchBeacon, postBatchGzip, postBatchGzipNoHeader, postBatchWithBodyKey, postImport, getBaseUrl, parseRedisFields } from '../helpers';
 
 let ctx: ContainerContext;
 let app: INestApplication;
@@ -59,7 +59,7 @@ describe('POST /v1/batch', () => {
     });
 
     expect(res.status).toBe(202);
-    expect(res.body).toEqual({ ok: true, count: 3 });
+    expect(res.body).toEqual({ ok: true, count: 3, dropped: 0 });
 
     await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 3);
   });
@@ -84,7 +84,7 @@ describe('POST /v1/batch', () => {
     });
 
     expect(res.status).toBe(202);
-    expect(res.body).toEqual({ ok: true, count: 2 });
+    expect(res.body).toEqual({ ok: true, count: 2, dropped: 0 });
 
     await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 2);
   });
@@ -111,6 +111,36 @@ describe('POST /v1/batch', () => {
     });
 
     expect(res.status).toBe(401);
+  });
+
+  it('ingests valid events and drops invalid ones (per-event validation)', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await postBatch(app, testProject.apiKey, {
+      events: [
+        { event: 'valid_event', distinct_id: 'user-1', timestamp: new Date().toISOString() },
+        { distinct_id: 'user-2' }, // missing 'event' field
+        { event: '', distinct_id: 'user-3' }, // empty event name
+        { event: 'another_valid', distinct_id: 'user-4', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ ok: true, count: 2, dropped: 2 });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 2);
+  });
+
+  it('returns 400 when all events fail validation', async () => {
+    const res = await postBatch(app, testProject.apiKey, {
+      events: [
+        { distinct_id: 'user-1' }, // missing 'event'
+        { event: '' }, // empty event, missing distinct_id
+      ],
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.dropped).toBe(2);
   });
 });
 
@@ -201,6 +231,19 @@ describe('GET /health', () => {
 });
 
 describe('API key auth', () => {
+  it('accepts api_key in request body instead of header', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await postBatchWithBodyKey(app, testProject.apiKey, {
+      events: [{ event: 'body_key_event', distinct_id: 'body-key-user', timestamp: new Date().toISOString() }],
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ ok: true, count: 1, dropped: 0 });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+  });
+
   it('returns 401 for a non-existent API key', async () => {
     const res = await postBatch(app, 'fake_key_that_does_not_exist', {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
@@ -271,7 +314,7 @@ describe('API key auth', () => {
 });
 
 describe('Billing guard', () => {
-  it('returns 429 when monthly event limit is exceeded', async () => {
+  it('returns 200 with quota_limited when monthly event limit is exceeded', async () => {
     // Create a plan with a low limit
     const planId = randomUUID();
     await ctx.db.insert(plans).values({
@@ -300,7 +343,9 @@ describe('Billing guard', () => {
     const res = await postBatch(app, tp.apiKey, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
     });
-    expect(res.status).toBe(429);
+    // Returns 200 (not 429) to prevent SDK retries — PostHog pattern
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, quota_limited: true });
   });
 
   it('allows request when under the event limit', async () => {
@@ -353,5 +398,80 @@ describe('Billing guard', () => {
 
     const counter = await ctx.redis.get(counterKey);
     expect(parseInt(counter!, 10)).toBe(3);
+  });
+
+  it('returns 200 with quota_limited for beacon request when over limit', async () => {
+    const planId = randomUUID();
+    await ctx.db.insert(plans).values({
+      id: planId,
+      slug: `test-plan-${randomBytes(4).toString('hex')}`,
+      name: 'Beacon Limited Plan',
+      events_limit: 10,
+      features: { cohorts: false, lifecycle: false, stickiness: false, api_export: false, ai_insights: false },
+    } as any);
+
+    const tp = await createTestProject(ctx.db);
+    await ctx.db.update(projects).set({ plan_id: planId } as any).where(eq(projects.id, tp.projectId));
+
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.del(`apikey:${keyHash}`);
+    await ctx.redis.set(billingCounterKey(tp.projectId), '100');
+
+    // Beacon requests with quota exceeded still return 204
+    const res = await postBatchBeacon(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(204);
+  });
+});
+
+describe('Beacon support', () => {
+  it('returns 204 No Content for ?beacon=1 requests', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await postBatchBeacon(app, testProject.apiKey, {
+      events: [
+        { event: 'pageleave', distinct_id: 'beacon-user', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(204);
+    expect(res.body).toBe('');
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+  });
+});
+
+describe('Gzip auto-detect', () => {
+  it('decompresses gzip body without Content-Encoding header', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await postBatchGzipNoHeader(app, testProject.apiKey, {
+      events: [
+        { event: 'auto_gzip_event', distinct_id: 'auto-gzip-user', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ ok: true, count: 1, dropped: 0 });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+  });
+});
+
+describe('UUIDv7 event IDs', () => {
+  it('generates UUIDv7 event_id for ingested events', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    await postBatch(app, testProject.apiKey, {
+      events: [{ event: 'uuid_test', distinct_id: 'uuid-user', timestamp: new Date().toISOString() }],
+    });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    // UUIDv7: version nibble is '7', variant nibble is 8/9/a/b
+    expect(fields.event_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 });

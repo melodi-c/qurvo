@@ -3,7 +3,6 @@ import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
-import { ProjectsService } from '../projects/projects.service';
 import { withAnalyticsCache } from '../analytics/with-analytics-cache';
 import {
   queryOverview,
@@ -26,7 +25,6 @@ export class WebAnalyticsService {
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(REDIS) private readonly redis: Redis,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async getOverview(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<OverviewResult> {
@@ -55,7 +53,6 @@ export class WebAnalyticsService {
     prefix: string,
     queryFn: (ch: ClickHouseClient, p: WebAnalyticsQueryParams) => Promise<T>,
   ): Promise<T> {
-    await this.projectsService.getMembership(userId, params.project_id);
     const { force, ...queryParams } = params;
     return (await withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger })).data;
   }

@@ -13,6 +13,9 @@ export const API_KEY_CACHE_TTL_SECONDS = 60;
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 export const BILLING_EVENTS_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
 
+// Gzip bomb protection: max allowed size after decompression (matches Fastify bodyLimit)
+export const MAX_DECOMPRESSED_BYTES = 5 * 1024 * 1024; // 5 MB
+
 export function billingCounterKey(projectId: string, now = new Date()): string {
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   return `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;
