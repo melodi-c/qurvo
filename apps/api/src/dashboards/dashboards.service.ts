@@ -134,8 +134,7 @@ export class DashboardsService {
   ) {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
-    await this.assertDashboardExists(projectId, dashboardId);
-    await this.assertWidgetExists(dashboardId, widgetId);
+    await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
 
     const values: Record<string, unknown> = { updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) };
 
@@ -151,8 +150,7 @@ export class DashboardsService {
   async removeWidget(userId: string, projectId: string, dashboardId: string, widgetId: string) {
     const membership = await this.projectsService.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
-    await this.assertDashboardExists(projectId, dashboardId);
-    await this.assertWidgetExists(dashboardId, widgetId);
+    await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
 
     await this.db.delete(widgets).where(eq(widgets.id, widgetId));
     this.logger.log({ widgetId, dashboardId, projectId, userId }, 'Widget removed');
@@ -168,11 +166,16 @@ export class DashboardsService {
     if (!row) throw new DashboardNotFoundException();
   }
 
-  private async assertWidgetExists(dashboardId: string, widgetId: string) {
+  private async assertDashboardAndWidgetExist(projectId: string, dashboardId: string, widgetId: string) {
     const [row] = await this.db
-      .select({ id: widgets.id })
+      .select({ widget_id: widgets.id })
       .from(widgets)
-      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId)))
+      .innerJoin(dashboards, eq(widgets.dashboard_id, dashboards.id))
+      .where(and(
+        eq(dashboards.id, dashboardId),
+        eq(dashboards.project_id, projectId),
+        eq(widgets.id, widgetId),
+      ))
       .limit(1);
     if (!row) throw new WidgetNotFoundException();
   }

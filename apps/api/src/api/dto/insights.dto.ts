@@ -1,5 +1,14 @@
 import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+
+// ── Query DTOs ──────────────────────────────────────────────────────────────
+
+export class ListInsightsQueryDto {
+  @ApiPropertyOptional({ enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness', 'paths'] })
+  @IsOptional()
+  @IsIn(['trend', 'funnel', 'retention', 'lifecycle', 'stickiness', 'paths'])
+  type?: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness' | 'paths';
+}
 import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto, PathsWidgetConfigDto } from './dashboards.dto';
 
 type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto | LifecycleWidgetConfigDto | StickinessWidgetConfigDto | PathsWidgetConfigDto;

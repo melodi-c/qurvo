@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, HttpStatus } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { AuthModule } from '../auth/auth.module';
 import { ProjectsModule } from '../projects/projects.module';
@@ -40,17 +40,45 @@ import { EventDefinitionsController } from './controllers/event-definitions.cont
 import { PropertyDefinitionsController } from './controllers/property-definitions.controller';
 import { WebAnalyticsController } from './controllers/web-analytics.controller';
 import { BillingController } from './controllers/billing.controller';
-import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
-import { UnauthorizedFilter } from './filters/unauthorized.filter';
-import { ForbiddenFilter } from './filters/forbidden.filter';
-import { NotFoundFilter } from './filters/not-found.filter';
-import { ConflictFilter } from './filters/conflict.filter';
-import { AiNotConfiguredFilter } from './filters/ai-not-configured.filter';
-import { VerificationFilter } from './filters/verification.filter';
-import { WrongPasswordFilter } from './filters/wrong-password.filter';
+import { createHttpFilter } from './filters/create-http-filter';
+import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
+import { AppNotFoundException } from '../exceptions/app-not-found.exception';
+import { AppConflictException } from '../exceptions/app-conflict.exception';
+import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
+import { AppUnauthorizedException } from '../exceptions/app-unauthorized.exception';
+import { TooManyRequestsException } from '../auth/exceptions/too-many-requests.exception';
+import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
+import { WrongPasswordException } from '../auth/exceptions/wrong-password.exception';
+import { InvalidVerificationCodeException } from '../verification/exceptions/invalid-verification-code.exception';
+
+const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundException);
+const ConflictFilter = createHttpFilter(HttpStatus.CONFLICT, AppConflictException);
+const ForbiddenFilter = createHttpFilter(HttpStatus.FORBIDDEN, AppForbiddenException);
+const UnauthorizedFilter = createHttpFilter(HttpStatus.UNAUTHORIZED, AppUnauthorizedException);
+const TooManyRequestsFilter = createHttpFilter(HttpStatus.TOO_MANY_REQUESTS, TooManyRequestsException);
+const AiNotConfiguredFilter = createHttpFilter(HttpStatus.NOT_IMPLEMENTED, AiNotConfiguredException);
+const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, WrongPasswordException, InvalidVerificationCodeException);
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, AnalyticsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, SavedInsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, AiModule, VerificationModule, DefinitionsModule, WebAnalyticsModule, BillingModule],
+  imports: [
+    AuthModule,
+    ProjectsModule,
+    ApiKeysModule,
+    AnalyticsModule,
+    EventsModule,
+    DashboardsModule,
+    PersonsModule,
+    CohortsModule,
+    SavedInsightsModule,
+    MembersModule,
+    MarketingChannelsModule,
+    AdSpendModule,
+    AiModule,
+    VerificationModule,
+    DefinitionsModule,
+    WebAnalyticsModule,
+    BillingModule,
+  ],
   controllers: [
     AuthController,
     ProjectsController,
@@ -79,14 +107,14 @@ import { WrongPasswordFilter } from './filters/wrong-password.filter';
     BillingController,
   ],
   providers: [
-    { provide: APP_FILTER, useClass: TooManyRequestsFilter },
-    { provide: APP_FILTER, useClass: UnauthorizedFilter },
-    { provide: APP_FILTER, useClass: ForbiddenFilter },
     { provide: APP_FILTER, useClass: NotFoundFilter },
     { provide: APP_FILTER, useClass: ConflictFilter },
+    { provide: APP_FILTER, useClass: ForbiddenFilter },
+    { provide: APP_FILTER, useClass: UnauthorizedFilter },
+    { provide: APP_FILTER, useClass: TooManyRequestsFilter },
     { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
-    { provide: APP_FILTER, useClass: VerificationFilter },
-    { provide: APP_FILTER, useClass: WrongPasswordFilter },
+    { provide: APP_FILTER, useClass: UnprocessableEntityFilter },
+    { provide: APP_FILTER, useClass: VerificationCooldownFilter },
   ],
 })
 export class ApiModule {}

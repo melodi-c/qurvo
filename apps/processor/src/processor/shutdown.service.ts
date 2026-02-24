@@ -23,8 +23,7 @@ export class ShutdownService implements OnApplicationShutdown {
     await this.eventConsumerService.shutdown();
     this.dlqService.stop();
     this.cohortMembershipService.stop();
-    this.flushService.stopTimer();
-    await this.flushService.flush();
+    await this.flushService.shutdown();
     await this.ch.close();
     await this.redis.quit();
   }

@@ -7,7 +7,7 @@ import type { Database } from '@qurvo/db';
 import { hashToken } from '../utils/hash';
 import { ProjectsService } from '../projects/projects.service';
 import { ApiKeyNotFoundException } from './exceptions/api-key-not-found.exception';
-import { ApiKeyPermissionException } from './exceptions/insufficient-permissions.exception';
+import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 
 @Injectable()
 export class ApiKeysService {
@@ -18,7 +18,7 @@ export class ApiKeysService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async list(projectId: string, userId: string) {
+  async list(userId: string, projectId: string) {
     await this.projectsService.getMembership(userId, projectId);
     return this.db
       .select({
@@ -35,9 +35,9 @@ export class ApiKeysService {
       .where(and(eq(apiKeys.project_id, projectId), isNull(apiKeys.revoked_at)));
   }
 
-  async create(projectId: string, userId: string, input: { name: string; scopes?: string[]; expires_at?: string }) {
+  async create(userId: string, projectId: string, input: { name: string; scopes?: string[]; expires_at?: string }) {
     const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new ApiKeyPermissionException();
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
 
     const rawKey = crypto.randomBytes(24).toString('base64url');
     const key_prefix = rawKey.slice(0, 16);
@@ -63,9 +63,9 @@ export class ApiKeysService {
     };
   }
 
-  async revoke(keyId: string, projectId: string, userId: string) {
+  async revoke(userId: string, projectId: string, keyId: string) {
     const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new ApiKeyPermissionException();
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
 
     const result = await this.db
       .select()

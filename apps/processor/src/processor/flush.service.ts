@@ -41,9 +41,10 @@ export class FlushService implements OnApplicationBootstrap {
     this.scheduleFlush();
   }
 
-  stopTimer() {
+  async shutdown() {
     this.stopped = true;
     if (this.flushTimer) clearTimeout(this.flushTimer);
+    await this.flush();
   }
 
   addToBuffer(events: BufferedEvent[]) {

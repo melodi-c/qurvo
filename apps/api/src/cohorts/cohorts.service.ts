@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -207,9 +207,7 @@ export class CohortsService {
     projectId: string,
     cohortIds: string[],
   ): Promise<CohortFilterInput[]> {
-    const rows = await Promise.all(
-      cohortIds.map((id) => this.getById(userId, projectId, id)),
-    );
+    const rows = await this.getByIds(userId, projectId, cohortIds);
     return rows.map((c) => ({
       cohort_id: c.id,
       definition: c.definition,
@@ -223,9 +221,7 @@ export class CohortsService {
     projectId: string,
     cohortIds: string[],
   ): Promise<CohortBreakdownEntry[]> {
-    const rows = await Promise.all(
-      cohortIds.map((id) => this.getById(userId, projectId, id)),
-    );
+    const rows = await this.getByIds(userId, projectId, cohortIds);
     return rows.map((c) => ({
       cohort_id: c.id,
       name: c.name,
@@ -236,6 +232,23 @@ export class CohortsService {
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────
+
+  private async getByIds(userId: string, projectId: string, cohortIds: string[]) {
+    await this.projectsService.getMembership(userId, projectId);
+
+    const rows = await this.db
+      .select()
+      .from(cohorts)
+      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, cohortIds)));
+
+    if (rows.length !== cohortIds.length) {
+      const found = new Set(rows.map((r) => r.id));
+      const missing = cohortIds.find((id) => !found.has(id));
+      throw new CohortNotFoundException(`Cohort ${missing} not found`);
+    }
+
+    return rows;
+  }
 
   private async checkCircularDependency(
     cohortId: string,
