@@ -114,6 +114,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | Formatting | `formatting.ts` | `formatBucket(bucket, granularity, compact?)`, `formatSeconds(s)`, `formatRelativeTime(iso)`, `eventBadgeVariant(eventName)`, `formatGranularity(count, granularity)` | Shared formatting for chart axes, durations, relative timestamps, event badge variants, and locale-aware granularity pluralization (day/week/month). Import instead of defining local formatters. `compact` mode produces shorter labels for dashboard widgets |
 | Filter utils | `filter-utils.ts` | `isValidFilter(f: StepFilter)` | Validates a StepFilter (non-empty property, non-empty value unless operator is `is_set`/`is_not_set`). Use in query functions to strip incomplete filters before API calls |
 | Auth fetch | `auth-fetch.ts` | `getAuthHeaders()`, `authFetch(path, init?)` | Auth-aware fetch helpers for calls that bypass the generated API client (e.g. SSE streaming). Use instead of manually reading `localStorage` token |
+| SSE stream | `features/ai/lib/sse-stream.ts` | `consumeSseStream(response, callbacks)`, `SseChunk`, `SseStreamCallbacks` | Pure (non-React) SSE stream parser. Reads Response body, parses SSE lines, dispatches typed chunks via callbacks. Used by `useAiChat` hook |
 
 ## Dashboard Widget Components
 
@@ -122,6 +123,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `WidgetShell` | `features/dashboard/components/widgets/WidgetShell.tsx` | Wrapper for all dashboard widgets. Handles loading/error/empty states, metric header with refresh button, cache info. Pass type-specific chart as children |
 | `WidgetSkeleton` | `features/dashboard/components/widgets/WidgetSkeleton.tsx` | Loading skeleton, variant: chart/table/flow |
 | `WidgetTransition` | `features/dashboard/components/widgets/WidgetTransition.tsx` | Fade-in transition wrapper with opacity during refetch |
+| `TargetEventQueryPanel` | `features/dashboard/components/widgets/shared/TargetEventQueryPanel.tsx` | Shared query panel for Retention, Lifecycle, Stickiness widgets. Provides DateRangeSection, event selection, granularity select, CohortFilterSection. Accepts `eventIcon`, `extraDisplayContent?`, `granularityAdjacentContent?` for widget-specific additions. Config must extend `BaseTargetEventConfig` (date_from, date_to, target_event, granularity, cohort_ids) |
 
 ## Cohort Condition Row Components
 
@@ -214,6 +216,8 @@ QueryPanelShell
   BreakdownSection (breakdown property input)
 ```
 All query panel sections are self-contained components in `components/ui/`. Widget-specific sections stay in the widget's own directory.
+
+**Retention, Lifecycle, Stickiness** share the same query panel structure via `TargetEventQueryPanel` from `features/dashboard/components/widgets/shared/`. Each widget only passes its icon and optional extra sections (e.g. retention type toggle, periods input).
 
 ### Project Context
 Current project ID is always passed via `?project=<uuid>` in URL search params. Read with `useProjectId()` hook from `@/hooks/use-project-id`. Layout preserves `project` param on navigation via `navLink()` helper.

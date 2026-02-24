@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, UnauthorizedException, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { apiKeys, projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
@@ -10,6 +10,7 @@ interface CachedKeyInfo {
   project_id: string;
   key_id: string;
   expires_at: string | null;
+  revoked_at: string | null;
   events_limit: number | null;
 }
 
@@ -46,11 +47,15 @@ export class ApiKeyGuard implements CanActivate {
     if (cached) {
       this.logger.debug('API key cache hit');
       const info: CachedKeyInfo = JSON.parse(cached);
+      if (info.revoked_at) {
+        throw new UnauthorizedException('API key revoked');
+      }
       if (info.expires_at && new Date(info.expires_at) < new Date()) {
         throw new UnauthorizedException('API key expired');
       }
       request.projectId = info.project_id;
       request.eventsLimit = info.events_limit;
+      request.quotaLimited = false;
       return true;
     }
 
@@ -61,12 +66,13 @@ export class ApiKeyGuard implements CanActivate {
         key_id: apiKeys.id,
         project_id: apiKeys.project_id,
         expires_at: apiKeys.expires_at,
+        revoked_at: apiKeys.revoked_at,
         events_limit: plans.events_limit,
       })
       .from(apiKeys)
       .innerJoin(projects, eq(apiKeys.project_id, projects.id))
       .leftJoin(plans, eq(projects.plan_id, plans.id))
-      .where(and(eq(apiKeys.key_hash, keyHash), isNull(apiKeys.revoked_at)))
+      .where(eq(apiKeys.key_hash, keyHash))
       .limit(1);
 
     if (result.length === 0) {
@@ -75,6 +81,11 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     const keyInfo = result[0];
+
+    if (keyInfo.revoked_at) {
+      this.logger.warn({ keyId: keyInfo.key_id }, 'Revoked API key');
+      throw new UnauthorizedException('API key revoked');
+    }
 
     if (keyInfo.expires_at && keyInfo.expires_at < new Date()) {
       this.logger.warn({ keyId: keyInfo.key_id }, 'Expired API key');
@@ -85,6 +96,7 @@ export class ApiKeyGuard implements CanActivate {
       project_id: keyInfo.project_id,
       key_id: keyInfo.key_id,
       expires_at: keyInfo.expires_at?.toISOString() ?? null,
+      revoked_at: keyInfo.revoked_at?.toISOString() ?? null,
       events_limit: keyInfo.events_limit ?? null,
     };
     this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS)
@@ -98,6 +110,7 @@ export class ApiKeyGuard implements CanActivate {
 
     request.projectId = keyInfo.project_id;
     request.eventsLimit = keyInfo.events_limit;
+    request.quotaLimited = false;
     return true;
   }
 }

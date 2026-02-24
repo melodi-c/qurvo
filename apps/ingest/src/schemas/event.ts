@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+// Garbage distinct_ids that SDKs or broken clients may send.
+// Mirrors the blocklist in apps/processor for defense-in-depth.
+const ILLEGAL_DISTINCT_IDS = new Set([
+  'anonymous', 'null', 'undefined', 'none', 'nil',
+  '[object object]', 'nan', 'true', 'false', '0',
+  'guest',
+]);
+
+const DistinctIdSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((val) => !ILLEGAL_DISTINCT_IDS.has(val.trim().toLowerCase()), {
+    message: 'distinct_id contains a reserved or invalid value',
+  });
+
 export const EventPropertiesSchema = z
   .record(z.string().max(200), z.unknown())
   .refine((obj) => Object.keys(obj).length <= 200, { message: 'properties must not exceed 200 keys' })
@@ -26,7 +42,7 @@ export const EventContextSchema = z.object({
 
 export const TrackEventSchema = z.object({
   event: z.string().min(1).max(255),
-  distinct_id: z.string().min(1).max(255),
+  distinct_id: DistinctIdSchema,
   anonymous_id: z.string().max(255).optional(),
   properties: EventPropertiesSchema,
   user_properties: EventPropertiesSchema,

@@ -285,9 +285,33 @@ describe('API key auth', () => {
       .set({ revoked_at: new Date() } as any)
       .where(eq(apiKeys.id, tp.apiKeyId));
 
-    // Clear Redis cache
+    // Clear Redis cache so the guard hits the DB
     const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
     await ctx.redis.del(`apikey:${keyHash}`);
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 for a revoked key found in Redis cache', async () => {
+    const tp = await createTestProject(ctx.db);
+
+    // Seed the Redis cache directly with a revoked entry
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.set(
+      `apikey:${keyHash}`,
+      JSON.stringify({
+        project_id: tp.projectId,
+        key_id: tp.apiKeyId,
+        expires_at: null,
+        revoked_at: new Date().toISOString(),
+        events_limit: null,
+      }),
+      'EX',
+      60,
+    );
 
     const res = await postBatch(app, tp.apiKey, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
@@ -306,6 +330,7 @@ describe('API key auth', () => {
         project_id: tp.projectId,
         key_id: tp.apiKeyId,
         expires_at: '2020-01-01T00:00:00.000Z',
+        revoked_at: null,
         events_limit: null,
       }),
       'EX',
@@ -462,6 +487,60 @@ describe('Gzip auto-detect', () => {
     expect(res.body).toEqual({ ok: true, count: 1, dropped: 0 });
 
     await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+  });
+});
+
+describe('Illegal distinct_id blocklist', () => {
+  it('drops events with illegal distinct_id values', async () => {
+    const res = await postBatch(app, testProject.apiKey, {
+      events: [
+        { event: 'test', distinct_id: 'null', timestamp: new Date().toISOString() },
+        { event: 'test', distinct_id: 'undefined', timestamp: new Date().toISOString() },
+        { event: 'test', distinct_id: '[object Object]', timestamp: new Date().toISOString() },
+        { event: 'test', distinct_id: 'valid-user-123', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ ok: true, count: 1, dropped: 3 });
+  });
+
+  it('returns 400 when all events have illegal distinct_id', async () => {
+    const res = await postBatch(app, testProject.apiKey, {
+      events: [
+        { event: 'test', distinct_id: 'anonymous', timestamp: new Date().toISOString() },
+        { event: 'test', distinct_id: 'NaN', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.dropped).toBe(2);
+  });
+
+  it('rejects import events with illegal distinct_id', async () => {
+    const res = await postImport(app, testProject.apiKey, {
+      events: [
+        { event: 'test', distinct_id: 'guest', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('Schema version', () => {
+  it('includes schema_version in stream payload', async () => {
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    await postBatch(app, testProject.apiKey, {
+      events: [{ event: 'version_test', distinct_id: 'version-user', timestamp: new Date().toISOString() }],
+    });
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    expect(fields.schema_version).toBe('1');
   });
 });
 

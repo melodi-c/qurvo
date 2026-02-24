@@ -40,19 +40,19 @@ src/
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `CohortComputationService` | CH/PG operations: compute membership, record errors/history, GC orphans | — |
-| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff, delegates to computation. `runCycle()` is `@internal` public for tests | 10min interval, 30s initial delay, distributed lock (300s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
+| `CohortComputationService` | CH operations (`computeMembership`), PG tracking (`markComputationSuccess`, `recordError`), history, GC orphans. PG update is separate so a transient PG failure after successful CH write doesn't trigger error backoff | — |
+| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff (`filterByBackoff`), GC scheduling (`runGcIfDue`), delegates to computation. `runCycle()` is `@internal` public for tests | 10min interval, 30s initial delay, distributed lock (660s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
 | `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + Redis with error logging |
 
 ## Key Patterns
 
 ### Cohort Membership Cycle
 
-1. Acquire distributed lock (`cohort_membership:lock`, TTL 300s) — only one instance runs at a time
+1. Acquire distributed lock (`cohort_membership:lock`, TTL 660s) — only one instance runs at a time
 2. Fetch stale dynamic cohorts from PostgreSQL (`membership_computed_at < NOW() - COHORT_STALE_THRESHOLD_MINUTES minutes`)
 3. Filter by error backoff (cohorts with errors skip cycles exponentially)
 4. Topological sort (cohorts referencing other cohorts must be computed in dependency order); cyclic cohorts get error recorded and are skipped
-5. For each cohort: `buildCohortSubquery()` → INSERT INTO `cohort_members` → DELETE old versions
+5. For each cohort: `buildCohortSubquery()` → INSERT INTO `cohort_members` → DELETE old versions → `markComputationSuccess` (PG update, caught separately — failure logged as warn, no error backoff)
 6. Record size history in `cohort_membership_history`
 7. Garbage-collect orphaned memberships (every 6 cycles ≈ 1 hour, skips first cycle after startup, skips if no dynamic cohorts found in PG)
 

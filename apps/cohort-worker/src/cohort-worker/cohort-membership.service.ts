@@ -23,7 +23,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private cycleInFlight: Promise<void> | null = null;
-  private gcCycleCounter = 1;
+  private gcCycleCounter = 0;
 
   constructor(
     @Inject(DISTRIBUTED_LOCK) private readonly lock: DistributedLock,
@@ -76,6 +76,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     let computed = 0;
     let staleCount = 0;
     let eligibleCount = 0;
+    let cyclicCount = 0;
 
     try {
       // ── 1. Fetch only stale dynamic cohorts ────────────────────────────
@@ -103,13 +104,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       if (staleCohorts.length === 0) return;
 
       // ── 2. Error backoff filter ────────────────────────────────────────
-      const now = Date.now();
-      const eligible = staleCohorts.filter((c) => {
-        if (c.errors_calculating === 0 || !c.last_error_at) return true;
-        const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
-        const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
-        return now >= c.last_error_at.getTime() + backoffMs;
-      });
+      const eligible = this.filterByBackoff(staleCohorts);
 
       eligibleCount = eligible.length;
 
@@ -119,6 +114,8 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       const { sorted, cyclic } = topologicalSortCohorts(
         eligible.map((c) => ({ id: c.id, definition: c.definition })),
       );
+
+      cyclicCount = cyclic.length;
 
       if (cyclic.length > 0) {
         this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
@@ -131,12 +128,13 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
       // ── 4. Compute each cohort ─────────────────────────────────────────
       const version = Date.now();
-      const eligibleMap = new Map(eligible.map((c) => [c.id, c]));
+      const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
 
       for (const { id, definition } of sorted) {
-        const cohort = eligibleMap.get(id)!;
+        const cohort = cohortById.get(id)!;
         try {
           await this.computation.computeMembership(id, cohort.project_id, definition, version);
+          await this.computation.markComputationSuccess(id, version);
           await this.computation.recordSizeHistory(id, cohort.project_id);
           computed++;
         } catch (err) {
@@ -152,20 +150,35 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         }
       }
     } finally {
-      // ── 5. GC orphaned memberships (every N cycles) ────────────────────
-      if (this.gcCycleCounter % COHORT_GC_EVERY_N_CYCLES === 0) {
-        await this.computation.gcOrphanedMemberships().catch((err) =>
-          this.logger.error({ err }, 'Orphan GC failed'),
-        );
-      }
+      // ── 5. GC orphaned memberships (every N cycles, skips the first) ──
+      await this.runGcIfDue();
       this.gcCycleCounter++;
 
       this.logger.info(
-        { computed, stale: staleCount, eligible: eligibleCount, durationMs: Date.now() - startMs },
+        { computed, stale: staleCount, eligible: eligibleCount, cyclic: cyclicCount, durationMs: Date.now() - startMs },
         'Cohort membership cycle completed',
       );
 
       await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
     }
+  }
+
+  private filterByBackoff<T extends { errors_calculating: number; last_error_at: Date | null }>(
+    staleCohorts: T[],
+  ): T[] {
+    const now = Date.now();
+    return staleCohorts.filter((c) => {
+      if (c.errors_calculating === 0 || !c.last_error_at) return true;
+      const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
+      const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
+      return now >= c.last_error_at.getTime() + backoffMs;
+    });
+  }
+
+  private async runGcIfDue(): Promise<void> {
+    if (this.gcCycleCounter === 0 || this.gcCycleCounter % COHORT_GC_EVERY_N_CYCLES !== 0) return;
+    await this.computation
+      .gcOrphanedMemberships()
+      .catch((err) => this.logger.error({ err }, 'Orphan GC failed'));
   }
 }

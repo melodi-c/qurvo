@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { RetentionResult } from '@/api/generated/Api';
-import { CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
+import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './RetentionChart.translations';
 
@@ -62,7 +62,7 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
         <Line
           type="monotone"
           dataKey="retention"
-          stroke="#22c55e"
+          stroke={CHART_COLORS_HEX[1]}
           strokeWidth={2}
           dot={!compact}
           activeDot={compact ? false : { r: 4 }}

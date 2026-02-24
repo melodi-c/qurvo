@@ -7,14 +7,22 @@ export const DRIZZLE = Symbol('DRIZZLE');
 export const REDIS_STREAM_EVENTS = 'events:incoming';
 export const REDIS_STREAM_MAXLEN = 1_000_000;
 
+// Stream payload schema version — bump when payload shape changes.
+// The processor can use this to handle backward-compatible migrations
+// for in-flight events during rolling deploys.
+export const STREAM_SCHEMA_VERSION = '1';
+
 export const API_KEY_HEADER = 'x-api-key';
-export const API_KEY_CACHE_TTL_SECONDS = 60;
+export const API_KEY_CACHE_TTL_SECONDS = 300;
 
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 export const BILLING_EVENTS_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
 
 // Gzip bomb protection: max allowed size after decompression (matches Fastify bodyLimit)
 export const MAX_DECOMPRESSED_BYTES = 5 * 1024 * 1024; // 5 MB
+
+// Body read timeout: abort stalled uploads where clients stop sending data mid-stream
+export const BODY_READ_TIMEOUT_MS = 30_000; // 30s
 
 // Per-project rate limiting (sliding window via Redis buckets)
 export const RATE_LIMIT_KEY_PREFIX = 'ratelimit';

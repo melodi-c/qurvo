@@ -22,12 +22,18 @@ import { GeoService } from './geo.service';
 import { parseRedisFields } from './redis-utils';
 import { safeScreenDimension, groupByKey } from './event-utils';
 
+interface ParsedMessage {
+  id: string;
+  fields: Record<string, string>;
+}
+
 const REQUIRED_FIELDS = ['project_id', 'event_name', 'distinct_id'] as const;
 
-// Garbage distinct_ids that SDKs or broken clients may send — silently drop these events
+// Garbage distinct_ids that SDKs or broken clients may send — silently drop these events.
+// All values MUST be lowercase — the check uses .toLowerCase() on the input.
 const ILLEGAL_DISTINCT_IDS = new Set([
   'anonymous', 'null', 'undefined', 'none', 'nil',
-  '[object Object]', 'NaN', 'true', 'false', '0',
+  '[object object]', 'nan', 'true', 'false', '0',
 ]);
 
 const MAX_CONSECUTIVE_ERRORS = 100;
@@ -163,15 +169,48 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
   }
 
+  // ── Pipeline Steps ─────────────────────────────────────────────────────────
+
   private async processMessages(messages: [string, string[]][]): Promise<void> {
-    const parsed = messages.map(([id, fields]) => ({
+    const parsed = this.parseMessages(messages);
+    const { valid, invalidIds } = this.validateMessages(parsed);
+
+    if (invalidIds.length > 0) {
+      await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
+    }
+    if (valid.length === 0) return;
+
+    const personCache = await this.prefetchPersons(valid);
+    const { buffered, failedIds } = await this.resolveAndBuildEvents(valid, personCache);
+
+    if (failedIds.length > 0) {
+      this.logger.warn(
+        { failedCount: failedIds.length, totalCount: valid.length },
+        'Some events failed processing — left in PEL for XAUTOCLAIM re-delivery',
+      );
+    }
+
+    if (buffered.length > 0) {
+      this.flushService.addToBuffer(buffered);
+      if (this.flushService.isBufferFull()) {
+        await this.flushService.flush();
+      }
+    }
+  }
+
+  /** Step 1: Parse raw Redis messages into structured objects. */
+  private parseMessages(messages: [string, string[]][]): ParsedMessage[] {
+    return messages.map(([id, fields]) => ({
       id,
       fields: parseRedisFields(fields),
     }));
+  }
 
-    // Validate: drop events missing required fields or with garbage distinct_ids
-    const valid: typeof parsed = [];
+  /** Step 2: Validate and split into valid events + invalid IDs for XACK. */
+  private validateMessages(parsed: ParsedMessage[]): { valid: ParsedMessage[]; invalidIds: string[] } {
+    const valid: ParsedMessage[] = [];
     const invalidIds: string[] = [];
+
     for (const item of parsed) {
       const missing = REQUIRED_FIELDS.filter((f) => !item.fields[f]);
       if (missing.length > 0) {
@@ -185,20 +224,18 @@ export class EventConsumerService implements OnApplicationBootstrap {
       }
     }
 
-    // XACK invalid messages so they don't get stuck in PEL
-    if (invalidIds.length > 0) {
-      await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
-    }
-    if (valid.length === 0) return;
+    return { valid, invalidIds };
+  }
 
-    // Batch prefetch person IDs (single MGET instead of per-event Redis calls)
+  /** Step 3: Collect unique person keys and batch-prefetch from Redis (single MGET). */
+  private async prefetchPersons(valid: ParsedMessage[]): Promise<Map<string, string>> {
     const uniqueKeys = new Map<string, { projectId: string; distinctId: string }>();
+
     for (const item of valid) {
       const key = `${item.fields.project_id}:${item.fields.distinct_id}`;
       if (!uniqueKeys.has(key)) {
         uniqueKeys.set(key, { projectId: item.fields.project_id, distinctId: item.fields.distinct_id });
       }
-      // Also prefetch anonymous_id keys for $identify events
       if (item.fields.event_name === '$identify' && item.fields.anonymous_id) {
         const anonKey = `${item.fields.project_id}:${item.fields.anonymous_id}`;
         if (!uniqueKeys.has(anonKey)) {
@@ -206,15 +243,27 @@ export class EventConsumerService implements OnApplicationBootstrap {
         }
       }
     }
-    const personCache = await this.personResolver.prefetchPersonIds([...uniqueKeys.values()]);
 
-    // Group by project+distinctId: concurrent between users, sequential within
+    return this.personResolver.prefetchPersonIds([...uniqueKeys.values()]);
+  }
+
+  /**
+   * Step 4: Resolve persons and build Event DTOs.
+   * Concurrent across distinct IDs, serial within.
+   * Uses allSettled so one failing group doesn't block others —
+   * failed groups' messages stay in PEL for XAUTOCLAIM re-delivery.
+   */
+  private async resolveAndBuildEvents(
+    valid: ParsedMessage[],
+    personCache: Map<string, string>,
+  ): Promise<{ buffered: { messageId: string; event: Event }[]; failedIds: string[] }> {
     const groups = groupByKey(valid, (item) =>
       `${item.fields.project_id}:${item.fields.distinct_id}`,
     );
 
-    const groupResults = await Promise.all(
-      [...groups.values()].map(async (group) => {
+    const groupEntries = [...groups.values()];
+    const settled = await Promise.allSettled(
+      groupEntries.map(async (group) => {
         const results: { messageId: string; event: Event }[] = [];
         for (const item of group) {
           results.push({
@@ -226,10 +275,24 @@ export class EventConsumerService implements OnApplicationBootstrap {
       }),
     );
 
-    this.flushService.addToBuffer(groupResults.flat());
-    if (this.flushService.isBufferFull()) {
-      await this.flushService.flush();
+    const buffered: { messageId: string; event: Event }[] = [];
+    const failedIds: string[] = [];
+
+    for (let i = 0; i < settled.length; i++) {
+      const result = settled[i];
+      if (result.status === 'fulfilled') {
+        buffered.push(...result.value);
+      } else {
+        const group = groupEntries[i];
+        failedIds.push(...group.map((item) => item.id));
+        this.logger.error(
+          { err: result.reason, groupSize: group.length, distinctId: group[0].fields.distinct_id },
+          'Group processing failed — messages stay in PEL for re-delivery',
+        );
+      }
     }
+
+    return { buffered, failedIds };
   }
 
   private async buildEvent(data: Record<string, string>, personCache: Map<string, string>): Promise<Event> {
