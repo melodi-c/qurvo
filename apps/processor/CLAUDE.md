@@ -32,6 +32,7 @@ src/
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
 │   ├── dlq.service.ts                   # Dead letter queue replay
+│   ├── event-utils.ts                   # safeScreenDimension() — shared screen dimension sanitizer
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
 │   ├── shutdown.service.ts              # Graceful shutdown orchestrator with error isolation
@@ -106,9 +107,14 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 `ShutdownService` implements `OnApplicationShutdown` with error isolation:
 1. Stop consumer loop (+ heartbeat) — errors caught, logged, don't block next steps
 2. Stop DLQ timer
-3. `FlushService.shutdown()` — stop timer + final flush — errors caught separately
-4. `PersonBatchStore.flush()` — explicit final flush for pending persons/distinct_ids — errors caught separately
-5. Close Redis/ClickHouse connections — errors swallowed
+3. `FlushService.shutdown()` — stop timer + final flush (includes `personBatchStore.flush()` internally) — errors caught separately
+4. Close Redis/ClickHouse connections — errors swallowed
+
+### Architectural Decisions (do NOT revisit)
+- **`buildEvent()` stays in EventConsumerService** — was extracted into `EventEnrichmentService` (d4ebb54) then inlined back (41c923e) because it was a thin coordinator with no independent logic. Keep it inline.
+- **`DefinitionSyncService` stays as one service** — 3 table upserts + 3 caches + invalidation form one cohesive workflow. Splitting by table would only add complexity.
+- **`PersonBatchStore` combines persons + distinct_ids + merges** — all part of "manage person data in PG". Single responsibility.
+- **DLQ stays in processor, not a separate worker** — 100 events every 5 min, not worth a separate app.
 
 ### Shared Utilities
 `redis-utils.ts` contains `parseRedisFields()` — converts flat Redis `[key, value, key, value, ...]` arrays into `Record<string, string>`. Used by both `EventConsumerService` and `DlqService`. Do NOT inline this back into individual services or duplicate it — keep it in `redis-utils.ts`.
