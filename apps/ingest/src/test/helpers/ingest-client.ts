@@ -1,11 +1,15 @@
 import type { INestApplication } from '@nestjs/common';
 import { gzipSync } from 'node:zlib';
 
-export async function postTrack(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
+export function getBaseUrl(app: INestApplication): string {
   const server = app.getHttpServer();
   const address = server.address();
   const port = typeof address === 'object' ? address?.port : address;
-  const res = await fetch(`http://127.0.0.1:${port}/v1/track`, {
+  return `http://127.0.0.1:${port}`;
+}
+
+export async function postTrack(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
+  const res = await fetch(`${getBaseUrl(app)}/v1/track`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -17,10 +21,7 @@ export async function postTrack(app: INestApplication, apiKey: string, body: unk
 }
 
 export async function postBatch(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
-  const server = app.getHttpServer();
-  const address = server.address();
-  const port = typeof address === 'object' ? address?.port : address;
-  const res = await fetch(`http://127.0.0.1:${port}/v1/batch`, {
+  const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -29,13 +30,6 @@ export async function postBatch(app: INestApplication, apiKey: string, body: unk
     body: JSON.stringify(body),
   });
   return { status: res.status, body: await res.json() };
-}
-
-function getBaseUrl(app: INestApplication): string {
-  const server = app.getHttpServer();
-  const address = server.address();
-  const port = typeof address === 'object' ? address?.port : address;
-  return `http://127.0.0.1:${port}`;
 }
 
 export async function postBatchGzip(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {

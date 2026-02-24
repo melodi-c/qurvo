@@ -3,8 +3,8 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Logger } from 'nestjs-pino';
-import { createGunzip } from 'node:zlib';
 import { AppModule } from './app.module';
+import { addGzipPreParsing } from './hooks/gzip-preparsing';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -13,16 +13,7 @@ async function bootstrap() {
     { bufferLogs: true },
   );
 
-  const fastify = app.getHttpAdapter().getInstance();
-  fastify.addHook('preParsing', async (request: any, _reply: any, payload: any) => {
-    if (request.headers['content-encoding'] === 'gzip') {
-      delete request.headers['content-encoding'];
-      delete request.headers['content-length'];
-      request.headers['content-type'] = 'application/json';
-      return payload.pipe(createGunzip());
-    }
-    return payload;
-  });
+  addGzipPreParsing(app.getHttpAdapter().getInstance());
 
   app.useLogger(app.get(Logger));
   app.enableCors({ origin: '*' });
