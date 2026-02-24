@@ -118,6 +118,8 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`
 - `session-cache.ts` — `invalidateUserSessionCaches(db, redis, userId)` — shared between auth and verification modules
 - `hash.ts` — `hashToken()` for SHA-256 session token hashing
+- `build-conditional-update.ts` — `buildConditionalUpdate(input, fields)` — builds partial update objects from optional input fields
+- Session cache key prefix: use `SESSION_CACHE_KEY_PREFIX` from `constants.ts` — never hardcode `"session:"` prefix
 
 `src/api/dto/shared/` contains shared DTO utilities:
 - `base-analytics-query.dto.ts` — `BaseAnalyticsQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `cohort_ids?`, `widget_id?`, `force?`). All analytics query DTOs extend it.

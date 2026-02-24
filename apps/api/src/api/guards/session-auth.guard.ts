@@ -7,7 +7,7 @@ import { DRIZZLE } from '../../providers/drizzle.provider';
 import { REDIS } from '../../providers/redis.provider';
 import type { Database } from '@qurvo/db';
 import { hashToken } from '../../utils/hash';
-import { SESSION_CACHE_TTL_SECONDS } from '../../constants';
+import { SESSION_CACHE_TTL_SECONDS, SESSION_CACHE_KEY_PREFIX } from '../../constants';
 import { InvalidSessionException } from '../../auth/exceptions/invalid-session.exception';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
@@ -36,7 +36,7 @@ export class SessionAuthGuard implements CanActivate {
 
     const token = authHeader.slice(7);
     const tokenHash = hashToken(token);
-    const cacheKey = `session:${tokenHash}`;
+    const cacheKey = `${SESSION_CACHE_KEY_PREFIX}${tokenHash}`;
 
     const cached = await this.redis.get(cacheKey);
     if (cached) {

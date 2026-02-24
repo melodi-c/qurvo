@@ -82,6 +82,12 @@ export class StaticCohortMembersDto {
   person_ids: string[];
 }
 
+export class UploadCsvDto {
+  @IsString()
+  @IsNotEmpty()
+  csv_content: string;
+}
+
 // ── Response DTOs ────────────────────────────────────────────────────────────
 
 export class CohortDto {
