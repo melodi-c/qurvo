@@ -89,7 +89,6 @@ export class DlqService implements OnApplicationBootstrap {
           table: 'events',
           values: events,
           format: 'JSONEachRow',
-          clickhouse_settings: { date_time_input_format: 'best_effort' },
         }),
         'DLQ ClickHouse insert',
         this.logger,

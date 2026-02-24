@@ -6,7 +6,6 @@ import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
-import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
 import { PersonBatchStore } from './person-batch-store';
 
@@ -19,7 +18,6 @@ export class ShutdownService implements OnApplicationShutdown {
     private readonly eventConsumerService: EventConsumerService,
     private readonly flushService: FlushService,
     private readonly dlqService: DlqService,
-    private readonly cohortMembershipService: CohortMembershipService,
     private readonly personBatchStore: PersonBatchStore,
   ) {}
 
@@ -28,7 +26,6 @@ export class ShutdownService implements OnApplicationShutdown {
       this.logger.error({ err }, 'Consumer shutdown error'),
     );
     this.dlqService.stop();
-    this.cohortMembershipService.stop();
     await this.flushService.shutdown().catch((err) =>
       this.logger.error({ err }, 'Flush shutdown error'),
     );
