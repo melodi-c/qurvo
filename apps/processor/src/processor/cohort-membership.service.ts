@@ -157,9 +157,9 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     const allDynamicIds = allDynamic.map((c) => c.id);
 
     if (allDynamicIds.length > 0) {
-      const idList = allDynamicIds.map((id) => `'${id}'`).join(',');
       await this.ch.command({
-        query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN (${idList})`,
+        query: `ALTER TABLE cohort_members DELETE WHERE cohort_id NOT IN ({ids:Array(UUID)})`,
+        query_params: { ids: allDynamicIds },
       });
     } else {
       // No dynamic cohorts exist — delete ALL membership rows
@@ -182,20 +182,21 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     const insertSql = `
       INSERT INTO cohort_members (cohort_id, project_id, person_id, version)
       SELECT
-        '${cohortId}' AS cohort_id,
-        '${projectId}' AS project_id,
+        {cm_cohort_id:UUID} AS cohort_id,
+        {cm_project_id:UUID} AS project_id,
         person_id,
-        ${version} AS version
+        {cm_version:UInt64} AS version
       FROM (${subquery})`;
 
     await this.ch.query({
       query: insertSql,
-      query_params: queryParams,
+      query_params: { ...queryParams, cm_cohort_id: cohortId, cm_project_id: projectId, cm_version: version },
     });
 
     // Remove old versions
     await this.ch.command({
-      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id = '${cohortId}' AND version < ${version}`,
+      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id = {cm_cohort_id:UUID} AND version < {cm_version:UInt64}`,
+      query_params: { cm_cohort_id: cohortId, cm_version: version },
     });
 
     // Update PostgreSQL tracking columns

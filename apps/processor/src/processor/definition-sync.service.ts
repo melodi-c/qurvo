@@ -6,6 +6,7 @@ import type { Event } from '@qurvo/clickhouse';
 import { type Database, eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
+import { withRetry } from './retry';
 
 export type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
 
@@ -144,34 +145,6 @@ export class DefinitionSyncService {
   }
 
   /**
-   * Retry a DB operation with linear backoff + jitter (PostHog approach).
-   * On exhausted retries, uncaches keys so they get another chance on next batch.
-   */
-  private async withRetry<T>(
-    fn: () => Promise<T>,
-    label: string,
-    uncacheFn?: () => void,
-  ): Promise<T> {
-    let tries = 1;
-    while (true) {
-      try {
-        return await fn();
-      } catch (err) {
-        if (tries >= RETRY_MAX_ATTEMPTS) {
-          this.logger.error({ err, tries }, `${label} exhausted retries`);
-          uncacheFn?.();
-          throw err;
-        }
-        const jitter = Math.floor(Math.random() * 50);
-        const delay = tries * RETRY_BASE_DELAY_MS + jitter;
-        this.logger.warn({ err, tries, delay }, `${label} retry`);
-        await new Promise((r) => setTimeout(r, delay));
-        tries++;
-      }
-    }
-  }
-
-  /**
    * Extract properties from a parsed JSON object, applying skip-list and name-length limits.
    * A9: Skips service properties ($set, $set_once, $unset, $group_*, $groups) for event type.
    * A6: Skips property names longer than MAX_NAME_LENGTH.
@@ -275,7 +248,7 @@ export class DefinitionSyncService {
 
     // 4. Upsert event_definitions (A3: with retry)
     if (eventKeys.size > 0) {
-      await this.withRetry(
+      await withRetry(
         () => this.db
           .insert(eventDefinitions)
           .values([...eventKeys.values()].map((r) => ({
@@ -289,13 +262,14 @@ export class DefinitionSyncService {
             setWhere: sql`${eventDefinitions.last_seen_at} < excluded.last_seen_at`,
           }),
         'event_definitions upsert',
-        () => this.uncache(this.seenEvents, eventKeys.keys()),
+        this.logger,
+        { baseDelayMs: RETRY_BASE_DELAY_MS, maxAttempts: RETRY_MAX_ATTEMPTS, onExhausted: () => this.uncache(this.seenEvents, eventKeys.keys()) },
       );
     }
 
     // 5. Upsert property_definitions (A3: with retry, A4: handle null value_type)
     if (propMap.size > 0) {
-      await this.withRetry(
+      await withRetry(
         () => this.db
           .insert(propertyDefinitions)
           .values([...propMap.values()].map((p) => ({
@@ -317,13 +291,14 @@ export class DefinitionSyncService {
             setWhere: sql`${propertyDefinitions.last_seen_at} < excluded.last_seen_at OR ${propertyDefinitions.value_type} IS NULL`,
           }),
         'property_definitions upsert',
-        () => this.uncache(this.seenProps, propMap.keys()),
+        this.logger,
+        { baseDelayMs: RETRY_BASE_DELAY_MS, maxAttempts: RETRY_MAX_ATTEMPTS, onExhausted: () => this.uncache(this.seenProps, propMap.keys()) },
       );
     }
 
     // 6. Upsert event_properties (A3: with retry)
     if (eventPropMap.size > 0) {
-      await this.withRetry(
+      await withRetry(
         () => this.db
           .insert(eventProperties)
           .values([...eventPropMap.values()].map((ep) => ({
@@ -339,7 +314,8 @@ export class DefinitionSyncService {
             setWhere: sql`${eventProperties.last_seen_at} < excluded.last_seen_at`,
           }),
         'event_properties upsert',
-        () => this.uncache(this.seenEventProps, eventPropMap.keys()),
+        this.logger,
+        { baseDelayMs: RETRY_BASE_DELAY_MS, maxAttempts: RETRY_MAX_ATTEMPTS, onExhausted: () => this.uncache(this.seenEventProps, eventPropMap.keys()) },
       );
     }
 

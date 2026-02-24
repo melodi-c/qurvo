@@ -10,6 +10,7 @@ import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { PERSON_REDIS_TTL_SECONDS } from '../constants';
+import { withRetry } from './retry';
 
 @Injectable()
 export class PersonResolverService {
@@ -117,22 +118,17 @@ export class PersonResolverService {
   }
 
   private async writeOverride(projectId: string, distinctId: string, personId: string): Promise<void> {
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        await this.ch.insert({
-          table: 'person_distinct_id_overrides',
-          values: [{ project_id: projectId, distinct_id: distinctId, person_id: personId, version: Date.now() }],
-          format: 'JSONEachRow',
-          clickhouse_settings: { date_time_input_format: 'best_effort' },
-        });
-        return;
-      } catch (err) {
-        if (attempt === maxRetries) throw err;
-        this.logger.warn({ err, attempt }, 'writeOverride failed, retrying');
-        await new Promise((r) => setTimeout(r, 1000 * attempt));
-      }
-    }
+    await withRetry(
+      () => this.ch.insert({
+        table: 'person_distinct_id_overrides',
+        values: [{ project_id: projectId, distinct_id: distinctId, person_id: personId, version: Date.now() }],
+        format: 'JSONEachRow',
+        clickhouse_settings: { date_time_input_format: 'best_effort' },
+      }),
+      'writeOverride',
+      this.logger,
+      { maxAttempts: 3, baseDelayMs: 1000 },
+    );
   }
 
   private redisKey(projectId: string, distinctId: string): string {
