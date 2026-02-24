@@ -1,3 +1,6 @@
+// ── DI tokens ────────────────────────────────────────────────────────────
+export const DISTRIBUTED_LOCK = Symbol('DISTRIBUTED_LOCK');
+
 // ── Cohort ───────────────────────────────────────────────────────────────
 export const COHORT_MEMBERSHIP_INTERVAL_MS = 10 * 60_000; // 10 minutes
 export const COHORT_STALE_THRESHOLD_MINUTES = 15;

@@ -5,7 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
-const REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL'] as const;
+const REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL', 'CLICKHOUSE_URL'] as const;
 
 async function bootstrap() {
   const missing = REQUIRED_ENV.filter((k) => !process.env[k]);

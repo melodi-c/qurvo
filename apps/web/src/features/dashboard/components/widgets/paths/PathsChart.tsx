@@ -1,7 +1,9 @@
-import { useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { useMemo } from 'react';
 import { Sankey, Tooltip, Layer, Rectangle } from 'recharts';
 import type { PathTransition, TopPath } from '@/api/generated/Api';
+import { useElementWidth } from '@/hooks/use-element-width';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { CHART_COLORS_HEX } from '@/lib/chart-colors';
 import translations from './PathsChart.translations';
 
 interface PathsChartProps {
@@ -20,8 +22,6 @@ interface SankeyLink {
   target: number;
   value: number;
 }
-
-import { CHART_COLORS_HEX } from '@/lib/chart-colors';
 
 const COLORS = CHART_COLORS_HEX;
 
@@ -113,24 +113,10 @@ function CustomTooltip({ active, payload, usersLabel }: any) {
 /** Minimum width per step column so labels don't overlap */
 const MIN_WIDTH_PER_STEP = 180;
 
-function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
-  const [width, setWidth] = useState(0);
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    const ro = new ResizeObserver(([entry]) => {
-      setWidth(Math.floor(entry.contentRect.width));
-    });
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, [ref]);
-  return width;
-}
-
 export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) {
   const { t } = useLocalTranslation(translations);
   const sankeyData = useMemo(() => toSankeyData(transitions), [transitions]);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const containerWidth = useContainerWidth(containerRef);
+  const { ref: containerRef, width: containerWidth } = useElementWidth();
 
   if (sankeyData.nodes.length === 0 || sankeyData.links.length === 0) {
     return (
