@@ -3,12 +3,7 @@ import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
 import { ProjectsModule } from '../projects/projects.module';
-import { TrendModule } from '../trend/trend.module';
-import { FunnelModule } from '../funnel/funnel.module';
-import { RetentionModule } from '../retention/retention.module';
-import { LifecycleModule } from '../lifecycle/lifecycle.module';
-import { StickinessModule } from '../stickiness/stickiness.module';
-import { PathsModule } from '../paths/paths.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
 import { AI_TOOLS } from './tools/ai-tool.interface';
@@ -34,12 +29,7 @@ const TOOL_CLASSES = [
 @Module({
   imports: [
     ProjectsModule,
-    TrendModule,
-    FunnelModule,
-    RetentionModule,
-    LifecycleModule,
-    StickinessModule,
-    PathsModule,
+    AnalyticsModule,
     EventsModule,
     PersonsModule,
   ],

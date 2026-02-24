@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { TrendService } from '../../trend/trend.service';
+import { TrendService } from '../../analytics/trend/trend.service';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 

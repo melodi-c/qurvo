@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { StickinessService } from '../../stickiness/stickiness.service';
+import { StickinessService } from '../../analytics/stickiness/stickiness.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { StickinessQueryDto, StickinessResponseDto } from '../dto/stickiness.dto';

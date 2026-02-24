@@ -6,7 +6,7 @@ import { DashboardNotFoundException } from '../../dashboards/exceptions/dashboar
 import { WidgetNotFoundException } from '../../dashboards/exceptions/widget-not-found.exception';
 import { PersonNotFoundException } from '../../persons/exceptions/person-not-found.exception';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
-import { InsightNotFoundException } from '../../insights/exceptions/insight-not-found.exception';
+import { InsightNotFoundException } from '../../saved-insights/exceptions/insight-not-found.exception';
 import { InviteNotFoundException } from '../../members/exceptions/invite-not-found.exception';
 import { MemberNotFoundException } from '../../members/exceptions/member-not-found.exception';
 import { ChannelNotFoundException } from '../../marketing-channels/exceptions/channel-not-found.exception';

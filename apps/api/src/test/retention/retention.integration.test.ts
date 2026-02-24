@@ -8,7 +8,7 @@ import {
   ts,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryRetention } from '../../retention/retention.query';
+import { queryRetention } from '../../analytics/retention/retention.query';
 
 let ctx: ContainerContext;
 

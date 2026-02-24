@@ -8,7 +8,7 @@ import {
   ts,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryTrend } from '../../trend/trend.query';
+import { queryTrend } from '../../analytics/trend/trend.query';
 import { sumSeriesValues } from '../helpers';
 
 let ctx: ContainerContext;

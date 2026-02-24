@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { RetentionService } from '../../retention/retention.service';
+import { RetentionService } from '../../analytics/retention/retention.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 

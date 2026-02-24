@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { LifecycleService } from '../../lifecycle/lifecycle.service';
+import { LifecycleService } from '../../analytics/lifecycle/lifecycle.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
