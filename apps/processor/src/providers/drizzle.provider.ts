@@ -6,8 +6,8 @@ export const DRIZZLE = Symbol('DRIZZLE');
 export const DrizzleProvider: Provider<Database> = {
   provide: DRIZZLE,
   useFactory: () => {
-    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL environment variable is required in production');
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required');
     }
     return createDb(process.env.DATABASE_URL);
   },

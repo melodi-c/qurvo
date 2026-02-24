@@ -3,8 +3,8 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
-import { insertEvents } from './insert';
 import { withRetry } from './retry';
+import { parseRedisFields } from './redis-utils';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import {
@@ -15,7 +15,6 @@ import {
   REDIS_STREAM_DLQ,
   RETRY_CLICKHOUSE,
 } from '../constants';
-import { parseRedisFields } from './utils';
 import { DistributedLock } from '@qurvo/distributed-lock';
 
 @Injectable()
@@ -86,7 +85,12 @@ export class DlqService implements OnApplicationBootstrap {
         .filter((e): e is Event => e !== null);
 
       await withRetry(
-        () => insertEvents(this.ch, events),
+        () => this.ch.insert({
+          table: 'events',
+          values: events,
+          format: 'JSONEachRow',
+          clickhouse_settings: { date_time_input_format: 'best_effort' },
+        }),
         'DLQ ClickHouse insert',
         this.logger,
         RETRY_CLICKHOUSE,
@@ -102,7 +106,7 @@ export class DlqService implements OnApplicationBootstrap {
       }
       this.logger.error({ err, consecutiveFailures: this.consecutiveFailures }, 'DLQ replay failed');
     } finally {
-      await this.lock.release();
+      await this.lock.release().catch((err) => this.logger.warn({ err }, 'DLQ lock release failed'));
     }
   }
 }

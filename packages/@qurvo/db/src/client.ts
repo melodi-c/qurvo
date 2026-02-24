@@ -5,7 +5,7 @@ import * as schema from './schema';
 export function createDb(url?: string) {
   const connectionString = url || process.env.DATABASE_URL || 'postgresql://qurvo:qurvo_secret@localhost:5432/qurvo_analytics';
   const pool = new Pool({ connectionString });
-  return drizzle(pool, { schema });
+  return Object.assign(drizzle(pool, { schema }), { $pool: pool });
 }
 
 export type Database = ReturnType<typeof createDb>;

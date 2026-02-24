@@ -147,7 +147,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         'Cohort membership cycle completed',
       );
     } finally {
-      await this.lock.release();
+      await this.lock.release().catch((err) => this.logger.warn({ err }, 'Cohort lock release failed'));
     }
   }
 
@@ -165,6 +165,13 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         query_params: { ids: allDynamicIds },
       });
     } else {
+      const countResult = await this.ch.query({
+        query: 'SELECT count() AS cnt FROM cohort_members',
+        format: 'JSONEachRow',
+      });
+      const rows = await countResult.json<{ cnt: string }>();
+      if (Number(rows[0]?.cnt ?? 0) === 0) return;
+
       await this.ch.command({
         query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
       });
@@ -250,5 +257,4 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       this.logger.warn({ err, cohortId, projectId }, 'Failed to record cohort size history');
     }
   }
-
 }

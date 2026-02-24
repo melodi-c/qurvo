@@ -23,7 +23,7 @@ export class ApiKeyGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
     const apiKey = request.headers[API_KEY_HEADER];
 
     if (!apiKey || typeof apiKey !== 'string') {

@@ -87,7 +87,19 @@ export class PersonBatchStore {
     this.pendingMerges.push({ projectId, fromPersonId, intoPersonId });
   }
 
+  private isFlushing = false;
+
   async flush(): Promise<void> {
+    if (this.isFlushing) return;
+    this.isFlushing = true;
+    try {
+      await this._doFlush();
+    } finally {
+      this.isFlushing = false;
+    }
+  }
+
+  private async _doFlush(): Promise<void> {
     const pendingPersons = this.pendingPersons;
     const pendingDistinctIds = this.pendingDistinctIds;
     const pendingMerges = this.pendingMerges;
@@ -285,9 +297,10 @@ export class PersonBatchStore {
     // Prevent unbounded growth — evict older half (Set preserves insertion order)
     if (this.knownDistinctIds.size > KNOWN_DISTINCT_IDS_CAP) {
       const evictCount = Math.floor(this.knownDistinctIds.size / 2);
-      const keys = Array.from(this.knownDistinctIds);
-      for (let i = 0; i < evictCount; i++) {
-        this.knownDistinctIds.delete(keys[i]);
+      let i = 0;
+      for (const key of this.knownDistinctIds) {
+        if (i++ >= evictCount) break;
+        this.knownDistinctIds.delete(key);
       }
     }
 

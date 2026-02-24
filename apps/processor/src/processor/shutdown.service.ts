@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import { type ClickHouseClient } from '@qurvo/clickhouse';
 import { REDIS } from '../providers/redis.provider';
@@ -13,6 +14,7 @@ export class ShutdownService implements OnApplicationShutdown {
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
+    @InjectPinoLogger(ShutdownService.name) private readonly logger: PinoLogger,
     private readonly eventConsumerService: EventConsumerService,
     private readonly flushService: FlushService,
     private readonly dlqService: DlqService,
@@ -20,11 +22,15 @@ export class ShutdownService implements OnApplicationShutdown {
   ) {}
 
   async onApplicationShutdown() {
-    await this.eventConsumerService.shutdown();
+    await this.eventConsumerService.shutdown().catch((err) =>
+      this.logger.error({ err }, 'Consumer shutdown error'),
+    );
     this.dlqService.stop();
     this.cohortMembershipService.stop();
-    await this.flushService.shutdown();
-    await this.ch.close();
-    await this.redis.quit();
+    await this.flushService.shutdown().catch((err) =>
+      this.logger.error({ err }, 'Flush shutdown error'),
+    );
+    await this.ch.close().catch(() => {});
+    await this.redis.quit().catch(() => {});
   }
 }

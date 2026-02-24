@@ -6,7 +6,6 @@ import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
 import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
-import { EventEnrichmentService } from './event-enrichment.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
@@ -25,7 +24,6 @@ import { ShutdownService } from './shutdown.service';
     PersonResolverService,
     PersonBatchStore,
     GeoService,
-    EventEnrichmentService,
     EventConsumerService,
     ShutdownService,
   ],

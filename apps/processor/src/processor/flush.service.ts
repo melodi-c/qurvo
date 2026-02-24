@@ -2,7 +2,6 @@ import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
-import { insertEvents } from './insert';
 import { withRetry } from './retry';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
@@ -28,6 +27,7 @@ export class FlushService implements OnApplicationBootstrap {
   private buffer: BufferedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private stopped = false;
+  private isFlushing = false;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -59,9 +59,17 @@ export class FlushService implements OnApplicationBootstrap {
     return this.buffer.length;
   }
 
-  async flush() {
-    if (this.buffer.length === 0) return;
+  async flush(): Promise<void> {
+    if (this.isFlushing || this.buffer.length === 0) return;
+    this.isFlushing = true;
+    try {
+      await this._doFlush();
+    } finally {
+      this.isFlushing = false;
+    }
+  }
 
+  private async _doFlush(): Promise<void> {
     const batch = this.buffer.splice(0);
     const events = batch.map((b) => b.event);
     const messageIds = batch.map((b) => b.messageId);
@@ -75,7 +83,12 @@ export class FlushService implements OnApplicationBootstrap {
 
     try {
       await withRetry(
-        () => insertEvents(this.ch, events),
+        () => this.ch.insert({
+          table: 'events',
+          values: events,
+          format: 'JSONEachRow',
+          clickhouse_settings: { date_time_input_format: 'best_effort' },
+        }),
         'ClickHouse insert',
         this.logger,
         RETRY_CLICKHOUSE,
@@ -99,7 +112,11 @@ export class FlushService implements OnApplicationBootstrap {
     for (const event of events) {
       pipeline.xadd(REDIS_STREAM_DLQ, 'MAXLEN', '~', String(REDIS_DLQ_MAXLEN), '*', 'data', JSON.stringify(event));
     }
-    await pipeline.exec();
+    const results = await pipeline.exec();
+    const failed = results?.filter(([err]) => err !== null);
+    if (failed && failed.length > 0) {
+      this.logger.error({ failedCount: failed.length, totalCount: events.length }, 'Some DLQ pipeline writes failed');
+    }
   }
 
   private scheduleFlush() {

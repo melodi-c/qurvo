@@ -11,13 +11,11 @@ import {
 import { PropertyConditionRow } from './PropertyConditionRow';
 import { EventConditionRow } from './EventConditionRow';
 import { CohortConditionRow } from './CohortConditionRow';
-import { FirstTimeEventRow } from './FirstTimeEventRow';
-import { NotPerformedEventRow } from './NotPerformedEventRow';
+import { SimpleEventConditionRow } from './SimpleEventConditionRow';
 import { EventSequenceRow } from './EventSequenceRow';
 import { PerformedRegularlyRow } from './PerformedRegularlyRow';
 import { StoppedPerformingRow } from './StoppedPerformingRow';
 import { RestartedPerformingRow } from './RestartedPerformingRow';
-import { NotPerformedEventSequenceRow } from './NotPerformedEventSequenceRow';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
 import { createDefaultCondition, type CohortCondition, type CohortConditionGroup } from '../types';
@@ -209,13 +207,13 @@ function ConditionSwitch({
     case 'cohort':
       return <CohortConditionRow condition={condition} onChange={onChange} onRemove={onRemove} excludeCohortId={excludeCohortId} />;
     case 'first_time_event':
-      return <FirstTimeEventRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <SimpleEventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} variant="first_time" />;
     case 'not_performed_event':
-      return <NotPerformedEventRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <SimpleEventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} variant="not_performed" />;
     case 'event_sequence':
-      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} variant="performed" />;
     case 'not_performed_event_sequence':
-      return <NotPerformedEventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} variant="not_performed" />;
     case 'performed_regularly':
       return <PerformedRegularlyRow condition={condition} onChange={onChange} onRemove={onRemove} />;
     case 'stopped_performing':

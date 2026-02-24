@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { QueryItemCard, useDragReorder } from '../QueryItemCard';
+import { QueryItemCard } from '../QueryItemCard';
+import { useDragReorder } from '@/hooks/use-drag-reorder';
 import type { TrendSeries, StepFilter } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { SERIES_LETTERS } from './trend-shared';

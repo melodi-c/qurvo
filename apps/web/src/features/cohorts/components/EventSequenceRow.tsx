@@ -1,37 +1,43 @@
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { ConditionRowWrapper } from './ConditionRowWrapper';
 import { TimeWindowInput } from './TimeWindowInput';
 import translations from './EventSequenceRow.translations';
-import type { EventSequenceCondition } from '../types';
+import type { EventSequenceCondition, NotPerformedEventSequenceCondition } from '../types';
+
+type SequenceCondition = EventSequenceCondition | NotPerformedEventSequenceCondition;
 
 interface EventSequenceRowProps {
-  condition: EventSequenceCondition;
-  onChange: (condition: EventSequenceCondition) => void;
+  condition: SequenceCondition;
+  onChange: (condition: SequenceCondition) => void;
   onRemove: () => void;
+  variant: 'performed' | 'not_performed';
 }
 
-export function EventSequenceRow({ condition, onChange, onRemove }: EventSequenceRowProps) {
+export function EventSequenceRow({ condition, onChange, onRemove, variant }: EventSequenceRowProps) {
   const { t } = useLocalTranslation(translations);
 
   const updateStep = (idx: number, event_name: string) => {
     const steps = condition.steps.map((s, i) => (i === idx ? { ...s, event_name } : s));
-    onChange({ ...condition, steps });
+    onChange({ ...condition, steps } as SequenceCondition);
   };
 
   const removeStep = (idx: number) => {
     if (condition.steps.length <= 2) return;
-    onChange({ ...condition, steps: condition.steps.filter((_, i) => i !== idx) });
+    onChange({ ...condition, steps: condition.steps.filter((_, i) => i !== idx) } as SequenceCondition);
   };
 
   const addStep = () => {
-    onChange({ ...condition, steps: [...condition.steps, { event_name: '' }] });
+    onChange({ ...condition, steps: [...condition.steps, { event_name: '' }] } as SequenceCondition);
   };
 
+  const label = variant === 'performed' ? t('eventSequence') : t('notPerformedEventSequence');
+  const labelColor = variant === 'performed' ? 'text-amber-400' : 'text-red-400';
+
   return (
-    <ConditionRowWrapper label={t('eventSequence')} labelColor="text-amber-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={label} labelColor={labelColor} onRemove={onRemove}>
       {condition.steps.map((step, idx) => (
         <div key={idx}>
           {idx > 0 && (
@@ -65,7 +71,7 @@ export function EventSequenceRow({ condition, onChange, onRemove }: EventSequenc
 
       <TimeWindowInput
         value={condition.time_window_days}
-        onChange={(time_window_days) => onChange({ ...condition, time_window_days })}
+        onChange={(time_window_days) => onChange({ ...condition, time_window_days } as SequenceCondition)}
       />
     </ConditionRowWrapper>
   );

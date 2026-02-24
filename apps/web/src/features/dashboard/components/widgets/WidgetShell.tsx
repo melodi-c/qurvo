@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
 import { WidgetSkeleton } from './WidgetSkeleton';
 import { WidgetTransition } from './WidgetTransition';
-import { formatDistanceToNow } from 'date-fns';
-import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './WidgetShell.translations';
-import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
 
 type SkeletonVariant = 'chart' | 'table' | 'flow';
 
@@ -130,7 +131,9 @@ export function WidgetShell<Response>({
           </div>
         </div>
         <div className="flex-1 overflow-hidden min-h-0">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </div>
       </div>
     </WidgetTransition>

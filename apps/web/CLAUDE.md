@@ -68,6 +68,11 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Component | File | Key Props | When to use |
 |---|---|---|---|
+| `InsightEditorLayout` | `InsightEditorLayout.tsx` | `queryPanel`, `isConfigValid`, `showSkeleton`, `isEmpty`, `isFetching`, `skeleton`, `metricsBar`, `children`, `configureIcon/Title/Description`, `noResultsIcon/Title/Description`, `chartClassName?` + EditorHeader props | Shared layout for all insight editor pages. Wraps EditorHeader + QueryPanel + main area with 4 conditional states (configure, loading, empty, results). All 6 editor pages use this |
+| `ErrorBoundary` | `ErrorBoundary.tsx` | `children`, `fallback?` | React error boundary. Wraps WidgetShell children and AppRoutes. Catches render errors with retry button |
+| `EventNameCombobox` | `EventNameCombobox.tsx` | `value`, `onChange`, `placeholder?`, `className?` | Searchable event name selector (Popover + Command). Used across all widgets, cohort rows, filter panels |
+| `PropertyNameCombobox` | `PropertyNameCombobox.tsx` | `value`, `onChange`, `propertyNames`, `descriptions?`, `className?` | Searchable property name selector. Used in StepFilterRow and cohort PropertyConditionRow |
+| `StepFilterRow` | `StepFilterRow.tsx` | `filter`, `onChange`, `onRemove`, `propertyNames?`, `propertyDescriptions?` | Property filter row (property + operator + value). Also exports `NO_VALUE_OPS` set. Used in QueryItemCard, filter panels, dashboard filters |
 | `CrudListPage<T>` | `crud-list-page.tsx` | `title`, `icon`, `basePath`, `newLabel`, `entityLabel`, `columns`, `data`, `isLoading`, `onDelete`, `emptyTitle`, `emptyDescription`, `showEmptyAction?` | Generic CRUD list page with PageHeader, EmptyState, ListSkeleton, DataTable, and ConfirmDialog delete. Automatically adds name + actions columns. Use for trends, funnels, cohorts |
 | `EventTable` | `event-table.tsx` | `events: EventLike[]`, `showPerson?`, `projectId`, `page`, `onPageChange`, `hasMore`, `className?` | Expandable event list with header, rows, and pagination. Used on events page and person-detail. Wraps `EventTableRow` from `event-detail.tsx` |
 | `EventTableRow` | `event-detail.tsx` | `event`, `expanded`, `onToggle`, `showPerson`, `projectId` | Single expandable event row. Use via `EventTable` — not directly |
@@ -79,6 +84,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 |---|---|---|---|
 | `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
 | `useConfirmDelete` | `confirm-dialog.tsx` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
+| `useDragReorder<T>` | `use-drag-reorder.ts` | `(items: T[], onChange: (items: T[]) => void) => { dragIdx, overIdx, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave }` | Reorderable lists via native HTML5 drag events. Used in FunnelStepBuilder and TrendSeriesBuilder |
 
 ## Feature Hooks (`src/features/`)
 
@@ -108,6 +114,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 |---|---|---|
 | `ConditionRowWrapper` | `features/cohorts/components/ConditionRowWrapper.tsx` | Shared wrapper for all condition rows. Provides container, colored label, remove button. Use for all cohort condition types |
 | `TimeWindowInput` | `features/cohorts/components/TimeWindowInput.tsx` | Shared "in last N days" input. Use in all condition rows that have a time window field |
+| `EventSequenceRow` | `features/cohorts/components/EventSequenceRow.tsx` | Event sequence with steps. `variant: 'performed' \| 'not_performed'` controls label and color. Handles both `EventSequenceCondition` and `NotPerformedEventSequenceCondition` |
+| `SimpleEventConditionRow` | `features/cohorts/components/SimpleEventConditionRow.tsx` | Single event + time window. `variant: 'first_time' \| 'not_performed'` controls label and color. Handles both `FirstTimeEventCondition` and `NotPerformedEventCondition` |
 
 ## Code Rules
 
@@ -130,22 +138,32 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 ## Patterns
 
 ### Combobox Pattern
-Compose `Popover` + `Command` for searchable dropdowns. See `EventNameCombobox` and `CohortSelector` for reference implementations.
+Compose `Popover` + `Command` for searchable dropdowns. See `EventNameCombobox` (`components/EventNameCombobox.tsx`) and `CohortSelector` for reference implementations.
+
+### Route Lazy Loading
+All authenticated pages use `React.lazy()` in `App.tsx` for code splitting. Auth pages (login/register/verify) are eagerly loaded. A `<Suspense>` boundary wraps `<Layout />` with a loading fallback.
+
+### Error Boundaries
+`ErrorBoundary` from `components/ErrorBoundary.tsx` wraps:
+- `AppRoutes` in `App.tsx` — global catch for uncaught render errors
+- `{children}` in `WidgetShell` — isolates widget chart failures from crashing the dashboard
 
 ### Page Layout
 All pages inside `<Layout>` receive `p-4 lg:p-6` padding (responsive). Editor pages that need full-height override with `className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden"`.
 
 ### Editor Page Structure
+Use `InsightEditorLayout` component from `components/InsightEditorLayout.tsx` — it handles the full editor shell:
 ```
-EditorHeader (breadcrumbs: "Section > name input", save/discard)
-├── QueryPanel (left sidebar, ~360-420px)
+InsightEditorLayout
+├── EditorHeader (breadcrumbs: "Section > name input", save/discard)
+├── QueryPanel (left sidebar, ~360-420px, passed as prop)
 └── main (flex-1, overflow-auto)
     ├── EmptyState (not configured)
-    ├── Skeleton (loading)
+    ├── Skeleton (loading, passed as prop)
     ├── EmptyState (no results)
-    └── Results (Metric bar + Chart/Preview)
+    └── Results (Metric bar + Chart/Preview, passed as props)
 ```
-Use `useInsightEditor` hook for shared state management (name, config, mutations, save handler).
+Use `useInsightEditor` hook for shared state management (name, config, mutations, save handler). Pass type-specific parts (QueryPanel, skeleton shape, metrics bar, chart) as props to `InsightEditorLayout`.
 
 ### List Page Structure
 Use `CrudListPage` for CRUD entity lists. It handles the full layout:
@@ -178,7 +196,7 @@ Current project ID is always passed via `?project=<uuid>` in URL search params. 
 Use `toast.success()` / `toast.error()` from `sonner` for user feedback after mutations. Never use `alert()`.
 
 ### Drag & Drop
-Use `useDragReorder<T>` hook from `QueryItemCard.tsx` for reorderable lists via native HTML5 drag events.
+Use `useDragReorder<T>` hook from `hooks/use-drag-reorder.ts` for reorderable lists via native HTML5 drag events.
 
 ### Charts
 - **Line/Bar charts**: Use `TrendChart` with Recharts. Supports `compact` mode for dashboard widgets.
