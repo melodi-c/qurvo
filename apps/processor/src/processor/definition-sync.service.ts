@@ -9,8 +9,8 @@ import { RETRY_DEFINITIONS } from '../constants';
 import { withRetry } from './retry';
 import { HourlyCache } from './hourly-cache';
 import { type ValueType, detectValueType } from './value-type';
+import { floorToHourMs } from './time-utils';
 
-const ONE_HOUR_MS = 3_600_000;
 const MAX_NAME_LENGTH = 200;
 const MAX_PROPERTIES_PER_EVENT = 10_000;
 
@@ -26,11 +26,6 @@ const SKIP_EVENT_PROPERTIES = new Set([
   '$group_4',
   '$groups',
 ]);
-
-/** Floor a Date to the start of its hour (e.g. 14:37:22 → 14:00:00). */
-function floorToHour(dt: Date): Date {
-  return new Date(Math.floor(dt.getTime() / ONE_HOUR_MS) * ONE_HOUR_MS);
-}
 
 interface PropEntry {
   project_id: string;
@@ -103,8 +98,8 @@ export class DefinitionSyncService {
   }
 
   async syncFromBatch(events: Event[]): Promise<void> {
-    const now = floorToHour(new Date());
-    const flooredMs = now.getTime();
+    const flooredMs = floorToHourMs(Date.now());
+    const now = new Date(flooredMs);
 
     // 1. Collect unique event names per project
     const eventKeys = new Map<string, { project_id: string; event_name: string }>();

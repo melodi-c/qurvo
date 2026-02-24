@@ -87,7 +87,7 @@ export class ProjectsService {
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
 
     const values: Record<string, unknown> = { updated_at: new Date() };
-    if (input.name) {
+    if (input.name !== undefined) {
       const newSlug = slugify(input.name);
       const existing = await this.db
         .select({ id: projects.id })
