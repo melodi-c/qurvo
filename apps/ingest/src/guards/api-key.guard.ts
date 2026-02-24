@@ -51,6 +51,7 @@ export class ApiKeyGuard implements CanActivate {
       }
       request.projectId = info.project_id;
       request.eventsLimit = info.events_limit;
+      request.quotaLimited = false;
       return true;
     }
 
@@ -98,6 +99,7 @@ export class ApiKeyGuard implements CanActivate {
 
     request.projectId = keyInfo.project_id;
     request.eventsLimit = keyInfo.events_limit;
+    request.quotaLimited = false;
     return true;
   }
 }
