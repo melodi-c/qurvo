@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
-import { authFetch } from '@/lib/auth-fetch';
 import type { CreateCohort, UpdateCohort, CohortPreview, CreateStaticCohort } from '@/api/generated/Api';
 
 export function useCohorts() {
@@ -123,14 +122,8 @@ export function useUploadCohortCsv() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) => {
-      const res = await authFetch(`/api/projects/${projectId}/cohorts/${cohortId}/upload-csv`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv_content: csvContent }),
-      });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-    },
+    mutationFn: ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) =>
+      api.staticCohortsControllerUploadCsv({ projectId, cohortId }, { csv_content: csvContent }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
