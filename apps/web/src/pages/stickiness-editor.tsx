@@ -1,6 +1,7 @@
 import { Layers } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
+import { MetricsDivider } from '@/components/ui/metrics-divider';
+import { EditorSkeleton } from '@/components/ui/editor-skeleton';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
@@ -58,22 +59,13 @@ export default function StickinessEditorPage() {
       noResultsIcon={Layers}
       noResultsTitle={t('noResultsTitle')}
       noResultsDescription={t('noResultsDescription')}
-      skeleton={
-        <>
-          <div className="flex gap-8">
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-          </div>
-          <Skeleton className="h-[300px] w-full" />
-        </>
-      }
+      skeleton={<EditorSkeleton metricCount={3} />}
       metricsBar={
         <>
           <Metric label={t('totalUsers')} value={String(totalUsers)} accent />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('mostCommon')} value={`${modePeriod} ${result!.granularity}${modePeriod !== 1 ? 's' : ''}`} />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('totalPeriods')} value={String(result!.total_periods)} />
         </>
       }

@@ -12,6 +12,7 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { FormulaBuilder } from './FormulaBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
@@ -146,21 +147,13 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           {isPropertyMetric && (
             <div className="space-y-1">
               <span className="text-xs text-muted-foreground">{t('metricProperty')}</span>
-              <Select
+              <PropertyNameCombobox
                 value={config.metric_property ?? ''}
-                onValueChange={(v) => onChange({ ...config, metric_property: v || undefined })}
-              >
-                <SelectTrigger size="sm">
-                  <SelectValue placeholder={t('selectProperty')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {customPropertyNames.map((name) => (
-                    <SelectItem key={name} value={name} className="text-sm">
-                      {name.replace('properties.', '')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => onChange({ ...config, metric_property: v || undefined })}
+                propertyNames={customPropertyNames}
+                descriptions={propDescriptions}
+                className="h-8"
+              />
             </div>
           )}
 

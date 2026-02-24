@@ -1,12 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
+import { useProjectId } from '@/hooks/use-project-id';
 import type { CreateInsight, UpdateInsight, InsightType } from '@/api/generated/Api';
-
-function useProjectId() {
-  const [searchParams] = useSearchParams();
-  return searchParams.get('project') || '';
-}
 
 export function useInsights(type?: InsightType) {
   const projectId = useProjectId();

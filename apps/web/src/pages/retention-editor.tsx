@@ -1,6 +1,7 @@
 import { CalendarCheck } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
+import { MetricsDivider } from '@/components/ui/metrics-divider';
+import { EditorSkeleton } from '@/components/ui/editor-skeleton';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
@@ -54,19 +55,11 @@ export default function RetentionEditorPage() {
       noResultsIcon={CalendarCheck}
       noResultsTitle={t('noResultsTitle')}
       noResultsDescription={t('noResultsDescription')}
-      skeleton={
-        <>
-          <div className="flex gap-8">
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-          </div>
-          <Skeleton className="h-[300px] w-full" />
-        </>
-      }
+      skeleton={<EditorSkeleton metricCount={2} />}
       metricsBar={
         <>
           <Metric label={t('cohorts')} value={String(result!.cohorts.length)} accent />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric
             label={t('avgDay1Retention')}
             value={result!.average_retention[1] !== undefined ? `${result!.average_retention[1].toFixed(1)}%` : '\u2014'}

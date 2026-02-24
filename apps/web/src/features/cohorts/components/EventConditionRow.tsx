@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
+import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
+import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { ConditionRowWrapper } from './ConditionRowWrapper';
 import { TimeWindowInput } from './TimeWindowInput';
@@ -16,6 +18,7 @@ interface EventConditionRowProps {
 
 export function EventConditionRow({ condition, onChange, onRemove }: EventConditionRowProps) {
   const { t } = useLocalTranslation(translations);
+  const { data: propertyNames, descriptions: propDescriptions } = useEventPropertyNames(condition.event_name || undefined);
 
   const isCount = !condition.aggregation_type || condition.aggregation_type === 'count';
 
@@ -72,10 +75,11 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
           </Select>
 
           {!isCount && (
-            <Input
+            <PropertyNameCombobox
               value={condition.aggregation_property ?? ''}
-              onChange={(e) => onChange({ ...condition, aggregation_property: e.target.value })}
-              placeholder={t('propertyPlaceholder')}
+              onChange={(v) => onChange({ ...condition, aggregation_property: v })}
+              propertyNames={propertyNames ?? []}
+              descriptions={propDescriptions}
               className="h-8 text-xs flex-1"
             />
           )}

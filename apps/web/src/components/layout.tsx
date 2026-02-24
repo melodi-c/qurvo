@@ -114,7 +114,7 @@ export default function Layout() {
         aria-modal={isOpen ? true : undefined}
         aria-label={t('navigation')}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-[220px] flex flex-col border-r border-border bg-[#0f0f11]',
+          'fixed inset-y-0 left-0 z-50 w-[220px] flex flex-col border-r border-border bg-sidebar',
           'transition-transform duration-200 ease-in-out',
           'lg:static lg:z-auto lg:translate-x-0 lg:shrink-0 lg:transition-none',
           isOpen ? 'translate-x-0' : '-translate-x-full',
