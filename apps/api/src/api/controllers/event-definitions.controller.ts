@@ -33,6 +33,7 @@ export class EventDefinitionsController {
     }) as any;
   }
 
+  @RequireRole('editor')
   @Patch(':eventName')
   async upsert(
     @CurrentUser() user: RequestUser,

@@ -131,8 +131,9 @@ export class AiService implements OnModuleInit {
 
     // Auto-generate title for new conversations
     if (isNew) {
-      const titleContent = params.message.slice(0, 100);
-      const title = titleContent.length < params.message.length ? titleContent + '...' : titleContent;
+      const title = params.message.length > 100
+        ? params.message.slice(0, 100) + '...'
+        : params.message;
       await this.chatService.updateTitle(conversation.id, title);
     }
 

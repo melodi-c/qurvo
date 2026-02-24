@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested } from 'class-validator';
-import { Type, Transform, plainToInstance } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { StepFilterDto } from './shared/filters.dto';
+import { makeJsonArrayTransform } from './shared/transforms';
 
 export class PersonsQueryDto {
   @IsUUID()
@@ -14,11 +15,7 @@ export class PersonsQueryDto {
 
   @ApiPropertyOptional({ type: [StepFilterDto] })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value) : value;
-    return Array.isArray(arr) ? plainToInstance(StepFilterDto, arr) : arr;
-  })
+  @Transform(makeJsonArrayTransform(StepFilterDto))
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)

@@ -190,23 +190,15 @@ export class PropertyDefinitionsService {
   }
 
   async delete(userId: string, projectId: string, propertyName: string, propertyType: 'event' | 'person') {
-    const existing = await this.db
-      .select({ id: propertyDefinitions.id })
-      .from(propertyDefinitions)
-      .where(and(
-        eq(propertyDefinitions.project_id, projectId),
-        eq(propertyDefinitions.property_name, propertyName),
-        eq(propertyDefinitions.property_type, propertyType),
-      ));
-
-    if (existing.length === 0) throw new DefinitionNotFoundException('property', propertyName);
-
-    await this.db
+    const rows = await this.db
       .delete(propertyDefinitions)
       .where(and(
         eq(propertyDefinitions.project_id, projectId),
         eq(propertyDefinitions.property_name, propertyName),
         eq(propertyDefinitions.property_type, propertyType),
-      ));
+      ))
+      .returning({ id: propertyDefinitions.id });
+
+    if (rows.length === 0) throw new DefinitionNotFoundException('property', propertyName);
   }
 }

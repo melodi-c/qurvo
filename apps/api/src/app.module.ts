@@ -20,7 +20,7 @@ import { REDIS } from './providers/redis.provider';
         transport: process.env.NODE_ENV !== 'production'
           ? { target: 'pino-pretty' }
           : undefined,
-      } as any,
+      } as Record<string, unknown>,
     }),
     DatabaseModule,
     EmailModule,
