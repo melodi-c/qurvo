@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AiMessage } from './ai-message';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './ai-chat-panel.translations';
-import type { AiMessageData } from './use-ai-chat';
+import type { AiMessageData } from '@/features/ai/hooks/use-ai-chat';
 
 interface AiChatPanelProps {
   messages: AiMessageData[];

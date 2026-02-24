@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { useSidebar } from '@/hooks/use-sidebar';
+import { Button } from '@/components/ui/button';
 import { LayoutDashboard, List, Users, UsersRound, LogOut, ChevronsUpDown, Lightbulb, Settings, Plus, X, Sparkles, User, Database, Globe, Languages } from 'lucide-react';
 import { QurvoLogo } from '@/components/qurvo-logo';
 import { routes } from '@/lib/routes';
@@ -120,13 +121,15 @@ export default function Layout() {
         )}
       >
         {/* Close button — mobile only */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={close}
-          className="lg:hidden absolute top-3 right-3 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          className="lg:hidden absolute top-3 right-3 z-10"
           aria-label={t('closeNav')}
         >
           <X className="w-4 h-4" />
-        </button>
+        </Button>
 
         {/* Logo */}
         <Link

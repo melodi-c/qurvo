@@ -3,14 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { TabNav } from '@/components/ui/tab-nav';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Globe, UserCheck, Zap, ExternalLink, LogOut, UserPen, Smartphone } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { api } from '@/api/client';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';
+import { EventTypeIcon } from '@/components/EventTypeIcon';
 import translations from './event-detail.translations';
-
-// ─── shared event shape ───────────────────────────────────────────────────────
 
 export interface EventLike {
   event_id: string;
@@ -40,38 +39,6 @@ export interface EventLike {
   sdk_version: string;
   properties?: string;
   user_properties?: string;
-}
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-export function formatRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 0) return 'just now';
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return new Date(iso).toLocaleDateString();
-}
-
-export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 'outline' {
-  if (eventName === '$pageview') return 'default';
-  if (eventName === '$pageleave') return 'default';
-  if (eventName === '$identify') return 'secondary';
-  if (eventName === '$set' || eventName === '$set_once') return 'secondary';
-  if (eventName === '$screen') return 'default';
-  return 'outline';
-}
-
-export function EventTypeIcon({ eventName }: { eventName: string }) {
-  if (eventName === '$pageview') return <Globe className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
-  if (eventName === '$pageleave') return <LogOut className="h-3.5 w-3.5 text-orange-400 shrink-0" />;
-  if (eventName === '$identify') return <UserCheck className="h-3.5 w-3.5 text-violet-400 shrink-0" />;
-  if (eventName === '$set' || eventName === '$set_once') return <UserPen className="h-3.5 w-3.5 text-green-400 shrink-0" />;
-  if (eventName === '$screen') return <Smartphone className="h-3.5 w-3.5 text-sky-400 shrink-0" />;
-  return <Zap className="h-3.5 w-3.5 text-amber-400 shrink-0" />;
 }
 
 function parseSafe(json: string | undefined): Record<string, unknown> {
