@@ -1,12 +1,8 @@
-import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { WidgetSkeleton } from '../WidgetSkeleton';
-import { WidgetTransition } from '../WidgetTransition';
+import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useLifecycleData } from '@/features/dashboard/hooks/use-lifecycle';
 import { LifecycleChart } from './LifecycleChart';
 import type { Widget, LifecycleWidgetConfig } from '@/api/generated/Api';
-import { formatDistanceToNow } from 'date-fns';
 import translations from './LifecycleWidget.translations';
 
 interface LifecycleWidgetProps {
@@ -16,81 +12,28 @@ interface LifecycleWidgetProps {
 export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
   const { t } = useLocalTranslation(translations);
   const config = widget.insight?.config as LifecycleWidgetConfig | undefined;
-  if (!config) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        {t('noInsight')}
-      </div>
-    );
-  }
+  const hasConfig = !!config;
+  const query = useLifecycleData(config ?? { target_event: '', granularity: 'day', date_from: '', date_to: '' } as any, widget.id);
+  const result = query.data?.data;
 
-  const { data, isLoading, isFetching, error, refresh } = useLifecycleData(config, widget.id);
-
-  if (!config.target_event) {
-    return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        {t('configureEvent')}
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return <WidgetSkeleton variant="chart" />;
-  }
-
-  if (error || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2">
-        <p className="text-muted-foreground text-sm">{t('loadFailed')}</p>
-        <Button size="sm" variant="ghost" onClick={() => refresh()}>
-          {t('retry')}
-        </Button>
-      </div>
-    );
-  }
-
-  const result = data.data;
-  if (result.data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-1 text-center">
-        <p className="text-muted-foreground text-sm">{t('noData')}</p>
-        <p className="text-muted-foreground/60 text-xs">{t('adjustDateRange')}</p>
-      </div>
-    );
-  }
+  const activeUsers = result
+    ? result.totals.new + result.totals.returning + result.totals.resurrecting
+    : 0;
 
   return (
-    <WidgetTransition isFetching={isFetching}>
-      <div className="h-full flex flex-col min-h-0">
-        <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-xl font-bold tabular-nums text-primary">
-              {result.totals.new + result.totals.returning + result.totals.resurrecting}
-            </span>
-            <span className="text-xs text-muted-foreground">{t('activeUsers')}</span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
-              {data.from_cache
-                ? formatDistanceToNow(new Date(data.cached_at), { addSuffix: true })
-                : t('fresh')}
-            </span>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-5 w-5"
-              onClick={() => refresh()}
-              disabled={isFetching}
-              title={t('refresh')}
-            >
-              <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-hidden min-h-0">
-          <LifecycleChart result={result} compact />
-        </div>
-      </div>
-    </WidgetTransition>
+    <WidgetShell
+      query={query}
+      isConfigValid={hasConfig && !!config.target_event}
+      configureMessage={hasConfig ? t('configureEvent') : t('noInsight')}
+      isEmpty={!result || result.data.length === 0}
+      emptyMessage={t('noData')}
+      emptyHint={t('adjustDateRange')}
+      metric={<span className="text-xl font-bold tabular-nums text-primary">{activeUsers}</span>}
+      metricSecondary={<span className="text-xs text-muted-foreground">{t('activeUsers')}</span>}
+      cachedAt={query.data?.cached_at}
+      fromCache={query.data?.from_cache}
+    >
+      <LifecycleChart result={result!} compact />
+    </WidgetShell>
   );
 }
