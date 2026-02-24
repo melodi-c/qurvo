@@ -86,7 +86,7 @@ Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) valid
 ### Module Configuration
 `@Global()` + `exports: [RedisProvider]` on `AppModule` is required — `ThrottlerModule.forRootAsync` injects the `REDIS` token, which must be globally exported for cross-module DI resolution.
 
-`AppModule` implements `OnApplicationShutdown` for clean Redis disconnect.
+`AppModule` implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
 
 ## Important: Do NOT Delete
 

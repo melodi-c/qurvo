@@ -2,8 +2,9 @@ import { Global, Module, Inject, OnApplicationShutdown } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import type { Options } from 'pino-http';
 import Redis from 'ioredis';
-import { createDb } from '@qurvo/db';
+import { createDb, type Database } from '@qurvo/db';
 import { REDIS, DRIZZLE } from './constants';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
@@ -32,7 +33,7 @@ const DrizzleProvider = {
         transport: process.env.NODE_ENV !== 'production'
           ? { target: 'pino-pretty' }
           : undefined,
-      } as any,
+      } as Options,
     }),
     ThrottlerModule.forRootAsync({
       inject: [REDIS],
@@ -57,9 +58,13 @@ const DrizzleProvider = {
   exports: [RedisProvider],
 })
 export class AppModule implements OnApplicationShutdown {
-  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(DRIZZLE) private readonly db: Database,
+  ) {}
 
   async onApplicationShutdown() {
     await this.redis.quit();
+    await this.db.$pool.end();
   }
 }
