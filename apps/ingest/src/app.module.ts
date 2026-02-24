@@ -1,17 +1,18 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
 import type Redis from 'ioredis';
 import { IngestModule } from './ingest/ingest.module';
 import { HealthModule } from './health/health.module';
 import { REDIS } from './providers/redis.provider';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
-import { DatabaseModule } from './database/database.module';
+import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { ZodExceptionFilter } from './filters/zod-exception.filter';
 
 @Module({
   imports: [
-    DatabaseModule,
+    InfrastructureModule,
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
@@ -36,6 +37,7 @@ import { DatabaseModule } from './database/database.module';
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_FILTER, useClass: ZodExceptionFilter },
   ],
 })
 export class AppModule {}

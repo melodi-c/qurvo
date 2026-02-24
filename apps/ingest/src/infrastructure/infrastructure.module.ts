@@ -7,4 +7,4 @@ import { DrizzleProvider } from '../providers/drizzle.provider';
   providers: [RedisProvider, DrizzleProvider],
   exports: [RedisProvider, DrizzleProvider],
 })
-export class DatabaseModule {}
+export class InfrastructureModule {}

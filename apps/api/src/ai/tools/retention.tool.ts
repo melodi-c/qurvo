@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
-import { RetentionService } from '../../analytics/retention/retention.service';
+import { RETENTION_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { RetentionQueryParams, RetentionQueryResult } from '../../analytics/retention/retention.query';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -25,12 +27,12 @@ const tool = defineTool({
 export class RetentionTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly retentionService: RetentionService) {}
+  constructor(@Inject(RETENTION_SERVICE) private readonly retentionService: AnalyticsQueryService<RetentionQueryParams, RetentionQueryResult>) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.retentionService.getRetention(userId, {
+    const result = await this.retentionService.query(userId, {
       project_id: projectId,
       periods: args.periods ?? 11,
       ...args,

@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
-import { StickinessService } from '../../analytics/stickiness/stickiness.service';
+import { STICKINESS_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { StickinessQueryParams, StickinessQueryResult } from '../../analytics/stickiness/stickiness.query';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -23,12 +25,12 @@ const tool = defineTool({
 export class StickinessTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly stickinessService: StickinessService) {}
+  constructor(@Inject(STICKINESS_SERVICE) private readonly stickinessService: AnalyticsQueryService<StickinessQueryParams, StickinessQueryResult>) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.stickinessService.getStickiness(userId, { project_id: projectId, ...args });
+    const result = await this.stickinessService.query(userId, { project_id: projectId, ...args });
     return result.data;
   });
 }

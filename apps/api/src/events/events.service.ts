@@ -7,7 +7,7 @@ import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
 import { DIRECT_COLUMNS } from '../utils/property-filter';
-import { NotFoundException } from '@nestjs/common';
+import { EventNotFoundException } from './exceptions/event-not-found.exception';
 
 @Injectable()
 export class EventsService {
@@ -25,7 +25,7 @@ export class EventsService {
   async getEventDetail(userId: string, projectId: string, eventId: string): Promise<EventDetailRow> {
     await this.projectsService.getMembership(userId, projectId);
     const row = await queryEventDetail(this.ch, { project_id: projectId, event_id: eventId });
-    if (!row) throw new NotFoundException('Event not found');
+    if (!row) throw new EventNotFoundException();
     return row;
   }
 
