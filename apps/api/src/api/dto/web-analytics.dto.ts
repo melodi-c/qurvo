@@ -9,6 +9,7 @@ import {
 import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
+import { parseJsonArray } from './shared/transforms';
 
 export class WebAnalyticsQueryDto {
   @IsUUID()
@@ -21,10 +22,7 @@ export class WebAnalyticsQueryDto {
   date_to: string;
 
   @ApiPropertyOptional({ type: [StepFilterDto] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)

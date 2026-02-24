@@ -23,7 +23,7 @@ export async function queryPropertyNamesWithCount(
         toUInt64(count()) AS cnt
       FROM (
         SELECT arrayJoin(JSONExtractKeys(properties)) AS key
-        FROM events
+        FROM events FINAL
         WHERE
           project_id = {project_id:UUID}
           AND timestamp >= now() - INTERVAL 30 DAY
@@ -40,7 +40,7 @@ export async function queryPropertyNamesWithCount(
         toUInt64(count()) AS cnt
       FROM (
         SELECT arrayJoin(JSONExtractKeys(user_properties)) AS key
-        FROM events
+        FROM events FINAL
         WHERE
           project_id = {project_id:UUID}
           AND timestamp >= now() - INTERVAL 30 DAY

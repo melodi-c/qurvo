@@ -110,7 +110,7 @@ export async function queryEvents(
       timezone,
       sdk_name,
       sdk_version
-    FROM events
+    FROM events FINAL
     WHERE ${conditions.join(' AND ')}
     ORDER BY events.timestamp DESC
     LIMIT {limit:UInt32}
@@ -164,7 +164,7 @@ export async function queryEventDetail(
       sdk_version,
       properties,
       user_properties
-    FROM events
+    FROM events FINAL
     WHERE
       project_id = {project_id:UUID}
       AND event_id = {event_id:UUID}

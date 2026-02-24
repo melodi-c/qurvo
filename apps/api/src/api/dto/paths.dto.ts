@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { parseJsonArray } from './shared/transforms';
 
 export class PathCleaningRuleDto {
   @IsString()
@@ -60,10 +61,7 @@ export class PathsQueryDto {
   end_event?: string;
 
   @ApiPropertyOptional({ type: [String] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
@@ -76,10 +74,7 @@ export class PathsQueryDto {
   min_persons?: number;
 
   @ApiPropertyOptional({ type: [PathCleaningRuleDto] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PathCleaningRuleDto)
@@ -87,10 +82,7 @@ export class PathsQueryDto {
   path_cleaning_rules?: PathCleaningRuleDto[];
 
   @ApiPropertyOptional({ type: [WildcardGroupDto] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => WildcardGroupDto)
@@ -98,10 +90,7 @@ export class PathsQueryDto {
   wildcard_groups?: WildcardGroupDto[];
 
   @ApiPropertyOptional({ type: [String] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
+  @Transform(parseJsonArray)
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()
