@@ -2,6 +2,7 @@ import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
 import { RetentionTable } from './RetentionTable';
+import { defaultRetentionConfig } from './retention-shared';
 import type { Widget, RetentionWidgetConfig } from '@/api/generated/Api';
 import translations from './RetentionWidget.translations';
 
@@ -13,7 +14,7 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
   const { t } = useLocalTranslation(translations);
   const config = widget.insight?.config as RetentionWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useRetentionData(config ?? { target_event: '', retention_type: 'first_time', granularity: 'day', periods: 7, date_from: '', date_to: '' } as any, widget.id);
+  const query = useRetentionData(config ?? defaultRetentionConfig(), widget.id);
   const result = query.data?.data;
 
   return (

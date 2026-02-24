@@ -6,11 +6,11 @@ import { LifecycleWidget } from './widgets/lifecycle/LifecycleWidget';
 import { StickinessWidget } from './widgets/stickiness/StickinessWidget';
 import { PathsWidget } from './widgets/paths/PathsWidget';
 import { TextTileViz } from './widgets/TextTileViz';
-import type { Widget } from '@/api/generated/Api';
+import type { Widget, Insight } from '@/api/generated/Api';
 
 interface InsightCardVizProps {
   widget: Widget;
-  configOverride?: Record<string, any>;
+  configOverride?: Insight['config'];
 }
 
 export function InsightCardViz({ widget, configOverride }: InsightCardVizProps) {
@@ -30,7 +30,7 @@ export function InsightCardViz({ widget, configOverride }: InsightCardVizProps) 
 
   // Insight tile — apply config override if present
   const effectiveWidget: Widget = configOverride
-    ? { ...widget, insight: { ...widget.insight!, config: configOverride as any } }
+    ? { ...widget, insight: { ...widget.insight!, config: configOverride } }
     : widget;
 
   const type = widget.insight.type;

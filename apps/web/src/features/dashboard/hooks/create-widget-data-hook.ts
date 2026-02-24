@@ -10,10 +10,10 @@ interface CachedResponse {
   cached_at: string;
 }
 
-interface WidgetDataHookOptions<Config, Response> {
+interface WidgetDataHookOptions<Config, Response, Params> {
   queryKeyPrefix: string;
-  apiFn: (params: Record<string, unknown>) => Promise<Response>;
-  buildParams: (config: Config, projectId: string, widgetUuid: string | undefined) => Record<string, unknown>;
+  apiFn: (params: Params) => Promise<Response>;
+  buildParams: (config: Config, projectId: string, widgetUuid: string | undefined) => Params;
   configHash: (config: Config) => string;
   isEnabled: (config: Config) => boolean;
 }
@@ -27,8 +27,8 @@ export interface WidgetDataResult<Response> {
   refresh: () => Promise<Response | undefined>;
 }
 
-export function createWidgetDataHook<Config, Response extends CachedResponse>(
-  options: WidgetDataHookOptions<Config, Response>,
+export function createWidgetDataHook<Config, Response extends CachedResponse, Params>(
+  options: WidgetDataHookOptions<Config, Response, Params>,
 ) {
   return function useWidgetData(config: Config, widgetId: string): WidgetDataResult<Response> {
     const projectId = useProjectId();

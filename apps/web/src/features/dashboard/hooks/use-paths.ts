@@ -1,10 +1,10 @@
 import { api } from '@/api/client';
-import type { PathsWidgetConfig, PathsResponse } from '@/api/generated/Api';
+import type { PathsWidgetConfig, PathsResponse, PathsControllerGetPathsParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
-export const usePathsData = createWidgetDataHook<PathsWidgetConfig, PathsResponse>({
+export const usePathsData = createWidgetDataHook<PathsWidgetConfig, PathsResponse, PathsControllerGetPathsParams>({
   queryKeyPrefix: 'paths',
-  apiFn: (params) => api.pathsControllerGetPaths(params as any),
+  apiFn: (params) => api.pathsControllerGetPaths(params),
   configHash: (config) =>
     JSON.stringify({
       from: config.date_from,

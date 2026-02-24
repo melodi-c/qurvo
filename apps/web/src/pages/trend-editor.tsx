@@ -4,7 +4,7 @@ import { MetricsDivider } from '@/components/ui/metrics-divider';
 import { EditorSkeleton } from '@/components/ui/editor-skeleton';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
-import { useTrendData } from '@/features/dashboard/hooks/use-trend';
+import { useTrendData, cleanSeries } from '@/features/dashboard/hooks/use-trend';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
 import { defaultTrendConfig, METRIC_OPTIONS } from '@/features/dashboard/components/widgets/trend/trend-shared';
@@ -13,13 +13,7 @@ import translations from './trend-editor.translations';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
 function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
-  return {
-    ...config,
-    series: config.series.map((s) => ({
-      ...s,
-      filters: (s.filters ?? []).filter((f) => f.property.trim() !== ''),
-    })),
-  };
+  return { ...config, series: cleanSeries(config) };
 }
 
 export default function TrendEditorPage() {
