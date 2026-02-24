@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Ip, Headers, Query, Req, Res, UseGuards, H
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { IngestService } from './ingest.service';
 import { ApiKeyGuard } from '../guards/api-key.guard';
+import { RateLimitGuard } from '../guards/rate-limit.guard';
 import { BillingGuard } from '../guards/billing.guard';
 import { ProjectId } from '../decorators/project-id.decorator';
 import { BatchWrapperSchema, TrackEventSchema, type TrackEvent } from '../schemas/event';
@@ -19,7 +20,7 @@ export class IngestController {
   }
 
   @Post('v1/batch')
-  @UseGuards(ApiKeyGuard, BillingGuard)
+  @UseGuards(ApiKeyGuard, RateLimitGuard, BillingGuard)
   async batch(
     @ProjectId() projectId: string,
     @Ip() ip: string,
