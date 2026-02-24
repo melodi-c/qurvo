@@ -84,6 +84,7 @@ export class ApiKeyGuard implements CanActivate {
     await this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS);
 
     this.db.update(apiKeys).set({ last_used_at: new Date() }).where(eq(apiKeys.id, keyInfo.key_id))
+      .execute()
       .catch((err: unknown) => this.logger.error({ err, keyId: keyInfo.key_id }, 'Failed to update last_used_at'));
 
     this.logger.debug({ projectId: keyInfo.project_id }, 'API key authenticated');

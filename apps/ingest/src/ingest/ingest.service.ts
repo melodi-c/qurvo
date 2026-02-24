@@ -7,13 +7,17 @@ import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, b
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
 
+const EVENT_TYPE_MAP: Record<string, string> = {
+  $identify: 'identify',
+  $pageview: 'pageview',
+  $pageleave: 'pageleave',
+  $set: 'set',
+  $set_once: 'set',
+  $screen: 'screen',
+};
+
 function resolveEventType(eventName: string): string {
-  if (eventName === '$identify') return 'identify';
-  if (eventName === '$pageview') return 'pageview';
-  if (eventName === '$pageleave') return 'pageleave';
-  if (eventName === '$set' || eventName === '$set_once') return 'set';
-  if (eventName === '$screen') return 'screen';
-  return 'track';
+  return EVENT_TYPE_MAP[eventName] ?? 'track';
 }
 
 type ParsedUa = { browser: string; browser_version: string; os: string; os_version: string; device_type: string };

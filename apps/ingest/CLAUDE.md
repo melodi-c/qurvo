@@ -22,7 +22,7 @@ src/
 ├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN
 ├── infrastructure/      # @Global: REDIS + DRIZZLE providers
 ├── ingest/
-│   ├── ingest.controller.ts  # POST /v1/track, POST /v1/batch, POST /v1/import
+│   ├── ingest.controller.ts  # GET /health, POST /v1/track, POST /v1/batch, POST /v1/import
 │   ├── ingest.service.ts     # Event building + Redis stream writing
 │   └── ingest.module.ts      # IngestModule
 ├── guards/
@@ -46,6 +46,7 @@ src/
 
 | Method | Path | Auth | Throttle | Response | Description |
 |---|---|---|---|---|---|
+| GET | `/health` | No | No | 200 `{ status: 'ok' }` | Health check |
 | POST | `/v1/track` | `x-api-key` | Yes | 202 `{ ok: true }` | Single event ingestion |
 | POST | `/v1/batch` | `x-api-key` | Yes | 202 `{ ok: true, count }` | Batch event ingestion (1-500) |
 | POST | `/v1/import` | `x-api-key` | No | 202 `{ ok: true, count }` | Historical import (1-5000, no billing) |
