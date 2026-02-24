@@ -29,37 +29,38 @@ pnpm generate-api                    # swagger.json → apps/web/src/api/generat
 | `ApiKeysModule` | API keys CRUD | Key create/revoke for SDK auth |
 | `EventsModule` | Event explorer | Paginated event queries from ClickHouse |
 | `PersonsModule` | User profiles | Person list, detail, events by person |
-| `TrendModule` | Trend analytics | `queryTrend` — time-series aggregation |
-| `FunnelModule` | Funnel analytics | `queryFunnel` — multi-step conversion |
+| `AnalyticsModule` | Analytics queries | Trend, Funnel, Retention, Lifecycle, Stickiness, Paths services |
 | `CohortsModule` | Cohort analytics | `countCohortMembers` — behavioral segmentation |
-| `InsightsModule` | Saved insights | CRUD for saved trend/funnel configs |
+| `SavedInsightsModule` | Saved insights | CRUD for saved trend/funnel/retention/etc. configs |
 | `DashboardsModule` | Dashboards | Dashboard + widget CRUD |
 
 ## Architecture
 
 ```
 src/
-├── api/           # HTTP infra: guards/, filters/, decorators/, dto/
-├── auth/          # AuthService, AuthGuard, session management
-├── projects/      # ProjectsService, ProjectsController
-├── api-keys/      # ApiKeysService, ApiKeysController
-├── events/        # EventsService (ClickHouse queries)
-├── persons/       # PersonsService (ClickHouse queries)
-├── trend/         # TrendService, trend.query.ts
-├── funnel/        # FunnelService, funnel.query.ts
-├── cohorts/       # CohortsService, cohorts.query.ts
-├── insights/      # InsightsService, InsightsController
-├── dashboards/    # DashboardsService, DashboardsController
-├── database/      # DatabaseModule (DRIZZLE, CLICKHOUSE, REDIS providers)
-├── providers/     # Provider factories
-├── throttler/     # RedisThrottlerStorage
-├── utils/         # Shared utilities
-└── test/          # Integration tests
-    ├── setup.ts
-    ├── helpers/
-    ├── trend/
-    ├── funnel/
-    └── cohorts/
+├── api/               # HTTP infra: guards/, filters/, decorators/, dto/
+├── analytics/         # AnalyticsModule — all analytics insight types
+│   ├── analytics.module.ts
+│   ├── with-analytics-cache.ts  # shared cache+query utility
+│   ├── trend/         # TrendService, trend.query.ts
+│   ├── funnel/        # FunnelService, funnel.query.ts + SQL helpers
+│   ├── retention/     # RetentionService, retention.query.ts
+│   ├── lifecycle/     # LifecycleService, lifecycle.query.ts
+│   ├── stickiness/    # StickinessService, stickiness.query.ts
+│   └── paths/         # PathsService, paths.query.ts
+├── auth/              # AuthService, AuthGuard, session management
+├── projects/          # ProjectsService, ProjectsController
+├── api-keys/          # ApiKeysService, ApiKeysController
+├── events/            # EventsService (ClickHouse queries)
+├── persons/           # PersonsService (ClickHouse queries)
+├── cohorts/           # CohortsService, cohorts.query.ts
+├── saved-insights/    # SavedInsightsService — CRUD for saved configs
+├── dashboards/        # DashboardsService, DashboardsController
+├── database/          # DatabaseModule (DRIZZLE, CLICKHOUSE, REDIS providers)
+├── providers/         # Provider factories
+├── throttler/         # RedisThrottlerStorage
+├── utils/             # Shared utilities
+└── test/              # Integration tests
 ```
 
 ## Key Patterns
@@ -86,9 +87,19 @@ constructor(
 3. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
 
 ### Analytics Queries
-Query functions live in `src/{module}/{module}.query.ts`, not in `@qurvo/clickhouse`:
+All 6 analytics services share the same pattern via `withAnalyticsCache()` in `src/analytics/with-analytics-cache.ts`:
+1. Auth check (`getMembership`)
+2. Resolve cohort IDs via `CohortsService.resolveCohortFilters()`
+3. Cache lookup in Redis → ClickHouse query → cache write
+4. Return `{ data, cached_at, from_cache }` envelope
+
+Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `queryTrend(ch, params)` — time-series with granularity, compare, breakdown, cohort filters
 - `queryFunnel(ch, params)` — multi-step conversion with window, breakdown, cohort filters
+- `queryRetention(ch, params)` — user retention over time periods
+- `queryLifecycle(ch, params)` — new/returning/resurrecting/dormant classification
+- `queryStickiness(ch, params)` — histogram of active periods per user
+- `queryPaths(ch, params)` — user journey path exploration
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
 - All queries use `FROM events FINAL` to deduplicate ReplacingMergeTree
 

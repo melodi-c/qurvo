@@ -10,7 +10,8 @@ import {
 import { detectCircularDependency } from '@qurvo/cohort-query';
 import { ProjectsService } from '../projects/projects.service';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
-import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
+import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory, type CohortFilterInput } from './cohorts.query';
+import type { CohortBreakdownEntry } from '../utils/cohort-breakdown.util';
 
 @Injectable()
 export class CohortsService {
@@ -195,6 +196,41 @@ export class CohortsService {
   ) {
     await this.getById(userId, projectId, cohortId);
     return queryCohortSizeHistory(this.ch, projectId, cohortId, days);
+  }
+
+  // ── Cohort resolution for analytics queries ────────────────────────────────
+
+  async resolveCohortFilters(
+    userId: string,
+    projectId: string,
+    cohortIds: string[],
+  ): Promise<CohortFilterInput[]> {
+    const rows = await Promise.all(
+      cohortIds.map((id) => this.getById(userId, projectId, id)),
+    );
+    return rows.map((c) => ({
+      cohort_id: c.id,
+      definition: c.definition,
+      materialized: c.membership_version !== null,
+      is_static: c.is_static,
+    }));
+  }
+
+  async resolveCohortBreakdowns(
+    userId: string,
+    projectId: string,
+    cohortIds: string[],
+  ): Promise<CohortBreakdownEntry[]> {
+    const rows = await Promise.all(
+      cohortIds.map((id) => this.getById(userId, projectId, id)),
+    );
+    return rows.map((c) => ({
+      cohort_id: c.id,
+      name: c.name,
+      is_static: c.is_static,
+      materialized: c.membership_version !== null,
+      definition: c.definition,
+    }));
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────

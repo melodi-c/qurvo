@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { StickinessService } from '../../stickiness/stickiness.service';
+import { StickinessService } from '../../analytics/stickiness/stickiness.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 

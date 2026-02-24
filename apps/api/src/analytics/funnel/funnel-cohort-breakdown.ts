@@ -11,7 +11,7 @@ import {
   computeAggregateSteps,
   type RawFunnelRow,
 } from './funnel-results';
-import { buildCohortFilterForBreakdown } from '../utils/cohort-breakdown.util';
+import { buildCohortFilterForBreakdown } from '../../utils/cohort-breakdown.util';
 
 export interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];

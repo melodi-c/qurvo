@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { FunnelService } from '../../funnel/funnel.service';
+import { FunnelService } from '../../analytics/funnel/funnel.service';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 

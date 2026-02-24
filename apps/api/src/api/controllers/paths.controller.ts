@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { PathsService } from '../../paths/paths.service';
+import { PathsService } from '../../analytics/paths/paths.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { PathsQueryDto, PathsResponseDto } from '../dto/paths.dto';

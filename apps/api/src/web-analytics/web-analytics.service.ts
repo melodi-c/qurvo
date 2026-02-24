@@ -19,7 +19,7 @@ import {
   type GeographyResult,
 } from './web-analytics.query';
 
-const CACHE_TTL_SECONDS = 3600;
+import { ANALYTICS_CACHE_TTL_SECONDS } from '../constants';
 
 @Injectable()
 export class WebAnalyticsService {
@@ -74,7 +74,7 @@ export class WebAnalyticsService {
 
     this.logger.debug({ prefix, projectId: params.project_id, force }, 'Web analytics ClickHouse query');
     const data = await queryFn();
-    await this.redis.set(cacheKey, JSON.stringify(data), 'EX', CACHE_TTL_SECONDS);
+    await this.redis.set(cacheKey, JSON.stringify(data), 'EX', ANALYTICS_CACHE_TTL_SECONDS);
     return data;
   }
 

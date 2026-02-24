@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions } from '../utils/property-filter';
+import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
 
 export { RESOLVED_PERSON };

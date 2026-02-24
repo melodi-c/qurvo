@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortFilterClause } from '../cohorts/cohorts.query';
-import { resolvePropertyExpr } from '../utils/property-filter';
+import { buildCohortFilterClause } from '../../cohorts/cohorts.query';
+import { resolvePropertyExpr } from '../../utils/property-filter';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
   buildAllEventNames,

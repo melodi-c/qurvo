@@ -1,10 +1,10 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
-import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
+import { buildCohortFilterClause, type CohortFilterInput } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { buildCohortFilterForBreakdown } from '../utils/cohort-breakdown.util';
-import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
-import { resolvePropertyExpr, buildPropertyFilterConditions } from '../utils/property-filter';
+import { buildCohortFilterForBreakdown } from '../../utils/cohort-breakdown.util';
+import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import { resolvePropertyExpr, buildPropertyFilterConditions } from '../../utils/property-filter';
 
 function granularityExpr(g: TrendGranularity): string {
   switch (g) {

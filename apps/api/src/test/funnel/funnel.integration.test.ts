@@ -9,7 +9,7 @@ import {
   msAgo,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryFunnel, queryFunnelTimeToConvert } from '../../funnel/funnel.query';
+import { queryFunnel, queryFunnelTimeToConvert } from '../../analytics/funnel/funnel.query';
 
 let ctx: ContainerContext;
 
