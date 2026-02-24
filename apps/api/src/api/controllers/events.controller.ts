@@ -22,7 +22,7 @@ export class EventsController {
     @CurrentUser() user: RequestUser,
     @Query() query: EventsQueryDto,
   ): Promise<EventRowDto[]> {
-    return this.eventsService.getEvents(user.user_id, query);
+    return this.eventsService.getEvents(query);
   }
 
   @Get('events/:eventId')
@@ -31,7 +31,7 @@ export class EventsController {
     @Param('eventId') eventId: string,
     @Query() query: EventDetailQueryDto,
   ): Promise<EventDetailDto> {
-    return this.eventsService.getEventDetail(user.user_id, query.project_id, eventId);
+    return this.eventsService.getEventDetail(query.project_id, eventId);
   }
 
   @Get('event-names')
@@ -39,7 +39,7 @@ export class EventsController {
     @CurrentUser() user: RequestUser,
     @Query() query: EventNamesQueryDto,
   ): Promise<EventNamesResponseDto> {
-    const event_names = await this.eventsService.getEventNames(user.user_id, query.project_id);
+    const event_names = await this.eventsService.getEventNames(query.project_id);
     return { event_names };
   }
 
@@ -48,7 +48,7 @@ export class EventsController {
     @CurrentUser() user: RequestUser,
     @Query() query: EventPropertyNamesQueryDto,
   ): Promise<EventPropertyNamesResponseDto> {
-    const property_names = await this.eventsService.getEventPropertyNames(user.user_id, query.project_id, query.event_name);
+    const property_names = await this.eventsService.getEventPropertyNames(query.project_id, query.event_name);
     return { property_names } as any;
   }
 }

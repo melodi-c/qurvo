@@ -19,6 +19,6 @@ export class RetentionController {
     @CurrentUser() user: RequestUser,
     @Query() query: RetentionQueryDto,
   ): Promise<RetentionResponseDto> {
-    return this.retentionService.query(user.user_id, query);
+    return this.retentionService.query(query);
   }
 }

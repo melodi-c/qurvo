@@ -24,7 +24,7 @@ export class WebAnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: WebAnalyticsQueryDto,
   ): Promise<WebAnalyticsOverviewResponseDto> {
-    return this.webAnalyticsService.getOverview(user.user_id, query) as any;
+    return this.webAnalyticsService.getOverview(query) as any;
   }
 
   @Get('paths')
@@ -32,7 +32,7 @@ export class WebAnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: WebAnalyticsQueryDto,
   ): Promise<WebAnalyticsPathsResponseDto> {
-    return this.webAnalyticsService.getPaths(user.user_id, query) as any;
+    return this.webAnalyticsService.getPaths(query) as any;
   }
 
   @Get('sources')
@@ -40,7 +40,7 @@ export class WebAnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: WebAnalyticsQueryDto,
   ): Promise<WebAnalyticsSourcesResponseDto> {
-    return this.webAnalyticsService.getSources(user.user_id, query) as any;
+    return this.webAnalyticsService.getSources(query) as any;
   }
 
   @Get('devices')
@@ -48,7 +48,7 @@ export class WebAnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: WebAnalyticsQueryDto,
   ): Promise<WebAnalyticsDevicesResponseDto> {
-    return this.webAnalyticsService.getDevices(user.user_id, query) as any;
+    return this.webAnalyticsService.getDevices(query) as any;
   }
 
   @Get('geography')
@@ -56,6 +56,6 @@ export class WebAnalyticsController {
     @CurrentUser() user: RequestUser,
     @Query() query: WebAnalyticsQueryDto,
   ): Promise<WebAnalyticsGeographyResponseDto> {
-    return this.webAnalyticsService.getGeography(user.user_id, query) as any;
+    return this.webAnalyticsService.getGeography(query) as any;
   }
 }

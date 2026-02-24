@@ -27,28 +27,27 @@ export class WebAnalyticsService {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
-  async getOverview(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<OverviewResult> {
-    return this.runQuery(userId, params, 'wa:overview', queryOverview);
+  async getOverview(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<OverviewResult> {
+    return this.runQuery(params, 'wa:overview', queryOverview);
   }
 
-  async getPaths(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<PathsResult> {
-    return this.runQuery(userId, params, 'wa:paths', queryTopPages);
+  async getPaths(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<PathsResult> {
+    return this.runQuery(params, 'wa:paths', queryTopPages);
   }
 
-  async getSources(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<SourcesResult> {
-    return this.runQuery(userId, params, 'wa:sources', querySources);
+  async getSources(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<SourcesResult> {
+    return this.runQuery(params, 'wa:sources', querySources);
   }
 
-  async getDevices(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<DevicesResult> {
-    return this.runQuery(userId, params, 'wa:devices', queryDevices);
+  async getDevices(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<DevicesResult> {
+    return this.runQuery(params, 'wa:devices', queryDevices);
   }
 
-  async getGeography(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<GeographyResult> {
-    return this.runQuery(userId, params, 'wa:geography', queryGeography);
+  async getGeography(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<GeographyResult> {
+    return this.runQuery(params, 'wa:geography', queryGeography);
   }
 
   private async runQuery<T>(
-    userId: string,
     params: WebAnalyticsQueryParams & { force?: boolean },
     prefix: string,
     queryFn: (ch: ClickHouseClient, p: WebAnalyticsQueryParams) => Promise<T>,

@@ -38,7 +38,7 @@ export class PersonsController {
     @CurrentUser() user: RequestUser,
     @Query() query: PersonsQueryDto,
   ): Promise<PersonsListResponseDto> {
-    const { persons, total } = await this.personsService.getPersons(user.user_id, {
+    const { persons, total } = await this.personsService.getPersons({
       project_id: query.project_id,
       search: query.search,
       filters: query.filters,
@@ -55,7 +55,6 @@ export class PersonsController {
     @Query() query: PersonPropertyNamesQueryDto,
   ): Promise<PersonPropertyNamesResponseDto> {
     const property_names = await this.personsService.getPersonPropertyNames(
-      user.user_id,
       query.project_id,
     );
     return { property_names } as any;
@@ -67,7 +66,7 @@ export class PersonsController {
     @Query() query: PersonByIdQueryDto,
     @Param('personId') personId: string,
   ): Promise<PersonDto> {
-    const person = await this.personsService.getPersonById(user.user_id, query.project_id, personId);
+    const person = await this.personsService.getPersonById(query.project_id, personId);
     return toPersonDto(person);
   }
 
@@ -77,7 +76,7 @@ export class PersonsController {
     @Query() query: PersonEventsQueryDto,
     @Param('personId') personId: string,
   ): Promise<PersonEventRowDto[]> {
-    return this.personsService.getPersonEvents(user.user_id, {
+    return this.personsService.getPersonEvents({
       project_id: query.project_id,
       person_id: personId,
       limit: query.limit ?? 50,

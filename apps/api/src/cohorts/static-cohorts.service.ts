@@ -41,10 +41,10 @@ export class StaticCohortsService {
   }
 
   async duplicateAsStatic(userId: string, projectId: string, cohortId: string) {
-    const source = await this.cohortsService.getById(userId, projectId, cohortId);
+    const source = await this.cohortsService.getById(projectId, cohortId);
 
     // Get current members
-    const memberCount = await this.cohortsService.getMemberCount(userId, projectId, cohortId);
+    const memberCount = await this.cohortsService.getMemberCount(projectId, cohortId);
     if (memberCount === 0) {
       throw new AppBadRequestException('Source cohort has no members');
     }
@@ -78,16 +78,16 @@ export class StaticCohortsService {
     return newCohort;
   }
 
-  async addStaticMembers(userId: string, projectId: string, cohortId: string, personIds: string[]) {
-    const cohort = await this.cohortsService.getById(userId, projectId, cohortId);
+  async addStaticMembers(projectId: string, cohortId: string, personIds: string[]) {
+    const cohort = await this.cohortsService.getById(projectId, cohortId);
     if (!cohort.is_static) {
       throw new AppBadRequestException('Cannot add members to a dynamic cohort');
     }
     await this.insertStaticMembers(projectId, cohortId, personIds);
   }
 
-  async removeStaticMembers(userId: string, projectId: string, cohortId: string, personIds: string[]) {
-    const cohort = await this.cohortsService.getById(userId, projectId, cohortId);
+  async removeStaticMembers(projectId: string, cohortId: string, personIds: string[]) {
+    const cohort = await this.cohortsService.getById(projectId, cohortId);
     if (!cohort.is_static) {
       throw new AppBadRequestException('Cannot remove members from a dynamic cohort');
     }
@@ -102,12 +102,11 @@ export class StaticCohortsService {
   }
 
   async importStaticCohortCsv(
-    userId: string,
     projectId: string,
     cohortId: string,
     csvContent: string,
   ) {
-    const cohort = await this.cohortsService.getById(userId, projectId, cohortId);
+    const cohort = await this.cohortsService.getById(projectId, cohortId);
     if (!cohort.is_static) {
       throw new AppBadRequestException('Cannot import CSV to a dynamic cohort');
     }

@@ -30,7 +30,7 @@ export class LifecycleTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.lifecycleService.query(userId, { project_id: projectId, ...args });
+    const result = await this.lifecycleService.query({ project_id: projectId, ...args });
     return result.data;
   });
 }

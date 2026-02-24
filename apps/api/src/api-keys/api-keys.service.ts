@@ -15,7 +15,7 @@ export class ApiKeysService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  async list(userId: string, projectId: string) {
+  async list(projectId: string) {
     return this.db
       .select({
         id: apiKeys.id,
@@ -31,7 +31,7 @@ export class ApiKeysService {
       .where(and(eq(apiKeys.project_id, projectId), isNull(apiKeys.revoked_at)));
   }
 
-  async create(userId: string, projectId: string, input: { name: string; scopes?: string[]; expires_at?: string }) {
+  async create(projectId: string, input: { name: string; scopes?: string[]; expires_at?: string }) {
     const rawKey = crypto.randomBytes(24).toString('base64url');
     const key_prefix = rawKey.slice(0, 16);
     const key_hash = hashToken(rawKey);
@@ -56,7 +56,7 @@ export class ApiKeysService {
     };
   }
 
-  async revoke(userId: string, projectId: string, keyId: string) {
+  async revoke(projectId: string, keyId: string) {
     const [revoked] = await this.db
       .update(apiKeys)
       .set({ revoked_at: new Date() })

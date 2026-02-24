@@ -9,7 +9,6 @@ import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-
 
 export interface AnalyticsQueryService<TParams, TResult> {
   query(
-    userId: string,
     params: Omit<TParams, 'cohort_filters' | 'breakdown_cohort_ids'> & {
       widget_id?: string;
       force?: boolean;
@@ -38,17 +37,17 @@ export function createAnalyticsQueryProvider<
       const logger = new Logger(prefix);
 
       return {
-        async query(userId, params) {
+        async query(params) {
           const { widget_id, force, cohort_ids, breakdown_type, breakdown_cohort_ids, ...queryParams } = params;
 
           if (cohort_ids?.length) {
             (queryParams as Record<string, unknown>).cohort_filters =
-              await cohortsService.resolveCohortFilters(userId, params.project_id, cohort_ids);
+              await cohortsService.resolveCohortFilters(params.project_id, cohort_ids);
           }
 
           if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {
             (queryParams as Record<string, unknown>).breakdown_cohort_ids =
-              await cohortsService.resolveCohortBreakdowns(userId, params.project_id, breakdown_cohort_ids);
+              await cohortsService.resolveCohortBreakdowns(params.project_id, breakdown_cohort_ids);
           }
 
           return withAnalyticsCache({

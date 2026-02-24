@@ -26,7 +26,7 @@ export class MembersController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<MemberDto[]> {
-    return this.membersService.listMembers(user.user_id, projectId);
+    return this.membersService.listMembers(projectId);
   }
 
   @RequireRole('owner')
@@ -37,7 +37,7 @@ export class MembersController {
     @Param('memberId') memberId: string,
     @Body() body: UpdateMemberRoleDto,
   ): Promise<MemberDto> {
-    return this.membersService.updateMemberRole(user.user_id, projectId, memberId, body.role);
+    return this.membersService.updateMemberRole(projectId, memberId, body.role);
   }
 
   @RequireRole('owner')
@@ -47,7 +47,7 @@ export class MembersController {
     @Param('projectId') projectId: string,
     @Param('memberId') memberId: string,
   ): Promise<void> {
-    await this.membersService.removeMember(user.user_id, projectId, memberId);
+    await this.membersService.removeMember(projectId, memberId);
   }
 }
 
@@ -66,7 +66,7 @@ export class InvitesController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<InviteDto[]> {
-    return this.membersService.listInvites(user.user_id, projectId);
+    return this.membersService.listInvites(projectId);
   }
 
   @RequireRole('owner')
@@ -86,7 +86,7 @@ export class InvitesController {
     @Param('projectId') projectId: string,
     @Param('inviteId') inviteId: string,
   ): Promise<void> {
-    await this.membersService.cancelInvite(user.user_id, projectId, inviteId);
+    await this.membersService.cancelInvite(projectId, inviteId);
   }
 }
 

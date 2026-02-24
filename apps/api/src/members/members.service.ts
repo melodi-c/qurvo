@@ -21,7 +21,7 @@ export class MembersService {
 
   // ── Members ────────────────────────────────────────────────────────────────
 
-  async listMembers(userId: string, projectId: string) {
+  async listMembers(projectId: string) {
     return this.db
       .select({
         id: projectMembers.id,
@@ -40,7 +40,7 @@ export class MembersService {
       .orderBy(projectMembers.created_at);
   }
 
-  async updateMemberRole(userId: string, projectId: string, memberId: string, role: 'editor' | 'viewer') {
+  async updateMemberRole(projectId: string, memberId: string, role: 'editor' | 'viewer') {
     const [target] = await this.db
       .select({ role: projectMembers.role })
       .from(projectMembers)
@@ -49,13 +49,9 @@ export class MembersService {
     if (!target) throw new MemberNotFoundException();
     if (target.role === 'owner') throw new InsufficientPermissionsException('Cannot change owner role');
 
-    await this.db
-      .update(projectMembers)
-      .set({ role })
-      .where(eq(projectMembers.id, memberId));
-    this.logger.log({ memberId, projectId, userId, role }, 'Member role updated');
+    await this.db.update(projectMembers).set({ role }).where(eq(projectMembers.id, memberId));
 
-    const [updated] = await this.db
+    const [hydrated] = await this.db
       .select({
         id: projectMembers.id,
         project_id: projectMembers.project_id,
@@ -70,10 +66,12 @@ export class MembersService {
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.user_id, users.id))
       .where(eq(projectMembers.id, memberId));
-    return updated;
+
+    this.logger.log({ memberId, projectId, role }, 'Member role updated');
+    return hydrated;
   }
 
-  async removeMember(userId: string, projectId: string, memberId: string) {
+  async removeMember(projectId: string, memberId: string) {
     const [target] = await this.db
       .select()
       .from(projectMembers)
@@ -83,12 +81,12 @@ export class MembersService {
     if (target.role === 'owner') throw new CannotRemoveOwnerException();
 
     await this.db.delete(projectMembers).where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)));
-    this.logger.log({ memberId, projectId, userId }, 'Member removed');
+    this.logger.log({ memberId, projectId }, 'Member removed');
   }
 
   // ── Invites ────────────────────────────────────────────────────────────────
 
-  async listInvites(userId: string, projectId: string) {
+  async listInvites(projectId: string) {
     return this.db
       .select({
         id: projectInvites.id,
@@ -149,7 +147,7 @@ export class MembersService {
     return this.hydrateInvite(invite.id);
   }
 
-  async cancelInvite(userId: string, projectId: string, inviteId: string) {
+  async cancelInvite(projectId: string, inviteId: string) {
     const [invite] = await this.db
       .select()
       .from(projectInvites)

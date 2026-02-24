@@ -32,7 +32,7 @@ export class RetentionTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.retentionService.query(userId, {
+    const result = await this.retentionService.query({
       project_id: projectId,
       periods: args.periods ?? 11,
       ...args,

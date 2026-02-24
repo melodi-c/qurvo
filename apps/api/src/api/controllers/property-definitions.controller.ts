@@ -24,7 +24,7 @@ export class PropertyDefinitionsController {
     @Param('projectId') projectId: string,
     @Query() query: PropertyDefinitionQueryDto,
   ): Promise<PropertyDefinitionsListResponseDto> {
-    return this.propertyDefinitionsService.list(user.user_id, projectId, {
+    return this.propertyDefinitionsService.list(projectId, {
       type: query.type,
       eventName: query.event_name,
       search: query.search,
@@ -46,7 +46,6 @@ export class PropertyDefinitionsController {
     @Body() body: UpsertPropertyDefinitionDto,
   ): Promise<UpsertPropertyDefinitionResponseDto> {
     return this.propertyDefinitionsService.upsert(
-      user.user_id,
       projectId,
       propertyName,
       propertyType,
@@ -62,6 +61,6 @@ export class PropertyDefinitionsController {
     @Param('propertyType') propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
   ): Promise<void> {
-    await this.propertyDefinitionsService.delete(user.user_id, projectId, propertyName, propertyType);
+    await this.propertyDefinitionsService.delete(projectId, propertyName, propertyType);
   }
 }

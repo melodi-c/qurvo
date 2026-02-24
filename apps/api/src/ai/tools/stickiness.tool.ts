@@ -30,7 +30,7 @@ export class StickinessTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.stickinessService.query(userId, { project_id: projectId, ...args });
+    const result = await this.stickinessService.query({ project_id: projectId, ...args });
     return result.data;
   });
 }

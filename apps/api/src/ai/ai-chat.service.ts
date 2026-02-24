@@ -101,17 +101,12 @@ export class AiChatService {
     });
   }
 
-  async updateTitle(conversationId: string, title: string) {
+  async finalizeConversation(conversationId: string, title?: string) {
+    const set: Record<string, unknown> = { updated_at: new Date() };
+    if (title !== undefined) set.title = title;
     await this.db
       .update(aiConversations)
-      .set({ title, updated_at: new Date() })
-      .where(eq(aiConversations.id, conversationId));
-  }
-
-  async touchConversation(conversationId: string) {
-    await this.db
-      .update(aiConversations)
-      .set({ updated_at: new Date() })
+      .set(set)
       .where(eq(aiConversations.id, conversationId));
   }
 }

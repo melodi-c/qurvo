@@ -5,7 +5,6 @@ import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { withRetry } from './retry';
 import { parseRedisFields } from './redis-utils';
-import { safeScreenDimension } from './event-utils';
 import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import {
   DLQ_CIRCUIT_BREAKER_RESET_MS,
@@ -18,6 +17,8 @@ import {
   RETRY_CLICKHOUSE,
 } from '../constants';
 import { DistributedLock } from '@qurvo/distributed-lock';
+import { PersonBatchStore } from './person-batch-store';
+import { DefinitionSyncService } from './definition-sync.service';
 
 @Injectable()
 export class DlqService implements OnApplicationBootstrap {
@@ -29,6 +30,8 @@ export class DlqService implements OnApplicationBootstrap {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(DlqService.name) private readonly logger: PinoLogger,
+    private readonly personBatchStore: PersonBatchStore,
+    private readonly definitionSync: DefinitionSyncService,
   ) {
     this.lock = new DistributedLock(redis, 'dlq:replay:lock', randomUUID(), 30);
   }
@@ -73,12 +76,21 @@ export class DlqService implements OnApplicationBootstrap {
         .map(([, fields]) => {
           const obj = parseRedisFields(fields);
           if (!obj.data) return null;
-          const event = JSON.parse(obj.data) as Event;
-          event.screen_width = safeScreenDimension(event.screen_width);
-          event.screen_height = safeScreenDimension(event.screen_height);
-          return event;
+          return JSON.parse(obj.data) as Event;
         })
         .filter((e): e is Event => e !== null);
+
+      // Re-enqueue person data so PG rows are created (they may have been lost
+      // when the original personBatchStore.flush() failed and routed events to DLQ).
+      for (const event of events) {
+        if (event.person_id && event.distinct_id && event.project_id) {
+          this.personBatchStore.enqueue(
+            event.project_id, event.person_id, event.distinct_id,
+            event.user_properties || '{}',
+          );
+        }
+      }
+      await this.personBatchStore.flush();
 
       await withRetry(
         () => this.ch.insert({
@@ -92,6 +104,14 @@ export class DlqService implements OnApplicationBootstrap {
       );
       await this.redis.xdel(REDIS_STREAM_DLQ, ...ids);
       await this.redis.del(DLQ_FAILURES_KEY, DLQ_CIRCUIT_KEY);
+
+      // Sync definitions (non-critical — errors logged but don't fail the replay)
+      try {
+        await this.definitionSync.syncFromBatch(events);
+      } catch (err) {
+        this.logger.warn({ err }, 'DLQ definition sync failed (non-critical)');
+      }
+
       this.logger.info({ replayed: events.length }, 'Replayed events from DLQ');
     } catch (err) {
       const failures = await this.redis.incr(DLQ_FAILURES_KEY);

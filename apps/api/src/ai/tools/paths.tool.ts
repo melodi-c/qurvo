@@ -41,7 +41,7 @@ export class PathsTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.pathsService.query(userId, { project_id: projectId, ...args });
+    const result = await this.pathsService.query({ project_id: projectId, ...args });
     return result.data;
   });
 }

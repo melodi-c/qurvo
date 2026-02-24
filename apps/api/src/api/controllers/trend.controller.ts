@@ -19,6 +19,6 @@ export class TrendController {
     @CurrentUser() user: RequestUser,
     @Query() query: TrendQueryDto,
   ): Promise<TrendResponseDto> {
-    return this.trendService.query(user.user_id, query);
+    return this.trendService.query(query);
   }
 }
