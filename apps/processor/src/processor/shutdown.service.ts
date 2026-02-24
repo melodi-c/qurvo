@@ -7,7 +7,6 @@ import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
 import { EventConsumerService } from './event-consumer.service';
-import { PersonBatchStore } from './person-batch-store';
 
 @Injectable()
 export class ShutdownService implements OnApplicationShutdown {
@@ -18,7 +17,6 @@ export class ShutdownService implements OnApplicationShutdown {
     private readonly eventConsumerService: EventConsumerService,
     private readonly flushService: FlushService,
     private readonly dlqService: DlqService,
-    private readonly personBatchStore: PersonBatchStore,
   ) {}
 
   async onApplicationShutdown() {
@@ -26,11 +24,9 @@ export class ShutdownService implements OnApplicationShutdown {
       this.logger.error({ err }, 'Consumer shutdown error'),
     );
     this.dlqService.stop();
+    // FlushService.shutdown() runs a final flush which includes personBatchStore.flush() internally
     await this.flushService.shutdown().catch((err) =>
       this.logger.error({ err }, 'Flush shutdown error'),
-    );
-    await this.personBatchStore.flush().catch((err) =>
-      this.logger.error({ err }, 'PersonBatchStore final flush error'),
     );
     await this.ch.close().catch(() => {});
     await this.redis.quit().catch(() => {});

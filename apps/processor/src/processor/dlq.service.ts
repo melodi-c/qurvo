@@ -5,6 +5,7 @@ import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { withRetry } from './retry';
 import { parseRedisFields } from './redis-utils';
+import { safeScreenDimension } from './event-utils';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import {
@@ -78,8 +79,8 @@ export class DlqService implements OnApplicationBootstrap {
           const obj = parseRedisFields(fields);
           if (!obj.data) return null;
           const event = JSON.parse(obj.data) as Event;
-          if (event.screen_width != null) event.screen_width = Math.max(0, event.screen_width);
-          if (event.screen_height != null) event.screen_height = Math.max(0, event.screen_height);
+          event.screen_width = safeScreenDimension(event.screen_width);
+          event.screen_height = safeScreenDimension(event.screen_height);
           return event;
         })
         .filter((e): e is Event => e !== null);

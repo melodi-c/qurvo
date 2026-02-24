@@ -19,6 +19,7 @@ import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { parseRedisFields } from './redis-utils';
+import { safeScreenDimension } from './event-utils';
 
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
@@ -192,8 +193,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
       browser_version: data.browser_version,
       os: data.os,
       os_version: data.os_version,
-      screen_width: Math.max(0, data.screen_width ? parseInt(data.screen_width) : 0),
-      screen_height: Math.max(0, data.screen_height ? parseInt(data.screen_height) : 0),
+      screen_width: safeScreenDimension(data.screen_width),
+      screen_height: safeScreenDimension(data.screen_height),
       country,
       language: data.language,
       timezone: data.timezone,
