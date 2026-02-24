@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
-import { TrendService } from '../../analytics/trend/trend.service';
+import { TREND_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { TrendQueryParams, TrendQueryResult } from '../../analytics/trend/trend.query';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -31,12 +33,12 @@ const tool = defineTool({
 export class TrendTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly trendService: TrendService) {}
+  constructor(@Inject(TREND_SERVICE) private readonly trendService: AnalyticsQueryService<TrendQueryParams, TrendQueryResult>) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.trendService.getTrend(userId, { project_id: projectId, ...args });
+    const result = await this.trendService.query(userId, { project_id: projectId, ...args });
     return result.data;
   });
 }

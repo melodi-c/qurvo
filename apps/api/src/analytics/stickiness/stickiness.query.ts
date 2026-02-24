@@ -1,14 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortFilterClause, type CohortFilterInput } from '../../cohorts/cohorts.query';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
-
-function granularityTruncFn(granularity: StickinessGranularity): string {
-  switch (granularity) {
-    case 'day': return 'toStartOfDay';
-    case 'week': return 'toStartOfWeek';
-    case 'month': return 'toStartOfMonth';
-  }
-}
+import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -76,14 +68,9 @@ export async function queryStickiness(
   queryParams['from'] = toChTs(params.date_from);
   queryParams['to'] = toChTs(params.date_to, true);
 
-  const truncFn = granularityTruncFn(params.granularity);
-  const truncExpr = params.granularity === 'week'
-    ? `${truncFn}(timestamp, 1)`
-    : `${truncFn}(timestamp)`;
+  const truncExpr = granularityTruncExpr(params.granularity, 'timestamp');
 
-  const cohortClause = params.cohort_filters?.length
-    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
-    : '';
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   const sql = `
     WITH person_active_periods AS (

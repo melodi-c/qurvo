@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortFilterClause, type CohortFilterInput } from '../../cohorts/cohorts.query';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -32,14 +32,6 @@ export interface RetentionQueryResult {
 }
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
-
-function granularityTruncExpr(granularity: RetentionGranularity, col: string): string {
-  switch (granularity) {
-    case 'day': return `toStartOfDay(${col})`;
-    case 'week': return `toStartOfWeek(${col}, 1)`;
-    case 'month': return `toStartOfMonth(${col})`;
-  }
-}
 
 function dateDiffUnit(granularity: RetentionGranularity): string {
   switch (granularity) {
@@ -164,9 +156,7 @@ export async function queryRetention(
   const granExpr = granularityTruncExpr(params.granularity, 'timestamp');
   const unit = dateDiffUnit(params.granularity);
 
-  const cohortClause = params.cohort_filters?.length
-    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
-    : '';
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   let initialCte: string;
 

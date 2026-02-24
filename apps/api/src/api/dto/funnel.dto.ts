@@ -57,7 +57,7 @@ export class FunnelExclusionDto {
   funnel_to_step: number;
 }
 
-export class FunnelQueryDto {
+class FunnelBaseQueryDto {
   @IsUUID()
   project_id: string;
 
@@ -97,24 +97,6 @@ export class FunnelQueryDto {
   @IsDateString()
   date_to: string;
 
-  @IsString()
-  @IsOptional()
-  breakdown_property?: string;
-
-  @ApiPropertyOptional({ enum: ['property', 'cohort'] })
-  @IsOptional()
-  breakdown_type?: 'property' | 'cohort';
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    return typeof value === 'string' ? JSON.parse(value) : value;
-  })
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  breakdown_cohort_ids?: string[];
-
   @ApiPropertyOptional({ type: [String] })
   @Transform(({ value }) => {
     if (!value) return undefined;
@@ -124,23 +106,6 @@ export class FunnelQueryDto {
   @IsUUID('4', { each: true })
   @IsOptional()
   cohort_ids?: string[];
-
-  @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
-  @IsIn(['ordered', 'strict', 'unordered'])
-  @IsOptional()
-  funnel_order_type?: 'ordered' | 'strict' | 'unordered';
-
-  @ApiPropertyOptional({ type: [FunnelExclusionDto] })
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value) : value;
-    return Array.isArray(arr) ? plainToInstance(FunnelExclusionDto, arr) : arr;
-  })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => FunnelExclusionDto)
-  @IsOptional()
-  exclusions?: FunnelExclusionDto[];
 
   @ApiPropertyOptional({ description: 'Sampling factor 0.0-1.0 (1.0 = no sampling)' })
   @Type(() => Number)
@@ -160,55 +125,14 @@ export class FunnelQueryDto {
   force?: boolean;
 }
 
-export class FunnelTimeToConvertQueryDto {
-  @IsUUID()
-  project_id: string;
-
-  @Transform(({ value }) => {
-    if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value) : value;
-    return Array.isArray(arr) ? plainToInstance(FunnelStepDto, arr) : arr;
-  })
-  @IsArray()
-  @ArrayMinSize(2)
-  @ArrayMaxSize(10)
-  @ValidateNested({ each: true })
-  @Type(() => FunnelStepDto)
-  steps: FunnelStepDto[];
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(90)
-  conversion_window_days: number = 14;
-
-  @ApiPropertyOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
+export class FunnelQueryDto extends FunnelBaseQueryDto {
+  @IsString()
   @IsOptional()
-  conversion_window_value?: number;
+  breakdown_property?: string;
 
-  @ApiPropertyOptional({ enum: ['second', 'minute', 'hour', 'day', 'week', 'month'] })
-  @IsIn(['second', 'minute', 'hour', 'day', 'week', 'month'])
+  @ApiPropertyOptional({ enum: ['property', 'cohort'] })
   @IsOptional()
-  conversion_window_unit?: string;
-
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  from_step: number;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  to_step: number;
+  breakdown_type?: 'property' | 'cohort';
 
   @ApiPropertyOptional({ type: [String] })
   @Transform(({ value }) => {
@@ -218,24 +142,36 @@ export class FunnelTimeToConvertQueryDto {
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()
-  cohort_ids?: string[];
+  breakdown_cohort_ids?: string[];
 
-  @ApiPropertyOptional({ description: 'Sampling factor 0.0-1.0 (1.0 = no sampling)' })
+  @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
+  @IsIn(['ordered', 'strict', 'unordered'])
+  @IsOptional()
+  funnel_order_type?: 'ordered' | 'strict' | 'unordered';
+
+  @ApiPropertyOptional({ type: [FunnelExclusionDto] })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    const arr = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(arr) ? plainToInstance(FunnelExclusionDto, arr) : arr;
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FunnelExclusionDto)
+  @IsOptional()
+  exclusions?: FunnelExclusionDto[];
+}
+
+export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   @Type(() => Number)
-  @IsNumber()
-  @Min(0.01)
-  @Max(1)
-  @IsOptional()
-  sampling_factor?: number;
+  @IsInt()
+  @Min(0)
+  from_step: number;
 
-  @IsUUID()
-  @IsOptional()
-  widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  to_step: number;
 }
 
 // breakdown_value присутствует только у breakdown-шагов, поэтому optional

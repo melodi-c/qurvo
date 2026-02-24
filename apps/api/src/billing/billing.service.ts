@@ -7,7 +7,9 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
 import { ProjectsService } from '../projects/projects.service';
 
-// NOTE: must match apps/ingest/src/constants.ts BILLING_EVENTS_KEY_PREFIX
+// Intentionally duplicated from apps/ingest/src/constants.ts.
+// Both apps read from the same Redis keys; keeping the constant local
+// avoids a cross-app dependency for a single string.
 const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 
 @Injectable()

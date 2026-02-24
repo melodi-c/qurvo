@@ -11,7 +11,13 @@ import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-
 export interface AnalyticsQueryService<TParams, TResult> {
   query(
     userId: string,
-    params: TParams & { widget_id?: string; force?: boolean; cohort_ids?: string[] },
+    params: Omit<TParams, 'cohort_filters' | 'breakdown_cohort_ids'> & {
+      widget_id?: string;
+      force?: boolean;
+      cohort_ids?: string[];
+      breakdown_type?: 'property' | 'cohort';
+      breakdown_cohort_ids?: string[];
+    },
   ): Promise<AnalyticsCacheResult<TResult>>;
 }
 
@@ -37,11 +43,16 @@ export function createAnalyticsQueryProvider<
         async query(userId, params) {
           await projectsService.getMembership(userId, params.project_id);
 
-          const { widget_id, force, cohort_ids, ...queryParams } = params;
+          const { widget_id, force, cohort_ids, breakdown_type, breakdown_cohort_ids, ...queryParams } = params;
 
           if (cohort_ids?.length) {
             (queryParams as Record<string, unknown>).cohort_filters =
               await cohortsService.resolveCohortFilters(userId, params.project_id, cohort_ids);
+          }
+
+          if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {
+            (queryParams as Record<string, unknown>).breakdown_cohort_ids =
+              await cohortsService.resolveCohortBreakdowns(userId, params.project_id, breakdown_cohort_ids);
           }
 
           return withAnalyticsCache({

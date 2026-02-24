@@ -1,14 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortFilterClause, type CohortFilterInput } from '../../cohorts/cohorts.query';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
-
-function granularityTruncExpr(granularity: LifecycleGranularity, col: string): string {
-  switch (granularity) {
-    case 'day': return `toStartOfDay(${col})`;
-    case 'week': return `toStartOfWeek(${col}, 1)`;
-    case 'month': return `toStartOfMonth(${col})`;
-  }
-}
+import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
 
 function extendDateBack(date: string, granularity: LifecycleGranularity): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -26,15 +18,7 @@ function extendDateBack(date: string, granularity: LifecycleGranularity): string
   return d.toISOString().slice(0, 10);
 }
 
-function granularityAddInterval(granularity: LifecycleGranularity): string {
-  switch (granularity) {
-    case 'day': return `INTERVAL 1 DAY`;
-    case 'week': return `INTERVAL 7 DAY`;
-    case 'month': return `INTERVAL 1 MONTH`;
-  }
-}
-
-function granularitySubInterval(granularity: LifecycleGranularity): string {
+function granularityInterval(granularity: LifecycleGranularity): string {
   switch (granularity) {
     case 'day': return `INTERVAL 1 DAY`;
     case 'week': return `INTERVAL 7 DAY`;
@@ -141,12 +125,9 @@ export async function queryLifecycle(
   queryParams['to'] = toChTs(params.date_to, true);
 
   const granExpr = granularityTruncExpr(params.granularity, 'timestamp');
-  const addInterval = granularityAddInterval(params.granularity);
-  const subInterval = granularitySubInterval(params.granularity);
+  const interval = granularityInterval(params.granularity);
 
-  const cohortClause = params.cohort_filters?.length
-    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
-    : '';
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   const sql = `
     WITH
@@ -169,7 +150,7 @@ export async function queryLifecycle(
           a.ts_bucket AS ts_bucket,
           multiIf(
             a.ts_bucket = f.first_bucket, 'new',
-            (a.person_id, a.ts_bucket - ${subInterval}) IN (SELECT person_id, ts_bucket FROM active_periods), 'returning',
+            (a.person_id, a.ts_bucket - ${interval}) IN (SELECT person_id, ts_bucket FROM active_periods), 'returning',
             'resurrecting'
           ) AS status,
           a.person_id AS person_id
@@ -179,13 +160,13 @@ export async function queryLifecycle(
       ),
       dormant AS (
         SELECT
-          a.ts_bucket + ${addInterval} AS ts_bucket,
+          a.ts_bucket + ${interval} AS ts_bucket,
           'dormant' AS status,
           a.person_id
         FROM active_periods a
-        WHERE (a.person_id, a.ts_bucket + ${addInterval}) NOT IN (SELECT person_id, ts_bucket FROM active_periods)
-          AND a.ts_bucket + ${addInterval} >= {from:DateTime64(3)}
-          AND a.ts_bucket + ${addInterval} <= {to:DateTime64(3)}
+        WHERE (a.person_id, a.ts_bucket + ${interval}) NOT IN (SELECT person_id, ts_bucket FROM active_periods)
+          AND a.ts_bucket + ${interval} >= {from:DateTime64(3)}
+          AND a.ts_bucket + ${interval} <= {to:DateTime64(3)}
       )
     SELECT
       toString(ts_bucket) AS period,

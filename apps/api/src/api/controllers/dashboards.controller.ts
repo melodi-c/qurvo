@@ -21,7 +21,7 @@ export class DashboardsController {
   constructor(private readonly dashboardsService: DashboardsService) {}
 
   @Get()
-  list(
+  async list(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<DashboardDto[]> {
@@ -29,7 +29,7 @@ export class DashboardsController {
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Body() body: CreateDashboardDto,
@@ -38,7 +38,7 @@ export class DashboardsController {
   }
 
   @Get(':dashboardId')
-  getById(
+  async getById(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
@@ -47,7 +47,7 @@ export class DashboardsController {
   }
 
   @Put(':dashboardId')
-  update(
+  async update(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
@@ -57,7 +57,7 @@ export class DashboardsController {
   }
 
   @Delete(':dashboardId')
-  remove(
+  async remove(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
@@ -66,7 +66,7 @@ export class DashboardsController {
   }
 
   @Post(':dashboardId/widgets')
-  addWidget(
+  async addWidget(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
@@ -76,7 +76,7 @@ export class DashboardsController {
   }
 
   @Put(':dashboardId/widgets/:widgetId')
-  updateWidget(
+  async updateWidget(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
@@ -87,7 +87,7 @@ export class DashboardsController {
   }
 
   @Delete(':dashboardId/widgets/:widgetId')
-  removeWidget(
+  async removeWidget(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
