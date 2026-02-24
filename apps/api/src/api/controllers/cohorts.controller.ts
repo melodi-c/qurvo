@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CohortsService } from '../../cohorts/cohorts.service';
@@ -13,10 +13,12 @@ import {
   CohortSizeHistoryQueryDto,
   CohortHistoryPointDto,
 } from '../dto/cohorts.dto';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 @ApiTags('Cohorts')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/cohorts')
+@UseGuards(ProjectMemberGuard)
 export class CohortsController {
   constructor(private readonly cohortsService: CohortsService) {}
 

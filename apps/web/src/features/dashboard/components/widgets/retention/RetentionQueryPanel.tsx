@@ -7,6 +7,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './RetentionQueryPanel.translations';
@@ -32,8 +33,7 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
   ], [t]);
 
   return (
-    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
-      <div className="p-5 space-y-6">
+    <QueryPanelShell>
 
         <DateRangeSection
           dateFrom={config.date_from}
@@ -114,7 +114,6 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
           value={config.cohort_ids ?? []}
           onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
         />
-      </div>
-    </aside>
+    </QueryPanelShell>
   );
 }

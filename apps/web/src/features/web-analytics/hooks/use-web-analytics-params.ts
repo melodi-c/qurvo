@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import type { StepFilter } from '@/api/generated/Api';
 
 function daysAgo(days: number): string {
@@ -13,8 +13,7 @@ function todayStr(): string {
 }
 
 export function useWebAnalyticsParams() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') ?? '';
+  const projectId = useProjectId();
 
   const [dateFrom, setDateFrom] = useState(daysAgo(7));
   const [dateTo, setDateTo] = useState(todayStr());

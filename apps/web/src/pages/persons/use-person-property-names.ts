@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
 import { usePropertyDefinitions, buildPropertyDescriptionMap } from '@/hooks/use-property-definitions';
 
 export function usePersonPropertyNames() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   const namesQuery = useQuery({
     queryKey: ['person-property-names', projectId],

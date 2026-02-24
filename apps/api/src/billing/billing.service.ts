@@ -5,7 +5,6 @@ import { projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
-import { ProjectsService } from '../projects/projects.service';
 
 // Intentionally duplicated from apps/ingest/src/constants.ts.
 // Both apps read from the same Redis keys; keeping the constant local
@@ -19,12 +18,9 @@ export class BillingService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async getStatus(userId: string, projectId: string) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const result = await this.db
       .select({
         plan_slug: plans.slug,

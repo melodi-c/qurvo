@@ -1,5 +1,6 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { PersonsService } from '../../persons/persons.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
@@ -28,6 +29,7 @@ function toPersonDto(p: PersonRow): PersonDto {
 @ApiTags('Persons')
 @ApiBearerAuth()
 @Controller('api/persons')
+@UseGuards(ProjectMemberGuard)
 export class PersonsController {
   constructor(private readonly personsService: PersonsService) {}
 

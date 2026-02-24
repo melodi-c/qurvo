@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -14,8 +14,7 @@ import translations from './api-keys.translations';
 
 export default function ApiKeysPage() {
   const { t } = useLocalTranslation(translations);
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [createdKey, setCreatedKey] = useState<string | null>(null);

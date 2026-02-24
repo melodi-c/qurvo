@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { WebAnalyticsService } from '../../web-analytics/web-analytics.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
@@ -14,6 +15,7 @@ import {
 @ApiTags('Web Analytics')
 @ApiBearerAuth()
 @Controller('api/web-analytics')
+@UseGuards(ProjectMemberGuard)
 export class WebAnalyticsController {
   constructor(private readonly webAnalyticsService: WebAnalyticsService) {}
 

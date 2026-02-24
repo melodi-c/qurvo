@@ -9,7 +9,6 @@ import {
   type CohortConditionGroup, type Database,
 } from '@qurvo/db';
 import { detectCircularDependency } from '@qurvo/cohort-query';
-import { ProjectsService } from '../projects/projects.service';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory, type CohortFilterInput } from './cohorts.query';
 import type { CohortBreakdownEntry } from '../utils/cohort-breakdown.util';
@@ -21,12 +20,9 @@ export class CohortsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string) {
-    await this.projectsService.getMembership(userId, projectId);
-
     return this.db
       .select()
       .from(cohorts)
@@ -35,8 +31,6 @@ export class CohortsService {
   }
 
   async getById(userId: string, projectId: string, cohortId: string) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const rows = await this.db
       .select()
       .from(cohorts)
@@ -56,8 +50,6 @@ export class CohortsService {
       is_static?: boolean;
     },
   ) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const definition = input.definition ?? null;
     if (!definition && !input.is_static) {
       throw new AppBadRequestException('definition is required for dynamic cohorts');
@@ -93,8 +85,6 @@ export class CohortsService {
       definition?: CohortConditionGroup;
     },
   ) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const existing = await this.db
       .select()
       .from(cohorts)
@@ -132,8 +122,6 @@ export class CohortsService {
   }
 
   async remove(userId: string, projectId: string, cohortId: string) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const existing = await this.db
       .select()
       .from(cohorts)
@@ -178,7 +166,6 @@ export class CohortsService {
     projectId: string,
     definition: CohortConditionGroup | undefined,
   ): Promise<number> {
-    await this.projectsService.getMembership(userId, projectId);
     if (!definition) return 0;
     return countCohortMembers(this.ch, projectId, definition);
   }
@@ -227,8 +214,6 @@ export class CohortsService {
   // ── Private helpers ──────────────────────────────────────────────────────
 
   private async getByIds(userId: string, projectId: string, cohortIds: string[]) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const rows = await this.db
       .select()
       .from(cohorts)

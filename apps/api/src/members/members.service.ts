@@ -3,7 +3,6 @@ import { eq, and } from 'drizzle-orm';
 import { projectMembers, projectInvites, users, projects } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
-import { ProjectsService } from '../projects/projects.service';
 import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { InviteNotFoundException } from './exceptions/invite-not-found.exception';
 import { InviteConflictException } from './exceptions/invite-conflict.exception';
@@ -12,20 +11,17 @@ import { CannotRemoveOwnerException } from './exceptions/cannot-remove-owner.exc
 import { MemberNotFoundException } from './exceptions/member-not-found.exception';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
-
 @Injectable()
 export class MembersService {
   private readonly logger = new Logger(MembersService.name);
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   // ── Members ────────────────────────────────────────────────────────────────
 
   async listMembers(userId: string, projectId: string) {
-    await this.projectsService.getMembership(userId, projectId);
     return this.db
       .select({
         id: projectMembers.id,
@@ -45,9 +41,6 @@ export class MembersService {
   }
 
   async updateMemberRole(userId: string, projectId: string, memberId: string, role: 'editor' | 'viewer') {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role !== 'owner') throw new InsufficientPermissionsException();
-
     const [target] = await this.db
       .select()
       .from(projectMembers)
@@ -82,9 +75,6 @@ export class MembersService {
   }
 
   async removeMember(userId: string, projectId: string, memberId: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role !== 'owner') throw new InsufficientPermissionsException();
-
     const [target] = await this.db
       .select()
       .from(projectMembers)
@@ -101,9 +91,6 @@ export class MembersService {
   // ── Invites ────────────────────────────────────────────────────────────────
 
   async listInvites(userId: string, projectId: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role !== 'owner') throw new InsufficientPermissionsException();
-
     return this.db
       .select({
         id: projectInvites.id,
@@ -126,9 +113,6 @@ export class MembersService {
   }
 
   async createInvite(userId: string, projectId: string, input: { email: string; role: 'editor' | 'viewer' }) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role !== 'owner') throw new InsufficientPermissionsException();
-
     // Verify user exists
     const [targetUser] = await this.db
       .select({ id: users.id })
@@ -168,9 +152,6 @@ export class MembersService {
   }
 
   async cancelInvite(userId: string, projectId: string, inviteId: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role !== 'owner') throw new InsufficientPermissionsException();
-
     const [invite] = await this.db
       .select()
       .from(projectInvites)

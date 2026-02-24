@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +15,7 @@ import translations from './person-detail.translations';
 export default function PersonDetailPage() {
   const { t } = useLocalTranslation(translations);
   const { personId } = useParams<{ personId: string }>();
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const [page, setPage] = useState(0);
   const limit = 50;
 

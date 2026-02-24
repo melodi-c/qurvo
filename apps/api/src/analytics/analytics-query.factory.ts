@@ -4,7 +4,6 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
-import { ProjectsService } from '../projects/projects.service';
 import { CohortsService } from '../cohorts/cohorts.service';
 import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-cache';
 
@@ -34,15 +33,12 @@ export function createAnalyticsQueryProvider<
     useFactory: (
       ch: ClickHouseClient,
       redis: Redis,
-      projectsService: ProjectsService,
       cohortsService: CohortsService,
     ): AnalyticsQueryService<TParams, TResult> => {
       const logger = new Logger(prefix);
 
       return {
         async query(userId, params) {
-          await projectsService.getMembership(userId, params.project_id);
-
           const { widget_id, force, cohort_ids, breakdown_type, breakdown_cohort_ids, ...queryParams } = params;
 
           if (cohort_ids?.length) {
@@ -68,6 +64,6 @@ export function createAnalyticsQueryProvider<
         },
       };
     },
-    inject: [CLICKHOUSE, REDIS, ProjectsService, CohortsService],
+    inject: [CLICKHOUSE, REDIS, CohortsService],
   };
 }

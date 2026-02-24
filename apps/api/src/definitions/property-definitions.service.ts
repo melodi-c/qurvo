@@ -2,9 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { eq, and, desc, asc, ilike, inArray, count, SQL } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
-import { ProjectsService } from '../projects/projects.service';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
-import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface PropertyDefinitionItem {
@@ -43,12 +41,9 @@ const columnMap: Record<string, any> = {
 export class PropertyDefinitionsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
-    await this.projectsService.getMembership(userId, projectId);
-
     if (params.eventName) {
       return this.listEventScoped(projectId, params);
     }
@@ -170,8 +165,6 @@ export class PropertyDefinitionsService {
     propertyType: 'event' | 'person',
     input: { description?: string; tags?: string[]; verified?: boolean; value_type?: string; is_numerical?: boolean },
   ) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const rows = await this.db
       .insert(propertyDefinitions)
       .values({
@@ -197,9 +190,6 @@ export class PropertyDefinitionsService {
   }
 
   async delete(userId: string, projectId: string, propertyName: string, propertyType: 'event' | 'person') {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
-
     const existing = await this.db
       .select({ id: propertyDefinitions.id })
       .from(propertyDefinitions)

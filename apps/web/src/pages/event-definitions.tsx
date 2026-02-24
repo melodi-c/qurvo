@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { Database, Check } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -15,8 +16,7 @@ import type { EventDefinition } from '@/api/generated/Api';
 
 export default function EventDefinitionsPage() {
   const { t } = useLocalTranslation(translations);
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
 

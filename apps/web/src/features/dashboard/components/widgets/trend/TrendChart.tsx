@@ -29,7 +29,8 @@ import { SERIES_LETTERS } from './trend-shared';
 
 // ── Colors ──
 
-import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL } from '@/lib/chart-colors';
+import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE } from '@/lib/chart-colors';
+import { formatBucket } from '@/lib/formatting';
 
 const COLORS = CHART_COLORS_HSL;
 const COMPARE_COLORS = CHART_COMPARE_COLORS_HSL;
@@ -51,18 +52,6 @@ interface TrendChartProps {
 function seriesKey(s: TrendSeriesResult): string {
   if (s.breakdown_value) return `${s.label} (${s.breakdown_value})`;
   return s.label;
-}
-
-function formatBucket(bucket: string, compact?: boolean): string {
-  if (!bucket) return '';
-  if (bucket.length === 10) return bucket.slice(5);  // "01-15"
-  if (bucket.length === 7) return bucket;              // "2025-01"
-  if (bucket.includes('T')) {
-    const d = new Date(bucket);
-    if (compact) return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}h`;
-    return `${bucket.slice(5, 10)} ${d.getHours()}:00`;
-  }
-  return bucket;
 }
 
 /** Detect if a bucket falls in the current (incomplete) period. */
@@ -242,7 +231,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
               <XAxis
                 dataKey="bucket"
-                tickFormatter={(v) => formatBucket(v, compact)}
+                tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact)}
                 tick={{ fontSize: compact ? 10 : 12, fill: 'var(--color-muted-foreground)' }}
                 tickLine={false}
                 axisLine={false}
@@ -255,14 +244,8 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               />
               {!compact && (
                 <Tooltip
-                  contentStyle={{
-                    background: 'var(--color-popover)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: 'var(--color-popover-foreground)',
-                  }}
-                  labelFormatter={(v) => formatBucket(v as string)}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
                 />
               )}
 
@@ -303,7 +286,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
                 <XAxis
                   dataKey="bucket"
-                  tickFormatter={(v) => formatBucket(v, compact)}
+                  tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact)}
                   tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
                   tickLine={false}
                   axisLine={false}
@@ -318,14 +301,8 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                   width={48}
                 />
                 <Tooltip
-                  contentStyle={{
-                    background: 'var(--color-popover)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: 'var(--color-popover-foreground)',
-                  }}
-                  labelFormatter={(v) => formatBucket(v as string)}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
                 />
                 {visiblePrevKeys.map((key, i) => (
                   <Line key={key} dataKey={key} stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]} strokeDasharray="5 5" strokeWidth={1.5} dot={false} name={`${allSeriesKeys[i] ?? key} (prev)`} />

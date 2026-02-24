@@ -27,7 +27,7 @@ src/
 │   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + concurrency guard + shutdown()
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── value-type.ts                    # detectValueType() + helpers (extracted from definition-sync)
-│   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync)
+│   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync + person-batch-store)
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
@@ -67,10 +67,10 @@ Redis Stream (events:incoming)
 | Service | Responsibility | Key config |
 |---|---|---|
 | `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, event enrichment (GeoIP + person resolution → Event DTO) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD` |
-| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, concurrency guard (coalesces parallel flush calls), `shutdown()` = stop + final flush |
+| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, 3 retries then DLQ, concurrency guard (coalesces parallel flush calls), `shutdown()` = wait for in-progress flush + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
-| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge |
+| `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge, `HourlyCache` for knownDistinctIds dedup |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
@@ -107,7 +107,7 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 `ShutdownService` implements `OnApplicationShutdown` with error isolation:
 1. Stop consumer loop (+ heartbeat) — errors caught, logged, don't block next steps
 2. Stop DLQ timer
-3. `FlushService.shutdown()` — stop timer + final flush (includes `personBatchStore.flush()` internally) — errors caught separately
+3. `FlushService.shutdown()` — stop timer + await in-progress flush + final flush (includes `personBatchStore.flush()` internally) — errors caught separately
 4. Close Redis/ClickHouse connections — errors swallowed
 
 ### Architectural Decisions (do NOT revisit)

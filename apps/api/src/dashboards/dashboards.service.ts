@@ -4,8 +4,6 @@ import { dashboards, widgets, insights } from '@qurvo/db';
 import type { WidgetLayout } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
-import { ProjectsService } from '../projects/projects.service';
-import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { DashboardNotFoundException } from './exceptions/dashboard-not-found.exception';
 import { WidgetNotFoundException } from './exceptions/widget-not-found.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
@@ -16,11 +14,9 @@ export class DashboardsService {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string) {
-    await this.projectsService.getMembership(userId, projectId);
     return this.db
       .select()
       .from(dashboards)
@@ -29,7 +25,6 @@ export class DashboardsService {
   }
 
   async getById(userId: string, projectId: string, dashboardId: string) {
-    await this.projectsService.getMembership(userId, projectId);
     const [dashboard] = await this.db
       .select()
       .from(dashboards)
@@ -69,7 +64,6 @@ export class DashboardsService {
   }
 
   async create(userId: string, projectId: string, input: { name: string }) {
-    await this.projectsService.getMembership(userId, projectId);
     const [dashboard] = await this.db
       .insert(dashboards)
       .values({ project_id: projectId, name: input.name, created_by: userId })
@@ -79,8 +73,6 @@ export class DashboardsService {
   }
 
   async update(userId: string, projectId: string, dashboardId: string, input: { name?: string }) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
     await this.assertDashboardExists(projectId, dashboardId);
 
     const [updated] = await this.db
@@ -93,8 +85,6 @@ export class DashboardsService {
   }
 
   async remove(userId: string, projectId: string, dashboardId: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
     await this.assertDashboardExists(projectId, dashboardId);
 
     await this.db.delete(dashboards).where(eq(dashboards.id, dashboardId));
@@ -108,8 +98,6 @@ export class DashboardsService {
     dashboardId: string,
     input: { insight_id?: string; layout: WidgetLayout; content?: string },
   ) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
     await this.assertDashboardExists(projectId, dashboardId);
 
     const [widget] = await this.db
@@ -132,8 +120,6 @@ export class DashboardsService {
     widgetId: string,
     input: { insight_id?: string; layout?: WidgetLayout; content?: string },
   ) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
     await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
 
     const values: Record<string, unknown> = { updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) };
@@ -148,8 +134,6 @@ export class DashboardsService {
   }
 
   async removeWidget(userId: string, projectId: string, dashboardId: string, widgetId: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
     await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
 
     await this.db.delete(widgets).where(eq(widgets.id, widgetId));

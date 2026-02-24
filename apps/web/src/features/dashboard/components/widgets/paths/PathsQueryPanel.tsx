@@ -3,6 +3,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
+import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
@@ -19,8 +20,7 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
   const { t } = useLocalTranslation(translations);
 
   return (
-    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
-      <div className="p-5 space-y-6">
+    <QueryPanelShell>
 
         <DateRangeSection
           dateFrom={config.date_from}
@@ -226,7 +226,6 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
           value={config.cohort_ids ?? []}
           onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
         />
-      </div>
-    </aside>
+    </QueryPanelShell>
   );
 }

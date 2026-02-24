@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { List } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -15,8 +15,7 @@ import { useEventsFilters } from './use-events-filters';
 
 export default function EventsPage() {
   const { t } = useLocalTranslation(translations);
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   const {
     filterState,

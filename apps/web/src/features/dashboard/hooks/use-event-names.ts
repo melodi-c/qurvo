@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
 
 export function useEventNames() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
     queryKey: ['event-names', projectId],
