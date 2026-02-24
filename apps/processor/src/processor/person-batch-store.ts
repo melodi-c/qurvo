@@ -137,7 +137,9 @@ export class PersonBatchStore {
 
     // Compute final properties for each person
     const values: Array<{ id: string; project_id: string; properties: Record<string, unknown> }> = [];
-    for (const [personId, update] of pending) {
+    const sortedIds = [...pending.keys()].sort();
+    for (const personId of sortedIds) {
+      const update = pending.get(personId)!;
       const existingProps = existingMap.get(personId) ?? {};
       // Merge: setOnce < existing < set, then remove unset keys
       const merged: Record<string, unknown> = {
@@ -170,7 +172,10 @@ export class PersonBatchStore {
   }
 
   private async flushDistinctIds(pending: Map<string, PendingDistinctId>): Promise<void> {
-    const entries = [...pending.values()];
+    const entries = [...pending.values()].sort((a, b) =>
+      a.projectId < b.projectId ? -1 : a.projectId > b.projectId ? 1 :
+      a.distinctId < b.distinctId ? -1 : a.distinctId > b.distinctId ? 1 : 0,
+    );
 
     const valuesList = sql.join(
       entries.map((e) => sql`(${e.projectId}::uuid, ${e.personId}::uuid, ${e.distinctId})`),
