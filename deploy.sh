@@ -22,7 +22,7 @@ NAMESPACE="default"
 KUBECONFIG_PATH="$HELM_CHART/config.yaml"
 export KUBECONFIG="$KUBECONFIG_PATH"
 
-ALL_APPS=(api ingest processor web landing)
+ALL_APPS=(api ingest processor cohort-worker web landing)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
 NO_HOOKS=false
@@ -115,8 +115,8 @@ fi
 # For non-rebuilt apps — their current deployed tag (preserved).
 # Uses indirect variables (APP_TAG_<app>) for bash 3.2 compatibility.
 
-set_app_tag() { eval "APP_TAG_$1=\$2"; }
-get_app_tag() { eval "echo \$APP_TAG_$1"; }
+set_app_tag() { local key="${1//-/_}"; eval "APP_TAG_$key=\$2"; }
+get_app_tag() { local key="${1//-/_}"; eval "echo \$APP_TAG_$key"; }
 
 if [[ -n "$ONLY" ]]; then
   # Partial deploy: read current tags for non-rebuilt apps

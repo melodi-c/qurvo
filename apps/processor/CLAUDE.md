@@ -31,9 +31,8 @@ src/
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
-│   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
-│   ├── cohort-toposort.ts               # Re-exports topologicalSortCohorts from @qurvo/cohort-query
 │   ├── dlq.service.ts                   # Dead letter queue replay
+│   ├── event-utils.ts                   # safeScreenDimension() — shared screen dimension sanitizer
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
 │   ├── shutdown.service.ts              # Graceful shutdown orchestrator with error isolation
@@ -72,7 +71,6 @@ Redis Stream (events:incoming)
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
 | `PersonBatchStore` | Batched person writes + identity merge | Bulk upsert persons/distinct_ids, transactional merge |
-| `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC (skips heavy DELETE when table empty) |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
@@ -82,7 +80,7 @@ Redis Stream (events:incoming)
 Uses `@qurvo/heartbeat` package — framework-agnostic file-based liveness heartbeat. Created in `EventConsumerService` constructor, started/stopped with the consumer loop. If the loop doesn't call `touch()` within 30s, heartbeat writes are skipped (stale detection).
 
 ### Distributed Lock
-Both `DlqService` and `CohortMembershipService` use `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.
+`DlqService` uses `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.
 
 ### Person Resolution
 ```
@@ -108,10 +106,15 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 ### Graceful Shutdown
 `ShutdownService` implements `OnApplicationShutdown` with error isolation:
 1. Stop consumer loop (+ heartbeat) — errors caught, logged, don't block next steps
-2. Stop DLQ + cohort timers
-3. `FlushService.shutdown()` — stop timer + final flush — errors caught separately
-4. `PersonBatchStore.flush()` — explicit final flush for pending persons/distinct_ids — errors caught separately
-5. Close Redis/ClickHouse connections — errors swallowed
+2. Stop DLQ timer
+3. `FlushService.shutdown()` — stop timer + final flush (includes `personBatchStore.flush()` internally) — errors caught separately
+4. Close Redis/ClickHouse connections — errors swallowed
+
+### Architectural Decisions (do NOT revisit)
+- **`buildEvent()` stays in EventConsumerService** — was extracted into `EventEnrichmentService` (d4ebb54) then inlined back (41c923e) because it was a thin coordinator with no independent logic. Keep it inline.
+- **`DefinitionSyncService` stays as one service** — 3 table upserts + 3 caches + invalidation form one cohesive workflow. Splitting by table would only add complexity.
+- **`PersonBatchStore` combines persons + distinct_ids + merges** — all part of "manage person data in PG". Single responsibility.
+- **DLQ stays in processor, not a separate worker** — 100 events every 5 min, not worth a separate app.
 
 ### Shared Utilities
 `redis-utils.ts` contains `parseRedisFields()` — converts flat Redis `[key, value, key, value, ...]` arrays into `Record<string, string>`. Used by both `EventConsumerService` and `DlqService`. Do NOT inline this back into individual services or duplicate it — keep it in `redis-utils.ts`.
@@ -121,11 +124,10 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 
 ## Integration Tests
 
-Tests in `src/test/processor/`. 85 tests across 9 files:
+Tests in `src/test/processor/`. 78 tests across 8 files:
 - Pipeline: event processing, batch processing, person_id assignment, $identify merging
 - Person resolution: resolve, merge, properties, $set/$set_once/$unset
 - Flush & metadata: batch flush, PEL cleanup, cache invalidation (event_names, event_property_names)
 - Definition sync: event/property upserts, dedup, value type detection, skip rules
-- Cohort membership: property/event conditions, AND/OR logic, version cleanup, orphan GC, distributed lock
 - Distributed lock: acquire/release semantics, contention, TTL expiry, Lua-guarded release
 - DLQ: replay, circuit breaker

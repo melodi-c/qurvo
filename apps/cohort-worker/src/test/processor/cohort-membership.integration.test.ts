@@ -10,17 +10,17 @@ import {
 } from '@qurvo/testing';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { getTestContext } from '../context';
-import { getCohortMembers } from '../helpers';
-import { CohortMembershipService } from '../../processor/cohort-membership.service';
+import { getCohortMembers } from '../helpers/ch';
+import { CohortMembershipService } from '../../cohort-worker/cohort-membership.service';
 
 let ctx: ContainerContext;
-let processorApp: INestApplicationContext;
+let workerApp: INestApplicationContext;
 let testProject: TestProject;
 
 beforeAll(async () => {
   const tc = await getTestContext();
   ctx = tc.ctx;
-  processorApp = tc.app;
+  workerApp = tc.app;
   testProject = tc.testProject;
 }, 120_000);
 
@@ -74,7 +74,7 @@ describe('cohort membership', () => {
     });
 
     await ctx.redis.del('cohort_membership:lock');
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
@@ -123,7 +123,7 @@ describe('cohort membership', () => {
     });
 
     await ctx.redis.del('cohort_membership:lock');
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
@@ -174,7 +174,7 @@ describe('cohort membership', () => {
     });
 
     await ctx.redis.del('cohort_membership:lock');
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
@@ -226,7 +226,7 @@ describe('cohort membership', () => {
     });
 
     await ctx.redis.del('cohort_membership:lock');
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
@@ -258,7 +258,7 @@ describe('cohort membership', () => {
     });
 
     await ctx.redis.del('cohort_membership:lock');
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     await ctx.redis.del('cohort_membership:lock');
@@ -303,7 +303,7 @@ describe('cohort membership', () => {
     expect(members).toContain(personId);
 
     await ctx.redis.del('cohort_membership:lock');
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     // ALTER TABLE DELETE is an async mutation in ClickHouse — poll until it completes
@@ -340,7 +340,7 @@ describe('cohort membership', () => {
       ],
     });
 
-    const svc = processorApp.get(CohortMembershipService);
+    const svc = workerApp.get(CohortMembershipService);
     await (svc as any).runCycle();
 
     const members = await getCohortMembers(ctx.ch, testProject.projectId, cohortId);

@@ -1,10 +1,11 @@
 # ==============================================================================
 # Multi-stage Dockerfile for qurvo-analytics monorepo
 #
-# Build NestJS apps (api, ingest, processor):
+# Build NestJS apps (api, ingest, processor, cohort-worker):
 #   docker build --target nestjs --build-arg APP=api -t qurvo-api .
 #   docker build --target nestjs --build-arg APP=ingest -t qurvo-ingest .
 #   docker build --target nestjs --build-arg APP=processor -t qurvo-processor .
+#   docker build --target nestjs --build-arg APP=cohort-worker -t qurvo-cohort-worker .
 #
 # Build web (nginx + SPA):
 #   docker build --target web -t qurvo-web .
@@ -27,6 +28,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
 COPY apps/api/package.json                     apps/api/
 COPY apps/ingest/package.json                  apps/ingest/
 COPY apps/processor/package.json               apps/processor/
+COPY apps/cohort-worker/package.json           apps/cohort-worker/
 COPY apps/web/package.json                     apps/web/
 COPY apps/landing/package.json                 apps/landing/
 COPY packages/@qurvo/db/package.json            packages/@qurvo/db/

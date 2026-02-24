@@ -6,9 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { personDistinctIds } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
-import { REDIS } from '../providers/redis.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
-import { DRIZZLE } from '../providers/drizzle.provider';
+import { REDIS, CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import { PERSON_REDIS_TTL_SECONDS, RETRY_CLICKHOUSE } from '../constants';
 import { withRetry } from './retry';
 
@@ -123,7 +121,6 @@ export class PersonResolverService {
         table: 'person_distinct_id_overrides',
         values: [{ project_id: projectId, distinct_id: distinctId, person_id: personId, version: Date.now() }],
         format: 'JSONEachRow',
-        clickhouse_settings: { date_time_input_format: 'best_effort' },
       }),
       'writeOverride',
       this.logger,

@@ -8,7 +8,7 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { Database } from '@qurvo/db';
-import { SESSION_TOKEN_LENGTH, SESSION_TTL_DAYS, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS, MAX_ACTIVE_SESSIONS_PER_USER } from '../constants';
+import { SESSION_TOKEN_LENGTH, SESSION_TTL_DAYS, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS, MAX_ACTIVE_SESSIONS_PER_USER, SESSION_CACHE_KEY_PREFIX } from '../constants';
 import { hashToken } from '../utils/hash';
 import { invalidateUserSessionCaches } from '../utils/session-cache';
 import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
@@ -147,13 +147,13 @@ export class AuthService {
   }
 
   private async incrementLoginAttempts(key: string): Promise<void> {
-    await this.redis.incr(key);
-    await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
+    const count = await this.redis.incr(key);
+    if (count === 1) await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
   }
 
   async logout(token: string) {
     const token_hash = hashToken(token);
-    await this.redis.del(`session:${token_hash}`);
+    await this.redis.del(`${SESSION_CACHE_KEY_PREFIX}${token_hash}`);
     await this.db.delete(sessions).where(eq(sessions.token_hash, token_hash));
     this.logger.log('User logged out');
   }

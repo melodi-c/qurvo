@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { sessions } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import type Redis from 'ioredis';
+import { SESSION_CACHE_KEY_PREFIX } from '../constants';
 
 export async function invalidateUserSessionCaches(
   db: Database,
@@ -14,7 +15,7 @@ export async function invalidateUserSessionCaches(
     .where(eq(sessions.user_id, userId));
 
   if (userSessions.length > 0) {
-    const cacheKeys = userSessions.map((s) => `session:${s.token_hash}`);
+    const cacheKeys = userSessions.map((s) => `${SESSION_CACHE_KEY_PREFIX}${s.token_hash}`);
     await redis.del(...cacheKeys);
   }
 }

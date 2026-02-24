@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { topologicalSortCohorts, type CohortForSort } from '../../processor/cohort-toposort';
+import { topologicalSortCohorts, type CohortForSort } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 
 function makeCohort(id: string, cohortRefs: string[] = []): CohortForSort {

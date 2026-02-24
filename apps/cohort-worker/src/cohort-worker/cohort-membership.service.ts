@@ -6,9 +6,7 @@ import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery, RESOLVED_PERSON, topologicalSortCohorts } from '@qurvo/cohort-query';
-import { REDIS } from '../providers/redis.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
-import { DRIZZLE } from '../providers/drizzle.provider';
+import { REDIS, CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
   COHORT_STALE_THRESHOLD_MINUTES,
@@ -27,6 +25,7 @@ const INITIAL_DELAY_MS = 30_000;
 export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
+  private cycleInFlight: Promise<void> | null = null;
   private readonly lock: DistributedLock;
 
   constructor(
@@ -43,20 +42,24 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     this.timer = setTimeout(() => this.scheduledCycle(), INITIAL_DELAY_MS);
   }
 
-  stop() {
+  async stop(): Promise<void> {
     this.stopped = true;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.cycleInFlight) {
+      await this.cycleInFlight;
+    }
   }
 
   private async scheduledCycle() {
-    try {
-      await this.runCycle();
-    } catch (err) {
+    const cycle = this.runCycle().catch((err) => {
       this.logger.error({ err }, 'Cohort membership cycle failed');
-    }
+    });
+    this.cycleInFlight = cycle;
+    await cycle;
+    this.cycleInFlight = null;
     if (!this.stopped) {
       this.timer = setTimeout(() => this.scheduledCycle(), COHORT_MEMBERSHIP_INTERVAL_MS);
     }
@@ -164,13 +167,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         query_params: { ids: allDynamicIds },
       });
     } else {
-      const countResult = await this.ch.query({
-        query: 'SELECT count() AS cnt FROM cohort_members',
-        format: 'JSONEachRow',
-      });
-      const rows = await countResult.json<{ cnt: string }>();
-      if (Number(rows[0]?.cnt ?? 0) === 0) return;
-
       await this.ch.command({
         query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
       });

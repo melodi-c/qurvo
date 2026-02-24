@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
-import { RedisProvider } from '../providers/redis.provider';
-import { ClickHouseProvider } from '../providers/clickhouse.provider';
-import { DrizzleProvider } from '../providers/drizzle.provider';
+import { RedisProvider, ClickHouseProvider, DrizzleProvider } from '@qurvo/nestjs-infra';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
-import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
@@ -20,7 +17,6 @@ import { ShutdownService } from './shutdown.service';
     DefinitionSyncService,
     FlushService,
     DlqService,
-    CohortMembershipService,
     PersonResolverService,
     PersonBatchStore,
     GeoService,

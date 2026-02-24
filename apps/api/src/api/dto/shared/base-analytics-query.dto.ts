@@ -9,7 +9,7 @@ import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { parseJsonArray } from './transforms';
 
-export class BaseAnalyticsQueryDto {
+export class CoreQueryDto {
   @IsUUID()
   project_id: string;
 
@@ -19,6 +19,13 @@ export class BaseAnalyticsQueryDto {
   @IsDateString()
   date_to: string;
 
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  force?: boolean;
+}
+
+export class BaseAnalyticsQueryDto extends CoreQueryDto {
   @ApiPropertyOptional({ type: [String] })
   @Transform(parseJsonArray)
   @IsArray()
@@ -29,9 +36,4 @@ export class BaseAnalyticsQueryDto {
   @IsUUID()
   @IsOptional()
   widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }

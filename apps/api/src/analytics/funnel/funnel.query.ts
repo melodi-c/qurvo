@@ -88,7 +88,7 @@ export async function queryFunnel(
 function buildFunnelSQL(
   orderType: 'ordered' | 'strict' | 'unordered',
   steps: FunnelQueryParams['steps'],
-  exclusions: FunnelQueryParams['exclusions'] & any[],
+  exclusions: NonNullable<FunnelQueryParams['exclusions']>,
   stepConditions: string,
   cohortClause: string,
   samplingClause: string,

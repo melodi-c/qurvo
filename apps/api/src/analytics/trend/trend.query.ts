@@ -4,7 +4,7 @@ import type { CohortFilterInput } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortFilterForBreakdown } from '../../utils/cohort-breakdown.util';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
-import { resolvePropertyExpr, buildPropertyFilterConditions } from '../../utils/property-filter';
+import { resolvePropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -12,16 +12,10 @@ export type TrendMetric = 'total_events' | 'unique_users' | 'events_per_user'
   | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
 export type TrendGranularity = 'hour' | 'day' | 'week' | 'month';
 
-export interface TrendFilter {
-  property: string;
-  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
-  value?: string;
-}
-
 export interface TrendSeries {
   event_name: string;
   label: string;
-  filters?: TrendFilter[];
+  filters?: PropertyFilter[];
 }
 
 export interface TrendQueryParams {

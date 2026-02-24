@@ -2,13 +2,10 @@ import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import { type ClickHouseClient } from '@qurvo/clickhouse';
-import { REDIS } from '../providers/redis.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
-import { CohortMembershipService } from './cohort-membership.service';
 import { EventConsumerService } from './event-consumer.service';
-import { PersonBatchStore } from './person-batch-store';
 
 @Injectable()
 export class ShutdownService implements OnApplicationShutdown {
@@ -19,8 +16,6 @@ export class ShutdownService implements OnApplicationShutdown {
     private readonly eventConsumerService: EventConsumerService,
     private readonly flushService: FlushService,
     private readonly dlqService: DlqService,
-    private readonly cohortMembershipService: CohortMembershipService,
-    private readonly personBatchStore: PersonBatchStore,
   ) {}
 
   async onApplicationShutdown() {
@@ -28,12 +23,9 @@ export class ShutdownService implements OnApplicationShutdown {
       this.logger.error({ err }, 'Consumer shutdown error'),
     );
     this.dlqService.stop();
-    this.cohortMembershipService.stop();
+    // FlushService.shutdown() runs a final flush which includes personBatchStore.flush() internally
     await this.flushService.shutdown().catch((err) =>
       this.logger.error({ err }, 'Flush shutdown error'),
-    );
-    await this.personBatchStore.flush().catch((err) =>
-      this.logger.error({ err }, 'PersonBatchStore final flush error'),
     );
     await this.ch.close().catch(() => {});
     await this.redis.quit().catch(() => {});

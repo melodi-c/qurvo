@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and, desc, asc, ilike, count, SQL } from 'drizzle-orm';
+import { eq, and, desc, asc, ilike, inArray, count, SQL } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
@@ -127,8 +127,12 @@ export class PropertyDefinitionsService {
 
     if (epRows.length === 0) return { items: [], total: epCountResult[0].count };
 
-    // Get metadata from property_definitions
-    const pdConditions: SQL[] = [eq(propertyDefinitions.project_id, projectId)];
+    // Get metadata only for the property names we actually need
+    const propertyNames = epRows.map((r) => r.property_name);
+    const pdConditions: SQL[] = [
+      eq(propertyDefinitions.project_id, projectId),
+      inArray(propertyDefinitions.property_name, propertyNames),
+    ];
     if (params.type) pdConditions.push(eq(propertyDefinitions.property_type, params.type));
     const pdRows = await this.db
       .select()

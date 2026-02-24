@@ -176,19 +176,11 @@ export class CohortsService {
   async previewCount(
     userId: string,
     projectId: string,
-    definition: CohortConditionGroup,
+    definition: CohortConditionGroup | undefined,
   ): Promise<number> {
     await this.projectsService.getMembership(userId, projectId);
+    if (!definition) return 0;
     return countCohortMembers(this.ch, projectId, definition);
-  }
-
-  async getCohortDefinition(
-    userId: string,
-    projectId: string,
-    cohortId: string,
-  ): Promise<CohortConditionGroup> {
-    const cohort = await this.getById(userId, projectId, cohortId);
-    return cohort.definition;
   }
 
   async getSizeHistory(
