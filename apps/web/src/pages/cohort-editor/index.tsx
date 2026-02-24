@@ -1,0 +1,149 @@
+import { UsersRound, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EditorHeader } from '@/components/ui/editor-header';
+import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBuilder';
+import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './cohort-editor.translations';
+import { useCohortEditor } from './use-cohort-editor';
+
+export default function CohortEditorPage() {
+  const { t } = useLocalTranslation(translations);
+  const {
+    isNew,
+    cohortId,
+    loadingCohort,
+    existingCohort,
+    memberCount,
+    sizeHistory,
+    name,
+    setName,
+    description,
+    setDescription,
+    groups,
+    setGroups,
+    hasValidConditions,
+    previewMutation,
+    listPath,
+    isSaving,
+    isValid,
+    saveError,
+    handleSave,
+  } = useCohortEditor();
+
+  if (!isNew && loadingCohort) {
+    return (
+      <div className="space-y-4 p-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  let previewContent: React.ReactNode;
+  if (!hasValidConditions) {
+    previewContent = (
+      <div>
+        <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('addConditionsDescription')}</p>
+      </div>
+    );
+  } else if (previewMutation.isPending) {
+    previewContent = (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">{t('calculating')}</span>
+      </div>
+    );
+  } else if (previewMutation.data) {
+    previewContent = (
+      <div>
+        <p className="text-4xl font-bold tabular-nums text-primary">
+          {previewMutation.data.count.toLocaleString()}
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
+      </div>
+    );
+  } else {
+    previewContent = (
+      <div>
+        <p className="text-sm font-medium">{t('previewPlaceholder')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
+      <EditorHeader
+        backPath={listPath}
+        backLabel={t('backLabel')}
+        name={name}
+        onNameChange={setName}
+        placeholder={t('placeholder')}
+        onSave={handleSave}
+        isSaving={isSaving}
+        isValid={isValid}
+        saveError={saveError}
+      />
+
+      <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
+        <aside className="w-full lg:w-[420px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[55vh] lg:max-h-none">
+          <div className="p-5 space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</label>
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t('descriptionPlaceholder')}
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</label>
+              <CohortGroupBuilder
+                groups={groups}
+                onChange={setGroups}
+                excludeCohortId={cohortId}
+              />
+            </div>
+          </div>
+        </aside>
+
+        {!isNew && existingCohort ? (
+          <main className="flex-1 overflow-auto flex flex-col">
+            <div className="border-b px-6 py-6 text-center">
+              <p className="text-4xl font-bold tabular-nums text-primary">
+                {memberCount ? memberCount.count.toLocaleString() : '\u2014'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
+            </div>
+            <div className="flex-1 p-6 space-y-3">
+              <p className="text-sm font-medium">{t('sizeHistory')}</p>
+              <CohortSizeChart data={sizeHistory ?? []} />
+            </div>
+            {existingCohort.last_error_message && (
+              <div className="border-t px-6 py-4">
+                <p className="text-sm text-destructive font-medium">{t('calculationError')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{existingCohort.last_error_message}</p>
+              </div>
+            )}
+          </main>
+        ) : (
+          <main className="flex-1 overflow-auto flex flex-col items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
+                <UsersRound className="h-8 w-8 text-muted-foreground" />
+              </div>
+              {previewContent}
+            </div>
+          </main>
+        )}
+      </div>
+    </div>
+  );
+}

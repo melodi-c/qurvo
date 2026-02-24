@@ -76,10 +76,6 @@ export interface Login {
   password: string;
 }
 
-export interface OkResponse {
-  ok: boolean;
-}
-
 export interface SessionUser {
   session_id: string;
   user_id: string;
@@ -620,9 +616,13 @@ export interface Insight {
 }
 
 export interface WidgetLayout {
+  /** @min 0 */
   x: number;
+  /** @min 0 */
   y: number;
+  /** @min 1 */
   w: number;
+  /** @min 1 */
   h: number;
 }
 
@@ -776,6 +776,7 @@ export interface CreateStaticCohort {
 }
 
 export interface UploadCsv {
+  /** @maxLength 5000000 */
   csv_content: string;
 }
 
@@ -903,6 +904,7 @@ export interface AiChat {
   conversation_id?: string;
   /** @format uuid */
   project_id: string;
+  /** @maxLength 10000 */
   message: string;
 }
 
@@ -2044,11 +2046,10 @@ export class Api<
      * @secure
      */
     authControllerLogout: (params: RequestParams = {}) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/auth/logout`,
         method: "POST",
         secure: true,
-        format: "json",
         ...params,
       }),
 
@@ -2081,13 +2082,12 @@ export class Api<
       data: VerifyEmailByCode,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/auth/verify-email/code`,
         method: "POST",
         body: data,
         secure: true,
         type: ContentType.Json,
-        format: "json",
         ...params,
       }),
 
@@ -2102,12 +2102,11 @@ export class Api<
       data: VerifyEmailByToken,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/auth/verify-email/token`,
         method: "POST",
         body: data,
         type: ContentType.Json,
-        format: "json",
         ...params,
       }),
 
@@ -2162,13 +2161,12 @@ export class Api<
       data: ChangePassword,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/auth/change-password`,
         method: "POST",
         body: data,
         secure: true,
         type: ContentType.Json,
-        format: "json",
         ...params,
       }),
 
@@ -2266,11 +2264,10 @@ export class Api<
       { id, ...query }: ProjectsControllerRemoveParams,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/projects/${id}`,
         method: "DELETE",
         secure: true,
-        format: "json",
         ...params,
       }),
 
@@ -2329,11 +2326,10 @@ export class Api<
       { projectId, keyId, ...query }: ApiKeysControllerRevokeParams,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/projects/${projectId}/keys/${keyId}`,
         method: "DELETE",
         secure: true,
-        format: "json",
         ...params,
       }),
 
@@ -3283,11 +3279,10 @@ export class Api<
       { projectId, memberId, ...query }: MembersControllerRemoveMemberParams,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/projects/${projectId}/members/${memberId}`,
         method: "DELETE",
         secure: true,
-        format: "json",
         ...params,
       }),
 
@@ -3346,11 +3341,10 @@ export class Api<
       { projectId, inviteId, ...query }: InvitesControllerCancelInviteParams,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/projects/${projectId}/invites/${inviteId}`,
         method: "DELETE",
         secure: true,
-        format: "json",
         ...params,
       }),
 
@@ -3383,11 +3377,10 @@ export class Api<
       { inviteId, ...query }: MyInvitesControllerAcceptInviteParams,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/invites/${inviteId}/accept`,
         method: "POST",
         secure: true,
-        format: "json",
         ...params,
       }),
 
@@ -3403,11 +3396,10 @@ export class Api<
       { inviteId, ...query }: MyInvitesControllerDeclineInviteParams,
       params: RequestParams = {},
     ) =>
-      this.request<OkResponse, any>({
+      this.request<void, any>({
         path: `/api/invites/${inviteId}/decline`,
         method: "POST",
         secure: true,
-        format: "json",
         ...params,
       }),
 
