@@ -30,32 +30,33 @@ export class WebAnalyticsService {
   ) {}
 
   async getOverview(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<OverviewResult> {
-    await this.projectsService.getMembership(userId, params.project_id);
-    const { force, ...queryParams } = params;
-    return (await withAnalyticsCache({ prefix: 'wa:overview', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryOverview, logger: this.logger })).data;
+    return this.runQuery(userId, params, 'wa:overview', queryOverview);
   }
 
   async getPaths(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<PathsResult> {
-    await this.projectsService.getMembership(userId, params.project_id);
-    const { force, ...queryParams } = params;
-    return (await withAnalyticsCache({ prefix: 'wa:paths', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryPaths, logger: this.logger })).data;
+    return this.runQuery(userId, params, 'wa:paths', queryPaths);
   }
 
   async getSources(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<SourcesResult> {
-    await this.projectsService.getMembership(userId, params.project_id);
-    const { force, ...queryParams } = params;
-    return (await withAnalyticsCache({ prefix: 'wa:sources', redis: this.redis, ch: this.ch, force, params: queryParams, query: querySources, logger: this.logger })).data;
+    return this.runQuery(userId, params, 'wa:sources', querySources);
   }
 
   async getDevices(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<DevicesResult> {
-    await this.projectsService.getMembership(userId, params.project_id);
-    const { force, ...queryParams } = params;
-    return (await withAnalyticsCache({ prefix: 'wa:devices', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryDevices, logger: this.logger })).data;
+    return this.runQuery(userId, params, 'wa:devices', queryDevices);
   }
 
   async getGeography(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<GeographyResult> {
+    return this.runQuery(userId, params, 'wa:geography', queryGeography);
+  }
+
+  private async runQuery<T>(
+    userId: string,
+    params: WebAnalyticsQueryParams & { force?: boolean },
+    prefix: string,
+    queryFn: (ch: ClickHouseClient, p: WebAnalyticsQueryParams) => Promise<T>,
+  ): Promise<T> {
     await this.projectsService.getMembership(userId, params.project_id);
     const { force, ...queryParams } = params;
-    return (await withAnalyticsCache({ prefix: 'wa:geography', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryGeography, logger: this.logger })).data;
+    return (await withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger })).data;
   }
 }

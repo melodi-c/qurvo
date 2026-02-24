@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
-import { buildCohortFilterClause } from '../../cohorts/cohorts.query';
+import { buildCohortClause } from '../../utils/clickhouse-helpers';
 import { RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin } from './funnel.types';
 import {
@@ -42,9 +42,7 @@ export async function queryFunnelTimeToConvert(
     }
   });
 
-  const cohortClause = params.cohort_filters?.length
-    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
-    : '';
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
 

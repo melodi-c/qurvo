@@ -1,6 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TrendService } from '../../analytics/trend/trend.service';
+import { TREND_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { TrendQueryParams, TrendQueryResult } from '../../analytics/trend/trend.query';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { TrendQueryDto, TrendResponseDto } from '../dto/trend.dto';
@@ -10,13 +12,13 @@ import { TrendQueryDto, TrendResponseDto } from '../dto/trend.dto';
 @Controller('api/analytics')
 @UseGuards(SessionAuthGuard)
 export class TrendController {
-  constructor(private readonly trendService: TrendService) {}
+  constructor(@Inject(TREND_SERVICE) private readonly trendService: AnalyticsQueryService<TrendQueryParams, TrendQueryResult>) {}
 
   @Get('trend')
   async getTrend(
     @CurrentUser() user: RequestUser,
     @Query() query: TrendQueryDto,
   ): Promise<TrendResponseDto> {
-    return this.trendService.getTrend(user.user_id, query);
+    return this.trendService.query(user.user_id, query);
   }
 }

@@ -8,18 +8,6 @@ export function getBaseUrl(app: INestApplication): string {
   return `http://127.0.0.1:${port}`;
 }
 
-export async function postTrack(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
-  const res = await fetch(`${getBaseUrl(app)}/v1/track`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
 export async function postBatch(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
   const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
     method: 'POST',
@@ -35,20 +23,6 @@ export async function postBatch(app: INestApplication, apiKey: string, body: unk
 export async function postBatchGzip(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
   const compressed = gzipSync(JSON.stringify(body));
   const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain',
-      'Content-Encoding': 'gzip',
-      'x-api-key': apiKey,
-    },
-    body: compressed,
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-export async function postTrackGzip(app: INestApplication, apiKey: string, body: unknown): Promise<{ status: number; body: any }> {
-  const compressed = gzipSync(JSON.stringify(body));
-  const res = await fetch(`${getBaseUrl(app)}/v1/track`, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/plain',

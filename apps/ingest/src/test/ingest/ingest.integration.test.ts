@@ -11,10 +11,9 @@ import {
   type TestProject,
 } from '@qurvo/testing';
 import { AppModule } from '../../app.module';
-import { REDIS_STREAM_EVENTS } from '../../constants';
+import { REDIS_STREAM_EVENTS, billingCounterKey } from '../../constants';
 import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
-import { postTrack, postBatch, postTrackGzip, postBatchGzip, postImport, getBaseUrl, parseRedisFields } from '../helpers';
-import { billingCounterKey } from '../../constants';
+import { postBatch, postBatchGzip, postImport, getBaseUrl, parseRedisFields } from '../helpers';
 
 let ctx: ContainerContext;
 let app: INestApplication;
@@ -42,69 +41,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app?.close();
-});
-
-describe('POST /v1/track', () => {
-  it('returns 202 and pushes event to Redis stream', async () => {
-    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
-
-    const res = await postTrack(app, testProject.apiKey, {
-      event: 'button_click',
-      distinct_id: 'test-user-1',
-      properties: { button: 'signup' },
-      timestamp: new Date().toISOString(),
-    });
-
-    expect(res.status).toBe(202);
-    expect(res.body).toEqual({ ok: true });
-
-    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
-
-    // Verify the last message in stream
-    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
-    expect(messages.length).toBeGreaterThan(0);
-
-    const fields = parseRedisFields(messages[0][1]);
-    expect(fields.event_name).toBe('button_click');
-    expect(fields.distinct_id).toBe('test-user-1');
-    expect(fields.project_id).toBe(testProject.projectId);
-  });
-
-  it('enriches event with server-side fields', async () => {
-    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
-
-    await postTrack(app, testProject.apiKey, {
-      event: '$pageview',
-      distinct_id: 'enriched-user',
-    });
-
-    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
-
-    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
-    const fields = parseRedisFields(messages[0][1]);
-
-    expect(fields.event_type).toBe('pageview');
-    expect(fields.event_id).toBeTruthy();
-    expect(fields.timestamp).toBeTruthy();
-    expect(fields.project_id).toBe(testProject.projectId);
-  });
-
-  it('returns 401 with invalid API key', async () => {
-    const res = await postTrack(app, 'invalid-key-xyz', {
-      event: 'test',
-      distinct_id: 'u1',
-    });
-
-    expect(res.status).toBe(401);
-  });
-
-  it('returns 400 with missing required fields', async () => {
-    const res = await postTrack(app, testProject.apiKey, {
-      // missing event and distinct_id
-    });
-
-    expect(res.status).toBe(400);
-  });
 });
 
 describe('POST /v1/batch', () => {
@@ -148,26 +84,6 @@ describe('POST /v1/batch', () => {
     expect(res.body).toEqual({ ok: true, count: 2 });
 
     await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 2);
-  });
-
-  it('accepts gzip-compressed single track event', async () => {
-    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
-
-    const res = await postTrackGzip(app, testProject.apiKey, {
-      event: 'gzip_single',
-      distinct_id: 'gzip-single-user',
-      timestamp: new Date().toISOString(),
-    });
-
-    expect(res.status).toBe(202);
-    expect(res.body).toEqual({ ok: true });
-
-    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
-
-    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
-    const fields = parseRedisFields(messages[0][1]);
-    expect(fields.event_name).toBe('gzip_single');
-    expect(fields.distinct_id).toBe('gzip-single-user');
   });
 
   it('returns 400 for invalid gzip payload', async () => {

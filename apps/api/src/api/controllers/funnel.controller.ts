@@ -1,6 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { FunnelService } from '../../analytics/funnel/funnel.service';
+import { FUNNEL_SERVICE, FUNNEL_TTC_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { FunnelQueryParams, FunnelQueryResult, TimeToConvertParams, TimeToConvertResult } from '../../analytics/funnel/funnel.query';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
@@ -15,14 +17,17 @@ import {
 @Controller('api/analytics')
 @UseGuards(SessionAuthGuard)
 export class FunnelController {
-  constructor(private readonly funnelService: FunnelService) {}
+  constructor(
+    @Inject(FUNNEL_SERVICE) private readonly funnelService: AnalyticsQueryService<FunnelQueryParams, FunnelQueryResult>,
+    @Inject(FUNNEL_TTC_SERVICE) private readonly ttcService: AnalyticsQueryService<TimeToConvertParams, TimeToConvertResult>,
+  ) {}
 
   @Get('funnel')
   async getFunnel(
     @CurrentUser() user: RequestUser,
     @Query() query: FunnelQueryDto,
   ): Promise<FunnelResponseDto> {
-    return this.funnelService.getFunnel(user.user_id, query) as any;
+    return this.funnelService.query(user.user_id, query) as any;
   }
 
   @Get('funnel/time-to-convert')
@@ -30,6 +35,6 @@ export class FunnelController {
     @CurrentUser() user: RequestUser,
     @Query() query: FunnelTimeToConvertQueryDto,
   ): Promise<TimeToConvertResponseDto> {
-    return this.funnelService.getFunnelTimeToConvert(user.user_id, query) as any;
+    return this.ttcService.query(user.user_id, query) as any;
   }
 }

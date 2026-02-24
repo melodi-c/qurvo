@@ -11,17 +11,14 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
     _blockDuration: number,
     throttlerName: string,
   ): Promise<{ totalHits: number; timeToExpire: number; isBlocked: boolean; timeToBlockExpire: number }> {
-    const hitKey = `throttle:hits:${throttlerName}:${key}`;
-    const now = Date.now();
+    const hitKey = `throttle:${throttlerName}:${key}`;
 
     const pipeline = this.redis.pipeline();
-    pipeline.zadd(hitKey, now, `${now}-${Math.random()}`);
-    pipeline.zremrangebyscore(hitKey, 0, now - ttl);
-    pipeline.zcard(hitKey);
+    pipeline.incr(hitKey);
     pipeline.pexpire(hitKey, ttl);
     const results = await pipeline.exec();
 
-    const totalHits = (results?.[2]?.[1] as number) ?? 1;
+    const totalHits = (results?.[0]?.[1] as number) ?? 1;
 
     return {
       totalHits,

@@ -1,19 +1,10 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
-import { buildCohortFilterClause, type CohortFilterInput } from '../../cohorts/cohorts.query';
+import type { CohortFilterInput } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortFilterForBreakdown } from '../../utils/cohort-breakdown.util';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr, buildPropertyFilterConditions } from '../../utils/property-filter';
-
-function granularityExpr(g: TrendGranularity): string {
-  switch (g) {
-    case 'hour':  return 'toStartOfHour(timestamp)';
-    case 'day':   return 'toStartOfDay(timestamp)';
-    case 'week':  return 'toStartOfWeek(timestamp, 1)';
-    case 'month': return 'toStartOfMonth(timestamp)';
-  }
-}
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -80,20 +71,6 @@ function buildSeriesConditions(
     queryParams,
   );
   return [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
-}
-
-// ── Period shift for compare ──────────────────────────────────────────────────
-
-function shiftPeriod(dateFrom: string, dateTo: string): { from: string; to: string } {
-  const from = new Date(dateFrom);
-  const to = new Date(`${dateTo}T23:59:59Z`);
-  const durationMs = to.getTime() - from.getTime();
-  const prevTo = new Date(from.getTime() - 1000);
-  const prevFrom = new Date(from.getTime() - durationMs - 1000);
-  return {
-    from: prevFrom.toISOString().slice(0, 10),
-    to: prevTo.toISOString().slice(0, 10),
-  };
 }
 
 // ── Raw row types from ClickHouse ─────────────────────────────────────────────
@@ -219,15 +196,12 @@ async function executeTrendQuery(
     to: toChTs(dateTo, true),
   };
 
-  const bucketExpr = granularityExpr(params.granularity);
+  const bucketExpr = granularityTruncExpr(params.granularity, 'timestamp');
   const hasCohortBreakdown = !!params.breakdown_cohort_ids?.length;
   const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
   const aggCol = buildAggColumn(params.metric, params.metric_property);
 
-  // Cohort filter clause
-  const cohortClause = params.cohort_filters?.length
-    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
-    : '';
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   // Cohort breakdown path: one arm per (series x cohort)
   if (hasCohortBreakdown) {

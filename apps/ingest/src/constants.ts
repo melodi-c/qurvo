@@ -1,3 +1,7 @@
+// DI tokens
+export const REDIS = Symbol('REDIS');
+export const DRIZZLE = Symbol('DRIZZLE');
+
 // Intentionally duplicated in apps/processor/src/constants.ts — both apps share
 // the same Redis stream contract but have no shared runtime dependency.
 export const REDIS_STREAM_EVENTS = 'events:incoming';

@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
-import { FunnelService } from '../../analytics/funnel/funnel.service';
+import { FUNNEL_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { FunnelQueryParams, FunnelQueryResult } from '../../analytics/funnel/funnel.query';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -28,12 +30,12 @@ const tool = defineTool({
 export class FunnelTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly funnelService: FunnelService) {}
+  constructor(@Inject(FUNNEL_SERVICE) private readonly funnelService: AnalyticsQueryService<FunnelQueryParams, FunnelQueryResult>) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.funnelService.getFunnel(userId, {
+    const result = await this.funnelService.query(userId, {
       project_id: projectId,
       conversion_window_days: args.conversion_window_days ?? 14,
       ...args,
