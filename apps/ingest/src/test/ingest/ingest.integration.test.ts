@@ -6,7 +6,6 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { createGunzip } from 'node:zlib';
 import {
   setupContainers,
-  teardownContainers,
   createTestProject,
   waitForRedisStreamLength,
   type ContainerContext,
@@ -52,7 +51,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app?.close();
-  await teardownContainers();
 });
 
 describe('POST /v1/track', () => {

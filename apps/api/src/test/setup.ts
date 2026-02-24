@@ -1,5 +1,4 @@
-import { teardownContainers } from '@qurvo/testing';
+import { createGlobalSetup } from '@qurvo/testing';
 
-export async function teardown() {
-  await teardownContainers();
-}
+const { setup, teardown } = createGlobalSetup();
+export { setup, teardown };

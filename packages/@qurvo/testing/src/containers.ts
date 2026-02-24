@@ -30,22 +30,41 @@ export interface ContainerContext {
 
 let contextPromise: Promise<ContainerContext> | null = null;
 
+/**
+ * If TEST_PG_HOST is set (globalSetup started shared containers),
+ * delegates to setupWorkerContext() for per-worker isolation.
+ * Otherwise falls back to legacy mode (starts own containers).
+ */
 export async function setupContainers(): Promise<ContainerContext> {
   if (contextPromise) return contextPromise;
-  contextPromise = startContainers();
+
+  if (process.env.TEST_PG_HOST) {
+    const { setupWorkerContext } = await import('./worker-context');
+    contextPromise = setupWorkerContext();
+  } else {
+    contextPromise = startContainers();
+  }
+
   return contextPromise;
 }
 
 export async function teardownContainers(): Promise<void> {
   if (!contextPromise) return;
-  const ctx = await contextPromise;
-  await ctx.ch.close();
-  ctx.redis.disconnect();
-  await Promise.all([
-    ctx.pgContainer.stop(),
-    ctx.redisContainer.stop(),
-    ctx.chContainer.stop(),
-  ]);
+
+  if (process.env.TEST_PG_HOST) {
+    const { teardownWorkerContext } = await import('./worker-context');
+    await teardownWorkerContext();
+  } else {
+    const ctx = await contextPromise;
+    await ctx.ch.close();
+    ctx.redis.disconnect();
+    await Promise.all([
+      ctx.pgContainer.stop(),
+      ctx.redisContainer.stop(),
+      ctx.chContainer.stop(),
+    ]);
+  }
+
   contextPromise = null;
 }
 
