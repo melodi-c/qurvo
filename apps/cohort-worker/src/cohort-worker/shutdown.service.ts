@@ -2,8 +2,7 @@ import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import { type ClickHouseClient } from '@qurvo/clickhouse';
-import { REDIS } from '../providers/redis.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { CohortMembershipService } from './cohort-membership.service';
 
 @Injectable()
@@ -16,7 +15,7 @@ export class ShutdownService implements OnApplicationShutdown {
   ) {}
 
   async onApplicationShutdown() {
-    this.cohortMembershipService.stop();
+    await this.cohortMembershipService.stop();
     await this.ch.close().catch(() => {});
     await this.redis.quit().catch(() => {});
   }

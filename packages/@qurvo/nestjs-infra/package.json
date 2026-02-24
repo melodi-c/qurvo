@@ -1,0 +1,23 @@
+{
+  "name": "@qurvo/nestjs-infra",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@qurvo/clickhouse": "workspace:*",
+    "@qurvo/db": "workspace:*",
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": {
+    "@qurvo/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

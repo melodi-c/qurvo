@@ -147,6 +147,9 @@ importers:
       '@qurvo/distributed-lock':
         specifier: workspace:*
         version: link:../../packages/@qurvo/distributed-lock
+      '@qurvo/nestjs-infra':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/nestjs-infra
       dd-trace:
         specifier: ^5.0.0
         version: 5.87.0
@@ -208,9 +211,6 @@ importers:
 
   apps/ingest:
     dependencies:
-      '@nest-lab/throttler-storage-redis':
-        specifier: ^1.2.0
-        version: 1.2.0(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/throttler@6.5.0(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2))(ioredis@5.9.3)(reflect-metadata@0.2.2)
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -220,9 +220,6 @@ importers:
       '@nestjs/platform-fastify':
         specifier: ^11.0.0
         version: 11.1.14(@fastify/static@9.0.0)(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)
-      '@nestjs/throttler':
-        specifier: ^6.5.0
-        version: 6.5.0(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
@@ -351,6 +348,9 @@ importers:
       '@qurvo/heartbeat':
         specifier: workspace:*
         version: link:../../packages/@qurvo/heartbeat
+      '@qurvo/nestjs-infra':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/nestjs-infra
       dd-trace:
         specifier: ^5.0.0
         version: 5.87.0
@@ -608,6 +608,31 @@ importers:
         version: 9.39.2(jiti@2.6.1)
 
   packages/@qurvo/heartbeat:
+    devDependencies:
+      '@qurvo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/@qurvo/nestjs-infra:
+    dependencies:
+      '@nestjs/common':
+        specifier: ^11.0.0
+        version: 11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@qurvo/clickhouse':
+        specifier: workspace:*
+        version: link:../clickhouse
+      '@qurvo/db':
+        specifier: workspace:*
+        version: link:../db
+      ioredis:
+        specifier: ^5.4.0
+        version: 5.9.3
     devDependencies:
       '@qurvo/tsconfig':
         specifier: workspace:*

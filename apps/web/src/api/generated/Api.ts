@@ -894,79 +894,6 @@ export interface MyInvite {
   created_at: string;
 }
 
-export interface FilterCondition {
-  property: string;
-  value: string;
-}
-
-export interface MarketingChannel {
-  integration_config?: object;
-  filter_conditions?: FilterCondition[] | null;
-  color?: string | null;
-  id: string;
-  project_id: string;
-  created_by: string;
-  name: string;
-  channel_type: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateMarketingChannel {
-  name: string;
-  channel_type?: CreateMarketingChannelDtoChannelTypeEnum;
-  filter_conditions?: FilterCondition[];
-  color?: string;
-}
-
-export interface UpdateMarketingChannel {
-  name?: string;
-  channel_type?: UpdateMarketingChannelDtoChannelTypeEnum;
-  filter_conditions?: FilterCondition[];
-  color?: string;
-}
-
-export interface AdSpend {
-  note?: string | null;
-  id: string;
-  project_id: string;
-  channel_id: string;
-  created_by: string;
-  spend_date: string;
-  amount: string;
-  currency: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateAdSpend {
-  channel_id: string;
-  spend_date: string;
-  amount: string;
-  currency?: string;
-  note?: string;
-}
-
-export interface BulkCreateAdSpend {
-  items: CreateAdSpend[];
-}
-
-export interface UpdateAdSpend {
-  channel_id?: string;
-  spend_date?: string;
-  amount?: string;
-  currency?: string;
-  note?: string;
-}
-
-export interface AdSpendSummary {
-  channel_color?: string | null;
-  channel_id: string;
-  channel_name: string;
-  total_amount: string;
-  record_count: number;
-}
-
 export interface AiChat {
   /** @format uuid */
   conversation_id?: string;
@@ -1204,20 +1131,6 @@ export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 
 export type CreateInviteDtoRoleEnum = "editor" | "viewer";
 
-export type CreateMarketingChannelDtoChannelTypeEnum =
-  | "manual"
-  | "google_ads"
-  | "facebook_ads"
-  | "tiktok_ads"
-  | "custom_api";
-
-export type UpdateMarketingChannelDtoChannelTypeEnum =
-  | "manual"
-  | "google_ads"
-  | "facebook_ads"
-  | "tiktok_ads"
-  | "custom_api";
-
 export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
 
 export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
@@ -1250,22 +1163,21 @@ export interface ApiKeysControllerRevokeParams {
 }
 
 export interface FunnelControllerGetFunnelParams {
+  cohort_ids?: string[];
   /** @min 1 */
   conversion_window_value?: number;
   conversion_window_unit?: ConversionWindowUnitEnum;
-  breakdown_type?: BreakdownTypeEnum;
-  breakdown_cohort_ids?: string[];
-  cohort_ids?: string[];
-  funnel_order_type?: FunnelOrderTypeEnum;
-  exclusions?: FunnelExclusion[];
   /**
    * Sampling factor 0.0-1.0 (1.0 = no sampling)
    * @min 0.01
    * @max 1
    */
   sampling_factor?: number;
-  /** @format uuid */
-  project_id: string;
+  breakdown_type?: BreakdownTypeEnum;
+  breakdown_cohort_ids?: string[];
+  funnel_order_type?: FunnelOrderTypeEnum;
+  exclusions?: FunnelExclusion[];
+  breakdown_property?: string;
   steps: FunnelStep[];
   /**
    * @min 1
@@ -1273,9 +1185,10 @@ export interface FunnelControllerGetFunnelParams {
    * @default 14
    */
   conversion_window_days: number;
+  /** @format uuid */
+  project_id: string;
   date_from: string;
   date_to: string;
-  breakdown_property?: string;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
@@ -1311,18 +1224,20 @@ export type FunnelControllerGetFunnelParams1FunnelOrderTypeEnum =
   | "unordered";
 
 export interface FunnelControllerGetFunnelTimeToConvertParams {
+  cohort_ids?: string[];
   /** @min 1 */
   conversion_window_value?: number;
   conversion_window_unit?: ConversionWindowUnitEnum1;
-  cohort_ids?: string[];
   /**
    * Sampling factor 0.0-1.0 (1.0 = no sampling)
    * @min 0.01
    * @max 1
    */
   sampling_factor?: number;
-  /** @format uuid */
-  project_id: string;
+  /** @min 0 */
+  from_step: number;
+  /** @min 1 */
+  to_step: number;
   steps: FunnelStep[];
   /**
    * @min 1
@@ -1330,12 +1245,10 @@ export interface FunnelControllerGetFunnelTimeToConvertParams {
    * @default 14
    */
   conversion_window_days: number;
+  /** @format uuid */
+  project_id: string;
   date_from: string;
   date_to: string;
-  /** @min 0 */
-  from_step: number;
-  /** @min 1 */
-  to_step: number;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
@@ -1395,19 +1308,19 @@ export interface EventsControllerGetEventPropertyNamesParams {
 }
 
 export interface TrendControllerGetTrendParams {
+  cohort_ids?: string[];
   metric: TrendMetric;
   granularity: TrendGranularity;
   breakdown_type?: BreakdownTypeEnum1;
   breakdown_cohort_ids?: string[];
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
   series: TrendSeries[];
   metric_property?: string;
-  date_from: string;
-  date_to: string;
   breakdown_property?: string;
   compare?: boolean;
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
@@ -1420,11 +1333,9 @@ export type TrendControllerGetTrendParams1BreakdownTypeEnum =
   | "cohort";
 
 export interface RetentionControllerGetRetentionParams {
+  cohort_ids?: string[];
   retention_type: RetentionType;
   granularity: Granularity;
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
   target_event: string;
   /**
    * @min 1
@@ -1432,6 +1343,8 @@ export interface RetentionControllerGetRetentionParams {
    * @default 11
    */
   periods: number;
+  /** @format uuid */
+  project_id: string;
   date_from: string;
   date_to: string;
   /** @format uuid */
@@ -1440,11 +1353,11 @@ export interface RetentionControllerGetRetentionParams {
 }
 
 export interface LifecycleControllerGetLifecycleParams {
-  granularity: Granularity;
   cohort_ids?: string[];
+  granularity: Granularity;
+  target_event: string;
   /** @format uuid */
   project_id: string;
-  target_event: string;
   date_from: string;
   date_to: string;
   /** @format uuid */
@@ -1453,11 +1366,11 @@ export interface LifecycleControllerGetLifecycleParams {
 }
 
 export interface StickinessControllerGetStickinessParams {
-  granularity: Granularity;
   cohort_ids?: string[];
+  granularity: Granularity;
+  target_event: string;
   /** @format uuid */
   project_id: string;
-  target_event: string;
   date_from: string;
   date_to: string;
   /** @format uuid */
@@ -1466,14 +1379,10 @@ export interface StickinessControllerGetStickinessParams {
 }
 
 export interface PathsControllerGetPathsParams {
+  cohort_ids?: string[];
   exclusions?: string[];
   path_cleaning_rules?: PathCleaningRule[];
   wildcard_groups?: WildcardGroup[];
-  cohort_ids?: string[];
-  /** @format uuid */
-  project_id: string;
-  date_from: string;
-  date_to: string;
   /**
    * @min 3
    * @max 10
@@ -1484,6 +1393,10 @@ export interface PathsControllerGetPathsParams {
   end_event?: string;
   /** @min 1 */
   min_persons?: number;
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
   /** @format uuid */
   widget_id?: string;
   force?: boolean;
@@ -1553,6 +1466,7 @@ export interface PersonsControllerGetPersonPropertyNamesParams {
 }
 
 export interface PersonsControllerGetPersonByIdParams {
+  /** @format uuid */
   project_id: string;
   personId: string;
 }
@@ -1642,7 +1556,7 @@ export interface StaticCohortsControllerRemoveMembersParams {
   cohortId: string;
 }
 
-export interface InsightsControllerListParams {
+export interface SavedInsightsControllerListParams {
   type?: TypeEnum;
   projectId: string;
 }
@@ -1655,7 +1569,7 @@ export type TypeEnum =
   | "stickiness"
   | "paths";
 
-export type InsightsControllerListParams1TypeEnum =
+export type SavedInsightsControllerListParams1TypeEnum =
   | "trend"
   | "funnel"
   | "retention"
@@ -1663,21 +1577,21 @@ export type InsightsControllerListParams1TypeEnum =
   | "stickiness"
   | "paths";
 
-export interface InsightsControllerCreateParams {
+export interface SavedInsightsControllerCreateParams {
   projectId: string;
 }
 
-export interface InsightsControllerGetByIdParams {
-  projectId: string;
-  insightId: string;
-}
-
-export interface InsightsControllerUpdateParams {
+export interface SavedInsightsControllerGetByIdParams {
   projectId: string;
   insightId: string;
 }
 
-export interface InsightsControllerRemoveParams {
+export interface SavedInsightsControllerUpdateParams {
+  projectId: string;
+  insightId: string;
+}
+
+export interface SavedInsightsControllerRemoveParams {
   projectId: string;
   insightId: string;
 }
@@ -1717,55 +1631,6 @@ export interface MyInvitesControllerDeclineInviteParams {
   inviteId: string;
 }
 
-export interface MarketingChannelsControllerListParams {
-  projectId: string;
-}
-
-export interface MarketingChannelsControllerCreateParams {
-  projectId: string;
-}
-
-export interface MarketingChannelsControllerUpdateParams {
-  projectId: string;
-  channelId: string;
-}
-
-export interface MarketingChannelsControllerRemoveParams {
-  projectId: string;
-  channelId: string;
-}
-
-export interface AdSpendControllerListParams {
-  channel_id?: string;
-  date_from?: string;
-  date_to?: string;
-  projectId: string;
-}
-
-export interface AdSpendControllerCreateParams {
-  projectId: string;
-}
-
-export interface AdSpendControllerBulkCreateParams {
-  projectId: string;
-}
-
-export interface AdSpendControllerUpdateParams {
-  projectId: string;
-  id: string;
-}
-
-export interface AdSpendControllerRemoveParams {
-  projectId: string;
-  id: string;
-}
-
-export interface AdSpendControllerSummaryParams {
-  date_from?: string;
-  date_to?: string;
-  projectId: string;
-}
-
 export interface AiControllerListConversationsParams {
   /** @format uuid */
   project_id: string;
@@ -1800,12 +1665,15 @@ export interface EventDefinitionsControllerListParams {
    * @default 0
    */
   offset?: number;
-  /** @default "last_seen_at" */
-  order_by?: OrderByEnum;
   /** @default "desc" */
   order?: OrderEnum;
+  /** @default "last_seen_at" */
+  order_by?: OrderByEnum;
   projectId: string;
 }
+
+/** @default "desc" */
+export type OrderEnum = "asc" | "desc";
 
 /** @default "last_seen_at" */
 export type OrderByEnum =
@@ -1815,7 +1683,7 @@ export type OrderByEnum =
   | "updated_at";
 
 /** @default "desc" */
-export type OrderEnum = "asc" | "desc";
+export type EventDefinitionsControllerListParams1OrderEnum = "asc" | "desc";
 
 /** @default "last_seen_at" */
 export type EventDefinitionsControllerListParams1OrderByEnum =
@@ -1823,9 +1691,6 @@ export type EventDefinitionsControllerListParams1OrderByEnum =
   | "event_name"
   | "created_at"
   | "updated_at";
-
-/** @default "desc" */
-export type EventDefinitionsControllerListParams1OrderEnum = "asc" | "desc";
 
 export interface EventDefinitionsControllerUpsertParams {
   projectId: string;
@@ -1838,10 +1703,7 @@ export interface EventDefinitionsControllerRemoveParams {
 }
 
 export interface PropertyDefinitionsControllerListParams {
-  type?: TypeEnum1;
-  event_name?: string;
   search?: string;
-  is_numerical?: boolean;
   /**
    * @min 1
    * @max 500
@@ -1853,12 +1715,18 @@ export interface PropertyDefinitionsControllerListParams {
    * @default 0
    */
   offset?: number;
-  /** @default "last_seen_at" */
-  order_by?: OrderByEnum1;
   /** @default "desc" */
   order?: OrderEnum1;
+  type?: TypeEnum1;
+  event_name?: string;
+  is_numerical?: boolean;
+  /** @default "last_seen_at" */
+  order_by?: OrderByEnum1;
   projectId: string;
 }
+
+/** @default "desc" */
+export type OrderEnum1 = "asc" | "desc";
 
 export type TypeEnum1 = "event" | "person";
 
@@ -1870,7 +1738,7 @@ export type OrderByEnum1 =
   | "updated_at";
 
 /** @default "desc" */
-export type OrderEnum1 = "asc" | "desc";
+export type PropertyDefinitionsControllerListParams1OrderEnum = "asc" | "desc";
 
 export type PropertyDefinitionsControllerListParams1TypeEnum =
   | "event"
@@ -1882,9 +1750,6 @@ export type PropertyDefinitionsControllerListParams1OrderByEnum =
   | "property_name"
   | "created_at"
   | "updated_at";
-
-/** @default "desc" */
-export type PropertyDefinitionsControllerListParams1OrderEnum = "asc" | "desc";
 
 export interface PropertyDefinitionsControllerUpsertParams {
   projectId: string;
@@ -3254,12 +3119,12 @@ export class Api<
      * No description
      *
      * @tags Insights
-     * @name InsightsControllerList
+     * @name SavedInsightsControllerList
      * @request GET:/api/projects/{projectId}/insights
      * @secure
      */
-    insightsControllerList: (
-      { projectId, ...query }: InsightsControllerListParams,
+    savedInsightsControllerList: (
+      { projectId, ...query }: SavedInsightsControllerListParams,
       params: RequestParams = {},
     ) =>
       this.request<Insight[], any>({
@@ -3275,12 +3140,12 @@ export class Api<
      * No description
      *
      * @tags Insights
-     * @name InsightsControllerCreate
+     * @name SavedInsightsControllerCreate
      * @request POST:/api/projects/{projectId}/insights
      * @secure
      */
-    insightsControllerCreate: (
-      { projectId, ...query }: InsightsControllerCreateParams,
+    savedInsightsControllerCreate: (
+      { projectId, ...query }: SavedInsightsControllerCreateParams,
       data: CreateInsight,
       params: RequestParams = {},
     ) =>
@@ -3298,12 +3163,12 @@ export class Api<
      * No description
      *
      * @tags Insights
-     * @name InsightsControllerGetById
+     * @name SavedInsightsControllerGetById
      * @request GET:/api/projects/{projectId}/insights/{insightId}
      * @secure
      */
-    insightsControllerGetById: (
-      { projectId, insightId, ...query }: InsightsControllerGetByIdParams,
+    savedInsightsControllerGetById: (
+      { projectId, insightId, ...query }: SavedInsightsControllerGetByIdParams,
       params: RequestParams = {},
     ) =>
       this.request<Insight, any>({
@@ -3318,12 +3183,12 @@ export class Api<
      * No description
      *
      * @tags Insights
-     * @name InsightsControllerUpdate
+     * @name SavedInsightsControllerUpdate
      * @request PUT:/api/projects/{projectId}/insights/{insightId}
      * @secure
      */
-    insightsControllerUpdate: (
-      { projectId, insightId, ...query }: InsightsControllerUpdateParams,
+    savedInsightsControllerUpdate: (
+      { projectId, insightId, ...query }: SavedInsightsControllerUpdateParams,
       data: UpdateInsight,
       params: RequestParams = {},
     ) =>
@@ -3341,12 +3206,12 @@ export class Api<
      * No description
      *
      * @tags Insights
-     * @name InsightsControllerRemove
+     * @name SavedInsightsControllerRemove
      * @request DELETE:/api/projects/{projectId}/insights/{insightId}
      * @secure
      */
-    insightsControllerRemove: (
-      { projectId, insightId, ...query }: InsightsControllerRemoveParams,
+    savedInsightsControllerRemove: (
+      { projectId, insightId, ...query }: SavedInsightsControllerRemoveParams,
       params: RequestParams = {},
     ) =>
       this.request<void, any>({
@@ -3534,229 +3399,6 @@ export class Api<
       this.request<OkResponse, any>({
         path: `/api/invites/${inviteId}/decline`,
         method: "POST",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Marketing Channels
-     * @name MarketingChannelsControllerList
-     * @request GET:/api/projects/{projectId}/channels
-     * @secure
-     */
-    marketingChannelsControllerList: (
-      { projectId, ...query }: MarketingChannelsControllerListParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<MarketingChannel[], any>({
-        path: `/api/projects/${projectId}/channels`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Marketing Channels
-     * @name MarketingChannelsControllerCreate
-     * @request POST:/api/projects/{projectId}/channels
-     * @secure
-     */
-    marketingChannelsControllerCreate: (
-      { projectId, ...query }: MarketingChannelsControllerCreateParams,
-      data: CreateMarketingChannel,
-      params: RequestParams = {},
-    ) =>
-      this.request<MarketingChannel, any>({
-        path: `/api/projects/${projectId}/channels`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Marketing Channels
-     * @name MarketingChannelsControllerUpdate
-     * @request PUT:/api/projects/{projectId}/channels/{channelId}
-     * @secure
-     */
-    marketingChannelsControllerUpdate: (
-      {
-        projectId,
-        channelId,
-        ...query
-      }: MarketingChannelsControllerUpdateParams,
-      data: UpdateMarketingChannel,
-      params: RequestParams = {},
-    ) =>
-      this.request<MarketingChannel, any>({
-        path: `/api/projects/${projectId}/channels/${channelId}`,
-        method: "PUT",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Marketing Channels
-     * @name MarketingChannelsControllerRemove
-     * @request DELETE:/api/projects/{projectId}/channels/{channelId}
-     * @secure
-     */
-    marketingChannelsControllerRemove: (
-      {
-        projectId,
-        channelId,
-        ...query
-      }: MarketingChannelsControllerRemoveParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/channels/${channelId}`,
-        method: "DELETE",
-        secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Ad Spend
-     * @name AdSpendControllerList
-     * @request GET:/api/projects/{projectId}/ad-spend
-     * @secure
-     */
-    adSpendControllerList: (
-      { projectId, ...query }: AdSpendControllerListParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<AdSpend[], any>({
-        path: `/api/projects/${projectId}/ad-spend`,
-        method: "GET",
-        query: query,
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Ad Spend
-     * @name AdSpendControllerCreate
-     * @request POST:/api/projects/{projectId}/ad-spend
-     * @secure
-     */
-    adSpendControllerCreate: (
-      { projectId, ...query }: AdSpendControllerCreateParams,
-      data: CreateAdSpend,
-      params: RequestParams = {},
-    ) =>
-      this.request<AdSpend, any>({
-        path: `/api/projects/${projectId}/ad-spend`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Ad Spend
-     * @name AdSpendControllerBulkCreate
-     * @request POST:/api/projects/{projectId}/ad-spend/bulk
-     * @secure
-     */
-    adSpendControllerBulkCreate: (
-      { projectId, ...query }: AdSpendControllerBulkCreateParams,
-      data: BulkCreateAdSpend,
-      params: RequestParams = {},
-    ) =>
-      this.request<AdSpend[], any>({
-        path: `/api/projects/${projectId}/ad-spend/bulk`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Ad Spend
-     * @name AdSpendControllerUpdate
-     * @request PUT:/api/projects/{projectId}/ad-spend/{id}
-     * @secure
-     */
-    adSpendControllerUpdate: (
-      { projectId, id, ...query }: AdSpendControllerUpdateParams,
-      data: UpdateAdSpend,
-      params: RequestParams = {},
-    ) =>
-      this.request<AdSpend, any>({
-        path: `/api/projects/${projectId}/ad-spend/${id}`,
-        method: "PUT",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Ad Spend
-     * @name AdSpendControllerRemove
-     * @request DELETE:/api/projects/{projectId}/ad-spend/{id}
-     * @secure
-     */
-    adSpendControllerRemove: (
-      { projectId, id, ...query }: AdSpendControllerRemoveParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/ad-spend/${id}`,
-        method: "DELETE",
-        secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Ad Spend
-     * @name AdSpendControllerSummary
-     * @request GET:/api/projects/{projectId}/ad-spend/summary
-     * @secure
-     */
-    adSpendControllerSummary: (
-      { projectId, ...query }: AdSpendControllerSummaryParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<AdSpendSummary[], any>({
-        path: `/api/projects/${projectId}/ad-spend/summary`,
-        method: "GET",
-        query: query,
         secure: true,
         format: "json",
         ...params,

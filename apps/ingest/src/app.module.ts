@@ -1,11 +1,9 @@
-import { Global, Module, Inject, OnApplicationShutdown } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { Module, Inject, OnApplicationShutdown } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import type { Options } from 'pino-http';
 import Redis from 'ioredis';
 import { createDb, type Database } from '@qurvo/db';
-import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { REDIS, DRIZZLE } from './constants';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
@@ -22,8 +20,6 @@ const DrizzleProvider = {
   useFactory: () => createDb(process.env.DATABASE_URL),
 };
 
-// @Global + exports required: ThrottlerModule.forRootAsync injects REDIS, which must be globally exported
-@Global()
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -35,16 +31,6 @@ const DrizzleProvider = {
           : undefined,
       } as Options,
     }),
-    ThrottlerModule.forRootAsync({
-      inject: [REDIS],
-      useFactory: (redis: Redis) => ({
-        throttlers: [
-          { name: 'short', ttl: 1000, limit: 50 },
-          { name: 'medium', ttl: 60000, limit: 1000 },
-        ],
-        storage: new ThrottlerStorageRedisService(redis),
-      }),
-    }),
   ],
   controllers: [IngestController],
   providers: [
@@ -52,10 +38,8 @@ const DrizzleProvider = {
     DrizzleProvider,
     IngestService,
     BillingGuard,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: ZodExceptionFilter },
   ],
-  exports: [RedisProvider],
 })
 export class AppModule implements OnApplicationShutdown {
   constructor(

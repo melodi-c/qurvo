@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { Lightbulb } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -15,8 +15,7 @@ import type { Insight } from '@/api/generated/Api';
 
 export default function InsightsPage() {
   const { t } = useLocalTranslation(translations);
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') ?? '';
+  const projectId = useProjectId();
 
   const { data: insights, isLoading } = useInsights();
   const deleteMutation = useDeleteInsight();

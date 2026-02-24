@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useProjectId } from '@/hooks/use-project-id';
 import { Database, Check, ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
@@ -23,8 +24,7 @@ export default function EventDefinitionDetailPage() {
   const { t } = useLocalTranslation(translations);
   const { eventName: rawEventName } = useParams<{ eventName: string }>();
   const eventName = rawEventName ? decodeURIComponent(rawEventName) : '';
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
   const navigate = useNavigate();
 
   const { data: definitions, isLoading: eventsLoading } = useEventDefinitions();

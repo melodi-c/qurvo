@@ -3,8 +3,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { withRetry } from './retry';
-import { REDIS } from '../providers/redis.provider';
-import { CLICKHOUSE } from '../providers/clickhouse.provider';
+import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { DefinitionSyncService } from './definition-sync.service';
 import { PersonBatchStore } from './person-batch-store';
 import {
@@ -44,6 +43,10 @@ export class FlushService implements OnApplicationBootstrap {
   async shutdown() {
     this.stopped = true;
     if (this.flushTimer) clearTimeout(this.flushTimer);
+    // Wait for in-progress flush to complete before the final flush
+    while (this.isFlushing) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     await this.flush();
   }
 
