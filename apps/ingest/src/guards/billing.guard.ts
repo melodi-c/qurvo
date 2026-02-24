@@ -9,17 +9,18 @@ export class BillingGuard implements CanActivate {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const eventsLimit: number | null = request.eventsLimit ?? null;
+    const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
+    const eventsLimit = request.eventsLimit;
 
     if (eventsLimit === null) return true;
 
-    const projectId: string = request.projectId;
+    const projectId = request.projectId;
     const counterKey = billingCounterKey(projectId);
     const current = await this.redis.get(counterKey);
+    const count = current !== null ? parseInt(current, 10) : 0;
 
-    if (current !== null && parseInt(current, 10) >= eventsLimit) {
-      this.logger.warn({ projectId, current, limit: eventsLimit }, 'Event limit exceeded');
+    if (!Number.isNaN(count) && count >= eventsLimit) {
+      this.logger.warn({ projectId, count, limit: eventsLimit }, 'Event limit exceeded');
       throw new HttpException('Monthly event limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
 

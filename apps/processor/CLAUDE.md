@@ -33,6 +33,7 @@ src/
 │   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
 │   ├── cohort-toposort.ts               # Topological sort for cohort dependencies
 │   ├── dlq.service.ts                   # Dead letter queue replay
+│   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
 │   ├── shutdown.service.ts              # Graceful shutdown orchestrator with error isolation
 │   └── geo.service.ts                   # GeoIP lookup (hardcoded DEFAULT_MMDB_URL to selstorage.ru — intentional, not a concern)
@@ -109,6 +110,9 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 2. Stop DLQ + cohort timers
 3. `FlushService.shutdown()` — stop timer + final flush — errors caught separately
 4. Close Redis/ClickHouse connections — errors swallowed
+
+### Shared Utilities
+`redis-utils.ts` contains `parseRedisFields()` — converts flat Redis `[key, value, key, value, ...]` arrays into `Record<string, string>`. Used by both `EventConsumerService` and `DlqService`. Do NOT inline this back into individual services or duplicate it — keep it in `redis-utils.ts`.
 
 ### GeoIP
 `GeoService` downloads MaxMind MMDB from `DEFAULT_MMDB_URL` (hardcoded selstorage.ru) or `GEOLITE2_COUNTRY_URL` env var. This is intentional — the URL is a controlled bucket. If download fails, geo lookup silently degrades to empty string.

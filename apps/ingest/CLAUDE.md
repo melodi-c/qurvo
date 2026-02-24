@@ -22,7 +22,8 @@ src/
 ├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, billing keys
 ├── ingest/
 │   ├── ingest.controller.ts  # GET /health, POST /v1/batch, POST /v1/import
-│   └── ingest.service.ts     # Event building + Redis stream writing
+│   ├── ingest.service.ts     # Event building + Redis stream writing
+│   └── ingest.service.test.ts # Unit tests (resolveTimestamp)
 ├── guards/
 │   ├── api-key.guard.ts      # Validates x-api-key header against DB, caches in Redis
 │   └── billing.guard.ts      # Checks monthly event limit from Redis billing counter
@@ -35,8 +36,8 @@ src/
 │   └── import-event.ts       # ImportEventSchema (extends TrackEventSchema), ImportBatchSchema
 ├── hooks/
 │   └── gzip-preparsing.ts    # Fastify preParsing hook for gzip decompression
-├── throttler/
-│   └── redis-throttler.storage.ts  # Distributed rate limiting (INCR + PEXPIRE)
+├── types/
+│   └── fastify.d.ts          # Fastify request augmentation (projectId, eventsLimit)
 └── test/                # Integration tests
     ├── setup.ts
     ├── helpers/
@@ -60,7 +61,7 @@ SDK POST → ApiKeyGuard → BillingGuard → Zod validation → IngestService.b
 ```
 
 ### Guard Chain
-- **`ApiKeyGuard`** — authenticates API key (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit`
+- **`ApiKeyGuard`** — authenticates API key (SHA-256 hash lookup, 60s Redis cache, DB fallback), sets `request.projectId` and `request.eventsLimit` (typed via `src/types/fastify.d.ts` module augmentation)
 - **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, returns 429 if exceeded. Only applied to `/v1/batch`.
 
 ### Payload Enrichment
@@ -75,7 +76,7 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 ### Throttling
 - Short: 50 req/s per IP
 - Medium: 1000 req/min per IP
-- Backed by `RedisThrottlerStorage` (INCR + PEXPIRE per key)
+- Backed by `@nest-lab/throttler-storage-redis` (Lua script, fixed-window, atomic INCR + conditional PEXPIRE)
 - `/health` and `/v1/import` skip throttling via `@SkipThrottle()`
 
 ### Validation
@@ -92,8 +93,13 @@ Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) valid
 
 - **`src/tracer.ts`** and the `dd-trace` dependency — this is the Datadog APM tracer. It is loaded at runtime via Node.js `-r` flag (`node -r ./dist/tracer.js`), so it has no explicit imports in the source code. This is NOT dead code.
 
-## Integration Tests
+## Tests
 
-Tests in `src/test/ingest/`. 10 tests covering:
+### Unit tests
+`src/ingest/ingest.service.test.ts` — 7 tests for `resolveTimestamp` (PostHog-style clock-drift correction):
+- Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
+
+### Integration tests
+`src/test/ingest/`. 10 tests covering:
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix

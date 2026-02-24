@@ -5,10 +5,10 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import type { Options } from 'pino-http';
 import Redis from 'ioredis';
 import { createDb, type Database } from '@qurvo/db';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { REDIS, DRIZZLE } from './constants';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
-import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 import { ZodExceptionFilter } from './filters/zod-exception.filter';
 import { BillingGuard } from './guards/billing.guard';
 
@@ -30,7 +30,7 @@ const DrizzleProvider = {
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
         redact: ['req.headers["x-api-key"]'],
-        transport: process.env.NODE_ENV !== 'production'
+        transport: process.env.NODE_ENV === 'development'
           ? { target: 'pino-pretty' }
           : undefined,
       } as Options,
@@ -42,7 +42,7 @@ const DrizzleProvider = {
           { name: 'short', ttl: 1000, limit: 50 },
           { name: 'medium', ttl: 60000, limit: 1000 },
         ],
-        storage: new RedisThrottlerStorage(redis),
+        storage: new ThrottlerStorageRedisService(redis),
       }),
     }),
   ],
