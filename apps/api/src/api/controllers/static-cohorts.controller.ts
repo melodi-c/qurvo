@@ -8,6 +8,7 @@ import {
   CohortDto,
   CreateStaticCohortDto,
   StaticCohortMembersDto,
+  UploadCsvDto,
 } from '../dto/cohorts.dto';
 
 @ApiTags('Cohorts')
@@ -39,8 +40,8 @@ export class StaticCohortsController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
-    @Body() body: { csv_content: string },
-  ) {
+    @Body() body: UploadCsvDto,
+  ): Promise<{ imported: number; total_lines: number }> {
     return this.staticCohortsService.importStaticCohortCsv(user.user_id, projectId, cohortId, body.csv_content);
   }
 

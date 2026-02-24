@@ -5,6 +5,7 @@ export const LOGIN_MAX_ATTEMPTS = 5;
 export const LOGIN_WINDOW_SECONDS = 60;
 
 export const SESSION_CACHE_TTL_SECONDS = 60;
+export const SESSION_CACHE_KEY_PREFIX = 'session:';
 export const MAX_ACTIVE_SESSIONS_PER_USER = 10;
 
 export const VERIFICATION_CODE_TTL_SECONDS = 10 * 60;

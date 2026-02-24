@@ -30,7 +30,7 @@ const DrizzleProvider = {
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
         redact: ['req.headers["x-api-key"]'],
-        transport: process.env.NODE_ENV === 'development'
+        transport: process.env.NODE_ENV !== 'production'
           ? { target: 'pino-pretty' }
           : undefined,
       } as Options,

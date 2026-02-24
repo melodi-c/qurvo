@@ -1,6 +1,7 @@
 import { HeartPulse } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
+import { MetricsDivider } from '@/components/ui/metrics-divider';
+import { EditorSkeleton } from '@/components/ui/editor-skeleton';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useLifecycleData } from '@/features/dashboard/hooks/use-lifecycle';
@@ -53,25 +54,15 @@ export default function LifecycleEditorPage() {
       noResultsIcon={HeartPulse}
       noResultsTitle={t('noResultsTitle')}
       noResultsDescription={t('noResultsDescription')}
-      skeleton={
-        <>
-          <div className="flex gap-8">
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-10 w-28" />
-          </div>
-          <Skeleton className="h-[300px] w-full" />
-        </>
-      }
+      skeleton={<EditorSkeleton metricCount={4} />}
       metricsBar={
         <>
           <Metric label={t('new')} value={String(result!.totals.new)} accent />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('returning')} value={String(result!.totals.returning)} />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('resurrecting')} value={String(result!.totals.resurrecting)} />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('dormant')} value={String(Math.abs(result!.totals.dormant))} />
         </>
       }

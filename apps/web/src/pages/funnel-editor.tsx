@@ -1,6 +1,7 @@
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
+import { MetricsDivider } from '@/components/ui/metrics-divider';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
@@ -90,13 +91,13 @@ export default function FunnelEditorPage() {
       metricsBar={
         <>
           <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
-          <div className="w-px h-8 bg-border/50 mx-6" />
+          <MetricsDivider />
           <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
           {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
             <>
-              <div className="w-px h-8 bg-border/50 mx-6" />
+              <MetricsDivider />
               <span className="inline-flex items-center gap-1.5 text-xs text-amber-400/80">
                 <FlaskConical className="h-3.5 w-3.5" />
                 {t('sampled', { pct: String(Math.round(funnelResult.sampling_factor * 100)) })}

@@ -1,14 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
-import type { PropertyDefinition, TypeEnum1 } from '@/api/generated/Api';
+import { useProjectId } from '@/hooks/use-project-id';
+import type { PropertyDefinition, TypeEnum1, UpsertPropertyDefinition } from '@/api/generated/Api';
+
+export const propertyDefinitionsKey = (projectId: string, type?: string, eventName?: string) =>
+  ['property-definitions', projectId, type ?? '', eventName ?? ''];
 
 export function usePropertyDefinitions(type?: TypeEnum1, eventName?: string) {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
-    queryKey: ['property-definitions', projectId, type ?? '', eventName ?? ''],
+    queryKey: propertyDefinitionsKey(projectId, type, eventName),
     queryFn: async () => {
       const res = await api.propertyDefinitionsControllerList({
         projectId,
@@ -19,6 +21,30 @@ export function usePropertyDefinitions(type?: TypeEnum1, eventName?: string) {
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpsertPropertyDefinition() {
+  const projectId = useProjectId();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      propertyName,
+      propertyType,
+      data,
+    }: {
+      propertyName: string;
+      propertyType: 'event' | 'person';
+      data: UpsertPropertyDefinition;
+    }) =>
+      api.propertyDefinitionsControllerUpsert(
+        { projectId, propertyType, propertyName },
+        data,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['property-definitions', projectId] });
+    },
   });
 }
 

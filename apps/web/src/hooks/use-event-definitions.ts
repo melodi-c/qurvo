@@ -1,20 +1,37 @@
-import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
-import type { EventDefinition } from '@/api/generated/Api';
+import { useProjectId } from '@/hooks/use-project-id';
+import type { EventDefinition, UpsertEventDefinition } from '@/api/generated/Api';
+
+export const eventDefinitionsKey = (projectId: string) => ['event-definitions', projectId];
 
 export function useEventDefinitions() {
-  const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('project') || '';
+  const projectId = useProjectId();
 
   return useQuery({
-    queryKey: ['event-definitions', projectId],
+    queryKey: eventDefinitionsKey(projectId),
     queryFn: async () => {
       const res = await api.eventDefinitionsControllerList({ projectId });
       return res.items;
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpsertEventDefinition() {
+  const projectId = useProjectId();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ eventName, data }: { eventName: string; data: UpsertEventDefinition }) =>
+      api.eventDefinitionsControllerUpsert(
+        { projectId, eventName },
+        data,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: eventDefinitionsKey(projectId) });
+    },
   });
 }
 
