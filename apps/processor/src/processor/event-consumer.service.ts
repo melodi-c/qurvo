@@ -61,9 +61,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     while (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
       await this.flushService.flush();
       this.heartbeat.touch();
-      if (this.flushService.getBufferSize() > PROCESSOR_BATCH_SIZE * 2) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 

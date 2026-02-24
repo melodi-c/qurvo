@@ -30,10 +30,9 @@ src/
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync)
 │   ├── person-resolver.service.ts       # Person ID resolution + $identify
-│   ├── person-writer.service.ts         # PostgreSQL person merge (implements IPersonWriter)
-│   ├── person-writer.interface.ts       # IPersonWriter interface + DI token (PERSON_WRITER)
+│   ├── person-writer.service.ts         # PostgreSQL person merge
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing
-│   ├── person-batch-store.ts            # Batched person writes (uses IPersonWriter via DI)
+│   ├── person-batch-store.ts            # Batched person writes (injects PersonWriterService)
 │   ├── cohort-membership.service.ts     # Periodic cohort membership recomputation + orphan GC
 │   ├── cohort-toposort.ts               # Topological sort for cohort dependencies
 │   ├── dlq.service.ts                   # Dead letter queue replay
@@ -77,17 +76,11 @@ Redis Stream (events:incoming)
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Atomic get-or-create person_id via Redis+PG | Redis SET NX with 90d TTL, PG cold-start fallback |
 | `PersonWriterService` | Identity merge transaction | Re-points distinct_ids, merges properties, deletes anon person |
-| `PersonBatchStore` | Batched person writes | Uses `IPersonWriter` via DI (no circular dep) |
+| `PersonBatchStore` | Batched person writes | Injects `PersonWriterService` directly |
 | `CohortMembershipService` | Periodic cohort membership recomputation | 10min interval, distributed lock, error backoff, orphan GC |
 | `DlqService` | Replay dead-letter events | 100 events every 5min, circuit breaker (5 failures, 5min reset) |
 
 ## Key Patterns
-
-### DI: IPersonWriter Interface
-`PersonBatchStore` depends on person merge logic, but `PersonWriterService` is a heavy service. To avoid circular deps, `IPersonWriter` interface + DI token (`PERSON_WRITER`) is used:
-```typescript
-{ provide: PERSON_WRITER, useExisting: PersonWriterService }
-```
 
 ### Distributed Lock
 Both `DlqService` and `CohortMembershipService` use `@qurvo/distributed-lock` (Redis SET NX + Lua-guarded release) to prevent multiple instances from running the same work.

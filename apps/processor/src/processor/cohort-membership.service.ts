@@ -165,13 +165,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         query_params: { ids: allDynamicIds },
       });
     } else {
-      // Sanity check: confirm no dynamic cohorts genuinely exist before deleting all memberships
-      const countResult = await this.db.select({ id: cohorts.id }).from(cohorts).where(eq(cohorts.is_static, false));
-      if (countResult.length > 0) {
-        this.logger.warn('GC skipped: second query found dynamic cohorts after first returned empty');
-        return;
-      }
-      this.logger.info('No dynamic cohorts exist — deleting all membership rows');
       await this.ch.command({
         query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1`,
       });
@@ -197,7 +190,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         {cm_version:UInt64} AS version
       FROM (${subquery})`;
 
-    await this.ch.query({
+    await this.ch.command({
       query: insertSql,
       query_params: { ...queryParams, cm_cohort_id: cohortId, cm_project_id: projectId, cm_version: version },
     });

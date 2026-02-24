@@ -4,7 +4,7 @@ import { sql, inArray } from 'drizzle-orm';
 import { persons, type Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { parseUserProperties } from './person-utils';
-import { type IPersonWriter, PERSON_WRITER } from './person-writer.interface';
+import { PersonWriterService } from './person-writer.service';
 import { withRetry } from './retry';
 import { RETRY_POSTGRES } from '../constants';
 
@@ -38,7 +38,7 @@ export class PersonBatchStore {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    @Inject(PERSON_WRITER) private readonly personWriter: IPersonWriter,
+    private readonly personWriter: PersonWriterService,
     @InjectPinoLogger(PersonBatchStore.name) private readonly logger: PinoLogger,
   ) {}
 
