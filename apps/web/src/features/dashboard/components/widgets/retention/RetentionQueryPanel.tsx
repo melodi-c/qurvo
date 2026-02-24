@@ -7,7 +7,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
-import { EventNameCombobox } from '../funnel/EventNameCombobox';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './RetentionQueryPanel.translations';
 import type { RetentionWidgetConfig } from '@/api/generated/Api';

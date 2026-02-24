@@ -1,9 +1,9 @@
-import { useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { GripVertical, X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { EventNameCombobox } from './funnel/EventNameCombobox';
-import { StepFilterRow } from './funnel/StepFilterRow';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
+import { StepFilterRow } from '@/components/StepFilterRow';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import translations from './QueryItemCard.translations';
 import type { StepFilter } from '@/api/generated/Api';
@@ -177,55 +177,4 @@ export function QueryItemCard({
       </div>
     </div>
   );
-}
-
-// ── Drag hook ──
-
-export function useDragReorder<T>(items: T[], onChange: (items: T[]) => void) {
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
-  const [overIdx, setOverIdx] = useState<number | null>(null);
-  const dragNode = useRef<HTMLDivElement | null>(null);
-
-  const handleDragStart = (i: number, e: React.DragEvent<HTMLDivElement>) => {
-    setDragIdx(i);
-    dragNode.current = e.currentTarget;
-    e.dataTransfer.effectAllowed = 'move';
-    requestAnimationFrame(() => {
-      if (dragNode.current) dragNode.current.style.opacity = '0.4';
-    });
-  };
-
-  const handleDragEnd = () => {
-    if (dragNode.current) dragNode.current.style.opacity = '1';
-    if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
-      const next = [...items];
-      const [moved] = next.splice(dragIdx, 1);
-      next.splice(overIdx, 0, moved);
-      onChange(next);
-    }
-    setDragIdx(null);
-    setOverIdx(null);
-    dragNode.current = null;
-  };
-
-  const handleDragOver = (i: number, e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragIdx !== null && i !== overIdx) {
-      setOverIdx(i);
-    }
-  };
-
-  const handleDragLeave = (i: number) => {
-    if (overIdx === i) setOverIdx(null);
-  };
-
-  return {
-    dragIdx,
-    overIdx,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDragLeave,
-  };
 }

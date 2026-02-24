@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { withRetry } from './retry';
+import { parseRedisFields } from './redis-utils';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import {
@@ -74,10 +75,7 @@ export class DlqService implements OnApplicationBootstrap {
       const ids = entries.map(([id]) => id);
       const events: Event[] = entries
         .map(([, fields]) => {
-          const obj: Record<string, string> = {};
-          for (let i = 0; i < fields.length; i += 2) {
-            obj[fields[i]] = fields[i + 1];
-          }
+          const obj = parseRedisFields(fields);
           if (!obj.data) return null;
           const event = JSON.parse(obj.data) as Event;
           if (event.screen_width != null) event.screen_width = Math.max(0, event.screen_width);
@@ -108,7 +106,7 @@ export class DlqService implements OnApplicationBootstrap {
       }
       this.logger.error({ err, consecutiveFailures: this.consecutiveFailures }, 'DLQ replay failed');
     } finally {
-      await this.lock.release();
+      await this.lock.release().catch((err) => this.logger.warn({ err }, 'DLQ lock release failed'));
     }
   }
 }

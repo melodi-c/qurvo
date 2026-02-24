@@ -2,7 +2,7 @@ import { Search, Filter, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
-import { StepFilterRow } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { StepFilterRow } from '@/components/StepFilterRow';
 import { usePersonPropertyNames } from './use-person-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './PersonsFilterPanel.translations';

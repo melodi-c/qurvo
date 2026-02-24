@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
-import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './PathsQueryPanel.translations';
 import type { PathsWidgetConfig } from '@/api/generated/Api';

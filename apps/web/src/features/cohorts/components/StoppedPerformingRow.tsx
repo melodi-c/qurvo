@@ -1,5 +1,5 @@
 import { Input } from '@/components/ui/input';
-import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { ConditionRowWrapper } from './ConditionRowWrapper';
 import translations from './StoppedPerformingRow.translations';

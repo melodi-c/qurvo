@@ -1,39 +1,44 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useAuthStore } from '@/stores/auth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { routes } from '@/lib/routes';
+import { useAuthStore } from '@/stores/auth';
 import appTranslations from '@/App.translations';
 import Layout from '@/components/layout';
+
+// Eager: auth pages (needed immediately)
 import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
-import DashboardPage from '@/pages/dashboard';
-import DashboardsPage from '@/pages/dashboards/index';
-import DashboardBuilderPage from '@/pages/dashboards/[id]';
-import ProjectsPage from '@/pages/projects';
-import ApiKeysPage from '@/pages/api-keys';
-import SettingsPage from '@/pages/settings/index';
-import ProfilePage from '@/pages/profile/index';
-import EventsPage from '@/pages/events';
-import PersonsPage from '@/pages/persons';
-import PersonDetailPage from '@/pages/person-detail';
-import InsightsPage from '@/pages/insights/index';
-import TrendEditorPage from '@/pages/trend-editor';
-import FunnelEditorPage from '@/pages/funnel-editor';
-import RetentionEditorPage from '@/pages/retention-editor';
-import LifecycleEditorPage from '@/pages/lifecycle-editor';
-import StickinessEditorPage from '@/pages/stickiness-editor';
-import PathsEditorPage from '@/pages/paths-editor';
-import CohortsPage from '@/pages/cohorts';
-import CohortEditorPage from '@/pages/cohort-editor';
-import AiPage from '@/pages/ai/index';
 import VerifyEmailPage from '@/pages/verify-email';
-import EventDefinitionsPage from '@/pages/event-definitions';
-import EventDefinitionDetailPage from '@/pages/event-definition-detail';
-import WebAnalyticsPage from '@/pages/web-analytics';
-import { routes } from '@/lib/routes';
+
+// Lazy: all other pages
+const DashboardPage = lazy(() => import('@/pages/dashboard'));
+const DashboardsPage = lazy(() => import('@/pages/dashboards/index'));
+const DashboardBuilderPage = lazy(() => import('@/pages/dashboards/[id]'));
+const ProjectsPage = lazy(() => import('@/pages/projects'));
+const ApiKeysPage = lazy(() => import('@/pages/api-keys'));
+const SettingsPage = lazy(() => import('@/pages/settings/index'));
+const ProfilePage = lazy(() => import('@/pages/profile/index'));
+const EventsPage = lazy(() => import('@/pages/events'));
+const PersonsPage = lazy(() => import('@/pages/persons'));
+const PersonDetailPage = lazy(() => import('@/pages/person-detail'));
+const InsightsPage = lazy(() => import('@/pages/insights/index'));
+const TrendEditorPage = lazy(() => import('@/pages/trend-editor'));
+const FunnelEditorPage = lazy(() => import('@/pages/funnel-editor'));
+const RetentionEditorPage = lazy(() => import('@/pages/retention-editor'));
+const LifecycleEditorPage = lazy(() => import('@/pages/lifecycle-editor'));
+const StickinessEditorPage = lazy(() => import('@/pages/stickiness-editor'));
+const PathsEditorPage = lazy(() => import('@/pages/paths-editor'));
+const CohortsPage = lazy(() => import('@/pages/cohorts'));
+const CohortEditorPage = lazy(() => import('@/pages/cohort-editor'));
+const AiPage = lazy(() => import('@/pages/ai/index'));
+const EventDefinitionsPage = lazy(() => import('@/pages/event-definitions'));
+const EventDefinitionDetailPage = lazy(() => import('@/pages/event-definition-detail'));
+const WebAnalyticsPage = lazy(() => import('@/pages/web-analytics'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -66,7 +71,9 @@ function AppRoutes() {
       <Route
         element={
           <ProtectedRoute>
-            <Layout />
+            <Suspense fallback={<div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>}>
+              <Layout />
+            </Suspense>
           </ProtectedRoute>
         }
       >
@@ -115,7 +122,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          <AppRoutes />
+          <ErrorBoundary>
+            <AppRoutes />
+          </ErrorBoundary>
           <Toaster />
         </TooltipProvider>
       </BrowserRouter>

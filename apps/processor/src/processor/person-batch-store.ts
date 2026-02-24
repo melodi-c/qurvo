@@ -87,7 +87,19 @@ export class PersonBatchStore {
     this.pendingMerges.push({ projectId, fromPersonId, intoPersonId });
   }
 
+  private isFlushing = false;
+
   async flush(): Promise<void> {
+    if (this.isFlushing) return;
+    this.isFlushing = true;
+    try {
+      await this._doFlush();
+    } finally {
+      this.isFlushing = false;
+    }
+  }
+
+  private async _doFlush(): Promise<void> {
     const pendingPersons = this.pendingPersons;
     const pendingDistinctIds = this.pendingDistinctIds;
     const pendingMerges = this.pendingMerges;

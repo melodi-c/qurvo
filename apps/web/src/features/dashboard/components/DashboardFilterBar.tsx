@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
-import { StepFilterRow } from '@/features/dashboard/components/widgets/funnel/StepFilterRow';
+import { StepFilterRow } from '@/components/StepFilterRow';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useDashboardStore } from '../store';
 import { hasActiveOverrides } from '../lib/filter-overrides';

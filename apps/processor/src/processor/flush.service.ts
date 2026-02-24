@@ -112,7 +112,11 @@ export class FlushService implements OnApplicationBootstrap {
     for (const event of events) {
       pipeline.xadd(REDIS_STREAM_DLQ, 'MAXLEN', '~', String(REDIS_DLQ_MAXLEN), '*', 'data', JSON.stringify(event));
     }
-    await pipeline.exec();
+    const results = await pipeline.exec();
+    const failed = results?.filter(([err]) => err !== null);
+    if (failed && failed.length > 0) {
+      this.logger.error({ failedCount: failed.length, totalCount: events.length }, 'Some DLQ pipeline writes failed');
+    }
   }
 
   private scheduleFlush() {

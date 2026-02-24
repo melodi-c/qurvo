@@ -1,8 +1,7 @@
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EditorHeader } from '@/components/ui/editor-header';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
+import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
@@ -52,82 +51,68 @@ export default function FunnelEditorPage() {
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(funnelResult);
 
   return (
-    <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
-      <EditorHeader
-        backPath={listPath}
-        backLabel={t('backLabel')}
-        name={name}
-        onNameChange={setName}
-        placeholder={t('placeholder')}
-        onSave={handleSave}
-        isSaving={isSaving}
-        isValid={isValid}
-        saveError={saveError}
+    <InsightEditorLayout
+      backPath={listPath}
+      backLabel={t('backLabel')}
+      name={name}
+      onNameChange={setName}
+      placeholder={t('placeholder')}
+      onSave={handleSave}
+      isSaving={isSaving}
+      isValid={isValid}
+      saveError={saveError}
+      queryPanel={<FunnelQueryPanel config={config} onChange={setConfig} />}
+      isConfigValid={isConfigValid}
+      showSkeleton={showSkeleton}
+      isEmpty={!steps || steps.length === 0}
+      isFetching={isFetching}
+      configureIcon={TrendingDown}
+      configureTitle={t('configureTitle')}
+      configureDescription={t('configureDescription')}
+      noResultsIcon={GitFork}
+      noResultsTitle={t('noResultsTitle')}
+      noResultsDescription={t('noResultsDescription')}
+      skeleton={
+        <>
+          <div className="flex gap-8">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-28" />
+          </div>
+          <div className="space-y-3 max-w-2xl">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-[75%]" />
+            <Skeleton className="h-10 w-[55%]" />
+            <Skeleton className="h-10 w-[35%]" />
+          </div>
+        </>
+      }
+      metricsBar={
+        <>
+          <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
+          <div className="w-px h-8 bg-border/50 mx-6" />
+          <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
+          <div className="w-px h-8 bg-border/50 mx-6" />
+          <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
+          {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
+            <>
+              <div className="w-px h-8 bg-border/50 mx-6" />
+              <span className="inline-flex items-center gap-1.5 text-xs text-amber-400/80">
+                <FlaskConical className="h-3.5 w-3.5" />
+                {t('sampled', { pct: String(Math.round(funnelResult.sampling_factor * 100)) })}
+              </span>
+            </>
+          )}
+        </>
+      }
+      chartClassName="flex-1 overflow-auto p-6 pt-8"
+    >
+      <FunnelChart
+        steps={steps!}
+        breakdown={breakdown}
+        aggregateSteps={funnelResult?.aggregate_steps}
+        conversionRateDisplay={config.conversion_rate_display ?? 'total'}
       />
-
-      <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
-        <FunnelQueryPanel config={config} onChange={setConfig} />
-
-        <main className="flex-1 overflow-auto flex flex-col">
-          {!isConfigValid && (
-            <EmptyState
-              icon={TrendingDown}
-              title={t('configureTitle')}
-              description={t('configureDescription')}
-              className="flex-1"
-            />
-          )}
-
-          {isConfigValid && showSkeleton && (
-            <div className="flex-1 flex flex-col gap-6 p-8">
-              <div className="flex gap-8">
-                <Skeleton className="h-10 w-28" />
-                <Skeleton className="h-10 w-28" />
-                <Skeleton className="h-10 w-28" />
-              </div>
-              <div className="space-y-3 max-w-2xl">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-[75%]" />
-                <Skeleton className="h-10 w-[55%]" />
-                <Skeleton className="h-10 w-[35%]" />
-              </div>
-            </div>
-          )}
-
-          {isConfigValid && !showSkeleton && (!steps || steps.length === 0) && (
-            <EmptyState
-              icon={GitFork}
-              title={t('noResultsTitle')}
-              description={t('noResultsDescription')}
-              className="flex-1"
-            />
-          )}
-
-          {isConfigValid && !showSkeleton && steps && steps.length > 0 && (
-            <div className={`flex flex-col h-full transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
-              <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
-                <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
-                <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
-                <div className="w-px h-8 bg-border/50 mx-6" />
-                <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
-                {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
-                  <>
-                    <div className="w-px h-8 bg-border/50 mx-6" />
-                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-400/80">
-                      <FlaskConical className="h-3.5 w-3.5" />
-                      {t('sampled', { pct: String(Math.round(funnelResult.sampling_factor * 100)) })}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="flex-1 overflow-auto p-6 pt-8">
-                <FunnelChart steps={steps} breakdown={breakdown} aggregateSteps={funnelResult?.aggregate_steps} conversionRateDisplay={config.conversion_rate_display ?? 'total'} />
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
+    </InsightEditorLayout>
   );
 }

@@ -147,7 +147,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         'Cohort membership cycle completed',
       );
     } finally {
-      await this.lock.release();
+      await this.lock.release().catch((err) => this.logger.warn({ err }, 'Cohort lock release failed'));
     }
   }
 
@@ -257,5 +257,4 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       this.logger.warn({ err, cohortId, projectId }, 'Failed to record cohort size history');
     }
   }
-
 }

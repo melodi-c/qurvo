@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EventNameCombobox } from '@/features/dashboard/components/widgets/funnel/EventNameCombobox';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { ConditionRowWrapper } from './ConditionRowWrapper';
 import { TimeWindowInput } from './TimeWindowInput';
