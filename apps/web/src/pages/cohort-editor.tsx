@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -31,12 +31,12 @@ export default function CohortEditorPage() {
   const [name, setName] = useState(t('defaultName'));
   const [description, setDescription] = useState('');
   const [groups, setGroups] = useState<CohortConditionGroup[]>([createEmptyGroup()]);
-  const [initialized, setInitialized] = useState(false);
+  const initialized = useRef(isNew);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Load existing cohort data
   useEffect(() => {
-    if (existingCohort && !initialized) {
+    if (!initialized.current && existingCohort) {
       setName(existingCohort.name);
       setDescription(existingCohort.description ?? '');
       const rootGroup = existingCohort.definition as CohortConditionGroup;
@@ -52,9 +52,9 @@ export default function CohortEditorPage() {
         });
         setGroups(andGroups.length > 0 ? andGroups : [createEmptyGroup()]);
       }
-      setInitialized(true);
+      initialized.current = true;
     }
-  }, [existingCohort, initialized]);
+  }, [existingCohort]);
 
   // Build V2 definition from groups
   const definition = useMemo((): CohortConditionGroup => {
