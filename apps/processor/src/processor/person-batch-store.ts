@@ -114,24 +114,33 @@ export class PersonBatchStore {
       return;
     }
 
-    // 1. Bulk upsert persons (with retry to avoid silent data loss)
-    if (pendingPersons.size > 0) {
-      await withRetry(
-        () => this.flushPersons(pendingPersons),
-        'flushPersons',
-        this.logger,
-        RETRY_POSTGRES,
-      );
-    }
+    try {
+      // 1. Bulk upsert persons (with retry to avoid silent data loss)
+      if (pendingPersons.size > 0) {
+        await withRetry(
+          () => this.flushPersons(pendingPersons),
+          'flushPersons',
+          this.logger,
+          RETRY_POSTGRES,
+        );
+      }
 
-    // 2. Bulk upsert distinct_ids (with retry; uses WHERE EXISTS to avoid FK violations)
-    if (pendingDistinctIds.size > 0) {
-      await withRetry(
-        () => this.flushDistinctIds(pendingDistinctIds),
-        'flushDistinctIds',
-        this.logger,
-        RETRY_POSTGRES,
-      );
+      // 2. Bulk upsert distinct_ids (with retry; uses WHERE EXISTS to avoid FK violations)
+      if (pendingDistinctIds.size > 0) {
+        await withRetry(
+          () => this.flushDistinctIds(pendingDistinctIds),
+          'flushDistinctIds',
+          this.logger,
+          RETRY_POSTGRES,
+        );
+      }
+    } catch (err) {
+      // Re-queue swapped data so it's retried on the next flush cycle.
+      // Merge back: new entries accumulated during async work take precedence.
+      this.requeuePersons(pendingPersons);
+      this.requeueDistinctIds(pendingDistinctIds);
+      this.pendingMerges = [...pendingMerges, ...this.pendingMerges];
+      throw err;
     }
 
     // 3. Execute pending merges (rare, sequential, with retry to prevent data loss)
@@ -145,6 +154,24 @@ export class PersonBatchStore {
         );
       } catch (err) {
         this.logger.error({ err, ...merge }, 'Person merge failed after retries — PG/CH may be out of sync');
+      }
+    }
+  }
+
+  /** Re-queue persons that failed to flush. Newer entries (accumulated during flush) take precedence. */
+  private requeuePersons(old: Map<string, PendingPerson>): void {
+    for (const [personId, pending] of old) {
+      if (!this.pendingPersons.has(personId)) {
+        this.pendingPersons.set(personId, pending);
+      }
+    }
+  }
+
+  /** Re-queue distinct IDs that failed to flush. Newer entries take precedence. */
+  private requeueDistinctIds(old: Map<string, PendingDistinctId>): void {
+    for (const [key, pending] of old) {
+      if (!this.pendingDistinctIds.has(key)) {
+        this.pendingDistinctIds.set(key, pending);
       }
     }
   }
@@ -258,10 +285,15 @@ export class PersonBatchStore {
       values.push({ id: personId, project_id: update.projectId, properties: merged });
     }
 
-    // Bulk upsert via raw SQL for best performance
+    // Bulk upsert via raw SQL for best performance.
+    // updated_at is floored to the hour (PostHog pattern) so that multiple
+    // events from the same person within one hour don't generate redundant writes.
+    // The WHERE clause skips the UPDATE entirely if properties haven't changed
+    // AND we're still in the same hour — eliminating PG write amplification.
+    const hourTs = new Date(floorToHourMs(Date.now())).toISOString();
     const valuesList = sql.join(
       values.map((v) =>
-        sql`(${v.id}::uuid, ${v.project_id}::uuid, ${JSON.stringify(v.properties)}::jsonb, now(), now())`,
+        sql`(${v.id}::uuid, ${v.project_id}::uuid, ${JSON.stringify(v.properties)}::jsonb, now(), ${hourTs}::timestamptz)`,
       ),
       sql`, `,
     );
@@ -271,6 +303,8 @@ export class PersonBatchStore {
       ON CONFLICT (id) DO UPDATE SET
         properties = excluded.properties,
         updated_at = excluded.updated_at
+      WHERE persons.properties IS DISTINCT FROM excluded.properties
+         OR persons.updated_at < excluded.updated_at
     `);
 
     this.logger.debug({ count: values.length }, 'Batch upserted persons');

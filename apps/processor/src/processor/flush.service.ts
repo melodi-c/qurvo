@@ -77,14 +77,12 @@ export class FlushService implements OnApplicationBootstrap {
     const events = batch.map((b) => b.event);
     const messageIds = batch.map((b) => b.messageId);
 
-    // Flush person batch to PG before CH insert (non-critical, same timing as previous fire-and-forget)
     try {
+      // Flush person batch to PG before CH insert.
+      // Critical: if PG write fails, events go to DLQ rather than writing to CH
+      // with orphaned person_ids that have no PG row.
       await this.personBatchStore.flush();
-    } catch (err) {
-      this.logger.error({ err }, 'Person batch flush failed (non-critical)');
-    }
 
-    try {
       await withRetry(
         () => this.ch.insert({
           table: 'events',
