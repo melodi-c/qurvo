@@ -10,6 +10,7 @@ import { ProjectsService } from '../projects/projects.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
+import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
 import { buildSystemPrompt } from './system-prompt';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
@@ -65,7 +66,7 @@ export class AiService {
 
     if (params.conversation_id) {
       const existing = await this.chatService.getConversation(params.conversation_id, userId);
-      if (!existing) throw new Error('Conversation not found');
+      if (!existing) throw new ConversationNotFoundException();
       conversation = { id: existing.id, title: existing.title };
     } else {
       const created = await this.chatService.createConversation(userId, params.project_id);
@@ -265,7 +266,7 @@ export class AiService {
 
   async getConversation(userId: string, conversationId: string, limit?: number, beforeSequence?: number) {
     const conv = await this.chatService.getConversation(conversationId, userId);
-    if (!conv) throw new Error('Conversation not found');
+    if (!conv) throw new ConversationNotFoundException();
     const { messages, hasMore } = await this.chatService.getMessages(conversationId, limit, beforeSequence);
     return { ...conv, messages, has_more: hasMore };
   }

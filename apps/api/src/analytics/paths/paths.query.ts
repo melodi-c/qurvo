@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortFilterClause, type CohortFilterInput } from '../../cohorts/cohorts.query';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import { toChTs, RESOLVED_PERSON, buildCohortClause } from '../../utils/clickhouse-helpers';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -115,9 +115,7 @@ export async function queryPaths(
   }
 
   // Cohort filter
-  const cohortClause = params.cohort_filters?.length
-    ? ' AND ' + buildCohortFilterClause(params.cohort_filters, 'project_id', queryParams)
-    : '';
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   if (params.start_event) {
     queryParams['start_event'] = params.start_event;

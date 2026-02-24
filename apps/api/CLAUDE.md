@@ -29,7 +29,7 @@ pnpm generate-api                    # swagger.json → apps/web/src/api/generat
 | `ApiKeysModule` | API keys CRUD | Key create/revoke for SDK auth |
 | `EventsModule` | Event explorer | Paginated event queries from ClickHouse |
 | `PersonsModule` | User profiles | Person list, detail, events by person |
-| `AnalyticsModule` | Analytics queries | Trend, Funnel, Retention, Lifecycle, Stickiness, Paths services |
+| `AnalyticsModule` | Analytics queries | Factory-based providers for Trend, Funnel, Retention, Lifecycle, Stickiness, Paths |
 | `CohortsModule` | Cohort analytics | `countCohortMembers` — behavioral segmentation |
 | `SavedInsightsModule` | Saved insights | CRUD for saved trend/funnel/retention/etc. configs |
 | `DashboardsModule` | Dashboards | Dashboard + widget CRUD |
@@ -42,8 +42,8 @@ src/
 ├── analytics/         # AnalyticsModule — all analytics insight types
 │   ├── analytics.module.ts
 │   ├── with-analytics-cache.ts  # shared cache+query utility
-│   ├── trend/         # TrendService, trend.query.ts
-│   ├── funnel/        # FunnelService, funnel.query.ts + SQL helpers
+│   ├── trend/         # trend.query.ts (factory provider via TREND_SERVICE token)
+│   ├── funnel/        # funnel.query.ts, funnel-time-to-convert.ts (FUNNEL_SERVICE, FUNNEL_TTC_SERVICE tokens)
 │   ├── retention/     # RetentionService, retention.query.ts
 │   ├── lifecycle/     # LifecycleService, lifecycle.query.ts
 │   ├── stickiness/    # StickinessService, stickiness.query.ts
@@ -87,21 +87,34 @@ constructor(
 3. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
 
 ### Analytics Queries
-All 6 analytics services share the same pattern via `withAnalyticsCache()` in `src/analytics/with-analytics-cache.ts`:
+All analytics services are created via `createAnalyticsQueryProvider()` factory in `src/analytics/analytics-query.factory.ts`. Each provider wraps a pure query function with shared logic:
 1. Auth check (`getMembership`)
 2. Resolve cohort IDs via `CohortsService.resolveCohortFilters()`
-3. Cache lookup in Redis → ClickHouse query → cache write
-4. Return `{ data, cached_at, from_cache }` envelope
+3. Resolve cohort breakdowns via `CohortsService.resolveCohortBreakdowns()` (if `breakdown_type === 'cohort'`)
+4. Cache lookup in Redis → ClickHouse query → cache write (`withAnalyticsCache`)
+5. Return `{ data, cached_at, from_cache }` envelope
+
+Provider tokens are exported from `analytics.module.ts`: `TREND_SERVICE`, `FUNNEL_SERVICE`, `FUNNEL_TTC_SERVICE`, `RETENTION_SERVICE`, `LIFECYCLE_SERVICE`, `STICKINESS_SERVICE`, `PATHS_SERVICE`.
+
+Controllers/tools inject via `@Inject(TREND_SERVICE) private readonly trendService: AnalyticsQueryService<TrendQueryParams, TrendQueryResult>`.
 
 Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `queryTrend(ch, params)` — time-series with granularity, compare, breakdown, cohort filters
 - `queryFunnel(ch, params)` — multi-step conversion with window, breakdown, cohort filters
+- `queryFunnelTimeToConvert(ch, params)` — time-to-convert histogram
 - `queryRetention(ch, params)` — user retention over time periods
 - `queryLifecycle(ch, params)` — new/returning/resurrecting/dormant classification
 - `queryStickiness(ch, params)` — histogram of active periods per user
 - `queryPaths(ch, params)` — user journey path exploration
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
 - All queries use `FROM events FINAL` to deduplicate ReplacingMergeTree
+
+### Shared ClickHouse Helpers
+`src/utils/clickhouse-helpers.ts` contains shared utilities used across query files:
+- `granularityTruncExpr(granularity, col)` — ClickHouse date truncation expression
+- `shiftPeriod(dateFrom, dateTo)` — previous period date calculation
+- `buildCohortClause(cohortFilters, projectIdParam, queryParams)` — cohort filter SQL clause
+- `buildCohortFilterClause()` — low-level clause builder (used by `buildCohortClause`)
 
 ### Module Cohesion
 All code is grouped by module. Controllers, services, guards, filters, and exceptions for a feature all live inside that feature's directory. No cross-cutting `src/filters/`, `src/exceptions/`, or similar dumps.
@@ -131,4 +144,4 @@ Tests in `src/test/{module}/`. Run with `vitest.integration.config.ts`.
 - Use `setupContainers()` from `@qurvo/testing` for PostgreSQL + Redis + ClickHouse
 - Date helpers (`daysAgo`, `ts`, `msAgo`, `dateOffset`) from `@qurvo/testing`
 - API-specific `sumSeriesValues()` in `src/test/helpers/`
-- 21 tests: trends (7), funnels (5), cohorts (9)
+- 150 tests: trends (7), funnels (5), cohorts (9), retention (8), lifecycle (5), stickiness (7), paths, web-analytics, etc.

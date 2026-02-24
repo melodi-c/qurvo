@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod } from '../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -78,26 +78,6 @@ function autoGranularity(dateFrom: string, dateTo: string): WebAnalyticsGranular
   return 'month';
 }
 
-function granularityExpr(g: WebAnalyticsGranularity): string {
-  switch (g) {
-    case 'hour':  return 'toStartOfHour(session_start)';
-    case 'day':   return 'toStartOfDay(session_start)';
-    case 'week':  return 'toStartOfWeek(session_start, 1)';
-    case 'month': return 'toStartOfMonth(session_start)';
-  }
-}
-
-function shiftPeriod(dateFrom: string, dateTo: string): { from: string; to: string } {
-  const from = new Date(dateFrom);
-  const to = new Date(`${dateTo}T23:59:59Z`);
-  const durationMs = to.getTime() - from.getTime();
-  const prevTo = new Date(from.getTime() - 1000);
-  const prevFrom = new Date(from.getTime() - durationMs - 1000);
-  return {
-    from: prevFrom.toISOString().slice(0, 10),
-    to: prevTo.toISOString().slice(0, 10),
-  };
-}
 
 function buildFilterConditions(
   filters: PropertyFilter[] | undefined,
@@ -219,7 +199,7 @@ export async function queryOverview(
   const previous = await queryKPIs(ch, prevParams, filterConditions);
 
   // Timeseries
-  const bucketExpr = granularityExpr(granularity);
+  const bucketExpr = granularityTruncExpr(granularity, 'session_start');
   const tsSql = `
     WITH ${buildSessionStatsCTE(queryParams, filterConditions)}
     SELECT

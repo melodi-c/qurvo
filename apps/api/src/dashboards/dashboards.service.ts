@@ -8,6 +8,7 @@ import { ProjectsService } from '../projects/projects.service';
 import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 import { DashboardNotFoundException } from './exceptions/dashboard-not-found.exception';
 import { WidgetNotFoundException } from './exceptions/widget-not-found.exception';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 @Injectable()
 export class DashboardsService {
@@ -136,10 +137,7 @@ export class DashboardsService {
     await this.assertDashboardExists(projectId, dashboardId);
     await this.assertWidgetExists(dashboardId, widgetId);
 
-    const values: Record<string, unknown> = { updated_at: new Date() };
-    if (input.insight_id !== undefined) values.insight_id = input.insight_id;
-    if (input.layout !== undefined) values.layout = input.layout;
-    if (input.content !== undefined) values.content = input.content;
+    const values: Record<string, unknown> = { updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) };
 
     const [updated] = await this.db
       .update(widgets)

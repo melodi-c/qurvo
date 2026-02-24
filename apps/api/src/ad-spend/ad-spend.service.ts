@@ -5,6 +5,7 @@ import { adSpend, marketingChannels, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import { MarketingChannelsService } from '../marketing-channels/marketing-channels.service';
 import { SpendNotFoundException } from './exceptions/spend-not-found.exception';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 @Injectable()
 export class AdSpendService {
@@ -104,44 +105,31 @@ export class AdSpendService {
   ) {
     await this.projectsService.getMembership(userId, projectId);
 
-    const existing = await this.db
-      .select()
-      .from(adSpend)
-      .where(and(eq(adSpend.project_id, projectId), eq(adSpend.id, spendId)));
-
-    if (existing.length === 0) throw new SpendNotFoundException();
-
     if (input.channel_id) {
       await this.channelsService.getById(userId, projectId, input.channel_id);
     }
 
-    const updateData: Record<string, unknown> = { updated_at: new Date() };
-    if (input.channel_id !== undefined) updateData.channel_id = input.channel_id;
-    if (input.spend_date !== undefined) updateData.spend_date = input.spend_date;
-    if (input.amount !== undefined) updateData.amount = input.amount;
-    if (input.currency !== undefined) updateData.currency = input.currency;
-    if (input.note !== undefined) updateData.note = input.note;
+    const updateData: Record<string, unknown> = { updated_at: new Date(), ...buildConditionalUpdate(input, ['channel_id', 'spend_date', 'amount', 'currency', 'note']) };
 
     const rows = await this.db
       .update(adSpend)
       .set(updateData)
-      .where(eq(adSpend.id, spendId))
+      .where(and(eq(adSpend.project_id, projectId), eq(adSpend.id, spendId)))
       .returning();
 
+    if (rows.length === 0) throw new SpendNotFoundException();
     return rows[0];
   }
 
   async remove(userId: string, projectId: string, spendId: string) {
     await this.projectsService.getMembership(userId, projectId);
 
-    const existing = await this.db
-      .select()
-      .from(adSpend)
-      .where(and(eq(adSpend.project_id, projectId), eq(adSpend.id, spendId)));
+    const rows = await this.db
+      .delete(adSpend)
+      .where(and(eq(adSpend.project_id, projectId), eq(adSpend.id, spendId)))
+      .returning();
 
-    if (existing.length === 0) throw new SpendNotFoundException();
-
-    await this.db.delete(adSpend).where(eq(adSpend.id, spendId));
+    if (rows.length === 0) throw new SpendNotFoundException();
   }
 
   async summary(

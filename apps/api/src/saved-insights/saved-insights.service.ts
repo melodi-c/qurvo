@@ -4,6 +4,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { insights, type InsightConfig, type InsightType, type Database } from '@qurvo/db';
 import { ProjectsService } from '../projects/projects.service';
 import { InsightNotFoundException } from './exceptions/insight-not-found.exception';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 @Injectable()
 export class SavedInsightsService {
@@ -67,38 +68,26 @@ export class SavedInsightsService {
   ) {
     await this.projectsService.getMembership(userId, projectId);
 
-    const existing = await this.db
-      .select()
-      .from(insights)
-      .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)));
-
-    if (existing.length === 0) throw new InsightNotFoundException();
-
-    const updateData: Record<string, unknown> = { updated_at: new Date() };
-    if (input.name !== undefined) updateData.name = input.name;
-    if (input.description !== undefined) updateData.description = input.description;
-    if (input.config !== undefined) updateData.config = input.config;
-    if (input.is_favorite !== undefined) updateData.is_favorite = input.is_favorite;
+    const updateData: Record<string, unknown> = { updated_at: new Date(), ...buildConditionalUpdate(input, ['name', 'description', 'config', 'is_favorite']) };
 
     const rows = await this.db
       .update(insights)
       .set(updateData)
-      .where(eq(insights.id, insightId))
+      .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)))
       .returning();
 
+    if (rows.length === 0) throw new InsightNotFoundException();
     return rows[0];
   }
 
   async remove(userId: string, projectId: string, insightId: string) {
     await this.projectsService.getMembership(userId, projectId);
 
-    const existing = await this.db
-      .select()
-      .from(insights)
-      .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)));
+    const rows = await this.db
+      .delete(insights)
+      .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)))
+      .returning();
 
-    if (existing.length === 0) throw new InsightNotFoundException();
-
-    await this.db.delete(insights).where(eq(insights.id, insightId));
+    if (rows.length === 0) throw new InsightNotFoundException();
   }
 }
