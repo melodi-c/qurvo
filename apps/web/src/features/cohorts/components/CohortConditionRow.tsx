@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { X, Check, Users } from 'lucide-react';
+import { Check, Users } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useCohorts } from '../hooks/use-cohorts';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { ConditionRowWrapper } from './ConditionRowWrapper';
 import translations from './CohortConditionRow.translations';
 import type { CohortRefCondition } from '../types';
 
@@ -39,18 +40,7 @@ export function CohortConditionRow({ condition, onChange, onRemove, excludeCohor
   ] as const, [t]);
 
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400">{t('cohortMembership')}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-
+    <ConditionRowWrapper label={t('cohortMembership')} labelColor="text-purple-400" onRemove={onRemove}>
       <Select
         value={String(condition.negated)}
         onValueChange={(v) => onChange({ ...condition, negated: v === 'true' })}
@@ -97,6 +87,6 @@ export function CohortConditionRow({ condition, onChange, onRemove, excludeCohor
           </Command>
         </PopoverContent>
       </Popover>
-    </div>
+    </ConditionRowWrapper>
   );
 }

@@ -4,9 +4,10 @@ import { QueryItemCard, useDragReorder } from '../QueryItemCard';
 import type { TrendSeries, StepFilter } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { SERIES_LETTERS } from './trend-shared';
+import { CHART_COLORS_TW } from '@/lib/chart-colors';
 import translations from './TrendSeriesBuilder.translations';
 
-const COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500'];
+const COLORS = CHART_COLORS_TW;
 
 interface TrendSeriesBuilderProps {
   series: TrendSeries[];
