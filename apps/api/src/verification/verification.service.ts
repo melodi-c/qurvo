@@ -107,11 +107,6 @@ export class VerificationService {
     this.logger.log({ userId: row.user_id }, 'Email verified by link token');
   }
 
-  async getResendCooldown(userId: string): Promise<number> {
-    const ttl = await this.redis.ttl(`verify_resend:${userId}`);
-    return ttl > 0 ? ttl : 0;
-  }
-
   private async markVerified(userId: string): Promise<void> {
     await this.db
       .update(users)

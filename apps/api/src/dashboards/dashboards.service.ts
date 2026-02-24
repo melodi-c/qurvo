@@ -85,7 +85,7 @@ export class DashboardsService {
 
     const [updated] = await this.db
       .update(dashboards)
-      .set({ ...(input.name ? { name: input.name } : {}), updated_at: new Date() })
+      .set({ ...buildConditionalUpdate(input, ['name']), updated_at: new Date() })
       .where(eq(dashboards.id, dashboardId))
       .returning();
     this.logger.log({ dashboardId, projectId, userId }, 'Dashboard updated');

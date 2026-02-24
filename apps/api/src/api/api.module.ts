@@ -10,8 +10,6 @@ import { PersonsModule } from '../persons/persons.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
 import { SavedInsightsModule } from '../saved-insights/saved-insights.module';
 import { MembersModule } from '../members/members.module';
-import { MarketingChannelsModule } from '../marketing-channels/marketing-channels.module';
-import { AdSpendModule } from '../ad-spend/ad-spend.module';
 import { AiModule } from '../ai/ai.module';
 import { VerificationModule } from '../verification/verification.module';
 import { DefinitionsModule } from '../definitions/definitions.module';
@@ -33,8 +31,6 @@ import { CohortsController } from './controllers/cohorts.controller';
 import { StaticCohortsController } from './controllers/static-cohorts.controller';
 import { SavedInsightsController } from './controllers/saved-insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
-import { MarketingChannelsController } from './controllers/marketing-channels.controller';
-import { AdSpendController } from './controllers/ad-spend.controller';
 import { AiController } from './controllers/ai.controller';
 import { EventDefinitionsController } from './controllers/event-definitions.controller';
 import { PropertyDefinitionsController } from './controllers/property-definitions.controller';
@@ -73,8 +69,6 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     CohortsModule,
     SavedInsightsModule,
     MembersModule,
-    MarketingChannelsModule,
-    AdSpendModule,
     AiModule,
     VerificationModule,
     DefinitionsModule,
@@ -100,8 +94,6 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     MembersController,
     InvitesController,
     MyInvitesController,
-    MarketingChannelsController,
-    AdSpendController,
     AiController,
     EventDefinitionsController,
     PropertyDefinitionsController,
