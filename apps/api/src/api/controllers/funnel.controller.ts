@@ -1,9 +1,8 @@
-import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FUNNEL_SERVICE, FUNNEL_TTC_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { FunnelQueryParams, FunnelQueryResult, TimeToConvertParams, TimeToConvertResult } from '../../analytics/funnel/funnel.query';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   FunnelQueryDto,
@@ -15,7 +14,6 @@ import {
 @ApiTags('Analytics')
 @ApiBearerAuth()
 @Controller('api/analytics')
-@UseGuards(SessionAuthGuard)
 export class FunnelController {
   constructor(
     @Inject(FUNNEL_SERVICE) private readonly funnelService: AnalyticsQueryService<FunnelQueryParams, FunnelQueryResult>,

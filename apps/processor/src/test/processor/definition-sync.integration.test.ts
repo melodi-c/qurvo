@@ -11,7 +11,8 @@ import {
 } from '@qurvo/testing';
 import { eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/db';
 import type { Event } from '@qurvo/clickhouse';
-import { DefinitionSyncService, detectValueType } from '../../processor/definition-sync.service';
+import { DefinitionSyncService } from '../../processor/definition-sync.service';
+import { detectValueType } from '../../processor/value-type';
 
 let ctx: ContainerContext;
 

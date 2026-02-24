@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MembersService } from '../../members/members.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { OkResponseDto } from '../dto/auth.dto';
 import {
@@ -17,7 +16,6 @@ import {
 @ApiTags('Members')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/members')
-@UseGuards(SessionAuthGuard)
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
@@ -54,7 +52,6 @@ export class MembersController {
 @ApiTags('Invites')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/invites')
-@UseGuards(SessionAuthGuard)
 export class InvitesController {
   constructor(private readonly membersService: MembersService) {}
 
@@ -90,7 +87,6 @@ export class InvitesController {
 @ApiTags('Invites')
 @ApiBearerAuth()
 @Controller('api/invites')
-@UseGuards(SessionAuthGuard)
 export class MyInvitesController {
   constructor(private readonly membersService: MembersService) {}
 

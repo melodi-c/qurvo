@@ -10,8 +10,6 @@ import { PersonsModule } from '../persons/persons.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
 import { SavedInsightsModule } from '../saved-insights/saved-insights.module';
 import { MembersModule } from '../members/members.module';
-import { MarketingChannelsModule } from '../marketing-channels/marketing-channels.module';
-import { AdSpendModule } from '../ad-spend/ad-spend.module';
 import { AiModule } from '../ai/ai.module';
 import { VerificationModule } from '../verification/verification.module';
 import { DefinitionsModule } from '../definitions/definitions.module';
@@ -33,8 +31,6 @@ import { CohortsController } from './controllers/cohorts.controller';
 import { StaticCohortsController } from './controllers/static-cohorts.controller';
 import { SavedInsightsController } from './controllers/saved-insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
-import { MarketingChannelsController } from './controllers/marketing-channels.controller';
-import { AdSpendController } from './controllers/ad-spend.controller';
 import { AiController } from './controllers/ai.controller';
 import { EventDefinitionsController } from './controllers/event-definitions.controller';
 import { PropertyDefinitionsController } from './controllers/property-definitions.controller';
@@ -46,6 +42,7 @@ import { AppNotFoundException } from '../exceptions/app-not-found.exception';
 import { AppConflictException } from '../exceptions/app-conflict.exception';
 import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
 import { AppUnauthorizedException } from '../exceptions/app-unauthorized.exception';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
 import { WrongPasswordException } from '../auth/exceptions/wrong-password.exception';
@@ -55,6 +52,7 @@ const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundExcepti
 const ConflictFilter = createHttpFilter(HttpStatus.CONFLICT, AppConflictException);
 const ForbiddenFilter = createHttpFilter(HttpStatus.FORBIDDEN, AppForbiddenException);
 const UnauthorizedFilter = createHttpFilter(HttpStatus.UNAUTHORIZED, AppUnauthorizedException);
+const BadRequestFilter = createHttpFilter(HttpStatus.BAD_REQUEST, AppBadRequestException);
 const TooManyRequestsFilter = createHttpFilter(HttpStatus.TOO_MANY_REQUESTS, TooManyRequestsException);
 const AiNotConfiguredFilter = createHttpFilter(HttpStatus.NOT_IMPLEMENTED, AiNotConfiguredException);
 const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, WrongPasswordException, InvalidVerificationCodeException);
@@ -71,8 +69,6 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     CohortsModule,
     SavedInsightsModule,
     MembersModule,
-    MarketingChannelsModule,
-    AdSpendModule,
     AiModule,
     VerificationModule,
     DefinitionsModule,
@@ -98,8 +94,6 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     MembersController,
     InvitesController,
     MyInvitesController,
-    MarketingChannelsController,
-    AdSpendController,
     AiController,
     EventDefinitionsController,
     PropertyDefinitionsController,
@@ -111,6 +105,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     { provide: APP_FILTER, useClass: ConflictFilter },
     { provide: APP_FILTER, useClass: ForbiddenFilter },
     { provide: APP_FILTER, useClass: UnauthorizedFilter },
+    { provide: APP_FILTER, useClass: BadRequestFilter },
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },
     { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
     { provide: APP_FILTER, useClass: UnprocessableEntityFilter },

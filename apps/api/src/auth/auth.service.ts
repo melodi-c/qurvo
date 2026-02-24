@@ -147,10 +147,8 @@ export class AuthService {
   }
 
   private async incrementLoginAttempts(key: string): Promise<void> {
-    const count = await this.redis.incr(key);
-    if (count === 1) {
-      await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
-    }
+    await this.redis.incr(key);
+    await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
   }
 
   async logout(token: string) {
@@ -161,9 +159,20 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, input: { display_name?: string; language?: string }) {
-    const setFields: Record<string, unknown> = { updated_at: new Date() };
+    const setFields: Record<string, unknown> = {};
     if (input.display_name !== undefined) setFields.display_name = input.display_name;
     if (input.language !== undefined) setFields.language = input.language;
+
+    if (Object.keys(setFields).length === 0) {
+      const [user] = await this.db
+        .select({ id: users.id, email: users.email, display_name: users.display_name, language: users.language, email_verified: users.email_verified })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return { user };
+    }
+
+    setFields.updated_at = new Date();
 
     const [updated] = await this.db
       .update(users)

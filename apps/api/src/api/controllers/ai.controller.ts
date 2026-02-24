@@ -1,15 +1,13 @@
-import { Controller, Post, Get, Delete, Body, Param, Query, Res, UseGuards, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Query, Res, Logger } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
 
 @ApiTags('AI')
 @ApiBearerAuth()
 @Controller('api/ai')
-@UseGuards(SessionAuthGuard)
 export class AiController {
   private readonly logger = new Logger(AiController.name);
 

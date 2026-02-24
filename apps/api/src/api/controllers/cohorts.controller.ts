@@ -1,9 +1,8 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards,
+  Controller, Get, Post, Put, Delete, Body, Param, Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CohortsService } from '../../cohorts/cohorts.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   CreateCohortDto,
@@ -18,7 +17,6 @@ import {
 @ApiTags('Cohorts')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/cohorts')
-@UseGuards(SessionAuthGuard)
 export class CohortsController {
   constructor(private readonly cohortsService: CohortsService) {}
 

@@ -1,10 +1,10 @@
-import { Controller, Post, Get, Patch, Body, Ip, Headers, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Ip, Headers, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '../../auth/auth.service';
 import { VERIFICATION_RESEND_COOLDOWN_SECONDS } from '../../constants';
 import { VerificationService } from '../../verification/verification.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
+import { Public } from '../decorators/public.decorator';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   RegisterDto, LoginDto, AuthResponseDto, MeResponseDto,
@@ -21,12 +21,14 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Public()
   @Throttle({ short: { limit: 5, ttl: 60000 }, medium: { limit: 5, ttl: 60000 } })
   async register(@Body() body: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(body) as any;
   }
 
   @Post('login')
+  @Public()
   @HttpCode(200)
   @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 10, ttl: 60000 } })
   async login(@Body() body: LoginDto, @Ip() ip: string, @Headers('user-agent') userAgent: string): Promise<AuthResponseDto> {
@@ -35,7 +37,6 @@ export class AuthController {
 
   @Post('logout')
   @ApiBearerAuth()
-  @UseGuards(SessionAuthGuard)
   @HttpCode(200)
   async logout(@Headers('authorization') auth: string): Promise<OkResponseDto> {
     const token = auth?.slice(7);
@@ -45,14 +46,12 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @UseGuards(SessionAuthGuard)
   async me(@CurrentUser() user: RequestUser): Promise<MeResponseDto> {
     return { user } as any;
   }
 
   @Post('verify-email/code')
   @ApiBearerAuth()
-  @UseGuards(SessionAuthGuard)
   @HttpCode(200)
   @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 20, ttl: 60000 } })
   async verifyByCode(@Body() body: VerifyEmailByCodeDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
@@ -61,6 +60,7 @@ export class AuthController {
   }
 
   @Post('verify-email/token')
+  @Public()
   @HttpCode(200)
   @Throttle({ short: { limit: 10, ttl: 60000 }, medium: { limit: 20, ttl: 60000 } })
   async verifyByToken(@Body() body: VerifyEmailByTokenDto): Promise<OkResponseDto> {
@@ -70,7 +70,6 @@ export class AuthController {
 
   @Post('resend-verification')
   @ApiBearerAuth()
-  @UseGuards(SessionAuthGuard)
   @HttpCode(200)
   @Throttle({ short: { limit: 3, ttl: 60000 }, medium: { limit: 5, ttl: 60000 } })
   async resendVerification(@CurrentUser() user: RequestUser): Promise<ResendVerificationResponseDto> {
@@ -80,14 +79,12 @@ export class AuthController {
 
   @Patch('profile')
   @ApiBearerAuth()
-  @UseGuards(SessionAuthGuard)
   async updateProfile(@Body() body: UpdateProfileDto, @CurrentUser() user: RequestUser): Promise<ProfileResponseDto> {
     return this.authService.updateProfile(user.user_id, body) as any;
   }
 
   @Post('change-password')
   @ApiBearerAuth()
-  @UseGuards(SessionAuthGuard)
   @HttpCode(200)
   async changePassword(@Body() body: ChangePasswordDto, @CurrentUser() user: RequestUser): Promise<OkResponseDto> {
     await this.authService.changePassword(user.user_id, body.current_password, body.new_password);

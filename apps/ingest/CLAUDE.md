@@ -100,6 +100,9 @@ Zod schemas (`TrackEventSchema`, `BatchEventsSchema`, `ImportBatchSchema`) valid
 - Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
 
 ### Integration tests
-`src/test/ingest/`. 10 tests covering:
+`src/test/ingest/`. 18 tests covering:
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
+- Health: 200 status ok
+- API key auth: 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache)
+- Billing guard: 429 over limit, 202 under limit, billing counter increment

@@ -2,11 +2,14 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import Redis from 'ioredis';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { DatabaseModule } from './database/database.module';
 import { ApiModule } from './api/api.module';
 import { HealthModule } from './health/health.module';
-import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 import { EmailModule } from './email/email.module';
+import { SessionAuthGuard } from './api/guards/session-auth.guard';
+import { REDIS } from './providers/redis.provider';
 
 @Module({
   imports: [
@@ -22,21 +25,21 @@ import { EmailModule } from './email/email.module';
     DatabaseModule,
     EmailModule,
     ThrottlerModule.forRootAsync({
-      imports: [DatabaseModule],
-      useFactory: (storage: RedisThrottlerStorage) => ({
+      inject: [REDIS],
+      useFactory: (redis: Redis) => ({
         throttlers: [
           { name: 'short', ttl: 1000, limit: 20 },
           { name: 'medium', ttl: 60000, limit: 300 },
         ],
-        storage,
+        storage: new ThrottlerStorageRedisService(redis),
       }),
-      inject: [RedisThrottlerStorage],
     }),
     ApiModule,
     HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: SessionAuthGuard },
   ],
 })
 export class AppModule {}

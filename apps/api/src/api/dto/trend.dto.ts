@@ -5,7 +5,6 @@ import {
   ValidateNested,
   IsString,
   IsNotEmpty,
-  IsDateString,
   IsOptional,
   IsUUID,
   IsBoolean,
@@ -15,6 +14,7 @@ import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray } from './shared/transforms';
+import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
 export class TrendSeriesDto {
   @IsString()
@@ -32,10 +32,7 @@ export class TrendSeriesDto {
   filters?: StepFilterDto[];
 }
 
-export class TrendQueryDto {
-  @IsUUID()
-  project_id: string;
-
+export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @Transform(({ value }) => {
     if (!value) return undefined;
     const arr = typeof value === 'string' ? JSON.parse(value) : value;
@@ -60,12 +57,6 @@ export class TrendQueryDto {
   @IsIn(['hour', 'day', 'week', 'month'])
   granularity: 'hour' | 'day' | 'week' | 'month';
 
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
   @IsString()
   @IsOptional()
   breakdown_property?: string;
@@ -86,22 +77,6 @@ export class TrendQueryDto {
   @IsBoolean()
   @IsOptional()
   compare?: boolean;
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  cohort_ids?: string[];
-
-  @IsUUID()
-  @IsOptional()
-  widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }
 
 export class TrendDataPointDto {
