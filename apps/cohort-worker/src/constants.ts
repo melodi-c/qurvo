@@ -11,5 +11,5 @@ export const COHORT_GC_EVERY_N_CYCLES = 6; // ~1 hour at 10min interval
 
 // ── Lock & scheduling ────────────────────────────────────────────────────
 export const COHORT_LOCK_KEY = 'cohort_membership:lock';
-export const COHORT_LOCK_TTL_SECONDS = 300;
+export const COHORT_LOCK_TTL_SECONDS = 660;
 export const COHORT_INITIAL_DELAY_MS = 30_000;

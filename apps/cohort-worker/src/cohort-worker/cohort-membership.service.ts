@@ -23,7 +23,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private cycleInFlight: Promise<void> | null = null;
-  private gcCycleCounter = 1;
+  private gcCycleCounter = 0;
 
   constructor(
     @Inject(DISTRIBUTED_LOCK) private readonly lock: DistributedLock,
@@ -76,6 +76,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     let computed = 0;
     let staleCount = 0;
     let eligibleCount = 0;
+    let cyclicCount = 0;
 
     try {
       // ── 1. Fetch only stale dynamic cohorts ────────────────────────────
@@ -114,6 +115,8 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         eligible.map((c) => ({ id: c.id, definition: c.definition })),
       );
 
+      cyclicCount = cyclic.length;
+
       if (cyclic.length > 0) {
         this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
         for (const id of cyclic) {
@@ -131,14 +134,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         const cohort = cohortById.get(id)!;
         try {
           await this.computation.computeMembership(id, cohort.project_id, definition, version);
-          await this.computation
-            .markComputationSuccess(id, version)
-            .catch((pgErr) =>
-              this.logger.warn(
-                { err: pgErr, cohortId: id },
-                'PG tracking update failed after successful CH computation',
-              ),
-            );
+          await this.computation.markComputationSuccess(id, version);
           await this.computation.recordSizeHistory(id, cohort.project_id);
           computed++;
         } catch (err) {
@@ -154,12 +150,12 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         }
       }
     } finally {
-      // ── 5. GC orphaned memberships (every N cycles) ────────────────────
+      // ── 5. GC orphaned memberships (every N cycles, skips the first) ──
       await this.runGcIfDue();
       this.gcCycleCounter++;
 
       this.logger.info(
-        { computed, stale: staleCount, eligible: eligibleCount, durationMs: Date.now() - startMs },
+        { computed, stale: staleCount, eligible: eligibleCount, cyclic: cyclicCount, durationMs: Date.now() - startMs },
         'Cohort membership cycle completed',
       );
 
@@ -180,7 +176,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   }
 
   private async runGcIfDue(): Promise<void> {
-    if (this.gcCycleCounter % COHORT_GC_EVERY_N_CYCLES !== 0) return;
+    if (this.gcCycleCounter === 0 || this.gcCycleCounter % COHORT_GC_EVERY_N_CYCLES !== 0) return;
     await this.computation
       .gcOrphanedMemberships()
       .catch((err) => this.logger.error({ err }, 'Orphan GC failed'));
