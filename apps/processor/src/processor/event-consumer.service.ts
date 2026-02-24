@@ -8,6 +8,7 @@ import {
   PENDING_CLAIM_INTERVAL_MS,
   PENDING_IDLE_MS,
   PROCESSOR_BACKPRESSURE_THRESHOLD,
+  BACKPRESSURE_DRAIN_DELAY_MS,
   REDIS_CONSUMER_GROUP,
   REDIS_STREAM_EVENTS,
   HEARTBEAT_PATH,
@@ -87,7 +88,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     while (this.flushService.getBufferSize() > PROCESSOR_BACKPRESSURE_THRESHOLD) {
       await this.flushService.flush();
       this.heartbeat.touch();
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, BACKPRESSURE_DRAIN_DELAY_MS));
     }
   }
 
@@ -151,20 +152,19 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         cursor = result[0];
 
-        await this.processMessages(result[1], true);
+        // Filter out messages deleted from stream (XAUTOCLAIM returns null fields for these)
+        const claimed = result[1].filter(([, fields]) => !!fields);
+        if (claimed.length > 0) {
+          await this.processMessages(claimed);
+        }
       } while (cursor !== '0-0');
     } catch (err) {
       this.logger.error({ err }, 'Error claiming pending messages');
     }
   }
 
-  private async processMessages(
-    messages: [string, string[]][],
-    filterEmpty = false,
-  ): Promise<void> {
-    const items = filterEmpty ? messages.filter(([, fields]) => !!fields) : messages;
-
-    const parsed = items.map(([id, fields]) => ({
+  private async processMessages(messages: [string, string[]][]): Promise<void> {
+    const parsed = messages.map(([id, fields]) => ({
       id,
       fields: parseRedisFields(fields),
     }));
@@ -191,6 +191,23 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
     if (valid.length === 0) return;
 
+    // Batch prefetch person IDs (single MGET instead of per-event Redis calls)
+    const uniqueKeys = new Map<string, { projectId: string; distinctId: string }>();
+    for (const item of valid) {
+      const key = `${item.fields.project_id}:${item.fields.distinct_id}`;
+      if (!uniqueKeys.has(key)) {
+        uniqueKeys.set(key, { projectId: item.fields.project_id, distinctId: item.fields.distinct_id });
+      }
+      // Also prefetch anonymous_id keys for $identify events
+      if (item.fields.event_name === '$identify' && item.fields.anonymous_id) {
+        const anonKey = `${item.fields.project_id}:${item.fields.anonymous_id}`;
+        if (!uniqueKeys.has(anonKey)) {
+          uniqueKeys.set(anonKey, { projectId: item.fields.project_id, distinctId: item.fields.anonymous_id });
+        }
+      }
+    }
+    const personCache = await this.personResolver.prefetchPersonIds([...uniqueKeys.values()]);
+
     // Group by project+distinctId: concurrent between users, sequential within
     const groups = groupByKey(valid, (item) =>
       `${item.fields.project_id}:${item.fields.distinct_id}`,
@@ -202,7 +219,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
         for (const item of group) {
           results.push({
             messageId: item.id,
-            event: await this.buildEvent(item.fields),
+            event: await this.buildEvent(item.fields, personCache),
           });
         }
         return results;
@@ -215,7 +232,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
   }
 
-  private async buildEvent(data: Record<string, string>): Promise<Event> {
+  private async buildEvent(data: Record<string, string>, personCache: Map<string, string>): Promise<Event> {
     const ip = data.ip || '';
     const country = this.geoService.lookupCountry(ip);
     const projectId = data.project_id || '';
@@ -224,11 +241,11 @@ export class EventConsumerService implements OnApplicationBootstrap {
     let mergedFromPersonId: string | null = null;
 
     if (data.event_name === '$identify' && data.anonymous_id) {
-      const result = await this.personResolver.handleIdentify(projectId, data.distinct_id, data.anonymous_id);
+      const result = await this.personResolver.handleIdentify(projectId, data.distinct_id, data.anonymous_id, personCache);
       personId = result.personId;
       mergedFromPersonId = result.mergedFromPersonId;
     } else {
-      personId = await this.personResolver.resolve(projectId, data.distinct_id);
+      personId = await this.personResolver.resolve(projectId, data.distinct_id, personCache);
     }
 
     this.personBatchStore.enqueue(projectId, personId, data.distinct_id, data.user_properties || '{}');

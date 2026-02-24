@@ -36,6 +36,7 @@ export class PropertyDefinitionsController {
     }) as any;
   }
 
+  @RequireRole('editor')
   @Patch(':propertyType/:propertyName')
   async upsert(
     @CurrentUser() user: RequestUser,

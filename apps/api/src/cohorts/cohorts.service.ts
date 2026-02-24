@@ -122,14 +122,12 @@ export class CohortsService {
   }
 
   async remove(userId: string, projectId: string, cohortId: string) {
-    const existing = await this.db
-      .select()
-      .from(cohorts)
-      .where(and(eq(cohorts.project_id, projectId), eq(cohorts.id, cohortId)));
+    const rows = await this.db
+      .delete(cohorts)
+      .where(and(eq(cohorts.project_id, projectId), eq(cohorts.id, cohortId)))
+      .returning({ id: cohorts.id, is_static: cohorts.is_static });
 
-    if (existing.length === 0) throw new CohortNotFoundException();
-
-    await this.db.delete(cohorts).where(eq(cohorts.id, cohortId));
+    if (rows.length === 0) throw new CohortNotFoundException();
 
     // Fire-and-forget: clean up materialized membership rows
     this.ch.command({
@@ -140,7 +138,7 @@ export class CohortsService {
     });
 
     // Also clean up static cohort rows if applicable
-    if (existing[0].is_static) {
+    if (rows[0].is_static) {
       this.ch.command({
         query: `ALTER TABLE person_static_cohort DELETE WHERE cohort_id = {cohort_id:UUID}`,
         query_params: { cohort_id: cohortId },
