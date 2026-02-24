@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ProjectsModule } from '../projects/projects.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
 import { createAnalyticsQueryProvider } from './analytics-query.factory';
 import { queryTrend } from './trend/trend.query';
@@ -26,7 +25,7 @@ const stickinessProvider = createAnalyticsQueryProvider(STICKINESS_SERVICE, 'sti
 const pathsProvider = createAnalyticsQueryProvider(PATHS_SERVICE, 'paths', queryPaths);
 
 @Module({
-  imports: [ProjectsModule, CohortsModule],
+  imports: [CohortsModule],
   providers: [
     trendProvider,
     funnelProvider,

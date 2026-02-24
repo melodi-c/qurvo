@@ -1,18 +1,12 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import type { FilterOperator } from './property-filter';
-
-export interface PersonPropertyFilter {
-  property: string;
-  operator: FilterOperator;
-  value?: string;
-}
+import type { PropertyFilter } from './property-filter';
 
 /**
  * Builds Drizzle SQL fragments for filtering on persons.properties JSONB.
  * Each filter targets persons.properties->>'key' (text extraction).
  */
-export function buildPgPropertyFilterConditions(filters: PersonPropertyFilter[]): SQL[] {
+export function buildPgPropertyFilterConditions(filters: PropertyFilter[]): SQL[] {
   const parts: SQL[] = [];
   for (const f of filters) {
     if (!/^\w+$/.test(f.property)) {

@@ -5,9 +5,7 @@ import { apiKeys } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
 import { hashToken } from '../utils/hash';
-import { ProjectsService } from '../projects/projects.service';
 import { ApiKeyNotFoundException } from './exceptions/api-key-not-found.exception';
-import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
 
 @Injectable()
 export class ApiKeysService {
@@ -15,11 +13,9 @@ export class ApiKeysService {
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async list(userId: string, projectId: string) {
-    await this.projectsService.getMembership(userId, projectId);
     return this.db
       .select({
         id: apiKeys.id,
@@ -36,9 +32,6 @@ export class ApiKeysService {
   }
 
   async create(userId: string, projectId: string, input: { name: string; scopes?: string[]; expires_at?: string }) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
-
     const rawKey = crypto.randomBytes(24).toString('base64url');
     const key_prefix = rawKey.slice(0, 16);
     const key_hash = hashToken(rawKey);
@@ -64,9 +57,6 @@ export class ApiKeysService {
   }
 
   async revoke(userId: string, projectId: string, keyId: string) {
-    const membership = await this.projectsService.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
-
     const result = await this.db
       .select()
       .from(apiKeys)
