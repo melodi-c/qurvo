@@ -77,7 +77,7 @@ constructor(
 
 ### Exception Layering
 - Services throw plain domain exceptions (extend base exception classes), never `HttpException`
-- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`, `TooManyRequestsException`
+- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`, `AppBadRequestException`, `TooManyRequestsException`
 - Cross-module exceptions (used by multiple modules) live in `src/exceptions/`, not in any single module's `exceptions/` dir
 - Each module owns its concrete exceptions in `{module}/exceptions/`, extending the appropriate base class
 - Exception filters use `createHttpFilter()` factory from `src/api/filters/create-http-filter.ts` — catches base class, maps to HTTP status
@@ -86,8 +86,9 @@ constructor(
 
 ### Auth Flow
 1. Login/register → create session → return opaque bearer token
-2. `AuthGuard` validates `Authorization: Bearer <token>` on every request
-3. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
+2. `SessionAuthGuard` is registered as a **global guard** via `APP_GUARD` in `AppModule`. All endpoints are authenticated by default.
+3. Public endpoints (register, login, verify-email/token, health) use `@Public()` decorator from `src/api/decorators/public.decorator.ts` to skip auth
+4. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
 
 ### Analytics Queries
 All analytics services are created via `createAnalyticsQueryProvider()` factory in `src/analytics/analytics-query.factory.ts`. Each provider wraps a pure query function with shared logic:
@@ -120,6 +121,7 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `hash.ts` — `hashToken()` for SHA-256 session token hashing
 
 `src/api/dto/shared/` contains shared DTO utilities:
+- `base-analytics-query.dto.ts` — `BaseAnalyticsQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `cohort_ids?`, `widget_id?`, `force?`). All analytics query DTOs extend it.
 - `filters.dto.ts` — `StepFilterDto` class, re-exports `FilterOperator` from `utils/property-filter.ts`
 - `transforms.ts` — `parseJsonArray()` — shared `@Transform` for query params that arrive as JSON strings in GET requests
 

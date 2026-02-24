@@ -3,13 +3,9 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import {
-  EventDetail,
-  EventTypeIcon,
-  eventBadgeVariant,
-  formatRelativeTime,
-  type EventLike,
-} from '@/components/event-detail';
+import { EventDetail, type EventLike } from '@/components/event-detail';
+import { EventTypeIcon } from '@/components/EventTypeIcon';
+import { eventBadgeVariant, formatRelativeTime } from '@/lib/formatting';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';

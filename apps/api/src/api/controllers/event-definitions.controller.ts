@@ -1,7 +1,6 @@
-import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EventDefinitionsService } from '../../definitions/event-definitions.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   EventDefinitionsListResponseDto,
@@ -13,7 +12,6 @@ import {
 @ApiTags('Event Definitions')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/event-definitions')
-@UseGuards(SessionAuthGuard)
 export class EventDefinitionsController {
   constructor(private readonly eventDefinitionsService: EventDefinitionsService) {}
 

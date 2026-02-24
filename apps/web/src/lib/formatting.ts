@@ -1,5 +1,28 @@
 /** Shared formatting utilities for charts and data display. */
 
+/** Format an ISO timestamp into a relative time string (e.g. "5m ago"). */
+export function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return 'just now';
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+/** Return a badge variant for a given event name. */
+export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 'outline' {
+  if (eventName === '$pageview') return 'default';
+  if (eventName === '$pageleave') return 'default';
+  if (eventName === '$identify') return 'secondary';
+  if (eventName === '$set' || eventName === '$set_once') return 'secondary';
+  if (eventName === '$screen') return 'default';
+  return 'outline';
+}
+
 /** Format a time bucket string for chart axes. */
 export function formatBucket(bucket: string, granularity: string): string {
   const d = new Date(bucket);

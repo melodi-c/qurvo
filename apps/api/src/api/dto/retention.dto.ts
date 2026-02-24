@@ -4,21 +4,13 @@ import {
   IsInt,
   Min,
   Max,
-  IsDateString,
-  IsOptional,
-  IsUUID,
-  IsBoolean,
   IsIn,
-  IsArray,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { parseJsonArray } from './shared/transforms';
+import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
-export class RetentionQueryDto {
-  @IsUUID()
-  project_id: string;
-
+export class RetentionQueryDto extends BaseAnalyticsQueryDto {
   @IsString()
   @IsNotEmpty()
   target_event: string;
@@ -36,28 +28,6 @@ export class RetentionQueryDto {
   @Min(1)
   @Max(30)
   periods: number = 11;
-
-  @IsDateString()
-  date_from: string;
-
-  @IsDateString()
-  date_to: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  cohort_ids?: string[];
-
-  @IsUUID()
-  @IsOptional()
-  widget_id?: string;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
-  force?: boolean;
 }
 
 export class RetentionCohortDto {

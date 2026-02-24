@@ -1,7 +1,6 @@
-import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PersonsService } from '../../persons/persons.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   PersonsQueryDto,
@@ -29,7 +28,6 @@ function toPersonDto(p: PersonRow): PersonDto {
 @ApiTags('Persons')
 @ApiBearerAuth()
 @Controller('api/persons')
-@UseGuards(SessionAuthGuard)
 export class PersonsController {
   constructor(private readonly personsService: PersonsService) {}
 

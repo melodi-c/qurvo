@@ -1,15 +1,13 @@
-import { CalendarDays, Filter, Plus, X } from 'lucide-react';
+import { CalendarDays, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
-import { StepFilterRow } from '@/components/StepFilterRow';
+import { FilterListSection } from '@/components/FilterListSection';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useDashboardStore } from '../store';
 import { hasActiveOverrides } from '../lib/filter-overrides';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './DashboardFilterBar.translations';
-import type { StepFilter } from '@/api/generated/Api';
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -61,15 +59,6 @@ export function DashboardFilterBar() {
   // Not editing and no overrides — hide
   if (!isEditing) return null;
 
-  const addFilter = () =>
-    setPropertyFilters([...filterOverrides.propertyFilters, { property: '', operator: 'eq', value: '' }]);
-
-  const updateFilter = (i: number, f: StepFilter) =>
-    setPropertyFilters(filterOverrides.propertyFilters.map((existing, idx) => (idx === i ? f : existing)));
-
-  const removeFilter = (i: number) =>
-    setPropertyFilters(filterOverrides.propertyFilters.filter((_, idx) => idx !== i));
-
   // Edit mode — full filter bar
   return (
     <div className="border border-border rounded-lg p-3 bg-card space-y-3">
@@ -92,32 +81,14 @@ export function DashboardFilterBar() {
 
       <Separator />
 
-      {/* Property filters */}
-      <section className="space-y-2">
-        <SectionHeader icon={Filter} label={t('propertyFilters')} />
-        {filterOverrides.propertyFilters.length > 0 && (
-          <div className="space-y-2">
-            {filterOverrides.propertyFilters.map((f, i) => (
-              <StepFilterRow
-                key={i}
-                filter={f}
-                onChange={(updated) => updateFilter(i, updated)}
-                onRemove={() => removeFilter(i)}
-                propertyNames={propertyNames}
-                propertyDescriptions={propDescriptions}
-              />
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={addFilter}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
-        >
-          <Plus className="h-3 w-3" />
-          {t('addFilter')}
-        </button>
-      </section>
+      <FilterListSection
+        label={t('propertyFilters')}
+        addLabel={t('addFilter')}
+        filters={filterOverrides.propertyFilters}
+        onFiltersChange={setPropertyFilters}
+        propertyNames={propertyNames}
+        propertyDescriptions={propDescriptions}
+      />
     </div>
   );
 }

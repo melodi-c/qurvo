@@ -72,7 +72,9 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `ErrorBoundary` | `ErrorBoundary.tsx` | `children`, `fallback?` | React error boundary. Wraps WidgetShell children and AppRoutes. Catches render errors with retry button |
 | `EventNameCombobox` | `EventNameCombobox.tsx` | `value`, `onChange`, `placeholder?`, `className?` | Searchable event name selector (Popover + Command). Used across all widgets, cohort rows, filter panels |
 | `PropertyNameCombobox` | `PropertyNameCombobox.tsx` | `value`, `onChange`, `propertyNames`, `descriptions?`, `className?` | Searchable property name selector. Used in StepFilterRow and cohort PropertyConditionRow |
-| `StepFilterRow` | `StepFilterRow.tsx` | `filter`, `onChange`, `onRemove`, `propertyNames?`, `propertyDescriptions?` | Property filter row (property + operator + value). Also exports `NO_VALUE_OPS` set. Used in QueryItemCard, filter panels, dashboard filters |
+| `StepFilterRow` | `StepFilterRow.tsx` | `filter`, `onChange`, `onRemove`, `propertyNames?`, `propertyDescriptions?` | Property filter row (property + operator + value). Also exports `NO_VALUE_OPS` set. Used in QueryItemCard, FilterListSection |
+| `FilterListSection` | `FilterListSection.tsx` | `label`, `addLabel`, `filters`, `onFiltersChange`, `propertyNames?`, `propertyDescriptions?`, `icon?` | Self-contained filter list with add/update/remove logic, SectionHeader, and "Add filter" button. Encapsulates the repeated pattern from EventsFilterPanel, PersonsFilterPanel, DashboardFilterBar |
+| `EventTypeIcon` | `EventTypeIcon.tsx` | `eventName: string` | Event type icon by event name ($pageview, $identify, etc.). Used in EventTable, EventDetail |
 | `CrudListPage<T>` | `crud-list-page.tsx` | `title`, `icon`, `basePath`, `newLabel`, `entityLabel`, `columns`, `data`, `isLoading`, `onDelete`, `emptyTitle`, `emptyDescription`, `showEmptyAction?` | Generic CRUD list page with PageHeader, EmptyState, ListSkeleton, DataTable, and ConfirmDialog delete. Automatically adds name + actions columns. Use for trends, funnels, cohorts |
 | `EventTable` | `event-table.tsx` | `events: EventLike[]`, `showPerson?`, `projectId`, `page`, `onPageChange`, `hasMore`, `className?` | Expandable event list with header, rows, and pagination. Used on events page and person-detail. Wraps `EventTableRow` from `event-detail.tsx` |
 | `EventTableRow` | `event-detail.tsx` | `event`, `expanded`, `onToggle`, `showPerson`, `projectId` | Single expandable event row. Use via `EventTable` — not directly |
@@ -92,13 +94,17 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 |---|---|---|---|
 | `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling |
 | `createWidgetDataHook` | `features/dashboard/hooks/create-widget-data-hook.ts` | `<Config, Response>(options) => useHook(config, widgetId)` | Factory for creating widget data fetching hooks. Handles projectId, auto-refresh, stale data detection, refresh limiter. All widget hooks (useTrendData, useFunnelData, etc.) use this factory |
+| `useAiChat` | `features/ai/hooks/use-ai-chat.ts` | `() => { messages, conversationId, isStreaming, error, sendMessage, loadConversation, ... }` | SSE streaming chat hook for AI assistant. Manages message state, streaming, pagination |
+| `useConversations` | `features/ai/hooks/use-ai-conversations.ts` | `(projectId: string) => UseQueryResult<Conversation[]>` | Fetches AI conversation list for a project |
+| `useDeleteConversation` | `features/ai/hooks/use-ai-conversations.ts` | `(projectId: string) => UseMutationResult` | Deletes an AI conversation and invalidates the list |
 
 ## Shared Utilities (`src/lib/`)
 
 | Module | File | Exports | When to use |
 |---|---|---|---|
 | Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS` | Single source of truth for all chart/visualization colors. Import instead of defining local color arrays |
-| Formatting | `formatting.ts` | `formatBucket(bucket, granularity)`, `formatSeconds(s)` | Shared formatting for chart axes and durations. Import instead of defining local formatters |
+| Formatting | `formatting.ts` | `formatBucket(bucket, granularity)`, `formatSeconds(s)`, `formatRelativeTime(iso)`, `eventBadgeVariant(eventName)` | Shared formatting for chart axes, durations, relative timestamps, and event badge variants. Import instead of defining local formatters |
+| Auth fetch | `auth-fetch.ts` | `getAuthHeaders()`, `authFetch(path, init?)` | Auth-aware fetch helpers for calls that bypass the generated API client (e.g. SSE streaming). Use instead of manually reading `localStorage` token |
 
 ## Dashboard Widget Components
 

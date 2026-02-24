@@ -1,9 +1,8 @@
-import { Filter, Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
-import { StepFilterRow } from '@/components/StepFilterRow';
+import { FilterListSection } from '@/components/FilterListSection';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './EventsFilterPanel.translations';
@@ -30,15 +29,6 @@ export function EventsFilterPanel({
 }: EventsFilterPanelProps) {
   const { t } = useLocalTranslation(translations);
   const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames(eventName);
-
-  const addFilter = () =>
-    onFiltersChange([...filters, { property: '', operator: 'eq', value: '' }]);
-
-  const updateFilter = (i: number, f: StepFilter) =>
-    onFiltersChange(filters.map((existing, idx) => (idx === i ? f : existing)));
-
-  const removeFilter = (i: number) =>
-    onFiltersChange(filters.filter((_, idx) => idx !== i));
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4">
@@ -74,32 +64,14 @@ export function EventsFilterPanel({
 
       <Separator />
 
-      {/* Property filters */}
-      <section className="space-y-3">
-        <SectionHeader icon={Filter} label={t('filters')} />
-        {filters.length > 0 && (
-          <div className="space-y-2">
-            {filters.map((f, i) => (
-              <StepFilterRow
-                key={i}
-                filter={f}
-                onChange={(updated) => updateFilter(i, updated)}
-                onRemove={() => removeFilter(i)}
-                propertyNames={propertyNames}
-                propertyDescriptions={propDescriptions}
-              />
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={addFilter}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
-        >
-          <Plus className="h-3 w-3" />
-          {t('addFilter')}
-        </button>
-      </section>
+      <FilterListSection
+        label={t('filters')}
+        addLabel={t('addFilter')}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        propertyNames={propertyNames}
+        propertyDescriptions={propDescriptions}
+      />
     </div>
   );
 }

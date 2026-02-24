@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { BadRequestException } from '@nestjs/common';
+import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { buildCohortClause } from '../../utils/clickhouse-helpers';
 import { RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin } from './funnel.types';
@@ -20,10 +20,10 @@ export async function queryFunnelTimeToConvert(
   const windowSeconds = resolveWindowSeconds(params);
 
   if (fromStep >= toStep) {
-    throw new BadRequestException('from_step must be strictly less than to_step');
+    throw new AppBadRequestException('from_step must be strictly less than to_step');
   }
   if (toStep >= numSteps) {
-    throw new BadRequestException(`to_step ${toStep} out of range (max ${numSteps - 1})`);
+    throw new AppBadRequestException(`to_step ${toStep} out of range (max ${numSteps - 1})`);
   }
 
   const queryParams: Record<string, unknown> = {

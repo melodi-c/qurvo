@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Plus, MessageSquare, Trash2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -8,50 +8,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useAiChat } from '@/features/ai/hooks/use-ai-chat';
+import { useConversations, useDeleteConversation } from '@/features/ai/hooks/use-ai-conversations';
 import translations from './index.translations';
 import { AiChatPanel } from './ai-chat-panel';
-import { useAiChat } from './use-ai-chat';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
-
-interface Conversation {
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-}
-
-function useConversations(projectId: string) {
-  return useQuery<Conversation[]>({
-    queryKey: ['ai-conversations', projectId],
-    queryFn: async () => {
-      const token = localStorage.getItem('qurvo_token');
-      const res = await fetch(
-        `${API_URL}/api/ai/conversations?project_id=${projectId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!res.ok) throw new Error('Failed to load conversations');
-      return res.json();
-    },
-    enabled: !!projectId,
-  });
-}
-
-function useDeleteConversation(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const token = localStorage.getItem('qurvo_token');
-      await fetch(`${API_URL}/api/ai/conversations/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
-    },
-  });
-}
 
 export default function AiPage() {
   const { t } = useLocalTranslation(translations);
@@ -205,11 +165,9 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
   }, [conversationId, setSearchParams]);
 
   const handleSend = useCallback(
-    (text: string) => {
-      sendMessage(text, projectId);
-      setTimeout(() => {
-        qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
-      }, 2000);
+    async (text: string) => {
+      await sendMessage(text, projectId);
+      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
     },
     [sendMessage, projectId, qc],
   );

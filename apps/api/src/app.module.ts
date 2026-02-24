@@ -7,6 +7,7 @@ import { ApiModule } from './api/api.module';
 import { HealthModule } from './health/health.module';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 import { EmailModule } from './email/email.module';
+import { SessionAuthGuard } from './api/guards/session-auth.guard';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { EmailModule } from './email/email.module';
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: SessionAuthGuard },
   ],
 })
 export class AppModule {}

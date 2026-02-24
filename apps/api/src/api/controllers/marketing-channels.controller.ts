@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MarketingChannelsService } from '../../marketing-channels/marketing-channels.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   CreateMarketingChannelDto,
@@ -12,7 +11,6 @@ import {
 @ApiTags('Marketing Channels')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/channels')
-@UseGuards(SessionAuthGuard)
 export class MarketingChannelsController {
   constructor(private readonly channelsService: MarketingChannelsService) {}
 

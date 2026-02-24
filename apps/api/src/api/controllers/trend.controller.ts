@@ -1,16 +1,14 @@
-import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TREND_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { TrendQueryParams, TrendQueryResult } from '../../analytics/trend/trend.query';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { TrendQueryDto, TrendResponseDto } from '../dto/trend.dto';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
 @Controller('api/analytics')
-@UseGuards(SessionAuthGuard)
 export class TrendController {
   constructor(@Inject(TREND_SERVICE) private readonly trendService: AnalyticsQueryService<TrendQueryParams, TrendQueryResult>) {}
 

@@ -1,7 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdSpendService } from '../../ad-spend/ad-spend.service';
-import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   CreateAdSpendDto,
@@ -16,7 +15,6 @@ import {
 @ApiTags('Ad Spend')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/ad-spend')
-@UseGuards(SessionAuthGuard)
 export class AdSpendController {
   constructor(private readonly adSpendService: AdSpendService) {}
 

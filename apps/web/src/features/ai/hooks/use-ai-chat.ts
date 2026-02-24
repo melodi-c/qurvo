@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { authFetch, getAuthHeaders } from '@/lib/auth-fetch';
 
 export interface AiMessageData {
   id: string;
@@ -21,7 +22,6 @@ interface AiChatState {
   isLoadingMore: boolean;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || '';
 const PAGE_SIZE = 30;
 
 let nextId = 0;
@@ -56,8 +56,7 @@ export function useAiChat() {
 
   const sendMessage = useCallback(
     async (text: string, projectId: string, conversationId?: string | null) => {
-      const token = localStorage.getItem('qurvo_token');
-      if (!token) return;
+      if (!getAuthHeaders().Authorization) return;
 
       const userMsg: AiMessageData = { id: tempId(), role: 'user', content: text };
       setState((prev) => ({
@@ -71,12 +70,9 @@ export function useAiChat() {
       abortRef.current = abortController;
 
       try {
-        const res = await fetch(`${API_URL}/api/ai/chat`, {
+        const res = await authFetch('/api/ai/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             project_id: projectId,
             conversation_id: conversationId ?? state.conversationId,
@@ -197,13 +193,9 @@ export function useAiChat() {
   );
 
   const loadConversation = useCallback(async (convId: string) => {
-    const token = localStorage.getItem('qurvo_token');
-    if (!token) return;
-
     try {
-      const res = await fetch(
-        `${API_URL}/api/ai/conversations/${convId}?limit=${PAGE_SIZE}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+      const res = await authFetch(
+        `/api/ai/conversations/${convId}?limit=${PAGE_SIZE}`,
       );
       if (!res.ok) throw new Error('Failed to load conversation');
       const data = await res.json();
@@ -222,8 +214,7 @@ export function useAiChat() {
   }, []);
 
   const loadMoreMessages = useCallback(async () => {
-    const token = localStorage.getItem('qurvo_token');
-    if (!token || !state.conversationId || state.isLoadingMore || !state.hasMore) return;
+    if (!state.conversationId || state.isLoadingMore || !state.hasMore) return;
 
     const oldest = state.messages[0];
     if (!oldest?.sequence) return;
@@ -235,9 +226,8 @@ export function useAiChat() {
         limit: String(PAGE_SIZE),
         before_sequence: String(oldest.sequence),
       });
-      const res = await fetch(
-        `${API_URL}/api/ai/conversations/${state.conversationId}?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+      const res = await authFetch(
+        `/api/ai/conversations/${state.conversationId}?${params}`,
       );
       if (!res.ok) throw new Error('Failed to load messages');
       const data = await res.json();
