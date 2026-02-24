@@ -9,7 +9,7 @@ import {
   REDIS_CONSUMER_GROUP,
   REDIS_STREAM_EVENTS,
 } from '../constants';
-import { FlushService, type BufferedEvent } from './flush.service';
+import { FlushService } from './flush.service';
 import { EventEnrichmentService } from './event-enrichment.service';
 import { HeartbeatService } from './heartbeat.service';
 import { parseRedisFields } from './utils';
@@ -83,19 +83,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         if (!results || results.length === 0) continue;
 
-        const buffered = await Promise.all(
-          results.flatMap(([, messages]) =>
-            messages.map(async ([id, fields]) => ({
-              messageId: id,
-              event: await this.enrichment.buildEvent(parseRedisFields(fields)),
-            }))
-          )
-        );
-        this.flushService.addToBuffer(buffered);
-
-        if (this.flushService.isBufferFull()) {
-          await this.flushService.flush();
-        }
+        await this.processMessages(results.flatMap(([, msgs]) => msgs));
       } catch (err) {
         this.heartbeat.touch();
         this.logger.error({ err }, 'Error processing messages');
@@ -127,22 +115,27 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         cursor = result[0];
 
-        const buffered = await Promise.all(
-          result[1]
-            .filter(([, fields]) => !!fields)
-            .map(async ([id, fields]) => ({
-              messageId: id,
-              event: await this.enrichment.buildEvent(parseRedisFields(fields)),
-            }))
-        );
-        this.flushService.addToBuffer(buffered);
-
-        if (this.flushService.isBufferFull()) {
-          await this.flushService.flush();
-        }
+        await this.processMessages(result[1], true);
       } while (cursor !== '0-0');
     } catch (err) {
       this.logger.error({ err }, 'Error claiming pending messages');
+    }
+  }
+
+  private async processMessages(
+    messages: [string, string[]][],
+    filterEmpty = false,
+  ): Promise<void> {
+    const items = filterEmpty ? messages.filter(([, fields]) => !!fields) : messages;
+    const buffered = await Promise.all(
+      items.map(async ([id, fields]) => ({
+        messageId: id,
+        event: await this.enrichment.buildEvent(parseRedisFields(fields)),
+      })),
+    );
+    this.flushService.addToBuffer(buffered);
+    if (this.flushService.isBufferFull()) {
+      await this.flushService.flush();
     }
   }
 }

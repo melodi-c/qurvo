@@ -112,12 +112,12 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
           // ── 4. Compute each cohort ────────────────────────────────────────
           const version = Date.now();
+          const eligibleMap = new Map(eligible.map((c) => [c.id, c]));
 
           for (const { id, definition } of sorted) {
-            const cohort = eligible.find((c) => c.id === id)!;
+            const cohort = eligibleMap.get(id)!;
             try {
               await this.computeMembership(id, cohort.project_id, definition, version);
-              await this.recordSuccess(id);
               await this.recordSizeHistory(id, cohort.project_id);
               computed++;
             } catch (err) {
@@ -199,27 +199,19 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       query_params: { cm_cohort_id: cohortId, cm_version: version },
     });
 
-    // Update PostgreSQL tracking columns
+    // Update PostgreSQL tracking columns + reset error state
     await this.db
       .update(cohorts)
       .set({
         membership_version: version,
         membership_computed_at: new Date(),
-      })
-      .where(eq(cohorts.id, cohortId));
-
-    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
-  }
-
-  private async recordSuccess(cohortId: string): Promise<void> {
-    await this.db
-      .update(cohorts)
-      .set({
         errors_calculating: 0,
         last_error_at: null,
         last_error_message: null,
       })
       .where(eq(cohorts.id, cohortId));
+
+    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
   }
 
   private async recordError(cohortId: string, err: unknown): Promise<void> {

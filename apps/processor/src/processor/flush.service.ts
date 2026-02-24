@@ -3,6 +3,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 import { insertEvents } from './insert';
+import { withRetry } from './retry';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DefinitionSyncService } from './definition-sync.service';
@@ -69,33 +70,33 @@ export class FlushService implements OnApplicationBootstrap {
       this.logger.error({ err }, 'Person batch flush failed (non-critical)');
     }
 
-    let retries = 0;
-
-    while (retries < PROCESSOR_MAX_RETRIES) {
+    try {
+      await withRetry(
+        () => insertEvents(this.ch, events),
+        'ClickHouse insert',
+        this.logger,
+        { maxAttempts: PROCESSOR_MAX_RETRIES, baseDelayMs: 1000 },
+      );
+      this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
+      await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
       try {
-        await insertEvents(this.ch, events);
-        this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
-        await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
-        try {
-          await this.definitionSync.syncFromBatch(events);
-        } catch (err) {
-          this.logger.warn({ err }, 'Definition sync failed (non-critical)');
-        }
-        return;
+        await this.definitionSync.syncFromBatch(events);
       } catch (err) {
-        retries++;
-        this.logger.error({ err, attempt: retries, maxRetries: PROCESSOR_MAX_RETRIES }, 'ClickHouse insert failed');
-        await new Promise((r) => setTimeout(r, 1000 * retries));
+        this.logger.warn({ err }, 'Definition sync failed (non-critical)');
       }
+    } catch {
+      await this.moveToDlq(events);
+      await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
     }
+  }
 
+  private async moveToDlq(events: Event[]): Promise<void> {
     this.logger.error({ eventCount: events.length, maxRetries: PROCESSOR_MAX_RETRIES }, 'Moving events to DLQ after max retries');
     const pipeline = this.redis.pipeline();
     for (const event of events) {
       pipeline.xadd(REDIS_STREAM_DLQ, 'MAXLEN', '~', String(REDIS_DLQ_MAXLEN), '*', 'data', JSON.stringify(event));
     }
     await pipeline.exec();
-    await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
   }
 
   private scheduleFlush() {
