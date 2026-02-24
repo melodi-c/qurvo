@@ -29,6 +29,7 @@ export class DashboardsController {
     return this.dashboardsService.list(user.user_id, projectId);
   }
 
+  @RequireRole('editor')
   @Post()
   async create(
     @CurrentUser() user: RequestUser,

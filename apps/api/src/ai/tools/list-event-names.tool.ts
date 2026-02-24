@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { AiContextService } from '../ai-context.service';
+import { EventsService } from '../../events/events.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -14,12 +14,12 @@ const tool = defineTool({
 export class ListEventNamesTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly contextService: AiContextService) {}
+  constructor(private readonly eventsService: EventsService) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (_args, userId, projectId) => {
-    const names = await this.contextService.getEventNames(userId, projectId);
+    const names = await this.eventsService.getEventNames(userId, projectId);
     return { event_names: names };
   });
 }

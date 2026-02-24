@@ -45,7 +45,12 @@ export class CohortComputationService {
       query_params: { cm_cohort_id: cohortId, cm_version: version },
     });
 
-    // Update PostgreSQL tracking columns + reset error state
+    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
+  }
+
+  /** Update PG tracking columns + reset error state. Separated from computeMembership
+   *  so that a transient PG failure doesn't trigger error backoff for a successful CH write. */
+  async markComputationSuccess(cohortId: string, version: number): Promise<void> {
     await this.db
       .update(cohorts)
       .set({
@@ -56,8 +61,6 @@ export class CohortComputationService {
         last_error_message: null,
       })
       .where(eq(cohorts.id, cohortId));
-
-    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
   }
 
   async recordError(cohortId: string, err: unknown): Promise<void> {

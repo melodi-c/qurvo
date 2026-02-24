@@ -12,11 +12,19 @@ export class BillingGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
     const eventsLimit = request.eventsLimit;
 
-    if (eventsLimit === null) return true;
+    if (eventsLimit == null) return true;
 
     const projectId = request.projectId;
     const counterKey = billingCounterKey(projectId);
-    const current = await this.redis.get(counterKey);
+
+    let current: string | null;
+    try {
+      current = await this.redis.get(counterKey);
+    } catch (err) {
+      this.logger.error({ err, projectId }, 'Redis error in billing check — failing open');
+      return true;
+    }
+
     const count = current !== null ? parseInt(current, 10) : 0;
 
     if (!Number.isNaN(count) && count >= eventsLimit) {

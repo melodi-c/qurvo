@@ -16,6 +16,7 @@ import { EmailConflictException } from './exceptions/email-conflict.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
 import { WrongPasswordException } from './exceptions/wrong-password.exception';
 import { VerificationService } from '../verification/verification.service';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 @Injectable()
 export class AuthService {
@@ -50,8 +51,8 @@ export class AuthService {
 
         return created;
       });
-    } catch (err: any) {
-      if (err.code === '23505') {
+    } catch (err: unknown) {
+      if (err instanceof Error && 'code' in err && (err as { code: string }).code === '23505') {
         throw new EmailConflictException();
       }
       throw err;
@@ -159,9 +160,7 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, input: { display_name?: string; language?: string }) {
-    const setFields: Record<string, unknown> = {};
-    if (input.display_name !== undefined) setFields.display_name = input.display_name;
-    if (input.language !== undefined) setFields.language = input.language;
+    const setFields = buildConditionalUpdate(input, ['display_name', 'language']);
 
     if (Object.keys(setFields).length === 0) {
       const [user] = await this.db

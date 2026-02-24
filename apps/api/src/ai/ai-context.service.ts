@@ -9,10 +9,6 @@ export class AiContextService {
     private readonly personsService: PersonsService,
   ) {}
 
-  async getEventNames(userId: string, projectId: string): Promise<string[]> {
-    return this.eventsService.getEventNames(userId, projectId);
-  }
-
   async getProjectContext(userId: string, projectId: string): Promise<string> {
     const [eventNames, propertyNames] = await Promise.all([
       this.eventsService.getEventNames(userId, projectId),

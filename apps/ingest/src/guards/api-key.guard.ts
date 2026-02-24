@@ -36,7 +36,13 @@ export class ApiKeyGuard implements CanActivate {
     const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
     const cacheKey = `apikey:${keyHash}`;
 
-    const cached = await this.redis.get(cacheKey);
+    let cached: string | null = null;
+    try {
+      cached = await this.redis.get(cacheKey);
+    } catch (err) {
+      this.logger.error({ err }, 'Redis error reading API key cache — falling back to DB');
+    }
+
     if (cached) {
       this.logger.debug('API key cache hit');
       const info: CachedKeyInfo = JSON.parse(cached);
@@ -45,6 +51,7 @@ export class ApiKeyGuard implements CanActivate {
       }
       request.projectId = info.project_id;
       request.eventsLimit = info.events_limit;
+      request.quotaLimited = false;
       return true;
     }
 
@@ -81,7 +88,8 @@ export class ApiKeyGuard implements CanActivate {
       expires_at: keyInfo.expires_at?.toISOString() ?? null,
       events_limit: keyInfo.events_limit ?? null,
     };
-    await this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS);
+    this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS)
+      .catch((err: unknown) => this.logger.error({ err }, 'Failed to write API key cache'));
 
     this.db.update(apiKeys).set({ last_used_at: new Date() }).where(eq(apiKeys.id, keyInfo.key_id))
       .execute()
@@ -91,6 +99,7 @@ export class ApiKeyGuard implements CanActivate {
 
     request.projectId = keyInfo.project_id;
     request.eventsLimit = keyInfo.events_limit;
+    request.quotaLimited = false;
     return true;
   }
 }
