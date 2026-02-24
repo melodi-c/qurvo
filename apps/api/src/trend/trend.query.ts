@@ -1,8 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
 import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
-import { buildCohortSubquery } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
+import { buildCohortFilterForBreakdown } from '../utils/cohort-breakdown.util';
 import { toChTs, RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 import { resolvePropertyExpr, buildPropertyFilterConditions } from '../utils/property-filter';
 
@@ -237,25 +237,7 @@ async function executeTrendQuery(
       const cond = buildSeriesConditions(s, seriesIdx, queryParams);
       cohortBreakdowns.forEach((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
-        queryParams[paramKey] = cb.cohort_id;
-
-        let cohortFilter: string;
-        if (cb.is_static) {
-          cohortFilter = `${RESOLVED_PERSON} IN (
-            SELECT person_id FROM person_static_cohort FINAL
-            WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
-          )`;
-        } else if (cb.materialized) {
-          cohortFilter = `${RESOLVED_PERSON} IN (
-            SELECT person_id FROM cohort_members FINAL
-            WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
-          )`;
-        } else {
-          const cbQueryParams = { ...queryParams };
-          const subquery = buildCohortSubquery(cb.definition, 900 + cbIdx, 'project_id', cbQueryParams);
-          Object.assign(queryParams, cbQueryParams);
-          cohortFilter = `${RESOLVED_PERSON} IN (${subquery})`;
-        }
+        const cohortFilter = buildCohortFilterForBreakdown(cb, paramKey, 900 + cbIdx, queryParams);
         arms.push(`
           SELECT
             ${seriesIdx} AS series_idx,
