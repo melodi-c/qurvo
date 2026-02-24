@@ -5,7 +5,7 @@ import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery, RESOLVED_PERSON } from '@qurvo/cohort-query';
+import { buildCohortSubquery, RESOLVED_PERSON, topologicalSortCohorts } from '@qurvo/cohort-query';
 import { REDIS } from '../providers/redis.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
@@ -15,7 +15,6 @@ import {
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
 } from '../constants';
-import { topologicalSortCohorts } from './cohort-toposort';
 import { DistributedLock } from '@qurvo/distributed-lock';
 
 // ── Service ──────────────────────────────────────────────────────────────────

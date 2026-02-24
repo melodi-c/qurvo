@@ -22,11 +22,20 @@ export default function DashboardBuilderPage() {
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTextDialog, setShowTextDialog] = useState(false);
 
-  const store = useDashboardStore();
+  const isEditing = useDashboardStore((s) => s.isEditing);
+  const isDirty = useDashboardStore((s) => s.isDirty);
+  const localWidgets = useDashboardStore((s) => s.localWidgets);
+  const localLayout = useDashboardStore((s) => s.localLayout);
+  const localName = useDashboardStore((s) => s.localName);
+  const widgetMeta = useDashboardStore((s) => s.widgetMeta);
+  const initSession = useDashboardStore((s) => s.initSession);
+  const markSaved = useDashboardStore((s) => s.markSaved);
+  const setEditing = useDashboardStore((s) => s.setEditing);
+  const cancelEditMode = useDashboardStore((s) => s.cancelEditMode);
 
   useEffect(() => {
-    if (dashboard && !store.isEditing) {
-      store.initSession(
+    if (dashboard && !isEditing) {
+      initSession(
         dashboard.id,
         dashboard.name,
         dashboard.widgets || [],
@@ -37,7 +46,7 @@ export default function DashboardBuilderPage() {
   // Also re-run when isEditing changes to false (e.g. after save) so that
   // fresh server data is picked up even if the refetch completed during editing.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboard, store.isEditing]);
+  }, [dashboard, isEditing]);
 
   if (!projectId) {
     return (
@@ -57,9 +66,9 @@ export default function DashboardBuilderPage() {
 
   const handleSave = async () => {
     // Merge layout positions back into widget objects, include text content
-    const mergedWidgets = store.localWidgets.map((widget) => {
-      const layoutItem = store.localLayout.find((l) => l.i === widget.id);
-      const textContent = store.widgetMeta[widget.id]?.textContent;
+    const mergedWidgets = localWidgets.map((widget) => {
+      const layoutItem = localLayout.find((l) => l.i === widget.id);
+      const textContent = widgetMeta[widget.id]?.textContent;
       return {
         ...widget,
         layout: layoutItem
@@ -70,20 +79,20 @@ export default function DashboardBuilderPage() {
     });
 
     await save({
-      name: store.localName,
+      name: localName,
       widgets: mergedWidgets,
       serverWidgets: dashboard.widgets || [],
     });
-    store.markSaved();
-    store.setEditing(false);
+    markSaved();
+    setEditing(false);
   };
 
   const handleDiscard = () => {
-    store.cancelEditMode();
+    cancelEditMode();
   };
 
   return (
-    <div className={`space-y-4 ${store.isEditing && store.isDirty ? 'pb-32' : ''}`}>
+    <div className={`space-y-4 ${isEditing && isDirty ? 'pb-32' : ''}`}>
       <DashboardHeader />
 
       <DashboardFilterBar />
@@ -101,7 +110,7 @@ export default function DashboardBuilderPage() {
       <AddWidgetDialog open={showAddWidget} onClose={() => setShowAddWidget(false)} />
       <TextTileDialog open={showTextDialog} onClose={() => setShowTextDialog(false)} />
 
-      {store.isEditing && store.isDirty && (
+      {isEditing && isDirty && (
         <SaveBar onSave={handleSave} onDiscard={handleDiscard} isSaving={isPending} />
       )}
     </div>

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { randomUUID, randomBytes, createHash } from 'crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -10,6 +11,8 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
+import { eq } from 'drizzle-orm';
+import { apiKeys, plans, projects } from '@qurvo/db';
 import { AppModule } from '../../app.module';
 import { REDIS_STREAM_EVENTS, billingCounterKey } from '../../constants';
 import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
@@ -186,5 +189,169 @@ describe('POST /v1/import', () => {
     const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
     const fields = parseRedisFields(messages[0][1]);
     expect(fields.batch_id).toMatch(/^import-/);
+  });
+});
+
+describe('GET /health', () => {
+  it('returns 200 with status ok', async () => {
+    const res = await fetch(`${getBaseUrl(app)}/health`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: 'ok' });
+  });
+});
+
+describe('API key auth', () => {
+  it('returns 401 for a non-existent API key', async () => {
+    const res = await postBatch(app, 'fake_key_that_does_not_exist', {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 for an expired API key', async () => {
+    const tp = await createTestProject(ctx.db);
+
+    // Set expires_at in the past
+    await ctx.db
+      .update(apiKeys)
+      .set({ expires_at: new Date('2020-01-01') } as any)
+      .where(eq(apiKeys.id, tp.apiKeyId));
+
+    // Clear Redis cache so the guard hits the DB
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.del(`apikey:${keyHash}`);
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 for a revoked API key', async () => {
+    const tp = await createTestProject(ctx.db);
+
+    // Revoke the key
+    await ctx.db
+      .update(apiKeys)
+      .set({ revoked_at: new Date() } as any)
+      .where(eq(apiKeys.id, tp.apiKeyId));
+
+    // Clear Redis cache
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.del(`apikey:${keyHash}`);
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 for an expired key found in Redis cache', async () => {
+    const tp = await createTestProject(ctx.db);
+
+    // Seed the Redis cache directly with an expired entry
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.set(
+      `apikey:${keyHash}`,
+      JSON.stringify({
+        project_id: tp.projectId,
+        key_id: tp.apiKeyId,
+        expires_at: '2020-01-01T00:00:00.000Z',
+        events_limit: null,
+      }),
+      'EX',
+      60,
+    );
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Billing guard', () => {
+  it('returns 429 when monthly event limit is exceeded', async () => {
+    // Create a plan with a low limit
+    const planId = randomUUID();
+    await ctx.db.insert(plans).values({
+      id: planId,
+      slug: `test-plan-${randomBytes(4).toString('hex')}`,
+      name: 'Limited Plan',
+      events_limit: 100,
+      features: { cohorts: false, lifecycle: false, stickiness: false, api_export: false, ai_insights: false },
+    } as any);
+
+    // Create a project on that plan
+    const tp = await createTestProject(ctx.db);
+    await ctx.db
+      .update(projects)
+      .set({ plan_id: planId } as any)
+      .where(eq(projects.id, tp.projectId));
+
+    // Clear API key cache so guard re-fetches with plan
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.del(`apikey:${keyHash}`);
+
+    // Pre-seed the billing counter above the limit
+    const counterKey = billingCounterKey(tp.projectId);
+    await ctx.redis.set(counterKey, '150');
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(429);
+  });
+
+  it('allows request when under the event limit', async () => {
+    const planId = randomUUID();
+    await ctx.db.insert(plans).values({
+      id: planId,
+      slug: `test-plan-${randomBytes(4).toString('hex')}`,
+      name: 'Generous Plan',
+      events_limit: 10000,
+      features: { cohorts: false, lifecycle: false, stickiness: false, api_export: false, ai_insights: false },
+    } as any);
+
+    const tp = await createTestProject(ctx.db);
+    await ctx.db
+      .update(projects)
+      .set({ plan_id: planId } as any)
+      .where(eq(projects.id, tp.projectId));
+
+    // Clear API key cache
+    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
+    await ctx.redis.del(`apikey:${keyHash}`);
+
+    // Counter well under limit
+    const counterKey = billingCounterKey(tp.projectId);
+    await ctx.redis.set(counterKey, '50');
+
+    const res = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+    expect(res.status).toBe(202);
+  });
+
+  it('increments billing counter after successful batch', async () => {
+    const tp = await createTestProject(ctx.db);
+    const counterKey = billingCounterKey(tp.projectId);
+
+    // Ensure counter starts at 0
+    await ctx.redis.del(counterKey);
+
+    await postBatch(app, tp.apiKey, {
+      events: [
+        { event: 'e1', distinct_id: 'u1', timestamp: new Date().toISOString() },
+        { event: 'e2', distinct_id: 'u2', timestamp: new Date().toISOString() },
+        { event: 'e3', distinct_id: 'u3', timestamp: new Date().toISOString() },
+      ],
+    });
+
+    // Wait for fire-and-forget billing increment
+    await new Promise((r) => setTimeout(r, 100));
+
+    const counter = await ctx.redis.get(counterKey);
+    expect(parseInt(counter!, 10)).toBe(3);
   });
 });

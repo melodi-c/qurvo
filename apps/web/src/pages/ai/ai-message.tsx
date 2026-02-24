@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { AiToolResult } from './ai-tool-result';
-import type { AiMessageData } from './use-ai-chat';
+import type { AiMessageData } from '@/features/ai/hooks/use-ai-chat';
 
 interface AiMessageProps {
   message: AiMessageData;

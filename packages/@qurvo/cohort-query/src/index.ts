@@ -11,4 +11,6 @@ export { buildStoppedPerformingSubquery } from './conditions/stopped';
 export { buildRestartedPerformingSubquery } from './conditions/restarted';
 export { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
 export { extractCohortReferences, detectCircularDependency } from './validation';
+export { topologicalSortCohorts } from './toposort';
+export type { CohortForSort, ToposortResult } from './toposort';
 export type { CohortFilterInput, BuildContext } from './types';
