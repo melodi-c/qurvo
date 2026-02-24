@@ -1,7 +1,7 @@
+import 'reflect-metadata';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import { eq, and, desc, asc } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
 import {
   setupContainers,
   buildEvent,
@@ -11,203 +11,34 @@ import {
 } from '@qurvo/testing';
 import { eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/db';
 import type { Event } from '@qurvo/clickhouse';
+import { DefinitionSyncService, detectValueType } from '../../processor/definition-sync.service';
 
 let ctx: ContainerContext;
+
+const noopLogger = {
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  debug: () => {},
+  trace: () => {},
+  fatal: () => {},
+  setContext: () => {},
+} as any;
+
+/** Create a fresh DefinitionSyncService instance (empty caches). */
+function createSyncService(): DefinitionSyncService {
+  return new DefinitionSyncService(ctx.db as any, noopLogger);
+}
+
+/** Convenience: create a fresh service and sync a batch. */
+async function sync(events: Event[]) {
+  const service = createSyncService();
+  await service.syncFromBatch(events);
+}
 
 beforeAll(async () => {
   ctx = await setupContainers();
 }, 120_000);
-
-// ── Helper: replicate DefinitionSyncService logic for tests ──────────────────
-
-type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
-
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|\s)/;
-const DATE_RE = /^((\d{4}[/-][0-2]\d[/-][0-3]\d)|([0-2]\d[/-][0-3]\d[/-]\d{4}))([ T][0-2]\d:[0-6]\d:[0-6]\d.*)?$/;
-const MAX_NAME_LENGTH = 200;
-const MAX_PROPERTIES_PER_EVENT = 10_000;
-const SIX_MONTHS_S = 15_768_000;
-
-const DATETIME_NAME_KEYWORDS = ['time', 'timestamp', 'date', '_at', '-at', 'createdat', 'updatedat'];
-
-function isLikelyDateString(s: string): boolean {
-  return ISO_DATE_RE.test(s) || DATE_RE.test(s.trim());
-}
-
-function isLikelyUnixTimestamp(n: number): boolean {
-  if (!Number.isFinite(n) || n < 0) return false;
-  const threshold = Math.floor(Date.now() / 1000) - SIX_MONTHS_S;
-  return n >= threshold;
-}
-
-function detectValueType(key: string, value: unknown): ValueType | null {
-  const lowerKey = key.toLowerCase();
-
-  if (lowerKey.startsWith('utm_') || lowerKey.startsWith('$initial_utm_')) return 'String';
-  if (lowerKey.startsWith('$feature/')) return 'String';
-  if (lowerKey === '$feature_flag_response') return 'String';
-  if (lowerKey.startsWith('$survey_response')) return 'String';
-
-  if (DATETIME_NAME_KEYWORDS.some((kw) => lowerKey.includes(kw))) {
-    if (typeof value === 'string' && isLikelyDateString(value)) return 'DateTime';
-    if (typeof value === 'number' && isLikelyUnixTimestamp(value)) return 'DateTime';
-  }
-
-  if (typeof value === 'boolean') return 'Boolean';
-  if (typeof value === 'number') return 'Numeric';
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed === 'true' || trimmed === 'false' || trimmed === 'TRUE' || trimmed === 'FALSE') return 'Boolean';
-    if (isLikelyDateString(value)) return 'DateTime';
-    if (trimmed !== '' && !isNaN(Number(trimmed))) return 'Numeric';
-    return 'String';
-  }
-
-  return null;
-}
-
-const SKIP_EVENT_PROPERTIES = new Set([
-  '$set', '$set_once', '$unset',
-  '$group_0', '$group_1', '$group_2', '$group_3', '$group_4', '$groups',
-]);
-
-interface PropEntry {
-  project_id: string;
-  property_name: string;
-  property_type: 'event' | 'person';
-  value_type: ValueType | null;
-}
-
-interface EventPropEntry {
-  project_id: string;
-  event_name: string;
-  property_name: string;
-  property_type: 'event' | 'person';
-}
-
-function extractProps(
-  bag: Record<string, unknown>,
-  projectId: string,
-  eventName: string,
-  type: 'event' | 'person',
-  prefix: string,
-  propMap: Map<string, PropEntry>,
-  eventPropMap: Map<string, EventPropEntry>,
-) {
-  for (const [k, v] of Object.entries(bag)) {
-    if (type === 'event' && SKIP_EVENT_PROPERTIES.has(k)) continue;
-    if (k.length > MAX_NAME_LENGTH) continue;
-
-    const property_name = `${prefix}${k}`;
-    const detected = detectValueType(k, v);
-
-    const propKey = `${projectId}:${property_name}:${type}`;
-    if (!propMap.has(propKey)) {
-      propMap.set(propKey, { project_id: projectId, property_name, property_type: type, value_type: detected });
-    }
-
-    const epKey = `${projectId}:${eventName}:${property_name}:${type}`;
-    if (!eventPropMap.has(epKey)) {
-      eventPropMap.set(epKey, { project_id: projectId, event_name: eventName, property_name, property_type: type });
-    }
-  }
-}
-
-async function syncFromBatch(events: Event[]) {
-  const now = new Date();
-  const eventKeys = new Map<string, { project_id: string; event_name: string }>();
-  const propMap = new Map<string, PropEntry>();
-  const eventPropMap = new Map<string, EventPropEntry>();
-
-  for (const e of events) {
-    // A6: Skip events with name > 200 chars
-    if (e.event_name.length > MAX_NAME_LENGTH) continue;
-
-    let parsedProps: Record<string, unknown> | null = null;
-    if (e.properties && e.properties !== '{}') {
-      try { parsedProps = JSON.parse(e.properties); } catch {}
-    }
-    let parsedUserProps: Record<string, unknown> | null = null;
-    if (e.user_properties && e.user_properties !== '{}') {
-      try { parsedUserProps = JSON.parse(e.user_properties); } catch {}
-    }
-
-    // A7: Skip entire event (including definition) with too many properties
-    const propCount = (parsedProps ? Object.keys(parsedProps).length : 0) +
-                      (parsedUserProps ? Object.keys(parsedUserProps).length : 0);
-    if (propCount > MAX_PROPERTIES_PER_EVENT) continue;
-
-    const eventKey = `${e.project_id}:${e.event_name}`;
-    if (!eventKeys.has(eventKey)) {
-      eventKeys.set(eventKey, { project_id: e.project_id, event_name: e.event_name });
-    }
-
-    if (parsedProps) {
-      extractProps(parsedProps, e.project_id, e.event_name, 'event', 'properties.', propMap, eventPropMap);
-
-      // A10: Extract person properties from $set/$set_once
-      const $set = parsedProps['$set'];
-      if ($set && typeof $set === 'object' && !Array.isArray($set)) {
-        extractProps($set as Record<string, unknown>, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap);
-      }
-      const $setOnce = parsedProps['$set_once'];
-      if ($setOnce && typeof $setOnce === 'object' && !Array.isArray($setOnce)) {
-        extractProps($setOnce as Record<string, unknown>, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap);
-      }
-    }
-
-    if (parsedUserProps) {
-      extractProps(parsedUserProps, e.project_id, e.event_name, 'person', 'user_properties.', propMap, eventPropMap);
-    }
-  }
-
-  if (eventKeys.size > 0) {
-    await ctx.db
-      .insert(eventDefinitions)
-      .values([...eventKeys.values()].map((r) => ({ project_id: r.project_id, event_name: r.event_name, last_seen_at: now })))
-      .onConflictDoUpdate({
-        target: [eventDefinitions.project_id, eventDefinitions.event_name],
-        set: { last_seen_at: sql`excluded.last_seen_at` },
-      });
-  }
-
-  if (propMap.size > 0) {
-    await ctx.db
-      .insert(propertyDefinitions)
-      .values([...propMap.values()].map((p) => ({
-        project_id: p.project_id,
-        property_name: p.property_name,
-        property_type: p.property_type,
-        value_type: p.value_type,
-        is_numerical: p.value_type === 'Numeric',
-        last_seen_at: now,
-      })))
-      .onConflictDoUpdate({
-        target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
-        set: {
-          last_seen_at: sql`excluded.last_seen_at`,
-          value_type: sql`COALESCE(${propertyDefinitions.value_type}, excluded.value_type)`,
-          is_numerical: sql`CASE WHEN ${propertyDefinitions.value_type} IS NULL THEN excluded.is_numerical ELSE ${propertyDefinitions.is_numerical} END`,
-        },
-      });
-  }
-
-  if (eventPropMap.size > 0) {
-    await ctx.db
-      .insert(eventProperties)
-      .values([...eventPropMap.values()].map((ep) => ({
-        project_id: ep.project_id,
-        event_name: ep.event_name,
-        property_name: ep.property_name,
-        property_type: ep.property_type,
-        last_seen_at: now,
-      })))
-      .onConflictDoUpdate({
-        target: [eventProperties.project_id, eventProperties.event_name, eventProperties.property_name, eventProperties.property_type],
-        set: { last_seen_at: sql`excluded.last_seen_at` },
-      });
-  }
-}
 
 // ── event_definitions auto-population ────────────────────────────────────────
 
@@ -222,7 +53,7 @@ describe('event_definitions auto-population', () => {
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'click', timestamp: ts(1) }),
     ];
 
-    await syncFromBatch(events);
+    await sync(events);
 
     const rows = await ctx.db
       .select()
@@ -242,7 +73,7 @@ describe('event_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'signup' }),
     ]);
 
@@ -256,7 +87,8 @@ describe('event_definitions auto-population', () => {
 
     await new Promise((r) => setTimeout(r, 50));
 
-    await syncFromBatch([
+    // Fresh service instance → empty cache → upsert executes
+    await sync([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'signup' }),
     ]);
 
@@ -281,7 +113,7 @@ describe('event_definitions auto-population', () => {
       verified: true,
     });
 
-    await syncFromBatch([
+    await sync([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'purchase' }),
     ]);
 
@@ -301,7 +133,7 @@ describe('event_definitions auto-population', () => {
     const { projectId: projectB } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({ project_id: projectA, person_id: personId, event_name: 'event_a' }),
       buildEvent({ project_id: projectB, person_id: personId, event_name: 'event_b' }),
     ]);
@@ -321,7 +153,7 @@ describe('property_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -361,7 +193,7 @@ describe('property_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -391,7 +223,7 @@ describe('property_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -410,7 +242,8 @@ describe('property_definitions auto-population', () => {
 
     expect(before[0].value_type).toBe('Numeric');
 
-    await syncFromBatch([
+    // Fresh service → empty cache → upsert runs, but COALESCE keeps first type
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -435,7 +268,7 @@ describe('property_definitions auto-population', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -469,7 +302,7 @@ describe('event_properties join table', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -510,7 +343,7 @@ describe('event_properties join table', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -548,9 +381,9 @@ describe('event_properties join table', () => {
       properties: JSON.stringify({ key: 'value' }),
     });
 
-    await syncFromBatch([event]);
-    await syncFromBatch([event]);
-    await syncFromBatch([event]);
+    await sync([event]);
+    await sync([event]);
+    await sync([event]);
 
     const rows = await ctx.db
       .select()
@@ -571,14 +404,14 @@ describe('API queries from PostgreSQL', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    const olderTime = new Date(Date.now() - 60_000);
+    const olderTime = new Date(Date.now() - 7_200_000); // 2 hours ago — guaranteed before floorToHour(now)
     await ctx.db.insert(eventDefinitions).values({
       project_id: projectId,
       event_name: 'old_event',
       last_seen_at: olderTime,
     });
 
-    await syncFromBatch([
+    await sync([
       buildEvent({ project_id: projectId, person_id: personId, event_name: 'new_event' }),
     ]);
 
@@ -597,7 +430,7 @@ describe('API queries from PostgreSQL', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -638,7 +471,7 @@ describe('API queries from PostgreSQL', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -668,7 +501,7 @@ describe('API queries from PostgreSQL', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -721,7 +554,7 @@ describe('A4: null/object/array value type handling', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -747,7 +580,7 @@ describe('A4: null/object/array value type handling', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -778,7 +611,7 @@ describe('A4: null/object/array value type handling', () => {
     const personId = randomUUID();
 
     // First batch: null value → value_type = NULL
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -797,7 +630,8 @@ describe('A4: null/object/array value type handling', () => {
     expect(before[0].value_type).toBeNull();
 
     // Second batch: numeric value → value_type should be filled
-    await syncFromBatch([
+    // Fresh service (via sync()) ensures no cache interference
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -827,7 +661,7 @@ describe('A5: hard-coded type overrides', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -854,7 +688,7 @@ describe('A5: hard-coded type overrides', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -881,7 +715,7 @@ describe('A5: hard-coded type overrides', () => {
 
     const unixTimestamp = Math.floor(Date.now() / 1000);
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -911,7 +745,7 @@ describe('A5: hard-coded type overrides', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -940,7 +774,7 @@ describe('A6: name length limits', () => {
     const personId = randomUUID();
     const longName = 'a'.repeat(201);
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -970,7 +804,7 @@ describe('A6: name length limits', () => {
     const personId = randomUUID();
     const longPropName = 'p'.repeat(201);
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -994,7 +828,7 @@ describe('A6: name length limits', () => {
     const personId = randomUUID();
     const exactName = 'x'.repeat(200);
 
-    await syncFromBatch([
+    await sync([
       buildEvent({ project_id: projectId, person_id: personId, event_name: exactName }),
     ]);
 
@@ -1023,7 +857,7 @@ describe('A7: property count limits', () => {
       hugeProps[`prop_${i}`] = 'value';
     }
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1056,7 +890,7 @@ describe('A7: property count limits', () => {
       props[`p${i}`] = 'v';
     }
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1082,7 +916,7 @@ describe('A9: skip service properties', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1127,7 +961,7 @@ describe('A9: skip service properties', () => {
 
     // Edge case: if $groups somehow appears in user_properties bag, it should NOT be skipped
     // because the skip list only applies to event properties
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1159,7 +993,7 @@ describe('A10: $set/$set_once as person properties', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1203,7 +1037,7 @@ describe('A10: $set/$set_once as person properties', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1231,7 +1065,7 @@ describe('A10: $set/$set_once as person properties', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
@@ -1260,7 +1094,7 @@ describe('A10: $set/$set_once as person properties', () => {
     const { projectId } = await createTestProject(ctx.db);
     const personId = randomUUID();
 
-    await syncFromBatch([
+    await sync([
       buildEvent({
         project_id: projectId,
         person_id: personId,
