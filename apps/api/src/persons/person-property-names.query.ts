@@ -13,5 +13,5 @@ export async function queryPersonPropertyNames(
     LIMIT 500
   `);
 
-  return result.map((r) => String(r.key));
+  return result.rows.map((r) => String(r.key));
 }

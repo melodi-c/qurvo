@@ -1,7 +1,7 @@
 import { createClickHouse } from '@qurvo/clickhouse';
 import { createDb } from '@qurvo/db';
 import Redis from 'ioredis';
-import postgres from 'postgres';
+import { Client } from 'pg';
 import { applyClickHouseMigration } from './migrate-clickhouse';
 import { applyPostgresMigration } from './migrate-postgres';
 import type { ContainerContext } from './containers';
@@ -41,10 +41,11 @@ async function createWorkerContext(): Promise<ContainerContext> {
 
   // --- PostgreSQL: create worker database ---
   const adminPgUrl = `postgresql://${pgUser}:${pgPassword}@${pgHost}:${pgPort}/postgres`;
-  const adminSql = (postgres as any)(adminPgUrl, { max: 1 });
-  await adminSql.unsafe(`DROP DATABASE IF EXISTS "${dbName}"`);
-  await adminSql.unsafe(`CREATE DATABASE "${dbName}"`);
-  await adminSql.end();
+  const adminClient = new Client({ connectionString: adminPgUrl });
+  await adminClient.connect();
+  await adminClient.query(`DROP DATABASE IF EXISTS "${dbName}"`);
+  await adminClient.query(`CREATE DATABASE "${dbName}"`);
+  await adminClient.end();
 
   const pgUrl = `postgresql://${pgUser}:${pgPassword}@${pgHost}:${pgPort}/${dbName}`;
   await applyPostgresMigration(pgUrl);

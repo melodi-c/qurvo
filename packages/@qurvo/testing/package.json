@@ -13,11 +13,12 @@
     "@testcontainers/postgresql": "^10.25.0",
     "ioredis": "^5.4.0",
     "drizzle-orm": "^0.39.0",
-    "postgres": "^3.4.0"
+    "pg": "^8.13.0"
   },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
     "typescript": "^5.7.0"
   }
 }
