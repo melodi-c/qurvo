@@ -12,7 +12,8 @@ import {
   type PersonsQueryParams,
   type PersonRow,
 } from './persons.query';
-import { queryPersonEvents, type PersonEventsQueryParams, type PersonEventRow } from './person-events.query';
+import { queryPersonEvents, type PersonEventsQueryParams } from './person-events.query';
+import type { EventDetailRow } from '../events/events.query';
 import { queryPersonPropertyNames } from './person-property-names.query';
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
@@ -45,7 +46,7 @@ export class PersonsService {
   async getPersonEvents(
     userId: string,
     params: PersonEventsQueryParams,
-  ): Promise<PersonEventRow[]> {
+  ): Promise<EventDetailRow[]> {
     return queryPersonEvents(this.ch, params);
   }
 

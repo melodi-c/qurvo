@@ -208,7 +208,5 @@ export class PropertyDefinitionsService {
         eq(propertyDefinitions.property_name, propertyName),
         eq(propertyDefinitions.property_type, propertyType),
       ));
-
-    return { ok: true };
   }
 }

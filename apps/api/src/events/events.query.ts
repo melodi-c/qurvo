@@ -1,5 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
+import { toChTs } from '../utils/clickhouse-helpers';
 
 export interface EventsQueryParams {
   project_id: string;
@@ -61,16 +62,16 @@ export async function queryEvents(
 
   const queryParams: Record<string, unknown> = {
     project_id: params.project_id,
-    date_from: dateFrom,
-    date_to: dateTo,
+    date_from: toChTs(dateFrom),
+    date_to: toChTs(dateTo, true),
     limit: params.limit ?? 50,
     offset: params.offset ?? 0,
   };
 
   const conditions: string[] = [
     `project_id = {project_id:UUID}`,
-    `events.timestamp >= parseDateTimeBestEffort({date_from:String})`,
-    `events.timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY`,
+    `events.timestamp >= {date_from:DateTime}`,
+    `events.timestamp <= {date_to:DateTime}`,
   ];
 
   if (params.event_name) {

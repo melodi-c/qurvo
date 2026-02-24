@@ -64,8 +64,8 @@ export class DashboardsController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
-  ): Promise<{ ok: boolean }> {
-    return this.dashboardsService.remove(user.user_id, projectId, dashboardId);
+  ): Promise<void> {
+    await this.dashboardsService.remove(user.user_id, projectId, dashboardId);
   }
 
   @RequireRole('editor')
@@ -98,7 +98,7 @@ export class DashboardsController {
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
     @Param('widgetId') widgetId: string,
-  ): Promise<{ ok: boolean }> {
-    return this.dashboardsService.removeWidget(user.user_id, projectId, dashboardId, widgetId);
+  ): Promise<void> {
+    await this.dashboardsService.removeWidget(user.user_id, projectId, dashboardId, widgetId);
   }
 }

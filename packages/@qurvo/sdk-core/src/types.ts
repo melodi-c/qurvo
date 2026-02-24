@@ -56,3 +56,11 @@ export class QuotaExceededError extends Error {
     this.name = 'QuotaExceededError';
   }
 }
+
+/** Non-retryable error (4xx). SDK should drop the batch, not retry. */
+export class NonRetryableError extends Error {
+  constructor(public readonly statusCode: number, message: string) {
+    super(message);
+    this.name = 'NonRetryableError';
+  }
+}

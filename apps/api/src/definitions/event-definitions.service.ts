@@ -118,7 +118,5 @@ export class EventDefinitionsService {
         .delete(eventDefinitions)
         .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)));
     });
-
-    return { ok: true };
   }
 }

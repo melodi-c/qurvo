@@ -20,7 +20,7 @@ const EVENT_TYPE_MAP: Record<string, string> = {
   $pageview: 'pageview',
   $pageleave: 'pageleave',
   $set: 'set',
-  $set_once: 'set',
+  $set_once: 'set_once',
   $screen: 'screen',
 };
 

@@ -4,6 +4,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import {
   CohortDto,
   CreateStaticCohortDto,
@@ -19,6 +20,7 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 export class StaticCohortsController {
   constructor(private readonly staticCohortsService: StaticCohortsService) {}
 
+  @RequireRole('editor')
   @Post('static')
   async createStaticCohort(
     @CurrentUser() user: RequestUser,
@@ -28,6 +30,7 @@ export class StaticCohortsController {
     return this.staticCohortsService.createStaticCohort(user.user_id, projectId, body) as any;
   }
 
+  @RequireRole('editor')
   @Post(':cohortId/duplicate-static')
   async duplicateAsStatic(
     @CurrentUser() user: RequestUser,
@@ -37,6 +40,7 @@ export class StaticCohortsController {
     return this.staticCohortsService.duplicateAsStatic(user.user_id, projectId, cohortId) as any;
   }
 
+  @RequireRole('editor')
   @Post(':cohortId/upload-csv')
   async uploadCsv(
     @CurrentUser() user: RequestUser,
@@ -47,6 +51,7 @@ export class StaticCohortsController {
     return this.staticCohortsService.importStaticCohortCsv(user.user_id, projectId, cohortId, body.csv_content);
   }
 
+  @RequireRole('editor')
   @Post(':cohortId/members')
   async addMembers(
     @CurrentUser() user: RequestUser,
@@ -57,6 +62,7 @@ export class StaticCohortsController {
     await this.staticCohortsService.addStaticMembers(user.user_id, projectId, cohortId, body.person_ids);
   }
 
+  @RequireRole('editor')
   @Delete(':cohortId/members')
   async removeMembers(
     @CurrentUser() user: RequestUser,

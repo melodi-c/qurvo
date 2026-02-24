@@ -10,28 +10,17 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from '@/components/ui/table';
 import type {
   TrendSeriesResult,
   TrendFormula,
   ChartType,
   TrendGranularity,
 } from '@/api/generated/Api';
-import { cn } from '@/lib/utils';
-import { evaluateFormula, validateFormula } from './formula-evaluator';
-import { SERIES_LETTERS } from './trend-shared';
-
-// ── Colors ──
-
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE } from '@/lib/chart-colors';
 import { formatBucket } from '@/lib/formatting';
+import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
+import { useFormulaResults } from './use-formula-results';
+import { CompactLegend, LegendTable } from './TrendLegendTable';
 
 const COLORS = CHART_COLORS_HSL;
 const COMPARE_COLORS = CHART_COMPARE_COLORS_HSL;
@@ -48,65 +37,6 @@ interface TrendChartProps {
   formulas?: TrendFormula[];
 }
 
-// ── Helpers ──
-
-function seriesKey(s: TrendSeriesResult): string {
-  if (s.breakdown_value) return `${s.label} (${s.breakdown_value})`;
-  return s.label;
-}
-
-/** Detect if a bucket falls in the current (incomplete) period. */
-function isIncompleteBucket(bucket: string, granularity?: string): boolean {
-  if (!granularity) return false;
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-
-  if (granularity === 'hour') {
-    // Current hour
-    const currentHour = now.toISOString().slice(0, 13); // "2025-01-15T10"
-    return bucket.startsWith(currentHour);
-  }
-  if (granularity === 'day') return bucket === today;
-  if (granularity === 'week') {
-    // Current week: bucket date <= today && bucket date + 7 > today
-    const bucketDate = new Date(bucket.slice(0, 10));
-    const diffDays = (now.getTime() - bucketDate.getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays >= 0 && diffDays < 7;
-  }
-  if (granularity === 'month') {
-    return bucket.slice(0, 7) === today.slice(0, 7);
-  }
-  return false;
-}
-
-function buildDataPoints(
-  series: TrendSeriesResult[],
-  previousSeries?: TrendSeriesResult[],
-) {
-  const bucketSet = new Set<string>();
-  for (const s of series) {
-    for (const dp of s.data) bucketSet.add(dp.bucket);
-  }
-  const buckets = Array.from(bucketSet).sort();
-
-  return buckets.map((bucket) => {
-    const point: Record<string, string | number> = { bucket };
-    for (const s of series) {
-      const key = seriesKey(s);
-      const dp = s.data.find((d) => d.bucket === bucket);
-      point[key] = dp?.value ?? 0;
-    }
-    if (previousSeries) {
-      for (const ps of previousSeries) {
-        const key = `prev_${seriesKey(ps)}`;
-        const dp = ps.data.find((d) => d.bucket === bucket);
-        point[key] = dp?.value ?? 0;
-      }
-    }
-    return point;
-  });
-}
-
 // ── Component ──
 
 export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas }: TrendChartProps) {
@@ -118,46 +48,10 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
     [previousSeries],
   );
 
-  // Compute valid formula results
-  const validFormulas = useMemo(() => {
-    if (!formulas?.length) return [];
-    const availableLetters = SERIES_LETTERS.slice(0, series.length);
-    return formulas.filter((f) => {
-      if (!f.expression.trim()) return false;
-      const result = validateFormula(f.expression, availableLetters);
-      return result.valid;
-    });
-  }, [formulas, series.length]);
-
-  const formulaResults = useMemo(() => {
-    if (!validFormulas.length) return [];
-
-    // Build seriesData map: letter → (bucket → value)
-    const seriesData = new Map<string, Map<string, number>>();
-    series.forEach((s, idx) => {
-      const letter = SERIES_LETTERS[idx];
-      if (!letter) return;
-      const bucketMap = new Map<string, number>();
-      for (const dp of s.data) {
-        bucketMap.set(dp.bucket, dp.value);
-      }
-      seriesData.set(letter, bucketMap);
-    });
-
-    return validFormulas.map((f) => ({
-      formula: f,
-      dataPoints: evaluateFormula(f.expression, seriesData),
-    }));
-  }, [validFormulas, series]);
-
-  const formulaKeys = useMemo(
-    () => validFormulas.map((f) => `ƒ ${f.label || f.expression}`),
-    [validFormulas],
-  );
+  const { formulaResults, formulaKeys, formulaTotals } = useFormulaResults(series, formulas);
 
   const data = useMemo(() => {
     const points = buildDataPoints(series, previousSeries);
-    // Inject formula values into data points
     if (formulaResults.length > 0) {
       for (const point of points) {
         const bucket = point.bucket as string;
@@ -170,18 +64,11 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
     return points;
   }, [series, previousSeries, formulaResults, formulaKeys]);
 
-  // Series totals for legend table
   const seriesTotals = useMemo(
     () => series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)),
     [series],
   );
 
-  const formulaTotals = useMemo(
-    () => formulaResults.map((fr) => fr.dataPoints.reduce((acc, dp) => acc + dp.value, 0)),
-    [formulaResults],
-  );
-
-  // Find the last complete bucket index for dashed line split
   const lastCompleteBucketIdx = useMemo(() => {
     if (!granularity || data.length === 0) return data.length - 1;
     for (let i = data.length - 1; i >= 0; i--) {
@@ -190,10 +77,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
     return -1;
   }, [data, granularity]);
 
-  // Split data into complete and incomplete for dashed line effect
   const hasIncomplete = lastCompleteBucketIdx < data.length - 1 && lastCompleteBucketIdx >= 0;
-
-  // For line chart: we split into two datasets — complete and incomplete (overlap by 1 point)
   const completeData = hasIncomplete ? data.slice(0, lastCompleteBucketIdx + 1) : data;
   const incompleteData = hasIncomplete ? data.slice(lastCompleteBucketIdx) : [];
 
@@ -202,6 +86,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
     const originalKey = k.replace(/^prev_/, '');
     return !hiddenKeys.has(originalKey);
   });
+  const visibleFormulaKeys = formulaKeys.filter((k) => !hiddenKeys.has(k));
 
   const toggleSeries = (key: string) => {
     setHiddenKeys((prev) => {
@@ -214,9 +99,6 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
 
   const height = compact ? '100%' : 350;
   const ChartComponent = chartType === 'bar' ? BarChart : LineChart;
-
-  // For line chart with incomplete period, we render two charts overlaid
-  // For bar chart, we just dim the last bar via a custom shape (simpler: skip incomplete splitting)
   const useSimpleChart = chartType === 'bar' || !hasIncomplete;
 
   return (
@@ -269,8 +151,8 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 );
               })}
 
-              {/* Formula series — always lines, dashed */}
-              {formulaKeys.filter((k) => !hiddenKeys.has(k)).map((key, idx) => (
+              {/* Formula series */}
+              {visibleFormulaKeys.map((key, idx) => (
                 <Line key={key} dataKey={key} stroke={FORMULA_COLORS[idx % FORMULA_COLORS.length]} strokeDasharray="8 4" strokeWidth={2} dot={false} activeDot={compact ? false : { r: 4 }} name={key} />
               ))}
             </ChartComponent>
@@ -278,7 +160,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
         ) : (
           /* Line chart with incomplete period dashed */
           <div className="relative" style={{ height: compact ? '100%' : 350 }}>
-            {/* Complete data — solid lines */}
+            {/* Complete data -- solid lines */}
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={completeData}
@@ -314,13 +196,13 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                     <Line key={key} dataKey={key} stroke={COLORS[colorIdx % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4 }} name={key} />
                   );
                 })}
-                {formulaKeys.filter((k) => !hiddenKeys.has(k)).map((key, idx) => (
+                {visibleFormulaKeys.map((key, idx) => (
                   <Line key={key} dataKey={key} stroke={FORMULA_COLORS[idx % FORMULA_COLORS.length]} strokeDasharray="8 4" strokeWidth={2} dot={false} activeDot={{ r: 4 }} name={key} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
 
-            {/* Incomplete data — dashed overlay */}
+            {/* Incomplete data -- dashed overlay */}
             <div className="absolute inset-0 pointer-events-none">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
@@ -344,114 +226,20 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
 
       {/* Compact legend (dashboard mode) */}
       {compact && allSeriesKeys.length > 1 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 px-1">
-          {allSeriesKeys.map((key, idx) => (
-            <div key={key} className="flex items-center gap-1 min-w-0">
-              <span
-                className="inline-block h-2 w-2 rounded-full shrink-0"
-                style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-              />
-              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{key}</span>
-            </div>
-          ))}
-          {formulaKeys.map((key, idx) => (
-            <div key={key} className="flex items-center gap-1 min-w-0">
-              <span
-                className="inline-block h-2 w-2 rounded-full shrink-0 border border-dashed"
-                style={{ borderColor: FORMULA_COLORS[idx % FORMULA_COLORS.length] }}
-              />
-              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{key}</span>
-            </div>
-          ))}
-        </div>
+        <CompactLegend allSeriesKeys={allSeriesKeys} formulaKeys={formulaKeys} />
       )}
 
       {/* Legend table (not in compact mode) */}
       {!compact && (allSeriesKeys.length > 0 || formulaKeys.length > 0) && (
-        <div className="mt-4 border-t border-border/40">
-          <Table className="text-xs">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-b-0">
-                <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium">Series</TableHead>
-                <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium text-right w-28">Total</TableHead>
-                {previousSeries && previousSeries.length > 0 && (
-                  <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium text-right w-28">Previous</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allSeriesKeys.map((key, idx) => {
-                const isHidden = hiddenKeys.has(key);
-                const total = seriesTotals[idx] ?? 0;
-                const prevTotal = previousSeries?.[idx]
-                  ? previousSeries[idx].data.reduce((acc, dp) => acc + dp.value, 0)
-                  : undefined;
-                const color = COLORS[idx % COLORS.length];
-
-                return (
-                  <TableRow
-                    key={key}
-                    className={cn('cursor-pointer', isHidden && 'opacity-35')}
-                    onClick={() => toggleSeries(key)}
-                  >
-                    <TableCell className="py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: isHidden ? 'var(--color-muted-foreground)' : color }}
-                        />
-                        <span className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')}>
-                          {key}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-1.5 text-right tabular-nums font-medium text-foreground">
-                      {total.toLocaleString()}
-                    </TableCell>
-                    {previousSeries && previousSeries.length > 0 && (
-                      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
-                        {prevTotal !== undefined ? prevTotal.toLocaleString() : '\u2014'}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-              {formulaKeys.map((key, idx) => {
-                const isHidden = hiddenKeys.has(key);
-                const total = formulaTotals[idx] ?? 0;
-                const color = FORMULA_COLORS[idx % FORMULA_COLORS.length];
-
-                return (
-                  <TableRow
-                    key={key}
-                    className={cn('cursor-pointer', isHidden && 'opacity-35')}
-                    onClick={() => toggleSeries(key)}
-                  >
-                    <TableCell className="py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full shrink-0 border border-dashed"
-                          style={{ borderColor: isHidden ? 'var(--color-muted-foreground)' : color }}
-                        />
-                        <span className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')}>
-                          {key}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-1.5 text-right tabular-nums font-medium text-foreground">
-                      {Number.isInteger(total) ? total.toLocaleString() : total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </TableCell>
-                    {previousSeries && previousSeries.length > 0 && (
-                      <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">
-                        {'\u2014'}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <LegendTable
+          allSeriesKeys={allSeriesKeys}
+          formulaKeys={formulaKeys}
+          seriesTotals={seriesTotals}
+          formulaTotals={formulaTotals}
+          hiddenKeys={hiddenKeys}
+          onToggleSeries={toggleSeries}
+          previousSeries={previousSeries}
+        />
       )}
     </div>
   );
