@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { authFetch, getAuthHeaders } from '@/lib/auth-fetch';
+import { consumeSseStream } from '../lib/sse-stream.js';
+import type { SseToolResultEvent } from '../lib/sse-stream.js';
 
 export interface AiMessageData {
   id: string;
@@ -25,7 +27,7 @@ interface AiChatState {
 const PAGE_SIZE = 30;
 
 let nextId = 0;
-function tempId() {
+function tempId(): string {
   return `temp-${++nextId}`;
 }
 
@@ -40,6 +42,31 @@ function mapMessages(raw: any[]): AiMessageData[] {
     visualization_type: m.visualization_type,
     sequence: m.sequence,
   }));
+}
+
+function upsertAssistantMessage(
+  messages: AiMessageData[],
+  id: string,
+  content: string,
+): AiMessageData[] {
+  const msgs = [...messages];
+  const existingIdx = msgs.findIndex((m) => m.id === id);
+  const assistantMsg: AiMessageData = {
+    id,
+    role: 'assistant',
+    content,
+    isStreaming: true,
+  };
+  if (existingIdx >= 0) {
+    msgs[existingIdx] = assistantMsg;
+  } else {
+    msgs.push(assistantMsg);
+  }
+  return msgs;
+}
+
+function finalizeStreamingMessages(messages: AiMessageData[]): AiMessageData[] {
+  return messages.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m));
 }
 
 export function useAiChat() {
@@ -86,99 +113,52 @@ export function useAiChat() {
           throw new Error(err.message || `HTTP ${res.status}`);
         }
 
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error('No response body');
-
-        const decoder = new TextDecoder();
-        let buffer = '';
         let assistantId = tempId();
         let assistantContent = '';
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
-
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const json = line.slice(6).trim();
-            if (!json) continue;
-
-            let chunk: any;
-            try {
-              chunk = JSON.parse(json);
-            } catch {
-              continue;
-            }
-
-            switch (chunk.type) {
-              case 'conversation':
-                setState((prev) => ({
-                  ...prev,
-                  conversationId: chunk.conversation_id,
-                }));
-                break;
-
-              case 'text_delta':
-                assistantContent += chunk.content;
-                setState((prev) => {
-                  const msgs = [...prev.messages];
-                  const existingIdx = msgs.findIndex((m) => m.id === assistantId);
-                  const assistantMsg: AiMessageData = {
-                    id: assistantId,
-                    role: 'assistant',
-                    content: assistantContent,
-                    isStreaming: true,
-                  };
-                  if (existingIdx >= 0) {
-                    msgs[existingIdx] = assistantMsg;
-                  } else {
-                    msgs.push(assistantMsg);
-                  }
-                  return { ...prev, messages: msgs };
-                });
-                break;
-
-              case 'tool_call_start':
-                assistantId = tempId();
-                assistantContent = '';
-                break;
-
-              case 'tool_result':
-                setState((prev) => ({
-                  ...prev,
-                  messages: [
-                    ...prev.messages,
-                    {
-                      id: tempId(),
-                      role: 'tool',
-                      content: null,
-                      tool_call_id: chunk.tool_call_id,
-                      tool_name: chunk.name,
-                      tool_result: chunk.result,
-                      visualization_type: chunk.visualization_type,
-                    },
-                  ],
-                }));
-                break;
-
-              case 'error':
-                setState((prev) => ({ ...prev, error: chunk.message }));
-                break;
-
-              case 'done':
-                break;
-            }
-          }
-        }
+        await consumeSseStream(res, {
+          onConversation(id) {
+            setState((prev) => ({ ...prev, conversationId: id }));
+          },
+          onTextDelta(content) {
+            assistantContent += content;
+            const currentContent = assistantContent;
+            const currentId = assistantId;
+            setState((prev) => ({
+              ...prev,
+              messages: upsertAssistantMessage(prev.messages, currentId, currentContent),
+            }));
+          },
+          onToolCallStart() {
+            assistantId = tempId();
+            assistantContent = '';
+          },
+          onToolResult(event: SseToolResultEvent) {
+            setState((prev) => ({
+              ...prev,
+              messages: [
+                ...prev.messages,
+                {
+                  id: tempId(),
+                  role: 'tool',
+                  content: null,
+                  tool_call_id: event.tool_call_id,
+                  tool_name: event.name,
+                  tool_result: event.result,
+                  visualization_type: event.visualization_type,
+                },
+              ],
+            }));
+          },
+          onError(message) {
+            setState((prev) => ({ ...prev, error: message }));
+          },
+        });
 
         setState((prev) => ({
           ...prev,
           isStreaming: false,
-          messages: prev.messages.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)),
+          messages: finalizeStreamingMessages(prev.messages),
         }));
       } catch (err: any) {
         if (err.name === 'AbortError') return;
@@ -261,7 +241,7 @@ export function useAiChat() {
     setState((prev) => ({
       ...prev,
       isStreaming: false,
-      messages: prev.messages.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)),
+      messages: finalizeStreamingMessages(prev.messages),
     }));
   }, []);
 
