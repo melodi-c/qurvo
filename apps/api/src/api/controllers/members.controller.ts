@@ -3,7 +3,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MembersService } from '../../members/members.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
-import { OkResponseDto } from '../dto/shared/ok-response.dto';
 import {
   CreateInviteDto,
   UpdateMemberRoleDto,
@@ -47,8 +46,8 @@ export class MembersController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('memberId') memberId: string,
-  ): Promise<OkResponseDto> {
-    return this.membersService.removeMember(user.user_id, projectId, memberId);
+  ): Promise<void> {
+    await this.membersService.removeMember(user.user_id, projectId, memberId);
   }
 }
 
@@ -86,8 +85,8 @@ export class InvitesController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('inviteId') inviteId: string,
-  ): Promise<OkResponseDto> {
-    return this.membersService.cancelInvite(user.user_id, projectId, inviteId);
+  ): Promise<void> {
+    await this.membersService.cancelInvite(user.user_id, projectId, inviteId);
   }
 }
 
@@ -108,15 +107,15 @@ export class MyInvitesController {
   async acceptInvite(
     @CurrentUser() user: RequestUser,
     @Param('inviteId') inviteId: string,
-  ): Promise<OkResponseDto> {
-    return this.membersService.respondToInvite(user.user_id, user.email, inviteId, 'accept');
+  ): Promise<void> {
+    await this.membersService.respondToInvite(user.user_id, user.email, inviteId, 'accept');
   }
 
   @Post(':inviteId/decline')
   async declineInvite(
     @CurrentUser() user: RequestUser,
     @Param('inviteId') inviteId: string,
-  ): Promise<OkResponseDto> {
-    return this.membersService.respondToInvite(user.user_id, user.email, inviteId, 'decline');
+  ): Promise<void> {
+    await this.membersService.respondToInvite(user.user_id, user.email, inviteId, 'decline');
   }
 }

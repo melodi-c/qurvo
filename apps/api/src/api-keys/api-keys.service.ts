@@ -57,21 +57,14 @@ export class ApiKeysService {
   }
 
   async revoke(userId: string, projectId: string, keyId: string) {
-    const result = await this.db
-      .select()
-      .from(apiKeys)
-      .where(and(eq(apiKeys.id, keyId), eq(apiKeys.project_id, projectId), isNull(apiKeys.revoked_at)))
-      .limit(1);
-
-    if (result.length === 0) throw new ApiKeyNotFoundException();
-
-    await this.db
+    const [revoked] = await this.db
       .update(apiKeys)
       .set({ revoked_at: new Date() })
-      .where(eq(apiKeys.id, keyId));
+      .where(and(eq(apiKeys.id, keyId), eq(apiKeys.project_id, projectId), isNull(apiKeys.revoked_at)))
+      .returning({ id: apiKeys.id });
+
+    if (!revoked) throw new ApiKeyNotFoundException();
 
     this.logger.log({ apiKeyId: keyId, projectId }, 'API key revoked');
-
-    return { ok: true };
   }
 }

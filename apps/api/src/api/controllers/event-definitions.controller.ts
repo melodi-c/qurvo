@@ -54,7 +54,7 @@ export class EventDefinitionsController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('eventName') eventName: string,
-  ): Promise<{ ok: boolean }> {
-    return this.eventDefinitionsService.delete(user.user_id, projectId, eventName);
+  ): Promise<void> {
+    await this.eventDefinitionsService.delete(user.user_id, projectId, eventName);
   }
 }

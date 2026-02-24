@@ -125,7 +125,7 @@ export async function queryPaths(
     queryParams['end_event'] = params.end_event;
   }
 
-  const minPersons = params.min_persons ?? 1;
+  queryParams['min_persons'] = params.min_persons ?? 1;
 
   // Build the CTE for per-person paths
   const pathsCTE = `
@@ -182,7 +182,7 @@ export async function queryPaths(
     WHERE idx < length(path)
       AND idx <= {step_limit:UInt8}
     GROUP BY step, source, target
-    HAVING person_count >= ${minPersons}
+    HAVING person_count >= {min_persons:UInt32}
     ORDER BY step ASC, person_count DESC`;
 
   // Query 2: Top paths
@@ -194,7 +194,7 @@ export async function queryPaths(
     FROM final_paths
     WHERE length(path) >= 2
     GROUP BY path
-    HAVING person_count >= ${minPersons}
+    HAVING person_count >= {min_persons:UInt32}
     ORDER BY person_count DESC
     LIMIT 20`;
 

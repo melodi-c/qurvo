@@ -3,7 +3,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from '../../projects/projects.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateProjectDto, UpdateProjectDto, ProjectDto, ProjectWithRoleDto } from '../dto/projects.dto';
-import { OkResponseDto } from '../dto/shared/ok-response.dto';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -32,7 +31,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<OkResponseDto> {
-    return this.projectsService.remove(user.user_id, id);
+  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<void> {
+    await this.projectsService.remove(user.user_id, id);
   }
 }

@@ -4,6 +4,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import {
   CreateCohortDto,
   UpdateCohortDto,
@@ -30,6 +31,7 @@ export class CohortsController {
     return this.cohortsService.list(user.user_id, projectId) as any;
   }
 
+  @RequireRole('editor')
   @Post()
   async create(
     @CurrentUser() user: RequestUser,
@@ -48,6 +50,7 @@ export class CohortsController {
     return this.cohortsService.getById(user.user_id, projectId, cohortId) as any;
   }
 
+  @RequireRole('editor')
   @Put(':cohortId')
   async update(
     @CurrentUser() user: RequestUser,
@@ -58,6 +61,7 @@ export class CohortsController {
     return this.cohortsService.update(user.user_id, projectId, cohortId, body) as any;
   }
 
+  @RequireRole('editor')
   @Delete(':cohortId')
   async remove(
     @CurrentUser() user: RequestUser,

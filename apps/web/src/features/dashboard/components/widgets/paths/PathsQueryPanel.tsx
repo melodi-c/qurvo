@@ -1,15 +1,15 @@
-import { Plus, X, Route, Settings, Filter, Regex } from 'lucide-react';
+import { Route, Settings, Filter, Regex } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { SectionHeader } from '@/components/ui/section-header';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
+import { SectionHeader } from '@/components/ui/section-header';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { EditableListSection } from './EditableListSection';
 import translations from './PathsQueryPanel.translations';
-import type { PathsWidgetConfig } from '@/api/generated/Api';
+import type { PathsWidgetConfig, PathCleaningRuleConfig, WildcardGroupConfig } from '@/api/generated/Api';
 
 interface PathsQueryPanelProps {
   config: PathsWidgetConfig;
@@ -81,144 +81,77 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
         <Separator />
 
         {/* Exclusions */}
-        <section className="space-y-3">
-          <SectionHeader icon={Filter} label={t('exclusions')} />
-          <div className="space-y-2">
-            {(config.exclusions ?? []).map((ev, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                <EventNameCombobox
-                  value={ev}
-                  onChange={(v) => {
-                    const next = [...(config.exclusions ?? [])];
-                    next[idx] = v;
-                    onChange({ ...config, exclusions: next });
-                  }}
-                  placeholder="event_name"
-                />
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => {
-                    const next = (config.exclusions ?? []).filter((_, i) => i !== idx);
-                    onChange({ ...config, exclusions: next.length ? next : undefined });
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full justify-start text-xs"
-              onClick={() => onChange({ ...config, exclusions: [...(config.exclusions ?? []), ''] })}
-            >
-              <Plus className="h-3 w-3 mr-1" /> {t('addExclusion')}
-            </Button>
-          </div>
-        </section>
+        <EditableListSection<string>
+          icon={Filter}
+          label={t('exclusions')}
+          items={config.exclusions ?? []}
+          addLabel={t('addExclusion')}
+          emptyItem=""
+          renderItem={(ev, _idx, onItemChange) => (
+            <EventNameCombobox
+              value={ev}
+              onChange={onItemChange}
+              placeholder="event_name"
+            />
+          )}
+          onChange={(items) => onChange({ ...config, exclusions: items.length ? items : undefined })}
+        />
 
         <Separator />
 
         {/* Path Cleaning Rules */}
-        <section className="space-y-3">
-          <SectionHeader icon={Regex} label={t('pathCleaning')} />
-          <div className="space-y-2">
-            {(config.path_cleaning_rules ?? []).map((rule, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                <Input
-                  value={rule.regex}
-                  onChange={(e) => {
-                    const next = [...(config.path_cleaning_rules ?? [])];
-                    next[idx] = { ...rule, regex: e.target.value };
-                    onChange({ ...config, path_cleaning_rules: next });
-                  }}
-                  placeholder="regex"
-                  className="h-8 text-xs font-mono flex-1"
-                />
-                <Input
-                  value={rule.alias}
-                  onChange={(e) => {
-                    const next = [...(config.path_cleaning_rules ?? [])];
-                    next[idx] = { ...rule, alias: e.target.value };
-                    onChange({ ...config, path_cleaning_rules: next });
-                  }}
-                  placeholder="alias"
-                  className="h-8 text-xs flex-1"
-                />
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => {
-                    const next = (config.path_cleaning_rules ?? []).filter((_, i) => i !== idx);
-                    onChange({ ...config, path_cleaning_rules: next.length ? next : undefined });
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full justify-start text-xs"
-              onClick={() => onChange({ ...config, path_cleaning_rules: [...(config.path_cleaning_rules ?? []), { regex: '', alias: '' }] })}
-            >
-              <Plus className="h-3 w-3 mr-1" /> {t('addRule')}
-            </Button>
-          </div>
-        </section>
+        <EditableListSection<PathCleaningRuleConfig>
+          icon={Regex}
+          label={t('pathCleaning')}
+          items={config.path_cleaning_rules ?? []}
+          addLabel={t('addRule')}
+          emptyItem={{ regex: '', alias: '' }}
+          renderItem={(rule, _idx, onItemChange) => (
+            <>
+              <Input
+                value={rule.regex}
+                onChange={(e) => onItemChange({ ...rule, regex: e.target.value })}
+                placeholder="regex"
+                className="h-8 text-xs font-mono flex-1"
+              />
+              <Input
+                value={rule.alias}
+                onChange={(e) => onItemChange({ ...rule, alias: e.target.value })}
+                placeholder="alias"
+                className="h-8 text-xs flex-1"
+              />
+            </>
+          )}
+          onChange={(items) => onChange({ ...config, path_cleaning_rules: items.length ? items : undefined })}
+        />
 
         <Separator />
 
         {/* Wildcard Groups */}
-        <section className="space-y-3">
-          <SectionHeader icon={Settings} label={t('wildcardGroups')} />
-          <div className="space-y-2">
-            {(config.wildcard_groups ?? []).map((wg, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                <Input
-                  value={wg.pattern}
-                  onChange={(e) => {
-                    const next = [...(config.wildcard_groups ?? [])];
-                    next[idx] = { ...wg, pattern: e.target.value };
-                    onChange({ ...config, wildcard_groups: next });
-                  }}
-                  placeholder="/product/*"
-                  className="h-8 text-xs font-mono flex-1"
-                />
-                <Input
-                  value={wg.alias}
-                  onChange={(e) => {
-                    const next = [...(config.wildcard_groups ?? [])];
-                    next[idx] = { ...wg, alias: e.target.value };
-                    onChange({ ...config, wildcard_groups: next });
-                  }}
-                  placeholder="Product page"
-                  className="h-8 text-xs flex-1"
-                />
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => {
-                    const next = (config.wildcard_groups ?? []).filter((_, i) => i !== idx);
-                    onChange({ ...config, wildcard_groups: next.length ? next : undefined });
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full justify-start text-xs"
-              onClick={() => onChange({ ...config, wildcard_groups: [...(config.wildcard_groups ?? []), { pattern: '', alias: '' }] })}
-            >
-              <Plus className="h-3 w-3 mr-1" /> {t('addGroup')}
-            </Button>
-          </div>
-        </section>
+        <EditableListSection<WildcardGroupConfig>
+          icon={Settings}
+          label={t('wildcardGroups')}
+          items={config.wildcard_groups ?? []}
+          addLabel={t('addGroup')}
+          emptyItem={{ pattern: '', alias: '' }}
+          renderItem={(wg, _idx, onItemChange) => (
+            <>
+              <Input
+                value={wg.pattern}
+                onChange={(e) => onItemChange({ ...wg, pattern: e.target.value })}
+                placeholder="/product/*"
+                className="h-8 text-xs font-mono flex-1"
+              />
+              <Input
+                value={wg.alias}
+                onChange={(e) => onItemChange({ ...wg, alias: e.target.value })}
+                placeholder="Product page"
+                className="h-8 text-xs flex-1"
+              />
+            </>
+          )}
+          onChange={(items) => onChange({ ...config, wildcard_groups: items.length ? items : undefined })}
+        />
 
         <Separator />
 
