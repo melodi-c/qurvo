@@ -1,4 +1,5 @@
 import type { Transport, SendOptions, CompressFn } from './types';
+import { QuotaExceededError } from './types';
 
 export class FetchTransport implements Transport {
   constructor(private readonly compress?: CompressFn) {}
@@ -28,6 +29,13 @@ export class FetchTransport implements Transport {
     });
 
     if (response.ok || response.status === 202) return true;
+
+    if (response.status === 429) {
+      const responseBody = await response.json().catch(() => ({}));
+      if (responseBody?.quota_limited) {
+        throw new QuotaExceededError();
+      }
+    }
 
     const responseBody = await response.text().catch(() => '');
     throw new Error(`HTTP ${response.status}: ${responseBody}`);
