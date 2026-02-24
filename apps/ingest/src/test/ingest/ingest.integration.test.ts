@@ -3,7 +3,6 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { createGunzip } from 'node:zlib';
 import {
   setupContainers,
   createTestProject,
@@ -12,9 +11,9 @@ import {
   type TestProject,
 } from '@qurvo/testing';
 import { AppModule } from '../../app.module';
-import { postTrack, postBatch, postTrackGzip, postBatchGzip, parseRedisFields } from '../helpers';
-
-const REDIS_STREAM_EVENTS = 'events:incoming';
+import { REDIS_STREAM_EVENTS } from '../../constants';
+import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
+import { postTrack, postBatch, postTrackGzip, postBatchGzip, getBaseUrl, parseRedisFields } from '../helpers';
 
 let ctx: ContainerContext;
 let app: INestApplication;
@@ -34,16 +33,7 @@ beforeAll(async () => {
 
   app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter({ bodyLimit: 1048576 }));
 
-  const fastify = (app as NestFastifyApplication).getHttpAdapter().getInstance();
-  fastify.addHook('preParsing', async (request: any, _reply: any, payload: any) => {
-    if (request.headers['content-encoding'] === 'gzip') {
-      delete request.headers['content-encoding'];
-      delete request.headers['content-length'];
-      request.headers['content-type'] = 'application/json';
-      return payload.pipe(createGunzip());
-    }
-    return payload;
-  });
+  addGzipPreParsing((app as NestFastifyApplication).getHttpAdapter().getInstance());
 
   await app.init();
   await app.listen(0);
@@ -180,10 +170,7 @@ describe('POST /v1/batch', () => {
   });
 
   it('returns 400 for invalid gzip payload', async () => {
-    const server = app.getHttpServer();
-    const address = server.address();
-    const port = typeof address === 'object' ? address?.port : address;
-    const res = await fetch(`http://127.0.0.1:${port}/v1/batch`, {
+    const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -197,10 +184,7 @@ describe('POST /v1/batch', () => {
   });
 
   it('returns 401 without API key header', async () => {
-    const server = app.getHttpServer();
-    const address = server.address();
-    const port = typeof address === 'object' ? address?.port : address;
-    const res = await fetch(`http://127.0.0.1:${port}/v1/batch`, {
+    const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ events: [{ event: 'test', distinct_id: 'u1' }] }),

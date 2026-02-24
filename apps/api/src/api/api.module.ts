@@ -3,17 +3,12 @@ import { APP_FILTER } from '@nestjs/core';
 import { AuthModule } from '../auth/auth.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
-import { FunnelModule } from '../funnel/funnel.module';
-import { TrendModule } from '../trend/trend.module';
-import { RetentionModule } from '../retention/retention.module';
-import { LifecycleModule } from '../lifecycle/lifecycle.module';
-import { StickinessModule } from '../stickiness/stickiness.module';
-import { PathsModule } from '../paths/paths.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
 import { PersonsModule } from '../persons/persons.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
-import { InsightsModule } from '../insights/insights.module';
+import { SavedInsightsModule } from '../saved-insights/saved-insights.module';
 import { MembersModule } from '../members/members.module';
 import { MarketingChannelsModule } from '../marketing-channels/marketing-channels.module';
 import { AdSpendModule } from '../ad-spend/ad-spend.module';
@@ -36,7 +31,7 @@ import { DashboardsController } from './controllers/dashboards.controller';
 import { PersonsController } from './controllers/persons.controller';
 import { CohortsController } from './controllers/cohorts.controller';
 import { StaticCohortsController } from './controllers/static-cohorts.controller';
-import { InsightsController } from './controllers/insights.controller';
+import { SavedInsightsController } from './controllers/saved-insights.controller';
 import { MembersController, InvitesController, MyInvitesController } from './controllers/members.controller';
 import { MarketingChannelsController } from './controllers/marketing-channels.controller';
 import { AdSpendController } from './controllers/ad-spend.controller';
@@ -55,7 +50,7 @@ import { VerificationFilter } from './filters/verification.filter';
 import { WrongPasswordFilter } from './filters/wrong-password.filter';
 
 @Module({
-  imports: [AuthModule, ProjectsModule, ApiKeysModule, FunnelModule, TrendModule, RetentionModule, LifecycleModule, StickinessModule, PathsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, InsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, AiModule, VerificationModule, DefinitionsModule, WebAnalyticsModule, BillingModule],
+  imports: [AuthModule, ProjectsModule, ApiKeysModule, AnalyticsModule, EventsModule, DashboardsModule, PersonsModule, CohortsModule, SavedInsightsModule, MembersModule, MarketingChannelsModule, AdSpendModule, AiModule, VerificationModule, DefinitionsModule, WebAnalyticsModule, BillingModule],
   controllers: [
     AuthController,
     ProjectsController,
@@ -71,7 +66,7 @@ import { WrongPasswordFilter } from './filters/wrong-password.filter';
     PersonsController,
     CohortsController,
     StaticCohortsController,
-    InsightsController,
+    SavedInsightsController,
     MembersController,
     InvitesController,
     MyInvitesController,

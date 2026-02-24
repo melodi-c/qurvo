@@ -8,7 +8,7 @@ import {
   ts,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryStickiness, computeTotalPeriods } from '../../stickiness/stickiness.query';
+import { queryStickiness, computeTotalPeriods } from '../../analytics/stickiness/stickiness.query';
 
 let ctx: ContainerContext;
 

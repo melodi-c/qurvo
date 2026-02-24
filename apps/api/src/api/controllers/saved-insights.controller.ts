@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
-import { InsightsService } from '../../insights/insights.service';
+import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateInsightDto, UpdateInsightDto, InsightDto } from '../dto/insights.dto';
@@ -10,8 +10,8 @@ import type { InsightType } from '@qurvo/db';
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/insights')
 @UseGuards(SessionAuthGuard)
-export class InsightsController {
-  constructor(private readonly insightsService: InsightsService) {}
+export class SavedInsightsController {
+  constructor(private readonly insightsService: SavedInsightsService) {}
 
   @Get()
   @ApiQuery({ name: 'type', required: false, enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness', 'paths'] })

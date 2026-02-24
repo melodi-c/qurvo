@@ -8,7 +8,7 @@ import {
   ts,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryLifecycle } from '../../lifecycle/lifecycle.query';
+import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
 
 let ctx: ContainerContext;
 

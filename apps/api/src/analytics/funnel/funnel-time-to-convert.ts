@@ -1,7 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { BadRequestException } from '@nestjs/common';
-import { buildCohortFilterClause } from '../cohorts/cohorts.query';
-import { RESOLVED_PERSON, toChTs } from '../utils/clickhouse-helpers';
+import { buildCohortFilterClause } from '../../cohorts/cohorts.query';
+import { RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin } from './funnel.types';
 import {
   resolveWindowSeconds,

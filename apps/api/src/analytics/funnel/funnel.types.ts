@@ -1,6 +1,6 @@
 import type { CohortConditionGroup } from '@qurvo/db';
-import type { CohortFilterInput } from '../cohorts/cohorts.query';
-import type { PropertyFilter } from '../utils/property-filter';
+import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import type { PropertyFilter } from '../../utils/property-filter';
 
 // ── Step / Exclusion types ───────────────────────────────────────────────────
 

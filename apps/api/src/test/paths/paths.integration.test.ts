@@ -8,7 +8,7 @@ import {
   dateOffset,
   type ContainerContext,
 } from '@qurvo/testing';
-import { queryPaths } from '../../paths/paths.query';
+import { queryPaths } from '../../analytics/paths/paths.query';
 
 let ctx: ContainerContext;
 

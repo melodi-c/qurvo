@@ -6,7 +6,7 @@ import { ProjectsService } from '../projects/projects.service';
 import { InsightNotFoundException } from './exceptions/insight-not-found.exception';
 
 @Injectable()
-export class InsightsService {
+export class SavedInsightsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly projectsService: ProjectsService,

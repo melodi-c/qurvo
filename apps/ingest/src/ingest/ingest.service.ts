@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import { REDIS } from '../providers/redis.provider';
-import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_KEY_PREFIX, BILLING_EVENTS_TTL_SECONDS } from '../constants';
+import { REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, BILLING_EVENTS_TTL_SECONDS, billingCounterKey } from '../constants';
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
 
@@ -40,53 +40,31 @@ export class IngestService {
     const serverTime = new Date().toISOString();
     const ua = parseUa(userAgent);
     const payload = this.buildPayload(projectId, event, serverTime, ip, ua);
-    await this.redis.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
+    await this.writeToStream([payload]);
     this.incrementBillingCounter(projectId, 1);
     this.logger.log({ projectId, eventName: event.event }, 'Event ingested');
   }
 
   async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
-    const pipeline = this.redis.pipeline();
     const serverTime = new Date().toISOString();
     const batchId = crypto.randomUUID();
     const ua = parseUa(userAgent);
-
-    for (const event of events) {
-      const payload = this.buildPayload(projectId, event, serverTime, ip, ua, batchId, sentAt);
-      pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
-    }
-
-    const results = await pipeline.exec();
-    if (results) {
-      const failed = results.filter(([err]) => err !== null);
-      if (failed.length > 0) {
-        throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
-      }
-    }
+    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, ip, ua, batchId, sentAt));
+    await this.writeToStream(payloads);
     this.incrementBillingCounter(projectId, events.length);
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
   }
 
   async importBatch(projectId: string, events: ImportEvent[]) {
-    const pipeline = this.redis.pipeline();
     const batchId = `import-${crypto.randomUUID()}`;
-
-    for (const event of events) {
+    const payloads = events.map((event) => {
       const payload = this.buildPayload(projectId, event, event.timestamp);
-      if (event.event_id) {
-        payload.event_id = event.event_id;
-      }
+      if (event.event_id) payload.event_id = event.event_id;
       payload.batch_id = batchId;
-      pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...this.flattenObject(payload));
-    }
-
-    const results = await pipeline.exec();
-    if (results) {
-      const failed = results.filter(([err]) => err !== null);
-      if (failed.length > 0) {
-        throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
-      }
-    }
+      return payload;
+    });
+    await this.writeToStream(payloads);
+    // Billing intentionally skipped for imports
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Import batch ingested');
   }
 
@@ -158,10 +136,22 @@ export class IngestService {
     return new Date(resolvedMs).toISOString();
   }
 
+  private async writeToStream(payloads: Record<string, string>[]): Promise<void> {
+    const pipeline = this.redis.pipeline();
+    for (const payload of payloads) {
+      pipeline.xadd(REDIS_STREAM_EVENTS, 'MAXLEN', '~', String(REDIS_STREAM_MAXLEN), '*', ...Object.entries(payload).flat());
+    }
+    const results = await pipeline.exec();
+    if (results) {
+      const failed = results.filter(([err]) => err !== null);
+      if (failed.length > 0) {
+        throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
+      }
+    }
+  }
+
   private incrementBillingCounter(projectId: string, count: number): void {
-    const now = new Date();
-    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-    const counterKey = `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;
+    const counterKey = billingCounterKey(projectId);
 
     const pipeline = this.redis.pipeline();
     pipeline.incrby(counterKey, count);
@@ -171,11 +161,4 @@ export class IngestService {
     );
   }
 
-  private flattenObject(obj: Record<string, string>): string[] {
-    const result: string[] = [];
-    for (const [key, value] of Object.entries(obj)) {
-      result.push(key, value);
-    }
-    return result;
-  }
 }
