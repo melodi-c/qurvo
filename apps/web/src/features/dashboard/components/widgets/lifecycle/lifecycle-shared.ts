@@ -1,9 +1,8 @@
 import type { LifecycleWidgetConfig } from '@/api/generated/Api';
+import { defaultDateRange } from '@/lib/date-utils';
 
 export function defaultLifecycleConfig(): LifecycleWidgetConfig {
-  const now = new Date();
-  const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const to = now.toISOString().slice(0, 10);
+  const { from, to } = defaultDateRange();
   return {
     type: 'lifecycle',
     target_event: '',

@@ -38,7 +38,7 @@ export function BreakdownSection({
 
   return (
     <section className="space-y-3">
-      <SectionHeader icon={SlidersHorizontal} label="Breakdown" />
+      <SectionHeader icon={SlidersHorizontal} label={t('breakdown')} />
 
       {onBreakdownTypeChange && (
         <PillToggleGroup

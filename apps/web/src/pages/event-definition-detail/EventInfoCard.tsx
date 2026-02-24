@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { useUpsertEventDefinition } from '@/features/event-definitions/hooks/use-event-definitions';
+import { useUpsertEventDefinition } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './translations';
 

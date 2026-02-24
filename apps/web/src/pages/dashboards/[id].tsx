@@ -25,8 +25,7 @@ export default function DashboardBuilderPage() {
   const isEditing = useDashboardStore((s) => s.isEditing);
   const isDirty = useDashboardStore((s) => s.isDirty);
   const initSession = useDashboardStore((s) => s.initSession);
-  const markSaved = useDashboardStore((s) => s.markSaved);
-  const setEditing = useDashboardStore((s) => s.setEditing);
+  const exitEditModeAfterSave = useDashboardStore((s) => s.exitEditModeAfterSave);
   const cancelEditMode = useDashboardStore((s) => s.cancelEditMode);
 
   useEffect(() => {
@@ -82,8 +81,7 @@ export default function DashboardBuilderPage() {
       widgets: mergedWidgets,
       serverWidgets: dashboard.widgets || [],
     });
-    markSaved();
-    setEditing(false);
+    exitEditModeAfterSave();
   };
 
   const handleDiscard = () => {

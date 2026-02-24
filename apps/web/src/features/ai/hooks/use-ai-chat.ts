@@ -31,8 +31,20 @@ function tempId(): string {
   return `temp-${++nextId}`;
 }
 
-function mapMessages(raw: any[]): AiMessageData[] {
-  return raw.map((m: any) => ({
+/** Shape returned by GET /api/ai/conversations/:id — not in Swagger yet. */
+interface RawAiMessage {
+  id: string;
+  role: AiMessageData['role'];
+  content: string | null;
+  tool_call_id?: string;
+  tool_name?: string;
+  tool_result?: unknown;
+  visualization_type?: string | null;
+  sequence?: number;
+}
+
+function mapMessages(raw: RawAiMessage[]): AiMessageData[] {
+  return raw.map((m) => ({
     id: m.id,
     role: m.role,
     content: m.content,

@@ -63,6 +63,7 @@ export default function WebAnalyticsPage() {
         current={overview.data?.current}
         previous={overview.data?.previous}
         isLoading={overview.isLoading}
+        isError={overview.isError}
       />
 
       <WebTimeseriesChart
@@ -83,6 +84,7 @@ export default function WebAnalyticsPage() {
             exit_pages: paths.data?.exit_pages,
           }}
           isLoading={paths.isLoading}
+          isError={paths.isError}
         />
         <WebDimensionTile
           title={t('sources')}
@@ -94,6 +96,7 @@ export default function WebAnalyticsPage() {
             utm_campaigns: sources.data?.utm_campaigns,
           }}
           isLoading={sources.isLoading}
+          isError={sources.isError}
         />
         <WebDimensionTile
           title={t('devices')}
@@ -104,6 +107,7 @@ export default function WebAnalyticsPage() {
             oses: devices.data?.oses,
           }}
           isLoading={devices.isLoading}
+          isError={devices.isError}
         />
         <WebDimensionTile
           title={t('geography')}
@@ -114,6 +118,7 @@ export default function WebAnalyticsPage() {
             cities: geography.data?.cities,
           }}
           isLoading={geography.isLoading}
+          isError={geography.isError}
         />
       </div>
     </div>

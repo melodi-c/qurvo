@@ -9,7 +9,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { routes } from '@/lib/routes';
-import { useEventDefinitions } from '@/features/event-definitions/hooks/use-event-definitions';
+import { useEventDefinitions } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './event-definitions.translations';
 import type { EventDefinition } from '@/api/generated/Api';

@@ -16,6 +16,7 @@ interface WebDimensionTileProps<T extends string> {
   tabs: readonly TabConfig<T>[];
   data: Record<T, WebAnalyticsDimensionRow[] | undefined>;
   isLoading: boolean;
+  isError?: boolean;
 }
 
 export function WebDimensionTile<T extends string>({
@@ -23,6 +24,7 @@ export function WebDimensionTile<T extends string>({
   tabs,
   data,
   isLoading,
+  isError,
 }: WebDimensionTileProps<T>) {
   const { t } = useLocalTranslation(translations);
   const [activeTab, setActiveTab] = useState<T>(tabs[0].id);
@@ -37,7 +39,9 @@ export function WebDimensionTile<T extends string>({
       </CardHeader>
       <TabNav tabs={tabs} value={activeTab} onChange={setActiveTab} className="px-6" />
       <CardContent className="pt-3">
-        {isLoading ? (
+        {isError ? (
+          <p className="text-sm text-destructive/80 py-6 text-center">{t('loadError')}</p>
+        ) : isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-8 rounded" />

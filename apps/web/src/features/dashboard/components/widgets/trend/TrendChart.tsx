@@ -16,7 +16,7 @@ import type {
   ChartType,
   TrendGranularity,
 } from '@/api/generated/Api';
-import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE } from '@/lib/chart-colors';
+import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick } from '@/lib/chart-colors';
 import { formatBucket } from '@/lib/formatting';
 import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
 import { useFormulaResults } from './use-formula-results';
@@ -35,6 +35,44 @@ interface TrendChartProps {
   granularity?: TrendGranularity;
   compact?: boolean;
   formulas?: TrendFormula[];
+}
+
+// ── Shared rendering helpers ──
+
+interface SeriesRenderProps {
+  visibleSeriesKeys: string[];
+  visiblePrevKeys: string[];
+  visibleFormulaKeys: string[];
+  allSeriesKeys: string[];
+  chartType: ChartType;
+  compact?: boolean;
+}
+
+function renderPrevSeries({ visiblePrevKeys, allSeriesKeys, chartType }: SeriesRenderProps) {
+  return visiblePrevKeys.map((key, i) =>
+    chartType === 'bar' ? (
+      <Bar key={key} dataKey={key} fill={COMPARE_COLORS[i % COMPARE_COLORS.length]} opacity={0.4} name={`${allSeriesKeys[i] ?? key} (prev)`} />
+    ) : (
+      <Line key={key} dataKey={key} stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]} strokeDasharray="5 5" strokeWidth={1.5} dot={false} name={`${allSeriesKeys[i] ?? key} (prev)`} />
+    ),
+  );
+}
+
+function renderCurrentSeries({ visibleSeriesKeys, allSeriesKeys, chartType, compact }: SeriesRenderProps) {
+  return visibleSeriesKeys.map((key) => {
+    const colorIdx = allSeriesKeys.indexOf(key);
+    return chartType === 'bar' ? (
+      <Bar key={key} dataKey={key} fill={COLORS[colorIdx % COLORS.length]} radius={[2, 2, 0, 0]} name={key} />
+    ) : (
+      <Line key={key} dataKey={key} stroke={COLORS[colorIdx % COLORS.length]} strokeWidth={2} dot={false} activeDot={compact ? false : { r: 4 }} name={key} />
+    );
+  });
+}
+
+function renderFormulaSeries({ visibleFormulaKeys, compact }: SeriesRenderProps) {
+  return visibleFormulaKeys.map((key, idx) => (
+    <Line key={key} dataKey={key} stroke={FORMULA_COLORS[idx % FORMULA_COLORS.length]} strokeDasharray="8 4" strokeWidth={2} dot={false} activeDot={compact ? false : { r: 4 }} name={key} />
+  ));
 }
 
 // ── Component ──
@@ -101,26 +139,37 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   const ChartComponent = chartType === 'bar' ? BarChart : LineChart;
   const useSimpleChart = chartType === 'bar' || !hasIncomplete;
 
+  const seriesProps: SeriesRenderProps = {
+    visibleSeriesKeys,
+    visiblePrevKeys,
+    visibleFormulaKeys,
+    allSeriesKeys,
+    chartType,
+    compact,
+  };
+
+  const tickStyle = chartAxisTick(compact);
+  const fullMargin = compact
+    ? { top: 4, right: 8, left: -16, bottom: 0 }
+    : { top: 8, right: 24, left: 0, bottom: 0 };
+
   return (
     <div className={compact ? 'h-full' : ''}>
       {/* Chart */}
       <div style={{ height: compact ? '100%' : 350 }}>
         {useSimpleChart ? (
           <ResponsiveContainer width="100%" height={height}>
-            <ChartComponent
-              data={data}
-              margin={compact ? { top: 4, right: 8, left: -16, bottom: 0 } : { top: 8, right: 24, left: 0, bottom: 0 }}
-            >
+            <ChartComponent data={data} margin={fullMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
               <XAxis
                 dataKey="bucket"
                 tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact)}
-                tick={{ fontSize: compact ? 10 : 12, fill: 'var(--color-muted-foreground)' }}
+                tick={tickStyle}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                tick={{ fontSize: compact ? 10 : 12, fill: 'var(--color-muted-foreground)' }}
+                tick={tickStyle}
                 tickLine={false}
                 axisLine={false}
                 width={compact ? 32 : 48}
@@ -131,30 +180,9 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                   labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
                 />
               )}
-
-              {/* Previous period */}
-              {visiblePrevKeys.map((key, i) =>
-                chartType === 'bar' ? (
-                  <Bar key={key} dataKey={key} fill={COMPARE_COLORS[i % COMPARE_COLORS.length]} opacity={0.4} name={`${allSeriesKeys[i] ?? key} (prev)`} />
-                ) : (
-                  <Line key={key} dataKey={key} stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]} strokeDasharray="5 5" strokeWidth={1.5} dot={false} name={`${allSeriesKeys[i] ?? key} (prev)`} />
-                ),
-              )}
-
-              {/* Current period */}
-              {visibleSeriesKeys.map((key) => {
-                const colorIdx = allSeriesKeys.indexOf(key);
-                return chartType === 'bar' ? (
-                  <Bar key={key} dataKey={key} fill={COLORS[colorIdx % COLORS.length]} radius={[2, 2, 0, 0]} name={key} />
-                ) : (
-                  <Line key={key} dataKey={key} stroke={COLORS[colorIdx % COLORS.length]} strokeWidth={2} dot={false} activeDot={compact ? false : { r: 4 }} name={key} />
-                );
-              })}
-
-              {/* Formula series */}
-              {visibleFormulaKeys.map((key, idx) => (
-                <Line key={key} dataKey={key} stroke={FORMULA_COLORS[idx % FORMULA_COLORS.length]} strokeDasharray="8 4" strokeWidth={2} dot={false} activeDot={compact ? false : { r: 4 }} name={key} />
-              ))}
+              {renderPrevSeries(seriesProps)}
+              {renderCurrentSeries(seriesProps)}
+              {renderFormulaSeries(seriesProps)}
             </ChartComponent>
           </ResponsiveContainer>
         ) : (
@@ -170,7 +198,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 <XAxis
                   dataKey="bucket"
                   tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact)}
-                  tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
+                  tick={chartAxisTick()}
                   tickLine={false}
                   axisLine={false}
                   domain={[data[0]?.bucket, data[data.length - 1]?.bucket]}
@@ -178,7 +206,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                   allowDuplicatedCategory={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
+                  tick={chartAxisTick()}
                   tickLine={false}
                   axisLine={false}
                   width={48}
@@ -187,18 +215,9 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                   contentStyle={CHART_TOOLTIP_STYLE}
                   labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
                 />
-                {visiblePrevKeys.map((key, i) => (
-                  <Line key={key} dataKey={key} stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]} strokeDasharray="5 5" strokeWidth={1.5} dot={false} name={`${allSeriesKeys[i] ?? key} (prev)`} />
-                ))}
-                {visibleSeriesKeys.map((key) => {
-                  const colorIdx = allSeriesKeys.indexOf(key);
-                  return (
-                    <Line key={key} dataKey={key} stroke={COLORS[colorIdx % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4 }} name={key} />
-                  );
-                })}
-                {visibleFormulaKeys.map((key, idx) => (
-                  <Line key={key} dataKey={key} stroke={FORMULA_COLORS[idx % FORMULA_COLORS.length]} strokeDasharray="8 4" strokeWidth={2} dot={false} activeDot={{ r: 4 }} name={key} />
-                ))}
+                {renderPrevSeries(seriesProps)}
+                {renderCurrentSeries(seriesProps)}
+                {renderFormulaSeries(seriesProps)}
               </LineChart>
             </ResponsiveContainer>
 

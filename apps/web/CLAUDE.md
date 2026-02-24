@@ -16,6 +16,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `--color-sidebar` | `#0f0f11` | Sidebar and topbar background |
 | `--color-border` | `#27272a` | Borders |
 | `--radius` | `0.5rem` | Border radius base |
+| `--topbar-height` | `44px` | Mobile topbar height. Use `var(--topbar-height)` instead of hardcoded `44px` |
 
 ## Utility
 
@@ -93,10 +94,11 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
 | `useConfirmDelete` | `confirm-dialog.tsx` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
 | `useDragReorder<T>` | `use-drag-reorder.ts` | `(items: T[], onChange: (items: T[]) => void) => { dragIdx, overIdx, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave }` | Reorderable lists via native HTML5 drag events. Used in FunnelStepBuilder and TrendSeriesBuilder |
+| `useFilterManager<T>` | `use-filter-manager.ts` | `(items: T[], updateItem) => { addFilter, updateFilter, removeFilter }` | Shared filter CRUD for items with `filters?: StepFilter[]`. Used by TrendSeriesBuilder and FunnelStepBuilder |
 
 ## Feature Hooks (`src/features/`)
 
-**Canonical hooks live in `src/hooks/`**. Feature-level hooks in `src/features/*/hooks/` are thin re-exports (e.g. `use-event-definitions.ts` re-exports from `@/hooks/use-event-definitions`). Always import from `@/hooks/` for new code.
+**Canonical hooks live in `src/hooks/`**. Always import from `@/hooks/` for new code.
 
 | Hook | File | Signature | When to use |
 |---|---|---|---|
@@ -110,7 +112,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Module | File | Exports | When to use |
 |---|---|---|---|
-| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS`, `CHART_TOOLTIP_STYLE`, `CHART_AXIS_TICK_COLOR`, `CHART_GRID_COLOR` | Single source of truth for all chart/visualization colors and Recharts styles. Use `CHART_TOOLTIP_STYLE` for Tooltip `contentStyle`, `CHART_AXIS_TICK_COLOR` for axis `tick.fill`, `CHART_GRID_COLOR` for CartesianGrid `stroke`. Never hardcode hex color values in chart components |
+| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS`, `CHART_TOOLTIP_STYLE`, `CHART_AXIS_TICK_COLOR`, `CHART_GRID_COLOR`, `chartAxisTick(compact?)` | Single source of truth for all chart/visualization colors and Recharts styles. Use `CHART_TOOLTIP_STYLE` for Tooltip `contentStyle`, `chartAxisTick(compact?)` for axis `tick` prop, `CHART_GRID_COLOR` for CartesianGrid `stroke`. Never hardcode hex color values in chart components |
+| Date utils | `date-utils.ts` | `todayIso()`, `daysAgoIso(days)`, `defaultDateRange()` | Date helpers for ISO strings. Use `defaultDateRange()` for default 30-day range in widget configs. Never define local date helpers in components |
 | Formatting | `formatting.ts` | `formatBucket(bucket, granularity, compact?)`, `formatSeconds(s)`, `formatRelativeTime(iso)`, `eventBadgeVariant(eventName)`, `formatGranularity(count, granularity)` | Shared formatting for chart axes, durations, relative timestamps, event badge variants, and locale-aware granularity pluralization (day/week/month). Import instead of defining local formatters. `compact` mode produces shorter labels for dashboard widgets |
 | Filter utils | `filter-utils.ts` | `isValidFilter(f: StepFilter)` | Validates a StepFilter (non-empty property, non-empty value unless operator is `is_set`/`is_not_set`). Use in query functions to strip incomplete filters before API calls |
 | Auth fetch | `auth-fetch.ts` | `getAuthHeaders()`, `authFetch(path, init?)` | Auth-aware fetch helpers for calls that bypass the generated API client (e.g. SSE streaming). Use instead of manually reading `localStorage` token |

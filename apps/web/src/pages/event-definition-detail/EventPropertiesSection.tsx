@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { usePropertyDefinitions, useUpsertPropertyDefinition } from '@/features/property-definitions/hooks/use-property-definitions';
+import { usePropertyDefinitions, useUpsertPropertyDefinition } from '@/hooks/use-property-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './translations';
 import type { PropertyDefinition } from '@/api/generated/Api';
