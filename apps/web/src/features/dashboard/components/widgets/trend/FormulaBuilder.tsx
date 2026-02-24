@@ -25,7 +25,7 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
   const { t } = useLocalTranslation(translations);
 
   const availableLetters = useMemo(
-    () => SERIES_LETTERS.slice(0, seriesCount) as unknown as string[],
+    () => SERIES_LETTERS.slice(0, seriesCount),
     [seriesCount],
   );
 

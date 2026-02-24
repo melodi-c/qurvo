@@ -5,6 +5,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
+import { defaultFunnelConfig } from './funnel-shared';
 import translations from './FunnelWidget.translations';
 import type { Widget, FunnelWidgetConfig } from '@/api/generated/Api';
 
@@ -20,7 +21,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
 
   const config = widget.insight?.config as FunnelWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useFunnelData(config ?? { steps: [], conversion_window_days: 14, date_from: '', date_to: '' } as any, widget.id);
+  const query = useFunnelData(config ?? defaultFunnelConfig(), widget.id);
   const result = query.data?.data;
 
   const hasValidSteps = hasConfig && config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');

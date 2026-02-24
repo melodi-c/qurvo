@@ -73,8 +73,8 @@ export default function CohortEditorPage() {
 
   useEffect(() => {
     if (!projectId || !hasValidConditions) return;
-    const def = JSON.parse(debouncedHash);
-    previewMutation.mutate(def);
+    previewMutation.mutate({ definition });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedHash, projectId, hasValidConditions]);
 
   const listPath = link.cohorts.list();
@@ -91,7 +91,7 @@ export default function CohortEditorPage() {
         await createMutation.mutateAsync({
           name: name.trim(),
           description: description.trim() || undefined,
-          definition: definition as any,
+          definition,
         });
         toast.success(t('cohortCreated'));
       } else {
@@ -100,7 +100,7 @@ export default function CohortEditorPage() {
           data: {
             name: name.trim(),
             description: description.trim() || undefined,
-            definition: definition as any,
+            definition,
           },
         });
         toast.success(t('cohortUpdated'));

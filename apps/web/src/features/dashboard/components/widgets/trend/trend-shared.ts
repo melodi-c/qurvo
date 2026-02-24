@@ -1,6 +1,6 @@
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
-export const SERIES_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
+export const SERIES_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
 
 export function defaultTrendConfig(): TrendWidgetConfig {
   const now = new Date();

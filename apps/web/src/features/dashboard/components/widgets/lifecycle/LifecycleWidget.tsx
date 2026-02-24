@@ -2,6 +2,7 @@ import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useLifecycleData } from '@/features/dashboard/hooks/use-lifecycle';
 import { LifecycleChart } from './LifecycleChart';
+import { defaultLifecycleConfig } from './lifecycle-shared';
 import type { Widget, LifecycleWidgetConfig } from '@/api/generated/Api';
 import translations from './LifecycleWidget.translations';
 
@@ -13,7 +14,7 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
   const { t } = useLocalTranslation(translations);
   const config = widget.insight?.config as LifecycleWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useLifecycleData(config ?? { target_event: '', granularity: 'day', date_from: '', date_to: '' } as any, widget.id);
+  const query = useLifecycleData(config ?? defaultLifecycleConfig(), widget.id);
   const result = query.data?.data;
 
   const activeUsers = result

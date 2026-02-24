@@ -1,10 +1,10 @@
 import { api } from '@/api/client';
-import type { StickinessWidgetConfig, StickinessResponse } from '@/api/generated/Api';
+import type { StickinessWidgetConfig, StickinessResponse, StickinessControllerGetStickinessParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
-export const useStickinessData = createWidgetDataHook<StickinessWidgetConfig, StickinessResponse>({
+export const useStickinessData = createWidgetDataHook<StickinessWidgetConfig, StickinessResponse, StickinessControllerGetStickinessParams>({
   queryKeyPrefix: 'stickiness',
-  apiFn: (params) => api.stickinessControllerGetStickiness(params as any),
+  apiFn: (params) => api.stickinessControllerGetStickiness(params),
   configHash: (config) =>
     JSON.stringify({
       target_event: config.target_event,
