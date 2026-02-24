@@ -1,6 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { StickinessService } from '../../analytics/stickiness/stickiness.service';
+import { STICKINESS_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { StickinessQueryParams, StickinessQueryResult } from '../../analytics/stickiness/stickiness.query';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { StickinessQueryDto, StickinessResponseDto } from '../dto/stickiness.dto';
@@ -10,13 +12,13 @@ import { StickinessQueryDto, StickinessResponseDto } from '../dto/stickiness.dto
 @Controller('api/analytics')
 @UseGuards(SessionAuthGuard)
 export class StickinessController {
-  constructor(private readonly stickinessService: StickinessService) {}
+  constructor(@Inject(STICKINESS_SERVICE) private readonly stickinessService: AnalyticsQueryService<StickinessQueryParams, StickinessQueryResult>) {}
 
   @Get('stickiness')
   async getStickiness(
     @CurrentUser() user: RequestUser,
     @Query() query: StickinessQueryDto,
   ): Promise<StickinessResponseDto> {
-    return this.stickinessService.getStickiness(user.user_id, query);
+    return this.stickinessService.query(user.user_id, query);
   }
 }

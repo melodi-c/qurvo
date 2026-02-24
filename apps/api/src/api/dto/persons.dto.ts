@@ -106,6 +106,11 @@ export class PersonEventRowDto {
   user_properties: string;
 }
 
+export class PersonByIdQueryDto {
+  @IsUUID()
+  project_id: string;
+}
+
 export class PersonPropertyNamesQueryDto {
   @IsUUID()
   project_id: string;

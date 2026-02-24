@@ -72,9 +72,10 @@ export class StaticCohortsService {
     await this.ch.command({
       query: `
         INSERT INTO person_static_cohort (project_id, cohort_id, person_id)
-        SELECT project_id, '${newCohort.id}' AS cohort_id, person_id
+        SELECT project_id, {new_cohort_id:UUID} AS cohort_id, person_id
         FROM ${sourceTable} FINAL
-        WHERE project_id = '${projectId}' AND cohort_id = '${cohortId}'`,
+        WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
+      query_params: { new_cohort_id: newCohort.id, project_id: projectId, cohort_id: cohortId },
     });
 
     return newCohort;
@@ -94,12 +95,12 @@ export class StaticCohortsService {
       throw new BadRequestException('Cannot remove members from a dynamic cohort');
     }
 
-    const idList = personIds.map((id) => `'${id}'`).join(',');
     await this.ch.command({
       query: `ALTER TABLE person_static_cohort DELETE
-              WHERE project_id = '${projectId}'
-                AND cohort_id = '${cohortId}'
-                AND person_id IN (${idList})`,
+              WHERE project_id = {project_id:UUID}
+                AND cohort_id = {cohort_id:UUID}
+                AND person_id IN {person_ids:Array(UUID)}`,
+      query_params: { project_id: projectId, cohort_id: cohortId, person_ids: personIds },
     });
   }
 

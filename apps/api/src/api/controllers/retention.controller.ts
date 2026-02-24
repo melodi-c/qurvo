@@ -1,6 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { RetentionService } from '../../analytics/retention/retention.service';
+import { RETENTION_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { RetentionQueryParams, RetentionQueryResult } from '../../analytics/retention/retention.query';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RetentionQueryDto, RetentionResponseDto } from '../dto/retention.dto';
@@ -10,13 +12,13 @@ import { RetentionQueryDto, RetentionResponseDto } from '../dto/retention.dto';
 @Controller('api/analytics')
 @UseGuards(SessionAuthGuard)
 export class RetentionController {
-  constructor(private readonly retentionService: RetentionService) {}
+  constructor(@Inject(RETENTION_SERVICE) private readonly retentionService: AnalyticsQueryService<RetentionQueryParams, RetentionQueryResult>) {}
 
   @Get('retention')
   async getRetention(
     @CurrentUser() user: RequestUser,
     @Query() query: RetentionQueryDto,
   ): Promise<RetentionResponseDto> {
-    return this.retentionService.getRetention(user.user_id, query);
+    return this.retentionService.query(user.user_id, query);
   }
 }
