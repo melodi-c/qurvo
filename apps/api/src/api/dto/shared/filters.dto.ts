@@ -4,8 +4,9 @@ import {
   IsOptional,
   IsIn,
 } from 'class-validator';
+import type { FilterOperator } from '../../../utils/property-filter';
 
-export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
+export { type FilterOperator };
 
 export class StepFilterDto {
   @IsString()

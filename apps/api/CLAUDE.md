@@ -77,7 +77,8 @@ constructor(
 
 ### Exception Layering
 - Services throw plain domain exceptions (extend base exception classes), never `HttpException`
-- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`
+- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`, `TooManyRequestsException`
+- Cross-module exceptions (used by multiple modules) live in `src/exceptions/`, not in any single module's `exceptions/` dir
 - Each module owns its concrete exceptions in `{module}/exceptions/`, extending the appropriate base class
 - Exception filters use `createHttpFilter()` factory from `src/api/filters/create-http-filter.ts` — catches base class, maps to HTTP status
 - Only `VerificationCooldownFilter` is a custom filter (returns `seconds_remaining` payload)
@@ -111,12 +112,16 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
 - All queries use `FROM events FINAL` to deduplicate ReplacingMergeTree
 
-### Shared ClickHouse Helpers
-`src/utils/clickhouse-helpers.ts` contains shared utilities used across query files:
-- `granularityTruncExpr(granularity, col)` — ClickHouse date truncation expression
-- `shiftPeriod(dateFrom, dateTo)` — previous period date calculation
-- `buildCohortClause(cohortFilters, projectIdParam, queryParams)` — cohort filter SQL clause
-- `buildCohortFilterClause()` — low-level clause builder (used by `buildCohortClause`)
+### Shared Utilities
+`src/utils/` contains shared code used across modules:
+- `clickhouse-helpers.ts` — `granularityTruncExpr()`, `shiftPeriod()`, `buildCohortClause()`, `buildCohortFilterClause()`
+- `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`
+- `session-cache.ts` — `invalidateUserSessionCaches(db, redis, userId)` — shared between auth and verification modules
+- `hash.ts` — `hashToken()` for SHA-256 session token hashing
+
+`src/api/dto/shared/` contains shared DTO utilities:
+- `filters.dto.ts` — `StepFilterDto` class, re-exports `FilterOperator` from `utils/property-filter.ts`
+- `transforms.ts` — `parseJsonArray()` — shared `@Transform` for query params that arrive as JSON strings in GET requests
 
 ### Module Cohesion
 All code is grouped by module. Controllers, services, guards, and exceptions for a feature all live inside that feature's directory. Base exception classes live in `src/exceptions/`, filter factory and custom filters live in `src/api/filters/`.

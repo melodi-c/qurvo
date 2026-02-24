@@ -46,7 +46,7 @@ import { AppNotFoundException } from '../exceptions/app-not-found.exception';
 import { AppConflictException } from '../exceptions/app-conflict.exception';
 import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
 import { AppUnauthorizedException } from '../exceptions/app-unauthorized.exception';
-import { TooManyRequestsException } from '../auth/exceptions/too-many-requests.exception';
+import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
 import { WrongPasswordException } from '../auth/exceptions/wrong-password.exception';
 import { InvalidVerificationCodeException } from '../verification/exceptions/invalid-verification-code.exception';

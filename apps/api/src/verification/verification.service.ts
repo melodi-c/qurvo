@@ -2,12 +2,13 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and, gt } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import Redis from 'ioredis';
-import { users, emailVerificationCodes, sessions } from '@qurvo/db';
+import { users, emailVerificationCodes } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
 import { EMAIL_PROVIDER, type EmailProvider } from '../email/email.provider.interface';
 import { hashToken } from '../utils/hash';
+import { invalidateUserSessionCaches } from '../utils/session-cache';
 import {
   VERIFICATION_CODE_TTL_SECONDS,
   VERIFICATION_RESEND_COOLDOWN_SECONDS,
@@ -17,7 +18,7 @@ import {
 import { InvalidVerificationCodeException } from './exceptions/invalid-verification-code.exception';
 import { VerificationCooldownException } from './exceptions/verification-cooldown.exception';
 import { EmailAlreadyVerifiedException } from './exceptions/email-already-verified.exception';
-import { TooManyRequestsException } from '../auth/exceptions/too-many-requests.exception';
+import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 
 @Injectable()
 export class VerificationService {
@@ -124,16 +125,7 @@ export class VerificationService {
     await this.redis.del(`verify_attempts:${userId}`);
     await this.redis.del(`verify_resend:${userId}`);
 
-    // Invalidate all session caches for this user to propagate email_verified change
-    const userSessions = await this.db
-      .select({ token_hash: sessions.token_hash })
-      .from(sessions)
-      .where(eq(sessions.user_id, userId));
-
-    if (userSessions.length > 0) {
-      const cacheKeys = userSessions.map((s) => `session:${s.token_hash}`);
-      await this.redis.del(...cacheKeys);
-    }
+    await invalidateUserSessionCaches(this.db, this.redis, userId);
   }
 
   private async checkAlreadyVerified(userId: string): Promise<void> {

@@ -85,7 +85,7 @@ export class AiService {
 
     // Load history
     if (!isNew) {
-      const { messages: history } = await this.chatService.getMessages(conversation.id, 10000);
+      const { messages: history } = await this.chatService.getMessages(conversation.id, 200);
       for (const msg of history) {
         if (msg.role === 'user') {
           messages.push({ role: 'user', content: msg.content ?? '' });
