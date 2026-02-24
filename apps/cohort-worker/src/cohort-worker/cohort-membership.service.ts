@@ -8,6 +8,7 @@ import { topologicalSortCohorts } from '@qurvo/cohort-query';
 import { REDIS, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
+  COHORT_STALE_THRESHOLD_MINUTES,
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
   COHORT_LOCK_KEY,
@@ -25,7 +26,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private cycleInFlight: Promise<void> | null = null;
-  private gcCycleCounter = 0;
+  private gcCycleCounter = 1;
   private readonly lock: DistributedLock;
 
   constructor(
@@ -64,10 +65,12 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     }
   }
 
-  private async runCycle(): Promise<void> {
+  /** @internal — exposed for integration tests */
+  async runCycle(): Promise<void> {
     const hasLock = await this.lock.acquire();
     if (!hasLock) {
       this.logger.debug('Cohort membership cycle skipped: another instance holds the lock');
+      // gcCycleCounter not incremented — GC only runs by the lock holder
       return;
     }
 
@@ -84,8 +87,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
             eq(cohorts.is_static, false),
             or(
               isNull(cohorts.membership_computed_at),
-              // COHORT_STALE_THRESHOLD_MINUTES = 15
-              sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '15 minutes'`,
+              sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '${sql.raw(String(COHORT_STALE_THRESHOLD_MINUTES))} minutes'`,
             ),
           ),
         );
