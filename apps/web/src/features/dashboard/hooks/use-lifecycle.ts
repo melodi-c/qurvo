@@ -1,10 +1,10 @@
 import { api } from '@/api/client';
-import type { LifecycleWidgetConfig, LifecycleResponse } from '@/api/generated/Api';
+import type { LifecycleWidgetConfig, LifecycleResponse, LifecycleControllerGetLifecycleParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
-export const useLifecycleData = createWidgetDataHook<LifecycleWidgetConfig, LifecycleResponse>({
+export const useLifecycleData = createWidgetDataHook<LifecycleWidgetConfig, LifecycleResponse, LifecycleControllerGetLifecycleParams>({
   queryKeyPrefix: 'lifecycle',
-  apiFn: (params) => api.lifecycleControllerGetLifecycle(params as any),
+  apiFn: (params) => api.lifecycleControllerGetLifecycle(params),
   configHash: (config) =>
     JSON.stringify({
       target_event: config.target_event,

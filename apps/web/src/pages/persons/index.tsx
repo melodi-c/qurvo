@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { api } from '@/api/client';
+import { getPersonFields } from '@/lib/person';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { NO_VALUE_OPS } from '@/components/StepFilterRow';
@@ -102,12 +103,12 @@ export default function PersonsPage() {
   ], [t]);
 
   const rows: PersonRow[] = persons.map((person) => {
-    const props = person.properties as Record<string, unknown>;
+    const { name, email } = getPersonFields(person.properties);
     return {
       id: person.id,
       displayId: person.distinct_ids[0] ?? person.id.slice(0, 8),
-      name: String(props['name'] ?? props['$name'] ?? ''),
-      email: String(props['email'] ?? props['$email'] ?? ''),
+      name,
+      email,
       createdAt: person.created_at,
       updatedAt: person.updated_at,
     };

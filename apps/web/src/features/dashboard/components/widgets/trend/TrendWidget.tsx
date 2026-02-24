@@ -5,6 +5,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
+import { defaultTrendConfig } from './trend-shared';
 import type { Widget, TrendWidgetConfig } from '@/api/generated/Api';
 
 interface TrendWidgetProps {
@@ -19,7 +20,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
 
   const config = widget.insight?.config as TrendWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useTrendData(config ?? { series: [], granularity: 'day', date_from: '', date_to: '' } as any, widget.id);
+  const query = useTrendData(config ?? defaultTrendConfig(), widget.id);
   const result = query.data?.data;
 
   const hasValidSeries = hasConfig && config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');

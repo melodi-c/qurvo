@@ -1,10 +1,10 @@
 import { api } from '@/api/client';
-import type { RetentionWidgetConfig, RetentionResponse } from '@/api/generated/Api';
+import type { RetentionWidgetConfig, RetentionResponse, RetentionControllerGetRetentionParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
-export const useRetentionData = createWidgetDataHook<RetentionWidgetConfig, RetentionResponse>({
+export const useRetentionData = createWidgetDataHook<RetentionWidgetConfig, RetentionResponse, RetentionControllerGetRetentionParams>({
   queryKeyPrefix: 'retention',
-  apiFn: (params) => api.retentionControllerGetRetention(params as any),
+  apiFn: (params) => api.retentionControllerGetRetention(params),
   configHash: (config) =>
     JSON.stringify({
       target_event: config.target_event,

@@ -21,9 +21,15 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendQueryPanel.translations';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
+/** Breakdown fields used by the UI but not declared in the generated TrendWidgetConfig. */
+type TrendConfig = TrendWidgetConfig & {
+  breakdown_type?: 'property' | 'cohort';
+  breakdown_cohort_ids?: string[];
+};
+
 interface TrendQueryPanelProps {
-  config: TrendWidgetConfig;
-  onChange: (config: TrendWidgetConfig) => void;
+  config: TrendConfig;
+  onChange: (config: TrendConfig) => void;
 }
 
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
@@ -198,17 +204,17 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
           propertyNames={propertyNames}
           propertyDescriptions={propDescriptions}
-          breakdownType={(config as any).breakdown_type ?? 'property'}
+          breakdownType={config.breakdown_type ?? 'property'}
           onBreakdownTypeChange={(type) => onChange({
             ...config,
             breakdown_type: type,
             ...(type === 'cohort' ? { breakdown_property: undefined } : { breakdown_cohort_ids: undefined }),
-          } as any)}
-          breakdownCohortIds={(config as any).breakdown_cohort_ids ?? []}
+          })}
+          breakdownCohortIds={config.breakdown_cohort_ids ?? []}
           onBreakdownCohortIdsChange={(ids) => onChange({
             ...config,
             breakdown_cohort_ids: ids.length ? ids : undefined,
-          } as any)}
+          })}
         />
     </QueryPanelShell>
   );

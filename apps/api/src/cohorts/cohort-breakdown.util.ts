@@ -1,6 +1,6 @@
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { RESOLVED_PERSON } from './clickhouse-helpers';
+import { RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 
 export interface CohortBreakdownEntry {
   cohort_id: string;

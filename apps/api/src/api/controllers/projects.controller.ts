@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from '../../projects/projects.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { CreateProjectDto, UpdateProjectDto, ProjectDto, ProjectWithRoleDto } from '../dto/projects.dto';
-import { OkResponseDto } from '../dto/auth.dto';
+import { OkResponseDto } from '../dto/shared/ok-response.dto';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
