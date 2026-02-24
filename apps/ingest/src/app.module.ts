@@ -4,7 +4,6 @@ import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import type Redis from 'ioredis';
 import { IngestModule } from './ingest/ingest.module';
-import { HealthModule } from './health/health.module';
 import { REDIS } from './providers/redis.provider';
 import { RedisThrottlerStorage } from './throttler/redis-throttler.storage';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
@@ -13,6 +12,7 @@ import { ZodExceptionFilter } from './filters/zod-exception.filter';
 @Module({
   imports: [
     InfrastructureModule,
+    // nestjs-pino pinoHttp type doesn't match Fastify's request/response generics
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
@@ -33,7 +33,6 @@ import { ZodExceptionFilter } from './filters/zod-exception.filter';
       }),
     }),
     IngestModule,
-    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
