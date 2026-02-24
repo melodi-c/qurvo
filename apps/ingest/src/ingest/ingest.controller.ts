@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Body, Ip, Headers, UseGuards, HttpCode, HttpException, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Body, Ip, Headers, Query, Req, Res, UseGuards, HttpCode, HttpException, Logger } from '@nestjs/common';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import { IngestService } from './ingest.service';
 import { ApiKeyGuard } from '../guards/api-key.guard';
 import { BillingGuard } from '../guards/billing.guard';
@@ -18,14 +19,26 @@ export class IngestController {
   }
 
   @Post('v1/batch')
-  @HttpCode(202)
   @UseGuards(ApiKeyGuard, BillingGuard)
   async batch(
     @ProjectId() projectId: string,
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string | undefined,
+    @Query('beacon') beacon: string | undefined,
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
     @Body() body: unknown,
   ) {
+    // Quota exceeded — return 200 to prevent SDK retries (PostHog pattern)
+    if (request.quotaLimited) {
+      if (beacon === '1') {
+        reply.status(204);
+        return;
+      }
+      reply.status(200);
+      return { ok: true, quota_limited: true };
+    }
+
     const { events: rawEvents, sent_at } = BatchWrapperSchema.parse(body);
 
     const validEvents: TrackEvent[] = [];
@@ -51,6 +64,14 @@ export class IngestController {
     }
 
     await this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at);
+
+    // sendBeacon() — return 204 No Content (browser ignores response body)
+    if (beacon === '1') {
+      reply.status(204);
+      return;
+    }
+
+    reply.status(202);
     return { ok: true, count: validEvents.length, dropped };
   }
 
