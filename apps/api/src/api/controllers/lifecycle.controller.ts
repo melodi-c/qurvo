@@ -1,6 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { LifecycleService } from '../../analytics/lifecycle/lifecycle.service';
+import { LIFECYCLE_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { LifecycleQueryParams, LifecycleQueryResult } from '../../analytics/lifecycle/lifecycle.query';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { LifecycleQueryDto, LifecycleResponseDto } from '../dto/lifecycle.dto';
@@ -10,13 +12,13 @@ import { LifecycleQueryDto, LifecycleResponseDto } from '../dto/lifecycle.dto';
 @Controller('api/analytics')
 @UseGuards(SessionAuthGuard)
 export class LifecycleController {
-  constructor(private readonly lifecycleService: LifecycleService) {}
+  constructor(@Inject(LIFECYCLE_SERVICE) private readonly lifecycleService: AnalyticsQueryService<LifecycleQueryParams, LifecycleQueryResult>) {}
 
   @Get('lifecycle')
   async getLifecycle(
     @CurrentUser() user: RequestUser,
     @Query() query: LifecycleQueryDto,
   ): Promise<LifecycleResponseDto> {
-    return this.lifecycleService.getLifecycle(user.user_id, query);
+    return this.lifecycleService.query(user.user_id, query);
   }
 }

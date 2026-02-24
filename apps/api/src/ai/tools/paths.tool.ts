@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
-import { PathsService } from '../../analytics/paths/paths.service';
+import { PATHS_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { PathsQueryParams, PathsQueryResult } from '../../analytics/paths/paths.query';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -34,12 +36,12 @@ const tool = defineTool({
 export class PathsTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly pathsService: PathsService) {}
+  constructor(@Inject(PATHS_SERVICE) private readonly pathsService: AnalyticsQueryService<PathsQueryParams, PathsQueryResult>) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.pathsService.getPaths(userId, { project_id: projectId, ...args });
+    const result = await this.pathsService.query(userId, { project_id: projectId, ...args });
     return result.data;
   });
 }

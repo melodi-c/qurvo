@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
-import { LifecycleService } from '../../analytics/lifecycle/lifecycle.service';
+import { LIFECYCLE_SERVICE } from '../../analytics/analytics.module';
+import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
+import type { LifecycleQueryParams, LifecycleQueryResult } from '../../analytics/lifecycle/lifecycle.query';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
@@ -23,12 +25,12 @@ const tool = defineTool({
 export class LifecycleTool implements AiTool {
   readonly name = tool.name;
 
-  constructor(private readonly lifecycleService: LifecycleService) {}
+  constructor(@Inject(LIFECYCLE_SERVICE) private readonly lifecycleService: AnalyticsQueryService<LifecycleQueryParams, LifecycleQueryResult>) {}
 
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.lifecycleService.getLifecycle(userId, { project_id: projectId, ...args });
+    const result = await this.lifecycleService.query(userId, { project_id: projectId, ...args });
     return result.data;
   });
 }

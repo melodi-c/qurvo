@@ -144,7 +144,8 @@ export class CohortsService {
 
     // Fire-and-forget: clean up materialized membership rows
     this.ch.command({
-      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id = '${cohortId}'`,
+      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id = {cohort_id:UUID}`,
+      query_params: { cohort_id: cohortId },
     }).catch((err: unknown) => {
       this.logger.warn({ err, cohortId }, 'Failed to clean up cohort_members');
     });
@@ -152,7 +153,8 @@ export class CohortsService {
     // Also clean up static cohort rows if applicable
     if (existing[0].is_static) {
       this.ch.command({
-        query: `ALTER TABLE person_static_cohort DELETE WHERE cohort_id = '${cohortId}'`,
+        query: `ALTER TABLE person_static_cohort DELETE WHERE cohort_id = {cohort_id:UUID}`,
+        query_params: { cohort_id: cohortId },
       }).catch((err: unknown) => {
         this.logger.warn({ err, cohortId }, 'Failed to clean up person_static_cohort');
       });

@@ -1,10 +1,10 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { createHash } from 'crypto';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
+import { withAnalyticsCache } from '../analytics/with-analytics-cache';
 import {
   queryOverview,
   queryPaths,
@@ -19,8 +19,6 @@ import {
   type GeographyResult,
 } from './web-analytics.query';
 
-import { ANALYTICS_CACHE_TTL_SECONDS } from '../constants';
-
 @Injectable()
 export class WebAnalyticsService {
   private readonly logger = new Logger(WebAnalyticsService.name);
@@ -33,56 +31,31 @@ export class WebAnalyticsService {
 
   async getOverview(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<OverviewResult> {
     await this.projectsService.getMembership(userId, params.project_id);
-    return this.cached('wa:overview', params, () => queryOverview(this.ch, params));
+    const { force, ...queryParams } = params;
+    return (await withAnalyticsCache({ prefix: 'wa:overview', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryOverview, logger: this.logger })).data;
   }
 
   async getPaths(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<PathsResult> {
     await this.projectsService.getMembership(userId, params.project_id);
-    return this.cached('wa:paths', params, () => queryPaths(this.ch, params));
+    const { force, ...queryParams } = params;
+    return (await withAnalyticsCache({ prefix: 'wa:paths', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryPaths, logger: this.logger })).data;
   }
 
   async getSources(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<SourcesResult> {
     await this.projectsService.getMembership(userId, params.project_id);
-    return this.cached('wa:sources', params, () => querySources(this.ch, params));
+    const { force, ...queryParams } = params;
+    return (await withAnalyticsCache({ prefix: 'wa:sources', redis: this.redis, ch: this.ch, force, params: queryParams, query: querySources, logger: this.logger })).data;
   }
 
   async getDevices(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<DevicesResult> {
     await this.projectsService.getMembership(userId, params.project_id);
-    return this.cached('wa:devices', params, () => queryDevices(this.ch, params));
+    const { force, ...queryParams } = params;
+    return (await withAnalyticsCache({ prefix: 'wa:devices', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryDevices, logger: this.logger })).data;
   }
 
   async getGeography(userId: string, params: WebAnalyticsQueryParams & { force?: boolean }): Promise<GeographyResult> {
     await this.projectsService.getMembership(userId, params.project_id);
-    return this.cached('wa:geography', params, () => queryGeography(this.ch, params));
-  }
-
-  private async cached<T>(
-    prefix: string,
-    params: WebAnalyticsQueryParams & { force?: boolean },
-    queryFn: () => Promise<T>,
-  ): Promise<T> {
     const { force, ...queryParams } = params;
-    const cacheKey = this.buildCacheKey(prefix, queryParams);
-
-    if (!force) {
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        this.logger.debug({ cacheKey }, 'Web analytics cache hit');
-        return JSON.parse(cached) as T;
-      }
-    }
-
-    this.logger.debug({ prefix, projectId: params.project_id, force }, 'Web analytics ClickHouse query');
-    const data = await queryFn();
-    await this.redis.set(cacheKey, JSON.stringify(data), 'EX', ANALYTICS_CACHE_TTL_SECONDS);
-    return data;
-  }
-
-  private buildCacheKey(prefix: string, params: WebAnalyticsQueryParams): string {
-    const hash = createHash('sha256')
-      .update(JSON.stringify(params))
-      .digest('hex')
-      .slice(0, 16);
-    return `${prefix}:${hash}`;
+    return (await withAnalyticsCache({ prefix: 'wa:geography', redis: this.redis, ch: this.ch, force, params: queryParams, query: queryGeography, logger: this.logger })).data;
   }
 }

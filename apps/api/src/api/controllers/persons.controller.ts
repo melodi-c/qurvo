@@ -7,6 +7,7 @@ import {
   PersonsQueryDto,
   PersonsListResponseDto,
   PersonDto,
+  PersonByIdQueryDto,
   PersonEventsQueryDto,
   PersonEventRowDto,
   PersonPropertyNamesQueryDto,
@@ -63,10 +64,10 @@ export class PersonsController {
   @Get(':personId')
   async getPersonById(
     @CurrentUser() user: RequestUser,
-    @Query('project_id') projectId: string,
+    @Query() query: PersonByIdQueryDto,
     @Param('personId') personId: string,
   ): Promise<PersonDto> {
-    const person = await this.personsService.getPersonById(user.user_id, projectId, personId);
+    const person = await this.personsService.getPersonById(user.user_id, query.project_id, personId);
     return toPersonDto(person);
   }
 

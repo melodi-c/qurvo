@@ -16,8 +16,7 @@ import {
 import { queryPersonEvents, type PersonEventsQueryParams, type PersonEventRow } from './person-events.query';
 import { queryPersonPropertyNames } from './person-property-names.query';
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
-
-const PROPERTY_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
+import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
 
 @Injectable()
 export class PersonsService {
