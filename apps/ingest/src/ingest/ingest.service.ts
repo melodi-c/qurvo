@@ -35,10 +35,31 @@ function parseUa(userAgent?: string): ParsedUa {
   };
 }
 
+/**
+ * PostHog-style timestamp resolution.
+ * If sent_at is available: server_now - (sent_at - event_timestamp)
+ * This corrects for client clock drift while preserving relative event ordering.
+ * Falls back to server time if no client timestamps provided.
+ */
+export function resolveTimestamp(clientTs: string | undefined, serverTime: string, sentAt?: string): string {
+  if (!clientTs || !sentAt) return serverTime;
+
+  const clientTsMs = new Date(clientTs).getTime();
+  const sentAtMs = new Date(sentAt).getTime();
+  const serverMs = new Date(serverTime).getTime();
+
+  const offsetMs = sentAtMs - clientTsMs;
+
+  if (offsetMs < 0) return serverTime;
+
+  const resolvedMs = serverMs - offsetMs;
+  return new Date(resolvedMs).toISOString();
+}
+
 interface BuildPayloadOpts {
+  batchId: string;
   ip?: string;
   ua?: ParsedUa;
-  batchId?: string;
   sentAt?: string;
   event_id?: string;
 }
@@ -73,7 +94,7 @@ export class IngestService {
     projectId: string,
     event: TrackEvent,
     serverTime: string,
-    opts: BuildPayloadOpts = {},
+    opts: BuildPayloadOpts,
   ): Record<string, string> {
     const ua = opts.ua ?? EMPTY_UA;
 
@@ -104,34 +125,11 @@ export class IngestService {
       sdk_version: event.context?.sdk_version || '',
       properties: JSON.stringify(event.properties || {}),
       user_properties: JSON.stringify(event.user_properties || {}),
-      timestamp: this.resolveTimestamp(event.timestamp, serverTime, opts.sentAt),
+      batch_id: opts.batchId,
+      timestamp: resolveTimestamp(event.timestamp, serverTime, opts.sentAt),
     };
 
-    if (opts.batchId) payload.batch_id = opts.batchId;
     return payload;
-  }
-
-  /**
-   * PostHog-style timestamp resolution.
-   * If sent_at is available: server_now - (sent_at - event_timestamp)
-   * This corrects for client clock drift while preserving relative event ordering.
-   * Falls back to server time if no client timestamps provided.
-   */
-  private resolveTimestamp(clientTs: string | undefined, serverTime: string, sentAt?: string): string {
-    if (!clientTs || !sentAt) return serverTime;
-
-    const clientTsMs = new Date(clientTs).getTime();
-    const sentAtMs = new Date(sentAt).getTime();
-    const serverMs = new Date(serverTime).getTime();
-
-    // offset = how long ago the event was created relative to when the batch was sent (client-side)
-    const offsetMs = sentAtMs - clientTsMs;
-
-    // If offset is negative (event timestamp is after sent_at), something is wrong — use server time
-    if (offsetMs < 0) return serverTime;
-
-    const resolvedMs = serverMs - offsetMs;
-    return new Date(resolvedMs).toISOString();
   }
 
   private async writeToStream(payloads: Record<string, string>[]): Promise<void> {
