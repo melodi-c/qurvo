@@ -7,12 +7,7 @@ import { parseUserProperties } from './person-utils';
 import { withRetry } from './retry';
 import { HourlyCache } from './hourly-cache';
 import { RETRY_POSTGRES } from '../constants';
-
-const ONE_HOUR_MS = 3_600_000;
-
-function floorToHour(nowMs: number): number {
-  return Math.floor(nowMs / ONE_HOUR_MS) * ONE_HOUR_MS;
-}
+import { floorToHourMs } from './time-utils';
 
 interface PendingPerson {
   projectId: string;
@@ -83,7 +78,7 @@ export class PersonBatchStore {
 
     // Track distinct_id if not already known (auto-expires hourly for self-healing)
     const cacheKey = `${projectId}:${distinctId}`;
-    const hourMs = floorToHour(Date.now());
+    const hourMs = floorToHourMs(Date.now());
     if (!this.knownDistinctIds.has(cacheKey, hourMs)) {
       this.pendingDistinctIds.set(cacheKey, { projectId, personId, distinctId });
     }
@@ -301,7 +296,7 @@ export class PersonBatchStore {
     `);
 
     // Mark as known (auto-expires hourly; HourlyCache handles eviction internally)
-    const hourMs = floorToHour(Date.now());
+    const hourMs = floorToHourMs(Date.now());
     const ok = this.knownDistinctIds.markSeen(pending.keys(), hourMs);
     if (!ok) {
       this.logger.warn({ cacheSize: this.knownDistinctIds.size }, 'knownDistinctIds cache full after eviction');
