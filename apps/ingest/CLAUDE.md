@@ -20,7 +20,7 @@ src/
 ├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, filters, graceful shutdown
 ├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, env validation, port 3001)
 ├── env.ts               # Zod env validation (DATABASE_URL, REDIS_URL, INGEST_PORT, LOG_LEVEL, NODE_ENV)
-├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS
+├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, STREAM_SCHEMA_VERSION, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS
 ├── ingest/
 │   ├── ingest.controller.ts  # GET /health, POST /v1/batch, POST /v1/import
 │   ├── ingest.service.ts     # Event building + Redis stream writing
@@ -64,7 +64,7 @@ SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod v
 ```
 
 ### Guard Chain
-- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 300s Redis cache, DB fallback), sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
+- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 300s Redis cache, DB fallback), sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Checks both `expires_at` and `revoked_at` on cache hit and DB path — revoked keys are immediately rejected even from cache. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
 - **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Only applied to `/v1/batch`. **Fails open** on Redis errors (allows request through).
 - **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
 
@@ -85,12 +85,18 @@ Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceed
 ### UUIDv7 Event IDs
 Uses `uuid` v7 (time-ordered) instead of UUIDv4 for `event_id` and `batch_id`. Better for ClickHouse merge tree ordering.
 
+### Illegal distinct_id Blocklist
+`TrackEventSchema` rejects events with garbage `distinct_id` values (`null`, `undefined`, `anonymous`, `guest`, `NaN`, `[object Object]`, `0`, etc.) at Zod validation level. This is defense-in-depth — the processor also has a matching blocklist. Prevents SDK integration bugs from corrupting person identity data.
+
+### Stream Schema Versioning
+Every event written to Redis Stream includes `schema_version: '1'` (`STREAM_SCHEMA_VERSION` constant). This enables backward-compatible payload migrations for in-flight events during rolling deploys. Bump the version when payload shape changes.
+
 ### Per-Event Validation (Soft Validation)
 Batch endpoint validates each event individually via `TrackEventSchema.safeParse()`. Valid events are ingested, invalid events are dropped with a warning log. Response includes `dropped` count. If ALL events are invalid → 400. Import endpoint uses strict batch-level validation (all-or-nothing).
 
 ### Payload Enrichment
 `buildPayload()` merges SDK event with server-side context via `BuildPayloadOpts`:
-- `event_id` (UUIDv7), `project_id`, `timestamp`
+- `schema_version`, `event_id` (UUIDv7), `project_id`, `timestamp`
 - UA fields: `browser`, `browser_version`, `os`, `os_version`, `device_type`
 - Context: `ip`, `url`, `referrer`, `page_title`, `page_path`
 
@@ -124,14 +130,16 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
 
 ### Integration tests
-`src/test/ingest/`. 33 tests covering:
+`src/test/ingest/`. 38 tests covering:
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key, per-event validation (partial success), all-invalid batch → 400
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
-- API key auth: api_key in body, 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache)
+- API key auth: api_key in body, 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache), 401 revoked key (Redis cache)
 - Billing guard: 200 + quota_limited over limit, 204 quota_limited beacon, 202 under limit, billing counter increment
 - Beacon: 204 No Content with ?beacon=1
 - Gzip auto-detect: compressed body without Content-Encoding header
+- Illegal distinct_id: drops events with illegal values, 400 when all illegal, rejects in import
+- Schema version: schema_version field present in stream payload
 - UUIDv7: event_id format validation
 - Max batch size: 400 on >500 batch events, 400 on >5000 import events
 - UA enrichment: browser/os/device from User-Agent header, SDK context overrides UA-parsed values
