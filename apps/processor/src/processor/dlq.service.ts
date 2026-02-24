@@ -10,6 +10,8 @@ import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import {
   DLQ_CIRCUIT_BREAKER_RESET_MS,
   DLQ_CIRCUIT_BREAKER_THRESHOLD,
+  DLQ_CIRCUIT_KEY,
+  DLQ_FAILURES_KEY,
   DLQ_REPLAY_BATCH,
   DLQ_REPLAY_INTERVAL_MS,
   REDIS_STREAM_DLQ,
@@ -21,8 +23,6 @@ import { DistributedLock } from '@qurvo/distributed-lock';
 export class DlqService implements OnApplicationBootstrap {
   private dlqTimer: NodeJS.Timeout | null = null;
   private stopped = false;
-  private consecutiveFailures = 0;
-  private circuitOpenedAt: number | null = null;
   private readonly lock: DistributedLock;
 
   constructor(
@@ -53,13 +53,9 @@ export class DlqService implements OnApplicationBootstrap {
   }
 
   private async replayDlq() {
-    if (this.consecutiveFailures >= DLQ_CIRCUIT_BREAKER_THRESHOLD) {
-      const elapsed = this.circuitOpenedAt ? Date.now() - this.circuitOpenedAt : Infinity;
-      if (elapsed < DLQ_CIRCUIT_BREAKER_RESET_MS) {
-        this.logger.warn({ consecutiveFailures: this.consecutiveFailures }, 'DLQ circuit breaker open, skipping replay');
-        return;
-      }
-      this.logger.info({ consecutiveFailures: this.consecutiveFailures }, 'DLQ circuit breaker half-open, attempting replay');
+    if (await this.redis.exists(DLQ_CIRCUIT_KEY)) {
+      this.logger.warn('DLQ circuit breaker open, skipping replay');
+      return;
     }
 
     const hasLock = await this.lock.acquire();
@@ -95,15 +91,18 @@ export class DlqService implements OnApplicationBootstrap {
         RETRY_CLICKHOUSE,
       );
       await this.redis.xdel(REDIS_STREAM_DLQ, ...ids);
-      this.consecutiveFailures = 0;
-      this.circuitOpenedAt = null;
+      await this.redis.del(DLQ_FAILURES_KEY, DLQ_CIRCUIT_KEY);
       this.logger.info({ replayed: events.length }, 'Replayed events from DLQ');
     } catch (err) {
-      this.consecutiveFailures++;
-      if (this.consecutiveFailures === DLQ_CIRCUIT_BREAKER_THRESHOLD) {
-        this.circuitOpenedAt = Date.now();
+      const failures = await this.redis.incr(DLQ_FAILURES_KEY);
+      // TTL = 2× reset period so counter auto-expires if replays stop failing
+      await this.redis.pexpire(DLQ_FAILURES_KEY, DLQ_CIRCUIT_BREAKER_RESET_MS * 2);
+      if (failures >= DLQ_CIRCUIT_BREAKER_THRESHOLD) {
+        await this.redis.set(DLQ_CIRCUIT_KEY, '1', 'PX', DLQ_CIRCUIT_BREAKER_RESET_MS);
+        await this.redis.del(DLQ_FAILURES_KEY);
+        this.logger.warn({ failures }, 'DLQ circuit breaker opened');
       }
-      this.logger.error({ err, consecutiveFailures: this.consecutiveFailures }, 'DLQ replay failed');
+      this.logger.error({ err, failures }, 'DLQ replay failed');
     } finally {
       await this.lock.release().catch((err) => this.logger.warn({ err }, 'DLQ lock release failed'));
     }

@@ -103,8 +103,12 @@ export class FlushService implements OnApplicationBootstrap {
         this.logger.warn({ err }, 'Definition sync failed (non-critical)');
       }
     } catch {
-      await this.moveToDlq(events);
-      await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
+      try {
+        await this.moveToDlq(events);
+        await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
+      } catch (dlqErr) {
+        this.logger.error({ err: dlqErr, eventCount: events.length }, 'DLQ write failed — events will be re-delivered via XAUTOCLAIM');
+      }
     }
   }
 
@@ -117,7 +121,9 @@ export class FlushService implements OnApplicationBootstrap {
     const results = await pipeline.exec();
     const failed = results?.filter(([err]) => err !== null);
     if (failed && failed.length > 0) {
-      this.logger.error({ failedCount: failed.length, totalCount: events.length }, 'Some DLQ pipeline writes failed');
+      const msg = `DLQ pipeline: ${failed.length}/${events.length} writes failed`;
+      this.logger.error({ failedCount: failed.length, totalCount: events.length }, msg);
+      throw new Error(msg);
     }
   }
 
