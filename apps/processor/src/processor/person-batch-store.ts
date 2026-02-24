@@ -192,9 +192,13 @@ export class PersonBatchStore {
       this.knownDistinctIds.add(key);
     }
 
-    // Prevent unbounded growth
+    // Prevent unbounded growth — evict older half (Set preserves insertion order)
     if (this.knownDistinctIds.size > KNOWN_DISTINCT_IDS_CAP) {
-      this.knownDistinctIds.clear();
+      const evictCount = Math.floor(this.knownDistinctIds.size / 2);
+      const keys = Array.from(this.knownDistinctIds);
+      for (let i = 0; i < evictCount; i++) {
+        this.knownDistinctIds.delete(keys[i]);
+      }
     }
 
     this.logger.debug({ count: entries.length }, 'Batch upserted person_distinct_ids');
