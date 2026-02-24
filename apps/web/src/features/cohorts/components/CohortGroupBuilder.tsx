@@ -20,6 +20,26 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
 import { createDefaultCondition, type CohortCondition, type CohortConditionGroup } from '../types';
 
+/** Horizontal divider with a centered label, used between OR groups and AND conditions */
+function ConditionDivider({ label, variant }: { label: string; variant: 'or' | 'and' }) {
+  const isOr = variant === 'or';
+  const borderClass = isOr ? 'border-primary/30' : 'border-border/40';
+  const textClass = isOr
+    ? 'font-bold text-primary/60'
+    : 'font-semibold text-muted-foreground/50';
+  const py = isOr ? 'py-1.5' : 'py-1';
+
+  return (
+    <div className={`flex items-center gap-2 ${py}`}>
+      <div className={`flex-1 border-t ${borderClass}`} />
+      <span className={`text-[10px] uppercase tracking-wider ${textClass}`}>
+        {label}
+      </span>
+      <div className={`flex-1 border-t ${borderClass}`} />
+    </div>
+  );
+}
+
 interface CohortGroupBuilderProps {
   /** The top-level definition is always an OR of AND groups */
   groups: CohortConditionGroup[];
@@ -48,13 +68,7 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
       {groups.map((group, groupIdx) => (
         <div key={groupIdx}>
           {groupIdx > 0 && (
-            <div className="flex items-center gap-2 py-1.5">
-              <div className="flex-1 border-t border-primary/30" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary/60">
-                {t('or')}
-              </span>
-              <div className="flex-1 border-t border-primary/30" />
-            </div>
+            <ConditionDivider label={t('or')} variant="or" />
           )}
           <AndGroupCard
             group={group}
@@ -139,13 +153,7 @@ function AndGroupCard({
       {conditions.map((cond, idx) => (
         <div key={idx}>
           {idx > 0 && (
-            <div className="flex items-center gap-2 py-1">
-              <div className="flex-1 border-t border-border/40" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
-                {t('and')}
-              </span>
-              <div className="flex-1 border-t border-border/40" />
-            </div>
+            <ConditionDivider label={t('and')} variant="and" />
           )}
           <ConditionSwitch
             condition={cond}
