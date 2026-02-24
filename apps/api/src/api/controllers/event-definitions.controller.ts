@@ -1,17 +1,20 @@
-import { Controller, Get, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EventDefinitionsService } from '../../definitions/event-definitions.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import {
   EventDefinitionsListResponseDto,
   EventDefinitionsQueryDto,
   UpsertEventDefinitionDto,
   UpsertEventDefinitionResponseDto,
 } from '../dto/event-definitions.dto';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 @ApiTags('Event Definitions')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/event-definitions')
+@UseGuards(ProjectMemberGuard)
 export class EventDefinitionsController {
   constructor(private readonly eventDefinitionsService: EventDefinitionsService) {}
 
@@ -45,6 +48,7 @@ export class EventDefinitionsController {
     ) as any;
   }
 
+  @RequireRole('editor')
   @Delete(':eventName')
   async remove(
     @CurrentUser() user: RequestUser,

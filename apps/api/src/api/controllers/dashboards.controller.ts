@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardsService } from '../../dashboards/dashboards.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import {
   CreateDashboardDto,
   UpdateDashboardDto,
@@ -11,10 +12,12 @@ import {
   DashboardWithWidgetsDto,
   WidgetDto,
 } from '../dto/dashboards.dto';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 @ApiTags('Dashboards')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/dashboards')
+@UseGuards(ProjectMemberGuard)
 export class DashboardsController {
   constructor(private readonly dashboardsService: DashboardsService) {}
 
@@ -44,6 +47,7 @@ export class DashboardsController {
     return this.dashboardsService.getById(user.user_id, projectId, dashboardId);
   }
 
+  @RequireRole('editor')
   @Put(':dashboardId')
   async update(
     @CurrentUser() user: RequestUser,
@@ -54,6 +58,7 @@ export class DashboardsController {
     return this.dashboardsService.update(user.user_id, projectId, dashboardId, body);
   }
 
+  @RequireRole('editor')
   @Delete(':dashboardId')
   async remove(
     @CurrentUser() user: RequestUser,
@@ -63,6 +68,7 @@ export class DashboardsController {
     return this.dashboardsService.remove(user.user_id, projectId, dashboardId);
   }
 
+  @RequireRole('editor')
   @Post(':dashboardId/widgets')
   async addWidget(
     @CurrentUser() user: RequestUser,
@@ -73,6 +79,7 @@ export class DashboardsController {
     return this.dashboardsService.addWidget(user.user_id, projectId, dashboardId, body) as any;
   }
 
+  @RequireRole('editor')
   @Put(':dashboardId/widgets/:widgetId')
   async updateWidget(
     @CurrentUser() user: RequestUser,
@@ -84,6 +91,7 @@ export class DashboardsController {
     return this.dashboardsService.updateWidget(user.user_id, projectId, dashboardId, widgetId, body) as any;
   }
 
+  @RequireRole('editor')
   @Delete(':dashboardId/widgets/:widgetId')
   async removeWidget(
     @CurrentUser() user: RequestUser,

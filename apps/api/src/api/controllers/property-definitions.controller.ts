@@ -1,17 +1,20 @@
-import { Controller, Get, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertyDefinitionsService } from '../../definitions/property-definitions.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import {
   PropertyDefinitionQueryDto,
   PropertyDefinitionsListResponseDto,
   UpsertPropertyDefinitionDto,
   UpsertPropertyDefinitionResponseDto,
 } from '../dto/property-definitions.dto';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 @ApiTags('Property Definitions')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/property-definitions')
+@UseGuards(ProjectMemberGuard)
 export class PropertyDefinitionsController {
   constructor(private readonly propertyDefinitionsService: PropertyDefinitionsService) {}
 
@@ -50,6 +53,7 @@ export class PropertyDefinitionsController {
     ) as any;
   }
 
+  @RequireRole('editor')
   @Delete(':propertyType/:propertyName')
   async remove(
     @CurrentUser() user: RequestUser,

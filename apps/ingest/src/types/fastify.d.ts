@@ -4,5 +4,6 @@ declare module 'fastify' {
   interface FastifyRequest {
     projectId: string;
     eventsLimit: number | null;
+    quotaLimited: boolean;
   }
 }

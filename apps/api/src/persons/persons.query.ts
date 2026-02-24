@@ -1,11 +1,12 @@
 import { eq, and, desc, sql, inArray, type SQL } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
-import { buildPgPropertyFilterConditions, type PersonPropertyFilter } from '../utils/pg-property-filter';
+import { buildPgPropertyFilterConditions } from '../utils/pg-property-filter';
+import type { PropertyFilter } from '../utils/property-filter';
 
 export interface PersonsQueryParams {
   project_id: string;
   search?: string;
-  filters?: PersonPropertyFilter[];
+  filters?: PropertyFilter[];
   limit: number;
   offset: number;
 }
@@ -22,7 +23,7 @@ export interface PersonRow {
 export interface PersonsCountParams {
   project_id: string;
   search?: string;
-  filters?: PersonPropertyFilter[];
+  filters?: PropertyFilter[];
 }
 
 /**

@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MembersService } from '../../members/members.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
+import { RequireRole } from '../decorators/require-role.decorator';
 import { OkResponseDto } from '../dto/auth.dto';
 import {
   CreateInviteDto,
@@ -10,12 +11,14 @@ import {
   InviteDto,
   MyInviteDto,
 } from '../dto/members.dto';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 // ── Project-scoped member management ──────────────────────────────────────────
 
 @ApiTags('Members')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/members')
+@UseGuards(ProjectMemberGuard)
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
@@ -27,6 +30,7 @@ export class MembersController {
     return this.membersService.listMembers(user.user_id, projectId);
   }
 
+  @RequireRole('owner')
   @Put(':memberId/role')
   async updateRole(
     @CurrentUser() user: RequestUser,
@@ -37,6 +41,7 @@ export class MembersController {
     return this.membersService.updateMemberRole(user.user_id, projectId, memberId, body.role);
   }
 
+  @RequireRole('owner')
   @Delete(':memberId')
   async removeMember(
     @CurrentUser() user: RequestUser,
@@ -52,9 +57,11 @@ export class MembersController {
 @ApiTags('Invites')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/invites')
+@UseGuards(ProjectMemberGuard)
 export class InvitesController {
   constructor(private readonly membersService: MembersService) {}
 
+  @RequireRole('owner')
   @Get()
   async listInvites(
     @CurrentUser() user: RequestUser,
@@ -63,6 +70,7 @@ export class InvitesController {
     return this.membersService.listInvites(user.user_id, projectId);
   }
 
+  @RequireRole('owner')
   @Post()
   async createInvite(
     @CurrentUser() user: RequestUser,
@@ -72,6 +80,7 @@ export class InvitesController {
     return this.membersService.createInvite(user.user_id, projectId, body);
   }
 
+  @RequireRole('owner')
   @Delete(':inviteId')
   async cancelInvite(
     @CurrentUser() user: RequestUser,
