@@ -16,6 +16,7 @@
     "@qurvo/db": "workspace:*",
     "@qurvo/distributed-lock": "workspace:*",
     "@qurvo/heartbeat": "workspace:*",
+    "@qurvo/nestjs-infra": "workspace:*",
     "dd-trace": "^5.0.0",
     "drizzle-orm": "^0.39.0",
     "maxmind": "^4.3.0",
