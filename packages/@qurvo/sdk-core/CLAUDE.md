@@ -27,12 +27,19 @@ Buffers events and auto-flushes:
 ### FetchTransport
 HTTP POST transport using `fetch`. Sends batched events to `/v1/batch`.
 
+### Error Classification
+- **5xx / network errors** → re-queue batch + exponential backoff (retryable)
+- **4xx** → `NonRetryableError` → drop batch (bad data/auth, retrying won't help)
+- **429 + `quota_limited`** → `QuotaExceededError` → clear entire queue + stop timer (permanent)
+
 ### Types
 - `SdkConfig` — API key, endpoint, flush settings
 - `EventPayload` — event name, distinct_id, properties, timestamp
 - `EventContext` — browser/device context (url, referrer, screen, etc.)
 - `Transport` — interface for custom transports
 - `SendOptions` — `{ useBeacon?: boolean }`
+- `QuotaExceededError` — thrown on 429 with `quota_limited`, stops queue permanently
+- `NonRetryableError` — thrown on 4xx, drops batch without retry
 
 ## Structure
 

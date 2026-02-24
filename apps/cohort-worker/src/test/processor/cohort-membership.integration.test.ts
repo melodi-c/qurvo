@@ -259,7 +259,19 @@ describe('cohort membership', () => {
     await runCycle();
     await runCycle();
 
-    await new Promise((r) => setTimeout(r, 2000));
+    // Poll until ALTER DELETE mutation completes (same pattern as orphan GC test)
+    const deadline = Date.now() + 15_000;
+    let physicalCount = Infinity;
+    while (Date.now() < deadline) {
+      const res = await ctx.ch.query({
+        query: `SELECT count() AS cnt FROM cohort_members WHERE cohort_id = {c:UUID} AND person_id = {p:UUID}`,
+        query_params: { c: cohortId, p: personId },
+        format: 'JSONEachRow',
+      });
+      physicalCount = Number((await res.json<{ cnt: string }>())[0].cnt);
+      if (physicalCount <= 1) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
 
     const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).toContain(personId);

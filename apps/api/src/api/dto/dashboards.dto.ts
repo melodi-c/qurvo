@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNumber, Min, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FunnelStepDto, FunnelExclusionDto } from './funnel.dto';
@@ -23,16 +23,20 @@ export class UpdateDashboardDto {
 }
 
 export class WidgetLayoutDto {
-  @IsNotEmpty()
+  @IsNumber()
+  @Min(0)
   x: number;
 
-  @IsNotEmpty()
+  @IsNumber()
+  @Min(0)
   y: number;
 
-  @IsNotEmpty()
+  @IsNumber()
+  @Min(1)
   w: number;
 
-  @IsNotEmpty()
+  @IsNumber()
+  @Min(1)
   h: number;
 }
 

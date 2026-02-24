@@ -139,12 +139,17 @@ export class PersonBatchStore {
       );
     }
 
-    // 3. Execute pending merges (rare, sequential)
+    // 3. Execute pending merges (rare, sequential, with retry to prevent data loss)
     for (const merge of pendingMerges) {
       try {
-        await this.mergePersons(merge.projectId, merge.fromPersonId, merge.intoPersonId);
+        await withRetry(
+          () => this.mergePersons(merge.projectId, merge.fromPersonId, merge.intoPersonId),
+          'mergePersons',
+          this.logger,
+          RETRY_POSTGRES,
+        );
       } catch (err) {
-        this.logger.error({ err, ...merge }, 'Person merge failed');
+        this.logger.error({ err, ...merge }, 'Person merge failed after retries — PG/CH may be out of sync');
       }
     }
   }

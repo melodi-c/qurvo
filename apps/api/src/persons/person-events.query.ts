@@ -1,40 +1,11 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import type { EventDetailRow } from '../events/events.query';
 
 export interface PersonEventsQueryParams {
   project_id: string;
   person_id: string;
   limit: number;
   offset: number;
-}
-
-export interface PersonEventRow {
-  event_id: string;
-  event_name: string;
-  event_type: string;
-  distinct_id: string;
-  person_id: string;
-  session_id: string;
-  timestamp: string;
-  url: string;
-  referrer: string;
-  page_title: string;
-  page_path: string;
-  device_type: string;
-  browser: string;
-  browser_version: string;
-  os: string;
-  os_version: string;
-  screen_width: number;
-  screen_height: number;
-  country: string;
-  region: string;
-  city: string;
-  language: string;
-  timezone: string;
-  sdk_name: string;
-  sdk_version: string;
-  properties: string;
-  user_properties: string;
 }
 
 /**
@@ -44,7 +15,7 @@ export interface PersonEventRow {
 export async function queryPersonEvents(
   ch: ClickHouseClient,
   params: PersonEventsQueryParams,
-): Promise<PersonEventRow[]> {
+): Promise<EventDetailRow[]> {
   const query = `
     SELECT
       event_id,
@@ -97,5 +68,5 @@ export async function queryPersonEvents(
     format: 'JSONEachRow',
   });
 
-  return result.json<PersonEventRow>();
+  return result.json<EventDetailRow>();
 }
