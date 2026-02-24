@@ -89,13 +89,21 @@ constructor(
 3. Public endpoints (register, login, verify-email/token, health) use `@Public()` decorator from `src/api/decorators/public.decorator.ts` to skip auth
 4. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
 
+### Project Authorization (ProjectMemberGuard)
+Project-scoped endpoints use `ProjectMemberGuard` (from `src/api/guards/project-member.guard.ts`) instead of calling `getMembership()` in every service method:
+1. Guard reads `projectId` from `request.params.projectId` or `request.query.project_id`
+2. Calls `ProjectsService.getMembership()` once, attaches result to `request.projectMembership`
+3. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy: `owner (3) > editor (2) > viewer (1)`
+4. Controllers access membership via `@ProjectMembership()` param decorator if needed
+
+**Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id sometimes in body — `AiService` calls `getMembership()` directly).
+
 ### Analytics Queries
 All analytics services are created via `createAnalyticsQueryProvider()` factory in `src/analytics/analytics-query.factory.ts`. Each provider wraps a pure query function with shared logic:
-1. Auth check (`getMembership`)
-2. Resolve cohort IDs via `CohortsService.resolveCohortFilters()`
-3. Resolve cohort breakdowns via `CohortsService.resolveCohortBreakdowns()` (if `breakdown_type === 'cohort'`)
-4. Cache lookup in Redis → ClickHouse query → cache write (`withAnalyticsCache`)
-5. Return `{ data, cached_at, from_cache }` envelope
+1. Resolve cohort IDs via `CohortsService.resolveCohortFilters()`
+2. Resolve cohort breakdowns via `CohortsService.resolveCohortBreakdowns()` (if `breakdown_type === 'cohort'`)
+3. Cache lookup in Redis → ClickHouse query → cache write (`withAnalyticsCache`)
+4. Return `{ data, cached_at, from_cache }` envelope
 
 Provider tokens are exported from `analytics.module.ts`: `TREND_SERVICE`, `FUNNEL_SERVICE`, `FUNNEL_TTC_SERVICE`, `RETENTION_SERVICE`, `LIFECYCLE_SERVICE`, `STICKINESS_SERVICE`, `PATHS_SERVICE`.
 
@@ -126,8 +134,11 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `filters.dto.ts` — `StepFilterDto` class, re-exports `FilterOperator` from `utils/property-filter.ts`
 - `transforms.ts` — `parseJsonArray()` for query params arriving as JSON strings; `makeJsonArrayTransform(TargetClass)` for JSON-encoded arrays that need `plainToInstance` instantiation
 
+### Controller Organization
+Controllers and DTOs live in `src/api/controllers/` and `src/api/dto/`, **not** inside feature module directories. This is intentional: `ApiModule` acts as a **composition layer** — controllers may inject services from multiple feature modules (e.g. a dashboard controller using both `DashboardsService` and `AnalyticsService`). Feature modules (`src/{feature}/`) contain only services, queries, and domain exceptions. **Do not move controllers into feature modules.**
+
 ### Module Cohesion
-All code is grouped by module. Controllers, services, guards, and exceptions for a feature all live inside that feature's directory. Base exception classes live in `src/exceptions/`, filter factory and custom filters live in `src/api/filters/`.
+Feature code is grouped by module. Services, queries, and exceptions for a feature live inside that feature's directory. Base exception classes live in `src/exceptions/`, filter factory and custom filters live in `src/api/filters/`.
 
 ### Filter Registration
 Filters registered via `APP_FILTER` provider in `ApiModule`, never via `app.useGlobalFilters()`. Most filters are created via `createHttpFilter(status, ...ExceptionClasses)` factory:

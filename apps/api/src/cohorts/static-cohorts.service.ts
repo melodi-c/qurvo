@@ -4,7 +4,6 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { cohorts, type Database } from '@qurvo/db';
-import { ProjectsService } from '../projects/projects.service';
 import { CohortsService } from './cohorts.service';
 
 @Injectable()
@@ -13,7 +12,6 @@ export class StaticCohortsService {
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     private readonly cohortsService: CohortsService,
-    private readonly projectsService: ProjectsService,
   ) {}
 
   async createStaticCohort(
@@ -21,8 +19,6 @@ export class StaticCohortsService {
     projectId: string,
     input: { name: string; description?: string; person_ids?: string[] },
   ) {
-    await this.projectsService.getMembership(userId, projectId);
-
     const rows = await this.db
       .insert(cohorts)
       .values({
