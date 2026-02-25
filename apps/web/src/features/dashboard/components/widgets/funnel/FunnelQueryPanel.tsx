@@ -33,9 +33,9 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const orderOptions = useMemo(() => [
-    { label: t('ordered'), value: 'ordered' as const },
-    { label: t('strict'), value: 'strict' as const },
-    { label: t('unordered'), value: 'unordered' as const },
+    { label: t('ordered'), desc: t('orderedDesc'), value: 'ordered' as const },
+    { label: t('strict'), desc: t('strictDesc'), value: 'strict' as const },
+    { label: t('unordered'), desc: t('unorderedDesc'), value: 'unordered' as const },
   ], [t]);
 
   const rateDisplayOptions = useMemo(() => [
@@ -222,11 +222,24 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
                 <SectionHeader icon={Shuffle} label={t('orderType')} />
                 <InfoTooltip content={t('orderTypeTooltip')} />
               </div>
-              <PillToggleGroup
-                options={orderOptions}
+              <Select
                 value={config.funnel_order_type ?? 'ordered'}
-                onChange={(funnel_order_type) => onChange({ ...config, funnel_order_type })}
-              />
+                onValueChange={(v) => onChange({ ...config, funnel_order_type: v as FunnelWidgetConfig['funnel_order_type'] })}
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      <div className="flex flex-col">
+                        <span>{o.label}</span>
+                        <span className="text-xs text-muted-foreground">{o.desc}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </section>
 
             <Separator />

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { TargetEventQueryPanel } from '../shared/TargetEventQueryPanel';
@@ -17,8 +17,8 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
   const { t } = useLocalTranslation(translations);
 
   const retentionTypeOptions = useMemo(() => [
-    { value: 'first_time', label: t('firstTime') },
-    { value: 'recurring', label: t('recurring') },
+    { value: 'first_time', label: t('firstTime'), desc: t('firstTimeDesc') },
+    { value: 'recurring', label: t('recurring'), desc: t('recurringDesc') },
   ], [t]);
 
   return (
@@ -32,11 +32,24 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
             <span className="text-xs text-muted-foreground">{t('retentionType')}</span>
             <InfoTooltip content={t('retentionTypeTooltip')} />
           </div>
-          <PillToggleGroup
-            options={retentionTypeOptions}
+          <Select
             value={config.retention_type}
-            onChange={(v) => onChange({ ...config, retention_type: v as RetentionWidgetConfig['retention_type'] })}
-          />
+            onValueChange={(v) => onChange({ ...config, retention_type: v as RetentionWidgetConfig['retention_type'] })}
+          >
+            <SelectTrigger size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {retentionTypeOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  <div className="flex flex-col">
+                    <span>{o.label}</span>
+                    <span className="text-xs text-muted-foreground">{o.desc}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       }
       granularityAdjacentContent={

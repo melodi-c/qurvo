@@ -38,13 +38,13 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
   const { t } = useLocalTranslation(translations);
 
   const metricOptions = useMemo(() => [
-    { value: 'total_events', label: t('totalEvents') },
-    { value: 'unique_users', label: t('uniqueUsers') },
-    { value: 'events_per_user', label: t('eventsPerUser') },
-    { value: 'property_sum', label: t('propertySum') },
-    { value: 'property_avg', label: t('propertyAvg') },
-    { value: 'property_min', label: t('propertyMin') },
-    { value: 'property_max', label: t('propertyMax') },
+    { value: 'total_events', label: t('totalEvents'), desc: t('totalEventsDesc') },
+    { value: 'unique_users', label: t('uniqueUsers'), desc: t('uniqueUsersDesc') },
+    { value: 'events_per_user', label: t('eventsPerUser'), desc: t('eventsPerUserDesc') },
+    { value: 'property_sum', label: t('propertySum'), desc: t('propertyAggDesc') },
+    { value: 'property_avg', label: t('propertyAvg'), desc: t('propertyAggDesc') },
+    { value: 'property_min', label: t('propertyMin'), desc: t('propertyAggDesc') },
+    { value: 'property_max', label: t('propertyMax'), desc: t('propertyAggDesc') },
   ], [t]);
 
   const isPropertyMetric = config.metric.startsWith('property_');
@@ -126,8 +126,11 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {metricOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value} className="text-sm">
-                      {o.label}
+                    <SelectItem key={o.value} value={o.value}>
+                      <div className="flex flex-col">
+                        <span>{o.label}</span>
+                        <span className="text-xs text-muted-foreground">{o.desc}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
