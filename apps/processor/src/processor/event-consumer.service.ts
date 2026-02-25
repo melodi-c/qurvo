@@ -20,7 +20,7 @@ import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { parseRedisFields } from './redis-utils';
-import { safeScreenDimension, groupByKey } from './event-utils';
+import { safeScreenDimension, groupByKey, parseUa } from './event-utils';
 
 interface ParsedMessage {
   id: string;
@@ -316,6 +316,9 @@ export class EventConsumerService implements OnApplicationBootstrap {
       this.personBatchStore.enqueueMerge(projectId, mergedFromPersonId, personId);
     }
 
+    // Parse UA from raw user_agent string; SDK context fields (already in data.*) take precedence
+    const ua = parseUa(data.user_agent);
+
     return {
       event_id: data.event_id || '',
       project_id: projectId,
@@ -330,11 +333,11 @@ export class EventConsumerService implements OnApplicationBootstrap {
       referrer: data.referrer,
       page_title: data.page_title,
       page_path: data.page_path,
-      device_type: data.device_type,
-      browser: data.browser,
-      browser_version: data.browser_version,
-      os: data.os,
-      os_version: data.os_version,
+      device_type: data.device_type || ua.device_type,
+      browser: data.browser || ua.browser,
+      browser_version: data.browser_version || ua.browser_version,
+      os: data.os || ua.os,
+      os_version: data.os_version || ua.os_version,
       screen_width: safeScreenDimension(data.screen_width),
       screen_height: safeScreenDimension(data.screen_height),
       country,
