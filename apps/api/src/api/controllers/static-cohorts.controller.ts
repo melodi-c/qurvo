@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Delete, Body, Param, UseGuards,
+  Controller, Post, Delete, Body, Param, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
@@ -35,7 +35,7 @@ export class StaticCohortsController {
   async duplicateAsStatic(
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
   ): Promise<CohortDto> {
     return this.staticCohortsService.duplicateAsStatic(user.user_id, projectId, cohortId) as any;
   }
@@ -44,7 +44,7 @@ export class StaticCohortsController {
   @Post(':cohortId/upload-csv')
   async uploadCsv(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Body() body: UploadCsvDto,
   ): Promise<{ imported: number; total_lines: number }> {
     return this.staticCohortsService.importStaticCohortCsv(projectId, cohortId, body.csv_content);
@@ -54,7 +54,7 @@ export class StaticCohortsController {
   @Post(':cohortId/members')
   async addMembers(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Body() body: StaticCohortMembersDto,
   ): Promise<void> {
     await this.staticCohortsService.addStaticMembers(projectId, cohortId, body.person_ids);
@@ -64,7 +64,7 @@ export class StaticCohortsController {
   @Delete(':cohortId/members')
   async removeMembers(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Body() body: StaticCohortMembersDto,
   ): Promise<void> {
     await this.staticCohortsService.removeStaticMembers(projectId, cohortId, body.person_ids);

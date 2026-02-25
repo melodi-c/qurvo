@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, Query, Res, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Query, Res, Logger, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
@@ -64,7 +64,7 @@ export class AiController {
   @Get('conversations/:id')
   async getConversation(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Query() query: AiConversationMessagesQueryDto,
   ): Promise<AiConversationDetailDto> {
     return this.aiService.getConversation(user.user_id, id, query.limit, query.before_sequence) as any;
@@ -73,7 +73,7 @@ export class AiController {
   @Delete('conversations/:id')
   async deleteConversation(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.aiService.deleteConversation(user.user_id, id);
   }

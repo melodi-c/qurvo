@@ -2,10 +2,6 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 
-// Re-export for backward compat with insight query files
-export { buildCohortFilterClause } from '@qurvo/cohort-query';
-export type { CohortFilterInput } from '@qurvo/cohort-query';
-
 export interface CohortHistoryPoint {
   date: string;
   count: number;

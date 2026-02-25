@@ -43,13 +43,7 @@ export class StaticCohortsService {
   async duplicateAsStatic(userId: string, projectId: string, cohortId: string) {
     const source = await this.cohortsService.getById(projectId, cohortId);
 
-    // Get current members
-    const memberCount = await this.cohortsService.getMemberCount(projectId, cohortId);
-    if (memberCount === 0) {
-      throw new AppBadRequestException('Source cohort has no members');
-    }
-
-    // Create static cohort
+    // Create static cohort (INSERT...SELECT copies members atomically — no pre-count needed)
     const rows = await this.db
       .insert(cohorts)
       .values({

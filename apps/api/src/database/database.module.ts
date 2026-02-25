@@ -22,9 +22,9 @@ export class DatabaseModule implements OnApplicationShutdown {
 
   async onApplicationShutdown() {
     await Promise.allSettled([
-      this.redis.quit(),
-      this.ch.close(),
-      this.db.$client.end(),
+      typeof this.redis.quit === 'function' ? this.redis.quit() : Promise.resolve(),
+      typeof this.ch.close === 'function' ? this.ch.close() : Promise.resolve(),
+      this.db.$client?.end?.() ?? Promise.resolve(),
     ]);
     this.logger.log('All database connections closed');
   }

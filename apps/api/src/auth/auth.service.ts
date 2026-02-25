@@ -82,7 +82,7 @@ export class AuthService {
         email: user.email,
         display_name: user.display_name,
         language: user.language,
-        email_verified: false,
+        email_verified: user.email_verified,
       },
     };
   }

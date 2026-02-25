@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
