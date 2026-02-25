@@ -1,10 +1,17 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and, desc, lt, gt, count } from 'drizzle-orm';
+import { eq, and, desc, lt, gt, count, sql } from 'drizzle-orm';
 import { aiConversations, aiMessages, users } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
+
+export interface ConversationSearchResult {
+  id: string;
+  title: string;
+  snippet: string;
+  matched_at: string;
+}
 
 export interface SavedMessage {
   role: 'user' | 'assistant' | 'tool';
@@ -198,6 +205,49 @@ export class AiChatService {
       .update(aiMessages)
       .set({ content })
       .where(and(eq(aiMessages.conversation_id, conversationId), eq(aiMessages.sequence, sequence)));
+  }
+
+  async searchConversations(
+    userId: string,
+    projectId: string,
+    query: string,
+    limit = 20,
+  ): Promise<ConversationSearchResult[]> {
+    // Use websearch_to_tsquery for robust query parsing (handles phrases, +/- operators, etc.)
+    const result = await this.db.execute(sql`
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.title,
+        ts_headline(
+          'russian',
+          coalesce(m.content, ''),
+          websearch_to_tsquery('russian', ${query}),
+          'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15, ShortWord=3, HighlightAll=false, MaxFragments=2, FragmentDelimiter='' … '''
+        ) AS snippet,
+        m.created_at AS matched_at
+      FROM ai_conversations c
+      INNER JOIN ai_messages m ON m.conversation_id = c.id
+      WHERE
+        c.user_id = ${userId}
+        AND c.project_id = ${projectId}
+        AND m.content IS NOT NULL
+        AND (
+          to_tsvector('russian', coalesce(c.title, '')) @@ websearch_to_tsquery('russian', ${query})
+          OR to_tsvector('russian', coalesce(m.content, '')) @@ websearch_to_tsquery('russian', ${query})
+        )
+      ORDER BY c.id, m.created_at DESC
+      LIMIT ${limit}
+    `);
+
+    return result.rows.map((r) => {
+      const row = r as { id: string; title: string; snippet: string; matched_at: Date | string };
+      return {
+        id: row.id,
+        title: row.title,
+        snippet: row.snippet,
+        matched_at: row.matched_at instanceof Date ? row.matched_at.toISOString() : String(row.matched_at),
+      };
+    });
   }
 
   async renameConversation(conversationId: string, userId: string, title: string) {
