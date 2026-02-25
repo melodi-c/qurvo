@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { languages } from '@/stores/language';
-import { LogOut, User, Languages, Plus, ChevronsUpDown } from 'lucide-react';
+import { LogOut, User, Languages, Plus, ChevronsUpDown, ShieldCheck } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,9 +75,11 @@ interface UserMenuProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   onLogout: () => void;
+  isStaff?: boolean;
   profileLabel: string;
   languageLabel: string;
   signOutLabel: string;
+  adminLabel: string;
 }
 
 export function UserMenu({
@@ -87,9 +89,11 @@ export function UserMenu({
   currentLang,
   onLanguageChange,
   onLogout,
+  isStaff,
   profileLabel,
   languageLabel,
   signOutLabel,
+  adminLabel,
 }: UserMenuProps) {
   const navigate = useNavigate();
 
@@ -121,6 +125,13 @@ export function UserMenu({
             </span>
           )}
         </DropdownMenuItem>
+
+        {isStaff && (
+          <DropdownMenuItem onClick={() => navigate(routes.admin.overview())}>
+            <ShieldCheck className="h-4 w-4 mr-2" />
+            {adminLabel}
+          </DropdownMenuItem>
+        )}
 
         {/* Language switcher */}
         <DropdownMenu>

@@ -134,6 +134,21 @@ export const routes = {
     ),
   },
 
+  admin: {
+    overview: route('/admin'),
+    users: {
+      list: route('/admin/users'),
+      detail: route('/admin/users/:id', (id: string) => `/admin/users/${id}`),
+    },
+    projects: {
+      list: route('/admin/projects'),
+      detail: route('/admin/projects/:id', (id: string) => `/admin/projects/${id}`),
+    },
+    plans: {
+      list: route('/admin/plans'),
+    },
+  },
+
   legacy: {
     trends: route('/trends'),
     funnels: route('/funnels'),

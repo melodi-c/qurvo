@@ -9,6 +9,7 @@ import { routes } from '@/lib/routes';
 import { useAuthStore } from '@/stores/auth';
 import appTranslations from '@/App.translations';
 import Layout from '@/components/layout';
+import AdminLayout from '@/pages/admin/admin-layout';
 
 // Eager: auth pages (needed immediately)
 import LoginPage from '@/pages/login';
@@ -40,6 +41,14 @@ const EventDefinitionsPage = lazy(() => import('@/pages/event-definitions'));
 const EventDefinitionDetailPage = lazy(() => import('@/pages/event-definition-detail'));
 const WebAnalyticsPage = lazy(() => import('@/pages/web-analytics'));
 
+// Admin pages (lazy)
+const AdminOverviewPage = lazy(() => import('@/pages/admin/admin-overview'));
+const AdminUsersPage = lazy(() => import('@/pages/admin/users/admin-users-page'));
+const AdminUserDetailPage = lazy(() => import('@/pages/admin/users/admin-user-detail'));
+const AdminProjectsPage = lazy(() => import('@/pages/admin/projects/admin-projects-page'));
+const AdminProjectDetailPage = lazy(() => import('@/pages/admin/projects/admin-project-detail'));
+const AdminPlansPage = lazy(() => import('@/pages/admin/plans/admin-plans-page'));
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
@@ -53,6 +62,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;
   if (!user) return <Navigate to={routes.login()} replace />;
   if (pendingVerification) return <Navigate to={routes.verifyEmail()} replace />;
+  return <>{children}</>;
+}
+
+function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user);
+  const loading = useAuthStore((s) => s.loading);
+  const { t } = useLocalTranslation(appTranslations);
+
+  if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;
+  if (!user) return <Navigate to={routes.login()} replace />;
+  if (!user.is_staff) return <Navigate to={routes.login()} replace />;
   return <>{children}</>;
 }
 
@@ -111,6 +131,20 @@ function AppRoutes() {
         <Route path={routes.ai.pattern} element={<AiPage />} />
         <Route path={routes.dataManagement.list.pattern} element={<EventDefinitionsPage />} />
         <Route path={routes.dataManagement.detail.pattern} element={<EventDefinitionDetailPage />} />
+      </Route>
+      <Route
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout />
+          </AdminProtectedRoute>
+        }
+      >
+        <Route path={routes.admin.overview.pattern} element={<AdminOverviewPage />} />
+        <Route path={routes.admin.users.list.pattern} element={<AdminUsersPage />} />
+        <Route path={routes.admin.users.detail.pattern} element={<AdminUserDetailPage />} />
+        <Route path={routes.admin.projects.list.pattern} element={<AdminProjectsPage />} />
+        <Route path={routes.admin.projects.detail.pattern} element={<AdminProjectDetailPage />} />
+        <Route path={routes.admin.plans.list.pattern} element={<AdminPlansPage />} />
       </Route>
     </Routes>
   );
