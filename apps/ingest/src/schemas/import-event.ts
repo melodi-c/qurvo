@@ -3,7 +3,6 @@ import { TrackEventSchema } from './event';
 
 export const ImportEventSchema = TrackEventSchema.extend({
   timestamp: z.string().datetime(),
-  event_id: z.string().uuid().optional(),
 });
 
 export const ImportBatchSchema = z.object({

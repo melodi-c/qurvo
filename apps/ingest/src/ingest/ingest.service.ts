@@ -75,8 +75,7 @@ export class IngestService {
     const batchId = uuidv7();
     const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, userAgent, batchId, sentAt, event_id: event.event_id }));
     await this.writeToStream(payloads);
-    this.incrementBillingCounter(projectId, events.length);
-    this.incrementRateLimitCounter(projectId, events.length);
+    this.incrementCounters(projectId, events.length);
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
   }
 
@@ -87,7 +86,9 @@ export class IngestService {
       this.buildPayload(projectId, event, event.timestamp, { batchId, event_id: event.event_id }),
     );
     await this.writeToStream(payloads);
-    // Billing and rate-limit counters intentionally skipped for imports
+    // Counters intentionally skipped: imports are rate-limited (RateLimitGuard reads
+    // existing counters) but don't contribute to the rate-limit window — live traffic
+    // takes priority. Billing is also skipped since imports are backfills, not new usage.
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Import batch ingested');
   }
 
@@ -164,14 +165,19 @@ export class IngestService {
     }
   }
 
-  private incrementRateLimitCounter(projectId: string, count: number): void {
-    const key = rateLimitBucketKey(projectId);
-    const ttl = RATE_LIMIT_WINDOW_SECONDS + RATE_LIMIT_BUCKET_SECONDS;
+  /** Fire-and-forget: billing + rate-limit counters in a single pipeline (1 Redis round-trip). */
+  private incrementCounters(projectId: string, count: number): void {
+    const billingKey = billingCounterKey(projectId);
+    const rlKey = rateLimitBucketKey(projectId);
+    const rlTtl = RATE_LIMIT_WINDOW_SECONDS + RATE_LIMIT_BUCKET_SECONDS;
+
     const pipeline = this.redis.pipeline();
-    pipeline.incrby(key, count);
-    pipeline.expire(key, ttl);
+    pipeline.incrby(billingKey, count);
+    pipeline.expireat(billingKey, billingCounterExpireAt());
+    pipeline.incrby(rlKey, count);
+    pipeline.expire(rlKey, rlTtl);
     pipeline.exec().catch((err: unknown) =>
-      this.logger.warn({ err, projectId }, 'Failed to increment rate limit counter'),
+      this.logger.warn({ err, projectId }, 'Failed to increment counters'),
     );
   }
 
@@ -182,17 +188,6 @@ export class IngestService {
     } catch {
       return false;
     }
-  }
-
-  private incrementBillingCounter(projectId: string, count: number): void {
-    const counterKey = billingCounterKey(projectId);
-
-    const pipeline = this.redis.pipeline();
-    pipeline.incrby(counterKey, count);
-    pipeline.expireat(counterKey, billingCounterExpireAt());
-    pipeline.exec().catch((err: unknown) =>
-      this.logger.warn({ err, projectId }, 'Failed to increment billing counter'),
-    );
   }
 
 }

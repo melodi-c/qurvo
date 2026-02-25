@@ -15,8 +15,8 @@ export const API_KEY_CACHE_TTL_SECONDS = 300;
 
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 
-// Billing quota: Redis Set populated by billing-check worker in @qurvo/cohort-worker.
-// Intentionally duplicated in apps/cohort-worker/src/constants.ts — both apps share
+// Billing quota: Redis Set populated by @qurvo/billing-worker.
+// Intentionally duplicated in apps/billing-worker/src/constants.ts — both apps share
 // the same Redis key but have no shared runtime dependency.
 export const BILLING_QUOTA_LIMITED_KEY = 'billing:quota_limited';
 
