@@ -254,7 +254,7 @@ helm upgrade --install "$RELEASE_NAME" "$HELM_CHART" \
   "${HELM_SET_ARGS[@]}" \
   ${HELM_EXTRA_ARGS[@]+"${HELM_EXTRA_ARGS[@]}"} \
   --wait \
-  --timeout 5m
+  --timeout 25m
 
 # ── Deploy Datadog Agent (optional) ───────────────────────────────────────────
 if [[ "$DEPLOY_DATADOG" == true ]]; then
