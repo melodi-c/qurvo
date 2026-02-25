@@ -10,6 +10,7 @@ import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import { defaultFunnelConfig } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './funnel-editor.translations';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
@@ -88,7 +89,7 @@ export default function FunnelEditorPage() {
           {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
             <>
               <MetricsDivider />
-              <span className="inline-flex items-center gap-1.5 text-xs text-amber-400/80">
+              <span className={`inline-flex items-center gap-1.5 text-xs ${STATUS_COLORS.warning}/80`}>
                 <FlaskConical className="h-3.5 w-3.5" />
                 {t('sampled', { pct: String(Math.round(funnelResult.sampling_factor * 100)) })}
               </span>

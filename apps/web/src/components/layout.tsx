@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Outlet, Link, useLocation, useSearchParams, Navigate, useNavigate } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +35,7 @@ export default function Layout() {
 
   const navigate = useNavigate();
 
-  const sidebarSections = [
+  const sidebarSections = useMemo(() => [
     {
       title: t('product'),
       items: [
@@ -54,7 +55,7 @@ export default function Layout() {
         { path: routes.settings.pattern,             label: t('settings'), icon: Settings },
       ],
     },
-  ];
+  ], [t]);
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -135,7 +136,7 @@ export default function Layout() {
         {/* Logo */}
         <Link
           to={logoHref}
-          className="h-[44px] flex items-center gap-2.5 px-4 border-b border-border hover:bg-accent/30 transition-colors"
+          className="h-[var(--topbar-height)] flex items-center gap-2.5 px-4 border-b border-border hover:bg-accent/30 transition-colors"
         >
           <QurvoLogo className="w-5 h-5 text-primary shrink-0" />
           <span className="text-sm font-semibold tracking-tight">Qurvo</span>

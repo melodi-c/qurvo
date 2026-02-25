@@ -8,6 +8,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { Plus, Key, Copy, Check } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './api-keys-tab.translations';
 
 export function ApiKeysTab({ projectId }: { projectId: string }) {
@@ -58,9 +59,9 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       </Button>
 
       {createdKey && (
-        <Card className="border-green-800">
+        <Card className={STATUS_COLORS.successBorder}>
           <CardContent className="pt-6">
-            <p className="text-sm text-green-400 mb-2">{t('keyCreated')}</p>
+            <p className={`text-sm ${STATUS_COLORS.successText} mb-2`}>{t('keyCreated')}</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-muted p-3 rounded text-sm break-all">{createdKey}</code>
               <Button size="icon" variant="outline" onClick={copyKey}>
@@ -96,7 +97,7 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
                     <CardTitle className="text-sm">{key.name}</CardTitle>
                     <p className="text-xs text-muted-foreground mt-1">
                       {key.key_prefix}... &middot; {t('created')} {new Date(key.created_at).toLocaleDateString()}
-                      {key.revoked_at && <span className="text-red-400 ml-2">{t('revoked')}</span>}
+                      {key.revoked_at && <span className={`${STATUS_COLORS.negative} ml-2`}>{t('revoked')}</span>}
                     </p>
                   </div>
                 </div>
