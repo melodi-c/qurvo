@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Plus, MessageSquare, ArrowLeft } from 'lucide-react';
 import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -12,7 +13,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useAiChat } from '@/features/ai/hooks/use-ai-chat';
-import { useConversations, useDeleteConversation } from '@/features/ai/hooks/use-ai-conversations';
+import { useConversations, useDeleteConversation, useRenameConversation } from '@/features/ai/hooks/use-ai-conversations';
 import translations from './index.translations';
 import { AiChatPanel } from './ai-chat-panel';
 
@@ -40,7 +41,11 @@ function AiListView({ projectId }: { projectId: string }) {
   const [, setSearchParams] = useSearchParams();
   const { data: conversations, isLoading } = useConversations(projectId);
   const deleteMutation = useDeleteConversation(projectId);
+  const renameMutation = useRenameConversation(projectId);
   const { isOpen, itemId, itemName, requestDelete, close } = useConfirmDelete();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const navigate = useCallback(
     (chatParam: string) => {
@@ -54,6 +59,37 @@ function AiListView({ projectId }: { projectId: string }) {
   );
 
   const startNew = useCallback(() => navigate('new'), [navigate]);
+
+  const startEdit = useCallback((id: string, currentTitle: string) => {
+    setEditingId(id);
+    setEditValue(currentTitle);
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditValue('');
+  }, []);
+
+  const commitEdit = useCallback(
+    async (id: string) => {
+      const trimmed = editValue.trim();
+      if (!trimmed || trimmed.length > 200) {
+        cancelEdit();
+        return;
+      }
+      setEditingId(null);
+      setEditValue('');
+      await renameMutation.mutateAsync({ id, title: trimmed });
+    },
+    [editValue, renameMutation, cancelEdit],
+  );
+
+  useEffect(() => {
+    if (editingId) {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }
+  }, [editingId]);
 
   return (
     <div className="space-y-6">
@@ -82,16 +118,42 @@ function AiListView({ projectId }: { projectId: string }) {
 
       {!isLoading && conversations && conversations.length > 0 && (
         <div className="space-y-1">
-          {conversations.map((conv) => (
-            <ClickableListRow
-              key={conv.id}
-              icon={MessageSquare}
-              title={conv.title}
-              subtitle={new Date(conv.updated_at).toLocaleDateString()}
-              onClick={() => navigate(conv.id)}
-              onDelete={() => requestDelete(conv.id, conv.title)}
-            />
-          ))}
+          {conversations.map((conv) =>
+            editingId === conv.id ? (
+              <div
+                key={conv.id}
+                className="flex items-center gap-3 rounded-lg border border-border px-4 py-3"
+              >
+                <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Input
+                  ref={editInputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void commitEdit(conv.id);
+                    } else if (e.key === 'Escape') {
+                      cancelEdit();
+                    }
+                  }}
+                  onBlur={() => void commitEdit(conv.id)}
+                  maxLength={200}
+                  className="h-7 text-sm flex-1 min-w-0"
+                />
+              </div>
+            ) : (
+              <ClickableListRow
+                key={conv.id}
+                icon={MessageSquare}
+                title={conv.title}
+                subtitle={new Date(conv.updated_at).toLocaleDateString()}
+                onClick={() => navigate(conv.id)}
+                onRename={() => startEdit(conv.id, conv.title)}
+                onDelete={() => requestDelete(conv.id, conv.title)}
+              />
+            ),
+          )}
         </div>
       )}
 

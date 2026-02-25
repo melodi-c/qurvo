@@ -907,6 +907,11 @@ export interface MyInvite {
   created_at: string;
 }
 
+export interface RenameConversation {
+  /** @maxLength 200 */
+  title: string;
+}
+
 export interface AiChat {
   /** @format uuid */
   conversation_id?: string;
@@ -1726,6 +1731,12 @@ export interface AiControllerGetConversationParams {
   limit?: number;
   /** @min 0 */
   before_sequence?: number;
+  /** @format uuid */
+  project_id: string;
+  id: string;
+}
+
+export interface AiControllerRenameConversationParams {
   /** @format uuid */
   project_id: string;
   id: string;
@@ -3538,6 +3549,30 @@ export class Api<
         method: "GET",
         query: query,
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerRenameConversation
+     * @request PATCH:/api/ai/conversations/{id}
+     * @secure
+     */
+    aiControllerRenameConversation: (
+      { id, ...query }: AiControllerRenameConversationParams,
+      data: RenameConversation,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiConversation, any>({
+        path: `/api/ai/conversations/${id}`,
+        method: "PATCH",
+        query: query,
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

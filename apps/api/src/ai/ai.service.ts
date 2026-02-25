@@ -413,6 +413,15 @@ export class AiService implements OnModuleInit {
     await this.chatService.deleteConversation(conversationId, userId);
   }
 
+  async renameConversation(userId: string, conversationId: string, projectId: string, title: string) {
+    const conv = await this.chatService.getConversation(conversationId, userId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    const updated = await this.chatService.renameConversation(conversationId, userId, title);
+    if (!updated) throw new ConversationNotFoundException();
+    return updated;
+  }
+
   /**
    * Generates a concise summary of all messages older than AI_SUMMARY_KEEP_RECENT
    * using a cheaper/faster model, then persists it to ai_conversations.history_summary.

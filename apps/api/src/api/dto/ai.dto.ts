@@ -69,3 +69,10 @@ export class AiConversationDetailDto extends AiConversationDto {
   messages: AiMessageDto[];
   has_more: boolean;
 }
+
+export class RenameConversationDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  title: string;
+}
