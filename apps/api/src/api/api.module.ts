@@ -15,6 +15,7 @@ import { VerificationModule } from '../verification/verification.module';
 import { DefinitionsModule } from '../definitions/definitions.module';
 import { WebAnalyticsModule } from '../web-analytics/web-analytics.module';
 import { BillingModule } from '../billing/billing.module';
+import { IngestionWarningsModule } from '../ingestion-warnings/ingestion-warnings.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -36,6 +37,7 @@ import { EventDefinitionsController } from './controllers/event-definitions.cont
 import { PropertyDefinitionsController } from './controllers/property-definitions.controller';
 import { WebAnalyticsController } from './controllers/web-analytics.controller';
 import { BillingController } from './controllers/billing.controller';
+import { IngestionWarningsController } from './controllers/ingestion-warnings.controller';
 import { createHttpFilter } from './filters/create-http-filter';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
@@ -74,6 +76,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     DefinitionsModule,
     WebAnalyticsModule,
     BillingModule,
+    IngestionWarningsModule,
   ],
   controllers: [
     AuthController,
@@ -99,6 +102,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     PropertyDefinitionsController,
     WebAnalyticsController,
     BillingController,
+    IngestionWarningsController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: NotFoundFilter },

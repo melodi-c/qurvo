@@ -1149,6 +1149,13 @@ export interface BillingStatus {
   period_end: string;
 }
 
+export interface IngestionWarning {
+  project_id: string;
+  type: string;
+  details: string;
+  timestamp: string;
+}
+
 export type UpdateProfileDtoLanguageEnum = "ru" | "en";
 
 export type ProjectWithRoleDtoRoleEnum = "owner" | "editor" | "viewer";
@@ -1917,6 +1924,17 @@ export interface WebAnalyticsControllerGetGeographyParams {
 
 export interface BillingControllerGetStatusParams {
   projectId: string;
+}
+
+export interface IngestionWarningsControllerGetIngestionWarningsParams {
+  /**
+   * @min 1
+   * @max 500
+   * @default 50
+   */
+  limit?: number;
+  /** @format uuid */
+  project_id: string;
 }
 
 import type {
@@ -3872,6 +3890,27 @@ export class Api<
       this.request<BillingStatus, any>({
         path: `/api/projects/${projectId}/billing`,
         method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name IngestionWarningsControllerGetIngestionWarnings
+     * @request GET:/api/analytics/ingestion-warnings
+     * @secure
+     */
+    ingestionWarningsControllerGetIngestionWarnings: (
+      query: IngestionWarningsControllerGetIngestionWarningsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<IngestionWarning[], any>({
+        path: `/api/analytics/ingestion-warnings`,
+        method: "GET",
+        query: query,
         secure: true,
         format: "json",
         ...params,

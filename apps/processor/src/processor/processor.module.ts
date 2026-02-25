@@ -8,6 +8,7 @@ import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { DefinitionSyncService } from './definition-sync.service';
 import { ShutdownService } from './shutdown.service';
+import { WarningsBufferService } from './warnings-buffer.service';
 
 @Module({
   providers: [
@@ -20,6 +21,7 @@ import { ShutdownService } from './shutdown.service';
     PersonResolverService,
     PersonBatchStore,
     GeoService,
+    WarningsBufferService,
     EventConsumerService,
     ShutdownService,
   ],

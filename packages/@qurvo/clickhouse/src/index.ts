@@ -1,6 +1,16 @@
 export { createClickHouse } from './client';
 export type { ClickHouseConfig, ClickHouseClient } from './client';
 
+/** Represents a row in the ingestion_warnings table. */
+export interface IngestionWarning {
+  project_id: string;
+  /** Warning type: 'invalid_event' | 'illegal_distinct_id' */
+  type: string;
+  /** JSON: { event_name?, distinct_id?, reason } */
+  details: string;
+  timestamp: string;
+}
+
 /** Represents a row in the events table. Optional fields have ClickHouse DEFAULT values. */
 export interface Event {
   event_id: string;
