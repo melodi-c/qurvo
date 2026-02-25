@@ -10,14 +10,9 @@ import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TargetEventQueryPanel.translations';
+import type { BaseTargetEventConfig } from '../../../types';
 
-export interface BaseTargetEventConfig {
-  date_from: string;
-  date_to: string;
-  target_event: string;
-  granularity: 'day' | 'week' | 'month';
-  cohort_ids?: string[];
-}
+export type { BaseTargetEventConfig };
 
 interface TargetEventQueryPanelProps<T extends BaseTargetEventConfig> {
   config: T;
