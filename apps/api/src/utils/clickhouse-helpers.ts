@@ -1,4 +1,4 @@
-import { buildCohortFilterClause, type CohortFilterInput } from '../cohorts/cohorts.query';
+import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-query';
 
 export function toChTs(iso: string, endOfDay = false): string {
   if (iso.length === 10 && endOfDay) return `${iso} 23:59:59`;

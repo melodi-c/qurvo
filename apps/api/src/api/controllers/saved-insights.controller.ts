@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
@@ -39,7 +39,7 @@ export class SavedInsightsController {
   @Get(':insightId')
   async getById(
     @Param('projectId') projectId: string,
-    @Param('insightId') insightId: string,
+    @Param('insightId', ParseUUIDPipe) insightId: string,
   ): Promise<InsightDto> {
     return this.insightsService.getById(projectId, insightId) as any;
   }
@@ -48,7 +48,7 @@ export class SavedInsightsController {
   @Put(':insightId')
   async update(
     @Param('projectId') projectId: string,
-    @Param('insightId') insightId: string,
+    @Param('insightId', ParseUUIDPipe) insightId: string,
     @Body() body: UpdateInsightDto,
   ): Promise<InsightDto> {
     const { config, ...rest } = body;
@@ -62,7 +62,7 @@ export class SavedInsightsController {
   @Delete(':insightId')
   async remove(
     @Param('projectId') projectId: string,
-    @Param('insightId') insightId: string,
+    @Param('insightId', ParseUUIDPipe) insightId: string,
   ): Promise<void> {
     await this.insightsService.remove(projectId, insightId);
   }

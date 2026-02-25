@@ -1032,11 +1032,17 @@ export interface WebAnalyticsTimeseriesPoint {
   sessions: number;
 }
 
-export interface WebAnalyticsOverviewResponse {
+export interface WebAnalyticsOverviewData {
   current: WebAnalyticsKPIs;
   previous: WebAnalyticsKPIs;
   timeseries: WebAnalyticsTimeseriesPoint[];
   granularity: string;
+}
+
+export interface WebAnalyticsOverviewResponse {
+  data: WebAnalyticsOverviewData;
+  cached_at: string;
+  from_cache: boolean;
 }
 
 export interface WebAnalyticsDimensionRow {
@@ -1045,29 +1051,53 @@ export interface WebAnalyticsDimensionRow {
   pageviews: number;
 }
 
-export interface WebAnalyticsPathsResponse {
+export interface WebAnalyticsPathsData {
   top_pages: WebAnalyticsDimensionRow[];
   entry_pages: WebAnalyticsDimensionRow[];
   exit_pages: WebAnalyticsDimensionRow[];
 }
 
-export interface WebAnalyticsSourcesResponse {
+export interface WebAnalyticsPathsResponse {
+  data: WebAnalyticsPathsData;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export interface WebAnalyticsSourcesData {
   referrers: WebAnalyticsDimensionRow[];
   utm_sources: WebAnalyticsDimensionRow[];
   utm_mediums: WebAnalyticsDimensionRow[];
   utm_campaigns: WebAnalyticsDimensionRow[];
 }
 
-export interface WebAnalyticsDevicesResponse {
+export interface WebAnalyticsSourcesResponse {
+  data: WebAnalyticsSourcesData;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export interface WebAnalyticsDevicesData {
   device_types: WebAnalyticsDimensionRow[];
   browsers: WebAnalyticsDimensionRow[];
   oses: WebAnalyticsDimensionRow[];
 }
 
-export interface WebAnalyticsGeographyResponse {
+export interface WebAnalyticsDevicesResponse {
+  data: WebAnalyticsDevicesData;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export interface WebAnalyticsGeographyData {
   countries: WebAnalyticsDimensionRow[];
   regions: WebAnalyticsDimensionRow[];
   cities: WebAnalyticsDimensionRow[];
+}
+
+export interface WebAnalyticsGeographyResponse {
+  data: WebAnalyticsGeographyData;
+  cached_at: string;
+  from_cache: boolean;
 }
 
 export interface BillingStatus {

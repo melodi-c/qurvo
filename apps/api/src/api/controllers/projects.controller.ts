@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from '../../projects/projects.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
@@ -16,7 +16,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  async getById(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<ProjectWithRoleDto> {
+  async getById(@CurrentUser() user: RequestUser, @Param('id', ParseUUIDPipe) id: string): Promise<ProjectWithRoleDto> {
     return this.projectsService.getById(user.user_id, id) as any;
   }
 
@@ -26,12 +26,12 @@ export class ProjectsController {
   }
 
   @Put(':id')
-  async update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() body: UpdateProjectDto): Promise<ProjectDto> {
+  async update(@CurrentUser() user: RequestUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateProjectDto): Promise<ProjectDto> {
     return this.projectsService.update(user.user_id, id, body) as any;
   }
 
   @Delete(':id')
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string): Promise<void> {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.projectsService.remove(user.user_id, id);
   }
 }

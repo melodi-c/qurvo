@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardsService } from '../../dashboards/dashboards.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
@@ -41,7 +41,7 @@ export class DashboardsController {
   @Get(':dashboardId')
   async getById(
     @Param('projectId') projectId: string,
-    @Param('dashboardId') dashboardId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
   ): Promise<DashboardWithWidgetsDto> {
     return this.dashboardsService.getById(projectId, dashboardId);
   }
@@ -50,7 +50,7 @@ export class DashboardsController {
   @Put(':dashboardId')
   async update(
     @Param('projectId') projectId: string,
-    @Param('dashboardId') dashboardId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
     @Body() body: UpdateDashboardDto,
   ): Promise<DashboardDto> {
     return this.dashboardsService.update(projectId, dashboardId, body);
@@ -60,7 +60,7 @@ export class DashboardsController {
   @Delete(':dashboardId')
   async remove(
     @Param('projectId') projectId: string,
-    @Param('dashboardId') dashboardId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
   ): Promise<void> {
     await this.dashboardsService.remove(projectId, dashboardId);
   }
@@ -69,7 +69,7 @@ export class DashboardsController {
   @Post(':dashboardId/widgets')
   async addWidget(
     @Param('projectId') projectId: string,
-    @Param('dashboardId') dashboardId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
     @Body() body: CreateWidgetDto,
   ): Promise<WidgetDto> {
     return this.dashboardsService.addWidget(projectId, dashboardId, body) as any;
@@ -79,8 +79,8 @@ export class DashboardsController {
   @Put(':dashboardId/widgets/:widgetId')
   async updateWidget(
     @Param('projectId') projectId: string,
-    @Param('dashboardId') dashboardId: string,
-    @Param('widgetId') widgetId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
+    @Param('widgetId', ParseUUIDPipe) widgetId: string,
     @Body() body: UpdateWidgetDto,
   ): Promise<WidgetDto> {
     return this.dashboardsService.updateWidget(projectId, dashboardId, widgetId, body) as any;
@@ -90,8 +90,8 @@ export class DashboardsController {
   @Delete(':dashboardId/widgets/:widgetId')
   async removeWidget(
     @Param('projectId') projectId: string,
-    @Param('dashboardId') dashboardId: string,
-    @Param('widgetId') widgetId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
+    @Param('widgetId', ParseUUIDPipe) widgetId: string,
   ): Promise<void> {
     await this.dashboardsService.removeWidget(projectId, dashboardId, widgetId);
   }
