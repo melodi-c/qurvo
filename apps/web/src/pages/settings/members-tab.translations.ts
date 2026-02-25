@@ -22,6 +22,8 @@ export default createTranslations({
     removeTitle: 'Remove "{{name}}"?',
     removeDescription: 'This member will lose access to the project.',
     remove: 'Remove',
+    removeMember: 'Remove member',
+    memberAvatar: '{{name}} avatar',
   },
   ru: {
     selectProject: 'Выберите проект для управления участниками',
@@ -44,5 +46,7 @@ export default createTranslations({
     removeTitle: 'Удалить "{{name}}"?',
     removeDescription: 'Этот участник потеряет доступ к проекту.',
     remove: 'Удалить',
+    removeMember: 'Удалить участника',
+    memberAvatar: 'Аватар {{name}}',
   },
 });
