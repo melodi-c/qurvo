@@ -5,6 +5,26 @@ import type { AiConversation, AiConversationDetail } from '@/api/generated/Api';
 export type { AiConversation as Conversation };
 export type { AiConversationDetail };
 
+export interface AiQuotaInfo {
+  ai_messages_per_month: number | null;
+  ai_messages_used: number;
+}
+
+export function useAiQuota(projectId: string): AiQuotaInfo {
+  const { data } = useQuery({
+    queryKey: ['billing', projectId],
+    queryFn: () => api.billingControllerGetStatus({ projectId }),
+    enabled: !!projectId,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  return {
+    ai_messages_per_month: data?.ai_messages_per_month ?? null,
+    ai_messages_used: data?.ai_messages_used ?? 0,
+  };
+}
+
 export function useConversations(projectId: string) {
   return useQuery<AiConversation[]>({
     queryKey: ['ai-conversations', projectId],

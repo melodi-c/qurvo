@@ -10,6 +10,7 @@ import { REDIS } from '../providers/redis.provider';
 // Both apps read from the same Redis keys; keeping the constant local
 // avoids a cross-app dependency for a single string.
 const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
+const AI_QUOTA_KEY_PREFIX = 'ai:quota';
 
 @Injectable()
 export class BillingService {
@@ -18,7 +19,7 @@ export class BillingService {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
-  async getStatus(projectId: string) {
+  async getStatus(projectId: string, userId?: string) {
     const result = await this.db
       .select({
         plan_slug: plans.slug,
@@ -26,6 +27,7 @@ export class BillingService {
         events_limit: plans.events_limit,
         data_retention_days: plans.data_retention_days,
         max_projects: plans.max_projects,
+        ai_messages_per_month: plans.ai_messages_per_month,
         features: plans.features,
       })
       .from(projects)
@@ -39,6 +41,7 @@ export class BillingService {
       events_limit: null,
       data_retention_days: null,
       max_projects: null,
+      ai_messages_per_month: null,
       features: { cohorts: true, lifecycle: true, stickiness: true, api_export: true, ai_insights: true },
     };
 
@@ -48,8 +51,20 @@ export class BillingService {
     const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
     const counterKey = `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthStr}`;
-    const raw = await this.redis.get(counterKey);
-    const events_this_month = raw ? parseInt(raw, 10) : 0;
+
+    let ai_messages_used = 0;
+    let rawEvents: string | null;
+
+    if (userId) {
+      const aiQuotaKey = `${AI_QUOTA_KEY_PREFIX}:${userId}:${monthStr}`;
+      const [rawEventsResult, rawAiResult] = await this.redis.mget(counterKey, aiQuotaKey);
+      rawEvents = rawEventsResult;
+      ai_messages_used = rawAiResult ? parseInt(rawAiResult, 10) : 0;
+    } else {
+      rawEvents = await this.redis.get(counterKey);
+    }
+
+    const events_this_month = rawEvents ? parseInt(rawEvents, 10) : 0;
 
     const period_start = new Date(Date.UTC(year, month, 1)).toISOString();
     const period_end = new Date(Date.UTC(year, month + 1, 1)).toISOString();
@@ -61,6 +76,8 @@ export class BillingService {
       events_limit: plan.events_limit ?? null,
       data_retention_days: plan.data_retention_days ?? null,
       max_projects: plan.max_projects ?? null,
+      ai_messages_per_month: plan.ai_messages_per_month ?? null,
+      ai_messages_used,
       features: plan.features,
       period_start,
       period_end,

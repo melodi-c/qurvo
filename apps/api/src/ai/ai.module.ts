@@ -3,6 +3,7 @@ import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
 import { AiRateLimitGuard } from './guards/ai-rate-limit.guard';
+import { AiQuotaGuard } from './guards/ai-quota.guard';
 import { AI_CONFIG } from './ai-config.provider';
 import type { AiConfig } from './ai-config.provider';
 import { ProjectsModule } from '../projects/projects.module';
@@ -59,6 +60,7 @@ const TOOL_CLASSES = [
     AiChatService,
     AiContextService,
     AiRateLimitGuard,
+    AiQuotaGuard,
     {
       provide: AI_CONFIG,
       useFactory: (): AiConfig => ({

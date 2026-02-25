@@ -8,7 +8,20 @@ export const BILLING_SET_TTL_SECONDS = 120; // safety TTL if worker stops
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 export const BILLING_QUOTA_LIMITED_KEY = 'billing:quota_limited';
 
+// AI quota counter prefix (duplicated from apps/api/src/ai/guards/ai-quota.guard.ts)
+// Key pattern: ai:quota:{userId}:{YYYY-MM}
+export const AI_QUOTA_KEY_PREFIX = 'ai:quota';
+
 export function billingCounterKey(projectId: string, now = new Date()): string {
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   return `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;
+}
+
+export function currentMonthKey(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+export function previousMonthKey(now = new Date()): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }

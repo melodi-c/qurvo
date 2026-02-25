@@ -20,6 +20,10 @@ export default createTranslations({
     unshareConversation: 'Stop sharing',
     sharedBy: 'Shared by {{name}}',
     readOnly: 'This is a read-only shared conversation',
+    quotaUsed: '{{used}}/{{limit}} messages used this month',
+    quotaUnlimited: 'Unlimited messages',
+    quotaExceeded: 'Monthly AI message quota exceeded. Upgrade your plan to continue.',
+    upgradePrompt: 'Upgrade plan',
   },
   ru: {
     selectProject: 'Выберите проект для использования AI-ассистента',
@@ -40,5 +44,9 @@ export default createTranslations({
     unshareConversation: 'Закрыть доступ',
     sharedBy: 'Поделился {{name}}',
     readOnly: 'Это чат в режиме чтения',
+    quotaUsed: '{{used}}/{{limit}} сообщений за месяц',
+    quotaUnlimited: 'Безлимитные сообщения',
+    quotaExceeded: 'Месячный лимит AI-сообщений исчерпан. Обновите тариф для продолжения.',
+    upgradePrompt: 'Обновить тариф',
   },
 });

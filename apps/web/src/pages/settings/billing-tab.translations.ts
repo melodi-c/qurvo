@@ -20,6 +20,9 @@ export default createTranslations({
     aiInsights: 'AI insights',
     enabled: 'Enabled',
     disabled: 'Disabled',
+    aiMessagesLimit: 'AI messages per month',
+    aiMessagesUsed: 'AI messages used',
+    aiMessagesUnlimited: 'Unlimited',
   },
   ru: {
     selectProject: 'Выберите проект для просмотра тарифа',
@@ -40,5 +43,8 @@ export default createTranslations({
     aiInsights: 'AI аналитика',
     enabled: 'Доступно',
     disabled: 'Недоступно',
+    aiMessagesLimit: 'AI-сообщений в месяц',
+    aiMessagesUsed: 'AI-сообщений использовано',
+    aiMessagesUnlimited: 'Без ограничений',
   },
 });
