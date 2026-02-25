@@ -17,7 +17,8 @@ function useIngestionWarnings(projectId: string) {
   });
 }
 
-function WarningTypeBadge({ type, t }: { type: string; t: (key: string) => string }) {
+function WarningTypeBadge({ type }: { type: string }) {
+  const { t } = useLocalTranslation(translations);
   const label =
     type === 'invalid_event' ? t('typeInvalidEvent')
     : type === 'illegal_distinct_id' ? t('typeIllegalDistinctId')
@@ -31,9 +32,9 @@ function DetailsCell({ details }: { details: string }) {
     const parsed = JSON.parse(details) as Record<string, unknown>;
     return (
       <div className="space-y-0.5 text-xs text-muted-foreground">
-        {parsed['event_name'] && <div><span className="text-foreground">event:</span> {String(parsed['event_name'])}</div>}
-        {parsed['distinct_id'] && <div><span className="text-foreground">distinct_id:</span> {String(parsed['distinct_id'])}</div>}
-        {parsed['reason'] && <div><span className="text-foreground">reason:</span> {String(parsed['reason'])}</div>}
+        {!!parsed['event_name'] && <div><span className="text-foreground">event:</span> {String(parsed['event_name'])}</div>}
+        {!!parsed['distinct_id'] && <div><span className="text-foreground">distinct_id:</span> {String(parsed['distinct_id'])}</div>}
+        {!!parsed['reason'] && <div><span className="text-foreground">reason:</span> {String(parsed['reason'])}</div>}
       </div>
     );
   } catch {
@@ -49,7 +50,7 @@ export function IngestionWarningsTab({ projectId }: { projectId: string }) {
     {
       key: 'type',
       header: t('type'),
-      render: (row) => <WarningTypeBadge type={row.type} t={t} />,
+      render: (row) => <WarningTypeBadge type={row.type} />,
     },
     {
       key: 'details',
