@@ -1,15 +1,28 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { StepFilter } from '@/api/generated/Api';
 import { parseFilters } from '@/lib/filter-utils';
+import { useDebouncedUrlSync } from '@/hooks/use-debounced-url-sync';
 
 export interface PersonsFilterState {
   search: string;
   filters: StepFilter[];
 }
 
+function serializePersonsFilters(state: PersonsFilterState, prev: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(prev);
+
+  if (state.search) next.set('search', state.search);
+  else next.delete('search');
+
+  if (state.filters.length > 0) next.set('filters', JSON.stringify(state.filters));
+  else next.delete('filters');
+
+  return next;
+}
+
 export function usePersonsFilters() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [filterState, setFilterState] = useState<PersonsFilterState>(() => ({
     search: searchParams.get('search') ?? '',
@@ -18,33 +31,8 @@ export function usePersonsFilters() {
 
   const [page, setPage] = useState(0);
 
-  // Debounced URL sync
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const isInitialMount = useRef(true);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-
-        if (filterState.search) next.set('search', filterState.search);
-        else next.delete('search');
-
-        if (filterState.filters.length > 0) next.set('filters', JSON.stringify(filterState.filters));
-        else next.delete('filters');
-
-        return next;
-      }, { replace: true });
-    }, 400);
-
-    return () => clearTimeout(timerRef.current);
-  }, [filterState, setSearchParams]);
+  const serializeRef = useRef(serializePersonsFilters);
+  useDebouncedUrlSync(filterState, serializeRef.current, 400);
 
   const handleSearchChange = useCallback((search: string) => {
     setFilterState((s) => ({ ...s, search }));

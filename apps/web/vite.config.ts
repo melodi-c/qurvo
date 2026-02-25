@@ -19,4 +19,14 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ['recharts'],
+          'react-grid-layout': ['react-grid-layout'],
+        },
+      },
+    },
+  },
 })
