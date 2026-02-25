@@ -17,7 +17,8 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   defaultConfig,
   cleanConfig,
 }: UseInsightEditorOptions<T>) {
-  const cleanFn = useMemo(() => cleanConfig ?? ((c: T) => c), [cleanConfig]);
+  const identityFn = useRef((c: T) => c);
+  const cleanFn = cleanConfig ?? identityFn.current;
   const { insightId } = useParams<{ insightId: string }>();
   const { go, link, projectId } = useAppNavigate();
 

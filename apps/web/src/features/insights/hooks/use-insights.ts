@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
-import type { CreateInsight, UpdateInsight, InsightType } from '@/api/generated/Api';
+import type { CreateInsight, UpdateInsight, InsightType, Insight } from '@/api/generated/Api';
 
 export function useInsights(type?: InsightType) {
   const projectId = useProjectId();
@@ -56,8 +56,8 @@ export function useToggleFavorite() {
     onMutate: async ({ insightId, is_favorite }) => {
       await qc.cancelQueries({ queryKey: ['insights', projectId] });
       const prev = qc.getQueryData(['insights', projectId]);
-      qc.setQueryData(['insights', projectId], (old: any[]) =>
-        old?.map((i: any) => (i.id === insightId ? { ...i, is_favorite } : i)),
+      qc.setQueryData<Insight[]>(['insights', projectId], (old) =>
+        old?.map((i) => (i.id === insightId ? { ...i, is_favorite } : i)),
       );
       return { prev };
     },

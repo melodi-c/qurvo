@@ -73,8 +73,8 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
         {!compact && (
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number, _name: string, entry: any) => [
-              `${value} ${usersLabel.toLowerCase()} (${entry.payload.pct}%)`,
+            formatter={(value: number, _name: string, entry: { payload?: { pct: number } }) => [
+              `${value} ${usersLabel.toLowerCase()} (${entry.payload?.pct ?? 0}%)`,
               usersLabel,
             ]}
           />
