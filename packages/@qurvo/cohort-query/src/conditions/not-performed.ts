@@ -19,6 +19,7 @@ export function buildNotPerformedEventSubquery(
     SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
     FROM events FINAL
     WHERE project_id = {${ctx.projectIdParam}:UUID}
+      AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} * 2 DAY
       AND ${RESOLVED_PERSON} NOT IN (
         SELECT ${RESOLVED_PERSON}
         FROM events FINAL
