@@ -91,7 +91,8 @@ export class AiController {
     // First try to load as owner. If not found, fall back to shared conversation access.
     try {
       return await this.chatService.getConversationAuthorized(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ConversationNotFoundException)) throw err;
       // Any project member can view shared conversations (read-only)
       return this.chatService.getSharedConversationAuthorized(id, query.project_id, query.limit, query.before_sequence) as any;
     }
