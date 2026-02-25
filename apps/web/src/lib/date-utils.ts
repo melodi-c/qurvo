@@ -14,3 +14,25 @@ export function daysAgoIso(days: number): string {
 export function defaultDateRange(): { from: string; to: string } {
   return { from: daysAgoIso(30), to: todayIso() };
 }
+
+/** Standard date range presets. */
+export const DATE_PRESETS = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: '6m', days: 180 },
+  { label: '1y', days: 365 },
+] as const;
+
+/**
+ * Returns the `days` value of the matching preset if the given date range
+ * aligns exactly with one of the standard presets, otherwise `undefined`.
+ */
+export function getActivePreset(dateFrom: string, dateTo: string): number | undefined {
+  for (const preset of DATE_PRESETS) {
+    if (dateFrom.slice(0, 10) === daysAgoIso(preset.days) && dateTo.slice(0, 10) === todayIso()) {
+      return preset.days;
+    }
+  }
+  return undefined;
+}
