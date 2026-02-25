@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, jsonb, integer, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, jsonb, integer, numeric, timestamp, index } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
 
@@ -25,6 +25,10 @@ export const aiMessages = pgTable('ai_messages', {
   tool_result: jsonb('tool_result'),
   visualization_type: varchar('visualization_type', { length: 50 }),
   sequence: integer('sequence').notNull(),
+  prompt_tokens: integer('prompt_tokens'),
+  completion_tokens: integer('completion_tokens'),
+  model_used: varchar('model_used', { length: 100 }),
+  estimated_cost_usd: numeric('estimated_cost_usd', { precision: 12, scale: 8 }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('ai_messages_conversation_seq_idx').on(table.conversation_id, table.sequence),

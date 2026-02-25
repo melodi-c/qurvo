@@ -31,9 +31,15 @@ interface AccumulatedToolCall {
   function: { name: string; arguments: string };
 }
 
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+}
+
 interface StreamTurnResult {
   assistantContent: string;
   toolCalls: AccumulatedToolCall[];
+  usage: TokenUsage | null;
 }
 
 interface DispatchedToolResult {
@@ -45,6 +51,17 @@ interface DispatchedToolResult {
 
 function isAiSafeError(err: unknown): err is Error & { isSafeForAi: true } {
   return err instanceof Error && 'isSafeForAi' in err && (err as any).isSafeForAi === true;
+}
+
+/** Cost per 1M tokens in USD: { input, output } */
+const MODEL_COST_PER_1M: Record<string, { input: number; output: number }> = {
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.60 },
+};
+
+function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const rates = MODEL_COST_PER_1M[model] ?? MODEL_COST_PER_1M['gpt-4o'];
+  return (promptTokens / 1_000_000) * rates.input + (completionTokens / 1_000_000) * rates.output;
 }
 
 @Injectable()
@@ -253,7 +270,28 @@ export class AiService implements OnModuleInit {
     let exhausted = true;
 
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
-      const { assistantContent, toolCalls } = yield* this.streamOneTurn(client, messages);
+      const { assistantContent, toolCalls, usage } = yield* this.streamOneTurn(client, messages);
+
+      // Calculate token cost if usage data is available
+      const costFields = usage
+        ? {
+            prompt_tokens: usage.promptTokens,
+            completion_tokens: usage.completionTokens,
+            model_used: this.model,
+            estimated_cost_usd: estimateCost(this.model, usage.promptTokens, usage.completionTokens).toFixed(8),
+          }
+        : {};
+
+      if (usage) {
+        this.logger.log({
+          conversationId,
+          model: this.model,
+          prompt_tokens: usage.promptTokens,
+          completion_tokens: usage.completionTokens,
+          total_tokens: usage.promptTokens + usage.completionTokens,
+          estimated_cost_usd: costFields.estimated_cost_usd,
+        }, 'AI token usage');
+      }
 
       if (toolCalls.length === 0) {
         await this.chatService.saveMessage(conversationId, seq++, {
@@ -264,6 +302,7 @@ export class AiService implements OnModuleInit {
           tool_name: null,
           tool_result: null,
           visualization_type: null,
+          ...costFields,
         });
         exhausted = false;
         break;
@@ -290,6 +329,7 @@ export class AiService implements OnModuleInit {
         tool_name: null,
         tool_result: null,
         visualization_type: null,
+        ...costFields,
       });
 
       // Execute tool calls and append results to messages
@@ -330,12 +370,21 @@ export class AiService implements OnModuleInit {
       messages,
       tools: this.toolDefinitions,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     let assistantContent = '';
     const toolCalls: AccumulatedToolCall[] = [];
+    let usage: TokenUsage | null = null;
 
     for await (const chunk of stream) {
+      if (chunk.usage) {
+        usage = {
+          promptTokens: chunk.usage.prompt_tokens,
+          completionTokens: chunk.usage.completion_tokens,
+        };
+      }
+
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
 
@@ -358,7 +407,7 @@ export class AiService implements OnModuleInit {
       }
     }
 
-    return { assistantContent, toolCalls };
+    return { assistantContent, toolCalls, usage };
   }
 
   private async *dispatchToolCalls(
