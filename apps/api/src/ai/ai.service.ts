@@ -92,7 +92,7 @@ export class AiService implements OnModuleInit {
 
   async *chat(
     userId: string,
-    params: { project_id: string; conversation_id?: string; message: string },
+    params: { project_id: string; conversation_id?: string; message: string; language?: string },
   ): AsyncGenerator<AiStreamChunk> {
     const client = this.getClient();
 
@@ -116,7 +116,7 @@ export class AiService implements OnModuleInit {
       // Build messages
       const projectContext = await this.contextService.getProjectContext(params.project_id);
       const today = new Date().toISOString().split('T')[0];
-      const systemContent = buildSystemPrompt(today, projectContext);
+      const systemContent = buildSystemPrompt(today, projectContext, params.language);
 
       const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
 
