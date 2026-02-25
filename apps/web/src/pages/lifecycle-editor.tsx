@@ -56,17 +56,17 @@ export default function LifecycleEditorPage() {
       skeleton={<EditorSkeleton metricCount={4} />}
       metricsBar={
         <>
-          <Metric label={t('new')} value={String(result!.totals.new)} accent />
+          <Metric label={t('new')} value={String(result?.totals?.new ?? 0)} accent />
           <MetricsDivider />
-          <Metric label={t('returning')} value={String(result!.totals.returning)} />
+          <Metric label={t('returning')} value={String(result?.totals?.returning ?? 0)} />
           <MetricsDivider />
-          <Metric label={t('resurrecting')} value={String(result!.totals.resurrecting)} />
+          <Metric label={t('resurrecting')} value={String(result?.totals?.resurrecting ?? 0)} />
           <MetricsDivider />
-          <Metric label={t('dormant')} value={String(Math.abs(result!.totals.dormant))} />
+          <Metric label={t('dormant')} value={String(Math.abs(result?.totals?.dormant ?? 0))} />
         </>
       }
     >
-      <LifecycleChart result={result!} />
+      {result && <LifecycleChart result={result} />}
     </InsightEditorLayout>
   );
 }

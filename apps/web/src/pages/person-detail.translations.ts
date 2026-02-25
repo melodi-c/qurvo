@@ -10,6 +10,8 @@ export default createTranslations({
     properties: 'Properties',
     noProperties: 'No user properties recorded.',
     eventHistory: 'Event History',
+    errorLoadingPerson: 'Failed to load person details',
+    errorLoadingEvents: 'Failed to load event history',
   },
   ru: {
     profile: 'Профиль',
@@ -20,5 +22,7 @@ export default createTranslations({
     properties: 'Свойства',
     noProperties: 'Свойства пользователя не зафиксированы.',
     eventHistory: 'История событий',
+    errorLoadingPerson: 'Не удалось загрузить данные пользователя',
+    errorLoadingEvents: 'Не удалось загрузить историю событий',
   },
 });

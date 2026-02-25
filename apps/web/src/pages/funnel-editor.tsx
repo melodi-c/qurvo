@@ -1,19 +1,28 @@
+import { useState, useEffect, useMemo } from 'react';
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
+import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useFunnelData, cleanSteps } from '@/features/dashboard/hooks/use-funnel';
+import { useFunnelTimeToConvertData } from '@/features/dashboard/hooks/use-funnel-time-to-convert';
+import type { TimeToConvertConfig } from '@/features/dashboard/hooks/use-funnel-time-to-convert';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
+import { TimeToConvertChart } from '@/features/dashboard/components/widgets/funnel/TimeToConvertChart';
+import { TimeToConvertStepSelector } from '@/features/dashboard/components/widgets/funnel/TimeToConvertStepSelector';
 import { FunnelQueryPanel } from '@/features/dashboard/components/widgets/funnel/FunnelQueryPanel';
 import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import { defaultFunnelConfig } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
+import { formatSeconds } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './funnel-editor.translations';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
+
+type ViewMode = 'conversion' | 'time_to_convert';
 
 function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
   return { ...config, steps: cleanSteps(config) };
@@ -35,13 +44,57 @@ export default function FunnelEditorPage() {
     config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
   const isValid = name.trim() !== '' && isConfigValid;
 
+  const [viewMode, setViewMode] = useState<ViewMode>('conversion');
+  const [fromStep, setFromStep] = useState(0);
+  const [toStep, setToStep] = useState(1);
+
+  // Auto-clamp step indices when steps change
+  useEffect(() => {
+    const maxIdx = config.steps.length - 1;
+    if (maxIdx < 1) return;
+    const clampedFrom = Math.min(fromStep, maxIdx - 1);
+    const clampedTo = Math.max(Math.min(toStep, maxIdx), clampedFrom + 1);
+    if (clampedFrom !== fromStep) setFromStep(clampedFrom);
+    if (clampedTo !== toStep) setToStep(clampedTo);
+  }, [config.steps.length, fromStep, toStep]);
+
+  const viewModeOptions = useMemo(
+    () =>
+      [
+        { label: t('viewConversion'), value: 'conversion' as const },
+        { label: t('viewTimeToConvert'), value: 'time_to_convert' as const },
+      ] as const,
+    [t],
+  );
+
+  // Funnel data
   const previewId = editor.isNew ? 'funnel-new' : editor.insightId!;
   const { data, isLoading, isFetching } = useFunnelData(config, previewId);
   const funnelResult = data?.data;
   const steps = funnelResult?.steps;
   const breakdown = funnelResult?.breakdown;
-  const showSkeleton = isLoading && !data;
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(funnelResult);
+
+  // Time to convert data
+  const ttcConfig: TimeToConvertConfig = useMemo(
+    () => ({ ...config, from_step: fromStep, to_step: toStep }),
+    [config, fromStep, toStep],
+  );
+  const ttcPreviewId = editor.isNew ? 'funnel-ttc-new' : `${editor.insightId!}-ttc`;
+  const {
+    data: ttcData,
+    isLoading: ttcIsLoading,
+    isFetching: ttcIsFetching,
+  } = useFunnelTimeToConvertData(ttcConfig, ttcPreviewId);
+  const ttcResult = ttcData?.data;
+
+  const isTimeToConvert = viewMode === 'time_to_convert';
+  const activeIsLoading = isTimeToConvert ? ttcIsLoading : isLoading;
+  const activeIsFetching = isTimeToConvert ? ttcIsFetching : isFetching;
+  const activeShowSkeleton = activeIsLoading && !(isTimeToConvert ? ttcData : data);
+  const activeIsEmpty = isTimeToConvert
+    ? !ttcResult || ttcResult.sample_size === 0
+    : !steps || steps.length === 0;
 
   return (
     <InsightEditorLayout
@@ -56,9 +109,9 @@ export default function FunnelEditorPage() {
       saveError={saveError}
       queryPanel={<FunnelQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={isConfigValid}
-      showSkeleton={showSkeleton}
-      isEmpty={!steps || steps.length === 0}
-      isFetching={isFetching}
+      showSkeleton={activeShowSkeleton}
+      isEmpty={activeIsEmpty}
+      isFetching={activeIsFetching}
       configureIcon={TrendingDown}
       configureTitle={t('configureTitle')}
       configureDescription={t('configureDescription')}
@@ -82,11 +135,33 @@ export default function FunnelEditorPage() {
       }
       metricsBar={
         <>
-          <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
-          <MetricsDivider />
-          <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
-          <MetricsDivider />
-          <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
+          {isTimeToConvert ? (
+            <>
+              <Metric
+                label={t('avgTime')}
+                value={formatSeconds(ttcResult?.average_seconds) ?? t('noData')}
+                accent
+              />
+              <MetricsDivider />
+              <Metric
+                label={t('medianTime')}
+                value={formatSeconds(ttcResult?.median_seconds) ?? t('noData')}
+              />
+              <MetricsDivider />
+              <Metric
+                label={t('sampleSize')}
+                value={ttcResult?.sample_size.toLocaleString() ?? t('noData')}
+              />
+            </>
+          ) : (
+            <>
+              <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
+              <MetricsDivider />
+              <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
+              <MetricsDivider />
+              <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
+            </>
+          )}
           {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
             <>
               <MetricsDivider />
@@ -96,16 +171,31 @@ export default function FunnelEditorPage() {
               </span>
             </>
           )}
+          <MetricsDivider />
+          <PillToggleGroup options={viewModeOptions} value={viewMode} onChange={setViewMode} />
         </>
       }
       chartClassName="flex-1 overflow-auto p-6 pt-8"
     >
-      <FunnelChart
-        steps={steps!}
-        breakdown={breakdown}
-        aggregateSteps={funnelResult?.aggregate_steps}
-        conversionRateDisplay={config.conversion_rate_display ?? 'total'}
-      />
+      {isTimeToConvert ? (
+        <>
+          <TimeToConvertStepSelector
+            steps={config.steps}
+            fromStep={fromStep}
+            toStep={toStep}
+            onFromStepChange={setFromStep}
+            onToStepChange={setToStep}
+          />
+          <TimeToConvertChart bins={ttcResult?.bins ?? []} />
+        </>
+      ) : (
+        <FunnelChart
+          steps={steps!}
+          breakdown={breakdown}
+          aggregateSteps={funnelResult?.aggregate_steps}
+          conversionRateDisplay={config.conversion_rate_display ?? 'total'}
+        />
+      )}
     </InsightEditorLayout>
   );
 }

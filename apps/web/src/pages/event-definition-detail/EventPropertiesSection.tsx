@@ -1,27 +1,102 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Database } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Database, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from 'sonner';
-import { usePropertyDefinitions, useUpsertPropertyDefinition } from '@/hooks/use-property-definitions';
+import { api } from '@/api/client';
+import { useProjectId } from '@/hooks/use-project-id';
+import { usePropertyDefinitions, useUpsertPropertyDefinition, propertyDefinitionsKey } from '@/hooks/use-property-definitions';
+import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useInlineEdit } from '@/hooks/use-inline-edit';
 import translations from './translations';
 import type { PropertyDefinition } from '@/api/generated/Api';
 
+interface PropertyEditValues {
+  description: string;
+  tags: string;
+}
+
 export function EventPropertiesSection({ eventName }: { eventName: string }) {
   const { t } = useLocalTranslation(translations);
+  const projectId = useProjectId();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'event' | 'person'>('all');
-  const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState({ description: '', tags: '' });
 
   const type = typeFilter === 'all' ? undefined : typeFilter;
   const { data: definitions, isLoading } = usePropertyDefinitions(type, eventName);
   const upsertMutation = useUpsertPropertyDefinition();
+  const confirmDelete = useConfirmDelete();
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ propertyType, propertyName }: { propertyType: string; propertyName: string }) =>
+      api.propertyDefinitionsControllerRemove({ projectId, propertyType, propertyName }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: propertyDefinitionsKey(projectId) }),
+  });
+
+  const handleDeleteProperty = useCallback(async () => {
+    const def = definitions?.find(
+      (d) => `${d.property_name}:${d.property_type}` === confirmDelete.itemId,
+    );
+    if (!def) return;
+    try {
+      await deleteMutation.mutateAsync({
+        propertyType: def.property_type,
+        propertyName: def.property_name,
+      });
+      toast.success(t('propertyDeleted'));
+    } catch {
+      toast.error(t('propertyDeleteFailed'));
+    }
+  }, [definitions, confirmDelete.itemId, deleteMutation, t]);
+
+  const rowKey = useCallback(
+    (row: PropertyDefinition) => `${row.property_name}:${row.property_type}`,
+    [],
+  );
+
+  const getInitialValues = useCallback(
+    (row: PropertyDefinition): PropertyEditValues => ({
+      description: row.description ?? '',
+      tags: (row.tags ?? []).join(', '),
+    }),
+    [],
+  );
+
+  const handleSave = useCallback(
+    async (row: PropertyDefinition, values: PropertyEditValues) => {
+      const parsedTags = values.tags.split(',').map((s) => s.trim()).filter(Boolean);
+      try {
+        await upsertMutation.mutateAsync({
+          propertyName: row.property_name,
+          propertyType: row.property_type,
+          data: {
+            description: values.description || undefined,
+            tags: parsedTags,
+          },
+        });
+        toast.success(t('propertyUpdated'));
+      } catch (err) {
+        toast.error(t('propertyUpdateFailed'));
+        throw err;
+      }
+    },
+    [upsertMutation, t],
+  );
+
+  const { editValues, setEditValues, isEditing, startEdit, cancelEdit, saveEdit } =
+    useInlineEdit<PropertyDefinition, PropertyEditValues>({
+      rowKey,
+      getInitialValues,
+      onSave: handleSave,
+    });
 
   const filtered = useMemo(() => {
     if (!definitions) return undefined;
@@ -29,41 +104,6 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
       !search || d.property_name.toLowerCase().includes(search.toLowerCase()),
     );
   }, [definitions, search]);
-
-  const rowKey = useCallback(
-    (row: PropertyDefinition) => `${row.property_name}:${row.property_type}`,
-    [],
-  );
-
-  const startEdit = useCallback((row: PropertyDefinition) => {
-    setEditingRow(rowKey(row));
-    setEditValues({
-      description: row.description ?? '',
-      tags: (row.tags ?? []).join(', '),
-    });
-  }, [rowKey]);
-
-  const cancelEdit = useCallback(() => {
-    setEditingRow(null);
-  }, []);
-
-  const saveEdit = useCallback(async (row: PropertyDefinition) => {
-    const parsedTags = editValues.tags.split(',').map((t) => t.trim()).filter(Boolean);
-    try {
-      await upsertMutation.mutateAsync({
-        propertyName: row.property_name,
-        propertyType: row.property_type,
-        data: {
-          description: editValues.description || undefined,
-          tags: parsedTags,
-        },
-      });
-      toast.success(t('propertyUpdated'));
-      setEditingRow(null);
-    } catch {
-      toast.error(t('propertyUpdateFailed'));
-    }
-  }, [editValues, upsertMutation, t]);
 
   const typeFilterLabels: Record<'all' | 'event' | 'person', string> = useMemo(() => ({
     all: t('all'),
@@ -106,7 +146,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
       header: t('description'),
       hideOnMobile: true,
       render: (row) => {
-        if (editingRow === rowKey(row)) {
+        if (isEditing(row)) {
           return (
             <Input
               value={editValues.description}
@@ -130,7 +170,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
       header: t('tagsLabel'),
       hideOnMobile: true,
       render: (row) => {
-        if (editingRow === rowKey(row)) {
+        if (isEditing(row)) {
           return (
             <Input
               value={editValues.tags}
@@ -155,10 +195,10 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
     {
       key: 'actions',
       header: '',
-      headerClassName: 'w-28 text-right',
+      headerClassName: 'w-36 text-right',
       className: 'text-right',
       render: (row) => {
-        if (editingRow === rowKey(row)) {
+        if (isEditing(row)) {
           return (
             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
               <Button
@@ -180,7 +220,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
           );
         }
         return (
-          <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
             <Button
               size="xs"
               variant="ghost"
@@ -188,11 +228,22 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
             >
               {t('edit')}
             </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => confirmDelete.requestDelete(
+                `${row.property_name}:${row.property_type}`,
+                row.property_name,
+              )}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
         );
       },
     },
-  ], [t, editingRow, editValues, rowKey, startEdit, cancelEdit, saveEdit, upsertMutation.isPending]);
+  ], [t, editValues, isEditing, startEdit, cancelEdit, saveEdit, upsertMutation.isPending, confirmDelete]);
 
   return (
     <div className="space-y-4">
@@ -244,6 +295,17 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
           rowKey={rowKey}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete.isOpen}
+        onOpenChange={confirmDelete.close}
+        title={t('deletePropertyConfirm', { name: confirmDelete.itemName })}
+        description={t('deletePropertyDescription')}
+        confirmLabel={t('deleteProperty')}
+        cancelLabel={t('cancel')}
+        variant="destructive"
+        onConfirm={handleDeleteProperty}
+      />
     </div>
   );
 }
