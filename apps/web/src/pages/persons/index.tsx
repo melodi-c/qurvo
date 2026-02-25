@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Users } from 'lucide-react';
+import { AlertTriangle, Users } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { RequireProject } from '@/components/require-project';
 import { api } from '@/api/client';
 import { getPersonFields } from '@/lib/person';
-import { useDebounce } from '@/hooks/use-debounce';
+import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { isValidFilter } from '@/lib/filter-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -38,14 +39,9 @@ export default function PersonsPage() {
 
   const limit = 50;
 
-  const debouncedState = useDebounce(filterState, 400);
+  const { debounced: debouncedState, hash: stateHash } = useDebouncedHash(filterState, 400);
 
-  const stateHash = useMemo(
-    () => JSON.stringify(debouncedState),
-    [debouncedState],
-  );
-
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['persons', projectId, stateHash, page],
     queryFn: () => {
       const validFilters = debouncedState.filters.filter(isValidFilter);
@@ -118,38 +114,36 @@ export default function PersonsPage() {
         )}
       </PageHeader>
 
-      {!projectId && (
-        <EmptyState icon={Users} description={t('selectProject')} />
-      )}
+      <RequireProject icon={Users} description={t('selectProject')}>
+        <PersonsFilterPanel
+          search={filterState.search}
+          onSearchChange={handleSearchChange}
+          filters={filterState.filters}
+          onFiltersChange={handleFiltersChange}
+        />
 
-      {projectId && (
-        <>
-          <PersonsFilterPanel
-            search={filterState.search}
-            onSearchChange={handleSearchChange}
-            filters={filterState.filters}
-            onFiltersChange={handleFiltersChange}
+        {isLoading && <ListSkeleton count={8} height="h-10" className="space-y-2" />}
+
+        {!isLoading && isError && (
+          <EmptyState icon={AlertTriangle} description={t('errorLoading')} />
+        )}
+
+        {!isLoading && !isError && rows.length > 0 && (
+          <DataTable
+            columns={columns}
+            data={rows}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => go.persons.detail(row.id)}
+            page={page}
+            onPageChange={setPage}
+            hasMore={page * limit + persons.length < total}
           />
+        )}
 
-          {isLoading && <ListSkeleton count={8} height="h-10" className="space-y-2" />}
-
-          {!isLoading && rows.length > 0 && (
-            <DataTable
-              columns={columns}
-              data={rows}
-              rowKey={(row) => row.id}
-              onRowClick={(row) => go.persons.detail(row.id)}
-              page={page}
-              onPageChange={setPage}
-              hasMore={page * limit + persons.length < total}
-            />
-          )}
-
-          {!isLoading && rows.length === 0 && (
-            <EmptyState icon={Users} description={t('noPersons')} />
-          )}
-        </>
-      )}
+        {!isLoading && !isError && rows.length === 0 && (
+          <EmptyState icon={Users} description={t('noPersons')} />
+        )}
+      </RequireProject>
     </div>
   );
 }

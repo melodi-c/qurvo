@@ -69,6 +69,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `BreakdownSection` | `breakdown-section.tsx` | `value: string`, `onChange(value)` | Breakdown property input with section header. Use in query panels |
 | `Breadcrumbs` | `breadcrumbs.tsx` | `items: BreadcrumbItem[]`, `className?` | Navigation breadcrumbs. Each item has `label` + optional `path`. Last item renders as plain text, rest as links. Use in editor headers |
 | `ClickableListRow` | `clickable-list-row.tsx` | `icon`, `title`, `subtitle`, `onClick`, `onDelete?` | Clickable list row with icon, title, subtitle, and optional hover-delete button. Use for any list of clickable items with delete (dashboards, AI conversations) |
+| `RequireProject` | `require-project.tsx` | `children`, `icon?`, `description?` | Wrapper that shows `EmptyState` when no project is selected. Use instead of inline `{!projectId && <EmptyState>}` checks |
+| `ProjectMemberRow` | `project-member-row.tsx` | `avatar?`, `name`, `subtitle?`, `actions?`, `className?` | Row with avatar/icon + name + subtitle + action buttons. Use in member lists and invite lists |
 | `QueryPanelShell` | `query-panel-shell.tsx` | `children` | Shared `<aside>` wrapper for all query panels (trend, funnel, retention, lifecycle, stickiness, paths, cohorts). Provides responsive layout + scrollable container. Use instead of inline `<aside className="...">` |
 
 ## Shared Components (`src/components/`)
@@ -98,6 +100,10 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `useDragReorder<T>` | `use-drag-reorder.ts` | `(items: T[], onChange: (items: T[]) => void) => { dragIdx, overIdx, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave }` | Reorderable lists via native HTML5 drag events. Used in FunnelStepBuilder and TrendSeriesBuilder |
 | `useFilterManager<T>` | `use-filter-manager.ts` | `(items: T[], updateItem) => { addFilter, updateFilter, removeFilter }` | Shared filter CRUD for items with `filters?: StepFilter[]`. Used by TrendSeriesBuilder and FunnelStepBuilder |
 | `usePersonPropertyNames` | `use-person-property-names.ts` | `() => { data: string[], descriptions: Record }` | Fetch person property names. Returns flat names + description map. Use with `PropertyNameCombobox` for person property selection |
+| `useDebouncedHash<T>` | `use-debounced-hash.ts` | `(value: T, delay: number) => { debounced: T, hash: string }` | Returns debounced value and its JSON hash. Replaces repeated `useDebounce` + `useMemo(JSON.stringify)` pattern |
+| `useInlineEdit<TRow, TValues>` | `use-inline-edit.ts` | `(options: { rowKey, getInitialValues, onSave }) => { editingKey, editValues, setEditValues, isEditing, startEdit, cancelEdit, saveEdit }` | Generic inline row editing state. Used in `EventPropertiesSection` |
+| `usePersonDetail` | `use-person-detail.ts` | `() => { person, personLoading, personError, events, eventsLoading, eventsError, page, setPage, limit }` | Data hook for person detail page |
+| `useEvents` | `use-events.ts` | `(filterState, page) => { projectId, events, isLoading, isError, limit }` | Data hook for events page with debounced filters |
 
 ## Feature Hooks (`src/features/`)
 
@@ -107,6 +113,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 |---|---|---|---|
 | `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling. `cleanConfig` is optional (defaults to identity) — only pass it when config needs transformation before save |
 | `createWidgetDataHook` | `features/dashboard/hooks/create-widget-data-hook.ts` | `<Config, Response>(options) => useHook(config, widgetId)` | Factory for creating widget data fetching hooks. Handles projectId, auto-refresh, stale data detection, refresh limiter. All widget hooks (useTrendData, useFunnelData, etc.) use this factory |
+| `useFunnelTimeToConvertData` | `features/dashboard/hooks/use-funnel-time-to-convert.ts` | `(config: TimeToConvertConfig, widgetId) => { data, isLoading, isFetching }` | Time-to-convert histogram data for funnel editor. Uses `createWidgetDataHook`. Config extends `FunnelWidgetConfig` with `from_step`/`to_step` |
 | `useAiChat` | `features/ai/hooks/use-ai-chat.ts` | `() => { messages, conversationId, isStreaming, error, sendMessage, loadConversation, ... }` | SSE streaming chat hook for AI assistant. Manages message state, streaming, pagination |
 | `useConversations` | `features/ai/hooks/use-ai-conversations.ts` | `(projectId: string) => UseQueryResult<Conversation[]>` | Fetches AI conversation list for a project |
 | `useDeleteConversation` | `features/ai/hooks/use-ai-conversations.ts` | `(projectId: string) => UseMutationResult` | Deletes an AI conversation and invalidates the list |

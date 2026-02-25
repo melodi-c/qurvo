@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useProjectId } from '@/hooks/use-project-id';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
@@ -10,13 +9,17 @@ import { EditModeToolbar } from '@/features/dashboard/components/EditModeToolbar
 import { AddWidgetDialog } from '@/features/dashboard/components/AddWidgetDialog';
 import { TextTileDialog } from '@/features/dashboard/components/TextTileDialog';
 import { SaveBar } from '@/features/dashboard/components/SaveBar';
+import { Button } from '@/components/ui/button';
+import { GridSkeleton } from '@/components/ui/grid-skeleton';
+import { RequireProject } from '@/components/require-project';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './[id].translations';
 
 export default function DashboardBuilderPage() {
   const { t } = useLocalTranslation(translations);
+  const { go } = useAppNavigate();
   const { id } = useParams<{ id: string }>();
-  const projectId = useProjectId();
   const { data: dashboard, isLoading } = useDashboard(id!);
   const { save, isPending } = useSaveDashboard(id!);
   const [showAddWidget, setShowAddWidget] = useState(false);
@@ -43,22 +46,6 @@ export default function DashboardBuilderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dashboard, isEditing]);
 
-  if (!projectId) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        {t('selectProject')}
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return <div className="text-muted-foreground text-sm">{t('loading')}</div>;
-  }
-
-  if (!dashboard) {
-    return <div className="text-muted-foreground text-sm">{t('notFound')}</div>;
-  }
-
   const handleSave = async () => {
     // Read latest state imperatively — avoids subscribing to frequent layout/widget updates
     const { localWidgets, localLayout, localName, widgetMeta } = useDashboardStore.getState();
@@ -79,7 +66,7 @@ export default function DashboardBuilderPage() {
     await save({
       name: localName,
       widgets: mergedWidgets,
-      serverWidgets: dashboard.widgets || [],
+      serverWidgets: dashboard?.widgets || [],
     });
     exitEditModeAfterSave();
   };
@@ -89,27 +76,42 @@ export default function DashboardBuilderPage() {
   };
 
   return (
-    <div className={`space-y-4 ${isEditing && isDirty ? 'pb-32' : ''}`}>
-      <DashboardHeader />
+    <RequireProject description={t('selectProject')}>
+      {isLoading && <GridSkeleton />}
 
-      <DashboardFilterBar />
-
-      <DashboardGrid
-        onAddInsight={() => setShowAddWidget(true)}
-        onAddText={() => setShowTextDialog(true)}
-      />
-
-      <EditModeToolbar
-        onAddInsight={() => setShowAddWidget(true)}
-        onAddText={() => setShowTextDialog(true)}
-      />
-
-      <AddWidgetDialog open={showAddWidget} onClose={() => setShowAddWidget(false)} />
-      <TextTileDialog open={showTextDialog} onClose={() => setShowTextDialog(false)} />
-
-      {isEditing && isDirty && (
-        <SaveBar onSave={handleSave} onDiscard={handleDiscard} isSaving={isPending} />
+      {!isLoading && !dashboard && (
+        <div className="flex flex-col items-center gap-4 py-12 text-muted-foreground text-sm">
+          <span>{t('notFound')}</span>
+          <Button variant="outline" onClick={() => go.dashboards.list()}>
+            {t('backToDashboards')}
+          </Button>
+        </div>
       )}
-    </div>
+
+      {!isLoading && dashboard && (
+        <div className={`space-y-4 ${isEditing && isDirty ? 'pb-32' : ''}`}>
+          <DashboardHeader />
+
+          <DashboardFilterBar />
+
+          <DashboardGrid
+            onAddInsight={() => setShowAddWidget(true)}
+            onAddText={() => setShowTextDialog(true)}
+          />
+
+          <EditModeToolbar
+            onAddInsight={() => setShowAddWidget(true)}
+            onAddText={() => setShowTextDialog(true)}
+          />
+
+          <AddWidgetDialog open={showAddWidget} onClose={() => setShowAddWidget(false)} />
+          <TextTileDialog open={showTextDialog} onClose={() => setShowTextDialog(false)} />
+
+          {isEditing && isDirty && (
+            <SaveBar onSave={handleSave} onDiscard={handleDiscard} isSaving={isPending} />
+          )}
+        </div>
+      )}
+    </RequireProject>
   );
 }

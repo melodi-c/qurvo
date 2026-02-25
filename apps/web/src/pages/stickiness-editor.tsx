@@ -64,13 +64,13 @@ export default function StickinessEditorPage() {
         <>
           <Metric label={t('totalUsers')} value={String(totalUsers)} accent />
           <MetricsDivider />
-          <Metric label={t('mostCommon')} value={`${modePeriod} ${formatGranularity(modePeriod, result!.granularity)}`} />
+          <Metric label={t('mostCommon')} value={`${modePeriod} ${formatGranularity(modePeriod, result?.granularity ?? 'day')}`} />
           <MetricsDivider />
-          <Metric label={t('totalPeriods')} value={String(result!.total_periods)} />
+          <Metric label={t('totalPeriods')} value={String(result?.total_periods ?? 0)} />
         </>
       }
     >
-      <StickinessChart result={result!} />
+      {result && <StickinessChart result={result} />}
     </InsightEditorLayout>
   );
 }

@@ -1,11 +1,17 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Check } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Check, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from 'sonner';
-import { useUpsertEventDefinition } from '@/hooks/use-event-definitions';
+import { api } from '@/api/client';
+import { useProjectId } from '@/hooks/use-project-id';
+import { useUpsertEventDefinition, eventDefinitionsKey } from '@/hooks/use-event-definitions';
+import { useConfirmDelete } from '@/hooks/use-confirm-delete';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './translations';
 
@@ -21,10 +27,29 @@ interface EventInfoCardProps {
 
 export function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
   const { t } = useLocalTranslation(translations);
+  const projectId = useProjectId();
+  const queryClient = useQueryClient();
+  const { go } = useAppNavigate();
   const [description, setDescription] = useState(eventDef.description ?? '');
   const [tags, setTags] = useState((eventDef.tags ?? []).join(', '));
   const [verified, setVerified] = useState(eventDef.verified ?? false);
   const upsertMutation = useUpsertEventDefinition();
+  const confirmDelete = useConfirmDelete();
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.eventDefinitionsControllerRemove({ projectId, eventName }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventDefinitionsKey(projectId) }),
+  });
+
+  const handleDelete = useCallback(async () => {
+    try {
+      await deleteMutation.mutateAsync();
+      toast.success(t('eventDeleted'));
+      go.dataManagement.list();
+    } catch {
+      toast.error(t('eventDeleteFailed'));
+    }
+  }, [deleteMutation, t, go]);
 
   const hasChanges = useMemo(() => {
     const origDesc = eventDef.description ?? '';
@@ -94,15 +119,36 @@ export function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
             </span>
           </div>
 
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={!hasChanges || upsertMutation.isPending}
-          >
-            {upsertMutation.isPending ? t('saving') : t('save')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => confirmDelete.requestDelete(eventName, eventName)}
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              {t('deleteEvent')}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!hasChanges || upsertMutation.isPending}
+            >
+              {upsertMutation.isPending ? t('saving') : t('save')}
+            </Button>
+          </div>
         </div>
       </CardContent>
+
+      <ConfirmDialog
+        open={confirmDelete.isOpen}
+        onOpenChange={confirmDelete.close}
+        title={t('deleteEventConfirm', { name: confirmDelete.itemName })}
+        description={t('deleteEventDescription')}
+        confirmLabel={t('delete')}
+        cancelLabel={t('cancel')}
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </Card>
   );
 }

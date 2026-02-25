@@ -19,6 +19,8 @@ export default createTranslations({
     currentMembers: 'current members',
     sizeHistory: 'Size over time',
     calculationError: 'Calculation error',
+    overviewTab: 'Overview',
+    membersTab: 'Members',
   },
   ru: {
     backLabel: 'Когорты',
@@ -38,5 +40,7 @@ export default createTranslations({
     currentMembers: 'участников сейчас',
     sizeHistory: 'Размер во времени',
     calculationError: 'Ошибка вычисления',
+    overviewTab: 'Обзор',
+    membersTab: 'Участники',
   },
 });

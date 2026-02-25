@@ -1,16 +1,24 @@
+import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
+import { TabNav } from '@/components/ui/tab-nav';
 import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBuilder';
 import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
+import { MembersTab } from '@/features/cohorts/components/MembersTab';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './cohort-editor.translations';
 import { useCohortEditor } from './use-cohort-editor';
 
+type TabId = 'overview' | 'members';
+
 export default function CohortEditorPage() {
   const { t } = useLocalTranslation(translations);
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const {
     isNew,
     cohortId,
@@ -32,6 +40,22 @@ export default function CohortEditorPage() {
     saveError,
     handleSave,
   } = useCohortEditor();
+
+  const showTabs = !isNew && existingCohort?.is_static === true;
+  const activeTab = showTabs
+    ? (searchParams.get('tab') as TabId) || 'overview'
+    : 'overview';
+
+  const tabs = useMemo(() => [
+    { id: 'overview' as const, label: t('overviewTab') },
+    { id: 'members' as const, label: t('membersTab') },
+  ], [t]);
+
+  function setTab(tab: TabId): void {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    setSearchParams(next);
+  }
 
   if (!isNew && loadingCohort) {
     return (
@@ -125,21 +149,41 @@ export default function CohortEditorPage() {
 
         {!isNew && existingCohort ? (
           <main className="flex-1 overflow-auto flex flex-col">
-            <div className="border-b px-6 py-6 text-center">
-              <p className="text-4xl font-bold tabular-nums text-primary">
-                {memberCount ? memberCount.count.toLocaleString() : '\u2014'}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
-            </div>
-            <div className="flex-1 p-6 space-y-3">
-              <p className="text-sm font-medium">{t('sizeHistory')}</p>
-              <CohortSizeChart data={sizeHistory ?? []} />
-            </div>
-            {existingCohort.last_error_message && (
-              <div className="border-t px-6 py-4">
-                <p className="text-sm text-destructive font-medium">{t('calculationError')}</p>
-                <p className="text-xs text-muted-foreground mt-1">{existingCohort.last_error_message}</p>
-              </div>
+            {showTabs && (
+              <TabNav
+                tabs={tabs}
+                value={activeTab}
+                onChange={setTab}
+                className="px-6 shrink-0"
+              />
+            )}
+
+            {activeTab === 'overview' && (
+              <>
+                <div className="border-b px-6 py-6 text-center">
+                  <p className="text-4xl font-bold tabular-nums text-primary">
+                    {memberCount ? memberCount.count.toLocaleString() : '\u2014'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
+                </div>
+                <div className="flex-1 p-6 space-y-3">
+                  <p className="text-sm font-medium">{t('sizeHistory')}</p>
+                  <CohortSizeChart data={sizeHistory ?? []} />
+                </div>
+                {existingCohort.last_error_message && (
+                  <div className="border-t px-6 py-4">
+                    <p className="text-sm text-destructive font-medium">{t('calculationError')}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{existingCohort.last_error_message}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'members' && showTabs && cohortId && (
+              <MembersTab
+                cohortId={cohortId}
+                memberCount={memberCount?.count ?? 0}
+              />
             )}
           </main>
         ) : (

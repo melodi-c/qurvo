@@ -57,18 +57,18 @@ export default function RetentionEditorPage() {
       skeleton={<EditorSkeleton metricCount={2} />}
       metricsBar={
         <>
-          <Metric label={t('cohorts')} value={String(result!.cohorts.length)} accent />
+          <Metric label={t('cohorts')} value={String(result?.cohorts?.length ?? 0)} accent />
           <MetricsDivider />
           <Metric
             label={t('avgDay1Retention')}
-            value={result!.average_retention[1] !== undefined ? `${result!.average_retention[1].toFixed(1)}%` : '\u2014'}
+            value={result?.average_retention?.[1] !== undefined ? `${result.average_retention[1].toFixed(1)}%` : '\u2014'}
           />
         </>
       }
       chartClassName="flex-1 overflow-auto p-6 space-y-8"
     >
-      <RetentionTable result={result!} />
-      <RetentionChart result={result!} />
+      {result && <RetentionTable result={result} />}
+      {result && <RetentionChart result={result} />}
     </InsightEditorLayout>
   );
 }

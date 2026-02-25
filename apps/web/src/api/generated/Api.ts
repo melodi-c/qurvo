@@ -249,9 +249,9 @@ export interface FunnelResult {
 }
 
 export interface FunnelResponse {
-  data: FunnelResult;
   cached_at: string;
   from_cache: boolean;
+  data: FunnelResult;
 }
 
 export interface TimeToConvertBin {
@@ -270,9 +270,9 @@ export interface TimeToConvertResult {
 }
 
 export interface TimeToConvertResponse {
-  data: TimeToConvertResult;
   cached_at: string;
   from_cache: boolean;
+  data: TimeToConvertResult;
 }
 
 export interface EventRow {
@@ -369,9 +369,9 @@ export interface TrendResult {
 }
 
 export interface TrendResponse {
-  data: TrendResult;
   cached_at: string;
   from_cache: boolean;
+  data: TrendResult;
 }
 
 export interface RetentionCohort {
@@ -388,9 +388,9 @@ export interface RetentionResult {
 }
 
 export interface RetentionResponse {
-  data: RetentionResult;
   cached_at: string;
   from_cache: boolean;
+  data: RetentionResult;
 }
 
 export interface LifecycleDataPoint {
@@ -415,9 +415,9 @@ export interface LifecycleResult {
 }
 
 export interface LifecycleResponse {
-  data: LifecycleResult;
   cached_at: string;
   from_cache: boolean;
+  data: LifecycleResult;
 }
 
 export interface StickinessDataPoint {
@@ -432,9 +432,9 @@ export interface StickinessResult {
 }
 
 export interface StickinessResponse {
-  data: StickinessResult;
   cached_at: string;
   from_cache: boolean;
+  data: StickinessResult;
 }
 
 export interface PathCleaningRule {
@@ -916,6 +916,7 @@ export interface AiConversation {
 }
 
 export interface AiMessage {
+  role: AiMessageDtoRoleEnum;
   content?: string | null;
   tool_calls?: object;
   tool_call_id?: string | null;
@@ -923,7 +924,6 @@ export interface AiMessage {
   tool_result?: object;
   visualization_type?: string | null;
   id: string;
-  role: string;
   sequence: number;
   created_at: string;
 }
@@ -1166,6 +1166,8 @@ export type CohortConditionGroupDtoTypeEnum = "AND" | "OR";
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 
 export type CreateInviteDtoRoleEnum = "editor" | "viewer";
+
+export type AiMessageDtoRoleEnum = "user" | "assistant" | "tool";
 
 export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
 
