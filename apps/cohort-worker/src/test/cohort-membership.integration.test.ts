@@ -9,11 +9,11 @@ import {
   type TestProject,
 } from '@qurvo/testing';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { getTestContext } from '../context';
-import { getCohortMembers } from '../helpers/ch';
-import { CohortMembershipService } from '../../cohort-worker/cohort-membership.service';
-import { CohortComputationService } from '../../cohort-worker/cohort-computation.service';
-import { COHORT_LOCK_KEY } from '../../constants';
+import { getTestContext } from './context';
+import { getCohortMembers } from './helpers/ch';
+import { CohortMembershipService } from '../cohort-worker/cohort-membership.service';
+import { CohortComputationService } from '../cohort-worker/cohort-computation.service';
+import { COHORT_LOCK_KEY } from '../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
