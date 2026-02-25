@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, Query, Res, Headers, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Query, Res, Headers, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
@@ -6,7 +6,7 @@ import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { detectLanguageFromHeader } from '../../ai/system-prompt';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
+import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, RenameConversationDto } from '../dto/ai.dto';
 
 @ApiTags('AI')
 @ApiBearerAuth()
@@ -79,6 +79,17 @@ export class AiController {
     @Query() query: AiConversationMessagesQueryDto,
   ): Promise<AiConversationDetailDto> {
     return this.aiService.getConversation(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
+  }
+
+  @Patch('conversations/:id')
+  @UseGuards(ProjectMemberGuard)
+  async renameConversation(
+    @CurrentUser() user: RequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AiConversationAccessDto,
+    @Body() body: RenameConversationDto,
+  ): Promise<AiConversationDto> {
+    return this.aiService.renameConversation(user.user_id, id, query.project_id, body.title) as any;
   }
 
   @Delete('conversations/:id')

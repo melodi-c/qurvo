@@ -146,4 +146,13 @@ export class AiChatService {
       .set({ content })
       .where(and(eq(aiMessages.conversation_id, conversationId), eq(aiMessages.sequence, sequence)));
   }
+
+  async renameConversation(conversationId: string, userId: string, title: string) {
+    const [row] = await this.db
+      .update(aiConversations)
+      .set({ title, updated_at: new Date() })
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
+      .returning();
+    return row ?? null;
+  }
 }
