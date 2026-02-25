@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { authFetch, getAuthHeaders } from '@/lib/auth-fetch';
 import { api } from '@/api/client';
 import { consumeSseStream } from '../lib/sse-stream.js';
-import type { SseToolResultEvent } from '../lib/sse-stream.js';
+import type { SseToolResultEvent, SseToolCallStartEvent } from '../lib/sse-stream.js';
 import type { AiMessage } from '@/api/generated/Api';
 
 export interface AiMessageData {
@@ -11,9 +11,11 @@ export interface AiMessageData {
   content: string | null;
   tool_call_id?: string;
   tool_name?: string;
+  tool_args?: Record<string, unknown>;
   tool_result?: unknown;
   visualization_type?: string | null;
   isStreaming?: boolean;
+  isPendingTool?: boolean;
   sequence?: number;
 }
 
@@ -132,25 +134,41 @@ export function useAiChat(projectId: string) {
               messages: upsertAssistantMessage(prev.messages, currentId, currentContent),
             }));
           },
-          onToolCallStart() {
+          onToolCallStart(event: SseToolCallStartEvent) {
             assistantId = tempId();
             assistantContent = '';
-          },
-          onToolResult(event: SseToolResultEvent) {
+            const pendingId = event.tool_call_id;
             setState((prev) => ({
               ...prev,
               messages: [
                 ...prev.messages,
                 {
-                  id: tempId(),
+                  id: pendingId,
                   role: 'tool',
                   content: null,
                   tool_call_id: event.tool_call_id,
                   tool_name: event.name,
-                  tool_result: event.result,
-                  visualization_type: event.visualization_type,
+                  tool_args: event.args,
+                  tool_result: null,
+                  visualization_type: null,
+                  isPendingTool: true,
                 },
               ],
+            }));
+          },
+          onToolResult(event: SseToolResultEvent) {
+            setState((prev) => ({
+              ...prev,
+              messages: prev.messages.map((m) =>
+                m.tool_call_id === event.tool_call_id && m.isPendingTool
+                  ? {
+                      ...m,
+                      tool_result: event.result,
+                      visualization_type: event.visualization_type,
+                      isPendingTool: false,
+                    }
+                  : m,
+              ),
             }));
           },
           onError(message) {

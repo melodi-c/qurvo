@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { AiToolResult } from './ai-tool-result';
+import { AiToolProgress } from './ai-tool-progress';
 import type { AiMessageData } from '@/features/ai/hooks/use-ai-chat';
 
 interface AiMessageProps {
@@ -36,6 +37,14 @@ export function AiMessage({ message, onSuggestionClick }: AiMessageProps) {
   }, [message.role, isUser, message.content, message.isStreaming]);
 
   if (message.role === 'tool') {
+    if (message.isPendingTool) {
+      return (
+        <AiToolProgress
+          toolName={message.tool_name ?? ''}
+          toolArgs={message.tool_args ?? {}}
+        />
+      );
+    }
     return (
       <AiToolResult
         toolName={message.tool_name ?? ''}

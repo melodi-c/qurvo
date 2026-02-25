@@ -1,0 +1,38 @@
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    list_event_names: 'Discovering available events...',
+    query_trend: 'Querying trend',
+    query_funnel: 'Querying funnel',
+    query_retention: 'Querying retention',
+    query_lifecycle: 'Querying lifecycle',
+    query_stickiness: 'Querying stickiness',
+    query_paths: 'Exploring user paths',
+    runningTool: 'Running tool...',
+    dateRange: '{{from}} – {{to}}',
+    series: '{{count}} series',
+    steps: '{{count}} steps',
+    event: 'event: {{name}}',
+    startEvent: 'from: {{name}}',
+    endEvent: 'to: {{name}}',
+    granularity: '{{g}}',
+  },
+  ru: {
+    list_event_names: 'Поиск доступных событий...',
+    query_trend: 'Запрос тренда',
+    query_funnel: 'Запрос воронки',
+    query_retention: 'Запрос удержания',
+    query_lifecycle: 'Запрос жизненного цикла',
+    query_stickiness: 'Запрос стикинесса',
+    query_paths: 'Анализ путей пользователей',
+    runningTool: 'Выполняется...',
+    dateRange: '{{from}} – {{to}}',
+    series: '{{count}} серий',
+    steps: '{{count}} шагов',
+    event: 'событие: {{name}}',
+    startEvent: 'начало: {{name}}',
+    endEvent: 'конец: {{name}}',
+    granularity: '{{g}}',
+  },
+});

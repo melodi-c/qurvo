@@ -21,7 +21,7 @@ import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT } from '../consta
 type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
   | { type: 'text_delta'; content: string }
-  | { type: 'tool_call_start'; tool_call_id: string; name: string }
+  | { type: 'tool_call_start'; tool_call_id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string }
   | { type: 'error'; message: string }
   | { type: 'done' };
@@ -300,12 +300,18 @@ export class AiService implements OnModuleInit {
     const results: DispatchedToolResult[] = [];
 
     for (const tc of toolCalls) {
-      yield { type: 'tool_call_start', tool_call_id: tc.id, name: tc.function.name };
+      let parsedArgs: Record<string, unknown> = {};
+      try {
+        parsedArgs = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+      } catch {
+        // args unavailable — yield empty object
+      }
+      yield { type: 'tool_call_start', tool_call_id: tc.id, name: tc.function.name, args: parsedArgs };
 
       let toolResult: unknown;
       let vizType: string | undefined;
       try {
-        const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+        const args = parsedArgs;
         const tool = this.toolMap.get(tc.function.name);
         if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
         const res = await tool.run(args, userId, projectId);

@@ -10,6 +10,9 @@ export interface SseTextDeltaEvent {
 
 export interface SseToolCallStartEvent {
   type: 'tool_call_start';
+  tool_call_id: string;
+  name: string;
+  args: Record<string, unknown>;
 }
 
 export interface SseToolResultEvent {
@@ -40,7 +43,7 @@ export type SseChunk =
 export interface SseStreamCallbacks {
   onConversation: (conversationId: string) => void;
   onTextDelta: (content: string) => void;
-  onToolCallStart: () => void;
+  onToolCallStart: (event: SseToolCallStartEvent) => void;
   onToolResult: (event: SseToolResultEvent) => void;
   onError: (message: string) => void;
 }
@@ -83,7 +86,7 @@ export async function consumeSseStream(
           callbacks.onTextDelta(chunk.content);
           break;
         case 'tool_call_start':
-          callbacks.onToolCallStart();
+          callbacks.onToolCallStart(chunk);
           break;
         case 'tool_result':
           callbacks.onToolResult(chunk);
