@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, Min, Max, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, IsIn, Min, Max, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -104,4 +104,27 @@ export class UpdateConversationDto {
   @IsBoolean()
   @IsOptional()
   is_shared?: boolean;
+}
+
+export class AiMessageFeedbackDto {
+  @ApiProperty({ enum: ['positive', 'negative'] })
+  @IsIn(['positive', 'negative'])
+  rating: 'positive' | 'negative';
+
+  @ApiPropertyOptional()
+  @IsString()
+  @MaxLength(2000)
+  @IsOptional()
+  comment?: string;
+}
+
+export class AiMessageFeedbackResponseDto {
+  id: string;
+  message_id: string;
+  user_id: string;
+  @ApiProperty({ enum: ['positive', 'negative'] })
+  rating: 'positive' | 'negative';
+  @ApiPropertyOptional()
+  comment: string | null;
+  created_at: string;
 }

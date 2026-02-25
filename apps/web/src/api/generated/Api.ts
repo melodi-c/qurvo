@@ -956,6 +956,21 @@ export interface UpdateConversation {
   is_shared?: boolean;
 }
 
+export interface AiMessageFeedback {
+  rating: AiMessageFeedbackDtoRatingEnum;
+  /** @maxLength 2000 */
+  comment?: string;
+}
+
+export interface AiMessageFeedbackResponse {
+  rating: AiMessageFeedbackResponseDtoRatingEnum;
+  comment?: string | null;
+  id: string;
+  message_id: string;
+  user_id: string;
+  created_at: string;
+}
+
 export interface EventDefinition {
   event_name: string;
   id: string;
@@ -1232,6 +1247,10 @@ export type MyInviteDtoStatusEnum =
   | "cancelled";
 
 export type AiMessageDtoRoleEnum = "user" | "assistant" | "tool";
+
+export type AiMessageFeedbackDtoRatingEnum = "positive" | "negative";
+
+export type AiMessageFeedbackResponseDtoRatingEnum = "positive" | "negative";
 
 export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
 
@@ -1763,6 +1782,14 @@ export interface AiControllerUpdateConversationParams {
 export interface AiControllerDeleteConversationParams {
   /** @format uuid */
   project_id: string;
+  id: string;
+}
+
+export interface AiControllerSubmitFeedbackParams {
+  id: string;
+}
+
+export interface AiControllerDeleteFeedbackParams {
   id: string;
 }
 
@@ -3622,6 +3649,48 @@ export class Api<
         path: `/api/ai/conversations/${id}`,
         method: "DELETE",
         query: query,
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerSubmitFeedback
+     * @request POST:/api/ai/messages/{id}/feedback
+     * @secure
+     */
+    aiControllerSubmitFeedback: (
+      { id, ...query }: AiControllerSubmitFeedbackParams,
+      data: AiMessageFeedback,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiMessageFeedbackResponse, any>({
+        path: `/api/ai/messages/${id}/feedback`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerDeleteFeedback
+     * @request DELETE:/api/ai/messages/{id}/feedback
+     * @secure
+     */
+    aiControllerDeleteFeedback: (
+      { id, ...query }: AiControllerDeleteFeedbackParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/ai/messages/${id}/feedback`,
+        method: "DELETE",
         secure: true,
         ...params,
       }),
