@@ -42,8 +42,9 @@ export function ProfileTab() {
       setConfirmPassword('');
       toast.success(t('passwordChanged'));
     },
-    onError: (err: any) => {
-      const message = err?.error?.message || t('passwordChangeFailed');
+    onError: (err) => {
+      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+      const message = data?.message || t('passwordChangeFailed');
       toast.error(message);
     },
   });

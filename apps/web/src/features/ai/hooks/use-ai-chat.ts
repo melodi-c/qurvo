@@ -172,12 +172,12 @@ export function useAiChat() {
           isStreaming: false,
           messages: finalizeStreamingMessages(prev.messages),
         }));
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         setState((prev) => ({
           ...prev,
           isStreaming: false,
-          error: err.message || 'Unknown error',
+          error: err instanceof Error ? err.message : 'Unknown error',
         }));
       }
     },
@@ -200,8 +200,8 @@ export function useAiChat() {
         hasMore: data.has_more ?? false,
         isLoadingMore: false,
       });
-    } catch (err: any) {
-      setState((prev) => ({ ...prev, error: err.message }));
+    } catch (err: unknown) {
+      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : 'Failed to load conversation' }));
     }
   }, []);
 
@@ -231,8 +231,8 @@ export function useAiChat() {
         hasMore: data.has_more ?? false,
         isLoadingMore: false,
       }));
-    } catch (err: any) {
-      setState((prev) => ({ ...prev, isLoadingMore: false, error: err.message }));
+    } catch (err: unknown) {
+      setState((prev) => ({ ...prev, isLoadingMore: false, error: err instanceof Error ? err.message : 'Failed to load messages' }));
     }
   }, [state.conversationId, state.isLoadingMore, state.hasMore, state.messages]);
 

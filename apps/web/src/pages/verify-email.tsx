@@ -69,8 +69,9 @@ export default function VerifyEmailPage() {
     try {
       await verifyByCode(code);
       navigate(routes.home());
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || t('verificationError');
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+      const msg = data?.message || (err instanceof Error ? err.message : t('verificationError'));
       setError(msg);
     } finally {
       setLoading(false);
@@ -85,12 +86,12 @@ export default function VerifyEmailPage() {
     try {
       const res = await resendVerification();
       setCooldown(res.cooldown_seconds);
-    } catch (err: any) {
-      const secondsRemaining = err?.response?.data?.seconds_remaining;
-      if (secondsRemaining) {
-        setCooldown(secondsRemaining);
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; seconds_remaining?: number } } })?.response?.data;
+      if (data?.seconds_remaining) {
+        setCooldown(data.seconds_remaining);
       }
-      const msg = err?.response?.data?.message || err?.message || t('resendFailed');
+      const msg = data?.message || (err instanceof Error ? err.message : t('resendFailed'));
       setError(msg);
     } finally {
       setResending(false);
