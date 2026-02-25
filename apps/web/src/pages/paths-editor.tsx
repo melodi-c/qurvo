@@ -19,10 +19,11 @@ export default function PathsEditorPage() {
     type: 'paths',
     defaultName: t('defaultName'),
     defaultConfig: defaultPathsConfig,
+    isConfigValid: (cfg) => !!cfg.start_event && cfg.start_event.trim() !== '',
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isValid, showSkeleton } = editor;
+    previewId, isConfigValid, isValid, showSkeleton } = editor;
 
   const { data, isLoading, isFetching } = usePathsData(config, previewId);
   const result = data?.data;
@@ -51,10 +52,13 @@ export default function PathsEditorPage() {
       isValid={isValid}
       saveError={saveError}
       queryPanel={<PathsQueryPanel config={config} onChange={setConfig} />}
-      isConfigValid={true}
+      isConfigValid={isConfigValid}
       showSkeleton={showSkeleton(isLoading, data)}
       isEmpty={!transitions || transitions.length === 0}
       isFetching={isFetching}
+      configureIcon={Route}
+      configureTitle={t('configureTitle')}
+      configureDescription={t('configureDescription')}
       noResultsIcon={Route}
       noResultsTitle={t('noPathsTitle')}
       noResultsDescription={t('noPathsDescription')}
