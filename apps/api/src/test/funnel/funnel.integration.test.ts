@@ -126,8 +126,8 @@ describe('queryFunnel — non-breakdown', () => {
         { event_name: 'never_happened_b', label: 'Step B' },
       ],
       conversion_window_days: 7,
-      date_from: '2020-01-01',
-      date_to: '2020-01-02',
+      date_from: dateOffset(-5),
+      date_to: dateOffset(-3),
     });
 
     expect(result.breakdown).toBe(false);
@@ -233,15 +233,14 @@ describe('queryFunnel — with breakdown', () => {
     });
 
     expect(result.breakdown).toBe(true);
-    if (result.breakdown) {
-      expect(result.breakdown_property).toBe('browser');
-      const chromeSteps = result.steps.filter((s) => s.breakdown_value === 'Chrome');
-      const firefoxSteps = result.steps.filter((s) => s.breakdown_value === 'Firefox');
-      expect(chromeSteps.find((s) => s.step === 1)?.count).toBe(2);
-      expect(firefoxSteps.find((s) => s.step === 1)?.count).toBe(1);
-      expect(result.aggregate_steps).toBeDefined();
-      expect(result.aggregate_steps.find((s) => s.step === 1)?.count).toBe(3);
-    }
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+    expect(rBd.breakdown_property).toBe('browser');
+    const chromeSteps = rBd.steps.filter((s) => s.breakdown_value === 'Chrome');
+    const firefoxSteps = rBd.steps.filter((s) => s.breakdown_value === 'Firefox');
+    expect(chromeSteps.find((s) => s.step === 1)?.count).toBe(2);
+    expect(firefoxSteps.find((s) => s.step === 1)?.count).toBe(1);
+    expect(rBd.aggregate_steps).toBeDefined();
+    expect(rBd.aggregate_steps.find((s) => s.step === 1)?.count).toBe(3);
   });
 });
 

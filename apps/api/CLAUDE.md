@@ -24,7 +24,7 @@ pnpm generate-api                    # swagger.json → apps/web/src/api/generat
 | `AppModule` | Root module | Imports all feature modules |
 | `DatabaseModule` | @Global infra | `DRIZZLE`, `CLICKHOUSE`, `REDIS` provider tokens |
 | `ApiModule` | HTTP infra | Guards, filters, decorators, DTOs |
-| `AuthModule` | Auth | Login/register/logout, sessions, `AuthGuard` |
+| `AuthModule` | Auth | Login/register/logout, sessions, `AuthGuard`, `AccountService` (profile/password) |
 | `ProjectsModule` | Projects CRUD | Project management, members |
 | `ApiKeysModule` | API keys CRUD | Key create/revoke for SDK auth |
 | `EventsModule` | Event explorer | Paginated event queries from ClickHouse |
@@ -124,7 +124,8 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `queryStickiness(ch, params)` — histogram of active periods per user
 - `queryPaths(ch, params)` — user journey path exploration
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
-- All queries use `FROM events FINAL` to deduplicate ReplacingMergeTree
+- Queries use `FROM events` (without FINAL) — duplicate rate is negligible (~0.00007%), FINAL disables projections and adds 2-3x overhead
+- `cohort_members FINAL` and `person_static_cohort FINAL` still use FINAL (small tables, correctness matters)
 
 ### Shared Utilities
 `src/utils/` contains shared code used across modules:
@@ -138,7 +139,8 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - Session cache key prefix: use `SESSION_CACHE_KEY_PREFIX` from `constants.ts` — never hardcode `"session:"` prefix
 
 `src/api/dto/shared/` contains shared DTO utilities:
-- `base-analytics-query.dto.ts` — `CoreQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `force?`). `BaseAnalyticsQueryDto` extends it adding `cohort_ids?` and `widget_id?`. Analytics query DTOs extend `BaseAnalyticsQueryDto`; `WebAnalyticsQueryDto` extends `CoreQueryDto`.
+- `base-analytics-query.dto.ts` — `CoreQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `force?`). Uses `@IsDateOnly()` for date validation (YYYY-MM-DD only). `BaseAnalyticsQueryDto` extends it adding `cohort_ids?` and `widget_id?`. Analytics query DTOs extend `BaseAnalyticsQueryDto`; `WebAnalyticsQueryDto` extends `CoreQueryDto`.
+- `is-date-only.decorator.ts` — Custom `@IsDateOnly()` validator that enforces strict YYYY-MM-DD format (rejects ISO datetimes with timezone offsets that ClickHouse can't handle)
 - `base-analytics-response.dto.ts` — `BaseAnalyticsResponseDto` with `cached_at` and `from_cache`. All analytics response DTOs extend it
 - `filters.dto.ts` — `StepFilterDto` class
 - `transforms.ts` — `parseJsonArray()` for query params arriving as JSON strings (throws `AppBadRequestException` on invalid JSON); `makeJsonArrayTransform(TargetClass)` for JSON-encoded arrays that need `plainToInstance` instantiation
@@ -159,6 +161,13 @@ const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundExcepti
 
 ### Throttle Limits
 20 req/s, 300 req/min per IP. Backed by `@nest-lab/throttler-storage-redis` (Lua script, fixed-window, atomic INCR + conditional PEXPIRE).
+
+### Swagger & `@ApiProperty` Decorators
+Swagger schema is generated via `swagger-cli` from the compiled NestJS metadata. Most DTO fields are inferred automatically — **do not add `@ApiProperty` to every field**. Only use decorators when the auto-inferred type is wrong or ambiguous:
+- `@ApiProperty({ type: [NestedDto] })` — arrays of nested objects (auto-inference loses the element type)
+- `@ApiProperty({ enum: [...] })` — string unions/enums that should appear as enum in OpenAPI
+- `@ApiPropertyOptional()` — optional fields that need explicit optionality in the schema
+- `@ApiProperty({ type: 'object' })` — `Record<string, unknown>` or other generic object types
 
 ### Controller Return Types & `as any`
 Controllers declare explicit return types (e.g. `Promise<CohortDto>`) so Swagger can generate correct response schemas. Drizzle ORM returns `InferSelectModel<T>` which is structurally compatible but not assignable to DTO classes, so `as any` is required on `return` statements. **Never remove `as any` from controller returns** — it will break Swagger generation. Void actions (delete, revoke, etc.) return `Promise<void>` — never `{ ok: true }`.

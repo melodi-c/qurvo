@@ -43,7 +43,12 @@ export class AiMessageDto {
   created_at: string;
 }
 
-export class AiConversationMessagesQueryDto {
+export class AiConversationAccessDto {
+  @IsUUID()
+  project_id: string;
+}
+
+export class AiConversationMessagesQueryDto extends AiConversationAccessDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsInt()

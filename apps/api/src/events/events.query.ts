@@ -113,7 +113,7 @@ export async function queryEvents(
 
   const query = `
     SELECT ${EVENT_BASE_COLUMNS}
-    FROM events FINAL
+    FROM events
     WHERE ${conditions.join(' AND ')}
     ORDER BY events.timestamp DESC
     LIMIT {limit:UInt32}
@@ -142,7 +142,7 @@ export async function queryEventDetail(
     SELECT ${EVENT_BASE_COLUMNS},
       properties,
       user_properties
-    FROM events FINAL
+    FROM events
     WHERE
       project_id = {project_id:UUID}
       AND event_id = {event_id:UUID}

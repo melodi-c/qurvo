@@ -173,14 +173,13 @@ describe('queryTrend — compare mode', () => {
     });
 
     expect(result.compare).toBe(true);
-    if (result.compare) {
-      expect(result.series).toBeDefined();
-      expect(result.series_previous).toBeDefined();
-      const currentTotal = sumSeriesValues(result.series[0]?.data ?? []);
-      expect(currentTotal).toBe(2);
-      const prevTotal = sumSeriesValues(result.series_previous[0]?.data ?? []);
-      expect(prevTotal).toBe(1);
-    }
+    const r = result as Extract<typeof result, { compare: true }>;
+    expect(r.series).toBeDefined();
+    expect(r.series_previous).toBeDefined();
+    const currentTotal = sumSeriesValues(r.series[0]?.data ?? []);
+    expect(currentTotal).toBe(2);
+    const prevTotal = sumSeriesValues(r.series_previous[0]?.data ?? []);
+    expect(prevTotal).toBe(1);
   });
 });
 
@@ -205,12 +204,11 @@ describe('queryTrend — with breakdown', () => {
     });
 
     expect(result.breakdown).toBe(true);
-    if (result.breakdown) {
-      const chromeResult = result.series.find((s) => s.breakdown_value === 'Chrome');
-      const safariResult = result.series.find((s) => s.breakdown_value === 'Safari');
-      expect(sumSeriesValues(chromeResult!.data)).toBe(2);
-      expect(sumSeriesValues(safariResult!.data)).toBe(1);
-    }
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+    const chromeResult = rBd.series.find((s) => s.breakdown_value === 'Chrome');
+    const safariResult = rBd.series.find((s) => s.breakdown_value === 'Safari');
+    expect(sumSeriesValues(chromeResult!.data)).toBe(2);
+    expect(sumSeriesValues(safariResult!.data)).toBe(1);
   });
 });
 

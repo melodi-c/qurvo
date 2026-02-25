@@ -97,8 +97,8 @@ describe('queryPaths — basic transitions', () => {
 
     const result = await queryPaths(ctx.ch, {
       project_id: projectId,
-      date_from: '2020-01-01',
-      date_to: '2020-01-02',
+      date_from: dateOffset(-5),
+      date_to: dateOffset(-3),
       step_limit: 5,
     });
 

@@ -38,8 +38,8 @@ export class RetentionCohortDto {
 }
 
 export class RetentionResultDto {
-  retention_type: string;
-  granularity: string;
+  retention_type: 'first_time' | 'recurring';
+  granularity: 'day' | 'week' | 'month';
   @Type(() => RetentionCohortDto)
   cohorts: RetentionCohortDto[];
   average_retention: number[];

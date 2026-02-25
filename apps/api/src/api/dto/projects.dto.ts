@@ -25,5 +25,5 @@ export class ProjectDto {
 }
 
 export class ProjectWithRoleDto extends ProjectDto {
-  role: string;
+  role: 'owner' | 'editor' | 'viewer';
 }

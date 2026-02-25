@@ -134,7 +134,7 @@ export async function queryPaths(
         ${RESOLVED_PERSON} AS pid,
         ${cleaningExpr} AS cleaned_name,
         timestamp
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}

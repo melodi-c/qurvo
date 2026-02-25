@@ -27,7 +27,7 @@ export function buildNotPerformedEventSubquery(
   // Single-pass countIf: persons active in window but zero matching events
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
-    FROM events FINAL
+    FROM events
     WHERE project_id = {${ctx.projectIdParam}:UUID}
       AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} DAY
     GROUP BY person_id

@@ -68,7 +68,7 @@ Defined in `src/migrations/0001_initial_schema.sql`:
 ## Key Patterns
 
 - Query functions live in consuming apps (`apps/api/src/*/query.ts`), not in this package
-- Always use `FROM events FINAL` to deduplicate
+- Do NOT use `FROM events FINAL` — ReplacingMergeTree merges parts in background, duplicate rate is negligible (~0.00007%), and FINAL disables projections + adds 2-3x overhead
 - `properties` and `user_properties` are stored as JSON strings
 - Person resolution at query time: `dictGetOrNull('qurvo_analytics.person_overrides_dict', 'person_id', (project_id, distinct_id))`
 - Schema changes: `pnpm ch:generate <name>` → write SQL → `pnpm ch:migrate`

@@ -45,7 +45,7 @@ export async function queryPersonEvents(
       sdk_version,
       properties,
       user_properties
-    FROM events FINAL
+    FROM events
     WHERE
       project_id = {project_id:UUID}
       AND (

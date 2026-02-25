@@ -31,7 +31,7 @@ export function buildRestartedPerformingSubquery(
   return `
     SELECT person_id FROM (
       SELECT ${RESOLVED_PERSON} AS person_id
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND event_name = {${eventPk}:String}
@@ -41,7 +41,7 @@ export function buildRestartedPerformingSubquery(
     )
     WHERE person_id NOT IN (
       SELECT ${RESOLVED_PERSON}
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND event_name = {${eventPk}:String}
@@ -50,7 +50,7 @@ export function buildRestartedPerformingSubquery(
     )
     AND person_id IN (
       SELECT ${RESOLVED_PERSON}
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND event_name = {${eventPk}:String}
