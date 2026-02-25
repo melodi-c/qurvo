@@ -40,8 +40,8 @@ src/
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `CohortComputationService` | CH operations (`computeMembership`), PG tracking (`markComputationSuccess` → returns boolean, `recordError`), history, GC orphans. PG update is separate so a transient PG failure after successful CH write doesn't trigger error backoff | — |
-| `CohortMembershipService` | Cycle orchestration: scheduling, lock, backoff (`filterByBackoff`), GC scheduling (`runGcIfDue`), delegates to computation. `runCycle()` is `@internal` public for tests. Tracks `pgFailed` for observability | 10min interval, 30s initial delay, distributed lock (660s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
+| `CohortComputationService` | All data access: `findStaleCohorts` (PG read), CH operations (`computeMembership`), PG tracking (`markComputationSuccess` → returns boolean, `recordError`), history (`recordSizeHistory` via single INSERT...SELECT), GC orphans. PG update is separate so a transient PG failure after successful CH write doesn't trigger error backoff | — |
+| `CohortMembershipService` | Pure orchestrator (no direct DB access): scheduling, lock, backoff (`filterByBackoff`), per-cohort processing (`processOneCohort`), GC scheduling (`runGcIfDue`), delegates all data ops to computation. `runCycle()` is `@internal` public for tests. Tracks `pgFailed` for observability | 10min interval, 30s initial delay, distributed lock (660s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
 | `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + PG pool + Redis with error logging |
 
 ## Key Patterns
