@@ -42,6 +42,7 @@ export class AiController {
         conversation_id: body.conversation_id,
         message: body.message,
         language,
+        edit_sequence: body.edit_sequence,
       });
 
       for await (const chunk of stream) {

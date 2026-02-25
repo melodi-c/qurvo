@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and, desc, lt, count } from 'drizzle-orm';
+import { eq, and, desc, lt, gt, count } from 'drizzle-orm';
 import { aiConversations, aiMessages } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
@@ -132,5 +132,18 @@ export class AiChatService {
       .update(aiConversations)
       .set({ history_summary: summary })
       .where(eq(aiConversations.id, conversationId));
+  }
+
+  async deleteMessagesAfterSequence(conversationId: string, sequence: number) {
+    await this.db
+      .delete(aiMessages)
+      .where(and(eq(aiMessages.conversation_id, conversationId), gt(aiMessages.sequence, sequence)));
+  }
+
+  async updateMessageContent(conversationId: string, sequence: number, content: string) {
+    await this.db
+      .update(aiMessages)
+      .set({ content })
+      .where(and(eq(aiMessages.conversation_id, conversationId), eq(aiMessages.sequence, sequence)));
   }
 }

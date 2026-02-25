@@ -73,6 +73,86 @@ function finalizeStreamingMessages(messages: AiMessageData[]): AiMessageData[] {
   return messages.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m));
 }
 
+/** Shared SSE streaming logic used by both sendMessage and editMessage. */
+async function streamChat(
+  body: Record<string, unknown>,
+  abortRef: React.MutableRefObject<AbortController | null>,
+  setState: React.Dispatch<React.SetStateAction<AiChatState>>,
+) {
+  const abortController = new AbortController();
+  abortRef.current = abortController;
+
+  const res = await authFetch('/api/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: abortController.signal,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error((err as { message?: string }).message || `HTTP ${res.status}`);
+  }
+
+  let assistantId = tempId();
+  let assistantContent = '';
+
+  await consumeSseStream(res, {
+    onConversation(id) {
+      setState((prev) => ({ ...prev, conversationId: id }));
+    },
+    onTextDelta(content) {
+      assistantContent += content;
+      const currentContent = assistantContent;
+      const currentId = assistantId;
+      setState((prev) => ({
+        ...prev,
+        messages: upsertAssistantMessage(prev.messages, currentId, currentContent),
+      }));
+    },
+    onToolCallStart(event: SseToolCallStartEvent) {
+      assistantId = tempId();
+      assistantContent = '';
+      const pendingId = event.tool_call_id;
+      setState((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          {
+            id: pendingId,
+            role: 'tool',
+            content: null,
+            tool_call_id: event.tool_call_id,
+            tool_name: event.name,
+            tool_args: event.args,
+            tool_result: null,
+            visualization_type: null,
+            isPendingTool: true,
+          },
+        ],
+      }));
+    },
+    onToolResult(event: SseToolResultEvent) {
+      setState((prev) => ({
+        ...prev,
+        messages: prev.messages.map((m) =>
+          m.tool_call_id === event.tool_call_id && m.isPendingTool
+            ? {
+                ...m,
+                tool_result: event.result,
+                visualization_type: event.visualization_type,
+                isPendingTool: false,
+              }
+            : m,
+        ),
+      }));
+    },
+    onError(message) {
+      setState((prev) => ({ ...prev, error: message }));
+    },
+  });
+}
+
 export function useAiChat(projectId: string) {
   const [state, setState] = useState<AiChatState>({
     messages: [],
@@ -85,6 +165,12 @@ export function useAiChat(projectId: string) {
 
   const abortRef = useRef<AbortController | null>(null);
   const oldestSequenceRef = useRef<number | undefined>(undefined);
+  const conversationIdRef = useRef<string | null>(null);
+
+  // Keep a ref in sync so sendMessage/editMessage can read it without stale closures
+  useEffect(() => {
+    conversationIdRef.current = state.conversationId;
+  }, [state.conversationId]);
 
   const sendMessage = useCallback(
     async (text: string, projectId: string, conversationId?: string | null) => {
@@ -98,83 +184,16 @@ export function useAiChat(projectId: string) {
         error: null,
       }));
 
-      const abortController = new AbortController();
-      abortRef.current = abortController;
-
       try {
-        const res = await authFetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        await streamChat(
+          {
             project_id: projectId,
-            conversation_id: conversationId ?? state.conversationId,
+            conversation_id: conversationId ?? conversationIdRef.current,
             message: text,
-          }),
-          signal: abortController.signal,
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ message: 'Request failed' }));
-          throw new Error(err.message || `HTTP ${res.status}`);
-        }
-
-        let assistantId = tempId();
-        let assistantContent = '';
-
-        await consumeSseStream(res, {
-          onConversation(id) {
-            setState((prev) => ({ ...prev, conversationId: id }));
           },
-          onTextDelta(content) {
-            assistantContent += content;
-            const currentContent = assistantContent;
-            const currentId = assistantId;
-            setState((prev) => ({
-              ...prev,
-              messages: upsertAssistantMessage(prev.messages, currentId, currentContent),
-            }));
-          },
-          onToolCallStart(event: SseToolCallStartEvent) {
-            assistantId = tempId();
-            assistantContent = '';
-            const pendingId = event.tool_call_id;
-            setState((prev) => ({
-              ...prev,
-              messages: [
-                ...prev.messages,
-                {
-                  id: pendingId,
-                  role: 'tool',
-                  content: null,
-                  tool_call_id: event.tool_call_id,
-                  tool_name: event.name,
-                  tool_args: event.args,
-                  tool_result: null,
-                  visualization_type: null,
-                  isPendingTool: true,
-                },
-              ],
-            }));
-          },
-          onToolResult(event: SseToolResultEvent) {
-            setState((prev) => ({
-              ...prev,
-              messages: prev.messages.map((m) =>
-                m.tool_call_id === event.tool_call_id && m.isPendingTool
-                  ? {
-                      ...m,
-                      tool_result: event.result,
-                      visualization_type: event.visualization_type,
-                      isPendingTool: false,
-                    }
-                  : m,
-              ),
-            }));
-          },
-          onError(message) {
-            setState((prev) => ({ ...prev, error: message }));
-          },
-        });
+          abortRef,
+          setState,
+        );
 
         setState((prev) => ({
           ...prev,
@@ -190,7 +209,55 @@ export function useAiChat(projectId: string) {
         }));
       }
     },
-    [state.conversationId],
+    [],
+  );
+
+  const editMessage = useCallback(
+    async (sequence: number, newText: string, projectId: string) => {
+      if (!getAuthHeaders().Authorization) return;
+
+      const convId = conversationIdRef.current;
+      if (!convId) return;
+
+      // Optimistically update: replace edited message content and drop all following messages
+      setState((prev) => ({
+        ...prev,
+        messages: prev.messages
+          .filter((m) => m.sequence === undefined || m.sequence <= sequence)
+          .map((m) =>
+            m.sequence === sequence ? { ...m, content: newText } : m,
+          ),
+        isStreaming: true,
+        error: null,
+      }));
+
+      try {
+        await streamChat(
+          {
+            project_id: projectId,
+            conversation_id: convId,
+            message: newText,
+            edit_sequence: sequence,
+          },
+          abortRef,
+          setState,
+        );
+
+        setState((prev) => ({
+          ...prev,
+          isStreaming: false,
+          messages: finalizeStreamingMessages(prev.messages),
+        }));
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setState((prev) => ({
+          ...prev,
+          isStreaming: false,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }));
+      }
+    },
+    [],
   );
 
   const loadConversation = useCallback(async (convId: string) => {
@@ -272,6 +339,7 @@ export function useAiChat(projectId: string) {
     hasMore: state.hasMore,
     isLoadingMore: state.isLoadingMore,
     sendMessage,
+    editMessage,
     loadConversation,
     loadMoreMessages,
     startNewConversation,

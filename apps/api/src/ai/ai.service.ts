@@ -92,7 +92,7 @@ export class AiService implements OnModuleInit {
 
   async *chat(
     userId: string,
-    params: { project_id: string; conversation_id?: string; message: string; language?: string },
+    params: { project_id: string; conversation_id?: string; message: string; language?: string; edit_sequence?: number },
   ): AsyncGenerator<AiStreamChunk> {
     const client = this.getClient();
 
@@ -113,6 +113,12 @@ export class AiService implements OnModuleInit {
     yield { type: 'conversation', conversation_id: conversation.id, title: conversation.title };
 
     try {
+      // Handle edit: truncate history and update the edited message
+      if (params.edit_sequence !== undefined) {
+        await this.chatService.deleteMessagesAfterSequence(conversation.id, params.edit_sequence);
+        await this.chatService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
+      }
+
       // Build messages
       const projectContext = await this.contextService.getProjectContext(params.project_id);
       const today = new Date().toISOString().split('T')[0];
@@ -185,18 +191,26 @@ export class AiService implements OnModuleInit {
         }
       }
 
-      // Add user message
-      messages.push({ role: 'user', content: params.message });
-      let seq = await this.chatService.getNextSequence(conversation.id);
-      await this.chatService.saveMessage(conversation.id, seq++, {
-        role: 'user',
-        content: params.message,
-        tool_calls: null,
-        tool_call_id: null,
-        tool_name: null,
-        tool_result: null,
-        visualization_type: null,
-      });
+      // For an edit, history already includes the updated user message at edit_sequence.
+      // The last message in `messages` is already the edited user message — skip re-adding.
+      let seq: number;
+      if (params.edit_sequence !== undefined) {
+        // seq starts right after the edited message (all later messages were deleted)
+        seq = params.edit_sequence + 1;
+      } else {
+        // Add user message normally
+        messages.push({ role: 'user', content: params.message });
+        seq = await this.chatService.getNextSequence(conversation.id);
+        await this.chatService.saveMessage(conversation.id, seq++, {
+          role: 'user',
+          content: params.message,
+          tool_calls: null,
+          tool_call_id: null,
+          tool_name: null,
+          tool_result: null,
+          visualization_type: null,
+        });
+      }
 
       // Run tool-call loop
       seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
