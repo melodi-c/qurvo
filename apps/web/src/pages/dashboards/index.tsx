@@ -7,8 +7,9 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
-import { Plus, LayoutDashboard, Trash2 } from 'lucide-react';
+import { Plus, LayoutDashboard } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { toast } from 'sonner';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -75,28 +76,14 @@ export default function DashboardsPage() {
           {!isLoading && (dashboards || []).length > 0 && (
             <div className="space-y-1">
               {(dashboards || []).map((dashboard) => (
-                <div
+                <ClickableListRow
                   key={dashboard.id}
+                  icon={LayoutDashboard}
+                  title={dashboard.name}
+                  subtitle={formatDistanceToNow(new Date(dashboard.updated_at), { addSuffix: true })}
                   onClick={() => go.dashboards.detail(dashboard.id)}
-                  className="group flex items-center gap-3 rounded-lg border border-border px-4 py-3 cursor-pointer transition-colors hover:bg-accent/50"
-                >
-                  <LayoutDashboard className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{dashboard.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(dashboard.updated_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0 p-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      confirmDelete.requestDelete(dashboard.id, dashboard.name);
-                    }}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                  onDelete={() => confirmDelete.requestDelete(dashboard.id, dashboard.name)}
+                />
               ))}
             </div>
           )}

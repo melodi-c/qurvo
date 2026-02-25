@@ -2,6 +2,7 @@ import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
+import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBuilder';
 import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -34,10 +35,20 @@ export default function CohortEditorPage() {
 
   if (!isNew && loadingCohort) {
     return (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-32 w-full" />
+      <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
+        <div className="h-[var(--topbar-height)] border-b border-border shrink-0" />
+        <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
+          <QueryPanelShell>
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          </QueryPanelShell>
+          <main className="flex-1 flex items-center justify-center">
+            <Skeleton className="h-32 w-48" />
+          </main>
+        </div>
       </div>
     );
   }
@@ -89,30 +100,28 @@ export default function CohortEditorPage() {
       />
 
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
-        <aside className="w-full lg:w-[420px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[55vh] lg:max-h-none">
-          <div className="p-5 space-y-5">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('descriptionPlaceholder')}
-                className="h-8 text-sm"
-              />
-            </div>
-
-            <div className="border-t border-border" />
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</label>
-              <CohortGroupBuilder
-                groups={groups}
-                onChange={setGroups}
-                excludeCohortId={cohortId}
-              />
-            </div>
+        <QueryPanelShell>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('descriptionPlaceholder')}
+              className="h-8 text-sm"
+            />
           </div>
-        </aside>
+
+          <div className="border-t border-border" />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</label>
+            <CohortGroupBuilder
+              groups={groups}
+              onChange={setGroups}
+              excludeCohortId={cohortId}
+            />
+          </div>
+        </QueryPanelShell>
 
         {!isNew && existingCohort ? (
           <main className="flex-1 overflow-auto flex flex-col">

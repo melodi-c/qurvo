@@ -25,10 +25,10 @@ interface InsightEditorLayoutProps {
   isEmpty: boolean;
   isFetching: boolean;
 
-  /** Empty state config */
-  configureIcon: LucideIcon;
-  configureTitle: string;
-  configureDescription: string;
+  /** Empty state config (configure fields optional when isConfigValid is always true) */
+  configureIcon?: LucideIcon;
+  configureTitle?: string;
+  configureDescription?: string;
   noResultsIcon: LucideIcon;
   noResultsTitle: string;
   noResultsDescription: string;
@@ -90,11 +90,11 @@ export function InsightEditorLayout({
         {queryPanel}
 
         <main className="flex-1 overflow-auto flex flex-col">
-          {!isConfigValid && (
+          {!isConfigValid && configureIcon && (
             <EmptyState
               icon={configureIcon}
-              title={configureTitle}
-              description={configureDescription}
+              title={configureTitle ?? ''}
+              description={configureDescription ?? ''}
               className="flex-1"
             />
           )}

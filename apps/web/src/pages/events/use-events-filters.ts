@@ -1,27 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { StepFilter } from '@/api/generated/Api';
-
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function parseFilters(raw: string | null): StepFilter[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
+import { daysAgoIso, todayIso } from '@/lib/date-utils';
+import { parseFilters } from '@/lib/filter-utils';
 
 export interface EventsFilterState {
   eventName: string;
@@ -35,8 +16,8 @@ export function useEventsFilters() {
 
   const [filterState, setFilterState] = useState<EventsFilterState>(() => ({
     eventName: searchParams.get('event') ?? '',
-    dateFrom: searchParams.get('from') ?? daysAgo(7),
-    dateTo: searchParams.get('to') ?? today(),
+    dateFrom: searchParams.get('from') ?? daysAgoIso(7),
+    dateTo: searchParams.get('to') ?? todayIso(),
     filters: parseFilters(searchParams.get('filters')),
   }));
 

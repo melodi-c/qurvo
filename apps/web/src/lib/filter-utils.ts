@@ -6,3 +6,14 @@ export function isValidFilter(f: StepFilter): boolean {
   if (!NO_VALUE_OPS.has(f.operator) && (!f.value || f.value.trim() === '')) return false;
   return true;
 }
+
+export function parseFilters(raw: string | null): StepFilter[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+}

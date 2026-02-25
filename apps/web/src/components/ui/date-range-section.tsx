@@ -1,6 +1,9 @@
 import { CalendarDays } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { SectionHeader } from '@/components/ui/section-header';
+import { daysAgoIso, todayIso } from '@/lib/date-utils';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './date-range-section.translations';
 
 const DATE_PRESETS = [
   { label: '7d', value: '7', days: 7 },
@@ -10,19 +13,9 @@ const DATE_PRESETS = [
   { label: '1y', value: '365', days: 365 },
 ] as const;
 
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getActivePreset(dateFrom: string, dateTo: string): string | undefined {
   for (const preset of DATE_PRESETS) {
-    if (dateFrom.slice(0, 10) === daysAgo(preset.days) && dateTo.slice(0, 10) === todayStr()) {
+    if (dateFrom.slice(0, 10) === daysAgoIso(preset.days) && dateTo.slice(0, 10) === todayIso()) {
       return preset.value;
     }
   }
@@ -36,17 +29,18 @@ interface DateRangeSectionProps {
 }
 
 export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectionProps) {
+  const { t } = useLocalTranslation(translations);
   const activePreset = getActivePreset(dateFrom, dateTo);
 
   return (
     <section className="space-y-3">
-      <SectionHeader icon={CalendarDays} label="Date range" />
+      <SectionHeader icon={CalendarDays} label={t('dateRange')} />
       <div className="flex gap-1 flex-wrap">
         {DATE_PRESETS.map(({ label, value, days }) => (
           <button
             key={value}
             type="button"
-            onClick={() => onChange(daysAgo(days), todayStr())}
+            onClick={() => onChange(daysAgoIso(days), todayIso())}
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
               activePreset === value
                 ? 'border-primary bg-primary/10 text-primary'
@@ -59,14 +53,14 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">From</span>
+          <span className="text-xs text-muted-foreground">{t('from')}</span>
           <DatePicker
             value={dateFrom.slice(0, 10)}
             onChange={(v) => onChange(v, dateTo)}
           />
         </div>
         <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">To</span>
+          <span className="text-xs text-muted-foreground">{t('to')}</span>
           <DatePicker
             value={dateTo.slice(0, 10)}
             onChange={(v) => onChange(dateFrom, v)}
