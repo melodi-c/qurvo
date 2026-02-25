@@ -28,6 +28,7 @@ import { QueryPersonsTool } from './tools/query-persons.tool';
 import { CreateInsightTool } from './tools/create-insight.tool';
 import { ListDashboardsTool } from './tools/list-dashboards.tool';
 import { SaveToDashboardTool } from './tools/save-to-dashboard.tool';
+import { FunnelGapsTool } from './tools/funnel-gaps.tool';
 import { MetricChangeTool } from './tools/metric-change.tool';
 
 const TOOL_CLASSES = [
@@ -44,6 +45,7 @@ const TOOL_CLASSES = [
   CreateInsightTool,
   ListDashboardsTool,
   SaveToDashboardTool,
+  FunnelGapsTool,
   MetricChangeTool,
 ];
 
