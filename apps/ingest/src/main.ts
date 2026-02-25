@@ -25,7 +25,7 @@ async function bootstrap() {
   addGzipPreParsing(app.getHttpAdapter().getInstance());
 
   app.useLogger(app.get(Logger));
-  app.enableCors({ origin: '*' });
+  app.enableCors({ origin: true });
   await app.listen(env().INGEST_PORT, '0.0.0.0');
 }
 

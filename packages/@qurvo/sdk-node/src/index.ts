@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { EventQueue, FetchTransport } from '@qurvo/sdk-core';
 import type { SdkConfig, EventPayload } from '@qurvo/sdk-core';
@@ -40,6 +41,7 @@ export class Qurvo {
         sdk_version: SDK_VERSION,
       },
       timestamp: new Date().toISOString(),
+      event_id: randomUUID(),
     };
     this.queue.enqueue(payload);
   }
@@ -54,6 +56,7 @@ export class Qurvo {
         sdk_version: SDK_VERSION,
       },
       timestamp: new Date().toISOString(),
+      event_id: randomUUID(),
     };
     this.queue.enqueue(payload);
   }
@@ -68,6 +71,7 @@ export class Qurvo {
         sdk_version: SDK_VERSION,
       },
       timestamp: new Date().toISOString(),
+      event_id: randomUUID(),
     };
     this.queue.enqueue(payload);
   }
@@ -82,6 +86,7 @@ export class Qurvo {
         sdk_version: SDK_VERSION,
       },
       timestamp: new Date().toISOString(),
+      event_id: randomUUID(),
     };
     this.queue.enqueue(payload);
   }
@@ -96,6 +101,7 @@ export class Qurvo {
         sdk_version: SDK_VERSION,
       },
       timestamp: new Date().toISOString(),
+      event_id: randomUUID(),
     };
     this.queue.enqueue(payload);
   }

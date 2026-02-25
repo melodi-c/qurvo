@@ -37,6 +37,12 @@ export const MAX_TIMESTAMP_DRIFT_MS = 48 * 60 * 60 * 1000; // 48 hours
 // to prevent silent data loss from approximate trimming.
 export const STREAM_BACKPRESSURE_THRESHOLD = 900_000;
 
+// How long to cache XLEN result for backpressure checks (avoids Redis RTT per request)
+export const BACKPRESSURE_CACHE_TTL_MS = 3_000;
+
+// Handler timeout: max time for the entire handler after body parsing (protects against Redis hangs)
+export const HANDLER_TIMEOUT_MS = 30_000;
+
 // API key format limits (validated before any IO to reject garbage early)
 export const API_KEY_MAX_LENGTH = 128;
 

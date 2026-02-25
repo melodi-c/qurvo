@@ -8,6 +8,7 @@ import {
   STREAM_SCHEMA_VERSION,
   MAX_TIMESTAMP_DRIFT_MS,
   STREAM_BACKPRESSURE_THRESHOLD,
+  BACKPRESSURE_CACHE_TTL_MS,
   billingCounterKey,
   billingCounterExpireAt,
   RATE_LIMIT_KEY_PREFIX,
@@ -63,6 +64,8 @@ interface BuildPayloadOpts {
 @Injectable()
 export class IngestService {
   private readonly logger = new Logger(IngestService.name);
+  private cachedStreamLen = 0;
+  private cachedStreamLenAt = 0;
 
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
@@ -70,7 +73,7 @@ export class IngestService {
     await this.checkBackpressure();
     const serverTime = new Date().toISOString();
     const batchId = uuidv7();
-    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, userAgent, batchId, sentAt }));
+    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, userAgent, batchId, sentAt, event_id: event.event_id }));
     await this.writeToStream(payloads);
     this.incrementBillingCounter(projectId, events.length);
     this.incrementRateLimitCounter(projectId, events.length);
@@ -84,7 +87,7 @@ export class IngestService {
       this.buildPayload(projectId, event, event.timestamp, { batchId, event_id: event.event_id }),
     );
     await this.writeToStream(payloads);
-    // Billing intentionally skipped for imports
+    // Billing and rate-limit counters intentionally skipped for imports
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Import batch ingested');
   }
 
@@ -94,6 +97,13 @@ export class IngestService {
     serverTime: string,
     opts: BuildPayloadOpts,
   ): Record<string, string> {
+    const {
+      session_id = '', url = '', referrer = '', page_title = '', page_path = '',
+      device_type = '', browser = '', browser_version = '', os = '', os_version = '',
+      screen_width = 0, screen_height = 0, language = '', timezone = '',
+      sdk_name = '', sdk_version = '',
+    } = event.context ?? {};
+
     return {
       schema_version: STREAM_SCHEMA_VERSION,
       event_id: opts.event_id || uuidv7(),
@@ -103,24 +113,14 @@ export class IngestService {
       distinct_id: event.distinct_id,
       anonymous_id: event.anonymous_id || '',
       user_id: event.event === '$identify' ? event.distinct_id : '',
-      session_id: event.context?.session_id || '',
-      url: event.context?.url || '',
-      referrer: event.context?.referrer || '',
-      page_title: event.context?.page_title || '',
-      page_path: event.context?.page_path || '',
-      device_type: event.context?.device_type || '',
-      browser: event.context?.browser || '',
-      browser_version: event.context?.browser_version || '',
-      os: event.context?.os || '',
-      os_version: event.context?.os_version || '',
-      screen_width: String(Math.max(0, event.context?.screen_width || 0)),
-      screen_height: String(Math.max(0, event.context?.screen_height || 0)),
-      language: event.context?.language || '',
-      timezone: event.context?.timezone || '',
+      session_id, url, referrer, page_title, page_path,
+      device_type, browser, browser_version, os, os_version,
+      screen_width: String(Math.max(0, screen_width)),
+      screen_height: String(Math.max(0, screen_height)),
+      language, timezone,
       ip: opts.ip || '',
       user_agent: opts.userAgent || '',
-      sdk_name: event.context?.sdk_name || '',
-      sdk_version: event.context?.sdk_version || '',
+      sdk_name, sdk_version,
       properties: JSON.stringify(event.properties || {}),
       user_properties: JSON.stringify(event.user_properties || {}),
       batch_id: opts.batchId,
@@ -129,7 +129,18 @@ export class IngestService {
   }
 
   private async checkBackpressure(): Promise<void> {
+    const now = Date.now();
+    if (now - this.cachedStreamLenAt < BACKPRESSURE_CACHE_TTL_MS) {
+      if (this.cachedStreamLen >= STREAM_BACKPRESSURE_THRESHOLD) {
+        throw new Error(`Redis stream at ${this.cachedStreamLen}/${REDIS_STREAM_MAXLEN} — processor may be behind`);
+      }
+      return;
+    }
+
     const len = await this.redis.xlen(REDIS_STREAM_EVENTS);
+    this.cachedStreamLen = len;
+    this.cachedStreamLenAt = now;
+
     if (len >= STREAM_BACKPRESSURE_THRESHOLD) {
       this.logger.error({ streamLength: len, threshold: STREAM_BACKPRESSURE_THRESHOLD }, 'Redis stream backpressure — rejecting writes');
       throw new Error(`Redis stream at ${len}/${REDIS_STREAM_MAXLEN} — processor may be behind`);
