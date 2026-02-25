@@ -5,7 +5,7 @@ import { AiService } from '../../ai/ai.service';
 import { AiChatService } from '../../ai/ai-chat.service';
 import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from '../../ai/guards/ai-quota.guard';
-import { detectLanguageFromHeader } from '../../ai/system-prompt';
+import { detectLanguageFromHeader } from '../../utils/detect-language';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto } from '../dto/ai.dto';
