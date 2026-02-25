@@ -1,16 +1,15 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
+import { InlineEditField } from '@/components/ui/inline-edit-field';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Settings, Pencil } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './general-tab.translations';
@@ -25,15 +24,11 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     enabled: !!projectId,
   });
 
-  const [name, setName] = useState('');
-  const [editing, setEditing] = useState(false);
-
   const updateMutation = useMutation({
     mutationFn: (data: { name: string }) => api.projectsControllerUpdate({ id: projectId }, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setEditing(false);
       toast.success(t('updated'));
     },
     onError: () => toast.error(t('updateFailed')),
@@ -59,11 +54,6 @@ export function GeneralTab({ projectId }: { projectId: string }) {
 
   const isOwner = project?.role === 'owner';
 
-  const startEditing = () => {
-    setName(project?.name || '');
-    setEditing(true);
-  };
-
   return (
     <div className="space-y-6 max-w-lg">
       <Card>
@@ -75,39 +65,15 @@ export function GeneralTab({ projectId }: { projectId: string }) {
             {/* Name */}
             <DefinitionListRow label={t('name')}>
               <span className="text-right">
-                {editing ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="h-7 w-48 text-sm"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && name.trim()) updateMutation.mutate({ name });
-                        if (e.key === 'Escape') setEditing(false);
-                      }}
-                    />
-                    <Button
-                      size="xs"
-                      onClick={() => updateMutation.mutate({ name })}
-                      disabled={updateMutation.isPending || !name.trim()}
-                    >
-                      {updateMutation.isPending ? t('saving') : t('save')}
-                    </Button>
-                    <Button size="xs" variant="ghost" onClick={() => setEditing(false)}>
-                      {t('cancel')}
-                    </Button>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5">
-                    {project?.name}
-                    {isOwner && (
-                      <button onClick={startEditing} className="text-muted-foreground hover:text-foreground transition-colors">
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                )}
+                <InlineEditField
+                  value={project?.name ?? ''}
+                  onSave={(name) => updateMutation.mutate({ name })}
+                  isPending={updateMutation.isPending}
+                  readOnly={!isOwner}
+                  saveLabel={t('save')}
+                  savingLabel={t('saving')}
+                  cancelLabel={t('cancel')}
+                />
               </span>
             </DefinitionListRow>
 

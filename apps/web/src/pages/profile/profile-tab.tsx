@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { InlineEditField } from '@/components/ui/inline-edit-field';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Pencil } from 'lucide-react';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { extractApiErrorMessage } from '@/lib/utils';
@@ -18,9 +18,6 @@ export function ProfileTab() {
   const setUser = useAuthStore((s) => s.setUser);
   const { t } = useLocalTranslation(translations);
 
-  const [editingName, setEditingName] = useState(false);
-  const [name, setName] = useState('');
-
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,7 +26,6 @@ export function ProfileTab() {
     mutationFn: (data: { display_name: string }) => api.authControllerUpdateProfile(data),
     onSuccess: (res) => {
       setUser(res.user);
-      setEditingName(false);
       toast.success(t('profileUpdated'));
     },
     onError: () => toast.error(t('updateFailed')),
@@ -49,11 +45,6 @@ export function ProfileTab() {
     },
   });
 
-  const startEditingName = () => {
-    setName(user?.display_name || '');
-    setEditingName(true);
-  };
-
   const canChangePassword =
     currentPassword.length >= 8 &&
     newPassword.length >= 8 &&
@@ -70,41 +61,14 @@ export function ProfileTab() {
             {/* Name */}
             <DefinitionListRow label={t('name')}>
               <span className="text-right">
-                {editingName ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="h-7 w-48 text-sm"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && name.trim() && !updateProfileMutation.isPending)
-                          updateProfileMutation.mutate({ display_name: name });
-                        if (e.key === 'Escape') setEditingName(false);
-                      }}
-                    />
-                    <Button
-                      size="xs"
-                      onClick={() => updateProfileMutation.mutate({ display_name: name })}
-                      disabled={updateProfileMutation.isPending || !name.trim()}
-                    >
-                      {updateProfileMutation.isPending ? t('saving') : t('save')}
-                    </Button>
-                    <Button size="xs" variant="ghost" onClick={() => setEditingName(false)}>
-                      {t('cancel')}
-                    </Button>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5">
-                    {user?.display_name}
-                    <button
-                      onClick={startEditingName}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
+                <InlineEditField
+                  value={user?.display_name ?? ''}
+                  onSave={(display_name) => updateProfileMutation.mutate({ display_name })}
+                  isPending={updateProfileMutation.isPending}
+                  saveLabel={t('save')}
+                  savingLabel={t('saving')}
+                  cancelLabel={t('cancel')}
+                />
               </span>
             </DefinitionListRow>
 
