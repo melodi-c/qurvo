@@ -1,4 +1,4 @@
-import { AppForbiddenException } from '../../exceptions/app-forbidden.exception';
+import { AppForbiddenException } from './app-forbidden.exception';
 
 export class InsufficientPermissionsException extends AppForbiddenException {
   constructor(message = 'Insufficient permissions') {

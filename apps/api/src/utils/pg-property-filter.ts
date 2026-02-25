@@ -1,5 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
+import { escapeLikePattern } from './escape-like';
 import type { PropertyFilter } from './property-filter';
 
 /**
@@ -23,10 +24,10 @@ export function buildPgPropertyFilterConditions(filters: PropertyFilter[]): SQL[
         parts.push(sql`(${keyExpr} IS NULL OR ${keyExpr} != ${f.value ?? ''})`);
         break;
       case 'contains':
-        parts.push(sql`${keyExpr} ILIKE ${'%' + (f.value ?? '') + '%'}`);
+        parts.push(sql`${keyExpr} ILIKE ${'%' + escapeLikePattern(f.value ?? '') + '%'}`);
         break;
       case 'not_contains':
-        parts.push(sql`(${keyExpr} IS NULL OR ${keyExpr} NOT ILIKE ${'%' + (f.value ?? '') + '%'})`);
+        parts.push(sql`(${keyExpr} IS NULL OR ${keyExpr} NOT ILIKE ${'%' + escapeLikePattern(f.value ?? '') + '%'})`);
         break;
       case 'is_set':
         parts.push(sql`${keyExpr} IS NOT NULL`);

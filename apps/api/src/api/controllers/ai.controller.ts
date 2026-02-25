@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Delete, Body, Param, Query, Res, Logger, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Query, Res, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
+import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
 
@@ -54,6 +55,7 @@ export class AiController {
   }
 
   @Get('conversations')
+  @UseGuards(ProjectMemberGuard)
   async listConversations(
     @CurrentUser() user: RequestUser,
     @Query() query: AiConversationsQueryDto,

@@ -3,7 +3,6 @@ import { eq, and, desc, asc, ilike, inArray, count, SQL, type AnyColumn } from '
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
-import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 import { escapeLikePattern } from '../utils/escape-like';
 
@@ -27,7 +26,7 @@ export interface PropertyDefinitionListParams {
   is_numerical?: boolean;
   limit?: number;
   offset?: number;
-  order_by?: string;
+  order_by?: 'last_seen_at' | 'property_name' | 'created_at' | 'updated_at';
   order?: 'asc' | 'desc';
 }
 
@@ -164,12 +163,9 @@ export class PropertyDefinitionsService {
   async upsert(
     projectId: string,
     propertyName: string,
-    propertyType: string,
+    propertyType: 'event' | 'person',
     input: { description?: string; tags?: string[]; verified?: boolean; value_type?: string; is_numerical?: boolean },
   ) {
-    if (propertyType !== 'event' && propertyType !== 'person') {
-      throw new AppBadRequestException(`propertyType must be "event" or "person", got "${propertyType}"`);
-    }
     const rows = await this.db
       .insert(propertyDefinitions)
       .values({
@@ -194,10 +190,7 @@ export class PropertyDefinitionsService {
     return rows[0];
   }
 
-  async delete(projectId: string, propertyName: string, propertyType: string) {
-    if (propertyType !== 'event' && propertyType !== 'person') {
-      throw new AppBadRequestException(`propertyType must be "event" or "person", got "${propertyType}"`);
-    }
+  async delete(projectId: string, propertyName: string, propertyType: 'event' | 'person') {
     const rows = await this.db
       .delete(propertyDefinitions)
       .where(and(

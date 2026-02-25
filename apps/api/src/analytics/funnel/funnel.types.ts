@@ -1,10 +1,10 @@
-import type { CohortConditionGroup } from '@qurvo/db';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
+import type { CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import type { PropertyFilter } from '../../utils/property-filter';
 
 // ── Step / Exclusion types ───────────────────────────────────────────────────
 
-export type StepFilter = PropertyFilter;
+type StepFilter = PropertyFilter;
 export type FunnelOrderType = 'ordered' | 'strict' | 'unordered';
 
 export interface FunnelStep {
@@ -52,7 +52,7 @@ export interface FunnelQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
-  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean; materialized: boolean; definition: CohortConditionGroup }[];
+  breakdown_cohort_ids?: CohortBreakdownEntry[];
   cohort_filters?: CohortFilterInput[];
   funnel_order_type?: FunnelOrderType;
   exclusions?: FunnelExclusion[];

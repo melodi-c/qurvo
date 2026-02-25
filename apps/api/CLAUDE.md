@@ -82,6 +82,7 @@ constructor(
 - Exception filters use `createHttpFilter()` factory from `src/api/filters/create-http-filter.ts` — catches base class, maps to HTTP status
 - Only `VerificationCooldownFilter` is a custom filter (returns `seconds_remaining` payload)
 - Adding a new exception: extend the right base class, the filter catches it automatically via inheritance
+- AI-safe exceptions: base classes `AppBadRequestException` and `AppNotFoundException` have `isSafeForAi = true`. The AI tool error handler uses this flag to decide whether to expose the message to the LLM. To mark a new exception as AI-safe, add `readonly isSafeForAi = true` to the class — no changes needed in `AiService`
 
 ### Auth Flow
 1. Login/register → create session → return opaque bearer token
@@ -101,7 +102,7 @@ Project-scoped endpoints use `ProjectMemberGuard` (from `src/api/guards/project-
 5. Guard throws `AppBadRequestException` when `projectId` is missing from request
 6. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
 
-**Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id in body — `AiService.validateChatAccess()` is called **before** SSE `writeHead` so auth errors return proper HTTP status codes instead of being swallowed into SSE events).
+**Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped). `AiController` uses `ProjectMemberGuard` for list/get/delete endpoints; only the SSE `chat` endpoint uses manual `AiService.validateChatAccess()` **before** `writeHead` so auth errors return proper HTTP status codes instead of being swallowed into SSE events.
 
 ### Analytics Queries
 All analytics services are created via `createAnalyticsQueryProvider()` factory in `src/analytics/analytics-query.factory.ts`. Each provider wraps a pure query function with shared logic:
@@ -128,7 +129,7 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 ### Shared Utilities
 `src/utils/` contains shared code used across modules:
 - `clickhouse-helpers.ts` — `granularityTruncExpr()`, `shiftPeriod()`, `buildCohortClause()`, `buildCohortFilterClause()`, `shiftDate()`, `truncateDate()`, `granularityInterval()`
-- `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`, `resolvePropertySource()`, `resolveNumericPropertyExpr()`
+- `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`, `resolveNumericPropertyExpr()`
 - `escape-like.ts` — `escapeLikePattern()` for escaping LIKE wildcards in user input
 - `pg-errors.ts` — `isPgUniqueViolation()` for checking PostgreSQL unique constraint violations
 - `session-cache.ts` — `invalidateUserSessionCaches(db, redis, userId)` — shared between auth and verification modules
@@ -138,7 +139,8 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 
 `src/api/dto/shared/` contains shared DTO utilities:
 - `base-analytics-query.dto.ts` — `CoreQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `force?`). `BaseAnalyticsQueryDto` extends it adding `cohort_ids?` and `widget_id?`. Analytics query DTOs extend `BaseAnalyticsQueryDto`; `WebAnalyticsQueryDto` extends `CoreQueryDto`.
-- `filters.dto.ts` — `StepFilterDto` class, re-exports `FilterOperator` from `utils/property-filter.ts`
+- `base-analytics-response.dto.ts` — `BaseAnalyticsResponseDto` with `cached_at` and `from_cache`. All analytics response DTOs extend it
+- `filters.dto.ts` — `StepFilterDto` class
 - `transforms.ts` — `parseJsonArray()` for query params arriving as JSON strings (throws `AppBadRequestException` on invalid JSON); `makeJsonArrayTransform(TargetClass)` for JSON-encoded arrays that need `plainToInstance` instantiation
 
 ### Controller Organization

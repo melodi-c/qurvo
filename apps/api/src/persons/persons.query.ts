@@ -1,7 +1,16 @@
 import { eq, and, desc, sql, inArray, type SQL } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
+import { escapeLikePattern } from '../utils/escape-like';
 import { buildPgPropertyFilterConditions } from '../utils/pg-property-filter';
 import type { PropertyFilter } from '../utils/property-filter';
+
+function buildPersonSearchCondition(search: string, projectId: string): SQL {
+  return sql`${persons.id} IN (
+    SELECT ${personDistinctIds.person_id} FROM ${personDistinctIds}
+    WHERE ${personDistinctIds.project_id} = ${projectId}
+      AND ${personDistinctIds.distinct_id} ILIKE ${`%${escapeLikePattern(search)}%`}
+  )`;
+}
 
 export interface PersonsQueryParams {
   project_id: string;
@@ -20,7 +29,7 @@ export interface PersonRow {
   updated_at: Date;
 }
 
-export interface PersonsCountParams {
+interface PersonsCountParams {
   project_id: string;
   search?: string;
   filters?: PropertyFilter[];
@@ -35,10 +44,7 @@ export async function queryPersons(db: Database, params: PersonsQueryParams): Pr
   const conditions: SQL[] = [eq(persons.project_id, params.project_id)];
 
   if (params.search) {
-    // Subquery: find person_ids matching the search term
-    conditions.push(
-      sql`${persons.id} IN (SELECT ${personDistinctIds.person_id} FROM ${personDistinctIds} WHERE ${personDistinctIds.project_id} = ${params.project_id} AND ${personDistinctIds.distinct_id} ILIKE ${`%${params.search}%`})`,
-    );
+    conditions.push(buildPersonSearchCondition(params.search, params.project_id));
   }
 
   if (params.filters?.length) {
@@ -116,9 +122,7 @@ export async function queryPersonsCount(db: Database, params: PersonsCountParams
   const conditions: SQL[] = [eq(persons.project_id, params.project_id)];
 
   if (params.search) {
-    conditions.push(
-      sql`${persons.id} IN (SELECT ${personDistinctIds.person_id} FROM ${personDistinctIds} WHERE ${personDistinctIds.project_id} = ${params.project_id} AND ${personDistinctIds.distinct_id} ILIKE ${`%${params.search}%`})`,
-    );
+    conditions.push(buildPersonSearchCondition(params.search, params.project_id));
   }
 
   if (params.filters?.length) {

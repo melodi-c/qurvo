@@ -1,7 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import { buildCohortClause } from '../../utils/clickhouse-helpers';
-import { RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
+import { buildCohortClause, RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin } from './funnel.types';
 import {
   resolveWindowSeconds,

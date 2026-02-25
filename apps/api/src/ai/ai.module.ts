@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
+import { AI_CONFIG } from './ai-config.provider';
+import type { AiConfig } from './ai-config.provider';
 import { ProjectsModule } from '../projects/projects.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
@@ -37,6 +39,14 @@ const TOOL_CLASSES = [
     AiService,
     AiChatService,
     AiContextService,
+    {
+      provide: AI_CONFIG,
+      useFactory: (): AiConfig => ({
+        apiKey: process.env.OPENAI_API_KEY ?? null,
+        model: process.env.OPENAI_MODEL ?? 'gpt-4o',
+        baseURL: process.env.OPENAI_API_BASE_URL || undefined,
+      }),
+    },
     ...TOOL_CLASSES,
     {
       provide: AI_TOOLS,

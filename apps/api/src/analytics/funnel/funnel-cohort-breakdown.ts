@@ -13,7 +13,7 @@ import {
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
 
-export interface CohortBreakdownResult {
+interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];
   aggregate_steps: FunnelStepResult[];
 }

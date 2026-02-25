@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ProjectsService } from '../../projects/projects.service';
-import { InsufficientPermissionsException } from '../../projects/exceptions/insufficient-permissions.exception';
+import { InsufficientPermissionsException } from '../../exceptions/insufficient-permissions.exception';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { REQUIRED_ROLE_KEY, type ProjectRole } from '../decorators/require-role.decorator';
 import { PROJECT_ROLE_LEVELS } from '../../constants';

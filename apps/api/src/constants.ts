@@ -1,5 +1,5 @@
 export const SESSION_TOKEN_LENGTH = 32;
-export const SESSION_TTL_DAYS = 30;
+const SESSION_TTL_DAYS = 30;
 export const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
 
 export const LOGIN_MAX_ATTEMPTS = 5;
@@ -21,4 +21,5 @@ export const AI_MAX_TOOL_CALL_ITERATIONS = 10;
 export const AI_CONTEXT_MESSAGE_LIMIT = 200;
 export const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
 
-export const PROJECT_ROLE_LEVELS: Record<string, number> = { owner: 3, editor: 2, viewer: 1 };
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
+export const PROJECT_ROLE_LEVELS: Record<ProjectRole, number> = { owner: 3, editor: 2, viewer: 1 };

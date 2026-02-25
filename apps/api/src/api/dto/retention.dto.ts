@@ -9,6 +9,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class RetentionQueryDto extends BaseAnalyticsQueryDto {
   @IsString()
@@ -44,9 +45,7 @@ export class RetentionResultDto {
   average_retention: number[];
 }
 
-export class RetentionResponseDto {
+export class RetentionResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => RetentionResultDto)
   data: RetentionResultDto;
-  cached_at: string;
-  from_cache: boolean;
 }

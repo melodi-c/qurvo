@@ -55,7 +55,7 @@ export class PropertyDefinitionQueryDto extends PaginatedQueryDto {
   @IsOptional()
   @IsIn(['last_seen_at', 'property_name', 'created_at', 'updated_at'])
   @ApiPropertyOptional({ enum: ['last_seen_at', 'property_name', 'created_at', 'updated_at'], default: 'last_seen_at' })
-  order_by?: string = 'last_seen_at';
+  order_by?: 'last_seen_at' | 'property_name' | 'created_at' | 'updated_at' = 'last_seen_at';
 }
 
 // ── Response DTOs ─────────────────────────────────────────────────────────────

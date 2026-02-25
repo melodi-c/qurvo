@@ -20,7 +20,7 @@ export interface EventDefinitionListParams {
   search?: string;
   limit?: number;
   offset?: number;
-  order_by?: string;
+  order_by?: 'last_seen_at' | 'event_name' | 'created_at' | 'updated_at';
   order?: 'asc' | 'desc';
 }
 

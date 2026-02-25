@@ -15,6 +15,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class TrendSeriesDto {
   @IsString()
@@ -100,9 +101,7 @@ export class TrendResultDto {
   series_previous?: TrendSeriesResultDto[];
 }
 
-export class TrendResponseDto {
+export class TrendResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => TrendResultDto)
   data: TrendResultDto;
-  cached_at: string;
-  from_cache: boolean;
 }

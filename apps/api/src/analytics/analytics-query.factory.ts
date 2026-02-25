@@ -39,14 +39,15 @@ export function createAnalyticsQueryProvider<
       return {
         async query(params) {
           const { widget_id, force, cohort_ids, breakdown_type, breakdown_cohort_ids, ...queryParams } = params;
+          const mutableParams = queryParams as Record<string, unknown>;
 
           if (cohort_ids?.length) {
-            (queryParams as Record<string, unknown>).cohort_filters =
+            mutableParams.cohort_filters =
               await cohortsService.resolveCohortFilters(params.project_id, cohort_ids);
           }
 
           if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {
-            (queryParams as Record<string, unknown>).breakdown_cohort_ids =
+            mutableParams.breakdown_cohort_ids =
               await cohortsService.resolveCohortBreakdowns(params.project_id, breakdown_cohort_ids);
           }
 

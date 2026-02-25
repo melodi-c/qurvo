@@ -6,6 +6,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class LifecycleQueryDto extends BaseAnalyticsQueryDto {
   @IsString()
@@ -40,9 +41,7 @@ export class LifecycleResultDto {
   totals: LifecycleTotalsDto;
 }
 
-export class LifecycleResponseDto {
+export class LifecycleResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => LifecycleResultDto)
   data: LifecycleResultDto;
-  cached_at: string;
-  from_cache: boolean;
 }
