@@ -104,6 +104,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `useInlineEdit<TRow, TValues>` | `use-inline-edit.ts` | `(options: { rowKey, getInitialValues, onSave }) => { editingKey, editValues, setEditValues, isEditing, startEdit, cancelEdit, saveEdit }` | Generic inline row editing state. Used in `EventPropertiesSection` |
 | `usePersonDetail` | `use-person-detail.ts` | `() => { person, personLoading, personError, events, eventsLoading, eventsError, page, setPage, limit }` | Data hook for person detail page |
 | `useEvents` | `use-events.ts` | `(filterState, page) => { projectId, events, isLoading, isError, limit }` | Data hook for events page with debounced filters |
+| `useUrlTab<T>` | `use-url-tab.ts` | `(defaultTab: T, validTabs?: readonly T[]) => [T, (tab: T) => void]` | URL-synced tab state with validation. Replaces boilerplate `useSearchParams` + manual tab logic. Used in settings, profile, cohort-editor |
+| `useTimeToConvertState` | `use-time-to-convert-state.ts` | `(stepCount: number) => { fromStep, setFromStep, toStep, setToStep }` | Manages from/to step selection for time-to-convert view with auto-clamping. Used in funnel editor |
 
 ## Feature Hooks (`src/features/`)
 
@@ -113,6 +115,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 |---|---|---|---|
 | `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling. `cleanConfig` is optional (defaults to identity) — only pass it when config needs transformation before save |
 | `createWidgetDataHook` | `features/dashboard/hooks/create-widget-data-hook.ts` | `<Config, Response>(options) => useHook(config, widgetId)` | Factory for creating widget data fetching hooks. Handles projectId, auto-refresh, stale data detection, refresh limiter. All widget hooks (useTrendData, useFunnelData, etc.) use this factory |
+| `createTargetEventHook` | `features/dashboard/hooks/create-target-event-hook.ts` | `<Config extends BaseTargetEventConfig, Response, Params>(options) => useHook(config, widgetId)` | Specialized factory on top of `createWidgetDataHook` for target-event widgets (lifecycle, stickiness, retention). Provides shared `configHash`, `buildParams`, `isEnabled`. Accepts optional `extraHash`/`extraParams` for widget-specific fields (e.g. retention's `retention_type`, `periods`) |
 | `useFunnelTimeToConvertData` | `features/dashboard/hooks/use-funnel-time-to-convert.ts` | `(config: TimeToConvertConfig, widgetId) => { data, isLoading, isFetching }` | Time-to-convert histogram data for funnel editor. Uses `createWidgetDataHook`. Config extends `FunnelWidgetConfig` with `from_step`/`to_step` |
 | `useAiChat` | `features/ai/hooks/use-ai-chat.ts` | `() => { messages, conversationId, isStreaming, error, sendMessage, loadConversation, ... }` | SSE streaming chat hook for AI assistant. Manages message state, streaming, pagination |
 | `useConversations` | `features/ai/hooks/use-ai-conversations.ts` | `(projectId: string) => UseQueryResult<Conversation[]>` | Fetches AI conversation list for a project |
@@ -146,6 +149,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `TimeWindowInput` | `features/cohorts/components/TimeWindowInput.tsx` | Shared "in last N days" input. Use in all condition rows that have a time window field |
 | `EventSequenceRow` | `features/cohorts/components/EventSequenceRow.tsx` | Event sequence with steps. `variant: 'performed' \| 'not_performed'` controls label and color. Handles both `EventSequenceCondition` and `NotPerformedEventSequenceCondition` |
 | `SimpleEventConditionRow` | `features/cohorts/components/SimpleEventConditionRow.tsx` | Single event + time window. `variant: 'first_time' \| 'not_performed'` controls label and color. Handles both `FirstTimeEventCondition` and `NotPerformedEventCondition` |
+| `PersonSearchTable` | `features/cohorts/components/PersonSearchTable.tsx` | Reusable person table with search, pagination, and multi-selection. Accepts `renderRowAction` and `renderFooter` props. Extracted from MembersTab; used in cohort member lists |
 
 ## Code Rules
 
