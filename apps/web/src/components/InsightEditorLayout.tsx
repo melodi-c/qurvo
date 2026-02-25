@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { cn } from '@/lib/utils';
 
 interface InsightEditorLayoutProps {
@@ -120,7 +121,9 @@ export function InsightEditorLayout({
                 {metricsBar}
               </div>
               <div className={chartClassName}>
-                {children}
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
               </div>
             </div>
           )}
