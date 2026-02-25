@@ -12,6 +12,11 @@ import { type ValueType, detectValueType } from './value-type';
 import { floorToHourMs } from './time-utils';
 
 const MAX_NAME_LENGTH = 200;
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
 const MAX_PROPERTIES_PER_EVENT = 10_000;
 
 /** Properties to skip when extracting event property definitions (PostHog: SKIP_PROPERTIES). */
@@ -147,12 +152,12 @@ export class DefinitionSyncService {
 
         // A10: Extract person properties from $set/$set_once inside properties
         const $set = parsedProps['$set'];
-        if ($set && typeof $set === 'object' && !Array.isArray($set)) {
-          this.extractProps($set as Record<string, unknown>, 'person', 'user_properties.', ctx);
+        if (isPlainObject($set)) {
+          this.extractProps($set, 'person', 'user_properties.', ctx);
         }
         const $setOnce = parsedProps['$set_once'];
-        if ($setOnce && typeof $setOnce === 'object' && !Array.isArray($setOnce)) {
-          this.extractProps($setOnce as Record<string, unknown>, 'person', 'user_properties.', ctx);
+        if (isPlainObject($setOnce)) {
+          this.extractProps($setOnce, 'person', 'user_properties.', ctx);
         }
       }
 

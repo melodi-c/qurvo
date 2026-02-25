@@ -32,7 +32,7 @@ export async function withRetry<T>(
         opts.onExhausted?.();
         throw err;
       }
-      const jitter = Math.floor(Math.random() * 50);
+      const jitter = Math.floor(Math.random() * baseDelayMs);
       const delay = tries * baseDelayMs + jitter;
       logger.warn({ err, tries, delay }, `${label} retry`);
       await new Promise((r) => setTimeout(r, delay));
