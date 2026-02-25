@@ -5,8 +5,7 @@ import { projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
-import { aiQuotaCounterKey } from '../utils/ai-quota-key';
-import { planAiLimitCacheKey } from '../ai/guards/ai-quota.guard';
+import { aiQuotaCounterKey, planAiLimitCacheKey } from '../utils/ai-quota-key';
 
 // Intentionally duplicated from apps/ingest/src/constants.ts.
 // Both apps read from the same Redis keys; keeping the constant local
