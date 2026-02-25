@@ -3,12 +3,20 @@ import { createTranslations } from '@/i18n/types';
 export default createTranslations({
   en: {
     title: 'Overview',
-    comingSoon: 'Coming soon',
-    description: 'Admin overview will be available in a future update.',
+    totalUsers: 'Total Users',
+    totalProjects: 'Total Projects',
+    totalEvents: 'Total Events',
+    redisQueueDepth: 'Redis Queue Depth',
+    errorLoading: 'Failed to load stats',
+    retry: 'Retry',
   },
   ru: {
     title: 'Обзор',
-    comingSoon: 'Скоро будет доступно',
-    description: 'Обзор администратора будет доступен в следующем обновлении.',
+    totalUsers: 'Всего пользователей',
+    totalProjects: 'Всего проектов',
+    totalEvents: 'Всего событий',
+    redisQueueDepth: 'Глубина очереди Redis',
+    errorLoading: 'Не удалось загрузить статистику',
+    retry: 'Повторить',
   },
 });
