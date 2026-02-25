@@ -18,6 +18,7 @@ import { InvalidCredentialsException } from './exceptions/invalid-credentials.ex
 import { WrongPasswordException } from './exceptions/wrong-password.exception';
 import { VerificationService } from '../verification/verification.service';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
+import { isPgUniqueViolation } from '../utils/pg-errors';
 
 const USER_PROFILE_COLUMNS = {
   id: users.id,
@@ -61,9 +62,7 @@ export class AuthService {
         return created;
       });
     } catch (err: unknown) {
-      if (err instanceof Error && 'code' in err && (err as { code: string }).code === '23505') {
-        throw new EmailConflictException();
-      }
+      if (isPgUniqueViolation(err)) throw new EmailConflictException();
       throw err;
     }
 
@@ -75,16 +74,7 @@ export class AuthService {
       this.logger.error({ userId: user.id, err }, 'Failed to send verification email');
     }
 
-    return {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        display_name: user.display_name,
-        language: user.language,
-        email_verified: user.email_verified,
-      },
-    };
+    return this.buildAuthResponse(token, user);
   }
 
   async login(input: { email: string; password: string }, meta?: { ip?: string; userAgent?: string }) {
@@ -144,6 +134,10 @@ export class AuthService {
 
     this.logger.log({ userId: user.id }, 'User logged in');
 
+    return this.buildAuthResponse(token, user);
+  }
+
+  private buildAuthResponse(token: string, user: InferSelectModel<typeof users>) {
     return {
       token,
       user: {

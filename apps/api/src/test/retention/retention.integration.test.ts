@@ -172,8 +172,12 @@ describe('queryRetention — week granularity', () => {
     });
 
     expect(result.granularity).toBe('week');
-    // Should have 1-2 weekly cohorts depending on week boundaries
+    // daysAgo(14) and daysAgo(7) are guaranteed to fall in different ISO weeks,
+    // so we expect 1 or 2 weekly cohorts with the person retained across them
     expect(result.cohorts.length).toBeGreaterThanOrEqual(1);
+    expect(result.cohorts.length).toBeLessThanOrEqual(2);
+    // Person should be present in at least one cohort
+    expect(result.cohorts[0].cohort_size).toBe(1);
   });
 });
 

@@ -67,15 +67,14 @@ describe('queryFunnel — non-breakdown', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps).toHaveLength(3);
-      expect(result.steps[0].count).toBe(2);
-      expect(result.steps[1].count).toBe(1);
-      expect(result.steps[2].count).toBe(1);
-      expect(result.steps[0].conversion_rate).toBe(100);
-      expect(result.steps[1].conversion_rate).toBe(50);
-      expect(result.steps[2].conversion_rate).toBe(50);
-    }
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps).toHaveLength(3);
+    expect(r.steps[0].count).toBe(2);
+    expect(r.steps[1].count).toBe(1);
+    expect(r.steps[2].count).toBe(1);
+    expect(r.steps[0].conversion_rate).toBe(100);
+    expect(r.steps[1].conversion_rate).toBe(50);
+    expect(r.steps[2].conversion_rate).toBe(50);
   });
 
   it('respects conversion window — out-of-window events are not counted', async () => {
@@ -112,10 +111,9 @@ describe('queryFunnel — non-breakdown', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(1); // entered step A
-      expect(result.steps[1].count).toBe(0); // step B out of window
-    }
+    const r2 = result as Extract<typeof result, { breakdown: false }>;
+    expect(r2.steps[0].count).toBe(1); // entered step A
+    expect(r2.steps[1].count).toBe(0); // step B out of window
   });
 
   it('returns zero counts when no events match', async () => {
@@ -133,10 +131,9 @@ describe('queryFunnel — non-breakdown', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      for (const step of result.steps) {
-        expect(step.count).toBe(0);
-      }
+    const r3 = result as Extract<typeof result, { breakdown: false }>;
+    for (const step of r3.steps) {
+      expect(step.count).toBe(0);
     }
   });
 
@@ -186,10 +183,9 @@ describe('queryFunnel — non-breakdown', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(1);
-      expect(result.steps[1].count).toBe(1);
-    }
+    const r4 = result as Extract<typeof result, { breakdown: false }>;
+    expect(r4.steps[0].count).toBe(1);
+    expect(r4.steps[1].count).toBe(1);
   });
 });
 
@@ -310,10 +306,9 @@ describe('queryFunnel — strict order', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(2); // both entered
-      expect(result.steps[1].count).toBe(1); // only personOk completes strict
-    }
+    const rStrict = result as Extract<typeof result, { breakdown: false }>;
+    expect(rStrict.steps[0].count).toBe(2); // both entered
+    expect(rStrict.steps[1].count).toBe(1); // only personOk completes strict
   });
 });
 
@@ -400,11 +395,10 @@ describe('queryFunnel — unordered', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(3); // all 3 entered
-      expect(result.steps[1].count).toBe(3); // all 3 did at least 2 unique steps
-      expect(result.steps[2].count).toBe(2); // forward + reverse did all 3
-    }
+    const rUnord = result as Extract<typeof result, { breakdown: false }>;
+    expect(rUnord.steps[0].count).toBe(3); // all 3 entered
+    expect(rUnord.steps[1].count).toBe(3); // all 3 did at least 2 unique steps
+    expect(rUnord.steps[2].count).toBe(2); // forward + reverse did all 3
   });
 });
 
@@ -469,10 +463,9 @@ describe('queryFunnel — exclusion steps', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(1); // only clean user
-      expect(result.steps[1].count).toBe(1);
-    }
+    const rExcl = result as Extract<typeof result, { breakdown: false }>;
+    expect(rExcl.steps[0].count).toBe(1); // only clean user
+    expect(rExcl.steps[1].count).toBe(1);
   });
 });
 
@@ -534,10 +527,9 @@ describe('queryFunnel — conversion window units', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(2); // both entered
-      expect(result.steps[1].count).toBe(1); // only fast within 1 min
-    }
+    const rWin = result as Extract<typeof result, { breakdown: false }>;
+    expect(rWin.steps[0].count).toBe(2); // both entered
+    expect(rWin.steps[1].count).toBe(1); // only fast within 1 min
   });
 });
 
@@ -695,11 +687,10 @@ describe('queryFunnel — sampling', () => {
     });
 
     expect(full.breakdown).toBe(false);
-    if (!full.breakdown) {
-      expect(full.steps[0].count).toBe(20);
-      expect(full.steps[1].count).toBe(20);
-      expect(full.sampling_factor).toBeUndefined();
-    }
+    const rFull = full as Extract<typeof full, { breakdown: false }>;
+    expect(rFull.steps[0].count).toBe(20);
+    expect(rFull.steps[1].count).toBe(20);
+    expect(rFull.sampling_factor).toBeUndefined();
 
     // Sampled query — 50%
     const sampled = await queryFunnel(ctx.ch, {
@@ -715,14 +706,13 @@ describe('queryFunnel — sampling', () => {
     });
 
     expect(sampled.breakdown).toBe(false);
-    if (!sampled.breakdown) {
-      expect(sampled.sampling_factor).toBe(0.5);
-      // With 20 users and 50% sampling, we expect roughly 10 (±5 due to hash distribution)
-      expect(sampled.steps[0].count).toBeGreaterThan(0);
-      expect(sampled.steps[0].count).toBeLessThanOrEqual(20);
-      // Conversion rate should remain 100% (all sampled users complete both steps)
-      expect(sampled.steps[1].conversion_rate).toBe(100);
-    }
+    const rSampled = sampled as Extract<typeof sampled, { breakdown: false }>;
+    expect(rSampled.sampling_factor).toBe(0.5);
+    // With 20 users and 50% sampling, we expect roughly 10 (±5 due to hash distribution)
+    expect(rSampled.steps[0].count).toBeGreaterThan(0);
+    expect(rSampled.steps[0].count).toBeLessThanOrEqual(20);
+    // Conversion rate should remain 100% (all sampled users complete both steps)
+    expect(rSampled.steps[1].conversion_rate).toBe(100);
 
     // Sampling is deterministic — same result on repeated call
     const sampled2 = await queryFunnel(ctx.ch, {
@@ -737,9 +727,9 @@ describe('queryFunnel — sampling', () => {
       sampling_factor: 0.5,
     });
 
-    if (!sampled.breakdown && !sampled2.breakdown) {
-      expect(sampled2.steps[0].count).toBe(sampled.steps[0].count);
-    }
+    expect(sampled2.breakdown).toBe(false);
+    const rSampled2 = sampled2 as Extract<typeof sampled2, { breakdown: false }>;
+    expect(rSampled2.steps[0].count).toBe(rSampled.steps[0].count);
   });
 
   it('sampling_factor=1 returns same result as no sampling', async () => {
@@ -777,10 +767,12 @@ describe('queryFunnel — sampling', () => {
     const noSampling = await queryFunnel(ctx.ch, params);
     const factor1 = await queryFunnel(ctx.ch, { ...params, sampling_factor: 1 });
 
-    if (!noSampling.breakdown && !factor1.breakdown) {
-      expect(factor1.steps[0].count).toBe(noSampling.steps[0].count);
-      expect(factor1.steps[1].count).toBe(noSampling.steps[1].count);
-    }
+    expect(noSampling.breakdown).toBe(false);
+    expect(factor1.breakdown).toBe(false);
+    const rNo = noSampling as Extract<typeof noSampling, { breakdown: false }>;
+    const rF1 = factor1 as Extract<typeof factor1, { breakdown: false }>;
+    expect(rF1.steps[0].count).toBe(rNo.steps[0].count);
+    expect(rF1.steps[1].count).toBe(rNo.steps[1].count);
   });
 });
 
@@ -857,10 +849,9 @@ describe('queryFunnel — inline event combination (OR-logic)', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(2); // A + B (both signup variants)
-      expect(result.steps[1].count).toBe(2); // both purchased
-    }
+    const rOr = result as Extract<typeof result, { breakdown: false }>;
+    expect(rOr.steps[0].count).toBe(2); // A + B (both signup variants)
+    expect(rOr.steps[1].count).toBe(2); // both purchased
   });
 
   it('falls back to single event_name when event_names is empty', async () => {
@@ -897,10 +888,9 @@ describe('queryFunnel — inline event combination (OR-logic)', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(1);
-      expect(result.steps[1].count).toBe(1);
-    }
+    const rFb = result as Extract<typeof result, { breakdown: false }>;
+    expect(rFb.steps[0].count).toBe(1);
+    expect(rFb.steps[1].count).toBe(1);
   });
 
   it('works with event_names in unordered mode', async () => {
@@ -945,9 +935,8 @@ describe('queryFunnel — inline event combination (OR-logic)', () => {
     });
 
     expect(result.breakdown).toBe(false);
-    if (!result.breakdown) {
-      expect(result.steps[0].count).toBe(1);
-      expect(result.steps[1].count).toBe(1);
-    }
+    const rUn = result as Extract<typeof result, { breakdown: false }>;
+    expect(rUn.steps[0].count).toBe(1);
+    expect(rUn.steps[1].count).toBe(1);
   });
 });

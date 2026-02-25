@@ -38,3 +38,54 @@ export function buildCohortClause(
   if (!cohortFilters?.length) return '';
   return ' AND ' + buildCohortFilterClause(cohortFilters, projectIdParam, queryParams);
 }
+
+/**
+ * Shifts a date forward (positive periods) or backward (negative periods) by given granularity units.
+ */
+export function shiftDate(date: string, periods: number, granularity: 'day' | 'week' | 'month'): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  switch (granularity) {
+    case 'day':
+      d.setUTCDate(d.getUTCDate() + periods);
+      break;
+    case 'week':
+      d.setUTCDate(d.getUTCDate() + periods * 7);
+      break;
+    case 'month':
+      d.setUTCMonth(d.getUTCMonth() + periods);
+      break;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Truncates a date to the start of its granularity bucket (Monday-based weeks).
+ */
+export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  switch (granularity) {
+    case 'day':
+      break;
+    case 'week': {
+      const day = d.getUTCDay();
+      const diff = day === 0 ? 6 : day - 1;
+      d.setUTCDate(d.getUTCDate() - diff);
+      break;
+    }
+    case 'month':
+      d.setUTCDate(1);
+      break;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns a ClickHouse INTERVAL expression for a given granularity.
+ */
+export function granularityInterval(granularity: 'day' | 'week' | 'month'): string {
+  switch (granularity) {
+    case 'day': return `INTERVAL 1 DAY`;
+    case 'week': return `INTERVAL 7 DAY`;
+    case 'month': return `INTERVAL 1 MONTH`;
+  }
+}

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards, ParseEnumPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertyDefinitionsService } from '../../definitions/property-definitions.service';
 import { RequireRole } from '../decorators/require-role.decorator';
@@ -9,6 +9,11 @@ import {
   UpsertPropertyDefinitionResponseDto,
 } from '../dto/property-definitions.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
+
+enum PropertyType {
+  event = 'event',
+  person = 'person',
+}
 
 @ApiTags('Property Definitions')
 @ApiBearerAuth()
@@ -29,7 +34,7 @@ export class PropertyDefinitionsController {
   @Patch(':propertyType/:propertyName')
   async upsert(
     @Param('projectId') projectId: string,
-    @Param('propertyType') propertyType: 'event' | 'person',
+    @Param('propertyType', new ParseEnumPipe(PropertyType)) propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
     @Body() body: UpsertPropertyDefinitionDto,
   ): Promise<UpsertPropertyDefinitionResponseDto> {
@@ -45,7 +50,7 @@ export class PropertyDefinitionsController {
   @Delete(':propertyType/:propertyName')
   async remove(
     @Param('projectId') projectId: string,
-    @Param('propertyType') propertyType: 'event' | 'person',
+    @Param('propertyType', new ParseEnumPipe(PropertyType)) propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
   ): Promise<void> {
     await this.propertyDefinitionsService.delete(projectId, propertyName, propertyType);

@@ -299,6 +299,19 @@ export class CohortRestartedPerformingConditionDto {
 
 // ── Condition Group DTO (recursive nested AND/OR) ────────────────────────────
 
+export type CohortConditionValue =
+  | CohortPropertyConditionDto
+  | CohortEventConditionDto
+  | CohortCohortConditionDto
+  | CohortFirstTimeEventConditionDto
+  | CohortNotPerformedEventConditionDto
+  | CohortEventSequenceConditionDto
+  | CohortNotPerformedEventSequenceConditionDto
+  | CohortPerformedRegularlyConditionDto
+  | CohortStoppedPerformingConditionDto
+  | CohortRestartedPerformingConditionDto
+  | CohortConditionGroupDto;
+
 export class CohortConditionGroupDto {
   @IsIn(['AND', 'OR'])
   type: 'AND' | 'OR';
@@ -326,5 +339,5 @@ export class CohortConditionGroupDto {
     },
     keepDiscriminatorProperty: true,
   })
-  values: any[];
+  values: CohortConditionValue[];
 }

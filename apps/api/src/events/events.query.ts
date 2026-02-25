@@ -50,6 +50,33 @@ export interface EventDetailRow extends EventRow {
   user_properties: string;
 }
 
+const EVENT_BASE_COLUMNS = `
+      event_id,
+      event_name,
+      event_type,
+      distinct_id,
+      toString(person_id) AS person_id,
+      session_id,
+      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
+      url,
+      referrer,
+      page_title,
+      page_path,
+      device_type,
+      browser,
+      browser_version,
+      os,
+      os_version,
+      screen_width,
+      screen_height,
+      country,
+      region,
+      city,
+      language,
+      timezone,
+      sdk_name,
+      sdk_version`;
+
 export async function queryEvents(
   ch: ClickHouseClient,
   params: EventsQueryParams,
@@ -85,32 +112,7 @@ export async function queryEvents(
   }
 
   const query = `
-    SELECT
-      event_id,
-      event_name,
-      event_type,
-      distinct_id,
-      toString(person_id) AS person_id,
-      session_id,
-      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
-      url,
-      referrer,
-      page_title,
-      page_path,
-      device_type,
-      browser,
-      browser_version,
-      os,
-      os_version,
-      screen_width,
-      screen_height,
-      country,
-      region,
-      city,
-      language,
-      timezone,
-      sdk_name,
-      sdk_version
+    SELECT ${EVENT_BASE_COLUMNS}
     FROM events FINAL
     WHERE ${conditions.join(' AND ')}
     ORDER BY events.timestamp DESC
@@ -137,32 +139,7 @@ export async function queryEventDetail(
   params: EventDetailParams,
 ): Promise<EventDetailRow | null> {
   const query = `
-    SELECT
-      event_id,
-      event_name,
-      event_type,
-      distinct_id,
-      toString(person_id) AS person_id,
-      session_id,
-      formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
-      url,
-      referrer,
-      page_title,
-      page_path,
-      device_type,
-      browser,
-      browser_version,
-      os,
-      os_version,
-      screen_width,
-      screen_height,
-      country,
-      region,
-      city,
-      language,
-      timezone,
-      sdk_name,
-      sdk_version,
+    SELECT ${EVENT_BASE_COLUMNS},
       properties,
       user_properties
     FROM events FINAL

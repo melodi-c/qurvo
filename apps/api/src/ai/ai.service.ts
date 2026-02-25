@@ -11,6 +11,8 @@ import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
+import { AppNotFoundException } from '../exceptions/app-not-found.exception';
 import { buildSystemPrompt } from './system-prompt';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
@@ -244,8 +246,12 @@ export class AiService implements OnModuleInit {
           toolResult = res.result;
           vizType = res.visualization_type;
         } catch (err) {
-          toolResult = { error: err instanceof Error ? err.message : 'Unknown error' };
-          this.logger.warn(`Tool ${tc.function.name} failed: ${err}`);
+          this.logger.warn({ err, tool: tc.function.name }, `Tool ${tc.function.name} failed`);
+          const safeMessage =
+            err instanceof AppBadRequestException || err instanceof AppNotFoundException
+              ? err.message
+              : 'The query failed. Please try a different approach.';
+          toolResult = { error: safeMessage };
         }
 
         yield {

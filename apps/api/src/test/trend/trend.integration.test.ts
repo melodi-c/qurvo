@@ -38,16 +38,15 @@ describe('queryTrend — total_events', () => {
 
     expect(result.compare).toBe(false);
     expect(result.breakdown).toBe(false);
-    if (!result.compare && !result.breakdown) {
-      expect(result.series).toHaveLength(1);
-      const total = sumSeriesValues(result.series[0].data);
-      expect(total).toBe(3);
-      // Should have 2 buckets (day1: 2, day2: 1)
-      expect(result.series[0].data).toHaveLength(2);
-      const sorted = [...result.series[0].data].sort((a, b) => b.value - a.value);
-      expect(sorted[0].value).toBe(2);
-      expect(sorted[1].value).toBe(1);
-    }
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
+    const total = sumSeriesValues(r.series[0].data);
+    expect(total).toBe(3);
+    // Should have 2 buckets (day1: 2, day2: 1)
+    expect(r.series[0].data).toHaveLength(2);
+    const sorted = [...r.series[0].data].sort((a, b) => b.value - a.value);
+    expect(sorted[0].value).toBe(2);
+    expect(sorted[1].value).toBe(1);
   });
 
   it('handles multiple series', async () => {
@@ -72,13 +71,14 @@ describe('queryTrend — total_events', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      expect(result.series).toHaveLength(2);
-      const clicks = result.series.find((s) => s.series_idx === 0);
-      const purchases = result.series.find((s) => s.series_idx === 1);
-      expect(sumSeriesValues(clicks!.data)).toBe(2);
-      expect(sumSeriesValues(purchases!.data)).toBe(1);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r2 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(r2.series).toHaveLength(2);
+    const clicks = r2.series.find((s) => s.series_idx === 0);
+    const purchases = r2.series.find((s) => s.series_idx === 1);
+    expect(sumSeriesValues(clicks!.data)).toBe(2);
+    expect(sumSeriesValues(purchases!.data)).toBe(1);
   });
 });
 
@@ -113,9 +113,10 @@ describe('queryTrend — unique_users', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      expect(sumSeriesValues(result.series[0].data)).toBe(1);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r3 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(r3.series[0].data)).toBe(1);
   });
 });
 
@@ -142,9 +143,10 @@ describe('queryTrend — events_per_user', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      expect(sumSeriesValues(result.series[0].data)).toBe(2);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r4 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(r4.series[0].data)).toBe(2);
   });
 });
 
@@ -248,9 +250,10 @@ describe('queryTrend — with series filters', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      expect(sumSeriesValues(result.series[0].data)).toBe(1);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r5 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(r5.series[0].data)).toBe(1);
   });
 });
 
@@ -287,9 +290,10 @@ describe('queryTrend — property aggregation', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      expect(sumSeriesValues(result.series[0].data)).toBe(350);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r6 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(r6.series[0].data)).toBe(350);
   });
 
   it('averages property values (property_avg)', async () => {
@@ -324,9 +328,10 @@ describe('queryTrend — property aggregation', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      expect(sumSeriesValues(result.series[0].data)).toBe(20);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r7 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(r7.series[0].data)).toBe(20);
   });
 
   it('finds min and max property values (property_min / property_max)', async () => {
@@ -369,9 +374,10 @@ describe('queryTrend — property aggregation', () => {
       date_to: daysAgo(3),
     });
 
-    if (!minResult.compare && !minResult.breakdown) {
-      expect(sumSeriesValues(minResult.series[0].data)).toBe(5);
-    }
+    expect(minResult.compare).toBe(false);
+    expect(minResult.breakdown).toBe(false);
+    const rMin = minResult as Extract<typeof minResult, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(rMin.series[0].data)).toBe(5);
 
     const maxResult = await queryTrend(ctx.ch, {
       project_id: projectId,
@@ -383,9 +389,10 @@ describe('queryTrend — property aggregation', () => {
       date_to: daysAgo(3),
     });
 
-    if (!maxResult.compare && !maxResult.breakdown) {
-      expect(sumSeriesValues(maxResult.series[0].data)).toBe(99);
-    }
+    expect(maxResult.compare).toBe(false);
+    expect(maxResult.breakdown).toBe(false);
+    const rMax = maxResult as Extract<typeof maxResult, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(rMax.series[0].data)).toBe(99);
   });
 
   it('treats non-numeric property values as 0', async () => {
@@ -420,9 +427,10 @@ describe('queryTrend — property aggregation', () => {
       date_to: daysAgo(3),
     });
 
-    if (!result.compare && !result.breakdown) {
-      // "abc" → toFloat64OrZero → 0, 100 → 100, sum = 100
-      expect(sumSeriesValues(result.series[0].data)).toBe(100);
-    }
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r8 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    // "abc" → toFloat64OrZero → 0, 100 → 100, sum = 100
+    expect(sumSeriesValues(r8.series[0].data)).toBe(100);
   });
 });

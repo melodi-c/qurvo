@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate } from '../../utils/clickhouse-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -29,51 +29,6 @@ export interface RetentionQueryResult {
   granularity: RetentionGranularity;
   cohorts: RetentionCohort[];
   average_retention: number[];
-}
-
-// ── Date helpers ─────────────────────────────────────────────────────────────
-
-function dateDiffUnit(granularity: RetentionGranularity): string {
-  switch (granularity) {
-    case 'day': return 'day';
-    case 'week': return 'week';
-    case 'month': return 'month';
-  }
-}
-
-function extendDate(dateTo: string, periods: number, granularity: RetentionGranularity): string {
-  const d = new Date(`${dateTo}T00:00:00Z`);
-  switch (granularity) {
-    case 'day':
-      d.setUTCDate(d.getUTCDate() + periods);
-      break;
-    case 'week':
-      d.setUTCDate(d.getUTCDate() + periods * 7);
-      break;
-    case 'month':
-      d.setUTCMonth(d.getUTCMonth() + periods);
-      break;
-  }
-  return d.toISOString().slice(0, 10);
-}
-
-function truncateDate(date: string, granularity: RetentionGranularity): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  switch (granularity) {
-    case 'day':
-      break;
-    case 'week': {
-      // Monday-based week start
-      const day = d.getUTCDay();
-      const diff = day === 0 ? 6 : day - 1;
-      d.setUTCDate(d.getUTCDate() - diff);
-      break;
-    }
-    case 'month':
-      d.setUTCDate(1);
-      break;
-  }
-  return d.toISOString().slice(0, 10);
 }
 
 // ── Raw row type ─────────────────────────────────────────────────────────────
@@ -147,14 +102,14 @@ export async function queryRetention(
 
   const truncFrom = truncateDate(params.date_from, params.granularity);
   const truncTo = truncateDate(params.date_to, params.granularity);
-  const extendedTo = extendDate(params.date_to, params.periods, params.granularity);
+  const extendedTo = shiftDate(params.date_to, params.periods, params.granularity);
 
   queryParams['from'] = toChTs(truncFrom);
   queryParams['to'] = toChTs(truncTo, true);
   queryParams['extended_to'] = toChTs(extendedTo, true);
 
   const granExpr = granularityTruncExpr(params.granularity, 'timestamp');
-  const unit = dateDiffUnit(params.granularity);
+  const unit = params.granularity;
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 

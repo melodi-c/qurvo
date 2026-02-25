@@ -5,6 +5,7 @@ import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
+import { escapeLikePattern } from '../utils/escape-like';
 
 export interface PropertyDefinitionItem {
   property_name: string;
@@ -54,7 +55,7 @@ export class PropertyDefinitionsService {
   private async listGlobal(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     const conditions: SQL[] = [eq(propertyDefinitions.project_id, projectId)];
     if (params.type) conditions.push(eq(propertyDefinitions.property_type, params.type));
-    if (params.search) conditions.push(ilike(propertyDefinitions.property_name, `%${params.search}%`));
+    if (params.search) conditions.push(ilike(propertyDefinitions.property_name, `%${escapeLikePattern(params.search)}%`));
     if (params.is_numerical !== undefined) conditions.push(eq(propertyDefinitions.is_numerical, params.is_numerical));
 
     const where = and(...conditions)!;
@@ -100,7 +101,7 @@ export class PropertyDefinitionsService {
       eq(eventProperties.event_name, params.event_name!),
     ];
     if (params.type) epConditions.push(eq(eventProperties.property_type, params.type));
-    if (params.search) epConditions.push(ilike(eventProperties.property_name, `%${params.search}%`));
+    if (params.search) epConditions.push(ilike(eventProperties.property_name, `%${escapeLikePattern(params.search)}%`));
 
     const epWhere = and(...epConditions)!;
 

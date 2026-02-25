@@ -131,9 +131,10 @@ describe('queryStickiness — week granularity', () => {
     });
 
     expect(result.granularity).toBe('week');
-    // Person should have >= 1 active weeks
-    expect(result.data.length).toBeGreaterThanOrEqual(1);
-    const totalUsers = result.data.reduce((sum, d) => sum + d.user_count, 0);
-    expect(totalUsers).toBe(1);
+    // daysAgo(14) and daysAgo(1) always fall in different ISO weeks,
+    // so person has exactly 2 active weeks
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].period_count).toBe(2);
+    expect(result.data[0].user_count).toBe(1);
   });
 });

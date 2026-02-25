@@ -7,8 +7,8 @@ export interface PersonsQueryParams {
   project_id: string;
   search?: string;
   filters?: PropertyFilter[];
-  limit: number;
-  offset: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface PersonRow {
@@ -56,8 +56,8 @@ export async function queryPersons(db: Database, params: PersonsQueryParams): Pr
     .from(persons)
     .where(and(...conditions))
     .orderBy(desc(persons.updated_at))
-    .limit(params.limit)
-    .offset(params.offset);
+    .limit(params.limit ?? 50)
+    .offset(params.offset ?? 0);
 
   if (personRows.length === 0) {
     return [];

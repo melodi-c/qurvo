@@ -24,11 +24,7 @@ export class PersonsController {
   async getPersons(
     @Query() query: PersonsQueryDto,
   ): Promise<PersonsListResponseDto> {
-    return this.personsService.getPersons({
-      ...query,
-      limit: query.limit ?? 50,
-      offset: query.offset ?? 0,
-    }) as any;
+    return this.personsService.getPersons(query) as any;
   }
 
   @Get('property-names')

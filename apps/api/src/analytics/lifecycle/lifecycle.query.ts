@@ -1,30 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
-
-function extendDateBack(date: string, granularity: LifecycleGranularity): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  switch (granularity) {
-    case 'day':
-      d.setUTCDate(d.getUTCDate() - 1);
-      break;
-    case 'week':
-      d.setUTCDate(d.getUTCDate() - 7);
-      break;
-    case 'month':
-      d.setUTCMonth(d.getUTCMonth() - 1);
-      break;
-  }
-  return d.toISOString().slice(0, 10);
-}
-
-function granularityInterval(granularity: LifecycleGranularity): string {
-  switch (granularity) {
-    case 'day': return `INTERVAL 1 DAY`;
-    case 'week': return `INTERVAL 7 DAY`;
-    case 'month': return `INTERVAL 1 MONTH`;
-  }
-}
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval } from '../../utils/clickhouse-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -119,7 +95,7 @@ export async function queryLifecycle(
     target_event: params.target_event,
   };
 
-  const extendedFrom = extendDateBack(params.date_from, params.granularity);
+  const extendedFrom = shiftDate(params.date_from, -1, params.granularity);
   queryParams['extended_from'] = toChTs(extendedFrom);
   queryParams['from'] = toChTs(params.date_from);
   queryParams['to'] = toChTs(params.date_to, true);

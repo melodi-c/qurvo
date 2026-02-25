@@ -1,4 +1,5 @@
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
+import { escapeLikePattern } from './escape-like';
 
 export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
 
@@ -18,17 +19,31 @@ export const DIRECT_COLUMNS = new Set([
   'sdk_name', 'sdk_version',
 ]);
 
-export function resolvePropertyExpr(prop: string): string {
+/**
+ * Resolves a property name to its JSON source ('properties' or 'user_properties')
+ * and the extracted key. Returns null for direct columns.
+ */
+export function resolvePropertySource(prop: string): { jsonColumn: string; key: string } | null {
   if (prop.startsWith('properties.')) {
-    const key = prop.slice('properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(properties, '${key}')`;
+    return { jsonColumn: 'properties', key: prop.slice('properties.'.length).replace(/'/g, "\\'") };
   }
   if (prop.startsWith('user_properties.')) {
-    const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(user_properties, '${key}')`;
+    return { jsonColumn: 'user_properties', key: prop.slice('user_properties.'.length).replace(/'/g, "\\'") };
   }
+  return null;
+}
+
+export function resolvePropertyExpr(prop: string): string {
+  const source = resolvePropertySource(prop);
+  if (source) return `JSONExtractString(${source.jsonColumn}, '${source.key}')`;
   if (DIRECT_COLUMNS.has(prop)) return prop;
   throw new AppBadRequestException(`Unknown filter property: ${prop}`);
+}
+
+export function resolveNumericPropertyExpr(prop: string): string {
+  const source = resolvePropertySource(prop);
+  if (source) return `toFloat64OrZero(JSONExtractRaw(${source.jsonColumn}, '${source.key}'))`;
+  throw new AppBadRequestException(`Unknown metric property: ${prop}`);
 }
 
 /**
@@ -54,11 +69,11 @@ export function buildPropertyFilterConditions(
         parts.push(`${expr} != {${pk}:String}`);
         break;
       case 'contains':
-        queryParams[pk] = `%${f.value ?? ''}%`;
+        queryParams[pk] = `%${escapeLikePattern(f.value ?? '')}%`;
         parts.push(`${expr} LIKE {${pk}:String}`);
         break;
       case 'not_contains':
-        queryParams[pk] = `%${f.value ?? ''}%`;
+        queryParams[pk] = `%${escapeLikePattern(f.value ?? '')}%`;
         parts.push(`${expr} NOT LIKE {${pk}:String}`);
         break;
       case 'is_set':

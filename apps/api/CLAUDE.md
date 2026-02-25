@@ -127,8 +127,10 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 
 ### Shared Utilities
 `src/utils/` contains shared code used across modules:
-- `clickhouse-helpers.ts` — `granularityTruncExpr()`, `shiftPeriod()`, `buildCohortClause()`, `buildCohortFilterClause()`
-- `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`
+- `clickhouse-helpers.ts` — `granularityTruncExpr()`, `shiftPeriod()`, `buildCohortClause()`, `buildCohortFilterClause()`, `shiftDate()`, `truncateDate()`, `granularityInterval()`
+- `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`, `resolvePropertySource()`, `resolveNumericPropertyExpr()`
+- `escape-like.ts` — `escapeLikePattern()` for escaping LIKE wildcards in user input
+- `pg-errors.ts` — `isPgUniqueViolation()` for checking PostgreSQL unique constraint violations
 - `session-cache.ts` — `invalidateUserSessionCaches(db, redis, userId)` — shared between auth and verification modules
 - `hash.ts` — `hashToken()` for SHA-256 session token hashing
 - `build-conditional-update.ts` — `buildConditionalUpdate(input, fields)` — builds partial update objects from optional input fields

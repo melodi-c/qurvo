@@ -96,6 +96,12 @@ function buildFilterConditions(
   return parts.length ? ' AND ' + parts.join(' AND ') : '';
 }
 
+function prepareQuery(params: WebAnalyticsQueryParams): { queryParams: Record<string, unknown>; filterConditions: string } {
+  const queryParams = buildBaseQueryParams(params);
+  const filterConditions = buildFilterConditions(params.filters, queryParams);
+  return { queryParams, filterConditions };
+}
+
 function buildSessionStatsCTE(
   queryParams: Record<string, unknown>,
   filterConditions: string,
@@ -187,8 +193,7 @@ export async function queryOverview(
   params: WebAnalyticsQueryParams,
 ): Promise<OverviewResult> {
   const granularity = autoGranularity(params.date_from, params.date_to);
-  const queryParams = buildBaseQueryParams(params);
-  const filterConditions = buildFilterConditions(params.filters, queryParams);
+  const { queryParams, filterConditions } = prepareQuery(params);
 
   // Previous period params
   const prev = shiftPeriod(params.date_from, params.date_to);
@@ -272,8 +277,7 @@ export async function queryTopPages(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<PathsResult> {
-  const queryParams = buildBaseQueryParams(params);
-  const filterConditions = buildFilterConditions(params.filters, queryParams);
+  const { queryParams, filterConditions } = prepareQuery(params);
 
   const [top_pages, entry_pages, exit_pages] = await Promise.all([
     queryTopPagesDimension(ch, queryParams, filterConditions),
@@ -321,8 +325,7 @@ export async function querySources(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<SourcesResult> {
-  const queryParams = buildBaseQueryParams(params);
-  const filterConditions = buildFilterConditions(params.filters, queryParams);
+  const { queryParams, filterConditions } = prepareQuery(params);
 
   const [referrers, utm_sources, utm_mediums, utm_campaigns] = await Promise.all([
     queryDimension(ch, { ...queryParams }, filterConditions, 'referrer'),
@@ -340,8 +343,7 @@ export async function queryDevices(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<DevicesResult> {
-  const queryParams = buildBaseQueryParams(params);
-  const filterConditions = buildFilterConditions(params.filters, queryParams);
+  const { queryParams, filterConditions } = prepareQuery(params);
 
   const [device_types, browsers, oses] = await Promise.all([
     queryDimension(ch, { ...queryParams }, filterConditions, 'device_type'),
@@ -358,8 +360,7 @@ export async function queryGeography(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<GeographyResult> {
-  const queryParams = buildBaseQueryParams(params);
-  const filterConditions = buildFilterConditions(params.filters, queryParams);
+  const { queryParams, filterConditions } = prepareQuery(params);
 
   const [countries, regions, cities] = await Promise.all([
     queryDimension(ch, { ...queryParams }, filterConditions, 'country'),

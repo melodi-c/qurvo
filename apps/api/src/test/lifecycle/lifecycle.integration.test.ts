@@ -155,9 +155,13 @@ describe('queryLifecycle — week granularity', () => {
     });
 
     expect(result.granularity).toBe('week');
-    expect(result.data.length).toBeGreaterThanOrEqual(1);
-    // The total of new + returning + resurrecting should be > 0
+    // daysAgo(14), daysAgo(7), daysAgo(1) span at least 2 distinct ISO weeks
+    expect(result.data.length).toBeGreaterThanOrEqual(2);
+    // Person's first week bucket may fall before date_from due to week truncation,
+    // so 'new' can be 0 or 1 depending on day of week. But total active must be >= 2.
     const totalActive = result.totals.new + result.totals.returning + result.totals.resurrecting;
-    expect(totalActive).toBeGreaterThan(0);
+    expect(totalActive).toBeGreaterThanOrEqual(2);
+    // At least some returning/resurrecting activity
+    expect(result.totals.returning + result.totals.resurrecting).toBeGreaterThanOrEqual(1);
   });
 });

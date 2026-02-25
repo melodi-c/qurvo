@@ -4,7 +4,7 @@ import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
-import { resolvePropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
+import { resolvePropertyExpr, resolveNumericPropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -79,18 +79,6 @@ interface RawTrendRow {
 
 interface RawBreakdownRow extends RawTrendRow {
   breakdown_value: string;
-}
-
-function resolveNumericPropertyExpr(prop: string): string {
-  if (prop.startsWith('properties.')) {
-    const key = prop.slice('properties.'.length).replace(/'/g, "\\'");
-    return `toFloat64OrZero(JSONExtractRaw(properties, '${key}'))`;
-  }
-  if (prop.startsWith('user_properties.')) {
-    const key = prop.slice('user_properties.'.length).replace(/'/g, "\\'");
-    return `toFloat64OrZero(JSONExtractRaw(user_properties, '${key}'))`;
-  }
-  throw new AppBadRequestException(`Unknown metric property: ${prop}`);
 }
 
 const AGG_FUNCTIONS: Record<string, string> = {

@@ -4,6 +4,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
+import { escapeLikePattern } from '../utils/escape-like';
 
 export interface EventDefinitionItem {
   event_name: string;
@@ -39,7 +40,7 @@ export class EventDefinitionsService {
   async list(projectId: string, params: EventDefinitionListParams): Promise<{ items: EventDefinitionItem[]; total: number }> {
     const conditions: SQL[] = [eq(eventDefinitions.project_id, projectId)];
     if (params.search) {
-      conditions.push(ilike(eventDefinitions.event_name, `%${params.search}%`));
+      conditions.push(ilike(eventDefinitions.event_name, `%${escapeLikePattern(params.search)}%`));
     }
 
     const where = and(...conditions)!;
