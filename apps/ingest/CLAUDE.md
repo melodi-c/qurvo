@@ -18,9 +18,9 @@ pnpm --filter @qurvo/ingest test:integration
 ```
 src/
 ├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, filters, graceful shutdown
-├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, env validation, port 3001)
+├── main.ts              # Bootstrap (Fastify, CORS: mirror-origin, gzip preParsing hook, env validation, port 3001)
 ├── env.ts               # Zod env validation (DATABASE_URL, REDIS_URL, INGEST_PORT, LOG_LEVEL, NODE_ENV)
-├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, STREAM_SCHEMA_VERSION, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS, MAX_TIMESTAMP_DRIFT_MS, STREAM_BACKPRESSURE_THRESHOLD, API_KEY_MAX_LENGTH
+├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, STREAM_SCHEMA_VERSION, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS, MAX_TIMESTAMP_DRIFT_MS, STREAM_BACKPRESSURE_THRESHOLD, BACKPRESSURE_CACHE_TTL_MS, HANDLER_TIMEOUT_MS, API_KEY_MAX_LENGTH
 ├── ingest/
 │   ├── ingest.controller.ts  # GET /health, POST /v1/batch, POST /v1/import
 │   ├── ingest.service.ts     # Event building + Redis stream writing
@@ -84,8 +84,8 @@ Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceed
 - **Auto-detect**: Non-JSON content types checked for gzip magic bytes (`0x1f 0x8b`) — transparent decompression even without Content-Encoding header
 - **Body read timeout**: All request streams are wrapped with a 30s per-chunk read timeout (`BODY_READ_TIMEOUT_MS`) that destroys stalled connections (protects against mobile clients that stop sending data mid-upload)
 
-### UUIDv7 Event IDs
-Uses `uuid` v7 (time-ordered) instead of UUIDv4 for `event_id` and `batch_id`. Better for ClickHouse merge tree ordering.
+### Client Event IDs (Deduplication)
+`TrackEventSchema` accepts an optional `event_id` (UUID) from the SDK. If provided, ingest uses it as-is; otherwise generates a server-side UUIDv7. This enables deduplication: when SDK retries a batch on 503, events keep their original IDs. Both `@qurvo/sdk-browser` and `@qurvo/sdk-node` generate `event_id` per event before enqueueing. Uses UUIDv7 (time-ordered) for `batch_id`. Better for ClickHouse merge tree ordering.
 
 ### Illegal distinct_id Blocklist
 `TrackEventSchema` rejects events with garbage `distinct_id` values (`null`, `undefined`, `anonymous`, `guest`, `NaN`, `[object Object]`, `0`, etc.) at Zod validation level. This is defense-in-depth — the processor also has a matching blocklist. Prevents SDK integration bugs from corrupting person identity data.
@@ -97,10 +97,10 @@ Every event written to Redis Stream includes `schema_version: '1'` (`STREAM_SCHE
 Batch endpoint validates each event individually via `TrackEventSchema.safeParse()`. Valid events are ingested, invalid events are dropped with a structured warning log (includes up to 5 validation error details with paths and messages for SDK debugging). Response includes `dropped` count. If ALL events are invalid → 400. Import endpoint uses strict batch-level validation (all-or-nothing).
 
 ### Payload Enrichment
-`buildPayload()` merges SDK event with server-side context via `BuildPayloadOpts`:
-- `schema_version`, `event_id` (UUIDv7), `project_id`, `timestamp`
+`buildPayload()` merges SDK event with server-side context via `BuildPayloadOpts`. Context fields are destructured with defaults to avoid repetitive optional chaining:
+- `schema_version`, `event_id` (client-provided or server UUIDv7), `project_id`, `timestamp`
 - `user_agent` (raw User-Agent header — UA parsing deferred to processor)
-- SDK context fields passed through: `browser`, `os`, `device_type`, etc. (empty if SDK doesn't send them)
+- SDK context fields passed through: `browser`, `os`, `device_type`, etc. (empty string default if SDK doesn't send them)
 - Server context: `ip`, `url`, `referrer`, `page_title`, `page_path`
 
 ### Batch Writes
@@ -108,8 +108,8 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 
 ### Validation Schemas
 - `BatchWrapperSchema` — loose wrapper: validates array structure (1-500 items) + `sent_at`, events are `z.unknown()`
-- `TrackEventSchema` — per-event schema with all field validations
-- `ImportEventSchema` extends `TrackEventSchema` — makes `timestamp` required, adds optional `event_id`
+- `TrackEventSchema` — per-event schema with all field validations, optional `event_id` (UUID) for client-side dedup
+- `ImportEventSchema` extends `TrackEventSchema` — makes `timestamp` required
 
 `ZodExceptionFilter` (registered as `APP_FILTER`) converts `ZodError` to 400 with field-level details (applies to import endpoint and batch wrapper validation).
 
@@ -117,13 +117,13 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 `resolveTimestamp()` caps the offset at `MAX_TIMESTAMP_DRIFT_MS` (48 hours). Events queued on the client for longer than 48h before being sent are timestamped at server time. This prevents events from being backdated beyond ClickHouse TTL expectations.
 
 ### Stream Backpressure
-Before writing to the Redis stream, `IngestService` checks `XLEN` against `STREAM_BACKPRESSURE_THRESHOLD` (900K, 90% of MAXLEN). If the stream is near capacity — meaning the processor is behind — writes are rejected with 503 to prevent silent data loss from approximate MAXLEN trimming.
+Before writing to the Redis stream, `IngestService` checks `XLEN` against `STREAM_BACKPRESSURE_THRESHOLD` (900K, 90% of MAXLEN). The XLEN result is cached for `BACKPRESSURE_CACHE_TTL_MS` (3s) to avoid a Redis RTT on every request. If the stream is near capacity — meaning the processor is behind — writes are rejected with 503 to prevent silent data loss from approximate MAXLEN trimming.
 
 ### Billing Counter Expiry
 Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 days) instead of relative `EXPIRE`. This is idempotent — calling EXPIREAT multiple times sets the same absolute timestamp instead of resetting a sliding TTL window.
 
 ### Error Handling: Retryable vs Non-Retryable
-`callOrThrow503()` wraps service calls — Redis stream write failures and backpressure → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`. Partial Redis pipeline failures are logged with sample errors for debugging.
+`callOrThrow503()` wraps service calls with `Promise.race` against `HANDLER_TIMEOUT_MS` (30s) — Redis stream write failures, backpressure, and handler timeouts → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`. Partial Redis pipeline failures are logged with sample errors for debugging.
 
 ### Event Type Mapping
 `EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$pageleave` → `pageleave`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
@@ -142,7 +142,7 @@ Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 day
 - Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset, 48h drift cap, within-cap allowance
 
 ### Integration tests
-`src/test/ingest/`. 38 tests covering:
+`src/test/ingest/`. 39 tests covering:
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key, per-event validation (partial success), all-invalid batch → 400
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
@@ -152,7 +152,7 @@ Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 day
 - Gzip auto-detect: compressed body without Content-Encoding header
 - Illegal distinct_id: drops events with illegal values, 400 when all illegal, rejects in import
 - Schema version: schema_version field present in stream payload
-- UUIDv7: event_id format validation
+- UUIDv7: event_id format validation, client event_id preservation
 - Max batch size: 400 on >500 batch events, 400 on >5000 import events
 - User-Agent passthrough: raw UA stored in stream, SDK context fields passed through, UA parsing deferred to processor
 - Rate limiting: 429 when exceeded, 202 under limit, 429 on import when exceeded, counter increment
