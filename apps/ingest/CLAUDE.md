@@ -39,7 +39,7 @@ src/
 ├── hooks/
 │   └── gzip-preparsing.ts    # Fastify preParsing: gzip decompression, bomb protection, magic byte auto-detect, body read timeout
 ├── types/
-│   └── fastify.d.ts          # Fastify request augmentation (projectId, eventsLimit, quotaLimited)
+│   └── fastify.d.ts          # Fastify request augmentation (projectId, quotaLimited)
 └── test/                # Integration tests
     ├── setup.ts
     ├── helpers/
