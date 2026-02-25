@@ -10,6 +10,7 @@ interface WebKpiCardProps {
   previousValue: number;
   currentValue: number;
   formatDelta?: (current: number, previous: number) => string;
+  invertSentiment?: boolean;
 }
 
 function defaultFormatDelta(current: number, previous: number): string {
@@ -25,11 +26,13 @@ export function WebKpiCard({
   previousValue,
   currentValue,
   formatDelta = defaultFormatDelta,
+  invertSentiment = false,
 }: WebKpiCardProps) {
   const { t } = useLocalTranslation(translations);
   const delta = formatDelta(currentValue, previousValue);
-  const isPositive = currentValue >= previousValue;
+  const increased = currentValue >= previousValue;
   const isNeutral = currentValue === previousValue;
+  const isGood = invertSentiment ? !increased : increased;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-1">
@@ -41,10 +44,10 @@ export function WebKpiCard({
         <div
           className={cn(
             'flex items-center gap-1 text-xs font-medium',
-            isPositive ? STATUS_COLORS.positive : STATUS_COLORS.negative,
+            isGood ? STATUS_COLORS.positive : STATUS_COLORS.negative,
           )}
         >
-          {isPositive ? (
+          {increased ? (
             <ArrowUp className="h-3 w-3" />
           ) : (
             <ArrowDown className="h-3 w-3" />

@@ -80,6 +80,7 @@ export function WebKpiRow({ current, previous, isLoading, isError }: WebKpiRowPr
         value={formatPercent(current.bounce_rate)}
         currentValue={current.bounce_rate}
         previousValue={previous.bounce_rate}
+        invertSentiment
         formatDelta={(cur, prev) => {
           if (prev === 0) return cur > 0 ? '+100%' : '0%';
           const diff = cur - prev;
