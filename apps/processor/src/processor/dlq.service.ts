@@ -34,7 +34,7 @@ export class DlqService implements OnApplicationBootstrap {
     private readonly personBatchStore: PersonBatchStore,
     private readonly definitionSync: DefinitionSyncService,
   ) {
-    this.lock = new DistributedLock(redis, 'dlq:replay:lock', randomUUID(), 30);
+    this.lock = new DistributedLock(redis, 'dlq:replay:lock', randomUUID(), 300);
   }
 
   onApplicationBootstrap() {
