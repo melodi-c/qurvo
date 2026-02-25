@@ -1,4 +1,13 @@
 import { plainToInstance } from 'class-transformer';
+import { AppBadRequestException } from '../../../exceptions/app-bad-request.exception';
+
+function safeJsonParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new AppBadRequestException(`Invalid JSON in query parameter`);
+  }
+}
 
 /**
  * Transform for query params that may arrive as JSON strings (GET requests)
@@ -6,7 +15,7 @@ import { plainToInstance } from 'class-transformer';
  */
 export function parseJsonArray({ value }: { value: unknown }): unknown {
   if (!value) return undefined;
-  return typeof value === 'string' ? JSON.parse(value) : value;
+  return typeof value === 'string' ? safeJsonParse(value) : value;
 }
 
 /**
@@ -17,7 +26,7 @@ export function parseJsonArray({ value }: { value: unknown }): unknown {
 export function makeJsonArrayTransform(targetClass: new (...args: any[]) => any) {
   return ({ value }: { value: unknown }): unknown => {
     if (!value) return undefined;
-    const arr = typeof value === 'string' ? JSON.parse(value as string) : value;
+    const arr = typeof value === 'string' ? safeJsonParse(value) : value;
     return Array.isArray(arr) ? plainToInstance(targetClass, arr) : arr;
   };
 }

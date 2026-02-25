@@ -23,6 +23,21 @@ const MEMBER_COLUMNS = {
   },
 };
 
+const INVITE_COLUMNS = {
+  id: projectInvites.id,
+  project_id: projectInvites.project_id,
+  email: projectInvites.email,
+  role: projectInvites.role,
+  status: projectInvites.status,
+  created_at: projectInvites.created_at,
+  responded_at: projectInvites.responded_at,
+  invited_by: {
+    id: users.id,
+    email: users.email,
+    display_name: users.display_name,
+  },
+};
+
 @Injectable()
 export class MembersService {
   private readonly logger = new Logger(MembersService.name);
@@ -75,20 +90,7 @@ export class MembersService {
 
   async listInvites(projectId: string) {
     return this.db
-      .select({
-        id: projectInvites.id,
-        project_id: projectInvites.project_id,
-        email: projectInvites.email,
-        role: projectInvites.role,
-        status: projectInvites.status,
-        created_at: projectInvites.created_at,
-        responded_at: projectInvites.responded_at,
-        invited_by: {
-          id: users.id,
-          email: users.email,
-          display_name: users.display_name,
-        },
-      })
+      .select(INVITE_COLUMNS)
       .from(projectInvites)
       .innerJoin(users, eq(projectInvites.invited_by, users.id))
       .where(and(eq(projectInvites.project_id, projectId), eq(projectInvites.status, 'pending')))
@@ -209,20 +211,7 @@ export class MembersService {
 
   private async hydrateInvite(inviteId: string) {
     const [hydrated] = await this.db
-      .select({
-        id: projectInvites.id,
-        project_id: projectInvites.project_id,
-        email: projectInvites.email,
-        role: projectInvites.role,
-        status: projectInvites.status,
-        created_at: projectInvites.created_at,
-        responded_at: projectInvites.responded_at,
-        invited_by: {
-          id: users.id,
-          email: users.email,
-          display_name: users.display_name,
-        },
-      })
+      .select(INVITE_COLUMNS)
       .from(projectInvites)
       .innerJoin(users, eq(projectInvites.invited_by, users.id))
       .where(eq(projectInvites.id, inviteId));

@@ -22,13 +22,7 @@ export class PropertyDefinitionsController {
     @Param('projectId') projectId: string,
     @Query() query: PropertyDefinitionQueryDto,
   ): Promise<PropertyDefinitionsListResponseDto> {
-    return this.propertyDefinitionsService.list(projectId, {
-      ...query,
-      limit: query.limit ?? 100,
-      offset: query.offset ?? 0,
-      order_by: query.order_by ?? 'last_seen_at',
-      order: query.order ?? 'desc',
-    }) as any;
+    return this.propertyDefinitionsService.list(projectId, query) as any;
   }
 
   @RequireRole('editor')
