@@ -5,6 +5,7 @@ import { projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
+import { planAiLimitCacheKey } from '../ai/guards/ai-quota.guard';
 
 // Intentionally duplicated from apps/ingest/src/constants.ts.
 // Both apps read from the same Redis keys; keeping the constant local
@@ -82,5 +83,14 @@ export class BillingService {
       period_start,
       period_end,
     };
+  }
+
+  /**
+   * Invalidate the cached plan AI message limit for a project.
+   * Call this whenever a project's plan changes so AiQuotaGuard picks up
+   * the new limit on the very next request instead of waiting for the 5-minute TTL.
+   */
+  async invalidatePlanAiLimitCache(projectId: string): Promise<void> {
+    await this.redis.del(planAiLimitCacheKey(projectId));
   }
 }
