@@ -3,7 +3,8 @@ import { useDashboardList, useCreateDashboard, useDeleteDashboard } from '@/feat
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
-import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { Plus, LayoutDashboard, Trash2 } from 'lucide-react';

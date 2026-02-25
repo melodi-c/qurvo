@@ -62,7 +62,7 @@ export function BreakdownSection({
             <Input
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="e.g. country, plan, properties.utm_source"
+              placeholder={t('propertyPlaceholder')}
               className="h-8 text-sm"
             />
           )}
