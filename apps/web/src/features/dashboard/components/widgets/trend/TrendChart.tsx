@@ -19,7 +19,7 @@ import type {
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick } from '@/lib/chart-colors';
 import { formatBucket } from '@/lib/formatting';
 import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
-import { useFormulaResults } from './use-formula-results';
+import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 
 const COLORS = CHART_COLORS_HSL;
