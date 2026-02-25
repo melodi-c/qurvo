@@ -1,6 +1,6 @@
 import type { PinoLogger } from 'nestjs-pino';
 import type { Event } from '@qurvo/clickhouse';
-import type { ValidMessage, BufferedEvent, ResolveResult } from './types';
+import type { ValidMessage, BufferedEvent, ResolveResult, ValidatedFields } from './types';
 import type { PersonResolverService } from '../person-resolver.service';
 import type { PersonBatchStore } from '../person-batch-store';
 import type { GeoService } from '../geo.service';
@@ -61,7 +61,7 @@ export async function resolveAndBuildEvents(
 }
 
 async function buildEvent(
-  data: Record<string, string>,
+  data: ValidatedFields,
   personCache: Map<string, string>,
   deps: {
     personResolver: PersonResolverService;
@@ -72,26 +72,25 @@ async function buildEvent(
 ): Promise<Event> {
   const ip = data.ip || '';
   const country = deps.geoService.lookupCountry(ip);
-  const projectId = data.project_id || '';
 
   let personId: string;
   let mergedFromPersonId: string | null = null;
 
   if (data.event_name === '$identify' && data.anonymous_id) {
-    const result = await deps.personResolver.handleIdentify(projectId, data.distinct_id, data.anonymous_id, personCache);
+    const result = await deps.personResolver.handleIdentify(data.project_id, data.distinct_id, data.anonymous_id, personCache);
     personId = result.personId;
     mergedFromPersonId = result.mergedFromPersonId;
   } else {
-    personId = await deps.personResolver.resolve(projectId, data.distinct_id, personCache);
+    personId = await deps.personResolver.resolve(data.project_id, data.distinct_id, personCache);
   }
 
-  deps.personBatchStore.enqueue(projectId, personId, data.distinct_id, data.user_properties || '{}');
+  deps.personBatchStore.enqueue(data.project_id, personId, data.distinct_id, data.user_properties || '{}');
   if (mergedFromPersonId) {
-    deps.personBatchStore.enqueueMerge(projectId, mergedFromPersonId, personId);
+    deps.personBatchStore.enqueueMerge(data.project_id, mergedFromPersonId, personId);
   }
 
   if (!data.timestamp) {
-    deps.logger.warn({ projectId, distinctId: data.distinct_id }, 'Event missing timestamp, using current time');
+    deps.logger.warn({ projectId: data.project_id, distinctId: data.distinct_id }, 'Event missing timestamp, using current time');
   }
 
   // Parse UA from raw user_agent string; SDK context fields (already in data.*) take precedence
@@ -99,10 +98,10 @@ async function buildEvent(
 
   return {
     event_id: data.event_id || '',
-    project_id: projectId,
-    event_name: data.event_name || '',
+    project_id: data.project_id,
+    event_name: data.event_name,
     event_type: data.event_type || 'track',
-    distinct_id: data.distinct_id || '',
+    distinct_id: data.distinct_id,
     anonymous_id: data.anonymous_id,
     user_id: data.user_id,
     person_id: personId,
