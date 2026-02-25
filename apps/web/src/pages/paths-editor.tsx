@@ -56,9 +56,6 @@ export default function PathsEditorPage() {
       showSkeleton={showSkeleton}
       isEmpty={!transitions || transitions.length === 0}
       isFetching={isFetching}
-      configureIcon={Route}
-      configureTitle=""
-      configureDescription=""
       noResultsIcon={Route}
       noResultsTitle={t('noPathsTitle')}
       noResultsDescription={t('noPathsDescription')}

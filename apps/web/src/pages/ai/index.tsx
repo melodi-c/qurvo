@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Plus, MessageSquare, Trash2, ArrowLeft } from 'lucide-react';
+import { Sparkles, Plus, MessageSquare, ArrowLeft } from 'lucide-react';
+import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -82,28 +83,14 @@ function AiListView({ projectId }: { projectId: string }) {
       {!isLoading && conversations && conversations.length > 0 && (
         <div className="space-y-1">
           {conversations.map((conv) => (
-            <div
+            <ClickableListRow
               key={conv.id}
+              icon={MessageSquare}
+              title={conv.title}
+              subtitle={new Date(conv.updated_at).toLocaleDateString()}
               onClick={() => navigate(conv.id)}
-              className="group flex items-center gap-3 rounded-lg border border-border px-4 py-3 cursor-pointer transition-colors hover:bg-accent/50"
-            >
-              <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{conv.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(conv.updated_at).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0 p-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  requestDelete(conv.id, conv.title);
-                }}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+              onDelete={() => requestDelete(conv.id, conv.title)}
+            />
           ))}
         </div>
       )}

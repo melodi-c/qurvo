@@ -1,10 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import { CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
+import { COHORT_STALE_THRESHOLD_MINUTES } from '../constants';
+
+export interface StaleCohort {
+  id: string;
+  project_id: string;
+  definition: CohortConditionGroup;
+  errors_calculating: number;
+  last_error_at: Date | null;
+}
 
 @Injectable()
 export class CohortComputationService {
@@ -14,6 +23,27 @@ export class CohortComputationService {
     @InjectPinoLogger(CohortComputationService.name)
     private readonly logger: PinoLogger,
   ) {}
+
+  async findStaleCohorts(): Promise<StaleCohort[]> {
+    return this.db
+      .select({
+        id: cohorts.id,
+        project_id: cohorts.project_id,
+        definition: cohorts.definition,
+        errors_calculating: cohorts.errors_calculating,
+        last_error_at: cohorts.last_error_at,
+      })
+      .from(cohorts)
+      .where(
+        and(
+          eq(cohorts.is_static, false),
+          or(
+            isNull(cohorts.membership_computed_at),
+            sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '1 minute' * ${COHORT_STALE_THRESHOLD_MINUTES}`,
+          ),
+        ),
+      );
+  }
 
   async computeMembership(
     cohortId: string,
@@ -73,35 +103,37 @@ export class CohortComputationService {
     }
   }
 
-  async recordError(cohortId: string, err: unknown): Promise<void> {
+  async recordError(cohortId: string, err: unknown): Promise<boolean> {
     const message = err instanceof Error ? err.message.slice(0, 500) : 'Unknown error';
-    await this.db
-      .update(cohorts)
-      .set({
-        errors_calculating: sql`${cohorts.errors_calculating} + 1`,
-        last_error_at: new Date(),
-        last_error_message: message,
-      })
-      .where(eq(cohorts.id, cohortId));
+    try {
+      await this.db
+        .update(cohorts)
+        .set({
+          errors_calculating: sql`${cohorts.errors_calculating} + 1`,
+          last_error_at: new Date(),
+          last_error_message: message,
+        })
+        .where(eq(cohorts.id, cohortId));
+      return true;
+    } catch (pgErr) {
+      this.logger.warn({ err: pgErr, cohortId }, 'PG error recording failed');
+      return false;
+    }
   }
 
   async recordSizeHistory(cohortId: string, projectId: string): Promise<void> {
     try {
-      const countResult = await this.ch.query({
+      await this.ch.command({
         query: `
-          SELECT uniqExact(person_id) AS cnt
+          INSERT INTO cohort_membership_history (project_id, cohort_id, date, count)
+          SELECT
+            {project_id:UUID},
+            {cohort_id:UUID},
+            today(),
+            uniqExact(person_id)
           FROM cohort_members FINAL
           WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
         query_params: { project_id: projectId, cohort_id: cohortId },
-        format: 'JSONEachRow',
-      });
-      const rows = await countResult.json<{ cnt: string }>();
-      const count = Number(rows[0]?.cnt ?? 0);
-
-      await this.ch.insert({
-        table: 'cohort_membership_history',
-        values: [{ project_id: projectId, cohort_id: cohortId, date: new Date().toISOString().slice(0, 10), count }],
-        format: 'JSONEachRow',
       });
     } catch (err) {
       this.logger.warn({ err, cohortId, projectId }, 'Failed to record cohort size history');

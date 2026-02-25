@@ -16,7 +16,6 @@ export const API_KEY_HEADER = 'x-api-key';
 export const API_KEY_CACHE_TTL_SECONDS = 300;
 
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
-export const BILLING_EVENTS_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
 
 // Gzip bomb protection: max allowed size after decompression (matches Fastify bodyLimit)
 export const MAX_DECOMPRESSED_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -30,7 +29,24 @@ export const RATE_LIMIT_WINDOW_SECONDS = 60;
 export const RATE_LIMIT_MAX_EVENTS = 100_000; // 100K events per 60s per project
 export const RATE_LIMIT_BUCKET_SECONDS = 10;
 
+// Max timestamp drift cap: events queued longer than this on the client
+// are timestamped at server time to prevent ClickHouse TTL bypass.
+export const MAX_TIMESTAMP_DRIFT_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+// Backpressure threshold: reject writes when stream reaches 90% of MAXLEN
+// to prevent silent data loss from approximate trimming.
+export const STREAM_BACKPRESSURE_THRESHOLD = 900_000;
+
+// API key format limits (validated before any IO to reject garbage early)
+export const API_KEY_MAX_LENGTH = 128;
+
 export function billingCounterKey(projectId: string, now = new Date()): string {
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   return `${BILLING_EVENTS_KEY_PREFIX}:${projectId}:${monthKey}`;
+}
+
+/** Unix timestamp (seconds) for end-of-month + 5-day safety margin. Idempotent — calling EXPIREAT multiple times sets the same absolute timestamp. */
+export function billingCounterExpireAt(now = new Date()): number {
+  const expiry = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 6));
+  return Math.floor(expiry.getTime() / 1000);
 }

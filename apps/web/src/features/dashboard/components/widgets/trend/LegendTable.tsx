@@ -9,6 +9,8 @@ import {
 import type { TrendSeriesResult } from '@/api/generated/Api';
 import { cn } from '@/lib/utils';
 import { CHART_COLORS_HSL, CHART_FORMULA_COLORS_HSL } from '@/lib/chart-colors';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './LegendTable.translations';
 
 const COLORS = CHART_COLORS_HSL;
 const FORMULA_COLORS = CHART_FORMULA_COLORS_HSL;
@@ -32,6 +34,7 @@ export function LegendTable({
   onToggleSeries,
   previousSeries,
 }: LegendTableProps) {
+  const { t } = useLocalTranslation(translations);
   const hasPrevious = previousSeries && previousSeries.length > 0;
 
   return (
@@ -39,10 +42,10 @@ export function LegendTable({
       <Table className="text-xs">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b-0">
-            <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium">Series</TableHead>
-            <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium text-right w-28">Total</TableHead>
+            <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium">{t('series')}</TableHead>
+            <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium text-right w-28">{t('total')}</TableHead>
             {hasPrevious && (
-              <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium text-right w-28">Previous</TableHead>
+              <TableHead className="h-8 text-muted-foreground/60 text-xs font-medium text-right w-28">{t('previous')}</TableHead>
             )}
           </TableRow>
         </TableHeader>

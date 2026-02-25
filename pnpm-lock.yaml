@@ -244,9 +244,6 @@ importers:
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
-      ua-parser-js:
-        specifier: ^2.0.9
-        version: 2.0.9
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -375,6 +372,9 @@ importers:
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
+      ua-parser-js:
+        specifier: ^2.0.9
+        version: 2.0.9
     devDependencies:
       '@nestjs/cli':
         specifier: ^11.0.0

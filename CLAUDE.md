@@ -63,6 +63,8 @@ SDK (@qurvo/sdk-browser | @qurvo/sdk-node)
 
 ### Deployment
 
+Production runs exclusively on Kubernetes — there are no other deployment targets (no bare-metal, no serverless, no docker-compose in prod).
+
 Deploy via `./deploy.sh` from repo root. Builds Docker images, pushes to GHCR, deploys with Helm.
 
 ```bash
@@ -71,11 +73,16 @@ Deploy via `./deploy.sh` from repo root. Builds Docker images, pushes to GHCR, d
 ./deploy.sh --tag v1.0   # use custom tag instead of git commit hash
 ```
 
+- Dockerfile: `Dockerfile` (multi-stage, root of repo)
 - Registry: `ghcr.io/melodi-c/qurvo/{api,ingest,processor,cohort-worker,web}`
 - Helm release: `qurvo` in `default` namespace
 - Helm chart: `k8s/qurvo-analytics/`
 - Kubeconfig: `k8s/qurvo-analytics/config.yaml`
-- Values: `values.yaml` (defaults) + `values.production.yaml` (prod overrides) + `values.local-secrets.yaml` (secrets, gitignored)
+- Values: `k8s/qurvo-analytics/values.yaml` (defaults) + `values.production.yaml` (prod overrides) + `values.local-secrets.yaml` (secrets, gitignored)
+- Datadog: `k8s/datadog/values-datadog.yaml`
+- Deploy templates: `k8s/qurvo-analytics/templates/{api,ingest,processor,cohort-worker,web,landing}/deployment.yaml`
+- Migrations (Helm pre-install hooks): `k8s/qurvo-analytics/templates/migrate-pg.yaml`, `migrate-ch.yaml`
+- Ingress: `k8s/qurvo-analytics/templates/ingress-app.yaml`, `ingress-ingest.yaml`, `ingress-landing.yaml`
 - Builds all images in parallel, pushes in parallel, then `helm upgrade --install --wait --timeout 5m`
 
 ### Shared Packages

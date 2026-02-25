@@ -20,7 +20,7 @@ src/
 ├── app.module.ts        # Root: REDIS + DRIZZLE providers, LoggerModule, filters, graceful shutdown
 ├── main.ts              # Bootstrap (Fastify, CORS: '*', gzip preParsing hook, env validation, port 3001)
 ├── env.ts               # Zod env validation (DATABASE_URL, REDIS_URL, INGEST_PORT, LOG_LEVEL, NODE_ENV)
-├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, STREAM_SCHEMA_VERSION, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS
+├── constants.ts         # REDIS_STREAM_EVENTS, REDIS_STREAM_MAXLEN, STREAM_SCHEMA_VERSION, billing keys, rate limit constants, MAX_DECOMPRESSED_BYTES, BODY_READ_TIMEOUT_MS, MAX_TIMESTAMP_DRIFT_MS, STREAM_BACKPRESSURE_THRESHOLD, API_KEY_MAX_LENGTH
 ├── ingest/
 │   ├── ingest.controller.ts  # GET /health, POST /v1/batch, POST /v1/import
 │   ├── ingest.service.ts     # Event building + Redis stream writing
@@ -50,22 +50,24 @@ src/
 
 | Method | Path | Auth | Response | Description |
 |---|---|---|---|---|
-| GET | `/health` | No | 200 `{ status: 'ok' }` | Health check |
+| GET | `/health` | No | 200 `{ status: 'ok' }` | Liveness check (k8s liveness + startup probes) |
+| GET | `/ready` | No | 200 `{ status: 'ok' }` or 503 | Readiness check — Redis PING (k8s readiness probe) |
 | POST | `/v1/batch` | `x-api-key` header or `api_key` body field | 202 `{ ok, count, dropped }` or 204 (beacon) | Batch event ingestion (1-500, per-event validation) |
 | POST | `/v1/batch?beacon=1` | same | 204 No Content | Beacon mode for `navigator.sendBeacon()` |
-| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | Historical import (1-5000, strict validation, no billing) |
+| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | **Temporary endpoint** — historical import (1-5000, strict validation, no billing). Will be removed once migration is complete. |
 
 ## Key Patterns
 
 ### Event Pipeline
 ```
 SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod validation → IngestService.buildPayload()
-  → UA parsing (ua-parser-js) → Redis XADD (events:incoming)
+  → Redis XADD (events:incoming)
 ```
+UA parsing is deferred to the processor — ingest stores raw `user_agent` string in the stream payload. SDK context fields (browser, os, device_type) are passed through as-is if present.
 
 ### Guard Chain
-- **`ApiKeyGuard`** — authenticates API key from `x-api-key` header or `api_key` body field (SHA-256 hash lookup, 300s Redis cache, DB fallback), sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Checks both `expires_at` and `revoked_at` on cache hit and DB path — revoked keys are immediately rejected even from cache. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
-- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Only applied to `/v1/batch`. **Fails open** on Redis errors (allows request through).
+- **`ApiKeyGuard`** — validates API key format (printable ASCII, ≤128 chars) before any IO, then authenticates via SHA-256 hash lookup (300s Redis cache, DB fallback). Sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Checks both `expires_at` and `revoked_at` on cache hit and DB path — revoked keys are immediately rejected even from cache. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
+- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Applied to both `/v1/batch` and `/v1/import`. **Fails open** on Redis errors (allows request through).
 - **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
 
 ### Billing Quota
@@ -92,13 +94,14 @@ Uses `uuid` v7 (time-ordered) instead of UUIDv4 for `event_id` and `batch_id`. B
 Every event written to Redis Stream includes `schema_version: '1'` (`STREAM_SCHEMA_VERSION` constant). This enables backward-compatible payload migrations for in-flight events during rolling deploys. Bump the version when payload shape changes.
 
 ### Per-Event Validation (Soft Validation)
-Batch endpoint validates each event individually via `TrackEventSchema.safeParse()`. Valid events are ingested, invalid events are dropped with a warning log. Response includes `dropped` count. If ALL events are invalid → 400. Import endpoint uses strict batch-level validation (all-or-nothing).
+Batch endpoint validates each event individually via `TrackEventSchema.safeParse()`. Valid events are ingested, invalid events are dropped with a structured warning log (includes up to 5 validation error details with paths and messages for SDK debugging). Response includes `dropped` count. If ALL events are invalid → 400. Import endpoint uses strict batch-level validation (all-or-nothing).
 
 ### Payload Enrichment
 `buildPayload()` merges SDK event with server-side context via `BuildPayloadOpts`:
 - `schema_version`, `event_id` (UUIDv7), `project_id`, `timestamp`
-- UA fields: `browser`, `browser_version`, `os`, `os_version`, `device_type`
-- Context: `ip`, `url`, `referrer`, `page_title`, `page_path`
+- `user_agent` (raw User-Agent header — UA parsing deferred to processor)
+- SDK context fields passed through: `browser`, `os`, `device_type`, etc. (empty if SDK doesn't send them)
+- Server context: `ip`, `url`, `referrer`, `page_title`, `page_path`
 
 ### Batch Writes
 Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stream.
@@ -110,8 +113,17 @@ Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stre
 
 `ZodExceptionFilter` (registered as `APP_FILTER`) converts `ZodError` to 400 with field-level details (applies to import endpoint and batch wrapper validation).
 
+### Timestamp Drift Cap
+`resolveTimestamp()` caps the offset at `MAX_TIMESTAMP_DRIFT_MS` (48 hours). Events queued on the client for longer than 48h before being sent are timestamped at server time. This prevents events from being backdated beyond ClickHouse TTL expectations.
+
+### Stream Backpressure
+Before writing to the Redis stream, `IngestService` checks `XLEN` against `STREAM_BACKPRESSURE_THRESHOLD` (900K, 90% of MAXLEN). If the stream is near capacity — meaning the processor is behind — writes are rejected with 503 to prevent silent data loss from approximate MAXLEN trimming.
+
+### Billing Counter Expiry
+Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 days) instead of relative `EXPIRE`. This is idempotent — calling EXPIREAT multiple times sets the same absolute timestamp instead of resetting a sliding TTL window.
+
 ### Error Handling: Retryable vs Non-Retryable
-Controller wraps `IngestService` calls in try-catch. Redis stream write failures → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`.
+`callOrThrow503()` wraps service calls — Redis stream write failures and backpressure → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`. Partial Redis pipeline failures are logged with sample errors for debugging.
 
 ### Event Type Mapping
 `EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$pageleave` → `pageleave`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
@@ -126,8 +138,8 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 ## Tests
 
 ### Unit tests
-`src/ingest/ingest.service.test.ts` — 7 tests for `resolveTimestamp` (PostHog-style clock-drift correction):
-- Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset
+`src/ingest/ingest.service.test.ts` — 9 tests for `resolveTimestamp` (PostHog-style clock-drift correction):
+- Missing clientTs / sentAt fallback, clock drift correction, positive/negative drift, negative offset guard, zero offset, 48h drift cap, within-cap allowance
 
 ### Integration tests
 `src/test/ingest/`. 38 tests covering:
@@ -142,5 +154,5 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Schema version: schema_version field present in stream payload
 - UUIDv7: event_id format validation
 - Max batch size: 400 on >500 batch events, 400 on >5000 import events
-- UA enrichment: browser/os/device from User-Agent header, SDK context overrides UA-parsed values
-- Rate limiting: 429 when exceeded, 202 under limit, no rate limit on import, counter increment
+- User-Agent passthrough: raw UA stored in stream, SDK context fields passed through, UA parsing deferred to processor
+- Rate limiting: 429 when exceeded, 202 under limit, 429 on import when exceeded, counter increment

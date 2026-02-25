@@ -33,7 +33,7 @@ src/
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing + noisy property filtering
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction
 │   ├── dlq.service.ts                   # Dead letter queue replay
-│   ├── event-utils.ts                   # safeScreenDimension() + groupByKey() — shared utilities
+│   ├── event-utils.ts                   # safeScreenDimension() + groupByKey() + parseUa() — shared utilities
 │   ├── time-utils.ts                    # floorToHourMs() + ONE_HOUR_MS — shared time utilities
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
@@ -59,7 +59,7 @@ Redis Stream (events:incoming)
   → XREADGROUP (consumer group: processor-group)
   → Validate (drop events missing required fields or with illegal distinct_ids, XACK them)
   → GroupBy project_id:distinct_id (concurrent between users, sequential within)
-  → EventConsumerService: GeoIP lookup + person resolution → Event DTO
+  → EventConsumerService: GeoIP lookup + UA parsing + person resolution → Event DTO
   → Buffer (max 1000 events)
   → FlushService: batch insert to ClickHouse (every 5s or on threshold, concurrency-guarded)
   → XACK (confirm consumption)
@@ -70,7 +70,7 @@ Redis Stream (events:incoming)
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, 4-step pipeline (parse → validate → prefetch → resolve+build) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` or with illegal distinct_ids (e.g. "null", "undefined", "[object object]"), exits after 100 consecutive errors for K8s restart, group-level error isolation via `Promise.allSettled` (one failing distinct_id doesn't block others) |
+| `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, 4-step pipeline (parse → validate → prefetch → resolve+build), UA parsing from raw `user_agent` field (SDK context fields take precedence) | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, drops events missing `project_id`/`event_name`/`distinct_id` or with illegal distinct_ids (e.g. "null", "undefined", "[object object]"), exits after 100 consecutive errors for K8s restart, group-level error isolation via `Promise.allSettled` (one failing distinct_id doesn't block others) |
 | `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, PG person flush is critical (failure → DLQ), 3 CH retries then DLQ, concurrency guard, `shutdown()` = wait for in-progress flush + final flush |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Deterministic person_id resolution via UUIDv5 + Redis cache + PG fallback | Batch MGET prefetch, deterministic UUIDs (same project+distinct_id → same person_id), Redis SET NX with 90d TTL, PG cold-start fallback for legacy data |

@@ -19,6 +19,16 @@ export class IngestController {
     return { status: 'ok' };
   }
 
+  @Get('ready')
+  async ready(@Res({ passthrough: true }) reply: FastifyReply) {
+    const ok = await this.ingestService.isReady();
+    if (!ok) {
+      reply.status(503);
+      return { status: 'not ready' };
+    }
+    return { status: 'ok' };
+  }
+
   @Post('v1/batch')
   @UseGuards(ApiKeyGuard, RateLimitGuard, BillingGuard)
   async batch(
@@ -43,36 +53,31 @@ export class IngestController {
     const { events: rawEvents, sent_at } = BatchWrapperSchema.parse(body);
 
     const validEvents: TrackEvent[] = [];
-    let dropped = 0;
-    for (const raw of rawEvents) {
-      const result = TrackEventSchema.safeParse(raw);
+    const dropReasons: { index: number; errors: unknown[] }[] = [];
+    for (let i = 0; i < rawEvents.length; i++) {
+      const result = TrackEventSchema.safeParse(rawEvents[i]);
       if (result.success) {
         validEvents.push(result.data);
       } else {
-        dropped++;
+        dropReasons.push({ index: i, errors: result.error.issues.map((e) => ({ path: e.path, message: e.message })) });
       }
     }
 
     if (validEvents.length === 0) {
       throw new HttpException(
-        { statusCode: 400, message: 'All events failed validation', count: 0, dropped },
+        { statusCode: 400, message: 'All events failed validation', count: 0, dropped: dropReasons.length },
         400,
       );
     }
 
-    if (dropped > 0) {
-      this.logger.warn({ projectId, dropped, total: rawEvents.length }, 'Some events dropped due to validation');
-    }
-
-    try {
-      await this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at);
-    } catch (err) {
-      this.logger.error({ err, projectId, eventCount: validEvents.length }, 'Failed to write events to stream');
-      throw new HttpException(
-        { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
-        HttpStatus.SERVICE_UNAVAILABLE,
+    if (dropReasons.length > 0) {
+      this.logger.warn(
+        { projectId, dropped: dropReasons.length, total: rawEvents.length, reasons: dropReasons.slice(0, 5) },
+        'Some events dropped due to validation',
       );
     }
+
+    await this.callOrThrow503(() => this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at), projectId, validEvents.length);
 
     // sendBeacon() — return 204 No Content (browser ignores response body)
     if (beacon === '1') {
@@ -81,26 +86,30 @@ export class IngestController {
     }
 
     reply.status(202);
-    return { ok: true, count: validEvents.length, dropped };
+    return { ok: true, count: validEvents.length, dropped: dropReasons.length };
   }
 
   @Post('v1/import')
   @HttpCode(202)
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(ApiKeyGuard, RateLimitGuard)
   async import(
     @ProjectId() projectId: string,
     @Body() body: unknown,
   ) {
     const { events } = ImportBatchSchema.parse(body);
+    await this.callOrThrow503(() => this.ingestService.importBatch(projectId, events), projectId, events.length);
+    return { ok: true, count: events.length };
+  }
+
+  private async callOrThrow503(fn: () => Promise<void>, projectId: string, eventCount: number): Promise<void> {
     try {
-      await this.ingestService.importBatch(projectId, events);
+      await fn();
     } catch (err) {
-      this.logger.error({ err, projectId, eventCount: events.length }, 'Failed to write import events to stream');
+      this.logger.error({ err, projectId, eventCount }, 'Failed to write events to stream');
       throw new HttpException(
         { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-    return { ok: true, count: events.length };
   }
 }
