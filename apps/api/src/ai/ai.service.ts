@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import OpenAI from 'openai';
 import type {
@@ -6,6 +7,7 @@ import type {
   ChatCompletionMessageToolCall,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions';
+import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
@@ -17,6 +19,21 @@ import { buildSystemPrompt } from './system-prompt';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_SUMMARIZATION_MODEL } from '../constants';
+import { REDIS } from '../providers/redis.provider';
+
+/** Tools whose results are cached in Redis for 5 minutes (analytics queries only). */
+const CACHEABLE_TOOLS = new Set([
+  'query_trend',
+  'query_funnel',
+  'query_retention',
+  'query_lifecycle',
+  'query_stickiness',
+  'query_paths',
+  'query_funnel_gaps',
+  'analyze_metric_change',
+]);
+
+const AI_TOOL_CACHE_TTL_SECONDS = 300;
 
 type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
@@ -78,6 +95,7 @@ export class AiService implements OnModuleInit {
     @Inject(AI_CONFIG) private readonly config: AiConfig,
     @Inject(AI_TOOLS) tools: AiTool[],
     private readonly contextService: AiContextService,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {
     this.model = config.model;
     this.toolMap = new Map(tools.map((t) => [t.name, t]));
@@ -422,9 +440,31 @@ export class AiService implements OnModuleInit {
         const args = parsedArgs;
         const tool = this.toolMap.get(tc.function.name);
         if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
-        const res = await tool.run(args, userId, projectId);
-        toolResult = res.result;
-        vizType = res.visualization_type;
+
+        if (CACHEABLE_TOOLS.has(tc.function.name)) {
+          const cacheKey = this.buildToolCacheKey(tc.function.name, args, projectId);
+          const cached = await this.redis.get(cacheKey);
+          if (cached !== null) {
+            const parsed = JSON.parse(cached) as { result: unknown; visualization_type?: string };
+            toolResult = parsed.result;
+            vizType = parsed.visualization_type;
+            this.logger.debug({ tool: tc.function.name, cacheKey }, 'AI tool cache hit');
+          } else {
+            const res = await tool.run(args, userId, projectId);
+            toolResult = res.result;
+            vizType = res.visualization_type;
+            await this.redis.set(
+              cacheKey,
+              JSON.stringify({ result: toolResult, visualization_type: vizType }),
+              'EX',
+              AI_TOOL_CACHE_TTL_SECONDS,
+            );
+          }
+        } else {
+          const res = await tool.run(args, userId, projectId);
+          toolResult = res.result;
+          vizType = res.visualization_type;
+        }
       } catch (err) {
         this.logger.warn({ err, tool: tc.function.name }, `Tool ${tc.function.name} failed`);
         const safeMessage = isAiSafeError(err)
@@ -445,6 +485,17 @@ export class AiService implements OnModuleInit {
     }
 
     return results;
+  }
+
+  /**
+   * Builds a stable Redis cache key for an AI tool call.
+   * Uses SHA-256(tool_name + sorted JSON args + project_id) to ensure identical
+   * queries with different key orderings produce the same cache key.
+   */
+  private buildToolCacheKey(toolName: string, args: Record<string, unknown>, projectId: string): string {
+    const sortedArgs = JSON.stringify(args, Object.keys(args).sort());
+    const hash = crypto.createHash('sha256').update(`${toolName}:${sortedArgs}:${projectId}`).digest('hex');
+    return `ai:tool_cache:${hash}`;
   }
 
   /**
