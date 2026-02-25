@@ -10,6 +10,11 @@ import { DashboardEmptyState } from './DashboardEmptyState';
 
 const BREAKPOINTS = { sm: 1024, xs: 0 };
 const COLS = { sm: 24, xs: 1 };
+const MOBILE_WIDGET_HEIGHT = 320;
+const GRID_ROW_HEIGHT = 40;
+const GRID_MARGIN: [number, number] = [12, 12];
+const GRID_CONTAINER_PADDING: [number, number] = [0, 0];
+const RESIZE_HANDLES = ['s', 'e', 'se'] as const;
 
 interface DashboardGridProps {
   onAddInsight: () => void;
@@ -47,7 +52,7 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     return (
       <div className="flex flex-col gap-3">
         {localWidgets.map((widget) => (
-          <div key={widget.id} style={{ height: 320 }}>
+          <div key={widget.id} style={{ height: MOBILE_WIDGET_HEIGHT }}>
             <InsightCard widget={widget} />
           </div>
         ))}
@@ -62,9 +67,9 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
           layouts={{ sm: smLayout, xs: xsLayout }}
           breakpoints={BREAKPOINTS}
           cols={COLS}
-          rowHeight={40}
-          margin={[12, 12] as const}
-          containerPadding={[0, 0] as const}
+          rowHeight={GRID_ROW_HEIGHT}
+          margin={GRID_MARGIN}
+          containerPadding={GRID_CONTAINER_PADDING}
           width={width}
           dragConfig={{
             enabled: isEditing,
@@ -73,7 +78,7 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
           }}
           resizeConfig={{
             enabled: isEditing,
-            handles: ['s', 'e', 'se'],
+            handles: RESIZE_HANDLES,
           }}
           onLayoutChange={handleLayoutChange}
         >

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
 import { PageHeader } from '@/components/ui/page-header';
@@ -17,12 +18,12 @@ export default function SettingsPage() {
   const activeTab = (searchParams.get('tab') as TabId) || 'general';
   const { t } = useLocalTranslation(translations);
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: 'general' as const, label: t('general') },
     { id: 'members' as const, label: t('members') },
     { id: 'keys' as const, label: t('apiKeys') },
     { id: 'billing' as const, label: t('billing') },
-  ];
+  ], [t]);
 
   const setTab = (tab: TabId) => {
     const next = new URLSearchParams(searchParams);

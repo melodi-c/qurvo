@@ -14,8 +14,6 @@ type SkeletonVariant = 'chart' | 'table' | 'flow';
 
 interface WidgetShellProps<Response> {
   query: WidgetDataResult<Response>;
-  /** Message shown when no insight config is linked. */
-  noConfigMessage?: string;
   /** Whether config is valid (has required fields filled). */
   isConfigValid: boolean;
   /** Message shown when config is incomplete. */

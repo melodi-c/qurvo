@@ -1,4 +1,4 @@
-import { MoreHorizontal, ExternalLink, RefreshCw, Trash2, Pencil, Copy, Maximize2 } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Trash2, Pencil, Copy, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,12 +14,11 @@ import type { Widget } from '@/api/generated/Api';
 
 interface InsightCardMenuProps {
   widget: Widget;
-  onRefresh?: () => void;
   onEditText?: () => void;
   onExpand?: () => void;
 }
 
-export function InsightCardMenu({ widget, onRefresh, onEditText, onExpand }: InsightCardMenuProps) {
+export function InsightCardMenu({ widget, onEditText, onExpand }: InsightCardMenuProps) {
   const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
   const duplicateWidget = useDashboardStore((s) => s.duplicateWidget);
@@ -41,12 +40,6 @@ export function InsightCardMenu({ widget, onRefresh, onEditText, onExpand }: Ins
           <DropdownMenuItem onClick={() => go.insights.detailByType(insight.type, insight.id)}>
             <ExternalLink />
             {t('openInsight')}
-          </DropdownMenuItem>
-        )}
-        {!isTextTile && onRefresh && (
-          <DropdownMenuItem onClick={onRefresh}>
-            <RefreshCw />
-            {t('refresh')}
           </DropdownMenuItem>
         )}
         {!isTextTile && onExpand && (

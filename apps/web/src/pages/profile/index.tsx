@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/page-header';
@@ -28,13 +29,13 @@ export default function ProfilePage() {
     setSearchParams(next);
   };
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { id: 'profile' as const, label: t('profileTab') },
     {
       id: 'invites' as const,
       label: pendingCount > 0 ? `${t('invitesTab')} (${pendingCount})` : t('invitesTab'),
     },
-  ];
+  ], [t, pendingCount]);
 
   return (
     <div className="space-y-6">

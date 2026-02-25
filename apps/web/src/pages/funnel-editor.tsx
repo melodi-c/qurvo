@@ -1,4 +1,5 @@
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -89,7 +90,7 @@ export default function FunnelEditorPage() {
           {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
             <>
               <MetricsDivider />
-              <span className={`inline-flex items-center gap-1.5 text-xs ${STATUS_COLORS.warning}/80`}>
+              <span className={cn('inline-flex items-center gap-1.5 text-xs', STATUS_COLORS.warning)}>
                 <FlaskConical className="h-3.5 w-3.5" />
                 {t('sampled', { pct: String(Math.round(funnelResult.sampling_factor * 100)) })}
               </span>

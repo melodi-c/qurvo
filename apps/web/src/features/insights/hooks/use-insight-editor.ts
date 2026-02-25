@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
@@ -17,7 +17,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   defaultConfig,
   cleanConfig,
 }: UseInsightEditorOptions<T>) {
-  const cleanFn = cleanConfig ?? ((c: T) => c);
+  const cleanFn = useMemo(() => cleanConfig ?? ((c: T) => c), [cleanConfig]);
   const { insightId } = useParams<{ insightId: string }>();
   const { go, link, projectId } = useAppNavigate();
 

@@ -98,7 +98,7 @@ export default function PersonsPage() {
     },
   ], [t]);
 
-  const rows: PersonRow[] = persons.map((person) => {
+  const rows: PersonRow[] = useMemo(() => persons.map((person) => {
     const { name, email } = getPersonFields(person.properties);
     return {
       id: person.id,
@@ -108,7 +108,7 @@ export default function PersonsPage() {
       createdAt: person.created_at,
       updatedAt: person.updated_at,
     };
-  });
+  }), [persons]);
 
   return (
     <div className="space-y-6">

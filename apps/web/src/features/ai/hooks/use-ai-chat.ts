@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { authFetch, getAuthHeaders } from '@/lib/auth-fetch';
+import { api } from '@/api/client';
 import { consumeSseStream } from '../lib/sse-stream.js';
 import type { SseToolResultEvent } from '../lib/sse-stream.js';
+import type { AiMessage } from '@/api/generated/Api';
 
 export interface AiMessageData {
   id: string;
@@ -31,25 +33,13 @@ function tempId(): string {
   return `temp-${++nextId}`;
 }
 
-/** Shape returned by GET /api/ai/conversations/:id — not in Swagger yet. */
-interface RawAiMessage {
-  id: string;
-  role: AiMessageData['role'];
-  content: string | null;
-  tool_call_id?: string;
-  tool_name?: string;
-  tool_result?: unknown;
-  visualization_type?: string | null;
-  sequence?: number;
-}
-
-function mapMessages(raw: RawAiMessage[]): AiMessageData[] {
+function mapMessages(raw: AiMessage[]): AiMessageData[] {
   return raw.map((m) => ({
     id: m.id,
-    role: m.role,
-    content: m.content,
-    tool_call_id: m.tool_call_id,
-    tool_name: m.tool_name,
+    role: m.role as AiMessageData['role'],
+    content: m.content ?? null,
+    tool_call_id: m.tool_call_id ?? undefined,
+    tool_name: m.tool_name ?? undefined,
     tool_result: m.tool_result,
     visualization_type: m.visualization_type,
     sequence: m.sequence,
@@ -187,11 +177,7 @@ export function useAiChat() {
 
   const loadConversation = useCallback(async (convId: string) => {
     try {
-      const res = await authFetch(
-        `/api/ai/conversations/${convId}?limit=${PAGE_SIZE}`,
-      );
-      if (!res.ok) throw new Error('Failed to load conversation');
-      const data = await res.json();
+      const data = await api.aiControllerGetConversation({ id: convId, limit: PAGE_SIZE });
 
       setState({
         messages: mapMessages(data.messages ?? []),
@@ -220,15 +206,11 @@ export function useAiChat() {
     setState((prev) => ({ ...prev, isLoadingMore: true }));
 
     try {
-      const params = new URLSearchParams({
-        limit: String(PAGE_SIZE),
-        before_sequence: String(oldestSeq),
+      const data = await api.aiControllerGetConversation({
+        id: state.conversationId!,
+        limit: PAGE_SIZE,
+        before_sequence: oldestSeq,
       });
-      const res = await authFetch(
-        `/api/ai/conversations/${state.conversationId}?${params}`,
-      );
-      if (!res.ok) throw new Error('Failed to load messages');
-      const data = await res.json();
 
       const older = mapMessages(data.messages ?? []);
       setState((prev) => ({

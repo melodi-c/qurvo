@@ -12,7 +12,6 @@ interface InsightCardHeaderProps {
   widget: Widget;
   detailsOpen: boolean;
   onToggleDetails: () => void;
-  onRefresh?: () => void;
   onEditText?: () => void;
   onExpand?: () => void;
 }
@@ -21,7 +20,6 @@ export function InsightCardHeader({
   widget,
   detailsOpen,
   onToggleDetails,
-  onRefresh,
   onEditText,
   onExpand,
 }: InsightCardHeaderProps) {
@@ -78,7 +76,7 @@ export function InsightCardHeader({
       )}
 
       {/* Menu (always visible) */}
-      <InsightCardMenu widget={widget} onRefresh={onRefresh} onEditText={onEditText} onExpand={onExpand} />
+      <InsightCardMenu widget={widget} onEditText={onEditText} onExpand={onExpand} />
     </div>
   );
 }
