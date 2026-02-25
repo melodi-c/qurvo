@@ -164,47 +164,11 @@ export class AiService implements OnModuleInit {
 
           // Only load the most recent messages verbatim
           const { messages: recentHistory } = await this.chatService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
-          for (const msg of recentHistory) {
-            if (msg.role === 'user') {
-              messages.push({ role: 'user', content: msg.content ?? '' });
-            } else if (msg.role === 'assistant') {
-              const assistantMsg: ChatCompletionAssistantMessageParam = {
-                role: 'assistant',
-                content: msg.content ?? null,
-                ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
-              };
-              messages.push(assistantMsg);
-            } else if (msg.role === 'tool') {
-              if (!msg.tool_call_id) continue;
-              messages.push({
-                role: 'tool',
-                tool_call_id: msg.tool_call_id,
-                content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
-              });
-            }
-          }
+          this.appendHistoryMessages(messages, recentHistory);
         } else {
           // Conversation is short enough — load all messages
           const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
-          for (const msg of history) {
-            if (msg.role === 'user') {
-              messages.push({ role: 'user', content: msg.content ?? '' });
-            } else if (msg.role === 'assistant') {
-              const assistantMsg: ChatCompletionAssistantMessageParam = {
-                role: 'assistant',
-                content: msg.content ?? null,
-                ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
-              };
-              messages.push(assistantMsg);
-            } else if (msg.role === 'tool') {
-              if (!msg.tool_call_id) continue;
-              messages.push({
-                role: 'tool',
-                tool_call_id: msg.tool_call_id,
-                content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
-              });
-            }
-          }
+          this.appendHistoryMessages(messages, history);
         }
       }
 
@@ -256,6 +220,31 @@ export class AiService implements OnModuleInit {
       await this.chatService.finalizeConversation(conversation.id, derivedTitle).catch((err) => {
         this.logger.warn({ err, conversationId: conversation.id }, 'Failed to finalize conversation on cleanup');
       });
+    }
+  }
+
+  private appendHistoryMessages(
+    messages: ChatCompletionMessageParam[],
+    msgs: Awaited<ReturnType<AiChatService['getMessages']>>['messages'],
+  ): void {
+    for (const msg of msgs) {
+      if (msg.role === 'user') {
+        messages.push({ role: 'user', content: msg.content ?? '' });
+      } else if (msg.role === 'assistant') {
+        const assistantMsg: ChatCompletionAssistantMessageParam = {
+          role: 'assistant',
+          content: msg.content ?? null,
+          ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
+        };
+        messages.push(assistantMsg);
+      } else if (msg.role === 'tool') {
+        if (!msg.tool_call_id) continue;
+        messages.push({
+          role: 'tool',
+          tool_call_id: msg.tool_call_id,
+          content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
+        });
+      }
     }
   }
 
