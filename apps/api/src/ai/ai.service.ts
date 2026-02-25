@@ -457,56 +457,6 @@ export class AiService implements OnModuleInit {
     return results;
   }
 
-  async listConversations(userId: string, projectId: string) {
-    return this.chatService.listConversations(userId, projectId);
-  }
-
-  async listSharedConversations(projectId: string) {
-    return this.chatService.listSharedConversations(projectId);
-  }
-
-  async getConversation(userId: string, conversationId: string, projectId: string, limit?: number, beforeSequence?: number) {
-    const conv = await this.chatService.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
-    const { messages, hasMore } = await this.chatService.getMessages(conversationId, limit, beforeSequence);
-    return { ...conv, messages, has_more: hasMore };
-  }
-
-  /** Get a shared conversation — any project member can read it (read-only). */
-  async getSharedConversation(conversationId: string, projectId: string, limit?: number, beforeSequence?: number) {
-    const conv = await this.chatService.getConversationByProject(conversationId, projectId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (!conv.is_shared) throw new ConversationNotFoundException();
-    const { messages, hasMore } = await this.chatService.getMessages(conversationId, limit, beforeSequence);
-    return { ...conv, messages, has_more: hasMore };
-  }
-
-  async deleteConversation(userId: string, conversationId: string, projectId: string) {
-    const conv = await this.chatService.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
-    await this.chatService.deleteConversation(conversationId, userId);
-  }
-
-  async renameConversation(userId: string, conversationId: string, projectId: string, title: string) {
-    const conv = await this.chatService.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
-    const updated = await this.chatService.renameConversation(conversationId, userId, title);
-    if (!updated) throw new ConversationNotFoundException();
-    return updated;
-  }
-
-  async setShared(userId: string, conversationId: string, projectId: string, isShared: boolean) {
-    const conv = await this.chatService.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
-    const updated = await this.chatService.setShared(conversationId, userId, isShared);
-    if (!updated) throw new ConversationNotFoundException();
-    return updated;
-  }
-
   /**
    * Generates a concise summary of all messages older than AI_SUMMARY_KEEP_RECENT
    * using a cheaper/faster model, then persists it to ai_conversations.history_summary.

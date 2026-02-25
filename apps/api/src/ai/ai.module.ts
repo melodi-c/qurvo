@@ -76,6 +76,6 @@ const TOOL_CLASSES = [
       inject: TOOL_CLASSES,
     },
   ],
-  exports: [AiService],
+  exports: [AiService, AiChatService],
 })
 export class AiModule {}
