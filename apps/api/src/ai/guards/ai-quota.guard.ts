@@ -6,14 +6,22 @@ import type { Database } from '@qurvo/db';
 import { REDIS } from '../../providers/redis.provider';
 import { DRIZZLE } from '../../providers/drizzle.provider';
 import { AiQuotaExceededException } from '../exceptions/ai-quota-exceeded.exception';
+import { aiQuotaCounterKey } from '../../utils/ai-quota-key';
 
-export function aiQuotaCounterKey(userId: string, now = new Date()): string {
-  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-  return `ai:quota:${userId}:${monthKey}`;
+export { aiQuotaCounterKey } from '../../utils/ai-quota-key';
+
+export function planAiLimitCacheKey(projectId: string): string {
+  return `plan:ai_limit:${projectId}`;
 }
 
 // TTL slightly longer than the billing period to avoid premature expiry
 const QUOTA_KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
+
+// Plan AI limit is stable (changes only on plan upgrade/downgrade) — cache for 5 minutes
+const PLAN_AI_LIMIT_TTL_SECONDS = 5 * 60;
+
+// Sentinel value stored in Redis to represent a null (unlimited) plan limit
+const UNLIMITED_SENTINEL = '-1';
 
 @Injectable()
 export class AiQuotaGuard implements CanActivate {
@@ -29,15 +37,31 @@ export class AiQuotaGuard implements CanActivate {
 
     if (!userId || !projectId) return true;
 
-    // Look up the plan's AI message limit for this project
-    const rows = await this.db
-      .select({ ai_messages_per_month: plans.ai_messages_per_month })
-      .from(projects)
-      .leftJoin(plans, eq(projects.plan_id, plans.id))
-      .where(eq(projects.id, projectId))
-      .limit(1);
+    // Look up the plan's AI message limit — served from Redis cache when available
+    const cacheKey = planAiLimitCacheKey(projectId);
+    const cached = await this.redis.get(cacheKey);
 
-    const limit = rows[0]?.ai_messages_per_month ?? null;
+    let limit: number | null;
+    if (cached !== null) {
+      limit = cached === UNLIMITED_SENTINEL ? null : parseInt(cached, 10);
+    } else {
+      // Cache miss — query DB and populate cache
+      const rows = await this.db
+        .select({ ai_messages_per_month: plans.ai_messages_per_month })
+        .from(projects)
+        .leftJoin(plans, eq(projects.plan_id, plans.id))
+        .where(eq(projects.id, projectId))
+        .limit(1);
+
+      limit = rows[0]?.ai_messages_per_month ?? null;
+      // Store null as sentinel so we don't re-query on next request
+      await this.redis.set(
+        cacheKey,
+        limit === null ? UNLIMITED_SENTINEL : String(limit),
+        'EX',
+        PLAN_AI_LIMIT_TTL_SECONDS,
+      );
+    }
 
     // -1 or null = unlimited
     if (limit === null || limit < 0) return true;
