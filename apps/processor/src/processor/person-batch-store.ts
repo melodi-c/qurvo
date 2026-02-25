@@ -49,6 +49,10 @@ export class PersonBatchStore {
     @InjectPinoLogger(PersonBatchStore.name) private readonly logger: PinoLogger,
   ) {}
 
+  getPendingCount(): number {
+    return this.pendingPersons.size;
+  }
+
   enqueue(
     projectId: string,
     personId: string,

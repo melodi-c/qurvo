@@ -10,12 +10,14 @@ import { DefinitionSyncService } from './definition-sync.service';
 import { BatchWriter } from './batch-writer';
 import { ShutdownService } from './shutdown.service';
 import { WarningsBufferService } from './warnings-buffer.service';
+import { MetricsService } from './metrics.service';
 
 @Module({
   providers: [
     RedisProvider,
     ClickHouseProvider,
     DrizzleProvider,
+    MetricsService,
     DefinitionSyncService,
     BatchWriter,
     FlushService,
