@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Database, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -78,9 +78,12 @@ export default function EventDefinitionsPage() {
     },
   ], [t]);
 
-  function handleRowClick(row: EventDefinition) {
-    go.dataManagement.detail(row.event_name);
-  }
+  const handleRowClick = useCallback(
+    (row: EventDefinition) => {
+      go.dataManagement.detail(row.event_name);
+    },
+    [go],
+  );
 
   return (
     <div className="space-y-6">

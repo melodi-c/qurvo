@@ -90,7 +90,7 @@ export default function DashboardBuilderPage() {
         <EmptyState
           icon={LayoutDashboard}
           title={t('notFound')}
-          description={t('backToDashboards')}
+          description={t('notFoundDescription')}
           action={
             <Button variant="outline" onClick={() => go.dashboards.list()}>
               {t('backToDashboards')}

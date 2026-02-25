@@ -24,7 +24,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
     inviteMutation,
     updateRoleMutation,
     updatingRoleId,
-    handleRemoveMember,
+    removeMutation,
     cancelInviteMutation,
     cancellingInviteId,
   } = useMembers(projectId);
@@ -33,8 +33,8 @@ export function MembersTab({ projectId }: { projectId: string }) {
   const confirmDelete = useConfirmDelete();
 
   const handleRemove = useCallback(async () => {
-    await handleRemoveMember(confirmDelete.itemId);
-  }, [confirmDelete.itemId, handleRemoveMember]);
+    await removeMutation.mutateAsync(confirmDelete.itemId);
+  }, [confirmDelete.itemId, removeMutation]);
 
   if (!projectId) {
     return <EmptyState icon={Users} description={t('selectProject')} />;

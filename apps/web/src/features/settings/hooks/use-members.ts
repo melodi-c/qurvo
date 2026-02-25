@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
@@ -72,13 +72,6 @@ export function useMembers(projectId: string) {
     onError: () => toast.error(t('removeFailed')),
   });
 
-  const handleRemoveMember = useCallback(
-    async (memberId: string) => {
-      await removeMutation.mutateAsync(memberId);
-    },
-    [removeMutation],
-  );
-
   // ── Cancel invite mutation (per-row tracking) ──
   const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(null);
 
@@ -101,7 +94,7 @@ export function useMembers(projectId: string) {
     inviteMutation,
     updateRoleMutation,
     updatingRoleId,
-    handleRemoveMember,
+    removeMutation,
     cancelInviteMutation,
     cancellingInviteId,
   };

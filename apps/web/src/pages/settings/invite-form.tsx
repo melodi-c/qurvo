@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UserPlus } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './invite-form.translations';
-import { useInviteForm } from './use-invite-form';
 
 type InviteRole = 'editor' | 'viewer';
 
@@ -17,17 +17,25 @@ interface InviteFormProps {
 
 export function InviteForm({ inviteMutation }: InviteFormProps) {
   const { t } = useLocalTranslation(translations);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<InviteRole>('viewer');
 
-  const {
-    showInvite,
-    inviteEmail,
-    inviteRole,
-    setInviteEmail,
-    setInviteRole,
-    openForm,
-    closeForm,
-    handleInvite,
-  } = useInviteForm({ inviteMutation });
+  const openForm = useCallback(() => setShowInvite(true), []);
+  const closeForm = useCallback(() => setShowInvite(false), []);
+
+  const handleInvite = useCallback(() => {
+    inviteMutation.mutate(
+      { email: inviteEmail, role: inviteRole },
+      {
+        onSuccess: () => {
+          setShowInvite(false);
+          setInviteEmail('');
+          setInviteRole('viewer');
+        },
+      },
+    );
+  }, [inviteMutation, inviteEmail, inviteRole]);
 
   if (!showInvite) {
     return (

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { api } from '@/api/client';
@@ -80,10 +79,6 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  if (!projectId) {
-    return <EmptyState icon={Key} description={t('selectProject')} />;
-  }
 
   return (
     <div className="space-y-6 max-w-2xl">
