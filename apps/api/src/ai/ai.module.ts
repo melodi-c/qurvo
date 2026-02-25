@@ -10,6 +10,8 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
+import { SavedInsightsModule } from '../saved-insights/saved-insights.module';
+import { DashboardsModule } from '../dashboards/dashboards.module';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { TrendTool } from './tools/trend.tool';
@@ -22,6 +24,9 @@ import { ListPropertyValuesTool } from './tools/list-property-values.tool';
 import { PathsTool } from './tools/paths.tool';
 import { QueryCohortMembersTool } from './tools/query-cohort-members.tool';
 import { QueryPersonsTool } from './tools/query-persons.tool';
+import { CreateInsightTool } from './tools/create-insight.tool';
+import { ListDashboardsTool } from './tools/list-dashboards.tool';
+import { SaveToDashboardTool } from './tools/save-to-dashboard.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -34,6 +39,9 @@ const TOOL_CLASSES = [
   PathsTool,
   QueryCohortMembersTool,
   QueryPersonsTool,
+  CreateInsightTool,
+  ListDashboardsTool,
+  SaveToDashboardTool,
 ];
 
 @Module({
@@ -43,6 +51,8 @@ const TOOL_CLASSES = [
     EventsModule,
     PersonsModule,
     CohortsModule,
+    SavedInsightsModule,
+    DashboardsModule,
   ],
   providers: [
     AiService,

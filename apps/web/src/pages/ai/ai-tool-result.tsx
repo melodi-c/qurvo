@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Image, Download, ClipboardList } from 'lucide-react';
+import { Image, Download, ClipboardList, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -11,6 +12,7 @@ import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycl
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useProjectId } from '@/hooks/use-project-id';
 import translations from './ai-tool-result.translations';
 import {
   toolResultToCsv,
@@ -118,6 +120,28 @@ function normalizeBucket(bucket: string): string {
   return bucket;
 }
 
+interface LinkToolResult {
+  link: string;
+  name?: string;
+  insight_id?: string;
+  widget_id?: string;
+  dashboard_id?: string;
+}
+
+function isLinkResult(result: unknown): result is LinkToolResult {
+  return typeof result === 'object' && result !== null && typeof (result as Record<string, unknown>).link === 'string';
+}
+
+function getLinkLabel(toolName: string, result: LinkToolResult, t: (key: string) => string): string {
+  if (toolName === 'create_insight') {
+    return result.name ? t('openInsight') + ': ' + result.name : t('openInsight');
+  }
+  if (toolName === 'save_to_dashboard') {
+    return t('openDashboard');
+  }
+  return t('openLink');
+}
+
 interface AiToolResultProps {
   toolName: string;
   result: unknown;
@@ -126,6 +150,7 @@ interface AiToolResultProps {
 
 export function AiToolResult({ result, visualizationType, toolName }: AiToolResultProps) {
   const { t } = useLocalTranslation(translations);
+  const projectId = useProjectId();
   const chartRef = useRef<HTMLDivElement>(null);
   const [isCopyingChart, setIsCopyingChart] = useState(false);
 
@@ -173,7 +198,24 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
     }
   }, [parsed, t]);
 
-  if (!parsed) return null;
+  if (!parsed) {
+    if (isLinkResult(result) && (toolName === 'create_insight' || toolName === 'save_to_dashboard')) {
+      const linkResult = result as LinkToolResult;
+      const href = projectId ? `${linkResult.link}?project=${projectId}` : linkResult.link;
+      const label = getLinkLabel(toolName, linkResult, t);
+      return (
+        <div className="my-1">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={href}>
+              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+              {label}
+            </Link>
+          </Button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <Card className="my-2">

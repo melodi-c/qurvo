@@ -10,6 +10,9 @@ export default createTranslations({
     csvExported: 'CSV exported',
     copyError: 'Failed to copy',
     exportError: 'Failed to export',
+    openInsight: 'Open insight',
+    openDashboard: 'Open dashboard',
+    openLink: 'Open',
   },
   ru: {
     copyChart: 'Скопировать график',
@@ -20,5 +23,8 @@ export default createTranslations({
     csvExported: 'CSV экспортирован',
     copyError: 'Не удалось скопировать',
     exportError: 'Не удалось экспортировать',
+    openInsight: 'Открыть инсайт',
+    openDashboard: 'Открыть дашборд',
+    openLink: 'Открыть',
   },
 });

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Loader2, TrendingUp, Filter, Users, Activity, Zap, GitBranch, List } from 'lucide-react';
+import { Loader2, TrendingUp, Filter, Users, Activity, Zap, GitBranch, List, Bookmark, LayoutDashboard, PlusSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './ai-tool-progress.translations';
@@ -17,6 +17,9 @@ const TOOL_ICONS: Record<string, React.ElementType> = {
   query_stickiness: Zap,
   query_paths: GitBranch,
   list_event_names: List,
+  create_insight: Bookmark,
+  list_dashboards: LayoutDashboard,
+  save_to_dashboard: PlusSquare,
 };
 
 function formatDateRange(from: unknown, to: unknown): string | null {
