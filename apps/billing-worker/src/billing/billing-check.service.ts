@@ -24,7 +24,7 @@ export class BillingCheckService extends PeriodicWorkerMixin {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(DRIZZLE) private readonly db: Database,
     @InjectPinoLogger(BillingCheckService.name) protected readonly logger: PinoLogger,
-    private readonly metrics: MetricsService,
+    @Inject(MetricsService) private readonly metrics: MetricsService,
   ) {
     super();
   }
