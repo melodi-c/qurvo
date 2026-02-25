@@ -6,13 +6,7 @@ import type { Database } from '@qurvo/db';
 import { REDIS } from '../../providers/redis.provider';
 import { DRIZZLE } from '../../providers/drizzle.provider';
 import { AiQuotaExceededException } from '../exceptions/ai-quota-exceeded.exception';
-import { aiQuotaCounterKey } from '../../utils/ai-quota-key';
-
-export { aiQuotaCounterKey } from '../../utils/ai-quota-key';
-
-export function planAiLimitCacheKey(projectId: string): string {
-  return `plan:ai_limit:${projectId}`;
-}
+import { aiQuotaCounterKey, planAiLimitCacheKey } from '../../utils/ai-quota-key';
 
 // TTL slightly longer than the billing period to avoid premature expiry
 const QUOTA_KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
