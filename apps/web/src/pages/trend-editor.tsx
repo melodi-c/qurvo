@@ -29,7 +29,7 @@ export default function TrendEditorPage() {
       cfg.series.length >= 1 && cfg.series.every((s) => s.event_name.trim() !== ''),
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+  const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
     previewId, isConfigValid, isValid, showSkeleton } = editor;
 
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
@@ -59,6 +59,9 @@ export default function TrendEditorPage() {
       name={name}
       onNameChange={setName}
       placeholder={t('placeholder')}
+      description={description}
+      onDescriptionChange={setDescription}
+      descriptionPlaceholder={t('descriptionPlaceholder')}
       onSave={handleSave}
       isSaving={isSaving}
       isValid={isValid}

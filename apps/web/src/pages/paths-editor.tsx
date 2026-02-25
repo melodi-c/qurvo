@@ -21,7 +21,7 @@ export default function PathsEditorPage() {
     defaultConfig: defaultPathsConfig,
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+  const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
     previewId, isValid, showSkeleton } = editor;
 
   const { data, isLoading, isFetching } = usePathsData(config, previewId);
@@ -43,6 +43,9 @@ export default function PathsEditorPage() {
       name={name}
       onNameChange={setName}
       placeholder={t('placeholder')}
+      description={description}
+      onDescriptionChange={setDescription}
+      descriptionPlaceholder={t('descriptionPlaceholder')}
       onSave={handleSave}
       isSaving={isSaving}
       isValid={isValid}

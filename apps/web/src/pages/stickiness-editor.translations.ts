@@ -12,6 +12,7 @@ export default createTranslations({
     totalUsers: 'Total users',
     mostCommon: 'Most common',
     totalPeriods: 'Total periods',
+    descriptionPlaceholder: 'Add description...',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -24,5 +25,6 @@ export default createTranslations({
     totalUsers: 'Всего пользователей',
     mostCommon: 'Чаще всего',
     totalPeriods: 'Всего периодов',
+    descriptionPlaceholder: 'Добавьте описание...',
   },
 });

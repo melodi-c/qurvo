@@ -19,6 +19,7 @@ export default createTranslations({
     propertyAvg: 'Average of property',
     propertyMin: 'Min of property',
     propertyMax: 'Max of property',
+    descriptionPlaceholder: 'Add description...',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -38,5 +39,6 @@ export default createTranslations({
     propertyAvg: 'Среднее свойства',
     propertyMin: 'Минимум свойства',
     propertyMax: 'Максимум свойства',
+    descriptionPlaceholder: 'Добавьте описание...',
   },
 });

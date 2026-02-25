@@ -13,6 +13,7 @@ export default createTranslations({
     returning: 'Returning',
     resurrecting: 'Resurrecting',
     dormant: 'Dormant',
+    descriptionPlaceholder: 'Add description...',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -26,5 +27,6 @@ export default createTranslations({
     returning: 'Вернувшиеся',
     resurrecting: 'Воскресшие',
     dormant: 'Неактивные',
+    descriptionPlaceholder: 'Добавьте описание...',
   },
 });

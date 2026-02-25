@@ -12,6 +12,9 @@ interface InsightEditorLayoutProps {
   name: string;
   onNameChange: (name: string) => void;
   placeholder: string;
+  description?: string;
+  onDescriptionChange?: (description: string) => void;
+  descriptionPlaceholder?: string;
   onSave: () => void;
   isSaving: boolean;
   isValid: boolean;
@@ -53,6 +56,9 @@ export function InsightEditorLayout({
   name,
   onNameChange,
   placeholder,
+  description,
+  onDescriptionChange,
+  descriptionPlaceholder,
   onSave,
   isSaving,
   isValid,
@@ -81,6 +87,9 @@ export function InsightEditorLayout({
         name={name}
         onNameChange={onNameChange}
         placeholder={placeholder}
+        description={description}
+        onDescriptionChange={onDescriptionChange}
+        descriptionPlaceholder={descriptionPlaceholder}
         onSave={onSave}
         isSaving={isSaving}
         isValid={isValid}

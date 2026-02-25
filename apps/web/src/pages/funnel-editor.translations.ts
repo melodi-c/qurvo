@@ -19,6 +19,7 @@ export default createTranslations({
     medianTime: 'Median time',
     sampleSize: 'Sample size',
     noData: '\u2014',
+    descriptionPlaceholder: 'Add description...',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -38,5 +39,6 @@ export default createTranslations({
     medianTime: 'Медианное время',
     sampleSize: 'Выборка',
     noData: '\u2014',
+    descriptionPlaceholder: 'Добавьте описание...',
   },
 });

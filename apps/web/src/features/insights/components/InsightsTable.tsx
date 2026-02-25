@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { InsightTypeIcon } from './InsightTypeIcon';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -89,6 +90,18 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
           <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate max-w-[360px]">
             {getTypeSubtitle(row)}
           </p>
+          {row.description && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground/70 mt-0.5 truncate max-w-[360px]">
+                  {row.description}
+                </p>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs whitespace-normal">
+                {row.description}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       ),
     },

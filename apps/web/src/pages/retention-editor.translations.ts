@@ -11,6 +11,7 @@ export default createTranslations({
     noResultsDescription: 'No events match in the selected date range',
     cohorts: 'Cohorts',
     avgDay1Retention: 'Avg Day 1 Retention',
+    descriptionPlaceholder: 'Add description...',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -22,5 +23,6 @@ export default createTranslations({
     noResultsDescription: 'Нет событий за выбранный период',
     cohorts: 'Когорты',
     avgDay1Retention: 'Сред. удержание День 1',
+    descriptionPlaceholder: 'Добавьте описание...',
   },
 });

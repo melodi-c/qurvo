@@ -23,7 +23,7 @@ export default function StickinessEditorPage() {
     isConfigValid: (cfg) => cfg.target_event.trim() !== '',
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+  const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
     previewId, isConfigValid, isValid, showSkeleton } = editor;
 
   const { data, isLoading, isFetching } = useStickinessData(config, previewId);
@@ -41,6 +41,9 @@ export default function StickinessEditorPage() {
       name={name}
       onNameChange={setName}
       placeholder={t('placeholder')}
+      description={description}
+      onDescriptionChange={setDescription}
+      descriptionPlaceholder={t('descriptionPlaceholder')}
       onSave={handleSave}
       isSaving={isSaving}
       isValid={isValid}

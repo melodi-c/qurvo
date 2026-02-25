@@ -28,12 +28,14 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   const { data: insight } = useInsight(insightId ?? '');
 
   const [name, setName] = useState(defaultName);
+  const [description, setDescription] = useState('');
   const [config, setConfig] = useState<T>(defaultConfig);
   const initialized = useRef(isNew);
 
   useEffect(() => {
     if (!initialized.current && insight) {
       setName(insight.name);
+      setDescription(insight.description ?? '');
       setConfig(insight.config as T);
       initialized.current = true;
     }
@@ -53,18 +55,18 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     try {
       const config_ = cleanFn(config);
       if (isNew) {
-        await createMutation.mutateAsync({ type, name, config: config_ });
+        await createMutation.mutateAsync({ type, name, description: description || undefined, config: config_ });
       } else {
         await updateMutation.mutateAsync({
           insightId: insightId!,
-          data: { name, config: config_ },
+          data: { name, description: description || undefined, config: config_ },
         });
       }
       go.insights.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
     }
-  }, [name, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn]);
+  }, [name, description, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn]);
 
   const previewId = isNew ? `${type}-new` : insightId!;
   const isConfigValid = isConfigValidFn ? isConfigValidFn(config) : true;
@@ -74,6 +76,8 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   return {
     name,
     setName,
+    description,
+    setDescription,
     config,
     setConfig,
     isNew,

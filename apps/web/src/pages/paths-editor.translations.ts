@@ -9,6 +9,7 @@ export default createTranslations({
     noPathsDescription: 'No event sequences found in the selected date range. Try adjusting filters.',
     uniqueUsers: 'Unique users',
     topPaths: 'Top paths',
+    descriptionPlaceholder: 'Add description...',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -18,5 +19,6 @@ export default createTranslations({
     noPathsDescription: 'Не найдено последовательностей событий за выбранный период. Попробуйте изменить фильтры.',
     uniqueUsers: 'Уникальные пользователи',
     topPaths: 'Популярные пути',
+    descriptionPlaceholder: 'Добавьте описание...',
   },
 });

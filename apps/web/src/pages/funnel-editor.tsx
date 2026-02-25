@@ -41,7 +41,7 @@ export default function FunnelEditorPage() {
       cfg.steps.length >= 2 && cfg.steps.every((s) => s.event_name.trim() !== ''),
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+  const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
     previewId, isConfigValid, isValid, showSkeleton } = editor;
 
   const [viewMode, setViewMode] = useState<ViewMode>('conversion');
@@ -91,6 +91,9 @@ export default function FunnelEditorPage() {
       name={name}
       onNameChange={setName}
       placeholder={t('placeholder')}
+      description={description}
+      onDescriptionChange={setDescription}
+      descriptionPlaceholder={t('descriptionPlaceholder')}
       onSave={handleSave}
       isSaving={isSaving}
       isValid={isValid}
