@@ -1,11 +1,24 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { Image, Download, ClipboardList } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
 import { RetentionChart } from '@/features/dashboard/components/widgets/retention/RetentionChart';
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './ai-tool-result.translations';
+import {
+  toolResultToCsv,
+  toolResultToMarkdown,
+  downloadCsv,
+  captureChartAsBlob,
+  type AiToolResultData,
+} from './ai-tool-result-export';
 import type {
   TrendSeriesResult,
   TrendGranularity,
@@ -33,14 +46,6 @@ interface PathsToolResult {
   transitions: PathTransition[];
   top_paths?: TopPath[];
 }
-
-type AiToolResultData =
-  | { type: 'trend_chart'; data: TrendToolResult }
-  | { type: 'funnel_chart'; data: FunnelToolResult }
-  | { type: 'retention_chart'; data: RetentionResult }
-  | { type: 'lifecycle_chart'; data: LifecycleResult }
-  | { type: 'stickiness_chart'; data: StickinessResult }
-  | { type: 'paths_chart'; data: PathsToolResult };
 
 function isTrendResult(r: Record<string, unknown>): r is Record<string, unknown> & TrendToolResult {
   return Array.isArray(r.series);
@@ -119,47 +124,134 @@ interface AiToolResultProps {
   visualizationType: string | null;
 }
 
-export function AiToolResult({ result, visualizationType }: AiToolResultProps) {
+export function AiToolResult({ result, visualizationType, toolName }: AiToolResultProps) {
+  const { t } = useLocalTranslation(translations);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isCopyingChart, setIsCopyingChart] = useState(false);
+
   const parsed = useMemo(
     () => parseToolResult(visualizationType, result),
     [visualizationType, result],
   );
+
+  const handleCopyChart = useCallback(async () => {
+    if (!chartRef.current || !parsed) return;
+    setIsCopyingChart(true);
+    try {
+      const blob = await captureChartAsBlob(chartRef.current);
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob }),
+      ]);
+      toast.success(t('chartCopied'));
+    } catch {
+      toast.error(t('copyError'));
+    } finally {
+      setIsCopyingChart(false);
+    }
+  }, [parsed, t]);
+
+  const handleExportCsv = useCallback(() => {
+    if (!parsed) return;
+    try {
+      const csv = toolResultToCsv(parsed);
+      const filename = `${toolName}_${new Date().toISOString().slice(0, 10)}.csv`;
+      downloadCsv(csv, filename);
+      toast.success(t('csvExported'));
+    } catch {
+      toast.error(t('exportError'));
+    }
+  }, [parsed, toolName, t]);
+
+  const handleCopyData = useCallback(async () => {
+    if (!parsed) return;
+    try {
+      const markdown = toolResultToMarkdown(parsed);
+      await navigator.clipboard.writeText(markdown);
+      toast.success(t('dataCopied'));
+    } catch {
+      toast.error(t('copyError'));
+    }
+  }, [parsed, t]);
 
   if (!parsed) return null;
 
   return (
     <Card className="my-2">
       <CardContent className="pt-4 pb-3">
-        {parsed.type === 'trend_chart' && (
-          <TrendChart
-            series={normalizeTrendSeries(parsed.data.series)}
-            previousSeries={parsed.data.series_previous ? normalizeTrendSeries(parsed.data.series_previous) : undefined}
-            chartType="line"
-            granularity={parsed.data.granularity}
-          />
-        )}
-        {parsed.type === 'funnel_chart' && (
-          <FunnelChart
-            steps={parsed.data.steps}
-            breakdown={parsed.data.breakdown}
-            aggregateSteps={parsed.data.aggregate_steps}
-          />
-        )}
-        {parsed.type === 'retention_chart' && (
-          <RetentionChart result={parsed.data} />
-        )}
-        {parsed.type === 'lifecycle_chart' && (
-          <LifecycleChart result={parsed.data} />
-        )}
-        {parsed.type === 'stickiness_chart' && (
-          <StickinessChart result={parsed.data} />
-        )}
-        {parsed.type === 'paths_chart' && (
-          <PathsChart
-            transitions={parsed.data.transitions}
-            topPaths={parsed.data.top_paths ?? []}
-          />
-        )}
+        <div ref={chartRef}>
+          {parsed.type === 'trend_chart' && (
+            <TrendChart
+              series={normalizeTrendSeries(parsed.data.series)}
+              previousSeries={parsed.data.series_previous ? normalizeTrendSeries(parsed.data.series_previous) : undefined}
+              chartType="line"
+              granularity={parsed.data.granularity}
+            />
+          )}
+          {parsed.type === 'funnel_chart' && (
+            <FunnelChart
+              steps={parsed.data.steps}
+              breakdown={parsed.data.breakdown}
+              aggregateSteps={parsed.data.aggregate_steps}
+            />
+          )}
+          {parsed.type === 'retention_chart' && (
+            <RetentionChart result={parsed.data} />
+          )}
+          {parsed.type === 'lifecycle_chart' && (
+            <LifecycleChart result={parsed.data} />
+          )}
+          {parsed.type === 'stickiness_chart' && (
+            <StickinessChart result={parsed.data} />
+          )}
+          {parsed.type === 'paths_chart' && (
+            <PathsChart
+              transitions={parsed.data.transitions}
+              topPaths={parsed.data.top_paths ?? []}
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-1 mt-2 pt-2 border-t">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={handleCopyChart}
+                disabled={isCopyingChart}
+                aria-label={t('copyChart')}
+              >
+                <Image />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('copyChart')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={handleExportCsv}
+                aria-label={t('exportCsv')}
+              >
+                <Download />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('exportCsv')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={handleCopyData}
+                aria-label={t('copyData')}
+              >
+                <ClipboardList />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('copyData')}</TooltipContent>
+          </Tooltip>
+        </div>
       </CardContent>
     </Card>
   );
