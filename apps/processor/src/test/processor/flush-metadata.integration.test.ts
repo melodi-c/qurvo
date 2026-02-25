@@ -10,6 +10,8 @@ import {
   flushBuffer,
 } from '../helpers';
 import { REDIS_CONSUMER_GROUP } from '../../constants';
+import { FlushService } from '../../processor/flush.service';
+import { PersonBatchStore } from '../../processor/person-batch-store';
 
 let ctx: ContainerContext;
 let processorApp: INestApplicationContext;
@@ -77,10 +79,19 @@ describe('flush and metadata cache invalidation', () => {
       batch_id: batchId,
     });
 
-    // Wait for OUR specific event to be flushed
+    // Wait for OUR specific event to be flushed into ClickHouse.
+    // Note: the cache key is deleted by DefinitionSyncService.syncFromBatch() which runs
+    // AFTER ch.insert() inside batchWriter.write(). We poll until the key is gone to
+    // avoid a race between waitForEventByBatchId (unblocks on ch.insert) and syncFromBatch.
     await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
-    const exists = await ctx.redis.exists(cacheKey);
+    const deadline = Date.now() + 5_000;
+    let exists = 1;
+    while (Date.now() < deadline) {
+      exists = await ctx.redis.exists(cacheKey);
+      if (exists === 0) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
     expect(exists).toBe(0);
   });
 
@@ -168,5 +179,64 @@ describe('flush and metadata cache invalidation', () => {
       await new Promise((r) => setTimeout(r, 300));
     }
     expect(exists).toBe(0);
+  });
+});
+
+describe('concurrent FlushService and DLQ PersonBatchStore flush', () => {
+  it('concurrent flush and DLQ replay — all events reach ClickHouse exactly once', async () => {
+    const projectId = testProject.projectId;
+    const batchSize = 4;
+    const batchId = randomUUID();
+    const distinctIds: string[] = [];
+
+    // Write events to Redis stream so the consumer loop picks them up into the buffer.
+    // Use unique distinct_ids so each event resolves to its own person.
+    for (let i = 0; i < batchSize; i++) {
+      const did = `concurrent-flush-${i}-${batchId}`;
+      distinctIds.push(did);
+      await writeEventToStream(ctx.redis, projectId, {
+        distinct_id: did,
+        event_name: 'concurrent_test',
+        batch_id: batchId,
+      });
+    }
+
+    // Wait for the consumer loop to read events into the buffer (loop runs every ~200ms)
+    const bufferDeadline = Date.now() + 5_000;
+    const flushService = processorApp.get(FlushService);
+    while (flushService.getBufferSize() < batchSize && Date.now() < bufferDeadline) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    const personBatchStore = processorApp.get(PersonBatchStore);
+
+    // Enqueue a person to simulate what DLQ replay does with PersonBatchStore.
+    // This ensures PersonBatchStore.flush() and FlushService.flush() (which calls
+    // batchWriter.write → personBatchStore.flush()) run concurrently via Promise.all.
+    personBatchStore.enqueue(
+      projectId,
+      randomUUID(),
+      `dlq-concurrent-${randomUUID()}`,
+      '{}',
+    );
+
+    // Fire both concurrently.  The promise-based lock in PersonBatchStore serializes
+    // concurrent callers — this must complete without deadlock.
+    await Promise.all([
+      flushService.flush(),
+      personBatchStore.flush(),
+    ]);
+
+    // All events must have reached ClickHouse without deadlock or data loss.
+    await waitForEventByBatchId(ctx.ch, projectId, batchId, { minCount: batchSize, timeoutMs: 15_000 });
+
+    const result = await ctx.ch.query({
+      query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query_params: { p: projectId, b: batchId },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ cnt: string }>();
+    // All batchSize events must appear in CH (deduplicated by ReplacingMergeTree)
+    expect(Number(rows[0].cnt)).toBe(batchSize);
   });
 });

@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi, afterEach } from 'vitest';
 import type { INestApplicationContext } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { ContainerContext, TestProject } from '@qurvo/testing';
 import { getTestContext } from '../context';
 import { flushBuffer, pushToDlq, getDlqLength } from '../helpers';
 import { DlqService } from '../../processor/dlq.service';
+import { BatchWriter } from '../../processor/batch-writer';
+import { DLQ_CIRCUIT_BREAKER_THRESHOLD, DLQ_CIRCUIT_KEY, DLQ_FAILURES_KEY } from '../../constants';
 
 let ctx: ContainerContext;
 let processorApp: INestApplicationContext;
@@ -19,6 +21,10 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await flushBuffer(processorApp);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('dead letter queue', () => {
@@ -149,5 +155,54 @@ describe('dead letter queue', () => {
     // After successful replay both keys are deleted (dlq.service.ts:94)
     expect(await ctx.redis.exists('dlq:replay:circuit')).toBe(0);
     expect(await ctx.redis.exists('dlq:replay:failures')).toBe(0);
+  });
+
+  it('5 consecutive replay failures open the circuit breaker automatically', { timeout: 60_000 }, async () => {
+    const dlq = processorApp.get(DlqService);
+    const batchWriter = processorApp.get(BatchWriter);
+
+    // Clean state
+    await ctx.redis.del(DLQ_CIRCUIT_KEY, DLQ_FAILURES_KEY, 'dlq:replay:lock', 'events:dlq');
+
+    // Push a single DLQ entry so replay has something to process
+    await pushToDlq(ctx.redis, {
+      event_id: randomUUID(),
+      project_id: testProject.projectId,
+      event_name: 'cb_accumulation_test',
+      event_type: 'track',
+      distinct_id: `cb-acc-${randomUUID()}`,
+      person_id: randomUUID(),
+      timestamp: new Date().toISOString(),
+      properties: '{}',
+      user_properties: '{}',
+      screen_width: 0,
+      screen_height: 0,
+    });
+
+    // Make BatchWriter.write() always throw so every replay attempt fails
+    vi.spyOn(batchWriter, 'write').mockRejectedValue(new Error('simulated CH failure'));
+
+    // Invoke replayDlq() DLQ_CIRCUIT_BREAKER_THRESHOLD times (5 by default)
+    for (let i = 0; i < DLQ_CIRCUIT_BREAKER_THRESHOLD; i++) {
+      // Release the distributed lock between each call (it's deleted on every run)
+      await ctx.redis.del('dlq:replay:lock');
+      await (dlq as any).replayDlq();
+    }
+
+    // Circuit breaker must now be open
+    const circuitOpen = await ctx.redis.exists(DLQ_CIRCUIT_KEY);
+    expect(circuitOpen).toBe(1);
+
+    // Failures counter must have been cleared when breaker opened
+    const failures = await ctx.redis.exists(DLQ_FAILURES_KEY);
+    expect(failures).toBe(0);
+
+    // Additional replay attempts while circuit is open must be blocked (DLQ not drained)
+    await ctx.redis.del('dlq:replay:lock');
+    await (dlq as any).replayDlq();
+    expect(await getDlqLength(ctx.redis)).toBeGreaterThanOrEqual(1);
+
+    // Clean up
+    await ctx.redis.del(DLQ_CIRCUIT_KEY, DLQ_FAILURES_KEY, 'events:dlq');
   });
 });

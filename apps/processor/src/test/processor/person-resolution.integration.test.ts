@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi, afterEach } from 'vitest';
 import type { INestApplicationContext } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { ContainerContext, TestProject } from '@qurvo/testing';
@@ -10,6 +10,7 @@ import {
   getOverrides,
   flushBuffer,
 } from '../helpers';
+import { PersonBatchStore } from '../../processor/person-batch-store';
 
 let ctx: ContainerContext;
 let processorApp: INestApplicationContext;
@@ -24,6 +25,10 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await flushBuffer(processorApp);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('person resolution', () => {
@@ -268,5 +273,56 @@ describe('person resolution', () => {
     const rows = await result.json<{ person_id: string }>();
     expect(rows).toHaveLength(1);
     expect(rows[0].person_id).toBeTruthy();
+  });
+});
+
+describe('PersonBatchStore: failed merge persistence and replay', () => {
+  it('failed mergePersons is persisted to Redis and replayed on next flush', async () => {
+    const personBatchStore = processorApp.get(PersonBatchStore);
+    const FAILED_MERGES_KEY = 'processor:failed_merges';
+
+    const fromPersonId = randomUUID();
+    const intoPersonId = randomUUID();
+
+    // Clean up any leftover entries from previous tests
+    await ctx.redis.del(FAILED_MERGES_KEY);
+
+    // Force mergePersons to fail by spying on the private method.
+    // Cast to any to access private member for test purposes.
+    const spy = vi.spyOn(personBatchStore as any, 'mergePersons').mockRejectedValue(
+      new Error('simulated PG transaction failure'),
+    );
+
+    // Enqueue persons so _doFlush has something to write
+    personBatchStore.enqueue(testProject.projectId, fromPersonId, `fm-from-${randomUUID()}`, '{}');
+    personBatchStore.enqueue(testProject.projectId, intoPersonId, `fm-into-${randomUUID()}`, '{}');
+    // Enqueue the merge — will fail during flush
+    personBatchStore.enqueueMerge(testProject.projectId, fromPersonId, intoPersonId);
+
+    // First flush: persons/distinct_ids succeed, merge fails → persisted to Redis
+    await personBatchStore.flush();
+
+    // The failed merge must now be in the Redis list
+    const listLen = await ctx.redis.llen(FAILED_MERGES_KEY);
+    expect(listLen).toBeGreaterThanOrEqual(1);
+
+    const rawEntries = await ctx.redis.lrange(FAILED_MERGES_KEY, 0, -1);
+    const parsedEntry = JSON.parse(rawEntries[0]) as {
+      projectId: string;
+      fromPersonId: string;
+      intoPersonId: string;
+    };
+    expect(parsedEntry.fromPersonId).toBe(fromPersonId);
+    expect(parsedEntry.intoPersonId).toBe(intoPersonId);
+
+    // Restore the real mergePersons so the second flush can succeed
+    spy.mockRestore();
+
+    // Second flush (no new pending items) — triggers replayFailedMerges()
+    await personBatchStore.flush();
+
+    // The Redis list must now be empty (entry was successfully replayed and removed)
+    const listLenAfter = await ctx.redis.llen(FAILED_MERGES_KEY);
+    expect(listLenAfter).toBe(0);
   });
 });
