@@ -18,7 +18,7 @@ export function DatePresetButtons({ dateFrom, dateTo, onChange, className }: Dat
           type="button"
           onClick={() => onChange(daysAgoIso(days), todayIso())}
           className={cn(
-            'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
+            'rounded-md border px-2.5 py-2 sm:py-1 text-xs font-medium transition-colors',
             activePreset === days
               ? 'border-primary bg-primary/10 text-primary'
               : 'border-border bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground',

@@ -61,18 +61,20 @@ export function InsightCardHeader({
 
       {/* Details toggle (only for insight tiles) */}
       {!isTextTile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="drag-cancel h-5 w-5 flex-shrink-0"
-          onClick={onToggleDetails}
-        >
-          {detailsOpen ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )}
-        </Button>
+        <span className="relative -m-2 p-2 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="drag-cancel h-5 w-5"
+            onClick={onToggleDetails}
+          >
+            {detailsOpen ? (
+              <ChevronUp className="h-3 w-3" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )}
+          </Button>
+        </span>
       )}
 
       {/* Menu (always visible) */}

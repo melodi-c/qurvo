@@ -17,7 +17,7 @@ export function LayoutTopbar({ onMenuOpen, userInitial, logoHref }: LayoutTopbar
     <header className="lg:hidden flex items-center gap-3 h-[var(--topbar-height)] px-4 border-b border-border bg-sidebar shrink-0">
       <button
         onClick={onMenuOpen}
-        className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+        className="flex items-center justify-center w-11 h-11 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
         aria-label={t('openNavigation')}
       >
         <Menu className="w-4 h-4" />

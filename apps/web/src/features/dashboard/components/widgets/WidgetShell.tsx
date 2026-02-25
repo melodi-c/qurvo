@@ -118,21 +118,23 @@ export function WidgetShell<Response>({
                   : t('fresh')}
               </span>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5"
-                  onClick={() => refresh()}
-                  disabled={isFetching}
-                  aria-label={t('refresh')}
-                >
-                  <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('refresh')}</TooltipContent>
-            </Tooltip>
+            <span className="relative -m-2 p-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5"
+                    onClick={() => refresh()}
+                    disabled={isFetching}
+                    aria-label={t('refresh')}
+                  >
+                    <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('refresh')}</TooltipContent>
+              </Tooltip>
+            </span>
           </div>
         </div>
         <div className="flex-1 overflow-hidden min-h-0">
