@@ -1259,6 +1259,81 @@ export interface PatchAdminProject {
   plan_id?: string | null;
 }
 
+export interface PlanFeatures {
+  /** @example true */
+  cohorts: boolean;
+  /** @example true */
+  lifecycle: boolean;
+  /** @example true */
+  stickiness: boolean;
+  /** @example true */
+  api_export: boolean;
+  /** @example true */
+  ai_insights: boolean;
+}
+
+export interface AdminPlan {
+  /** @example "a1b2c3d4-e5f6-7890-abcd-ef1234567890" */
+  id: string;
+  /** @example "free" */
+  slug: string;
+  /** @example "Free" */
+  name: string;
+  /** @example 1000000 */
+  events_limit?: number | null;
+  /** @example 30 */
+  data_retention_days?: number | null;
+  /** @example 3 */
+  max_projects?: number | null;
+  /** @example 50 */
+  ai_messages_per_month?: number | null;
+  features: PlanFeatures;
+  /** @example true */
+  is_public: boolean;
+  /** @example "2026-01-01T00:00:00.000Z" */
+  created_at: string;
+}
+
+export interface CreatePlanFeatures {
+  cohorts: boolean;
+  lifecycle: boolean;
+  stickiness: boolean;
+  api_export: boolean;
+  ai_insights: boolean;
+}
+
+export interface CreateAdminPlan {
+  /** @maxLength 50 */
+  slug: string;
+  /** @maxLength 100 */
+  name: string;
+  /** @min 0 */
+  events_limit?: number | null;
+  /** @min 1 */
+  data_retention_days?: number | null;
+  /** @min 1 */
+  max_projects?: number | null;
+  /** @min 0 */
+  ai_messages_per_month?: number | null;
+  features: CreatePlanFeatures;
+  is_public?: boolean;
+}
+
+export interface PatchAdminPlan {
+  /** @maxLength 100 */
+  name?: string;
+  /** @min 0 */
+  events_limit?: number | null;
+  /** @min 1 */
+  data_retention_days?: number | null;
+  /** @min 1 */
+  max_projects?: number | null;
+  /** @min 0 */
+  ai_messages_per_month?: number | null;
+  features?: CreatePlanFeatures;
+  is_public?: boolean;
+}
+
 export type UpdateProfileDtoLanguageEnum = "ru" | "en";
 
 export type ProjectWithRoleDtoRoleEnum = "owner" | "editor" | "viewer";
@@ -2079,6 +2154,14 @@ export interface AdminProjectsControllerGetProjectParams {
 }
 
 export interface AdminProjectsControllerPatchProjectParams {
+  id: string;
+}
+
+export interface AdminPlansControllerPatchPlanParams {
+  id: string;
+}
+
+export interface AdminPlansControllerDeletePlanParams {
   id: string;
 }
 
@@ -4274,6 +4357,87 @@ export class Api<
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminPlansControllerListPlans
+     * @request GET:/admin/plans
+     * @secure
+     */
+    adminPlansControllerListPlans: (params: RequestParams = {}) =>
+      this.request<AdminPlan[], any>({
+        path: `/admin/plans`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminPlansControllerCreatePlan
+     * @request POST:/admin/plans
+     * @secure
+     */
+    adminPlansControllerCreatePlan: (
+      data: CreateAdminPlan,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdminPlan, any>({
+        path: `/admin/plans`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminPlansControllerPatchPlan
+     * @request PATCH:/admin/plans/{id}
+     * @secure
+     */
+    adminPlansControllerPatchPlan: (
+      { id, ...query }: AdminPlansControllerPatchPlanParams,
+      data: PatchAdminPlan,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdminPlan, any>({
+        path: `/admin/plans/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminPlansControllerDeletePlan
+     * @request DELETE:/admin/plans/{id}
+     * @secure
+     */
+    adminPlansControllerDeletePlan: (
+      { id, ...query }: AdminPlansControllerDeletePlanParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/admin/plans/${id}`,
+        method: "DELETE",
+        secure: true,
         ...params,
       }),
   };
