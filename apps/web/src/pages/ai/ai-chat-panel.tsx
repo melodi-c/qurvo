@@ -12,6 +12,7 @@ interface AiChatPanelProps {
   error: string | null;
   onSend: (text: string) => void;
   onStop: () => void;
+  onEdit?: (sequence: number, newText: string) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
@@ -23,6 +24,7 @@ export function AiChatPanel({
   error,
   onSend,
   onStop,
+  onEdit,
   hasMore,
   isLoadingMore,
   onLoadMore,
@@ -123,7 +125,13 @@ export function AiChatPanel({
           </div>
         )}
         {messages.map((msg) => (
-          <AiMessage key={msg.id} message={msg} onSuggestionClick={onSend} />
+          <AiMessage
+            key={msg.id}
+            message={msg}
+            isStreaming={isStreaming}
+            onSuggestionClick={onSend}
+            onEdit={onEdit}
+          />
         ))}
         {error && (
           <div className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">

@@ -15,6 +15,13 @@ export class AiChatDto {
   @IsNotEmpty()
   @MaxLength(10_000)
   message: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  edit_sequence?: number;
 }
 
 export class AiConversationsQueryDto {

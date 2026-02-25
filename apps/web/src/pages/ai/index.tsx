@@ -124,6 +124,7 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
     hasMore,
     isLoadingMore,
     sendMessage,
+    editMessage,
     loadConversation,
     loadMoreMessages,
     startNewConversation,
@@ -159,6 +160,14 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
       qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
     },
     [sendMessage, projectId, qc],
+  );
+
+  const handleEdit = useCallback(
+    async (sequence: number, newText: string) => {
+      await editMessage(sequence, newText, projectId);
+      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+    },
+    [editMessage, projectId, qc],
   );
 
   const handleStop = useCallback(() => {
@@ -198,6 +207,7 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
           error={error}
           onSend={handleSend}
           onStop={handleStop}
+          onEdit={handleEdit}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={loadMoreMessages}
