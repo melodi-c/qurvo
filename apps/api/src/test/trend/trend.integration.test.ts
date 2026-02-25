@@ -6,10 +6,14 @@ import {
   buildEvent,
   daysAgo,
   ts,
+  msAgo,
+  dateOffset,
   type ContainerContext,
 } from '@qurvo/testing';
+import type { CohortConditionGroup } from '@qurvo/db';
 import { queryTrend } from '../../analytics/trend/trend.query';
 import { sumSeriesValues } from '../helpers';
+import { materializeCohort } from '../cohorts/helpers';
 
 let ctx: ContainerContext;
 
@@ -430,5 +434,486 @@ describe('queryTrend — property aggregation', () => {
     const r8 = result as Extract<typeof result, { compare: false; breakdown: false }>;
     // "abc" → toFloat64OrZero → 0, 100 → 100, sum = 100
     expect(sumSeriesValues(r8.series[0].data)).toBe(100);
+  });
+});
+
+describe('queryTrend — week granularity', () => {
+  it('buckets events by week (Monday-aligned) and returns correct counts per week', async () => {
+    const projectId = randomUUID();
+
+    // Spread events across two distinct weeks.
+    // Week A: events 10 and 11 days ago (both fall in the same Monday-aligned week).
+    // Week B: events 17 and 18 days ago (one week earlier).
+    // date_from = 18 days ago, date_to = 10 days ago → covers both weeks.
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u1', event_name: 'visit', timestamp: ts(10, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u2', event_name: 'visit', timestamp: ts(11, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u3', event_name: 'visit', timestamp: ts(17, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u4', event_name: 'visit', timestamp: ts(18, 10) }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'visit', label: 'Visits' }],
+      metric: 'total_events',
+      granularity: 'week',
+      date_from: daysAgo(18),
+      date_to: daysAgo(10),
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
+
+    // Total should be 4 events
+    expect(sumSeriesValues(r.series[0].data)).toBe(4);
+
+    // All bucket timestamps should start on a Monday (weekday = 1 when parsed as UTC)
+    for (const point of r.series[0].data) {
+      const bucketDate = new Date(point.bucket.replace(' ', 'T') + 'Z');
+      expect(bucketDate.getUTCDay()).toBe(1); // 1 = Monday
+    }
+  });
+});
+
+describe('queryTrend — month granularity', () => {
+  it('buckets events by month and returns correct counts per month', async () => {
+    const projectId = randomUUID();
+
+    // Spread events across two distinct months.
+    // "this month" events: 5 and 10 days ago.
+    // "last month" events: 35 and 40 days ago (guaranteed to be a different calendar month).
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u1', event_name: 'action', timestamp: ts(5, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u2', event_name: 'action', timestamp: ts(10, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u3', event_name: 'action', timestamp: ts(35, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u4', event_name: 'action', timestamp: ts(40, 10) }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'action', label: 'Actions' }],
+      metric: 'total_events',
+      granularity: 'month',
+      date_from: daysAgo(40),
+      date_to: daysAgo(5),
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
+
+    // Total should be 4 events
+    expect(sumSeriesValues(r.series[0].data)).toBe(4);
+
+    // All bucket timestamps should be on the 1st day of the month
+    for (const point of r.series[0].data) {
+      const bucketDate = new Date(point.bucket.replace(' ', 'T') + 'Z');
+      expect(bucketDate.getUTCDate()).toBe(1);
+    }
+  });
+});
+
+describe('queryTrend — filter operator neq', () => {
+  it('excludes events matching the specified property value', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'purchase',
+        properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'purchase',
+        properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(3, 11),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u3',
+        event_name: 'purchase',
+        properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(3, 12),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{
+        event_name: 'purchase',
+        label: 'Non-premium Purchases',
+        filters: [{ property: 'properties.plan', operator: 'neq', value: 'premium' }],
+      }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    // Only the 2 'free' plan purchases should be counted
+    expect(sumSeriesValues(r.series[0].data)).toBe(2);
+  });
+});
+
+describe('queryTrend — filter operators contains and not_contains', () => {
+  it('includes only events whose property contains the given substring', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'page_view',
+        browser: 'Chrome',
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'page_view',
+        browser: 'Chrome Mobile',
+        timestamp: ts(3, 11),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u3',
+        event_name: 'page_view',
+        browser: 'Firefox',
+        timestamp: ts(3, 12),
+      }),
+    ]);
+
+    const containsResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{
+        event_name: 'page_view',
+        label: 'Chrome Views',
+        filters: [{ property: 'browser', operator: 'contains', value: 'Chrome' }],
+      }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    expect(containsResult.compare).toBe(false);
+    expect(containsResult.breakdown).toBe(false);
+    const rContains = containsResult as Extract<typeof containsResult, { compare: false; breakdown: false }>;
+    // Both 'Chrome' and 'Chrome Mobile' match
+    expect(sumSeriesValues(rContains.series[0].data)).toBe(2);
+
+    const notContainsResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{
+        event_name: 'page_view',
+        label: 'Non-Chrome Views',
+        filters: [{ property: 'browser', operator: 'not_contains', value: 'Chrome' }],
+      }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    expect(notContainsResult.compare).toBe(false);
+    expect(notContainsResult.breakdown).toBe(false);
+    const rNotContains = notContainsResult as Extract<typeof notContainsResult, { compare: false; breakdown: false }>;
+    // Only 'Firefox' does not match 'Chrome'
+    expect(sumSeriesValues(rNotContains.series[0].data)).toBe(1);
+  });
+});
+
+describe('queryTrend — filter operators is_set and is_not_set', () => {
+  it('is_set includes events where property exists (including boolean false), is_not_set excludes them', async () => {
+    const projectId = randomUUID();
+
+    // u1: has 'opted_in' = false (a falsy JSON value — previously broke is_set before fix #95)
+    // u2: has 'opted_in' = true
+    // u3: does NOT have 'opted_in' key at all
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'track',
+        properties: JSON.stringify({ opted_in: false }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'track',
+        properties: JSON.stringify({ opted_in: true }),
+        timestamp: ts(3, 11),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u3',
+        event_name: 'track',
+        properties: JSON.stringify({ other: 'value' }),
+        timestamp: ts(3, 12),
+      }),
+    ]);
+
+    const isSetResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{
+        event_name: 'track',
+        label: 'Has opted_in',
+        filters: [{ property: 'properties.opted_in', operator: 'is_set' }],
+      }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    expect(isSetResult.compare).toBe(false);
+    expect(isSetResult.breakdown).toBe(false);
+    const rIsSet = isSetResult as Extract<typeof isSetResult, { compare: false; breakdown: false }>;
+    // u1 (false) and u2 (true) both have the key — both should be counted
+    expect(sumSeriesValues(rIsSet.series[0].data)).toBe(2);
+
+    const isNotSetResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{
+        event_name: 'track',
+        label: 'Missing opted_in',
+        filters: [{ property: 'properties.opted_in', operator: 'is_not_set' }],
+      }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    expect(isNotSetResult.compare).toBe(false);
+    expect(isNotSetResult.breakdown).toBe(false);
+    const rIsNotSet = isNotSetResult as Extract<typeof isNotSetResult, { compare: false; breakdown: false }>;
+    // Only u3 lacks the 'opted_in' key
+    expect(sumSeriesValues(rIsNotSet.series[0].data)).toBe(1);
+  });
+});
+
+describe('queryTrend — breakdown + compare combined', () => {
+  it('returns breakdown series for both current and previous periods', async () => {
+    const projectId = randomUUID();
+
+    // Current period: daysAgo(4) to daysAgo(3)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u1', event_name: 'click', browser: 'Chrome', timestamp: ts(3, 12) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u2', event_name: 'click', browser: 'Safari', timestamp: ts(4, 12) }),
+    ]);
+
+    // Previous period: daysAgo(6) to daysAgo(5) (shifted back by 2-day period duration)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u3', event_name: 'click', browser: 'Chrome', timestamp: ts(6, 12) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u4', event_name: 'click', browser: 'Firefox', timestamp: ts(5, 12) }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'click', label: 'Clicks' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(4),
+      date_to: daysAgo(3),
+      breakdown_property: 'browser',
+      compare: true,
+    });
+
+    expect(result.compare).toBe(true);
+    expect(result.breakdown).toBe(true);
+    const r = result as Extract<typeof result, { compare: true; breakdown: true }>;
+
+    // Current period should have Chrome and Safari
+    expect(r.series.length).toBeGreaterThanOrEqual(2);
+    const currentChrome = r.series.find((s) => s.breakdown_value === 'Chrome');
+    const currentSafari = r.series.find((s) => s.breakdown_value === 'Safari');
+    expect(currentChrome).toBeDefined();
+    expect(currentSafari).toBeDefined();
+    expect(sumSeriesValues(currentChrome!.data)).toBe(1);
+    expect(sumSeriesValues(currentSafari!.data)).toBe(1);
+
+    // Previous period should have Chrome and Firefox
+    expect(r.series_previous.length).toBeGreaterThanOrEqual(2);
+    const prevChrome = r.series_previous.find((s) => s.breakdown_value === 'Chrome');
+    const prevFirefox = r.series_previous.find((s) => s.breakdown_value === 'Firefox');
+    expect(prevChrome).toBeDefined();
+    expect(prevFirefox).toBeDefined();
+    expect(sumSeriesValues(prevChrome!.data)).toBe(1);
+    expect(sumSeriesValues(prevFirefox!.data)).toBe(1);
+  });
+});
+
+describe('queryTrend — cohort filters', () => {
+  it('inline cohort filter restricts results to cohort members only', async () => {
+    const projectId = randomUUID();
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+    const today = dateOffset(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(5000),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'page_view', label: 'Views' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: today,
+      date_to: today,
+      cohort_filters: [{
+        cohort_id: randomUUID(),
+        definition: {
+          type: 'AND',
+          values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }],
+        },
+        materialized: false,
+        is_static: false,
+      }],
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    // Only the premium user's event should be counted
+    expect(sumSeriesValues(r.series[0].data)).toBe(1);
+  });
+
+  it('materialized cohort filter restricts results to cohort members only', async () => {
+    const projectId = randomUUID();
+    const cohortId = randomUUID();
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+    const today = dateOffset(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(5000),
+      }),
+    ]);
+
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }],
+    };
+
+    await materializeCohort(ctx.ch, projectId, cohortId, definition);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'page_view', label: 'Views' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: today,
+      date_to: today,
+      cohort_filters: [{ cohort_id: cohortId, definition, materialized: true, is_static: false }],
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    // Only the premium user's event should be counted
+    expect(sumSeriesValues(r.series[0].data)).toBe(1);
+  });
+});
+
+describe('queryTrend — person property filters', () => {
+  it('filters events by user_properties in series filters', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'premium1',
+        event_name: 'login',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'premium2',
+        event_name: 'login',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(3, 11),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'free1',
+        event_name: 'login',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(3, 12),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{
+        event_name: 'login',
+        label: 'Premium Logins',
+        filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
+      }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    // Only the 2 premium user logins should be counted
+    expect(sumSeriesValues(r.series[0].data)).toBe(2);
   });
 });
