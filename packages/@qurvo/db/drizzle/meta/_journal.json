@@ -225,6 +225,13 @@
       "when": 1774400000000,
       "tag": "0032_ai_message_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1772063412683,
+      "tag": "0033_add_demo_fields_to_projects",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { api } from '@/api/client';
+import { apiClient } from '@/api/client';
 import { Users } from 'lucide-react';
 import type { AdminProjectMember, AdminPlan } from '@/api/generated/Api';
 import translations from './admin-project-detail.translations';
@@ -21,18 +21,18 @@ export default function AdminProjectDetailPage() {
 
   const { data: project, isLoading: isProjectLoading } = useQuery({
     queryKey: ['admin', 'projects', id],
-    queryFn: () => api.adminProjectsControllerGetProject({ id: id! }),
+    queryFn: () => apiClient.admin.adminProjectsControllerGetProject({ id: id! }),
     enabled: !!id,
   });
 
   const { data: plans, isLoading: isPlansLoading } = useQuery({
     queryKey: ['admin', 'plans'],
-    queryFn: () => api.adminPlansControllerListPlans(),
+    queryFn: () => apiClient.admin.adminPlansControllerListPlans(),
   });
 
   const updatePlanMutation = useMutation({
     mutationFn: (plan_id: string | null) =>
-      api.adminProjectsControllerPatchProject({ id: id! }, { plan_id }),
+      apiClient.admin.adminProjectsControllerPatchProject({ id: id! }, { plan_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'projects', id] });
       toast.success(t('planUpdated'));

@@ -16,6 +16,7 @@ const PROJECT_COLUMNS = {
   name: projects.name,
   slug: projects.slug,
   plan: plans.slug,
+  is_demo: projects.is_demo,
   created_at: projects.created_at,
   updated_at: projects.updated_at,
   role: projectMembers.role,
