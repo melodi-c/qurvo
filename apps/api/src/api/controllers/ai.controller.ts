@@ -2,6 +2,7 @@ import { Controller, Post, Get, Delete, Body, Param, Query, Res, UseGuards, Logg
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
+import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
@@ -15,6 +16,7 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('chat')
+  @UseGuards(AiRateLimitGuard)
   async chat(
     @CurrentUser() user: RequestUser,
     @Body() body: AiChatDto,

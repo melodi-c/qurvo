@@ -37,13 +37,13 @@ import { PropertyDefinitionsController } from './controllers/property-definition
 import { WebAnalyticsController } from './controllers/web-analytics.controller';
 import { BillingController } from './controllers/billing.controller';
 import { createHttpFilter } from './filters/create-http-filter';
+import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
 import { AppNotFoundException } from '../exceptions/app-not-found.exception';
 import { AppConflictException } from '../exceptions/app-conflict.exception';
 import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
 import { AppUnauthorizedException } from '../exceptions/app-unauthorized.exception';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
 import { AppUnprocessableEntityException } from '../exceptions/app-unprocessable-entity.exception';
 
@@ -52,7 +52,6 @@ const ConflictFilter = createHttpFilter(HttpStatus.CONFLICT, AppConflictExceptio
 const ForbiddenFilter = createHttpFilter(HttpStatus.FORBIDDEN, AppForbiddenException);
 const UnauthorizedFilter = createHttpFilter(HttpStatus.UNAUTHORIZED, AppUnauthorizedException);
 const BadRequestFilter = createHttpFilter(HttpStatus.BAD_REQUEST, AppBadRequestException);
-const TooManyRequestsFilter = createHttpFilter(HttpStatus.TOO_MANY_REQUESTS, TooManyRequestsException);
 const AiNotConfiguredFilter = createHttpFilter(HttpStatus.NOT_IMPLEMENTED, AiNotConfiguredException);
 const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, AppUnprocessableEntityException);
 
