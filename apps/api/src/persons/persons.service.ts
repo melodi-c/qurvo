@@ -15,8 +15,11 @@ import {
 import { queryPersonEvents, type PersonEventsQueryParams } from './person-events.query';
 import type { EventDetailRow } from '../events/events.query';
 import { queryPersonPropertyNames } from './person-property-names.query';
+import { queryPersonPropertyValues, type PersonPropertyValueRow } from './person-property-values.query';
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
+
+export type { PersonPropertyValueRow };
 
 @Injectable()
 export class PersonsService {
@@ -46,6 +49,14 @@ export class PersonsService {
     params: PersonEventsQueryParams,
   ): Promise<EventDetailRow[]> {
     return queryPersonEvents(this.ch, params);
+  }
+
+  async getPersonPropertyValues(
+    projectId: string,
+    propertyName: string,
+    limit = 50,
+  ): Promise<PersonPropertyValueRow[]> {
+    return queryPersonPropertyValues(this.db, { project_id: projectId, property_name: propertyName, limit });
   }
 
   async getPersonPropertyNames(projectId: string): Promise<string[]> {
