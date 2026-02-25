@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import type {
   WebAnalyticsControllerGetOverviewParams,
@@ -14,6 +14,7 @@ export function useWebOverview(params: WebAnalyticsControllerGetOverviewParams) 
     queryFn: () => api.webAnalyticsControllerGetOverview(params),
     select: (res) => res.data,
     enabled: !!params.project_id,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -23,6 +24,7 @@ export function useWebPaths(params: WebAnalyticsControllerGetPathsParams) {
     queryFn: () => api.webAnalyticsControllerGetPaths(params),
     select: (res) => res.data,
     enabled: !!params.project_id,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -32,6 +34,7 @@ export function useWebSources(params: WebAnalyticsControllerGetSourcesParams) {
     queryFn: () => api.webAnalyticsControllerGetSources(params),
     select: (res) => res.data,
     enabled: !!params.project_id,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -41,6 +44,7 @@ export function useWebDevices(params: WebAnalyticsControllerGetDevicesParams) {
     queryFn: () => api.webAnalyticsControllerGetDevices(params),
     select: (res) => res.data,
     enabled: !!params.project_id,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -50,5 +54,6 @@ export function useWebGeography(params: WebAnalyticsControllerGetGeographyParams
     queryFn: () => api.webAnalyticsControllerGetGeography(params),
     select: (res) => res.data,
     enabled: !!params.project_id,
+    placeholderData: keepPreviousData,
   });
 }
