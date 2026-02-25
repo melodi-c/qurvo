@@ -1,17 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { StepFilter } from '@/api/generated/Api';
-
-function parseFilters(raw: string | null): StepFilter[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
+import { parseFilters } from '@/lib/filter-utils';
 
 export interface PersonsFilterState {
   search: string;

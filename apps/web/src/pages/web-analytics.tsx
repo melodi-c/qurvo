@@ -1,11 +1,7 @@
 import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { useWebAnalyticsParams } from '@/features/web-analytics/hooks/use-web-analytics-params';
-import { useWebOverview } from '@/features/web-analytics/hooks/use-web-overview';
-import { useWebPaths } from '@/features/web-analytics/hooks/use-web-paths';
-import { useWebSources } from '@/features/web-analytics/hooks/use-web-sources';
-import { useWebDevices } from '@/features/web-analytics/hooks/use-web-devices';
-import { useWebGeography } from '@/features/web-analytics/hooks/use-web-geography';
+import { useWebOverview, useWebPaths, useWebSources, useWebDevices, useWebGeography } from '@/features/web-analytics/hooks/use-web-analytics-queries';
 import { WebFilterBar } from '@/features/web-analytics/components/WebFilterBar';
 import { WebKpiRow } from '@/features/web-analytics/components/WebKpiRow';
 import { WebTimeseriesChart, type MetricKey } from '@/features/web-analytics/components/WebTimeseriesChart';

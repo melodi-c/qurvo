@@ -1,22 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useProjectId } from '@/hooks/use-project-id';
+import { daysAgoIso, todayIso } from '@/lib/date-utils';
 import type { StepFilter } from '@/api/generated/Api';
-
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function useWebAnalyticsParams() {
   const projectId = useProjectId();
 
-  const [dateFrom, setDateFrom] = useState(daysAgo(7));
-  const [dateTo, setDateTo] = useState(todayStr());
+  const [dateFrom, setDateFrom] = useState(daysAgoIso(7));
+  const [dateTo, setDateTo] = useState(todayIso());
   const [filters, setFilters] = useState<StepFilter[]>([]);
 
   const setDateRange = useCallback((from: string, to: string) => {

@@ -1,4 +1,5 @@
 import { DatePicker } from '@/components/ui/date-picker';
+import { daysAgoIso, todayIso } from '@/lib/date-utils';
 
 const DATE_PRESETS = [
   { label: '7d', days: 7 },
@@ -8,19 +9,9 @@ const DATE_PRESETS = [
   { label: '1y', days: 365 },
 ] as const;
 
-function daysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getActivePreset(dateFrom: string, dateTo: string): number | undefined {
   for (const preset of DATE_PRESETS) {
-    if (dateFrom.slice(0, 10) === daysAgo(preset.days) && dateTo.slice(0, 10) === todayStr()) {
+    if (dateFrom.slice(0, 10) === daysAgoIso(preset.days) && dateTo.slice(0, 10) === todayIso()) {
       return preset.days;
     }
   }
@@ -43,7 +34,7 @@ export function WebFilterBar({ dateFrom, dateTo, onDateRangeChange }: WebFilterB
           <button
             key={days}
             type="button"
-            onClick={() => onDateRangeChange(daysAgo(days), todayStr())}
+            onClick={() => onDateRangeChange(daysAgoIso(days), todayIso())}
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
               activePreset === days
                 ? 'border-primary bg-primary/10 text-primary'
