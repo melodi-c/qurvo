@@ -1,6 +1,9 @@
 import type { Event } from '@qurvo/clickhouse';
-import type { ValidMessage, BufferedEvent, ResolveResult, ValidatedFields, PipelineContext } from './types';
-import { safeScreenDimension, groupByKey, parseUa } from '../event-utils';
+import type { ValidMessage, BufferedEvent, ResolveResult, ValidatedFields, PipelineContext, EventEnricher } from './types';
+import { groupByKey } from '../event-utils';
+import { resolvePersonEnricher, geoEnricher, uaEnricher, fieldMapEnricher } from './enrichers';
+
+const ENRICHERS: EventEnricher[] = [resolvePersonEnricher, geoEnricher, uaEnricher, fieldMapEnricher];
 
 /**
  * Step 4: Resolve persons and build Event DTOs.
@@ -13,6 +16,8 @@ export async function resolveAndBuildEvents(
   personCache: Map<string, string>,
   ctx: PipelineContext,
 ): Promise<ResolveResult> {
+  const ctxWithCache: PipelineContext = { ...ctx, personCache };
+
   const groups = groupByKey(valid, (item) =>
     `${item.fields.project_id}:${item.fields.distinct_id}`,
   );
@@ -24,7 +29,7 @@ export async function resolveAndBuildEvents(
       for (const item of group) {
         results.push({
           messageId: item.id,
-          event: await buildEvent(item.fields, personCache, ctx),
+          event: await buildEvent(item.fields, ctxWithCache),
         });
       }
       return results;
@@ -51,67 +56,10 @@ export async function resolveAndBuildEvents(
   return { buffered, failedIds };
 }
 
-async function buildEvent(
-  data: ValidatedFields,
-  personCache: Map<string, string>,
-  ctx: PipelineContext,
-): Promise<Event> {
-  const ip = data.ip || '';
-  const country = ctx.geoService.lookupCountry(ip);
-
-  let personId: string;
-  let mergedFromPersonId: string | null = null;
-
-  if (data.event_name === '$identify' && data.anonymous_id) {
-    const result = await ctx.personResolver.handleIdentify(data.project_id, data.distinct_id, data.anonymous_id, personCache);
-    personId = result.personId;
-    mergedFromPersonId = result.mergedFromPersonId;
-  } else {
-    personId = await ctx.personResolver.resolve(data.project_id, data.distinct_id, personCache);
+async function buildEvent(data: ValidatedFields, ctx: PipelineContext): Promise<Event> {
+  let event: Partial<Event> = {};
+  for (const enrich of ENRICHERS) {
+    event = await enrich(data, event, ctx);
   }
-
-  ctx.personBatchStore.enqueue(data.project_id, personId, data.distinct_id, data.user_properties || '{}');
-  if (mergedFromPersonId) {
-    ctx.personBatchStore.enqueueMerge(data.project_id, mergedFromPersonId, personId);
-  }
-
-  if (!data.timestamp) {
-    ctx.logger.warn({ projectId: data.project_id, distinctId: data.distinct_id }, 'Event missing timestamp, using current time');
-  }
-
-  // Parse UA from raw user_agent string; SDK context fields (already in data.*) take precedence
-  const ua = parseUa(data.user_agent);
-
-  return {
-    event_id: data.event_id || '',
-    project_id: data.project_id,
-    event_name: data.event_name,
-    event_type: data.event_type || 'track',
-    distinct_id: data.distinct_id,
-    anonymous_id: data.anonymous_id,
-    user_id: data.user_id,
-    person_id: personId,
-    session_id: data.session_id,
-    url: data.url,
-    referrer: data.referrer,
-    page_title: data.page_title,
-    page_path: data.page_path,
-    device_type: data.device_type || ua.device_type,
-    browser: data.browser || ua.browser,
-    browser_version: data.browser_version || ua.browser_version,
-    os: data.os || ua.os,
-    os_version: data.os_version || ua.os_version,
-    screen_width: safeScreenDimension(data.screen_width),
-    screen_height: safeScreenDimension(data.screen_height),
-    country,
-    language: data.language,
-    timezone: data.timezone,
-    properties: data.properties,
-    user_properties: data.user_properties,
-    sdk_name: data.sdk_name,
-    sdk_version: data.sdk_version,
-    timestamp: data.timestamp || new Date().toISOString(),
-    batch_id: data.batch_id,
-    ip,
-  };
+  return event as Event;
 }
