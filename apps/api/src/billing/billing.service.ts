@@ -20,7 +20,7 @@ export class BillingService {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
-  async getStatus(userId: string, projectId: string) {
+  async getStatus(projectId: string) {
     const result = await this.db
       .select({
         plan_slug: plans.slug,

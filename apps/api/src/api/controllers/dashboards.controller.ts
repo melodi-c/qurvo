@@ -26,7 +26,7 @@ export class DashboardsController {
     @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<DashboardDto[]> {
-    return this.dashboardsService.list(user.user_id, projectId);
+    return this.dashboardsService.list(projectId);
   }
 
   @RequireRole('editor')
@@ -45,7 +45,7 @@ export class DashboardsController {
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
   ): Promise<DashboardWithWidgetsDto> {
-    return this.dashboardsService.getById(user.user_id, projectId, dashboardId);
+    return this.dashboardsService.getById(projectId, dashboardId);
   }
 
   @RequireRole('editor')
@@ -56,7 +56,7 @@ export class DashboardsController {
     @Param('dashboardId') dashboardId: string,
     @Body() body: UpdateDashboardDto,
   ): Promise<DashboardDto> {
-    return this.dashboardsService.update(user.user_id, projectId, dashboardId, body);
+    return this.dashboardsService.update(projectId, dashboardId, body);
   }
 
   @RequireRole('editor')
@@ -66,7 +66,7 @@ export class DashboardsController {
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
   ): Promise<void> {
-    await this.dashboardsService.remove(user.user_id, projectId, dashboardId);
+    await this.dashboardsService.remove(projectId, dashboardId);
   }
 
   @RequireRole('editor')
@@ -77,7 +77,7 @@ export class DashboardsController {
     @Param('dashboardId') dashboardId: string,
     @Body() body: CreateWidgetDto,
   ): Promise<WidgetDto> {
-    return this.dashboardsService.addWidget(user.user_id, projectId, dashboardId, body) as any;
+    return this.dashboardsService.addWidget(projectId, dashboardId, body) as any;
   }
 
   @RequireRole('editor')
@@ -89,7 +89,7 @@ export class DashboardsController {
     @Param('widgetId') widgetId: string,
     @Body() body: UpdateWidgetDto,
   ): Promise<WidgetDto> {
-    return this.dashboardsService.updateWidget(user.user_id, projectId, dashboardId, widgetId, body) as any;
+    return this.dashboardsService.updateWidget(projectId, dashboardId, widgetId, body) as any;
   }
 
   @RequireRole('editor')
@@ -100,6 +100,6 @@ export class DashboardsController {
     @Param('dashboardId') dashboardId: string,
     @Param('widgetId') widgetId: string,
   ): Promise<void> {
-    await this.dashboardsService.removeWidget(user.user_id, projectId, dashboardId, widgetId);
+    await this.dashboardsService.removeWidget(projectId, dashboardId, widgetId);
   }
 }

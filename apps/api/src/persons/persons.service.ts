@@ -27,7 +27,6 @@ export class PersonsService {
   ) {}
 
   async getPersons(
-    userId: string,
     params: PersonsQueryParams,
   ): Promise<{ persons: PersonRow[]; total: number }> {
     const [personsList, total] = await Promise.all([
@@ -37,20 +36,19 @@ export class PersonsService {
     return { persons: personsList, total };
   }
 
-  async getPersonById(userId: string, projectId: string, personId: string): Promise<PersonRow> {
+  async getPersonById(projectId: string, personId: string): Promise<PersonRow> {
     const person = await queryPersonById(this.db, projectId, personId);
     if (!person) throw new PersonNotFoundException();
     return person;
   }
 
   async getPersonEvents(
-    userId: string,
     params: PersonEventsQueryParams,
   ): Promise<EventDetailRow[]> {
     return queryPersonEvents(this.ch, params);
   }
 
-  async getPersonPropertyNames(userId: string, projectId: string): Promise<string[]> {
+  async getPersonPropertyNames(projectId: string): Promise<string[]> {
     const cacheKey = `person_property_names:${projectId}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached) as string[];

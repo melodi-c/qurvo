@@ -8,7 +8,8 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { Database } from '@qurvo/db';
-import { SESSION_TOKEN_LENGTH, SESSION_TTL_DAYS, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS, MAX_ACTIVE_SESSIONS_PER_USER, SESSION_CACHE_KEY_PREFIX } from '../constants';
+import { SESSION_TOKEN_LENGTH, SESSION_TTL_MS, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS, MAX_ACTIVE_SESSIONS_PER_USER, SESSION_CACHE_KEY_PREFIX } from '../constants';
+
 import { hashToken } from '../utils/hash';
 import { invalidateUserSessionCaches } from '../utils/session-cache';
 import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
@@ -32,7 +33,7 @@ export class AuthService {
     const password_hash = await argon2.hash(input.password);
     const token = crypto.randomBytes(SESSION_TOKEN_LENGTH).toString('hex');
     const token_hash = hashToken(token);
-    const expires_at = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+    const expires_at = new Date(Date.now() + SESSION_TTL_MS);
 
     let user!: InferSelectModel<typeof users>;
     try {
@@ -110,7 +111,7 @@ export class AuthService {
 
     const token = crypto.randomBytes(SESSION_TOKEN_LENGTH).toString('hex');
     const token_hash = hashToken(token);
-    const expires_at = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+    const expires_at = new Date(Date.now() + SESSION_TTL_MS);
 
     const activeSessions = await this.db
       .select({ id: sessions.id })

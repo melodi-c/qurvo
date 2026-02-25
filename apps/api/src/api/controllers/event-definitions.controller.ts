@@ -24,7 +24,7 @@ export class EventDefinitionsController {
     @Param('projectId') projectId: string,
     @Query() query: EventDefinitionsQueryDto,
   ): Promise<EventDefinitionsListResponseDto> {
-    return this.eventDefinitionsService.list(user.user_id, projectId, {
+    return this.eventDefinitionsService.list(projectId, {
       search: query.search,
       limit: query.limit ?? 100,
       offset: query.offset ?? 0,
@@ -42,7 +42,6 @@ export class EventDefinitionsController {
     @Body() body: UpsertEventDefinitionDto,
   ): Promise<UpsertEventDefinitionResponseDto> {
     return this.eventDefinitionsService.upsert(
-      user.user_id,
       projectId,
       eventName,
       body,
@@ -56,6 +55,6 @@ export class EventDefinitionsController {
     @Param('projectId') projectId: string,
     @Param('eventName') eventName: string,
   ): Promise<void> {
-    await this.eventDefinitionsService.delete(user.user_id, projectId, eventName);
+    await this.eventDefinitionsService.delete(projectId, eventName);
   }
 }

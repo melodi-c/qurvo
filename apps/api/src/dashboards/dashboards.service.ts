@@ -16,7 +16,7 @@ export class DashboardsService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  async list(userId: string, projectId: string) {
+  async list(projectId: string) {
     return this.db
       .select()
       .from(dashboards)
@@ -24,7 +24,7 @@ export class DashboardsService {
       .orderBy(dashboards.created_at);
   }
 
-  async getById(userId: string, projectId: string, dashboardId: string) {
+  async getById(projectId: string, dashboardId: string) {
     const [dashboard] = await this.db
       .select()
       .from(dashboards)
@@ -72,7 +72,7 @@ export class DashboardsService {
     return dashboard;
   }
 
-  async update(userId: string, projectId: string, dashboardId: string, input: { name?: string }) {
+  async update(projectId: string, dashboardId: string, input: { name?: string }) {
     await this.assertDashboardExists(projectId, dashboardId);
 
     const [updated] = await this.db
@@ -80,19 +80,18 @@ export class DashboardsService {
       .set({ ...buildConditionalUpdate(input, ['name']), updated_at: new Date() })
       .where(eq(dashboards.id, dashboardId))
       .returning();
-    this.logger.log({ dashboardId, projectId, userId }, 'Dashboard updated');
+    this.logger.log({ dashboardId, projectId }, 'Dashboard updated');
     return updated;
   }
 
-  async remove(userId: string, projectId: string, dashboardId: string) {
+  async remove(projectId: string, dashboardId: string) {
     await this.assertDashboardExists(projectId, dashboardId);
 
     await this.db.delete(dashboards).where(eq(dashboards.id, dashboardId));
-    this.logger.log({ dashboardId, projectId, userId }, 'Dashboard deleted');
+    this.logger.log({ dashboardId, projectId }, 'Dashboard deleted');
   }
 
   async addWidget(
-    userId: string,
     projectId: string,
     dashboardId: string,
     input: { insight_id?: string; layout: WidgetLayout; content?: string },
@@ -108,12 +107,11 @@ export class DashboardsService {
         content: input.content ?? null,
       })
       .returning();
-    this.logger.log({ widgetId: widget.id, dashboardId, projectId, userId }, 'Widget added');
+    this.logger.log({ widgetId: widget.id, dashboardId, projectId }, 'Widget added');
     return widget;
   }
 
   async updateWidget(
-    userId: string,
     projectId: string,
     dashboardId: string,
     widgetId: string,
@@ -128,15 +126,15 @@ export class DashboardsService {
       .set(values)
       .where(eq(widgets.id, widgetId))
       .returning();
-    this.logger.log({ widgetId, dashboardId, projectId, userId }, 'Widget updated');
+    this.logger.log({ widgetId, dashboardId, projectId }, 'Widget updated');
     return updated;
   }
 
-  async removeWidget(userId: string, projectId: string, dashboardId: string, widgetId: string) {
+  async removeWidget(projectId: string, dashboardId: string, widgetId: string) {
     await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
 
     await this.db.delete(widgets).where(eq(widgets.id, widgetId));
-    this.logger.log({ widgetId, dashboardId, projectId, userId }, 'Widget removed');
+    this.logger.log({ widgetId, dashboardId, projectId }, 'Widget removed');
   }
 
   private async assertDashboardExists(projectId: string, dashboardId: string) {

@@ -7,6 +7,11 @@ export const DRIZZLE = Symbol('DRIZZLE');
 export const REDIS_STREAM_EVENTS = 'events:incoming';
 export const REDIS_STREAM_MAXLEN = 1_000_000;
 
+// Stream payload schema version — bump when payload shape changes.
+// The processor can use this to handle backward-compatible migrations
+// for in-flight events during rolling deploys.
+export const STREAM_SCHEMA_VERSION = '1';
+
 export const API_KEY_HEADER = 'x-api-key';
 export const API_KEY_CACHE_TTL_SECONDS = 300;
 

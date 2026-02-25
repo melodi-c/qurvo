@@ -22,7 +22,7 @@ export class CohortsService {
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
   ) {}
 
-  async list(userId: string, projectId: string) {
+  async list(projectId: string) {
     return this.db
       .select()
       .from(cohorts)
@@ -30,7 +30,7 @@ export class CohortsService {
       .orderBy(cohorts.created_at);
   }
 
-  async getById(userId: string, projectId: string, cohortId: string) {
+  async getById(projectId: string, cohortId: string) {
     const rows = await this.db
       .select()
       .from(cohorts)
@@ -57,7 +57,7 @@ export class CohortsService {
 
     // Check circular dependency if definition references other cohorts
     if (definition) {
-      await this.checkCircularDependency('', definition, userId, projectId);
+      await this.checkCircularDependency('', definition, projectId);
     }
 
     const rows = await this.db
@@ -76,7 +76,6 @@ export class CohortsService {
   }
 
   async update(
-    userId: string,
     projectId: string,
     cohortId: string,
     input: {
@@ -95,7 +94,7 @@ export class CohortsService {
     const definition = input.definition;
 
     if (definition) {
-      await this.checkCircularDependency(cohortId, definition, userId, projectId);
+      await this.checkCircularDependency(cohortId, definition, projectId);
     }
 
     const updateData: Record<string, unknown> = { updated_at: new Date() };
@@ -121,7 +120,7 @@ export class CohortsService {
     return rows[0];
   }
 
-  async remove(userId: string, projectId: string, cohortId: string) {
+  async remove(projectId: string, cohortId: string) {
     const rows = await this.db
       .delete(cohorts)
       .where(and(eq(cohorts.project_id, projectId), eq(cohorts.id, cohortId)))
@@ -148,8 +147,8 @@ export class CohortsService {
     }
   }
 
-  async getMemberCount(userId: string, projectId: string, cohortId: string): Promise<number> {
-    const cohort = await this.getById(userId, projectId, cohortId);
+  async getMemberCount(projectId: string, cohortId: string): Promise<number> {
+    const cohort = await this.getById(projectId, cohortId);
     if (cohort.is_static) {
       return countStaticCohortMembers(this.ch, projectId, cohortId);
     }
@@ -160,7 +159,6 @@ export class CohortsService {
   }
 
   async previewCount(
-    userId: string,
     projectId: string,
     definition: CohortConditionGroup | undefined,
   ): Promise<number> {
@@ -169,23 +167,21 @@ export class CohortsService {
   }
 
   async getSizeHistory(
-    userId: string,
     projectId: string,
     cohortId: string,
     days: number = 30,
   ) {
-    await this.getById(userId, projectId, cohortId);
+    await this.getById(projectId, cohortId);
     return queryCohortSizeHistory(this.ch, projectId, cohortId, days);
   }
 
   // ── Cohort resolution for analytics queries ────────────────────────────────
 
   async resolveCohortFilters(
-    userId: string,
     projectId: string,
     cohortIds: string[],
   ): Promise<CohortFilterInput[]> {
-    const rows = await this.getByIds(userId, projectId, cohortIds);
+    const rows = await this.getByIds(projectId, cohortIds);
     return rows.map((c) => ({
       cohort_id: c.id,
       definition: c.definition,
@@ -195,11 +191,10 @@ export class CohortsService {
   }
 
   async resolveCohortBreakdowns(
-    userId: string,
     projectId: string,
     cohortIds: string[],
   ): Promise<CohortBreakdownEntry[]> {
-    const rows = await this.getByIds(userId, projectId, cohortIds);
+    const rows = await this.getByIds(projectId, cohortIds);
     return rows.map((c) => ({
       cohort_id: c.id,
       name: c.name,
@@ -211,7 +206,7 @@ export class CohortsService {
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
-  private async getByIds(userId: string, projectId: string, cohortIds: string[]) {
+  private async getByIds(projectId: string, cohortIds: string[]) {
     const rows = await this.db
       .select()
       .from(cohorts)
@@ -229,7 +224,6 @@ export class CohortsService {
   private async checkCircularDependency(
     cohortId: string,
     definition: CohortConditionGroup,
-    userId: string,
     projectId: string,
   ) {
     const isCircular = await detectCircularDependency(
@@ -237,7 +231,7 @@ export class CohortsService {
       definition,
       async (refId: string) => {
         try {
-          const refCohort = await this.getById(userId, projectId, refId);
+          const refCohort = await this.getById(projectId, refId);
           return refCohort.definition;
         } catch {
           return null;

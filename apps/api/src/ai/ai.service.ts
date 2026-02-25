@@ -84,7 +84,7 @@ export class AiService implements OnModuleInit {
     yield { type: 'conversation', conversation_id: conversation.id, title: conversation.title };
 
     // Build messages
-    const projectContext = await this.contextService.getProjectContext(userId, params.project_id);
+    const projectContext = await this.contextService.getProjectContext(params.project_id);
     const today = new Date().toISOString().split('T')[0];
     const systemContent = buildSystemPrompt(today, projectContext);
 
@@ -129,15 +129,10 @@ export class AiService implements OnModuleInit {
     // Run tool-call loop
     seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
 
-    // Auto-generate title for new conversations
-    if (isNew) {
-      const title = params.message.length > 100
-        ? params.message.slice(0, 100) + '...'
-        : params.message;
-      await this.chatService.updateTitle(conversation.id, title);
-    }
-
-    await this.chatService.touchConversation(conversation.id);
+    const derivedTitle = isNew
+      ? (params.message.length > 100 ? params.message.slice(0, 100) + '...' : params.message)
+      : undefined;
+    await this.chatService.finalizeConversation(conversation.id, derivedTitle);
     yield { type: 'done' };
   }
 

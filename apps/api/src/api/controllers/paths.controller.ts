@@ -19,7 +19,7 @@ export class PathsController {
     @CurrentUser() user: RequestUser,
     @Query() query: PathsQueryDto,
   ): Promise<PathsResponseDto> {
-    return this.pathsService.query(user.user_id, {
+    return this.pathsService.query({
       ...query,
       step_limit: query.step_limit ?? 5,
     });

@@ -19,6 +19,6 @@ export class LifecycleController {
     @CurrentUser() user: RequestUser,
     @Query() query: LifecycleQueryDto,
   ): Promise<LifecycleResponseDto> {
-    return this.lifecycleService.query(user.user_id, query);
+    return this.lifecycleService.query(query);
   }
 }

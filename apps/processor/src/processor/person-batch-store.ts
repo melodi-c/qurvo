@@ -213,21 +213,16 @@ export class PersonBatchStore {
           ),
         );
 
-      // 3. Read both persons' properties for merge
-      const [anonRow] = await tx
-        .select({ properties: persons.properties })
+      // 3. Read both persons' properties in a single query
+      const bothRows = await tx
+        .select({ id: persons.id, properties: persons.properties })
         .from(persons)
-        .where(and(eq(persons.id, fromPersonId), eq(persons.project_id, projectId)))
-        .limit(1);
+        .where(and(eq(persons.project_id, projectId), inArray(persons.id, [fromPersonId, intoPersonId])));
 
+      const anonRow = bothRows.find((r) => r.id === fromPersonId);
       if (!anonRow) return;
 
-      const [userRow] = await tx
-        .select({ properties: persons.properties })
-        .from(persons)
-        .where(and(eq(persons.id, intoPersonId), eq(persons.project_id, projectId)))
-        .limit(1);
-
+      const userRow = bothRows.find((r) => r.id === intoPersonId);
       if (userRow) {
         // User's properties take precedence over anon properties
         const merged = {
@@ -254,13 +249,13 @@ export class PersonBatchStore {
   }
 
   private async flushPersons(pending: Map<string, PendingPerson>): Promise<void> {
-    const personIds = [...pending.keys()];
+    const sortedIds = [...pending.keys()].sort();
 
     // Prefetch existing persons
     const existingRows = await this.db
       .select({ id: persons.id, properties: persons.properties })
       .from(persons)
-      .where(inArray(persons.id, personIds));
+      .where(inArray(persons.id, sortedIds));
 
     const existingMap = new Map<string, Record<string, unknown>>();
     for (const row of existingRows) {
@@ -269,7 +264,6 @@ export class PersonBatchStore {
 
     // Compute final properties for each person
     const values: Array<{ id: string; project_id: string; properties: Record<string, unknown> }> = [];
-    const sortedIds = [...pending.keys()].sort();
     for (const personId of sortedIds) {
       const update = pending.get(personId)!;
       const existingProps = existingMap.get(personId) ?? {};

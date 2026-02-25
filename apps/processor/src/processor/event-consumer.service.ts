@@ -181,11 +181,20 @@ export class EventConsumerService implements OnApplicationBootstrap {
     if (valid.length === 0) return;
 
     const personCache = await this.prefetchPersons(valid);
-    const buffered = await this.resolveAndBuildEvents(valid, personCache);
+    const { buffered, failedIds } = await this.resolveAndBuildEvents(valid, personCache);
 
-    this.flushService.addToBuffer(buffered);
-    if (this.flushService.isBufferFull()) {
-      await this.flushService.flush();
+    if (failedIds.length > 0) {
+      this.logger.warn(
+        { failedCount: failedIds.length, totalCount: valid.length },
+        'Some events failed processing — left in PEL for XAUTOCLAIM re-delivery',
+      );
+    }
+
+    if (buffered.length > 0) {
+      this.flushService.addToBuffer(buffered);
+      if (this.flushService.isBufferFull()) {
+        await this.flushService.flush();
+      }
     }
   }
 
@@ -238,17 +247,23 @@ export class EventConsumerService implements OnApplicationBootstrap {
     return this.personResolver.prefetchPersonIds([...uniqueKeys.values()]);
   }
 
-  /** Step 4: Resolve persons and build Event DTOs. Concurrent across distinct IDs, serial within. */
+  /**
+   * Step 4: Resolve persons and build Event DTOs.
+   * Concurrent across distinct IDs, serial within.
+   * Uses allSettled so one failing group doesn't block others —
+   * failed groups' messages stay in PEL for XAUTOCLAIM re-delivery.
+   */
   private async resolveAndBuildEvents(
     valid: ParsedMessage[],
     personCache: Map<string, string>,
-  ): Promise<{ messageId: string; event: Event }[]> {
+  ): Promise<{ buffered: { messageId: string; event: Event }[]; failedIds: string[] }> {
     const groups = groupByKey(valid, (item) =>
       `${item.fields.project_id}:${item.fields.distinct_id}`,
     );
 
-    const groupResults = await Promise.all(
-      [...groups.values()].map(async (group) => {
+    const groupEntries = [...groups.values()];
+    const settled = await Promise.allSettled(
+      groupEntries.map(async (group) => {
         const results: { messageId: string; event: Event }[] = [];
         for (const item of group) {
           results.push({
@@ -260,7 +275,24 @@ export class EventConsumerService implements OnApplicationBootstrap {
       }),
     );
 
-    return groupResults.flat();
+    const buffered: { messageId: string; event: Event }[] = [];
+    const failedIds: string[] = [];
+
+    for (let i = 0; i < settled.length; i++) {
+      const result = settled[i];
+      if (result.status === 'fulfilled') {
+        buffered.push(...result.value);
+      } else {
+        const group = groupEntries[i];
+        failedIds.push(...group.map((item) => item.id));
+        this.logger.error(
+          { err: result.reason, groupSize: group.length, distinctId: group[0].fields.distinct_id },
+          'Group processing failed — messages stay in PEL for re-delivery',
+        );
+      }
+    }
+
+    return { buffered, failedIds };
   }
 
   private async buildEvent(data: Record<string, string>, personCache: Map<string, string>): Promise<Event> {

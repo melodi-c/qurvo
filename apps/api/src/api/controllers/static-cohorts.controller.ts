@@ -48,7 +48,7 @@ export class StaticCohortsController {
     @Param('cohortId') cohortId: string,
     @Body() body: UploadCsvDto,
   ): Promise<{ imported: number; total_lines: number }> {
-    return this.staticCohortsService.importStaticCohortCsv(user.user_id, projectId, cohortId, body.csv_content);
+    return this.staticCohortsService.importStaticCohortCsv(projectId, cohortId, body.csv_content);
   }
 
   @RequireRole('editor')
@@ -59,7 +59,7 @@ export class StaticCohortsController {
     @Param('cohortId') cohortId: string,
     @Body() body: StaticCohortMembersDto,
   ): Promise<void> {
-    await this.staticCohortsService.addStaticMembers(user.user_id, projectId, cohortId, body.person_ids);
+    await this.staticCohortsService.addStaticMembers(projectId, cohortId, body.person_ids);
   }
 
   @RequireRole('editor')
@@ -70,6 +70,6 @@ export class StaticCohortsController {
     @Param('cohortId') cohortId: string,
     @Body() body: StaticCohortMembersDto,
   ): Promise<void> {
-    await this.staticCohortsService.removeStaticMembers(user.user_id, projectId, cohortId, body.person_ids);
+    await this.staticCohortsService.removeStaticMembers(projectId, cohortId, body.person_ids);
   }
 }

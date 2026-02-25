@@ -92,11 +92,10 @@ constructor(
 ### Project Authorization (ProjectMemberGuard)
 Project-scoped endpoints use `ProjectMemberGuard` (from `src/api/guards/project-member.guard.ts`) instead of calling `getMembership()` in every service method:
 1. Guard reads `projectId` from `request.params.projectId` or `request.query.project_id`
-2. Calls `ProjectsService.getMembership()` once, attaches result to `request.projectMembership`
+2. Calls `ProjectsService.getMembership()` once to verify access
 3. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy: `owner (3) > editor (2) > viewer (1)`
-4. Guard is **fail-closed** — returns `false` when `projectId` is missing from request
-5. Controllers access membership via `@ProjectMembership()` param decorator if needed
-6. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
+4. Guard throws `AppBadRequestException` when `projectId` is missing from request
+5. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
 
 **Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id sometimes in body — `AiService` calls `getMembership()` directly).
 
