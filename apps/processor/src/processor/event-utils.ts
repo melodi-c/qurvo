@@ -37,6 +37,6 @@ export function parseUa(userAgent?: string): ParsedUa {
     browser_version: result.browser.version ?? '',
     os: result.os.name ?? '',
     os_version: result.os.version ?? '',
-    device_type: result.device.type ?? 'desktop',
+    device_type: result.device.type ?? (result.browser.name ? 'desktop' : ''),
   };
 }
