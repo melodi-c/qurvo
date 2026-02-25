@@ -26,7 +26,7 @@ export interface ParsedUa {
   device_type: string;
 }
 
-const EMPTY_UA: ParsedUa = { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
+const EMPTY_UA: ParsedUa = Object.freeze({ browser: '', browser_version: '', os: '', os_version: '', device_type: '' });
 
 /** Parse User-Agent string into structured UA fields. Returns empty fields if UA is missing. */
 export function parseUa(userAgent?: string): ParsedUa {
