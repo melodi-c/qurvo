@@ -6,7 +6,7 @@ import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
-import translations from './cohort-editor.translations';
+import translations from '@/pages/cohort-editor/cohort-editor.translations';
 
 export function useCohortEditor() {
   const { t } = useLocalTranslation(translations);

@@ -15,7 +15,7 @@ import { MembersTab } from '@/features/cohorts/components/MembersTab';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useUrlTab } from '@/hooks/use-url-tab';
 import translations from './cohort-editor.translations';
-import { useCohortEditor } from './use-cohort-editor';
+import { useCohortEditor } from '@/features/cohorts/hooks/use-cohort-editor';
 
 type TabId = 'overview' | 'members';
 

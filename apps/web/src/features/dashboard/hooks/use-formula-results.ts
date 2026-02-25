@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import type { TrendSeriesResult, TrendFormula } from '@/api/generated/Api';
-import { evaluateFormula, validateFormula } from './formula-evaluator';
-import type { FormulaDataPoint } from './formula-evaluator';
-import { SERIES_LETTERS } from './trend-shared';
+import { evaluateFormula, validateFormula } from '@/features/dashboard/components/widgets/trend/formula-evaluator';
+import type { FormulaDataPoint } from '@/features/dashboard/components/widgets/trend/formula-evaluator';
+import { SERIES_LETTERS } from '@/features/dashboard/components/widgets/trend/trend-shared';
 
 export interface FormulaResult {
   formula: TrendFormula;

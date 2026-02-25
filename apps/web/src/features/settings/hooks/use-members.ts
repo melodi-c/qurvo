@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import translations from './members-tab.translations';
+import translations from '@/pages/settings/members-tab.translations';
 
 export function useMembers(projectId: string) {
   const { t } = useLocalTranslation(translations);

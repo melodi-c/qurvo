@@ -10,7 +10,7 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { Users, Mail, Trash2 } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './members-tab.translations';
-import { useMembers } from './use-members';
+import { useMembers } from '@/features/settings/hooks/use-members';
 import { InviteForm } from './invite-form';
 
 export function MembersTab({ projectId }: { projectId: string }) {
