@@ -73,13 +73,27 @@ gh issue view <N> --json number,title,body,labels,comments
 
 ---
 
-## Шаг 3: Запуск issue-solver подагентов (background)
+## Шаг 3: Подготовка лейбла in-progress
+
+Перед запуском первой группы убедись что лейбл существует:
+
+```bash
+gh label create "in-progress" --description "Currently being worked on" --color "0052CC" 2>/dev/null || true
+```
+
+---
+
+## Шаг 4: Запуск issue-solver подагентов (background)
 
 Для каждой группы из `parallel_groups`:
 
-1. Запусти всех подагентов группы **одновременно** как background (`run_in_background: true`)
-2. Дождись завершения ВСЕХ подагентов текущей группы
-3. Только после этого запусти следующую группу
+1. **Навесь лейбл `in-progress`** на все issues группы перед запуском:
+   ```bash
+   gh issue edit <NUMBER> --add-label "in-progress"
+   ```
+2. Запусти всех подагентов группы **одновременно** как background (`run_in_background: true`)
+3. Дождись завершения ВСЕХ подагентов текущей группы
+4. Только после этого запусти следующую группу
 
 ### Промпт для каждого issue-solver подагента
 
@@ -149,8 +163,9 @@ pnpm --filter @qurvo/<app> exec tsc --noEmit
 ```
 
 ### 4.4 Build
+КРИТИЧНО: запускай `pnpm build` из корня worktree — это единственный способ поймать ошибки сборки между пакетами (например, `tsc -b` в web vs `tsc --noEmit`). Per-filter build НЕ достаточен.
 ```bash
-pnpm --filter @qurvo/<app> build
+cd "$WORKTREE_PATH" && pnpm build
 ```
 
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
@@ -194,7 +209,7 @@ git merge main
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
 pnpm --filter @qurvo/<app> exec vitest run
-pnpm --filter @qurvo/<app> build
+cd "$WORKTREE_PATH" && pnpm build
 ```
 
 ### 4.9 Мерж в main и push
@@ -245,19 +260,19 @@ STATUS: FAILED | <причина>
 
 ---
 
-## Шаг 4: Обработка результатов
+## Шаг 5: Обработка результатов
 
 После завершения каждого background подагента, прочитай его результат и найди строку `STATUS:`.
 
-- `STATUS: SUCCESS` -- issue выполнен. Добавь в отчёт как успешный.
-- `STATUS: NEEDS_USER_INPUT | <причина>` -- нужно уточнение от пользователя. Немедленно сообщи пользователю, передай причину. После ответа пользователя -- перезапусти подагента с дополненным промптом (добавь уточнение пользователя в секцию "Задача").
-- `STATUS: FAILED | <причина>` -- агент не справился. Добавь в отчёт как failed.
+- `STATUS: SUCCESS` — сними лейбл `in-progress` (он снимается автоматически при закрытии issue, но на всякий случай): `gh issue edit <NUMBER> --remove-label "in-progress"`. Добавь в отчёт как успешный.
+- `STATUS: NEEDS_USER_INPUT | <причина>` — оставь лейбл `in-progress` пока ждёшь ответа. Немедленно сообщи пользователю, передай причину. После ответа пользователя -- перезапусти подагента с дополненным промптом (добавь уточнение пользователя в секцию "Задача").
+- `STATUS: FAILED | <причина>` — сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`. Добавь в отчёт как failed.
 
-Если строка STATUS не найдена -- считай результат как FAILED с причиной "подагент не вернул статус".
+Если строка STATUS не найдена -- считай результат как FAILED с причиной "подагент не вернул статус". Сними лейбл `in-progress`.
 
 ---
 
-## Шаг 5: Итоговый отчёт
+## Шаг 6: Итоговый отчёт
 
 После завершения ВСЕХ групп и всех подагентов, выведи сводку:
 
