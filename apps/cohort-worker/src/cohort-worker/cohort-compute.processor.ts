@@ -4,6 +4,7 @@ import type { Job } from 'bullmq';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { COHORT_COMPUTE_QUEUE, COHORT_COMPUTE_CONCURRENCY } from '../constants';
 import { CohortComputationService } from './cohort-computation.service';
+import { MetricsService } from './metrics.service';
 
 export interface ComputeJobData {
   cohortId: string;
@@ -24,6 +25,7 @@ export class CohortComputeProcessor extends WorkerHost {
     private readonly computation: CohortComputationService,
     @InjectPinoLogger(CohortComputeProcessor.name)
     private readonly logger: PinoLogger,
+    private readonly metrics: MetricsService,
   ) {
     super();
   }
@@ -41,16 +43,22 @@ export class CohortComputeProcessor extends WorkerHost {
         await this.computation.recordSizeHistory(cohortId, projectId, version);
       }
 
+      const durationMs = Date.now() - startMs;
+      this.metrics.membersUpdatedTotal.inc(1);
+
       this.logger.info(
-        { cohortId, projectId, version, pgOk, durationMs: Date.now() - startMs },
+        { cohortId, projectId, version, pgOk, durationMs },
         'Computed cohort membership',
       );
 
       return { cohortId, version, success: true, pgFailed: !pgOk };
     } catch (err) {
       await this.computation.recordError(cohortId, err);
+      const durationMs = Date.now() - startMs;
+      this.metrics.errorsTotal.inc();
+
       this.logger.error(
-        { err, cohortId, projectId, durationMs: Date.now() - startMs },
+        { err, cohortId, projectId, durationMs },
         'Failed to compute cohort membership',
       );
       return { cohortId, success: false, pgFailed: false };

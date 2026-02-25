@@ -21,6 +21,7 @@
     "@qurvo/worker-core": "workspace:*",
     "bullmq": "^5.70.1",
     "dd-trace": "^5.0.0",
+    "hot-shots": "^14.0.0",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.39.0",
     "ioredis": "^5.4.0",

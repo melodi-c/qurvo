@@ -15,6 +15,7 @@ import {
 } from '../constants';
 import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
+import { MetricsService } from './metrics.service';
 import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processor';
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -32,12 +33,14 @@ export class CohortMembershipService extends PeriodicWorkerMixin {
     @InjectPinoLogger(CohortMembershipService.name)
     protected readonly logger: PinoLogger,
     private readonly computation: CohortComputationService,
+    private readonly metrics: MetricsService,
   ) {
     super();
   }
 
   /** @internal — exposed for integration tests */
   async runCycle(): Promise<void> {
+    const stopTimer = this.metrics.cycleDurationMs.startTimer();
     const startMs = Date.now();
 
     const hasLock = await this.lock.acquire();
@@ -64,6 +67,10 @@ export class CohortMembershipService extends PeriodicWorkerMixin {
       const eligible = this.filterByBackoff(staleCohorts);
 
       eligibleCount = eligible.length;
+      const backoffSkipped = staleCount - eligibleCount;
+      if (backoffSkipped > 0) {
+        this.metrics.backoffSkippedTotal.inc(backoffSkipped);
+      }
 
       if (eligible.length === 0) return;
 
@@ -134,6 +141,12 @@ export class CohortMembershipService extends PeriodicWorkerMixin {
       // ── 6. GC orphaned memberships (every N cycles, skips the first) ──
       await this.runGcIfDue();
       this.gcCycleCounter++;
+
+      stopTimer();
+      this.metrics.cyclesTotal.inc();
+      if (computed > 0) {
+        this.metrics.computedTotal.inc(computed);
+      }
 
       this.logger.info(
         { computed, pgFailed, stale: staleCount, eligible: eligibleCount, cyclic: cyclicCount, durationMs: Date.now() - startMs },

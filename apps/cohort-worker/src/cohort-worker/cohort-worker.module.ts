@@ -14,6 +14,7 @@ import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService } from './cohort-computation.service';
 import { CohortMembershipService } from './cohort-membership.service';
 import { CohortComputeProcessor } from './cohort-compute.processor';
+import { MetricsService } from './metrics.service';
 import { ShutdownService } from './shutdown.service';
 
 function parseRedisUrl(url: string) {
@@ -59,6 +60,7 @@ const ComputeQueueEventsProvider: Provider = {
     CohortComputationService,
     CohortMembershipService,
     CohortComputeProcessor,
+    MetricsService,
     ShutdownService,
   ],
 })
