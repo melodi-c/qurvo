@@ -1,4 +1,5 @@
-import { Route, Settings, Filter, Regex } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Route, Settings, Filter, Regex, ChevronDown, ChevronRight } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
@@ -7,6 +8,9 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { SectionHeader } from '@/components/ui/section-header';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { EditableListSection } from './EditableListSection';
 import translations from './PathsQueryPanel.translations';
@@ -19,6 +23,22 @@ interface PathsQueryPanelProps {
 
 export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
   const { t } = useLocalTranslation(translations);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const activeAdvancedCount = useMemo(() => [
+    (config.path_cleaning_rules?.length ?? 0) > 0,
+    (config.wildcard_groups?.length ?? 0) > 0,
+    config.min_persons !== undefined && config.min_persons !== 1,
+  ].filter(Boolean).length, [config.path_cleaning_rules, config.wildcard_groups, config.min_persons]);
+
+  function handleResetAdvanced() {
+    onChange({
+      ...config,
+      path_cleaning_rules: undefined,
+      wildcard_groups: undefined,
+      min_persons: undefined,
+    });
+  }
 
   return (
     <QueryPanelShell>
@@ -68,20 +88,6 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
                 placeholder={t('anyEvent')}
               />
             </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">{t('minUsersPerPath')}</span>
-                <InfoTooltip content={t('minPersonsTooltip')} />
-              </div>
-              <Input
-                type="number"
-                min={1}
-                value={config.min_persons ?? 1}
-                onChange={(e) => onChange({ ...config, min_persons: Math.max(1, Number(e.target.value) || 1) })}
-                className="h-8 text-sm"
-              />
-            </div>
           </div>
         </section>
 
@@ -106,66 +112,110 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
 
         <Separator />
 
-        {/* Path Cleaning Rules */}
-        <EditableListSection<PathCleaningRuleConfig>
-          icon={Regex}
-          label={t('pathCleaning')}
-          items={config.path_cleaning_rules ?? []}
-          addLabel={t('addRule')}
-          emptyItem={{ regex: '', alias: '' }}
-          renderItem={(rule, _idx, onItemChange) => (
-            <>
-              <Input
-                value={rule.regex}
-                onChange={(e) => onItemChange({ ...rule, regex: e.target.value })}
-                placeholder={t('regexPlaceholder')}
-                className="h-8 text-xs font-mono flex-1"
-              />
-              <Input
-                value={rule.alias}
-                onChange={(e) => onItemChange({ ...rule, alias: e.target.value })}
-                placeholder={t('aliasPlaceholder')}
-                className="h-8 text-xs flex-1"
-              />
-            </>
-          )}
-          onChange={(items) => onChange({ ...config, path_cleaning_rules: items.length ? items : undefined })}
-        />
-
-        <Separator />
-
-        {/* Wildcard Groups */}
-        <EditableListSection<WildcardGroupConfig>
-          icon={Settings}
-          label={t('wildcardGroups')}
-          items={config.wildcard_groups ?? []}
-          addLabel={t('addGroup')}
-          emptyItem={{ pattern: '', alias: '' }}
-          renderItem={(wg, _idx, onItemChange) => (
-            <>
-              <Input
-                value={wg.pattern}
-                onChange={(e) => onItemChange({ ...wg, pattern: e.target.value })}
-                placeholder={t('wildcardPatternPlaceholder')}
-                className="h-8 text-xs font-mono flex-1"
-              />
-              <Input
-                value={wg.alias}
-                onChange={(e) => onItemChange({ ...wg, alias: e.target.value })}
-                placeholder={t('wildcardAliasPlaceholder')}
-                className="h-8 text-xs flex-1"
-              />
-            </>
-          )}
-          onChange={(items) => onChange({ ...config, wildcard_groups: items.length ? items : undefined })}
-        />
-
-        <Separator />
-
         <CohortFilterSection
           value={config.cohort_ids ?? []}
           onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
         />
+
+        <Separator />
+
+        {/* Advanced options */}
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <div className="flex items-center justify-between">
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              {advancedOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              {t('advancedOptions')}
+              {activeAdvancedCount > 0 && (
+                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px]">
+                  {activeAdvancedCount}
+                </Badge>
+              )}
+            </CollapsibleTrigger>
+            {activeAdvancedCount > 0 && (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleResetAdvanced}
+              >
+                {t('resetAdvanced')}
+              </Button>
+            )}
+          </div>
+
+          <CollapsibleContent className="space-y-4 pt-3">
+            {/* Min persons per path */}
+            <section className="space-y-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('minUsersPerPath')}</span>
+                <InfoTooltip content={t('minPersonsTooltip')} />
+              </div>
+              <Input
+                type="number"
+                min={1}
+                value={config.min_persons ?? 1}
+                onChange={(e) => onChange({ ...config, min_persons: Math.max(1, Number(e.target.value) || 1) })}
+                className="h-8 text-sm"
+              />
+            </section>
+
+            <Separator />
+
+            {/* Path Cleaning Rules */}
+            <EditableListSection<PathCleaningRuleConfig>
+              icon={Regex}
+              label={t('pathCleaning')}
+              items={config.path_cleaning_rules ?? []}
+              addLabel={t('addRule')}
+              emptyItem={{ regex: '', alias: '' }}
+              renderItem={(rule, _idx, onItemChange) => (
+                <>
+                  <Input
+                    value={rule.regex}
+                    onChange={(e) => onItemChange({ ...rule, regex: e.target.value })}
+                    placeholder={t('regexPlaceholder')}
+                    className="h-8 text-xs font-mono flex-1"
+                  />
+                  <Input
+                    value={rule.alias}
+                    onChange={(e) => onItemChange({ ...rule, alias: e.target.value })}
+                    placeholder={t('aliasPlaceholder')}
+                    className="h-8 text-xs flex-1"
+                  />
+                </>
+              )}
+              onChange={(items) => onChange({ ...config, path_cleaning_rules: items.length ? items : undefined })}
+            />
+
+            <Separator />
+
+            {/* Wildcard Groups */}
+            <EditableListSection<WildcardGroupConfig>
+              icon={Settings}
+              label={t('wildcardGroups')}
+              items={config.wildcard_groups ?? []}
+              addLabel={t('addGroup')}
+              emptyItem={{ pattern: '', alias: '' }}
+              renderItem={(wg, _idx, onItemChange) => (
+                <>
+                  <Input
+                    value={wg.pattern}
+                    onChange={(e) => onItemChange({ ...wg, pattern: e.target.value })}
+                    placeholder={t('wildcardPatternPlaceholder')}
+                    className="h-8 text-xs font-mono flex-1"
+                  />
+                  <Input
+                    value={wg.alias}
+                    onChange={(e) => onItemChange({ ...wg, alias: e.target.value })}
+                    placeholder={t('wildcardAliasPlaceholder')}
+                    className="h-8 text-xs flex-1"
+                  />
+                </>
+              )}
+              onChange={(items) => onChange({ ...config, wildcard_groups: items.length ? items : undefined })}
+            />
+          </CollapsibleContent>
+        </Collapsible>
     </QueryPanelShell>
   );
 }
