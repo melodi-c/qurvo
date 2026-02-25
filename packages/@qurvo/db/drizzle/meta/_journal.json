@@ -204,6 +204,13 @@
       "when": 1774100000000,
       "tag": "0029_add_ai_summary_failed",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1774200000000,
+      "tag": "0030_add_is_staff",
+      "breakpoints": true
     }
   ]
 }
