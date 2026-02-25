@@ -95,6 +95,20 @@ export function BillingTab({ projectId }: { projectId: string }) {
               </div>
             )}
             <div className="flex items-center justify-between px-6 py-3">
+              <dt className="text-muted-foreground">{t('aiMessagesLimit')}</dt>
+              <dd className="font-mono">
+                {(data?.ai_messages_per_month ?? null) !== null && (data?.ai_messages_per_month ?? -1) >= 0
+                  ? formatNumber(data!.ai_messages_per_month!)
+                  : t('aiMessagesUnlimited')}
+              </dd>
+            </div>
+            {(data?.ai_messages_per_month ?? null) !== null && (data?.ai_messages_per_month ?? -1) >= 0 && (
+              <div className="flex items-center justify-between px-6 py-3">
+                <dt className="text-muted-foreground">{t('aiMessagesUsed')}</dt>
+                <dd className="font-mono">{formatNumber(data?.ai_messages_used ?? 0)}</dd>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-6 py-3">
               <dt className="text-muted-foreground">{t('billingPeriod')}</dt>
               <dd className="text-xs text-muted-foreground">{periodStart} – {periodEnd}</dd>
             </div>

@@ -20,6 +20,12 @@ export class BillingStatusDto {
   @ApiPropertyOptional({ example: null, nullable: true })
   max_projects: number | null;
 
+  @ApiPropertyOptional({ example: 50, nullable: true })
+  ai_messages_per_month: number | null;
+
+  @ApiProperty({ example: 0 })
+  ai_messages_used: number;
+
   @ApiProperty({
     type: 'object',
     properties: {

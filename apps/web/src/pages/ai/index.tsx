@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useAiChat } from '@/features/ai/hooks/use-ai-chat';
-import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation, useToggleSharedConversation } from '@/features/ai/hooks/use-ai-conversations';
+import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation, useToggleSharedConversation, useAiQuota } from '@/features/ai/hooks/use-ai-conversations';
 import translations from './index.translations';
 import { AiChatPanel } from './ai-chat-panel';
 
@@ -222,6 +222,12 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
   const { t } = useLocalTranslation(translations);
   const [, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
+  const quota = useAiQuota(projectId);
+
+  const isQuotaExceeded =
+    quota.ai_messages_per_month !== null &&
+    quota.ai_messages_per_month >= 0 &&
+    quota.ai_messages_used >= quota.ai_messages_per_month;
 
   const {
     messages,
@@ -269,6 +275,7 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
     async (text: string) => {
       await sendMessage(text, projectId);
       qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      qc.invalidateQueries({ queryKey: ['billing', projectId] });
     },
     [sendMessage, projectId, qc],
   );
@@ -277,6 +284,7 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
     async (sequence: number, newText: string) => {
       await editMessage(sequence, newText, projectId);
       qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      qc.invalidateQueries({ queryKey: ['billing', projectId] });
     },
     [editMessage, projectId, qc],
   );
@@ -305,6 +313,11 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
   // A conversation is read-only if it's shared AND the current user is not the owner
   // (ownerName is set only for shared conversations loaded by non-owners)
   const isReadOnly = !!ownerName;
+  const isInputDisabled = isReadOnly || isQuotaExceeded;
+
+  const quotaLabel = quota.ai_messages_per_month === null || quota.ai_messages_per_month < 0
+    ? t('quotaUnlimited')
+    : t('quotaUsed', { used: String(quota.ai_messages_used), limit: String(quota.ai_messages_per_month) });
 
   return (
     <div className="-m-4 lg:-m-6 flex flex-col h-[calc(100vh-var(--topbar-height))] lg:h-screen">
@@ -317,6 +330,12 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
         <span className="text-sm font-semibold truncate flex-1">
           {chatId ? t('chat') : t('newChatLabel')}
         </span>
+        {/* Quota indicator */}
+        {!isReadOnly && (
+          <span className={`text-xs shrink-0 ${isQuotaExceeded ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {quotaLabel}
+          </span>
+        )}
         {/* Share toggle — only shown for own conversations */}
         {conversationId && !isReadOnly && (
           <Tooltip>
@@ -350,14 +369,14 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
           messages={messages}
           isStreaming={isStreaming}
           error={error}
-          onSend={isReadOnly ? undefined : handleSend}
-          onStop={isReadOnly ? undefined : handleStop}
-          onEdit={isReadOnly ? undefined : handleEdit}
+          onSend={isInputDisabled ? undefined : handleSend}
+          onStop={isInputDisabled ? undefined : handleStop}
+          onEdit={isInputDisabled ? undefined : handleEdit}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={loadMoreMessages}
-          readOnly={isReadOnly}
-          readOnlyMessage={t('readOnly')}
+          readOnly={isInputDisabled}
+          readOnlyMessage={isQuotaExceeded ? t('quotaExceeded') : t('readOnly')}
         />
       </div>
     </div>

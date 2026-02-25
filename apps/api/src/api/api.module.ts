@@ -45,6 +45,7 @@ import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
 import { AppUnauthorizedException } from '../exceptions/app-unauthorized.exception';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
+import { AiQuotaExceededException } from '../ai/exceptions/ai-quota-exceeded.exception';
 import { AppUnprocessableEntityException } from '../exceptions/app-unprocessable-entity.exception';
 
 const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundException);
@@ -53,6 +54,7 @@ const ForbiddenFilter = createHttpFilter(HttpStatus.FORBIDDEN, AppForbiddenExcep
 const UnauthorizedFilter = createHttpFilter(HttpStatus.UNAUTHORIZED, AppUnauthorizedException);
 const BadRequestFilter = createHttpFilter(HttpStatus.BAD_REQUEST, AppBadRequestException);
 const AiNotConfiguredFilter = createHttpFilter(HttpStatus.NOT_IMPLEMENTED, AiNotConfiguredException);
+const AiQuotaExceededFilter = createHttpFilter(HttpStatus.PAYMENT_REQUIRED, AiQuotaExceededException);
 const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, AppUnprocessableEntityException);
 
 @Module({
@@ -106,6 +108,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     { provide: APP_FILTER, useClass: BadRequestFilter },
     { provide: APP_FILTER, useClass: TooManyRequestsFilter },
     { provide: APP_FILTER, useClass: AiNotConfiguredFilter },
+    { provide: APP_FILTER, useClass: AiQuotaExceededFilter },
     { provide: APP_FILTER, useClass: UnprocessableEntityFilter },
     { provide: APP_FILTER, useClass: VerificationCooldownFilter },
   ],

@@ -1132,6 +1132,10 @@ export interface BillingStatus {
   data_retention_days?: number | null;
   /** @example null */
   max_projects?: number | null;
+  /** @example 50 */
+  ai_messages_per_month?: number | null;
+  /** @example 0 */
+  ai_messages_used: number;
   features: {
     cohorts?: boolean;
     lifecycle?: boolean;
