@@ -295,34 +295,6 @@ export class AiChatService {
     await this.deleteConversation(conversationId, userId);
   }
 
-  async renameConversationAuthorized(
-    userId: string,
-    conversationId: string,
-    projectId: string,
-    title: string,
-  ) {
-    const conv = await this.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
-    const updated = await this.renameConversation(conversationId, userId, title);
-    if (!updated) throw new ConversationNotFoundException();
-    return updated;
-  }
-
-  async setSharedAuthorized(
-    userId: string,
-    conversationId: string,
-    projectId: string,
-    isShared: boolean,
-  ) {
-    const conv = await this.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
-    const updated = await this.setShared(conversationId, userId, isShared);
-    if (!updated) throw new ConversationNotFoundException();
-    return updated;
-  }
-
   async updateConversationAuthorized(
     userId: string,
     conversationId: string,
