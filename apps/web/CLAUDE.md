@@ -20,7 +20,8 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 ## Utility
 
-`cn()` from `src/lib/utils.ts` — combines `clsx` + `tailwind-merge`. Use in every component that accepts `className`.
+- `cn()` from `src/lib/utils.ts` — combines `clsx` + `tailwind-merge`. Use in every component that accepts `className`.
+- `extractApiErrorMessage(err, fallback)` from `src/lib/utils.ts` — extracts message from API errors (axios-style or plain Error). Use in catch blocks instead of ad-hoc casts.
 
 ## Atomic UI Components (`src/components/ui/`)
 
@@ -96,6 +97,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `useConfirmDelete` | `use-confirm-delete.ts` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
 | `useDragReorder<T>` | `use-drag-reorder.ts` | `(items: T[], onChange: (items: T[]) => void) => { dragIdx, overIdx, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave }` | Reorderable lists via native HTML5 drag events. Used in FunnelStepBuilder and TrendSeriesBuilder |
 | `useFilterManager<T>` | `use-filter-manager.ts` | `(items: T[], updateItem) => { addFilter, updateFilter, removeFilter }` | Shared filter CRUD for items with `filters?: StepFilter[]`. Used by TrendSeriesBuilder and FunnelStepBuilder |
+| `usePersonPropertyNames` | `use-person-property-names.ts` | `() => { data: string[], descriptions: Record }` | Fetch person property names. Returns flat names + description map. Use with `PropertyNameCombobox` for person property selection |
 
 ## Feature Hooks (`src/features/`)
 
@@ -103,7 +105,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Hook | File | Signature | When to use |
 |---|---|---|---|
-| `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling |
+| `useInsightEditor<T>` | `features/insights/hooks/use-insight-editor.ts` | `(options) => { name, setName, config, setConfig, isNew, isSaving, saveError, listPath, handleSave, insightId, projectId }` | Shared editor state for trend/funnel insight pages. Handles name, config, load from existing, create/update mutations, save with error handling. `cleanConfig` is optional (defaults to identity) — only pass it when config needs transformation before save |
 | `createWidgetDataHook` | `features/dashboard/hooks/create-widget-data-hook.ts` | `<Config, Response>(options) => useHook(config, widgetId)` | Factory for creating widget data fetching hooks. Handles projectId, auto-refresh, stale data detection, refresh limiter. All widget hooks (useTrendData, useFunnelData, etc.) use this factory |
 | `useAiChat` | `features/ai/hooks/use-ai-chat.ts` | `() => { messages, conversationId, isStreaming, error, sendMessage, loadConversation, ... }` | SSE streaming chat hook for AI assistant. Manages message state, streaming, pagination |
 | `useConversations` | `features/ai/hooks/use-ai-conversations.ts` | `(projectId: string) => UseQueryResult<Conversation[]>` | Fetches AI conversation list for a project |
@@ -113,7 +115,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Module | File | Exports | When to use |
 |---|---|---|---|
-| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS`, `CHART_TOOLTIP_STYLE`, `CHART_AXIS_TICK_COLOR`, `CHART_GRID_COLOR`, `chartAxisTick(compact?)` | Single source of truth for all chart/visualization colors and Recharts styles. Use `CHART_TOOLTIP_STYLE` for Tooltip `contentStyle`, `chartAxisTick(compact?)` for axis `tick` prop, `CHART_GRID_COLOR` for CartesianGrid `stroke`. Never hardcode hex color values in chart components |
+| Chart colors | `chart-colors.ts` | `CHART_COLORS_HEX`, `CHART_COLORS_HSL`, `CHART_COMPARE_COLORS_HSL`, `CHART_FORMULA_COLORS_HSL`, `CHART_COLORS_TW`, `WEB_METRIC_COLORS`, `CHART_TOOLTIP_STYLE`, `CHART_AXIS_TICK_COLOR`, `CHART_GRID_COLOR`, `chartAxisTick(compact?)`, `STATUS_COLORS`, `EVENT_TYPE_COLORS`, `FUNNEL_LEGEND_COLORS` | Single source of truth for all chart/visualization colors and Recharts styles. Use `STATUS_COLORS` for semantic indicators (positive/negative/warning/success). Use `EVENT_TYPE_COLORS` for event type icons. Use `FUNNEL_LEGEND_COLORS` for funnel step conversion/drop-off. Never hardcode color values in components |
 | Date utils | `date-utils.ts` | `todayIso()`, `daysAgoIso(days)`, `defaultDateRange()` | Date helpers for ISO strings. Use `defaultDateRange()` for default 30-day range in widget configs. Never define local date helpers in components |
 | Formatting | `formatting.ts` | `formatBucket(bucket, granularity, compact?)`, `formatSeconds(s)`, `formatRelativeTime(iso)`, `eventBadgeVariant(eventName)`, `formatGranularity(count, granularity)` | Shared formatting for chart axes, durations, relative timestamps, event badge variants, and locale-aware granularity pluralization (day/week/month). Import instead of defining local formatters. `compact` mode produces shorter labels for dashboard widgets |
 | Filter utils | `filter-utils.ts` | `isValidFilter(f: StepFilter)`, `parseFilters(raw: string \| null)` | Validates a StepFilter (non-empty property, non-empty value unless operator is `is_set`/`is_not_set`). `parseFilters` safely parses JSON filter arrays from URL params. Use in query functions to strip incomplete filters before API calls |

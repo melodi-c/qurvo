@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
 import { FilterListSection } from '@/components/FilterListSection';
-import { usePersonPropertyNames } from './use-person-property-names';
+import { usePersonPropertyNames } from '@/hooks/use-person-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './PersonsFilterPanel.translations';
 import type { StepFilter } from '@/api/generated/Api';

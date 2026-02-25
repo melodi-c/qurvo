@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { routes } from '@/lib/routes';
+import { getAuthHeaders } from '@/lib/auth-fetch';
+import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './verify-email.translations';
 
 export default function VerifyEmailPage() {
@@ -40,7 +42,7 @@ export default function VerifyEmailPage() {
       .then(() => {
         setVerified(true);
         // If we have a session, refresh auth state so redirect works
-        if (localStorage.getItem('qurvo_token')) {
+        if (getAuthHeaders().Authorization) {
           checkAuth();
         }
       })
@@ -70,9 +72,7 @@ export default function VerifyEmailPage() {
       await verifyByCode(code);
       navigate(routes.home());
     } catch (err: unknown) {
-      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
-      const msg = data?.message || (err instanceof Error ? err.message : t('verificationError'));
-      setError(msg);
+      setError(extractApiErrorMessage(err, t('verificationError')));
     } finally {
       setLoading(false);
     }
@@ -87,12 +87,11 @@ export default function VerifyEmailPage() {
       const res = await resendVerification();
       setCooldown(res.cooldown_seconds);
     } catch (err: unknown) {
-      const data = (err as { response?: { data?: { message?: string; seconds_remaining?: number } } })?.response?.data;
-      if (data?.seconds_remaining) {
-        setCooldown(data.seconds_remaining);
+      const resData = (err as { response?: { data?: { seconds_remaining?: number } } })?.response?.data;
+      if (resData?.seconds_remaining) {
+        setCooldown(resData.seconds_remaining);
       }
-      const msg = data?.message || (err instanceof Error ? err.message : t('resendFailed'));
-      setError(msg);
+      setError(extractApiErrorMessage(err, t('resendFailed')));
     } finally {
       setResending(false);
     }
@@ -117,7 +116,7 @@ export default function VerifyEmailPage() {
 
   // Verified successfully
   if (verified) {
-    const hasSession = !!localStorage.getItem('qurvo_token');
+    const hasSession = !!getAuthHeaders().Authorization;
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -146,7 +145,7 @@ export default function VerifyEmailPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="space-y-2">
               <Label htmlFor="code">{t('codeLabel')}</Label>
               <Input

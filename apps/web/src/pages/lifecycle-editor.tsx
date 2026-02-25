@@ -19,7 +19,6 @@ export default function LifecycleEditorPage() {
     type: 'lifecycle',
     defaultName: t('defaultName'),
     defaultConfig: defaultLifecycleConfig,
-    cleanConfig: (c) => c,
   });
 
   const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;

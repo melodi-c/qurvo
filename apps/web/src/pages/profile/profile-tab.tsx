@@ -9,6 +9,7 @@ import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './profile-tab.translations';
 
 export function ProfileTab() {
@@ -43,9 +44,7 @@ export function ProfileTab() {
       toast.success(t('passwordChanged'));
     },
     onError: (err) => {
-      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
-      const message = data?.message || t('passwordChangeFailed');
-      toast.error(message);
+      toast.error(extractApiErrorMessage(err, t('passwordChangeFailed')));
     },
   });
 

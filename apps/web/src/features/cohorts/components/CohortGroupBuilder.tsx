@@ -18,7 +18,7 @@ import { StoppedPerformingRow } from './StoppedPerformingRow';
 import { RestartedPerformingRow } from './RestartedPerformingRow';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
-import { createDefaultCondition, type CohortCondition, type CohortConditionGroup } from '../types';
+import { createDefaultCondition, conditionKey, type CohortCondition, type CohortConditionGroup } from '../types';
 
 /** Horizontal divider with a centered label, used between OR groups and AND conditions */
 function ConditionDivider({ label, variant }: { label: string; variant: 'or' | 'and' }) {
@@ -52,7 +52,7 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
   const { t } = useLocalTranslation(translations);
 
   const addGroup = useCallback(() => {
-    onChange([...groups, { type: 'AND', values: [] }]);
+    onChange([...groups, { type: 'AND', values: [], _key: conditionKey() }]);
   }, [groups, onChange]);
 
   const updateGroup = useCallback((groupIdx: number, group: CohortConditionGroup) => {
@@ -66,7 +66,7 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
   return (
     <div className="space-y-3">
       {groups.map((group, groupIdx) => (
-        <div key={groupIdx}>
+        <div key={group._key ?? groupIdx}>
           {groupIdx > 0 && (
             <ConditionDivider label={t('or')} variant="or" />
           )}
@@ -151,7 +151,7 @@ function AndGroupCard({
       )}
 
       {conditions.map((cond, idx) => (
-        <div key={idx}>
+        <div key={cond._key ?? idx}>
           {idx > 0 && (
             <ConditionDivider label={t('and')} variant="and" />
           )}

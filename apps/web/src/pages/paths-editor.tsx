@@ -19,7 +19,6 @@ export default function PathsEditorPage() {
     type: 'paths',
     defaultName: t('defaultName'),
     defaultConfig: defaultPathsConfig,
-    cleanConfig: (config) => config,
   });
 
   const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;

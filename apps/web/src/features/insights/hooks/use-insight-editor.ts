@@ -8,7 +8,7 @@ interface UseInsightEditorOptions<T extends CreateInsight['config']> {
   type: InsightType;
   defaultName: string;
   defaultConfig: () => T;
-  cleanConfig: (config: T) => T;
+  cleanConfig?: (config: T) => T;
 }
 
 export function useInsightEditor<T extends CreateInsight['config']>({
@@ -17,6 +17,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   defaultConfig,
   cleanConfig,
 }: UseInsightEditorOptions<T>) {
+  const cleanFn = cleanConfig ?? ((c: T) => c);
   const { insightId } = useParams<{ insightId: string }>();
   const { go, link, projectId } = useAppNavigate();
 
@@ -47,7 +48,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     setSaveError(null);
 
     try {
-      const config_ = cleanConfig(config);
+      const config_ = cleanFn(config);
       if (isNew) {
         await createMutation.mutateAsync({ type, name, config: config_ });
       } else {
@@ -60,7 +61,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
     }
-  }, [name, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanConfig]);
+  }, [name, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn]);
 
   return {
     name,

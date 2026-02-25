@@ -20,7 +20,6 @@ export default function StickinessEditorPage() {
     type: 'stickiness',
     defaultName: t('defaultName'),
     defaultConfig: defaultStickinessConfig,
-    cleanConfig: (c) => c,
   });
 
   const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
