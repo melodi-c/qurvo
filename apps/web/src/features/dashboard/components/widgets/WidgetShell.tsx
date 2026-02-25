@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
 import { WidgetSkeleton } from './WidgetSkeleton';
@@ -117,16 +118,21 @@ export function WidgetShell<Response>({
                   : t('fresh')}
               </span>
             )}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-5 w-5"
-              onClick={() => refresh()}
-              disabled={isFetching}
-              title={t('refresh')}
-            >
-              <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5"
+                  onClick={() => refresh()}
+                  disabled={isFetching}
+                  aria-label={t('refresh')}
+                >
+                  <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('refresh')}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
         <div className="flex-1 overflow-hidden min-h-0">
