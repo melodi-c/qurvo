@@ -54,7 +54,7 @@ src/
 | GET | `/ready` | No | 200 `{ status: 'ok' }` or 503 | Readiness check — Redis PING (k8s readiness probe) |
 | POST | `/v1/batch` | `x-api-key` header or `api_key` body field | 202 `{ ok, count, dropped }` or 204 (beacon) | Batch event ingestion (1-500, per-event validation) |
 | POST | `/v1/batch?beacon=1` | same | 204 No Content | Beacon mode for `navigator.sendBeacon()` |
-| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | **Temporary endpoint** — historical import (1-5000, strict validation, no billing). Will be removed once migration is complete. |
+| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | Historical import (1-5000, strict validation, no billing). Used by `scripts/import-historical/`. |
 
 ## Key Patterns
 
@@ -66,12 +66,12 @@ SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod v
 UA parsing is deferred to the processor — ingest stores raw `user_agent` string in the stream payload. SDK context fields (browser, os, device_type) are passed through as-is if present.
 
 ### Guard Chain
-- **`ApiKeyGuard`** — validates API key format (printable ASCII, ≤128 chars) before any IO, then authenticates via SHA-256 hash lookup (300s Redis cache, DB fallback). Sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Checks both `expires_at` and `revoked_at` on cache hit and DB path — revoked keys are immediately rejected even from cache. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
-- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` after successful write. Applied to both `/v1/batch` and `/v1/import`. **Fails open** on Redis errors (allows request through).
-- **`BillingGuard`** — reads `request.eventsLimit` set by ApiKeyGuard, checks Redis billing counter, sets `request.quotaLimited = true` if exceeded (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
+- **`ApiKeyGuard`** — validates API key format (printable ASCII, ≤128 chars) before any IO, then authenticates via SHA-256 hash lookup (300s Redis cache, DB fallback). Sets `request.projectId` and initializes `request.quotaLimited = false`. Checks both `expires_at` and `revoked_at` on cache hit and DB path — revoked keys are immediately rejected even from cache. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
+- **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets via `rateLimitWindowKeys()`, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` via `rateLimitBucketKey()`. Applied to both `/v1/batch` and `/v1/import`. **Fails open** on Redis errors (allows request through).
+- **`BillingGuard`** — checks `SISMEMBER billing:quota_limited {projectId}` (Redis Set populated by `@qurvo/billing-worker`), sets `request.quotaLimited = true` if member (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
 
-### Billing Quota
-Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceeded (PostHog pattern). This prevents SDKs from retrying on quota limits.
+### Billing Quota (Decoupled — PostHog Pattern)
+`@qurvo/billing-worker` periodically (every 30s) queries projects with `events_limit`, reads billing counters, and atomically populates the `billing:quota_limited` Redis Set with over-limit project IDs. `BillingGuard` in ingest does a single `SISMEMBER` check — O(1), no counter arithmetic, no plan JOIN. Returns `200 { ok: true, quota_limited: true }` instead of 429 when quota exceeded. This prevents SDKs from retrying on quota limits. Safety TTL (120s) on the set ensures stale limits auto-expire if the worker stops.
 
 ### Env Validation
 `env.ts` validates `process.env` via Zod at startup (`main.ts` calls `validateEnv()` before `NestFactory.create()`). Fail-fast with formatted error on missing `DATABASE_URL`. Lazy `env()` getter is used in `app.module.ts` providers/config.
@@ -131,9 +131,10 @@ Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 day
 ### Module Configuration
 `AppModule` registers all guards (`ApiKeyGuard`, `RateLimitGuard`, `BillingGuard`) as explicit providers. Implements `OnApplicationShutdown` for clean Redis and PostgreSQL pool disconnect.
 
-## Important: Do NOT Delete
+## Important: Do NOT Delete or Modify
 
 - **`src/tracer.ts`** and the `dd-trace` dependency — this is the Datadog APM tracer. It is loaded at runtime via Node.js `-r` flag (`node -r ./dist/tracer.js`), so it has no explicit imports in the source code. This is NOT dead code.
+- **`POST /v1/import` endpoint** + `schemas/import-event.ts` — actively used for historical data import via `scripts/import-historical/`. Do NOT refactor, remove, or flag as dead code.
 
 ## Tests
 
@@ -147,7 +148,7 @@ Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 day
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
 - API key auth: api_key in body, 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache), 401 revoked key (Redis cache)
-- Billing guard: 200 + quota_limited over limit, 204 quota_limited beacon, 202 under limit, billing counter increment
+- Billing guard: 200 + quota_limited when in set, 204 beacon when quota limited, 202 when not in set, billing counter increment
 - Beacon: 204 No Content with ?beacon=1
 - Gzip auto-detect: compressed body without Content-Encoding header
 - Illegal distinct_id: drops events with illegal values, 400 when all illegal, rejects in import

@@ -11,9 +11,9 @@ import {
   BACKPRESSURE_CACHE_TTL_MS,
   billingCounterKey,
   billingCounterExpireAt,
-  RATE_LIMIT_KEY_PREFIX,
   RATE_LIMIT_WINDOW_SECONDS,
   RATE_LIMIT_BUCKET_SECONDS,
+  rateLimitBucketKey,
 } from '../constants';
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
@@ -165,9 +165,7 @@ export class IngestService {
   }
 
   private incrementRateLimitCounter(projectId: string, count: number): void {
-    const nowSec = Math.floor(Date.now() / 1000);
-    const bucket = Math.floor(nowSec / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
-    const key = `${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`;
+    const key = rateLimitBucketKey(projectId);
     const ttl = RATE_LIMIT_WINDOW_SECONDS + RATE_LIMIT_BUCKET_SECONDS;
     const pipeline = this.redis.pipeline();
     pipeline.incrby(key, count);

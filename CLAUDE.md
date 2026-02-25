@@ -13,6 +13,7 @@ pnpm --filter @qurvo/api dev
 pnpm --filter @qurvo/ingest dev
 pnpm --filter @qurvo/processor dev
 pnpm --filter @qurvo/cohort-worker dev
+pnpm --filter @qurvo/billing-worker dev
 pnpm --filter @qurvo/web dev
 
 # Build
@@ -59,6 +60,7 @@ SDK (@qurvo/sdk-browser | @qurvo/sdk-node)
 - **`@qurvo/ingest`** (port 3001) — Event collection. Validates SDK events, writes to Redis Stream. See `apps/ingest/CLAUDE.md`.
 - **`@qurvo/processor`** — Background worker. Consumes Redis Stream, resolves person identity, writes to ClickHouse. See `apps/processor/CLAUDE.md`.
 - **`@qurvo/cohort-worker`** — Background worker. Periodically recomputes dynamic cohort memberships. See `apps/cohort-worker/CLAUDE.md`.
+- **`@qurvo/billing-worker`** — Background worker. Periodically checks billing counters and populates `billing:quota_limited` Redis Set for ingest. See `apps/billing-worker/CLAUDE.md`.
 - **`@qurvo/web`** (port 5173) — React SPA dashboard. See `apps/web/CLAUDE.md`.
 
 ### Deployment

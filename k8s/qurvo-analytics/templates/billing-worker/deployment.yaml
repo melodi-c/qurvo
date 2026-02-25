@@ -1,0 +1,44 @@
+{{- if (index .Values "billing-worker").enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "qurvo.fullname" . }}-billing-worker
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: billing-worker
+spec:
+  replicas: {{ (index .Values "billing-worker").replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "qurvo.selectorLabels" (dict "component" "billing-worker" "root" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "qurvo.selectorLabels" (dict "component" "billing-worker" "root" .) | nindent 8 }}
+        {{- include "qurvo.datadogLabels" (dict "component" "billing-worker" "root" .) | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- include "qurvo.datadogLogAnnotations" (dict "container" "billing-worker" "source" "nodejs" "root" .) | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: billing-worker
+          image: {{ include "qurvo.image" (dict "svc" (index .Values "billing-worker") "root" .) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            {{- include "qurvo.datadogEnvVars" (dict "component" "billing-worker" "root" .) | nindent 12 }}
+          envFrom:
+            {{- include "qurvo.commonEnvFrom" . | nindent 12 }}
+          resources:
+            {{- toYaml (index .Values "billing-worker").resources | nindent 12 }}
+{{- end }}
