@@ -28,6 +28,8 @@ export default createTranslations({
     duplicating: 'Duplicating...',
     duplicated: 'Cohort duplicated as static',
     duplicateFailed: 'Failed to duplicate cohort',
+    settings: 'Settings',
+    hideSettings: 'Hide settings',
   },
   ru: {
     backLabel: 'Когорты',
@@ -56,5 +58,7 @@ export default createTranslations({
     duplicating: 'Дублирование...',
     duplicated: 'Когорта продублирована как статическая',
     duplicateFailed: 'Не удалось продублировать когорту',
+    settings: 'Настройки',
+    hideSettings: 'Скрыть настройки',
   },
 });

@@ -1,9 +1,13 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './InsightEditorLayout.translations';
 
 interface InsightEditorLayoutProps {
   /** EditorHeader props */
@@ -79,6 +83,9 @@ export function InsightEditorLayout({
   children,
   chartClassName = 'flex-1 overflow-auto p-6',
 }: InsightEditorLayoutProps): ReactNode {
+  const { t } = useLocalTranslation(translations);
+  const [panelOpen, setPanelOpen] = useState(false);
+
   return (
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
@@ -96,8 +103,31 @@ export function InsightEditorLayout({
         saveError={saveError}
       />
 
+      <div className="lg:hidden border-b border-border px-4 py-2 flex items-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground gap-1.5"
+          onClick={() => setPanelOpen((prev) => !prev)}
+        >
+          {panelOpen ? (
+            <>
+              <X className="h-4 w-4" />
+              {t('hideSettings')}
+            </>
+          ) : (
+            <>
+              <SlidersHorizontal className="h-4 w-4" />
+              {t('settings')}
+            </>
+          )}
+        </Button>
+      </div>
+
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
-        {queryPanel}
+        <div className={cn(panelOpen ? 'block' : 'hidden', 'lg:contents')}>
+          {queryPanel}
+        </div>
 
         <main className="flex-1 overflow-auto flex flex-col">
           {!isConfigValid && configureIcon && (
