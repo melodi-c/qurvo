@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useUrlTab } from '@/hooks/use-url-tab';
 import { PageHeader } from '@/components/ui/page-header';
 import { TabNav } from '@/components/ui/tab-nav';
 import { api } from '@/api/client';
@@ -12,8 +12,7 @@ import { InvitesTab } from './invites-tab';
 type TabId = 'profile' | 'invites';
 
 export default function ProfilePage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as TabId) || 'profile';
+  const [activeTab, setTab] = useUrlTab<TabId>('profile', ['profile', 'invites']);
   const { t } = useLocalTranslation(translations);
 
   const { data: myInvites } = useQuery({
@@ -22,12 +21,6 @@ export default function ProfilePage() {
   });
 
   const pendingCount = myInvites?.length ?? 0;
-
-  const setTab = (tab: TabId) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', tab);
-    setSearchParams(next);
-  };
 
   const tabs = useMemo(() => [
     { id: 'profile' as const, label: t('profileTab') },

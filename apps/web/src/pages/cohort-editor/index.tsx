@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { UsersRound, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +9,7 @@ import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBui
 import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
 import { MembersTab } from '@/features/cohorts/components/MembersTab';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useUrlTab } from '@/hooks/use-url-tab';
 import translations from './cohort-editor.translations';
 import { useCohortEditor } from './use-cohort-editor';
 
@@ -17,7 +17,7 @@ type TabId = 'overview' | 'members';
 
 export default function CohortEditorPage() {
   const { t } = useLocalTranslation(translations);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [urlTab, setTab] = useUrlTab<TabId>('overview', ['overview', 'members']);
 
   const {
     isNew,
@@ -42,20 +42,12 @@ export default function CohortEditorPage() {
   } = useCohortEditor();
 
   const showTabs = !isNew && existingCohort?.is_static === true;
-  const activeTab = showTabs
-    ? (searchParams.get('tab') as TabId) || 'overview'
-    : 'overview';
+  const activeTab = showTabs ? urlTab : 'overview';
 
   const tabs = useMemo(() => [
     { id: 'overview' as const, label: t('overviewTab') },
     { id: 'members' as const, label: t('membersTab') },
   ], [t]);
-
-  function setTab(tab: TabId): void {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', tab);
-    setSearchParams(next);
-  }
 
   if (!isNew && loadingCohort) {
     return (

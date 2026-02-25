@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useUrlTab } from '@/hooks/use-url-tab';
 import { PageHeader } from '@/components/ui/page-header';
 import { TabNav } from '@/components/ui/tab-nav';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -13,9 +13,9 @@ import { BillingTab } from './billing-tab';
 type TabId = 'general' | 'members' | 'keys' | 'billing';
 
 export default function SettingsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const projectId = useProjectId();
-  const activeTab = (searchParams.get('tab') as TabId) || 'general';
+  const VALID_TABS = ['general', 'members', 'keys', 'billing'] as const;
+  const [activeTab, setTab] = useUrlTab<TabId>('general', VALID_TABS);
   const { t } = useLocalTranslation(translations);
 
   const tabs = useMemo(() => [
@@ -24,12 +24,6 @@ export default function SettingsPage() {
     { id: 'keys' as const, label: t('apiKeys') },
     { id: 'billing' as const, label: t('billing') },
   ], [t]);
-
-  const setTab = (tab: TabId) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', tab);
-    setSearchParams(next);
-  };
 
   return (
     <div className="space-y-6">
