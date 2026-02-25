@@ -1,4 +1,4 @@
-import type { ElementType } from 'react';
+import type { ElementType, ReactNode } from 'react';
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
@@ -33,6 +33,8 @@ interface CrudListPageProps<T extends CrudListRow> {
   emptyTitle: string;
   emptyDescription: string;
   showEmptyAction?: boolean;
+  /** Optional override for the header action button. When provided, replaces the default "New" link button. */
+  newButton?: ReactNode;
 }
 
 export function CrudListPage<T extends CrudListRow>({
@@ -49,6 +51,7 @@ export function CrudListPage<T extends CrudListRow>({
   emptyTitle,
   emptyDescription,
   showEmptyAction = true,
+  newButton,
 }: CrudListPageProps<T>) {
   const { projectId, navigate } = useAppNavigate();
   const { t } = useLocalTranslation(translations);
@@ -108,12 +111,14 @@ export function CrudListPage<T extends CrudListRow>({
   return (
     <div className="space-y-6">
       <PageHeader title={title}>
-        <Link to={linkNew}>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            {newLabel}
-          </Button>
-        </Link>
+        {newButton ?? (
+          <Link to={linkNew}>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              {newLabel}
+            </Button>
+          </Link>
+        )}
       </PageHeader>
 
       {!projectId && (

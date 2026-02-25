@@ -4,6 +4,7 @@ import { CrudListPage } from '@/components/crud-list-page';
 import { useCohorts, useDeleteCohort } from '@/features/cohorts/hooks/use-cohorts';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { NewCohortDropdown } from '@/features/cohorts/components/NewCohortDropdown';
 import translations from './cohorts.translations';
 import { isGroup, type CohortCondition, type CohortConditionGroup } from '@/features/cohorts/types';
 import type { Column } from '@/components/ui/data-table';
@@ -52,6 +53,7 @@ export default function CohortsPage() {
       linkNew={link.cohorts.new()}
       linkDetail={(id) => link.cohorts.detail(id)}
       newLabel={t('newCohort')}
+      newButton={<NewCohortDropdown />}
       entityLabel="cohort"
       columns={extraColumns}
       data={cohorts}
