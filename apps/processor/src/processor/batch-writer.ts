@@ -5,6 +5,7 @@ import { CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { withRetry } from './retry';
 import { PersonBatchStore } from './person-batch-store';
 import { DefinitionSyncService } from './definition-sync.service';
+import { MetricsService } from './metrics.service';
 import { RETRY_CLICKHOUSE } from '../constants';
 
 /**
@@ -18,6 +19,7 @@ export class BatchWriter {
     @InjectPinoLogger(BatchWriter.name) private readonly logger: PinoLogger,
     private readonly personBatchStore: PersonBatchStore,
     private readonly definitionSync: DefinitionSyncService,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -27,18 +29,29 @@ export class BatchWriter {
    * 3. Sync definitions (non-critical — errors are logged and swallowed)
    */
   async write(events: Event[]): Promise<void> {
+    this.metrics.personBatchQueueSize.set(this.personBatchStore.getPendingCount());
     await this.personBatchStore.flush();
+    this.metrics.personBatchQueueSize.set(this.personBatchStore.getPendingCount());
 
-    await withRetry(
-      () => this.ch.insert({
-        table: 'events',
-        values: events,
-        format: 'JSONEachRow',
-      }),
-      'ClickHouse insert',
-      this.logger,
-      RETRY_CLICKHOUSE,
-    );
+    const stopTimer = this.metrics.flushDuration.startTimer();
+    try {
+      await withRetry(
+        () => this.ch.insert({
+          table: 'events',
+          values: events,
+          format: 'JSONEachRow',
+        }),
+        'ClickHouse insert',
+        this.logger,
+        RETRY_CLICKHOUSE,
+      );
+      stopTimer();
+      this.metrics.eventsProcessed.inc(events.length);
+    } catch (err) {
+      stopTimer();
+      this.metrics.eventsFailed.inc({ reason: 'clickhouse_insert' }, events.length);
+      throw err;
+    }
 
     try {
       await this.definitionSync.syncFromBatch(events);

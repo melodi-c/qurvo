@@ -17,6 +17,7 @@ import {
 import { DistributedLock } from '@qurvo/distributed-lock';
 import { PersonBatchStore } from './person-batch-store';
 import { BatchWriter } from './batch-writer';
+import { MetricsService } from './metrics.service';
 
 @Injectable()
 export class DlqService implements OnApplicationBootstrap {
@@ -30,6 +31,7 @@ export class DlqService implements OnApplicationBootstrap {
     @InjectPinoLogger(DlqService.name) private readonly logger: PinoLogger,
     private readonly personBatchStore: PersonBatchStore,
     private readonly batchWriter: BatchWriter,
+    private readonly metrics: MetricsService,
   ) {
     this.lock = new DistributedLock(redis, 'dlq:replay:lock', randomUUID(), 300);
   }
@@ -60,6 +62,14 @@ export class DlqService implements OnApplicationBootstrap {
     if (await this.redis.exists(DLQ_CIRCUIT_KEY)) {
       this.logger.warn('DLQ circuit breaker open, skipping replay');
       return;
+    }
+
+    // Sample DLQ size for observability (best-effort, non-critical)
+    try {
+      const dlqLen = await this.redis.xlen(REDIS_STREAM_DLQ);
+      this.metrics.dlqSize.set(dlqLen);
+    } catch {
+      // Non-critical
     }
 
     const hasLock = await this.lock.acquire();

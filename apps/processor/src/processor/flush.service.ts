@@ -4,6 +4,7 @@ import Redis from 'ioredis';
 import type { Event } from '@qurvo/clickhouse';
 import { REDIS } from '@qurvo/nestjs-infra';
 import { BatchWriter } from './batch-writer';
+import { MetricsService } from './metrics.service';
 import type { BufferedEvent } from './pipeline';
 import {
   PROCESSOR_BATCH_SIZE,
@@ -26,6 +27,7 @@ export class FlushService implements OnApplicationBootstrap {
     @Inject(REDIS) private readonly redis: Redis,
     @InjectPinoLogger(FlushService.name) private readonly logger: PinoLogger,
     private readonly batchWriter: BatchWriter,
+    private readonly metrics: MetricsService,
   ) {}
 
   onApplicationBootstrap() {
@@ -41,6 +43,7 @@ export class FlushService implements OnApplicationBootstrap {
 
   addToBuffer(events: BufferedEvent[]) {
     this.buffer.push(...events);
+    this.metrics.bufferSize.set(this.buffer.length);
   }
 
   isBufferFull(): boolean {
@@ -63,6 +66,7 @@ export class FlushService implements OnApplicationBootstrap {
 
   private async _doFlush(): Promise<void> {
     const batch = this.buffer.splice(0);
+    this.metrics.bufferSize.set(0);
     const events = batch.map((b) => b.event);
     const messageIds = batch.map((b) => b.messageId);
 
