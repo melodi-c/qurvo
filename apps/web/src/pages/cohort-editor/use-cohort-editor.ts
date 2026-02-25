@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount, useCohortMemberCount, useCohortSizeHistory } from '@/features/cohorts/hooks/use-cohorts';
-import { useDebounce } from '@/hooks/use-debounce';
+import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
@@ -51,8 +51,7 @@ export function useCohortEditor() {
     return { type: 'OR', values: groups };
   }, [groups]);
 
-  const definitionHash = useMemo(() => JSON.stringify(definition), [definition]);
-  const debouncedHash = useDebounce(definitionHash, 800);
+  const { hash: debouncedHash } = useDebouncedHash(definition, 800);
 
   const hasValidConditions = useMemo(() => {
     const allConditions = groups.flatMap((g) => g.values as CohortCondition[]);
