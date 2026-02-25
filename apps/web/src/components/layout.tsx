@@ -96,9 +96,11 @@ export default function Layout() {
           currentLang={currentLang}
           onLanguageChange={changeLanguage}
           onLogout={logout}
+          isStaff={user?.is_staff}
           profileLabel={t('profile')}
           languageLabel={t('language')}
           signOutLabel={t('signOut')}
+          adminLabel={t('admin')}
         />
       </SidebarNav>
 

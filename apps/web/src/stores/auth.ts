@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { useLanguageStore } from './language';
-import type { User } from '../api/generated/Api';
+import type { User as GeneratedUser } from '../api/generated/Api';
 import type { Language } from '@/i18n/types';
+
+export type User = GeneratedUser & { is_staff?: boolean };
 
 function isLanguage(v: string): v is Language {
   return v === 'ru' || v === 'en';
