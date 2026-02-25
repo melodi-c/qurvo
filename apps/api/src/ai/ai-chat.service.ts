@@ -13,6 +13,10 @@ export interface SavedMessage {
   tool_name: string | null;
   tool_result: unknown;
   visualization_type: string | null;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  model_used?: string | null;
+  estimated_cost_usd?: string | null;
 }
 
 @Injectable()
@@ -99,6 +103,10 @@ export class AiChatService {
       tool_name: msg.tool_name,
       tool_result: msg.tool_result,
       visualization_type: msg.visualization_type,
+      prompt_tokens: msg.prompt_tokens ?? null,
+      completion_tokens: msg.completion_tokens ?? null,
+      model_used: msg.model_used ?? null,
+      estimated_cost_usd: msg.estimated_cost_usd ?? null,
     });
   }
 
