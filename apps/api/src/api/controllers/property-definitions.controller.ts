@@ -1,7 +1,6 @@
 import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertyDefinitionsService } from '../../definitions/property-definitions.service';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
 import {
   PropertyDefinitionQueryDto,
@@ -20,15 +19,11 @@ export class PropertyDefinitionsController {
 
   @Get()
   async list(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Query() query: PropertyDefinitionQueryDto,
   ): Promise<PropertyDefinitionsListResponseDto> {
     return this.propertyDefinitionsService.list(projectId, {
-      type: query.type,
-      eventName: query.event_name,
-      search: query.search,
-      is_numerical: query.is_numerical,
+      ...query,
       limit: query.limit ?? 100,
       offset: query.offset ?? 0,
       order_by: query.order_by ?? 'last_seen_at',
@@ -39,7 +34,6 @@ export class PropertyDefinitionsController {
   @RequireRole('editor')
   @Patch(':propertyType/:propertyName')
   async upsert(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('propertyType') propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
@@ -56,7 +50,6 @@ export class PropertyDefinitionsController {
   @RequireRole('editor')
   @Delete(':propertyType/:propertyName')
   async remove(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('propertyType') propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,

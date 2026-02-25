@@ -23,7 +23,6 @@ export class DashboardsController {
 
   @Get()
   async list(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<DashboardDto[]> {
     return this.dashboardsService.list(projectId);
@@ -41,7 +40,6 @@ export class DashboardsController {
 
   @Get(':dashboardId')
   async getById(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
   ): Promise<DashboardWithWidgetsDto> {
@@ -51,7 +49,6 @@ export class DashboardsController {
   @RequireRole('editor')
   @Put(':dashboardId')
   async update(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
     @Body() body: UpdateDashboardDto,
@@ -62,7 +59,6 @@ export class DashboardsController {
   @RequireRole('editor')
   @Delete(':dashboardId')
   async remove(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
   ): Promise<void> {
@@ -72,7 +68,6 @@ export class DashboardsController {
   @RequireRole('editor')
   @Post(':dashboardId/widgets')
   async addWidget(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
     @Body() body: CreateWidgetDto,
@@ -83,7 +78,6 @@ export class DashboardsController {
   @RequireRole('editor')
   @Put(':dashboardId/widgets/:widgetId')
   async updateWidget(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
     @Param('widgetId') widgetId: string,
@@ -95,7 +89,6 @@ export class DashboardsController {
   @RequireRole('editor')
   @Delete(':dashboardId/widgets/:widgetId')
   async removeWidget(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('dashboardId') dashboardId: string,
     @Param('widgetId') widgetId: string,

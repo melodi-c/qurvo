@@ -15,7 +15,6 @@ export class SavedInsightsController {
 
   @Get()
   async list(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Query() query: ListInsightsQueryDto,
   ): Promise<InsightDto[]> {
@@ -34,7 +33,6 @@ export class SavedInsightsController {
 
   @Get(':insightId')
   async getById(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('insightId') insightId: string,
   ): Promise<InsightDto> {
@@ -44,7 +42,6 @@ export class SavedInsightsController {
   @RequireRole('editor')
   @Put(':insightId')
   async update(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('insightId') insightId: string,
     @Body() body: UpdateInsightDto,
@@ -55,7 +52,6 @@ export class SavedInsightsController {
   @RequireRole('editor')
   @Delete(':insightId')
   async remove(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('insightId') insightId: string,
   ): Promise<void> {

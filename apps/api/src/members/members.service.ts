@@ -11,6 +11,18 @@ import { CannotRemoveOwnerException } from './exceptions/cannot-remove-owner.exc
 import { MemberNotFoundException } from './exceptions/member-not-found.exception';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
+const MEMBER_COLUMNS = {
+  id: projectMembers.id,
+  project_id: projectMembers.project_id,
+  role: projectMembers.role,
+  created_at: projectMembers.created_at,
+  user: {
+    id: users.id,
+    email: users.email,
+    display_name: users.display_name,
+  },
+};
+
 @Injectable()
 export class MembersService {
   private readonly logger = new Logger(MembersService.name);
@@ -23,17 +35,7 @@ export class MembersService {
 
   async listMembers(projectId: string) {
     return this.db
-      .select({
-        id: projectMembers.id,
-        project_id: projectMembers.project_id,
-        role: projectMembers.role,
-        created_at: projectMembers.created_at,
-        user: {
-          id: users.id,
-          email: users.email,
-          display_name: users.display_name,
-        },
-      })
+      .select(MEMBER_COLUMNS)
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.user_id, users.id))
       .where(eq(projectMembers.project_id, projectId))
@@ -51,22 +53,7 @@ export class MembersService {
 
     await this.db.update(projectMembers).set({ role }).where(eq(projectMembers.id, memberId));
 
-    const [hydrated] = await this.db
-      .select({
-        id: projectMembers.id,
-        project_id: projectMembers.project_id,
-        role: projectMembers.role,
-        created_at: projectMembers.created_at,
-        user: {
-          id: users.id,
-          email: users.email,
-          display_name: users.display_name,
-        },
-      })
-      .from(projectMembers)
-      .innerJoin(users, eq(projectMembers.user_id, users.id))
-      .where(eq(projectMembers.id, memberId));
-
+    const hydrated = await this.hydrateMember(memberId);
     this.logger.log({ memberId, projectId, role }, 'Member role updated');
     return hydrated;
   }
@@ -210,6 +197,15 @@ export class MembersService {
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
+
+  private async hydrateMember(memberId: string) {
+    const [hydrated] = await this.db
+      .select(MEMBER_COLUMNS)
+      .from(projectMembers)
+      .innerJoin(users, eq(projectMembers.user_id, users.id))
+      .where(eq(projectMembers.id, memberId));
+    return hydrated;
+  }
 
   private async hydrateInvite(inviteId: string) {
     const [hydrated] = await this.db
