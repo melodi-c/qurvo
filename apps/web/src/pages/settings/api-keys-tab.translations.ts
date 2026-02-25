@@ -13,6 +13,8 @@ export default createTranslations({
     revokeTitle: 'Revoke "{{name}}"?',
     revokeDescription: 'This action is irreversible. SDKs using this key will immediately stop sending events.',
     revokeConfirm: 'Revoke',
+    createFailed: 'Failed to create API key',
+    revokeFailed: 'Failed to revoke API key',
   },
   ru: {
     selectProject: 'Выберите проект для управления API ключами',
@@ -26,5 +28,7 @@ export default createTranslations({
     revokeTitle: 'Отозвать «{{name}}»?',
     revokeDescription: 'Это действие необратимо. SDK, использующие этот ключ, немедленно перестанут отправлять события.',
     revokeConfirm: 'Отозвать',
+    createFailed: 'Не удалось создать API ключ',
+    revokeFailed: 'Не удалось отозвать API ключ',
   },
 });

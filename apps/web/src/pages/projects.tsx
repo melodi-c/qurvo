@@ -47,17 +47,16 @@ export default function ProjectsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.projectsControllerRemove({ id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success(t('deleted'));
+    },
+    onError: () => toast.error(t('deleteFailed')),
   });
   const confirmDelete = useConfirmDelete();
 
   const handleDelete = async () => {
-    try {
-      await deleteMutation.mutateAsync(confirmDelete.itemId);
-      toast.success(t('deleted'));
-    } catch {
-      toast.error(t('deleteFailed'));
-    }
+    await deleteMutation.mutateAsync(confirmDelete.itemId);
   };
 
   const hasProjects = projects && projects.length > 0;

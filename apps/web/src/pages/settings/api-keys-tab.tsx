@@ -7,6 +7,7 @@ import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { api } from '@/api/client';
+import { toast } from 'sonner';
 import { Plus, Key, Copy, Check } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
@@ -36,11 +37,13 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       setShowCreate(false);
       setName('');
     },
+    onError: () => toast.error(t('createFailed')),
   });
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => api.apiKeysControllerRevoke({ projectId, keyId }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['apiKeys', projectId] }),
+    onError: () => toast.error(t('revokeFailed')),
   });
 
   const handleRevoke = useCallback(async () => {
