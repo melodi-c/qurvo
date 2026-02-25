@@ -103,16 +103,22 @@ export class CohortComputationService {
     }
   }
 
-  async recordError(cohortId: string, err: unknown): Promise<void> {
+  async recordError(cohortId: string, err: unknown): Promise<boolean> {
     const message = err instanceof Error ? err.message.slice(0, 500) : 'Unknown error';
-    await this.db
-      .update(cohorts)
-      .set({
-        errors_calculating: sql`${cohorts.errors_calculating} + 1`,
-        last_error_at: new Date(),
-        last_error_message: message,
-      })
-      .where(eq(cohorts.id, cohortId));
+    try {
+      await this.db
+        .update(cohorts)
+        .set({
+          errors_calculating: sql`${cohorts.errors_calculating} + 1`,
+          last_error_at: new Date(),
+          last_error_message: message,
+        })
+        .where(eq(cohorts.id, cohortId));
+      return true;
+    } catch (pgErr) {
+      this.logger.warn({ err: pgErr, cohortId }, 'PG error recording failed');
+      return false;
+    }
   }
 
   async recordSizeHistory(cohortId: string, projectId: string): Promise<void> {

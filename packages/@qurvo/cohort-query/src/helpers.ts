@@ -1,4 +1,4 @@
-import type { CohortEventFilter } from '@qurvo/db';
+import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 
 export const RESOLVED_PERSON =
   `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
@@ -41,6 +41,89 @@ export function resolveEventPropertyExpr(property: string): string {
 }
 
 /**
+ * Builds a single ClickHouse comparison clause for a property operator.
+ * Shared by property-condition HAVING and event-filter WHERE contexts.
+ */
+export function buildOperatorClause(
+  expr: string,
+  operator: CohortPropertyOperator,
+  pk: string,
+  queryParams: Record<string, unknown>,
+  value?: string,
+  values?: string[],
+): string {
+  switch (operator) {
+    case 'eq':
+      queryParams[pk] = value ?? '';
+      return `${expr} = {${pk}:String}`;
+    case 'neq':
+      queryParams[pk] = value ?? '';
+      return `${expr} != {${pk}:String}`;
+    case 'contains':
+      queryParams[pk] = `%${value ?? ''}%`;
+      return `${expr} LIKE {${pk}:String}`;
+    case 'not_contains':
+      queryParams[pk] = `%${value ?? ''}%`;
+      return `${expr} NOT LIKE {${pk}:String}`;
+    case 'is_set':
+      return `${expr} != ''`;
+    case 'is_not_set':
+      return `${expr} = ''`;
+    case 'gt':
+      queryParams[pk] = Number(value ?? 0);
+      return `toFloat64OrZero(${expr}) > {${pk}:Float64}`;
+    case 'lt':
+      queryParams[pk] = Number(value ?? 0);
+      return `toFloat64OrZero(${expr}) < {${pk}:Float64}`;
+    case 'gte':
+      queryParams[pk] = Number(value ?? 0);
+      return `toFloat64OrZero(${expr}) >= {${pk}:Float64}`;
+    case 'lte':
+      queryParams[pk] = Number(value ?? 0);
+      return `toFloat64OrZero(${expr}) <= {${pk}:Float64}`;
+    case 'regex':
+      queryParams[pk] = value ?? '';
+      return `match(${expr}, {${pk}:String})`;
+    case 'not_regex':
+      queryParams[pk] = value ?? '';
+      return `NOT match(${expr}, {${pk}:String})`;
+    case 'in':
+      queryParams[pk] = values ?? [];
+      return `${expr} IN {${pk}:Array(String)}`;
+    case 'not_in':
+      queryParams[pk] = values ?? [];
+      return `${expr} NOT IN {${pk}:Array(String)}`;
+    case 'between': {
+      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+      queryParams[minPk] = Number(values?.[0] ?? 0);
+      queryParams[maxPk] = Number(values?.[1] ?? 0);
+      return `toFloat64OrZero(${expr}) >= {${minPk}:Float64} AND toFloat64OrZero(${expr}) <= {${maxPk}:Float64}`;
+    }
+    case 'not_between': {
+      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+      queryParams[minPk] = Number(values?.[0] ?? 0);
+      queryParams[maxPk] = Number(values?.[1] ?? 0);
+      return `(toFloat64OrZero(${expr}) < {${minPk}:Float64} OR toFloat64OrZero(${expr}) > {${maxPk}:Float64})`;
+    }
+    case 'is_date_before':
+      queryParams[pk] = value ?? '';
+      return `parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String})`;
+    case 'is_date_after':
+      queryParams[pk] = value ?? '';
+      return `parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String})`;
+    case 'is_date_exact':
+      queryParams[pk] = value ?? '';
+      return `toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`;
+    case 'contains_multi':
+      queryParams[pk] = values ?? [];
+      return `multiSearchAny(${expr}, {${pk}:Array(String)})`;
+    case 'not_contains_multi':
+      queryParams[pk] = values ?? [];
+      return `NOT multiSearchAny(${expr}, {${pk}:Array(String)})`;
+  }
+}
+
+/**
  * Builds WHERE clause fragments for event filters (property sub-filters on event conditions).
  */
 export function buildEventFilterClauses(
@@ -55,97 +138,7 @@ export function buildEventFilterClauses(
     const f = filters[i];
     const pk = `${prefix}_ef${i}`;
     const expr = resolveEventPropertyExpr(f.property);
-
-    switch (f.operator) {
-      case 'eq':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`${expr} = {${pk}:String}`);
-        break;
-      case 'neq':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`${expr} != {${pk}:String}`);
-        break;
-      case 'contains':
-        queryParams[pk] = `%${f.value ?? ''}%`;
-        parts.push(`${expr} LIKE {${pk}:String}`);
-        break;
-      case 'not_contains':
-        queryParams[pk] = `%${f.value ?? ''}%`;
-        parts.push(`${expr} NOT LIKE {${pk}:String}`);
-        break;
-      case 'is_set':
-        parts.push(`${expr} != ''`);
-        break;
-      case 'is_not_set':
-        parts.push(`${expr} = ''`);
-        break;
-      case 'gt':
-        queryParams[pk] = Number(f.value ?? 0);
-        parts.push(`toFloat64OrZero(${expr}) > {${pk}:Float64}`);
-        break;
-      case 'lt':
-        queryParams[pk] = Number(f.value ?? 0);
-        parts.push(`toFloat64OrZero(${expr}) < {${pk}:Float64}`);
-        break;
-      case 'gte':
-        queryParams[pk] = Number(f.value ?? 0);
-        parts.push(`toFloat64OrZero(${expr}) >= {${pk}:Float64}`);
-        break;
-      case 'lte':
-        queryParams[pk] = Number(f.value ?? 0);
-        parts.push(`toFloat64OrZero(${expr}) <= {${pk}:Float64}`);
-        break;
-      case 'regex':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`match(${expr}, {${pk}:String})`);
-        break;
-      case 'not_regex':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`NOT match(${expr}, {${pk}:String})`);
-        break;
-      case 'in':
-        queryParams[pk] = f.values ?? [];
-        parts.push(`${expr} IN {${pk}:Array(String)}`);
-        break;
-      case 'not_in':
-        queryParams[pk] = f.values ?? [];
-        parts.push(`${expr} NOT IN {${pk}:Array(String)}`);
-        break;
-      case 'between': {
-        const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-        queryParams[minPk] = Number(f.values?.[0] ?? 0);
-        queryParams[maxPk] = Number(f.values?.[1] ?? 0);
-        parts.push(`toFloat64OrZero(${expr}) >= {${minPk}:Float64} AND toFloat64OrZero(${expr}) <= {${maxPk}:Float64}`);
-        break;
-      }
-      case 'not_between': {
-        const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-        queryParams[minPk] = Number(f.values?.[0] ?? 0);
-        queryParams[maxPk] = Number(f.values?.[1] ?? 0);
-        parts.push(`(toFloat64OrZero(${expr}) < {${minPk}:Float64} OR toFloat64OrZero(${expr}) > {${maxPk}:Float64})`);
-        break;
-      }
-      case 'is_date_before':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String})`);
-        break;
-      case 'is_date_after':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String})`);
-        break;
-      case 'is_date_exact':
-        queryParams[pk] = f.value ?? '';
-        parts.push(`toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`);
-        break;
-      case 'contains_multi':
-        queryParams[pk] = f.values ?? [];
-        parts.push(`multiSearchAny(${expr}, {${pk}:Array(String)})`);
-        break;
-      case 'not_contains_multi':
-        queryParams[pk] = f.values ?? [];
-        parts.push(`NOT multiSearchAny(${expr}, {${pk}:Array(String)})`);
-        break;
-    }
+    parts.push(buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values));
   }
 
   return parts.length > 0 ? ' AND ' + parts.join(' AND ') : '';

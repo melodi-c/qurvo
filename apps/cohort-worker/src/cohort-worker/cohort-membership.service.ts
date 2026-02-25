@@ -99,17 +99,15 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       if (cyclic.length > 0) {
         this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
         for (const id of cyclic) {
-          await this.computation
-            .recordError(id, new Error('Cyclic cohort dependency detected'))
-            .catch((err) => this.logger.error({ err, cohortId: id }, 'Failed to record cyclic dependency error'));
+          await this.computation.recordError(id, new Error('Cyclic cohort dependency detected'));
         }
       }
 
       // ── 4. Compute each cohort ─────────────────────────────────────────
       const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
 
-      for (const { id, definition } of sorted) {
-        const result = await this.processOneCohort(id, cohortById.get(id)!, definition);
+      for (const { id } of sorted) {
+        const result = await this.processOneCohort(cohortById.get(id)!);
         computed += result.computed;
         pgFailed += result.pgFailed;
       }
@@ -128,24 +126,20 @@ export class CohortMembershipService implements OnApplicationBootstrap {
   }
 
   private async processOneCohort(
-    id: string,
     cohort: StaleCohort,
-    definition: StaleCohort['definition'],
   ): Promise<{ computed: number; pgFailed: number }> {
     try {
       const version = Date.now();
-      await this.computation.computeMembership(id, cohort.project_id, definition, version);
-      const pgOk = await this.computation.markComputationSuccess(id, version);
+      await this.computation.computeMembership(cohort.id, cohort.project_id, cohort.definition, version);
+      const pgOk = await this.computation.markComputationSuccess(cohort.id, version);
       if (pgOk) {
-        await this.computation.recordSizeHistory(id, cohort.project_id);
+        await this.computation.recordSizeHistory(cohort.id, cohort.project_id);
       }
       return { computed: 1, pgFailed: pgOk ? 0 : 1 };
     } catch (err) {
-      await this.computation
-        .recordError(id, err)
-        .catch((recordErr) => this.logger.error({ err: recordErr, cohortId: id }, 'Failed to record error'));
+      await this.computation.recordError(cohort.id, err);
       this.logger.error(
-        { err, cohortId: id, projectId: cohort.project_id },
+        { err, cohortId: cohort.id, projectId: cohort.project_id },
         'Failed to compute membership for cohort',
       );
       return { computed: 0, pgFailed: 0 };
