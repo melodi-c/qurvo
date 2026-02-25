@@ -54,11 +54,6 @@ export const routes = {
   dashboards: {
     list: route('/dashboards'),
     detail: route('/dashboards/:id', (id: string) => `/dashboards/${id}`),
-    widget: route(
-      '/dashboards/:dashboardId/widgets/:widgetId',
-      (dashboardId: string, widgetId: string) =>
-        `/dashboards/${dashboardId}/widgets/${widgetId}`,
-    ),
   },
 
   insights: {

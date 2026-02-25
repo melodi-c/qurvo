@@ -167,7 +167,7 @@ export function AiChatPanel({
               disabled={isStreaming}
             />
             {isStreaming ? (
-              <Button size="icon" variant="outline" onClick={onStop} className="shrink-0">
+              <Button size="icon" variant="outline" onClick={onStop} className="shrink-0" aria-label={t('stopStreaming')}>
                 <Square className="w-4 h-4" />
               </Button>
             ) : (
@@ -176,6 +176,7 @@ export function AiChatPanel({
                 onClick={handleSubmit}
                 disabled={!input.trim()}
                 className="shrink-0"
+                aria-label={t('sendMessage')}
               >
                 <SendHorizonal className="w-4 h-4" />
               </Button>

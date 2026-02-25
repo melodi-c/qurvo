@@ -59,7 +59,10 @@ export function MembersTab({ projectId }: { projectId: string }) {
                 <ProjectMemberRow
                   key={member.id}
                   avatar={
-                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/15 text-xs font-bold text-primary">
+                    <span
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/15 text-xs font-bold text-primary"
+                      aria-label={t('memberAvatar', { name: member.user.display_name })}
+                    >
                       {member.user.display_name.slice(0, 1).toUpperCase()}
                     </span>
                   }
@@ -90,6 +93,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                           variant="ghost"
                           className="text-destructive"
                           onClick={() => confirmDelete.requestDelete(member.id, member.user.display_name)}
+                          aria-label={t('removeMember')}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
