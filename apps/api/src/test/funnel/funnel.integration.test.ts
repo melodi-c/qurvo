@@ -476,8 +476,6 @@ describe('queryFunnel — conversion window units', () => {
     const personFast = randomUUID();
     const personSlow = randomUUID();
 
-    const now = Date.now();
-
     await insertTestEvents(ctx.ch, [
       // Fast: step_a → step_b within 30 seconds
       buildEvent({
@@ -485,14 +483,14 @@ describe('queryFunnel — conversion window units', () => {
         person_id: personFast,
         distinct_id: 'fast',
         event_name: 'step_a',
-        timestamp: new Date(now - 60_000).toISOString(), // 60 sec ago
+        timestamp: msAgo(60_000), // 60 sec ago
       }),
       buildEvent({
         project_id: projectId,
         person_id: personFast,
         distinct_id: 'fast',
         event_name: 'step_b',
-        timestamp: new Date(now - 30_000).toISOString(), // 30 sec ago
+        timestamp: msAgo(30_000), // 30 sec ago
       }),
       // Slow: step_a → step_b with 3 minutes gap
       buildEvent({
@@ -500,14 +498,14 @@ describe('queryFunnel — conversion window units', () => {
         person_id: personSlow,
         distinct_id: 'slow',
         event_name: 'step_a',
-        timestamp: new Date(now - 300_000).toISOString(), // 5 min ago
+        timestamp: msAgo(300_000), // 5 min ago
       }),
       buildEvent({
         project_id: projectId,
         person_id: personSlow,
         distinct_id: 'slow',
         event_name: 'step_b',
-        timestamp: new Date(now - 120_000).toISOString(), // 2 min ago
+        timestamp: msAgo(120_000), // 2 min ago
       }),
     ]);
 
@@ -541,8 +539,6 @@ describe('queryFunnelTimeToConvert', () => {
     const personB = randomUUID();
     const personC = randomUUID();
 
-    const now = Date.now();
-
     await insertTestEvents(ctx.ch, [
       // Person A: 10 seconds to convert
       buildEvent({
@@ -550,14 +546,14 @@ describe('queryFunnelTimeToConvert', () => {
         person_id: personA,
         distinct_id: 'a',
         event_name: 'signup',
-        timestamp: new Date(now - 60_000).toISOString(),
+        timestamp: msAgo(60_000),
       }),
       buildEvent({
         project_id: projectId,
         person_id: personA,
         distinct_id: 'a',
         event_name: 'purchase',
-        timestamp: new Date(now - 50_000).toISOString(),
+        timestamp: msAgo(50_000),
       }),
       // Person B: 30 seconds to convert
       buildEvent({
@@ -565,14 +561,14 @@ describe('queryFunnelTimeToConvert', () => {
         person_id: personB,
         distinct_id: 'b',
         event_name: 'signup',
-        timestamp: new Date(now - 90_000).toISOString(),
+        timestamp: msAgo(90_000),
       }),
       buildEvent({
         project_id: projectId,
         person_id: personB,
         distinct_id: 'b',
         event_name: 'purchase',
-        timestamp: new Date(now - 60_000).toISOString(),
+        timestamp: msAgo(60_000),
       }),
       // Person C: only signup, no purchase
       buildEvent({
@@ -580,7 +576,7 @@ describe('queryFunnelTimeToConvert', () => {
         person_id: personC,
         distinct_id: 'c',
         event_name: 'signup',
-        timestamp: new Date(now - 60_000).toISOString(),
+        timestamp: msAgo(60_000),
       }),
     ]);
 
