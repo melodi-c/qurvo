@@ -50,7 +50,16 @@ function toSankeyData(transitions: PathTransition[]) {
   return { nodes, links };
 }
 
-function CustomNode({ x, y, width, height, index, payload }: any) {
+interface CustomNodeProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  index: number;
+  payload: SankeyNode;
+}
+
+function CustomNode({ x = 0, y = 0, width = 0, height = 0, index = 0, payload = { name: '', displayName: '' } }: Partial<CustomNodeProps>) {
   const color = COLORS[index % COLORS.length];
   return (
     <Layer key={`node-${index}`}>
@@ -78,15 +87,23 @@ function CustomNode({ x, y, width, height, index, payload }: any) {
   );
 }
 
-function CustomTooltip({ active, payload, usersLabel }: any) {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload?: { payload?: Record<string, unknown> } }>;
+  usersLabel: string;
+}
+
+function CustomTooltip({ active, payload, usersLabel }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload?.payload;
   if (!data) return null;
 
   // Link tooltip
   if (data.source !== undefined && data.target !== undefined) {
-    const sourceName = data.source?.displayName ?? data.sourceName ?? '?';
-    const targetName = data.target?.displayName ?? data.targetName ?? '?';
+    const src = data.source as SankeyNode | undefined;
+    const tgt = data.target as SankeyNode | undefined;
+    const sourceName = src?.displayName ?? (data.sourceName as string) ?? '?';
+    const targetName = tgt?.displayName ?? (data.targetName as string) ?? '?';
     return (
       <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
         <p className="font-medium text-foreground">
@@ -102,7 +119,7 @@ function CustomTooltip({ active, payload, usersLabel }: any) {
   // Node tooltip
   return (
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md">
-      <p className="font-medium text-foreground">{data.displayName ?? data.name}</p>
+      <p className="font-medium text-foreground">{String(data.displayName ?? data.name)}</p>
       <p className="text-muted-foreground mt-1">
         {Number(data.value).toLocaleString()} {usersLabel}
       </p>
@@ -147,8 +164,8 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
             width={chartWidth}
             height={chartHeight}
             data={sankeyData}
-            node={<CustomNode />}
-            link={{ stroke: '#a1a1aa', strokeOpacity: 0.2 }}
+            node={(<CustomNode />) as React.ReactElement<SVGElement>}
+            link={{ stroke: 'var(--color-muted-foreground)', strokeOpacity: 0.2 }}
             nodePadding={24}
             nodeWidth={8}
             margin={{ top: 10, right: 120, bottom: 10, left: 10 }}

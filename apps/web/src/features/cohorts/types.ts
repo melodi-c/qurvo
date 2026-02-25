@@ -97,26 +97,37 @@ export interface RestartedPerformingCondition {
   event_filters?: CohortEventFilter[];
 }
 
+/** Client-side stable key for React list rendering. Stripped before API calls. */
+interface WithClientKey {
+  _key?: string;
+}
+
 export type CohortCondition =
-  | PropertyCondition
-  | EventCondition
-  | CohortRefCondition
-  | FirstTimeEventCondition
-  | NotPerformedEventCondition
-  | EventSequenceCondition
-  | NotPerformedEventSequenceCondition
-  | PerformedRegularlyCondition
-  | StoppedPerformingCondition
-  | RestartedPerformingCondition;
+  | (PropertyCondition & WithClientKey)
+  | (EventCondition & WithClientKey)
+  | (CohortRefCondition & WithClientKey)
+  | (FirstTimeEventCondition & WithClientKey)
+  | (NotPerformedEventCondition & WithClientKey)
+  | (EventSequenceCondition & WithClientKey)
+  | (NotPerformedEventSequenceCondition & WithClientKey)
+  | (PerformedRegularlyCondition & WithClientKey)
+  | (StoppedPerformingCondition & WithClientKey)
+  | (RestartedPerformingCondition & WithClientKey);
 
 export interface CohortConditionGroup {
   type: 'AND' | 'OR';
   values: (CohortCondition | CohortConditionGroup)[];
+  _key?: string;
+}
+
+/** Generate a client-side stable key */
+export function conditionKey(): string {
+  return crypto.randomUUID();
 }
 
 /** Default empty group */
 export function createEmptyGroup(type: 'AND' | 'OR' = 'AND'): CohortConditionGroup {
-  return { type, values: [] };
+  return { type, values: [], _key: conditionKey() };
 }
 
 /** Check if a value is a nested group */
@@ -140,27 +151,28 @@ export const CONDITION_TYPES = [
 
 /** Create a default condition for a given type */
 export function createDefaultCondition(type: CohortCondition['type']): CohortCondition {
+  const _key = conditionKey();
   switch (type) {
     case 'person_property':
-      return { type: 'person_property', property: '', operator: 'eq', value: '' };
+      return { type: 'person_property', property: '', operator: 'eq', value: '', _key };
     case 'event':
-      return { type: 'event', event_name: '', count_operator: 'gte', count: 1, time_window_days: 30 };
+      return { type: 'event', event_name: '', count_operator: 'gte', count: 1, time_window_days: 30, _key };
     case 'cohort':
-      return { type: 'cohort', cohort_id: '', negated: false };
+      return { type: 'cohort', cohort_id: '', negated: false, _key };
     case 'first_time_event':
-      return { type: 'first_time_event', event_name: '', time_window_days: 30 };
+      return { type: 'first_time_event', event_name: '', time_window_days: 30, _key };
     case 'not_performed_event':
-      return { type: 'not_performed_event', event_name: '', time_window_days: 30 };
+      return { type: 'not_performed_event', event_name: '', time_window_days: 30, _key };
     case 'event_sequence':
-      return { type: 'event_sequence', steps: [{ event_name: '' }, { event_name: '' }], time_window_days: 30 };
+      return { type: 'event_sequence', steps: [{ event_name: '' }, { event_name: '' }], time_window_days: 30, _key };
     case 'not_performed_event_sequence':
-      return { type: 'not_performed_event_sequence', steps: [{ event_name: '' }, { event_name: '' }], time_window_days: 30 };
+      return { type: 'not_performed_event_sequence', steps: [{ event_name: '' }, { event_name: '' }], time_window_days: 30, _key };
     case 'performed_regularly':
-      return { type: 'performed_regularly', event_name: '', period_type: 'week', total_periods: 4, min_periods: 3, time_window_days: 30 };
+      return { type: 'performed_regularly', event_name: '', period_type: 'week', total_periods: 4, min_periods: 3, time_window_days: 30, _key };
     case 'stopped_performing':
-      return { type: 'stopped_performing', event_name: '', recent_window_days: 7, historical_window_days: 30 };
+      return { type: 'stopped_performing', event_name: '', recent_window_days: 7, historical_window_days: 30, _key };
     case 'restarted_performing':
-      return { type: 'restarted_performing', event_name: '', recent_window_days: 7, gap_window_days: 14, historical_window_days: 30 };
+      return { type: 'restarted_performing', event_name: '', recent_window_days: 7, gap_window_days: 14, historical_window_days: 30, _key };
   }
 }
 

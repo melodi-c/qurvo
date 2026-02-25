@@ -29,6 +29,7 @@ COPY apps/api/package.json                     apps/api/
 COPY apps/ingest/package.json                  apps/ingest/
 COPY apps/processor/package.json               apps/processor/
 COPY apps/cohort-worker/package.json           apps/cohort-worker/
+COPY apps/billing-worker/package.json          apps/billing-worker/
 COPY apps/web/package.json                     apps/web/
 COPY apps/landing/package.json                 apps/landing/
 COPY packages/@qurvo/db/package.json            packages/@qurvo/db/

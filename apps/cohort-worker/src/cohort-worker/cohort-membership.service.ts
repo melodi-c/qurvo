@@ -105,14 +105,25 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
       // ── 4. Compute each cohort ─────────────────────────────────────────
       const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
+      const pendingDeletions: Array<{ cohortId: string; version: number }> = [];
 
       for (const { id } of sorted) {
         const result = await this.processOneCohort(cohortById.get(id)!);
         computed += result.computed;
         pgFailed += result.pgFailed;
+        if (result.version !== undefined) {
+          pendingDeletions.push({ cohortId: id, version: result.version });
+        }
+      }
+
+      // ── 5. Batch-delete old versions (single CH mutation) ────────────
+      if (pendingDeletions.length > 0) {
+        await this.computation
+          .deleteOldVersions(pendingDeletions)
+          .catch((err) => this.logger.error({ err }, 'Batch deletion of old cohort versions failed'));
       }
     } finally {
-      // ── 5. GC orphaned memberships (every N cycles, skips the first) ──
+      // ── 6. GC orphaned memberships (every N cycles, skips the first) ──
       await this.runGcIfDue();
       this.gcCycleCounter++;
 
@@ -127,7 +138,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
   private async processOneCohort(
     cohort: StaleCohort,
-  ): Promise<{ computed: number; pgFailed: number }> {
+  ): Promise<{ computed: number; pgFailed: number; version?: number }> {
     try {
       const version = Date.now();
       await this.computation.computeMembership(cohort.id, cohort.project_id, cohort.definition, version);
@@ -135,7 +146,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       if (pgOk) {
         await this.computation.recordSizeHistory(cohort.id, cohort.project_id);
       }
-      return { computed: 1, pgFailed: pgOk ? 0 : 1 };
+      return { computed: 1, pgFailed: pgOk ? 0 : 1, version };
     } catch (err) {
       await this.computation.recordError(cohort.id, err);
       this.logger.error(
@@ -146,9 +157,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     }
   }
 
-  private filterByBackoff<T extends { errors_calculating: number; last_error_at: Date | null }>(
-    staleCohorts: T[],
-  ): T[] {
+  private filterByBackoff(staleCohorts: StaleCohort[]): StaleCohort[] {
     const now = Date.now();
     return staleCohorts.filter((c) => {
       if (c.errors_calculating === 0 || !c.last_error_at) return true;

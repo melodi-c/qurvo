@@ -1,3 +1,5 @@
+import { FUNNEL_LEGEND_COLORS } from '@/lib/chart-colors';
+
 export interface StepLegendProps {
   stepNum: number;
   label: string;
@@ -38,7 +40,7 @@ export function StepLegend({
         </div>
 
         <div className="space-y-0.5 pl-5">
-          <div className="flex items-center gap-1 text-emerald-500">
+          <div className={`flex items-center gap-1 ${FUNNEL_LEGEND_COLORS.conversion}`}>
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0">
               <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -47,7 +49,7 @@ export function StepLegend({
           </div>
 
           {!isFirst && !isLast && dropOff > 0 && (
-            <div className="flex items-center gap-1 text-red-400">
+            <div className={`flex items-center gap-1 ${FUNNEL_LEGEND_COLORS.dropOff}`}>
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0">
                 <path d="M2 5h10M8 9l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -77,7 +79,7 @@ export function StepLegend({
 
       {/* Metrics */}
       <div className="space-y-0.5 pl-[26px]">
-        <div className="flex items-center gap-1.5 text-emerald-500">
+        <div className={`flex items-center gap-1.5 ${FUNNEL_LEGEND_COLORS.conversion}`}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
             <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -86,7 +88,7 @@ export function StepLegend({
         </div>
 
         {!isFirst && !isLast && dropOff > 0 && (
-          <div className="flex items-center gap-1.5 text-red-400">
+          <div className={`flex items-center gap-1.5 ${FUNNEL_LEGEND_COLORS.dropOff}`}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
               <path d="M2 5h10M8 9l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

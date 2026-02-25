@@ -20,7 +20,6 @@ export default function RetentionEditorPage() {
     type: 'retention',
     defaultName: t('defaultName'),
     defaultConfig: defaultRetentionConfig,
-    cleanConfig: (c) => c,
   });
 
   const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;

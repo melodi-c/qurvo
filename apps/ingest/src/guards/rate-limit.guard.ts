@@ -1,12 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, HttpException, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
-import {
-  REDIS,
-  RATE_LIMIT_KEY_PREFIX,
-  RATE_LIMIT_WINDOW_SECONDS,
-  RATE_LIMIT_MAX_EVENTS,
-  RATE_LIMIT_BUCKET_SECONDS,
-} from '../constants';
+import { REDIS, RATE_LIMIT_MAX_EVENTS, RATE_LIMIT_BUCKET_SECONDS, rateLimitWindowKeys } from '../constants';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -18,14 +12,7 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
     const projectId = request.projectId;
 
-    const nowSec = Math.floor(Date.now() / 1000);
-    const bucketCount = RATE_LIMIT_WINDOW_SECONDS / RATE_LIMIT_BUCKET_SECONDS;
-
-    const keys: string[] = [];
-    for (let i = 0; i < bucketCount; i++) {
-      const bucket = Math.floor((nowSec - i * RATE_LIMIT_BUCKET_SECONDS) / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
-      keys.push(`${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`);
-    }
+    const keys = rateLimitWindowKeys(projectId);
 
     let values: (string | null)[];
     try {
