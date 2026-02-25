@@ -203,7 +203,7 @@ async function executeTrendQuery(
             count() AS raw_value,
             uniqExact(${RESOLVED_PERSON}) AS uniq_value,
             ${aggCol}
-          FROM events FINAL
+          FROM events
           WHERE
             project_id = {project_id:UUID}
             AND timestamp >= {from:DateTime64(3)}
@@ -230,7 +230,7 @@ async function executeTrendQuery(
           count() AS raw_value,
           uniqExact(${RESOLVED_PERSON}) AS uniq_value,
           ${aggCol}
-        FROM events FINAL
+        FROM events
         WHERE
           project_id = {project_id:UUID}
           AND timestamp >= {from:DateTime64(3)}
@@ -261,7 +261,7 @@ async function executeTrendQuery(
         count() AS raw_value,
         uniqExact(${RESOLVED_PERSON}) AS uniq_value,
         ${aggCol}
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
@@ -273,7 +273,7 @@ async function executeTrendQuery(
   const sql = `
     WITH top_values AS (
       SELECT ${breakdownExpr} AS breakdown_value
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}

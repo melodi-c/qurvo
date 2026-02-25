@@ -13,7 +13,7 @@ export function buildPropertyConditionSubquery(
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
-    FROM events FINAL
+    FROM events
     WHERE project_id = {${ctx.projectIdParam}:UUID}
     GROUP BY person_id
     HAVING ${havingClause}`;

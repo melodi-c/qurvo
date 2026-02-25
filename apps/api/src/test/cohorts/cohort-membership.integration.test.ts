@@ -437,7 +437,7 @@ describe('importStaticCohortCsv — email resolution', () => {
     const result = await ctx.ch.query({
       query: `
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
-        FROM events FINAL
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
       query_params: { project_id: projectId, emails },
@@ -478,7 +478,7 @@ describe('importStaticCohortCsv — email resolution', () => {
     const result = await ctx.ch.query({
       query: `
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
-        FROM events FINAL
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
       query_params: { project_id: projectId, emails },

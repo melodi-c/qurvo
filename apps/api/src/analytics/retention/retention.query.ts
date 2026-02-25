@@ -119,7 +119,7 @@ export async function queryRetention(
     // Recurring: each period the person is active counts as an initial event
     initialCte = `
       SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS cohort_period
-      FROM events FINAL
+      FROM events
       WHERE project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
         AND timestamp <= {to:DateTime64(3)}
@@ -132,7 +132,7 @@ export async function queryRetention(
       FROM (
         SELECT ${RESOLVED_PERSON} AS person_id,
                min(${granExpr}) AS cohort_period
-        FROM events FINAL
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND event_name = {target_event:String}${cohortClause}
         GROUP BY person_id
@@ -146,7 +146,7 @@ export async function queryRetention(
       initial_events AS (${initialCte}),
       return_events AS (
         SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS return_period
-        FROM events FINAL
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND timestamp >= {from:DateTime64(3)}
           AND timestamp <= {extended_to:DateTime64(3)}

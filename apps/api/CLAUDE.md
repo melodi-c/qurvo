@@ -124,7 +124,8 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `queryStickiness(ch, params)` — histogram of active periods per user
 - `queryPaths(ch, params)` — user journey path exploration
 - `countCohortMembers(ch, projectId, definition)` — behavioral cohort counting
-- All queries use `FROM events FINAL` to deduplicate ReplacingMergeTree
+- Queries use `FROM events` (without FINAL) — duplicate rate is negligible (~0.00007%), FINAL disables projections and adds 2-3x overhead
+- `cohort_members FINAL` and `person_static_cohort FINAL` still use FINAL (small tables, correctness matters)
 
 ### Shared Utilities
 `src/utils/` contains shared code used across modules:

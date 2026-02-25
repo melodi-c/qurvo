@@ -129,7 +129,7 @@ function buildSessionStatsCTE(
         if(countIf(event_name = '$pageview') = 1
            AND dateDiff('second', min(timestamp), max(timestamp)) < 10, 1, 0) AS is_bounce,
         any(${RESOLVED_PERSON}) AS resolved_person
-      FROM events FINAL
+      FROM events
       WHERE project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
         AND timestamp <= {to:DateTime64(3)}
@@ -299,7 +299,7 @@ async function queryTopPagesDimension(
       page_path AS name,
       uniqExact(${RESOLVED_PERSON}) AS visitors,
       count() AS pageviews
-    FROM events FINAL
+    FROM events
     WHERE project_id = {project_id:UUID}
       AND timestamp >= {from:DateTime64(3)}
       AND timestamp <= {to:DateTime64(3)}

@@ -77,7 +77,7 @@ export async function queryFunnelTimeToConvert(
             ${RESOLVED_PERSON} AS person_id,
             ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
             ${stepTimestampCols}
-          FROM events FINAL
+          FROM events
           WHERE
             project_id = {project_id:UUID}
             AND timestamp >= {from:DateTime64(3)}

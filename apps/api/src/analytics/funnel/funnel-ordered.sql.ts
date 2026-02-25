@@ -64,7 +64,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
             SELECT
               ${RESOLVED_PERSON} AS person_id,
               ${wfExpr} AS max_step${breakdownCol}${timestampCols}${exclColumnsSQL}
-            FROM events FINAL
+            FROM events
             WHERE
               project_id = {project_id:UUID}
               AND timestamp >= {from:DateTime64(3)}

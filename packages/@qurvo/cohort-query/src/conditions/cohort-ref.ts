@@ -21,7 +21,7 @@ export function buildCohortRefConditionSubquery(
   if (cond.negated) {
     return `
       SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
-      FROM events FINAL
+      FROM events
       WHERE project_id = {${ctx.projectIdParam}:UUID}
         AND ${RESOLVED_PERSON} NOT IN (${subquery})`;
   }

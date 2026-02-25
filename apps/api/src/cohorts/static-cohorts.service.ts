@@ -138,7 +138,7 @@ export class StaticCohortsService {
             dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)),
             person_id
           ) AS resolved_person_id
-        FROM events FINAL
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND distinct_id IN {ids:Array(String)}`,
       query_params: { project_id: projectId, ids: distinctIds },
@@ -153,7 +153,7 @@ export class StaticCohortsService {
     const result = await this.ch.query({
       query: `
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
-        FROM events FINAL
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
       query_params: { project_id: projectId, emails },

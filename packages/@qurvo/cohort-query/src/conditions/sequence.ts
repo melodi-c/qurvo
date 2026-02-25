@@ -18,7 +18,7 @@ export function buildEventSequenceSubquery(
           timestamp,
           ${stepConditions.join(',\n          ')}
         ) AS seq_match
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} DAY

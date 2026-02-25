@@ -76,7 +76,7 @@ export async function queryStickiness(
     WITH person_active_periods AS (
       SELECT ${RESOLVED_PERSON} AS person_id,
              uniqExact(${truncExpr}) AS active_periods
-      FROM events FINAL
+      FROM events
       WHERE project_id = {project_id:UUID}
         AND event_name = {target_event:String}
         AND timestamp >= {from:DateTime64(3)}

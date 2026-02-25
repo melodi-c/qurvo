@@ -54,7 +54,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
       SELECT
         ${RESOLVED_PERSON} AS person_id,
         ${minIfCols}${breakdownCol}
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}

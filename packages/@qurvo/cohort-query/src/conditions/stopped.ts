@@ -20,7 +20,7 @@ export function buildStoppedPerformingSubquery(
   // Historical performers NOT IN recent performers
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
-    FROM events FINAL
+    FROM events
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
       AND event_name = {${eventPk}:String}
@@ -29,7 +29,7 @@ export function buildStoppedPerformingSubquery(
     GROUP BY person_id
     HAVING person_id NOT IN (
       SELECT ${RESOLVED_PERSON}
-      FROM events FINAL
+      FROM events
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND event_name = {${eventPk}:String}

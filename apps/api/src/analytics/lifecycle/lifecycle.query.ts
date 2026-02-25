@@ -81,10 +81,9 @@ function assembleLifecycleResult(
 
 // ── Core query ───────────────────────────────────────────────────────────────
 //
-// ClickHouse CTEs are inlined (not materialised), so window-function approaches
-// suffer from predicate push-down that corrupts lag/lead results.
-// We use IN / NOT IN sub-queries instead — ClickHouse builds a hash set once
-// per sub-query, giving O(N) lookup with no self-join NULL-default pitfalls.
+// Single-scan approach: collect per-person active buckets into a sorted array,
+// then ARRAY JOIN + has() to classify each bucket. This avoids CTE inlining
+// that previously caused 5x table scans (ClickHouse CTEs are not materialised).
 
 export async function queryLifecycle(
   ch: ClickHouseClient,
@@ -107,51 +106,41 @@ export async function queryLifecycle(
 
   const sql = `
     WITH
-      active_periods AS (
-        SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS ts_bucket
-        FROM events FINAL
+      person_buckets AS (
+        SELECT
+          ${RESOLVED_PERSON} AS person_id,
+          arraySort(groupUniqArray(${granExpr})) AS buckets,
+          min(${granExpr}) AS first_bucket
+        FROM events
         WHERE project_id = {project_id:UUID}
           AND event_name = {target_event:String}
           AND timestamp >= {extended_from:DateTime64(3)}
           AND timestamp <= {to:DateTime64(3)}${cohortClause}
-        GROUP BY person_id, ts_bucket
-      ),
-      first_activity AS (
-        SELECT person_id, min(ts_bucket) AS first_bucket
-        FROM active_periods
         GROUP BY person_id
-      ),
-      classified AS (
-        SELECT
-          a.ts_bucket AS ts_bucket,
-          multiIf(
-            a.ts_bucket = f.first_bucket, 'new',
-            (a.person_id, a.ts_bucket - ${interval}) IN (SELECT person_id, ts_bucket FROM active_periods), 'returning',
-            'resurrecting'
-          ) AS status,
-          a.person_id AS person_id
-        FROM active_periods a
-        INNER JOIN first_activity f ON a.person_id = f.person_id
-        WHERE a.ts_bucket >= {from:DateTime64(3)}
-      ),
-      dormant AS (
-        SELECT
-          a.ts_bucket + ${interval} AS ts_bucket,
-          'dormant' AS status,
-          a.person_id
-        FROM active_periods a
-        WHERE (a.person_id, a.ts_bucket + ${interval}) NOT IN (SELECT person_id, ts_bucket FROM active_periods)
-          AND a.ts_bucket + ${interval} >= {from:DateTime64(3)}
-          AND a.ts_bucket + ${interval} <= {to:DateTime64(3)}
       )
     SELECT
       toString(ts_bucket) AS period,
       status,
       uniqExact(person_id) AS count
     FROM (
-      SELECT ts_bucket, status, person_id FROM classified
+      SELECT person_id, bucket AS ts_bucket,
+        multiIf(
+          bucket = first_bucket, 'new',
+          has(buckets, bucket - ${interval}), 'returning',
+          'resurrecting'
+        ) AS status
+      FROM person_buckets
+      ARRAY JOIN buckets AS bucket
+      WHERE bucket >= {from:DateTime64(3)}
+
       UNION ALL
-      SELECT ts_bucket, status, person_id FROM dormant
+
+      SELECT person_id, bucket + ${interval} AS ts_bucket, 'dormant' AS status
+      FROM person_buckets
+      ARRAY JOIN buckets AS bucket
+      WHERE NOT has(buckets, bucket + ${interval})
+        AND bucket + ${interval} >= {from:DateTime64(3)}
+        AND bucket + ${interval} <= {to:DateTime64(3)}
     )
     GROUP BY ts_bucket, status
     ORDER BY ts_bucket ASC, status ASC`;
