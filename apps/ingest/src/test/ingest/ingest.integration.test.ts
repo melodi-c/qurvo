@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { randomUUID, randomBytes, createHash } from 'crypto';
+import { createHash } from 'crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -12,11 +12,12 @@ import {
   type TestProject,
 } from '@qurvo/testing';
 import { eq } from 'drizzle-orm';
-import { apiKeys, plans, projects } from '@qurvo/db';
+import { apiKeys } from '@qurvo/db';
 import { AppModule } from '../../app.module';
 import {
   REDIS_STREAM_EVENTS,
   billingCounterKey,
+  BILLING_QUOTA_LIMITED_KEY,
   RATE_LIMIT_KEY_PREFIX,
   RATE_LIMIT_MAX_EVENTS,
   RATE_LIMIT_BUCKET_SECONDS,
@@ -345,31 +346,11 @@ describe('API key auth', () => {
 });
 
 describe('Billing guard', () => {
-  it('returns 200 with quota_limited when monthly event limit is exceeded', async () => {
-    // Create a plan with a low limit
-    const planId = randomUUID();
-    await ctx.db.insert(plans).values({
-      id: planId,
-      slug: `test-plan-${randomBytes(4).toString('hex')}`,
-      name: 'Limited Plan',
-      events_limit: 100,
-      features: { cohorts: false, lifecycle: false, stickiness: false, api_export: false, ai_insights: false },
-    } as any);
-
-    // Create a project on that plan
+  it('returns 200 with quota_limited when project is in quota_limited set', async () => {
     const tp = await createTestProject(ctx.db);
-    await ctx.db
-      .update(projects)
-      .set({ plan_id: planId } as any)
-      .where(eq(projects.id, tp.projectId));
 
-    // Clear API key cache so guard re-fetches with plan
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.del(`apikey:${keyHash}`);
-
-    // Pre-seed the billing counter above the limit
-    const counterKey = billingCounterKey(tp.projectId);
-    await ctx.redis.set(counterKey, '150');
+    // Add project to the billing:quota_limited set (populated by billing-worker)
+    await ctx.redis.sadd(BILLING_QUOTA_LIMITED_KEY, tp.projectId);
 
     const res = await postBatch(app, tp.apiKey, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
@@ -377,31 +358,16 @@ describe('Billing guard', () => {
     // Returns 200 (not 429) to prevent SDK retries — PostHog pattern
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, quota_limited: true });
+
+    // Cleanup
+    await ctx.redis.srem(BILLING_QUOTA_LIMITED_KEY, tp.projectId);
   });
 
-  it('allows request when under the event limit', async () => {
-    const planId = randomUUID();
-    await ctx.db.insert(plans).values({
-      id: planId,
-      slug: `test-plan-${randomBytes(4).toString('hex')}`,
-      name: 'Generous Plan',
-      events_limit: 10000,
-      features: { cohorts: false, lifecycle: false, stickiness: false, api_export: false, ai_insights: false },
-    } as any);
-
+  it('allows request when project is not in quota_limited set', async () => {
     const tp = await createTestProject(ctx.db);
-    await ctx.db
-      .update(projects)
-      .set({ plan_id: planId } as any)
-      .where(eq(projects.id, tp.projectId));
 
-    // Clear API key cache
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.del(`apikey:${keyHash}`);
-
-    // Counter well under limit
-    const counterKey = billingCounterKey(tp.projectId);
-    await ctx.redis.set(counterKey, '50');
+    // Ensure project is NOT in the set
+    await ctx.redis.srem(BILLING_QUOTA_LIMITED_KEY, tp.projectId);
 
     const res = await postBatch(app, tp.apiKey, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
@@ -431,28 +397,20 @@ describe('Billing guard', () => {
     expect(parseInt(counter!, 10)).toBe(3);
   });
 
-  it('returns 200 with quota_limited for beacon request when over limit', async () => {
-    const planId = randomUUID();
-    await ctx.db.insert(plans).values({
-      id: planId,
-      slug: `test-plan-${randomBytes(4).toString('hex')}`,
-      name: 'Beacon Limited Plan',
-      events_limit: 10,
-      features: { cohorts: false, lifecycle: false, stickiness: false, api_export: false, ai_insights: false },
-    } as any);
-
+  it('returns 204 for beacon request when project is quota limited', async () => {
     const tp = await createTestProject(ctx.db);
-    await ctx.db.update(projects).set({ plan_id: planId } as any).where(eq(projects.id, tp.projectId));
 
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.del(`apikey:${keyHash}`);
-    await ctx.redis.set(billingCounterKey(tp.projectId), '100');
+    // Add project to the billing:quota_limited set
+    await ctx.redis.sadd(BILLING_QUOTA_LIMITED_KEY, tp.projectId);
 
     // Beacon requests with quota exceeded still return 204
     const res = await postBatchBeacon(app, tp.apiKey, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
     });
     expect(res.status).toBe(204);
+
+    // Cleanup
+    await ctx.redis.srem(BILLING_QUOTA_LIMITED_KEY, tp.projectId);
   });
 });
 
