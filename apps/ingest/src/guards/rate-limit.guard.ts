@@ -1,12 +1,16 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, HttpException, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS, RATE_LIMIT_MAX_EVENTS, RATE_LIMIT_BUCKET_SECONDS, rateLimitWindowKeys } from '../constants';
+import { MetricsService } from '../metrics.service';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   private readonly logger = new Logger(RateLimitGuard.name);
 
-  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS) private readonly redis: Redis,
+    private readonly metrics: MetricsService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
@@ -25,6 +29,7 @@ export class RateLimitGuard implements CanActivate {
     const total = values.reduce((sum, v) => sum + (v !== null ? parseInt(v, 10) : 0), 0);
 
     if (total >= RATE_LIMIT_MAX_EVENTS) {
+      this.metrics.rateLimited.inc();
       throw new HttpException(
         { statusCode: 429, message: 'Rate limit exceeded', retry_after: RATE_LIMIT_BUCKET_SECONDS },
         429,

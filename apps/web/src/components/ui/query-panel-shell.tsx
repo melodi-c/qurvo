@@ -6,7 +6,7 @@ interface QueryPanelShellProps {
 
 export function QueryPanelShell({ children }: QueryPanelShellProps) {
   return (
-    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto max-h-[50vh] lg:max-h-none">
+    <aside className="w-full lg:w-[360px] shrink-0 border-b border-border lg:border-b-0 lg:border-r overflow-y-auto lg:max-h-none">
       <div className="p-5 space-y-6">
         {children}
       </div>

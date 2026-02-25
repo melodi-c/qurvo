@@ -15,6 +15,7 @@ import {
   RATE_LIMIT_BUCKET_SECONDS,
   rateLimitBucketKey,
 } from '../constants';
+import { MetricsService } from '../metrics.service';
 import type { TrackEvent } from '../schemas/event';
 import type { ImportEvent } from '../schemas/import-event';
 
@@ -67,16 +68,25 @@ export class IngestService {
   private cachedStreamLen = 0;
   private cachedStreamLenAt = 0;
 
-  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS) private readonly redis: Redis,
+    private readonly metrics: MetricsService,
+  ) {}
 
   async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
-    await this.checkBackpressure();
-    const serverTime = new Date().toISOString();
-    const batchId = uuidv7();
-    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, userAgent, batchId, sentAt, event_id: event.event_id }));
-    await this.writeToStream(payloads);
-    this.incrementCounters(projectId, events.length);
-    this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
+    const stopTimer = this.metrics.batchDuration.startTimer();
+    try {
+      await this.checkBackpressure();
+      const serverTime = new Date().toISOString();
+      const batchId = uuidv7();
+      const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, userAgent, batchId, sentAt, event_id: event.event_id }));
+      await this.writeToStream(payloads);
+      this.incrementCounters(projectId, events.length);
+      this.metrics.eventsReceived.inc(events.length);
+      this.logger.log({ projectId, eventCount: events.length, batchId }, 'Batch ingested');
+    } finally {
+      stopTimer();
+    }
   }
 
   async importBatch(projectId: string, events: ImportEvent[]) {
@@ -133,6 +143,7 @@ export class IngestService {
     const now = Date.now();
     if (now - this.cachedStreamLenAt < BACKPRESSURE_CACHE_TTL_MS) {
       if (this.cachedStreamLen >= STREAM_BACKPRESSURE_THRESHOLD) {
+        this.metrics.backpressureRejected.inc();
         throw new Error(`Redis stream at ${this.cachedStreamLen}/${REDIS_STREAM_MAXLEN} — processor may be behind`);
       }
       return;
@@ -143,6 +154,7 @@ export class IngestService {
     this.cachedStreamLenAt = now;
 
     if (len >= STREAM_BACKPRESSURE_THRESHOLD) {
+      this.metrics.backpressureRejected.inc();
       this.logger.error({ streamLength: len, threshold: STREAM_BACKPRESSURE_THRESHOLD }, 'Redis stream backpressure — rejecting writes');
       throw new Error(`Redis stream at ${len}/${REDIS_STREAM_MAXLEN} — processor may be behind`);
     }
@@ -179,6 +191,10 @@ export class IngestService {
     pipeline.exec().catch((err: unknown) =>
       this.logger.warn({ err, projectId }, 'Failed to increment counters'),
     );
+  }
+
+  reportDropped(reason: 'validation' | 'illegal_distinct_id', count: number): void {
+    this.metrics.eventsDropped.inc({ reason }, count);
   }
 
   async isReady(): Promise<boolean> {

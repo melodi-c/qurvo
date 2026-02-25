@@ -77,7 +77,8 @@ export function BreakdownFunnel({
       </div>
 
       {/* Chart */}
-      <div className="flex items-start gap-0">
+      <div className="overflow-x-auto">
+      <div className="flex items-start gap-0 min-w-max">
         <YAxis h={barH} />
 
         {stepNums.map((sn, si) => {
@@ -145,6 +146,7 @@ export function BreakdownFunnel({
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

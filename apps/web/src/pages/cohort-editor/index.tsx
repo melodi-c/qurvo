@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { UsersRound, Loader2, AlertTriangle, Copy } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { UsersRound, Loader2, AlertTriangle, Copy, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,7 +17,7 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useUrlTab } from '@/hooks/use-url-tab';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useDuplicateAsStatic } from '@/features/cohorts/hooks/use-cohorts';
-import { extractApiErrorMessage } from '@/lib/utils';
+import { cn, extractApiErrorMessage } from '@/lib/utils';
 import translations from './cohort-editor.translations';
 import { useCohortEditor } from '@/features/cohorts/hooks/use-cohort-editor';
 
@@ -28,6 +28,7 @@ export default function CohortEditorPage() {
   const [urlTab, setTab] = useUrlTab<TabId>('overview', ['overview', 'members']);
   const { go } = useAppNavigate();
   const duplicateMutation = useDuplicateAsStatic();
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const {
     isNew,
@@ -163,7 +164,29 @@ export default function CohortEditorPage() {
         saveError={saveError}
       />
 
+      <div className="lg:hidden border-b border-border px-4 py-2 flex items-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground gap-1.5"
+          onClick={() => setPanelOpen((prev) => !prev)}
+        >
+          {panelOpen ? (
+            <>
+              <X className="h-4 w-4" />
+              {t('hideSettings')}
+            </>
+          ) : (
+            <>
+              <SlidersHorizontal className="h-4 w-4" />
+              {t('settings')}
+            </>
+          )}
+        </Button>
+      </div>
+
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
+        <div className={cn(panelOpen ? 'block' : 'hidden', 'lg:contents')}>
         <QueryPanelShell>
           <div className="space-y-1.5">
             <Label htmlFor="cohort-description" className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</Label>
@@ -187,6 +210,7 @@ export default function CohortEditorPage() {
             />
           </div>
         </QueryPanelShell>
+        </div>
 
         {!isNew && existingCohort ? (
           <main className="flex-1 overflow-auto flex flex-col">
