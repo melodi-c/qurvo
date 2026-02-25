@@ -8,12 +8,13 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
+import { eq } from 'drizzle-orm';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { getTestContext } from './context';
 import { getCohortMembers } from './helpers/ch';
 import { CohortMembershipService } from '../cohort-worker/cohort-membership.service';
 import { CohortComputationService } from '../cohort-worker/cohort-computation.service';
-import { COHORT_LOCK_KEY } from '../constants';
+import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS } from '../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
@@ -318,6 +319,40 @@ describe('cohort membership', () => {
       if (!members.includes(personId)) break;
       await new Promise((r) => setTimeout(r, 500));
     }
+    expect(members).not.toContain(personId);
+  });
+
+  it('max errors cap — cohort with too many errors excluded from recalculation', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-maxerr-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'maxerr' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Max Errors Test', {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'plan', operator: 'eq', value: 'maxerr' },
+      ],
+    });
+
+    // Set errors_calculating to max — this cohort should be excluded from findStaleCohorts
+    await ctx.db
+      .update(cohorts)
+      .set({ errors_calculating: COHORT_MAX_ERRORS, last_error_at: new Date() })
+      .where(eq(cohorts.id, cohortId));
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
     expect(members).not.toContain(personId);
   });
 

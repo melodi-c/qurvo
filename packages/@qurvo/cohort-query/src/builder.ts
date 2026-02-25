@@ -41,6 +41,10 @@ function buildConditionSubquery(
       return buildRestartedPerformingSubquery(cond, ctx);
     case 'not_performed_event_sequence':
       return buildNotPerformedEventSequenceSubquery(cond, ctx);
+    default: {
+      const _exhaustive: never = cond;
+      throw new Error(`Unhandled condition type: ${(_exhaustive as { type: string }).type}`);
+    }
   }
 }
 
@@ -48,7 +52,7 @@ function buildConditionSubquery(
 
 /**
  * Builds a subquery returning person_ids matching a nested AND/OR group.
- * AND groups use INTERSECT, OR groups use UNION ALL.
+ * AND groups use INTERSECT, OR groups use UNION DISTINCT.
  */
 export function buildGroupSubquery(
   group: CohortConditionGroup,
@@ -72,7 +76,7 @@ export function buildGroupSubquery(
     return subqueries[0];
   }
 
-  const joiner = group.type === 'AND' ? 'INTERSECT' : 'UNION ALL';
+  const joiner = group.type === 'AND' ? 'INTERSECT' : 'UNION DISTINCT';
   return subqueries.join(`\n${joiner}\n`);
 }
 
