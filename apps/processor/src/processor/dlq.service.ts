@@ -2,10 +2,9 @@ import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
-import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
-import { withRetry } from './retry';
+import type { Event } from '@qurvo/clickhouse';
 import { parseRedisFields } from './redis-utils';
-import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
+import { REDIS } from '@qurvo/nestjs-infra';
 import {
   DLQ_CIRCUIT_BREAKER_RESET_MS,
   DLQ_CIRCUIT_BREAKER_THRESHOLD,
@@ -14,11 +13,10 @@ import {
   DLQ_REPLAY_BATCH,
   DLQ_REPLAY_INTERVAL_MS,
   REDIS_STREAM_DLQ,
-  RETRY_CLICKHOUSE,
 } from '../constants';
 import { DistributedLock } from '@qurvo/distributed-lock';
 import { PersonBatchStore } from './person-batch-store';
-import { DefinitionSyncService } from './definition-sync.service';
+import { BatchWriter } from './batch-writer';
 
 @Injectable()
 export class DlqService implements OnApplicationBootstrap {
@@ -29,10 +27,9 @@ export class DlqService implements OnApplicationBootstrap {
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
-    @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(DlqService.name) private readonly logger: PinoLogger,
     private readonly personBatchStore: PersonBatchStore,
-    private readonly definitionSync: DefinitionSyncService,
+    private readonly batchWriter: BatchWriter,
   ) {
     this.lock = new DistributedLock(redis, 'dlq:replay:lock', randomUUID(), 300);
   }
@@ -97,27 +94,10 @@ export class DlqService implements OnApplicationBootstrap {
 
       // PersonBatchStore.flush() uses a promise-based lock: if FlushService is mid-flush,
       // this call awaits its completion and then runs a fresh flush with DLQ person data.
-      await this.personBatchStore.flush();
-
-      await withRetry(
-        () => this.ch.insert({
-          table: 'events',
-          values: events,
-          format: 'JSONEachRow',
-        }),
-        'DLQ ClickHouse insert',
-        this.logger,
-        RETRY_CLICKHOUSE,
-      );
+      // batchWriter.write() handles: personBatchStore.flush() → ch.insert() → definitionSync (non-critical)
+      await this.batchWriter.write(events);
       await this.redis.xdel(REDIS_STREAM_DLQ, ...ids);
       await this.redis.del(DLQ_FAILURES_KEY, DLQ_CIRCUIT_KEY);
-
-      // Sync definitions (non-critical — errors logged but don't fail the replay)
-      try {
-        await this.definitionSync.syncFromBatch(events);
-      } catch (err) {
-        this.logger.warn({ err }, 'DLQ definition sync failed (non-critical)');
-      }
 
       this.logger.info({ replayed: events.length }, 'Replayed events from DLQ');
     } catch (err) {
