@@ -138,6 +138,7 @@ export interface ProjectWithRole {
   name: string;
   slug: string;
   plan: string | null;
+  is_demo: boolean;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
@@ -157,6 +158,7 @@ export interface Project {
   name: string;
   slug: string;
   plan: string | null;
+  is_demo: boolean;
   /** @format date-time */
   created_at: string;
   /** @format date-time */

@@ -21,6 +21,7 @@ export class ProjectDto {
   name: string;
   slug: string;
   plan: string | null;
+  is_demo: boolean;
   created_at: Date;
   updated_at: Date;
 }
