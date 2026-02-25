@@ -1,6 +1,6 @@
 import type { ElementType } from 'react';
 import { useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -50,9 +50,8 @@ export function CrudListPage<T extends CrudListRow>({
   emptyDescription,
   showEmptyAction = true,
 }: CrudListPageProps<T>) {
-  const { projectId } = useAppNavigate();
+  const { projectId, navigate } = useAppNavigate();
   const { t } = useLocalTranslation(translations);
-  const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const handleDelete = useCallback(async () => {

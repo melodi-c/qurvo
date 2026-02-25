@@ -1,6 +1,4 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useProjectId } from '@/hooks/use-project-id';
 import { Database, Check } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -8,7 +6,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { routes } from '@/lib/routes';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useEventDefinitions } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './event-definitions.translations';
@@ -16,8 +14,7 @@ import type { EventDefinition } from '@/api/generated/Api';
 
 export default function EventDefinitionsPage() {
   const { t } = useLocalTranslation(translations);
-  const projectId = useProjectId();
-  const navigate = useNavigate();
+  const { go, projectId } = useAppNavigate();
   const [search, setSearch] = useState('');
 
   const { data: definitions, isLoading } = useEventDefinitions();
@@ -80,8 +77,7 @@ export default function EventDefinitionsPage() {
   ], [t]);
 
   function handleRowClick(row: EventDefinition) {
-    const params = projectId ? `?project=${projectId}` : '';
-    navigate(`${routes.dataManagement.detail(row.event_name)}${params}`);
+    go.dataManagement.detail(row.event_name);
   }
 
   return (

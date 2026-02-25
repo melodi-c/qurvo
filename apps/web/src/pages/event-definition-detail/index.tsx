@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useProjectId } from '@/hooks/use-project-id';
+import { useParams } from 'react-router-dom';
 import { Database, ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { Button } from '@/components/ui/button';
-import { routes } from '@/lib/routes';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useEventDefinitions } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './translations';
@@ -18,8 +17,7 @@ export default function EventDefinitionDetailPage() {
   const { t } = useLocalTranslation(translations);
   const { eventName: rawEventName } = useParams<{ eventName: string }>();
   const eventName = rawEventName ? decodeURIComponent(rawEventName) : '';
-  const projectId = useProjectId();
-  const navigate = useNavigate();
+  const { go, link, projectId } = useAppNavigate();
 
   const { data: definitions, isLoading: eventsLoading } = useEventDefinitions();
   const eventDef = useMemo(
@@ -27,7 +25,7 @@ export default function EventDefinitionDetailPage() {
     [definitions, eventName],
   );
 
-  const backPath = `${routes.dataManagement.list()}${projectId ? `?project=${projectId}` : ''}`;
+  const backPath = link.dataManagement.list();
 
   const breadcrumbs = useMemo(() => [
     { label: t('dataManagement'), path: backPath },
@@ -46,7 +44,7 @@ export default function EventDefinitionDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={<Breadcrumbs items={breadcrumbs} />}>
-        <Button variant="ghost" size="sm" onClick={() => navigate(backPath)}>
+        <Button variant="ghost" size="sm" onClick={() => go.dataManagement.list()}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />
           {t('back')}
         </Button>

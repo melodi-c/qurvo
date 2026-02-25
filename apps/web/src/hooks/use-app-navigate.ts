@@ -27,5 +27,5 @@ export function useAppNavigate() {
     [withProject],
   );
 
-  return { go, link, projectId };
+  return { go, link, navigate, projectId };
 }
