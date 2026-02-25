@@ -11,7 +11,7 @@ import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TargetEventQueryPanel.translations';
 
-interface BaseTargetEventConfig {
+export interface BaseTargetEventConfig {
   date_from: string;
   date_to: string;
   target_event: string;
