@@ -38,6 +38,7 @@ export class AiRateLimitGuard implements CanActivate {
       });
 
     if (minuteCount > AI_RATE_LIMIT_PER_MINUTE) {
+      await this.redis.pipeline().decr(minuteKey).decr(hourKey).exec();
       const retryAfter = MINUTE_WINDOW_SECONDS - (now % MINUTE_WINDOW_SECONDS);
       throw new TooManyRequestsException(
         `AI chat rate limit exceeded: max ${AI_RATE_LIMIT_PER_MINUTE} requests per minute`,
@@ -46,6 +47,7 @@ export class AiRateLimitGuard implements CanActivate {
     }
 
     if (hourCount > AI_RATE_LIMIT_PER_HOUR) {
+      await this.redis.pipeline().decr(minuteKey).decr(hourKey).exec();
       const retryAfter = HOUR_WINDOW_SECONDS - (now % HOUR_WINDOW_SECONDS);
       throw new TooManyRequestsException(
         `AI chat rate limit exceeded: max ${AI_RATE_LIMIT_PER_HOUR} requests per hour`,
