@@ -1,7 +1,8 @@
-import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, type QueueEvents } from 'bullmq';
+import { PeriodicWorkerMixin } from '@qurvo/worker-core';
 import { topologicalSortCohorts, groupCohortsByLevel } from '@qurvo/cohort-query';
 import { type DistributedLock } from '@qurvo/distributed-lock';
 import {
@@ -19,10 +20,9 @@ import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processo
 // ── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class CohortMembershipService implements OnApplicationBootstrap {
-  private timer: NodeJS.Timeout | null = null;
-  private stopped = false;
-  private cycleInFlight: Promise<void> | null = null;
+export class CohortMembershipService extends PeriodicWorkerMixin {
+  protected readonly intervalMs = COHORT_MEMBERSHIP_INTERVAL_MS;
+  protected readonly initialDelayMs = COHORT_INITIAL_DELAY_MS;
   private gcCycleCounter = 0;
 
   constructor(
@@ -30,37 +30,10 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     @InjectQueue(COHORT_COMPUTE_QUEUE) private readonly computeQueue: Queue<ComputeJobData, ComputeJobResult>,
     @Inject(COMPUTE_QUEUE_EVENTS) private readonly queueEvents: QueueEvents,
     @InjectPinoLogger(CohortMembershipService.name)
-    private readonly logger: PinoLogger,
+    protected readonly logger: PinoLogger,
     private readonly computation: CohortComputationService,
-  ) {}
-
-  onApplicationBootstrap() {
-    this.timer = setTimeout(() => this.scheduledCycle(), COHORT_INITIAL_DELAY_MS);
-  }
-
-  async stop(): Promise<void> {
-    this.stopped = true;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-    if (this.cycleInFlight) {
-      await this.cycleInFlight;
-    }
-  }
-
-  private async scheduledCycle() {
-    this.cycleInFlight = this.runCycle();
-    try {
-      await this.cycleInFlight;
-    } catch (err) {
-      this.logger.error({ err }, 'Cohort membership cycle failed');
-    } finally {
-      this.cycleInFlight = null;
-      if (!this.stopped) {
-        this.timer = setTimeout(() => this.scheduledCycle(), COHORT_MEMBERSHIP_INTERVAL_MS);
-      }
-    }
+  ) {
+    super();
   }
 
   /** @internal — exposed for integration tests */

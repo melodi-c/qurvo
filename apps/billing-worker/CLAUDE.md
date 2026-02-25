@@ -14,13 +14,13 @@ pnpm --filter @qurvo/billing-worker start        # node dist/main.js
 
 ```
 src/
-├── app.module.ts                        # Root: LoggerModule + BillingModule
-├── main.ts                              # Entry point: env validation + NestFactory (no HTTP)
+├── app.module.ts                        # Root: workerLoggerModule() + BillingModule
+├── main.ts                              # bootstrapWorker() from @qurvo/worker-core (env validation, no HTTP)
 ├── constants.ts                         # Billing interval, TTL, Redis key contracts
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── billing/
 │   ├── billing.module.ts                # Redis + Drizzle providers + services
-│   ├── billing-check.service.ts         # Periodic billing check cycle
+│   ├── billing-check.service.ts         # Periodic billing check cycle (extends PeriodicWorkerMixin)
 │   └── shutdown.service.ts              # Graceful shutdown: stops service, closes PG + Redis
 ```
 

@@ -17,15 +17,15 @@ pnpm --filter @qurvo/cohort-worker test:integration
 
 ```
 src/
-├── app.module.ts                        # Root: LoggerModule + CohortWorkerModule
-├── main.ts                              # Entry point: env validation + NestFactory (no HTTP)
+├── app.module.ts                        # Root: workerLoggerModule() + CohortWorkerModule
+├── main.ts                              # bootstrapWorker() from @qurvo/worker-core (env validation, no HTTP)
 ├── constants.ts                         # Cohort interval, backoff, lock config, Bull queue config
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── cohort-worker/
 │   ├── tokens.ts                        # DI tokens: DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS
 │   ├── cohort-worker.module.ts          # BullModule + providers from @qurvo/nestjs-infra + services
 │   ├── cohort-computation.service.ts    # CH/PG operations for individual cohorts
-│   ├── cohort-membership.service.ts     # Cycle orchestration: scheduling, lock, backoff, Bull dispatch
+│   ├── cohort-membership.service.ts     # Cycle orchestration (extends PeriodicWorkerMixin): lock, backoff, Bull dispatch
 │   ├── cohort-compute.processor.ts      # Bull worker: per-cohort parallel computation
 │   └── shutdown.service.ts              # Graceful shutdown: stops service, closes QueueEvents + CH + PG + Redis
 └── test/

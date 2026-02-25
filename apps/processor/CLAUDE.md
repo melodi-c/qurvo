@@ -17,8 +17,8 @@ pnpm --filter @qurvo/processor test:integration
 
 ```
 src/
-├── app.module.ts                        # Root: LoggerModule + ProcessorModule
-├── main.ts                              # NestFactory.createApplicationContext (no HTTP)
+├── app.module.ts                        # Root: workerLoggerModule() + ProcessorModule
+├── main.ts                              # bootstrapWorker() from @qurvo/worker-core (no HTTP)
 ├── constants.ts                         # Stream, flush, DLQ, retry presets
 ├── tracer.ts                            # Datadog APM init (imported first in main.ts)
 ├── processor/
