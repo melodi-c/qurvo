@@ -1,7 +1,6 @@
 import { WidgetShell } from '../WidgetShell';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
-import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
@@ -13,9 +12,7 @@ interface TrendWidgetProps {
 }
 
 export function TrendWidget({ widget }: TrendWidgetProps) {
-  const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
-  const dashboardId = useDashboardStore((s) => s.dashboardId);
   const { t } = useLocalTranslation(translations);
 
   const config = widget.insight?.config as TrendWidgetConfig | undefined;
@@ -33,7 +30,6 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
       isConfigValid={hasValidSeries}
       configureMessage={hasConfig ? t('configureSeries') : t('noInsight')}
       isEditing={isEditing}
-      onConfigure={() => go.dashboards.widget(dashboardId!, widget.id)}
       isEmpty={!result || result.series.length === 0}
       emptyMessage={t('noEvents')}
       emptyHint={t('adjustRange')}

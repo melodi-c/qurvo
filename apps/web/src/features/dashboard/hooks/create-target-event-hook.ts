@@ -1,4 +1,4 @@
-import type { BaseTargetEventConfig } from '../components/widgets/shared/TargetEventQueryPanel';
+import type { BaseTargetEventConfig } from '../types';
 import { createWidgetDataHook } from './create-widget-data-hook';
 
 interface CachedResponse {

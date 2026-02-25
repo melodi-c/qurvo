@@ -1,7 +1,6 @@
 import { WidgetShell } from '../WidgetShell';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
-import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
@@ -15,9 +14,7 @@ interface FunnelWidgetProps {
 
 export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const { t } = useLocalTranslation(translations);
-  const { go } = useAppNavigate();
   const isEditing = useDashboardStore((s) => s.isEditing);
-  const dashboardId = useDashboardStore((s) => s.dashboardId);
 
   const config = widget.insight?.config as FunnelWidgetConfig | undefined;
   const hasConfig = !!config;
@@ -33,7 +30,6 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
       isConfigValid={hasValidSteps}
       configureMessage={hasConfig ? t('configureSteps') : t('noInsightLinked')}
       isEditing={isEditing}
-      onConfigure={() => go.dashboards.widget(dashboardId!, widget.id)}
       isEmpty={!result || result.steps.length === 0}
       emptyMessage={t('noEventsFound')}
       emptyHint={t('tryAdjusting')}
