@@ -7,6 +7,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from 'sonner';
 import { api } from '@/api/client';
@@ -256,19 +257,15 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <div className="flex gap-1">
-          {(['all', 'event', 'person'] as const).map((filterType) => (
-            <Button
-              key={filterType}
-              size="xs"
-              variant={typeFilter === filterType ? 'default' : 'ghost'}
-              onClick={() => setTypeFilter(filterType)}
-              className="capitalize"
-            >
-              {typeFilterLabels[filterType]}
-            </Button>
-          ))}
-        </div>
+        <PillToggleGroup
+          options={[
+            { value: 'all', label: typeFilterLabels.all },
+            { value: 'event', label: typeFilterLabels.event },
+            { value: 'person', label: typeFilterLabels.person },
+          ]}
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(v as 'all' | 'event' | 'person')}
+        />
         {filtered && (
           <span className="text-sm text-muted-foreground">
             {filtered.length !== 1

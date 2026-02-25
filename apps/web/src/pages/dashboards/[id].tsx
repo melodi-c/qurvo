@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { LayoutDashboard } from 'lucide-react';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
@@ -11,6 +12,7 @@ import { TextTileDialog } from '@/features/dashboard/components/TextTileDialog';
 import { SaveBar } from '@/features/dashboard/components/SaveBar';
 import { Button } from '@/components/ui/button';
 import { GridSkeleton } from '@/components/ui/grid-skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { RequireProject } from '@/components/require-project';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -80,12 +82,16 @@ export default function DashboardBuilderPage() {
       {isLoading && <GridSkeleton />}
 
       {!isLoading && !dashboard && (
-        <div className="flex flex-col items-center gap-4 py-12 text-muted-foreground text-sm">
-          <span>{t('notFound')}</span>
-          <Button variant="outline" onClick={() => go.dashboards.list()}>
-            {t('backToDashboards')}
-          </Button>
-        </div>
+        <EmptyState
+          icon={LayoutDashboard}
+          title={t('notFound')}
+          description={t('backToDashboards')}
+          action={
+            <Button variant="outline" onClick={() => go.dashboards.list()}>
+              {t('backToDashboards')}
+            </Button>
+          }
+        />
       )}
 
       {!isLoading && dashboard && (

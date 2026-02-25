@@ -11,6 +11,7 @@ export default createTranslations({
     deleteDescription: 'This conversation will be permanently deleted.',
     chat: 'Chat',
     newChatLabel: 'New Chat',
+    back: 'Back',
   },
   ru: {
     selectProject: 'Выберите проект для использования AI-ассистента',
@@ -22,5 +23,6 @@ export default createTranslations({
     deleteDescription: 'Этот чат будет удалён безвозвратно.',
     chat: 'Чат',
     newChatLabel: 'Новый чат',
+    back: 'Назад',
   },
 });

@@ -181,12 +181,9 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
     <div className="-m-4 lg:-m-6 flex flex-col h-[calc(100vh-var(--topbar-height))] lg:h-screen">
       {/* Header */}
       <div className="h-[var(--topbar-height)] flex items-center gap-2 px-4 border-b border-border shrink-0">
-        <button
-          onClick={goBack}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <Button variant="ghost" size="icon-xs" onClick={goBack} aria-label={t('back')}>
           <ArrowLeft className="w-4 h-4" />
-        </button>
+        </Button>
         <Sparkles className="w-4 h-4 text-primary" />
         <span className="text-sm font-semibold truncate">
           {chatId ? t('chat') : t('newChatLabel')}

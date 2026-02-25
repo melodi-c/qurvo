@@ -140,13 +140,15 @@ function AndGroupCard({
     <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-2.5">
       {onRemove && (
         <div className="flex justify-end">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={onRemove}
-            className="text-[10px] text-muted-foreground/50 hover:text-destructive transition-colors"
+            aria-label={t('removeGroup')}
+            className="text-muted-foreground/50 hover:text-destructive"
           >
             &times;
-          </button>
+          </Button>
         </div>
       )}
 

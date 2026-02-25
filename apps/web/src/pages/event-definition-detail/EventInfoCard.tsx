@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -104,16 +104,15 @@ export function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setVerified((v) => !v)}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span className={`flex items-center justify-center w-5 h-5 rounded border transition-colors ${verified ? 'bg-primary border-primary' : 'border-border'}`}>
-                {verified && <Check className="w-3 h-3 text-primary-foreground" />}
-              </span>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={verified}
+                onChange={(e) => setVerified(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary accent-primary cursor-pointer"
+              />
               {t('verified')}
-            </button>
+            </label>
             <span className="text-sm text-muted-foreground">
               {t('lastSeen')} <span className="tabular-nums font-medium text-foreground">{eventDef.last_seen_at ? new Date(eventDef.last_seen_at).toLocaleDateString() : '\u2014'}</span>
             </span>

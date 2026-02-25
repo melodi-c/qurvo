@@ -18,6 +18,7 @@ export default createTranslations({
     restartedPerforming: 'Restarted performing',
     basicConditions: 'Basic',
     behavioralConditions: 'Behavioral',
+    removeGroup: 'Remove group',
   },
   ru: {
     and: 'И',
@@ -36,5 +37,6 @@ export default createTranslations({
     restartedPerforming: 'Возобновил выполнение',
     basicConditions: 'Основные',
     behavioralConditions: 'Поведенческие',
+    removeGroup: 'Удалить группу',
   },
 });
