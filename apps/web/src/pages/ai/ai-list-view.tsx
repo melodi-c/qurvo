@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Plus, MessageSquare, Users } from 'lucide-react';
+import { Sparkles, Plus, MessageSquare, Users, Search } from 'lucide-react';
 import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,14 +11,15 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TabNav } from '@/components/ui/tab-nav';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation } from '@/features/ai/hooks/use-ai-conversations';
+import { useDebounce } from '@/hooks/use-debounce';
+import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation, useSearchConversations } from '@/features/ai/hooks/use-ai-conversations';
 import translations from './index.translations';
 
 type AiTab = 'mine' | 'shared';
 
 export function AiListView({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<AiTab>('mine');
   const { data: conversations, isLoading } = useConversations(projectId);
   const { data: sharedConversations, isLoading: isLoadingShared } = useSharedConversations(projectId);
@@ -28,6 +29,30 @@ export function AiListView({ projectId }: { projectId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Search state – persisted in URL as `?search=`
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') ?? '');
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  // Sync URL when debounced search changes
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (debouncedSearch) {
+        next.set('search', debouncedSearch);
+      } else {
+        next.delete('search');
+      }
+      return next;
+    }, { replace: true });
+  }, [debouncedSearch, setSearchParams]);
+
+  const { data: searchResults, isLoading: isSearching } = useSearchConversations(
+    projectId,
+    debouncedSearch,
+  );
+
+  const isSearchActive = debouncedSearch.trim().length > 0;
 
   const tabs = useMemo(() => [
     { id: 'mine' as AiTab, label: t('tabMine') },
@@ -87,93 +112,143 @@ export function AiListView({ projectId }: { projectId: string }) {
         </Button>
       </PageHeader>
 
-      <TabNav tabs={tabs} value={activeTab} onChange={setActiveTab} />
+      {/* Search field */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder={t('searchPlaceholder')}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="pl-8 text-sm"
+        />
+      </div>
 
-      {activeTab === 'mine' && (
+      {/* Search results */}
+      {isSearchActive && (
         <>
-          {isLoading && <ListSkeleton count={5} height="h-12" />}
+          {isSearching && <ListSkeleton count={3} height="h-12" />}
 
-          {!isLoading && conversations?.length === 0 && (
+          {!isSearching && searchResults?.length === 0 && (
             <EmptyState
-              icon={Sparkles}
-              title={t('noConversations')}
-              description={t('noConversationsDescription')}
-              action={
-                <Button onClick={startNew}>
-                  <Plus className="w-4 h-4" />
-                  {t('newChat')}
-                </Button>
-              }
+              icon={Search}
+              title={t('searchNoResults')}
+              description={t('searchNoResultsDescription')}
             />
           )}
 
-          {!isLoading && conversations && conversations.length > 0 && (
+          {!isSearching && searchResults && searchResults.length > 0 && (
             <div className="space-y-1">
-              {conversations.map((conv) =>
-                editingId === conv.id ? (
-                  <div
-                    key={conv.id}
-                    className="flex items-center gap-3 rounded-lg border border-border px-4 py-3"
-                  >
-                    <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Input
-                      ref={editInputRef}
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void commitEdit(conv.id);
-                        } else if (e.key === 'Escape') {
-                          cancelEdit();
-                        }
-                      }}
-                      onBlur={() => void commitEdit(conv.id)}
-                      maxLength={200}
-                      className="h-7 text-sm flex-1 min-w-0"
+              {searchResults.map((result) => (
+                <ClickableListRow
+                  key={result.id}
+                  icon={MessageSquare}
+                  title={result.title}
+                  subtitle={
+                    <span
+                      className="text-muted-foreground"
+                      dangerouslySetInnerHTML={{ __html: result.snippet }}
                     />
-                  </div>
-                ) : (
-                  <ClickableListRow
-                    key={conv.id}
-                    icon={conv.is_shared ? Users : MessageSquare}
-                    title={conv.title}
-                    subtitle={new Date(conv.updated_at).toLocaleDateString()}
-                    onClick={() => navigate(conv.id)}
-                    onRename={() => startEdit(conv.id, conv.title)}
-                    onDelete={() => requestDelete(conv.id, conv.title)}
-                  />
-                ),
-              )}
+                  }
+                  onClick={() => navigate(result.id)}
+                />
+              ))}
             </div>
           )}
         </>
       )}
 
-      {activeTab === 'shared' && (
+      {/* Normal tabs view (hidden when searching) */}
+      {!isSearchActive && (
         <>
-          {isLoadingShared && <ListSkeleton count={5} height="h-12" />}
+          <TabNav tabs={tabs} value={activeTab} onChange={setActiveTab} />
 
-          {!isLoadingShared && sharedConversations?.length === 0 && (
-            <EmptyState
-              icon={Users}
-              title={t('noSharedConversations')}
-              description={t('noSharedConversationsDescription')}
-            />
+          {activeTab === 'mine' && (
+            <>
+              {isLoading && <ListSkeleton count={5} height="h-12" />}
+
+              {!isLoading && conversations?.length === 0 && (
+                <EmptyState
+                  icon={Sparkles}
+                  title={t('noConversations')}
+                  description={t('noConversationsDescription')}
+                  action={
+                    <Button onClick={startNew}>
+                      <Plus className="w-4 h-4" />
+                      {t('newChat')}
+                    </Button>
+                  }
+                />
+              )}
+
+              {!isLoading && conversations && conversations.length > 0 && (
+                <div className="space-y-1">
+                  {conversations.map((conv) =>
+                    editingId === conv.id ? (
+                      <div
+                        key={conv.id}
+                        className="flex items-center gap-3 rounded-lg border border-border px-4 py-3"
+                      >
+                        <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input
+                          ref={editInputRef}
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              void commitEdit(conv.id);
+                            } else if (e.key === 'Escape') {
+                              cancelEdit();
+                            }
+                          }}
+                          onBlur={() => void commitEdit(conv.id)}
+                          maxLength={200}
+                          className="h-7 text-sm flex-1 min-w-0"
+                        />
+                      </div>
+                    ) : (
+                      <ClickableListRow
+                        key={conv.id}
+                        icon={conv.is_shared ? Users : MessageSquare}
+                        title={conv.title}
+                        subtitle={new Date(conv.updated_at).toLocaleDateString()}
+                        onClick={() => navigate(conv.id)}
+                        onRename={() => startEdit(conv.id, conv.title)}
+                        onDelete={() => requestDelete(conv.id, conv.title)}
+                      />
+                    ),
+                  )}
+                </div>
+              )}
+            </>
           )}
 
-          {!isLoadingShared && sharedConversations && sharedConversations.length > 0 && (
-            <div className="space-y-1">
-              {sharedConversations.map((conv) => (
-                <ClickableListRow
-                  key={conv.id}
+          {activeTab === 'shared' && (
+            <>
+              {isLoadingShared && <ListSkeleton count={5} height="h-12" />}
+
+              {!isLoadingShared && sharedConversations?.length === 0 && (
+                <EmptyState
                   icon={Users}
-                  title={conv.title}
-                  subtitle={new Date(conv.updated_at).toLocaleDateString()}
-                  onClick={() => navigate(conv.id)}
+                  title={t('noSharedConversations')}
+                  description={t('noSharedConversationsDescription')}
                 />
-              ))}
-            </div>
+              )}
+
+              {!isLoadingShared && sharedConversations && sharedConversations.length > 0 && (
+                <div className="space-y-1">
+                  {sharedConversations.map((conv) => (
+                    <ClickableListRow
+                      key={conv.id}
+                      icon={Users}
+                      title={conv.title}
+                      subtitle={new Date(conv.updated_at).toLocaleDateString()}
+                      onClick={() => navigate(conv.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
