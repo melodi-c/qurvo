@@ -18,7 +18,7 @@ import translations from './api-keys-tab.translations';
 
 export function ApiKeysTab({ projectId }: { projectId: string }) {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const { copied, copy } = useCopyToClipboard();
+  const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
   const queryClient = useQueryClient();
   const { t } = useLocalTranslation(translations);
   const confirmRevoke = useConfirmDelete();

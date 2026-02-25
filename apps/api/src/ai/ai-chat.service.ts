@@ -265,4 +265,30 @@ export class AiChatService {
     if (!updated) throw new ConversationNotFoundException();
     return updated;
   }
+
+  async updateConversationAuthorized(
+    userId: string,
+    conversationId: string,
+    projectId: string,
+    updates: { title?: string; is_shared?: boolean },
+  ) {
+    const [row] = await this.db.transaction(async (tx) => {
+      const [conv] = await tx
+        .select()
+        .from(aiConversations)
+        .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
+        .limit(1);
+      if (!conv) throw new ConversationNotFoundException();
+      if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+
+      const setFields = buildConditionalUpdate(updates, ['title', 'is_shared']);
+      return tx
+        .update(aiConversations)
+        .set({ ...setFields, updated_at: new Date() })
+        .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
+        .returning();
+    });
+    if (!row) throw new ConversationNotFoundException();
+    return row;
+  }
 }

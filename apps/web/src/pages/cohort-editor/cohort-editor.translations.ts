@@ -23,6 +23,11 @@ export default createTranslations({
     membersTab: 'Members',
     errorLoading: 'Failed to load cohort. Check your connection and try again.',
     retry: 'Retry',
+    duplicateAsStatic: 'Duplicate as Static',
+    duplicateAsStaticDesc: 'Create a static snapshot of the current cohort members',
+    duplicating: 'Duplicating...',
+    duplicated: 'Cohort duplicated as static',
+    duplicateFailed: 'Failed to duplicate cohort',
   },
   ru: {
     backLabel: 'Когорты',
@@ -46,5 +51,10 @@ export default createTranslations({
     membersTab: 'Участники',
     errorLoading: 'Не удалось загрузить когорту. Проверьте соединение и попробуйте снова.',
     retry: 'Повторить',
+    duplicateAsStatic: 'Дублировать как статическую',
+    duplicateAsStaticDesc: 'Создать статический снимок текущих участников когорты',
+    duplicating: 'Дублирование...',
+    duplicated: 'Когорта продублирована как статическая',
+    duplicateFailed: 'Не удалось продублировать когорту',
   },
 });

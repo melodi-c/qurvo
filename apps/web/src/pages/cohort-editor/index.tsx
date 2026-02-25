@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { UsersRound, Loader2, AlertTriangle } from 'lucide-react';
+import { UsersRound, Loader2, AlertTriangle, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,9 @@ import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
 import { MembersTab } from '@/features/cohorts/components/MembersTab';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useUrlTab } from '@/hooks/use-url-tab';
+import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useDuplicateAsStatic } from '@/features/cohorts/hooks/use-cohorts';
+import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './cohort-editor.translations';
 import { useCohortEditor } from '@/features/cohorts/hooks/use-cohort-editor';
 
@@ -22,6 +26,8 @@ type TabId = 'overview' | 'members';
 export default function CohortEditorPage() {
   const { t } = useLocalTranslation(translations);
   const [urlTab, setTab] = useUrlTab<TabId>('overview', ['overview', 'members']);
+  const { go } = useAppNavigate();
+  const duplicateMutation = useDuplicateAsStatic();
 
   const {
     isNew,
@@ -46,6 +52,17 @@ export default function CohortEditorPage() {
     saveError,
     handleSave,
   } = useCohortEditor();
+
+  const handleDuplicateAsStatic = async () => {
+    if (!cohortId) return;
+    try {
+      const newCohort = await duplicateMutation.mutateAsync(cohortId);
+      toast.success(t('duplicated'));
+      go.cohorts.detail(newCohort.id);
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, t('duplicateFailed')));
+    }
+  };
 
   const showTabs = !isNew && existingCohort?.is_static === true;
   const activeTab = showTabs ? urlTab : 'overview';
@@ -194,6 +211,23 @@ export default function CohortEditorPage() {
                   <p className="text-sm font-medium">{t('sizeHistory')}</p>
                   <CohortSizeChart data={sizeHistory ?? []} />
                 </div>
+                {!existingCohort.is_static && (
+                  <div className="border-t px-6 py-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium">{t('duplicateAsStatic')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t('duplicateAsStaticDesc')}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDuplicateAsStatic}
+                      disabled={duplicateMutation.isPending}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      {duplicateMutation.isPending ? t('duplicating') : t('duplicateAsStatic')}
+                    </Button>
+                  </div>
+                )}
                 {existingCohort.last_error_message && (
                   <div className="border-t px-6 py-4">
                     <p className="text-sm text-destructive font-medium">{t('calculationError')}</p>

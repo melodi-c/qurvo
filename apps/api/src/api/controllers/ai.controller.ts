@@ -5,7 +5,7 @@ import { AiService } from '../../ai/ai.service';
 import { AiChatService } from '../../ai/ai-chat.service';
 import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from '../../ai/guards/ai-quota.guard';
-import { detectLanguageFromHeader } from '../../ai/system-prompt';
+import { detectLanguageFromHeader } from '../../utils/detect-language';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto } from '../dto/ai.dto';
@@ -91,7 +91,8 @@ export class AiController {
     // First try to load as owner. If not found, fall back to shared conversation access.
     try {
       return await this.chatService.getConversationAuthorized(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ConversationNotFoundException)) throw err;
       // Any project member can view shared conversations (read-only)
       return this.chatService.getSharedConversationAuthorized(id, query.project_id, query.limit, query.before_sequence) as any;
     }
@@ -105,19 +106,10 @@ export class AiController {
     @Query() query: AiConversationAccessDto,
     @Body() body: UpdateConversationDto,
   ): Promise<AiConversationDto> {
-    // Handle is_shared toggle only
-    if (body.is_shared !== undefined && body.title === undefined) {
-      return this.chatService.setSharedAuthorized(user.user_id, id, query.project_id, body.is_shared) as any;
+    if (body.title === undefined && body.is_shared === undefined) {
+      throw new ConversationNotFoundException();
     }
-    // Handle rename (with optional is_shared toggle)
-    if (body.title !== undefined) {
-      await this.chatService.renameConversationAuthorized(user.user_id, id, query.project_id, body.title);
-      if (body.is_shared !== undefined) {
-        return this.chatService.setSharedAuthorized(user.user_id, id, query.project_id, body.is_shared) as any;
-      }
-      return this.chatService.getConversationAuthorized(user.user_id, id, query.project_id) as any;
-    }
-    throw new ConversationNotFoundException();
+    return this.chatService.updateConversationAuthorized(user.user_id, id, query.project_id, body) as any;
   }
 
   @Delete('conversations/:id')
