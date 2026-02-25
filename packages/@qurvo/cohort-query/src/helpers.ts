@@ -8,18 +8,22 @@ export const TOP_LEVEL_COLUMNS = new Set([
   'browser_version', 'os', 'os_version', 'language',
 ]);
 
-export function resolvePropertyExpr(property: string): string {
-  if (TOP_LEVEL_COLUMNS.has(property)) {
-    return `argMax(${property}, timestamp)`;
-  }
+function extractJsonKey(property: string): { column: 'properties' | 'user_properties'; key: string } {
   if (property.startsWith('properties.')) {
-    const key = property.slice('properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(argMax(properties, timestamp), '${key}')`;
+    return { column: 'properties', key: property.slice('properties.'.length).replace(/'/g, "\\'") };
   }
   const key = property.startsWith('user_properties.')
     ? property.slice('user_properties.'.length)
     : property;
-  return `JSONExtractString(argMax(user_properties, timestamp), '${key.replace(/'/g, "\\'")}')`;
+  return { column: 'user_properties', key: key.replace(/'/g, "\\'") };
+}
+
+export function resolvePropertyExpr(property: string): string {
+  if (TOP_LEVEL_COLUMNS.has(property)) {
+    return `argMax(${property}, timestamp)`;
+  }
+  const { column, key } = extractJsonKey(property);
+  return `JSONExtractString(argMax(${column}, timestamp), '${key}')`;
 }
 
 /**
@@ -30,14 +34,8 @@ export function resolveEventPropertyExpr(property: string): string {
   if (TOP_LEVEL_COLUMNS.has(property)) {
     return property;
   }
-  if (property.startsWith('properties.')) {
-    const key = property.slice('properties.'.length).replace(/'/g, "\\'");
-    return `JSONExtractString(properties, '${key}')`;
-  }
-  const key = property.startsWith('user_properties.')
-    ? property.slice('user_properties.'.length)
-    : property;
-  return `JSONExtractString(user_properties, '${key.replace(/'/g, "\\'")}')`;
+  const { column, key } = extractJsonKey(property);
+  return `JSONExtractString(${column}, '${key}')`;
 }
 
 /**
@@ -120,6 +118,10 @@ export function buildOperatorClause(
     case 'not_contains_multi':
       queryParams[pk] = values ?? [];
       return `NOT multiSearchAny(${expr}, {${pk}:Array(String)})`;
+    default: {
+      const _exhaustive: never = operator;
+      throw new Error(`Unhandled operator: ${_exhaustive}`);
+    }
   }
 }
 
