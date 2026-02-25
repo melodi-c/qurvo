@@ -105,19 +105,10 @@ export class AiController {
     @Query() query: AiConversationAccessDto,
     @Body() body: UpdateConversationDto,
   ): Promise<AiConversationDto> {
-    // Handle is_shared toggle only
-    if (body.is_shared !== undefined && body.title === undefined) {
-      return this.chatService.setSharedAuthorized(user.user_id, id, query.project_id, body.is_shared) as any;
+    if (body.title === undefined && body.is_shared === undefined) {
+      throw new ConversationNotFoundException();
     }
-    // Handle rename (with optional is_shared toggle)
-    if (body.title !== undefined) {
-      await this.chatService.renameConversationAuthorized(user.user_id, id, query.project_id, body.title);
-      if (body.is_shared !== undefined) {
-        return this.chatService.setSharedAuthorized(user.user_id, id, query.project_id, body.is_shared) as any;
-      }
-      return this.chatService.getConversationAuthorized(user.user_id, id, query.project_id) as any;
-    }
-    throw new ConversationNotFoundException();
+    return this.chatService.updateConversationAuthorized(user.user_id, id, query.project_id, body) as any;
   }
 
   @Delete('conversations/:id')
