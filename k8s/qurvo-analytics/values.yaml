@@ -2,11 +2,11 @@
 # Global
 # ==============================================================================
 global:
-  imageRegistry: "ghcr.io/melodi-c/qurvo"
+  imageRegistry: "qurvo.registry.twcstorage.ru"
   imageTag: "latest"
   imagePullPolicy: IfNotPresent
   imagePullSecrets:
-    - name: ghcr-secret
+    - name: twcr-secret
 
 # ==============================================================================
 # Datadog

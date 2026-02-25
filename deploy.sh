@@ -15,7 +15,7 @@ set -euo pipefail
 # ==============================================================================
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-REGISTRY="ghcr.io/melodi-c/qurvo"
+REGISTRY="qurvo.registry.twcstorage.ru"
 HELM_CHART="$REPO_ROOT/k8s/qurvo-analytics"
 RELEASE_NAME="qurvo"
 NAMESPACE="default"
@@ -139,6 +139,22 @@ else
   done
 fi
 
+# ── Timeweb Container Registry auth ─────────────────────────────────────────
+TWCR_TOKEN=$(python3 -c "
+import re, sys
+with open('$HELM_CHART/values.local-secrets.yaml') as f:
+    m = re.search(r'timewebRegistryToken:\s*[\"\'](.*?)[\"\']\s*$', f.read(), re.MULTILINE)
+    print(m.group(1) if m else '')
+" 2>/dev/null)
+
+if [[ -z "$TWCR_TOKEN" ]]; then
+  echo "ERROR: timewebRegistryToken not found in values.local-secrets.yaml"
+  exit 1
+fi
+
+echo "==> Logging in to $REGISTRY..."
+echo "$TWCR_TOKEN" | docker login "$REGISTRY" -u token --password-stdin
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
 echo "==> Deploy plan:"
@@ -228,6 +244,15 @@ if [[ "$RELEASE_STATUS" == "pending-upgrade" || "$RELEASE_STATUS" == "pending-in
   echo "    Rollback complete."
   echo ""
 fi
+
+# ── Create/update registry pull secret in k8s ────────────────────────────────
+echo "==> Syncing twcr-secret in Kubernetes..."
+kubectl create secret docker-registry twcr-secret \
+  --docker-server="$REGISTRY" \
+  --docker-username=token \
+  --docker-password="$TWCR_TOKEN" \
+  -n "$NAMESPACE" \
+  --dry-run=client -o yaml | kubectl apply -f -
 
 # ── Deploy with Helm ─────────────────────────────────────────────────────────
 echo "==> Deploying to Kubernetes..."
