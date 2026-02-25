@@ -16,6 +16,7 @@ import { RetentionTool } from './tools/retention.tool';
 import { LifecycleTool } from './tools/lifecycle.tool';
 import { StickinessTool } from './tools/stickiness.tool';
 import { ListEventNamesTool } from './tools/list-event-names.tool';
+import { ListPropertyValuesTool } from './tools/list-property-values.tool';
 import { PathsTool } from './tools/paths.tool';
 
 const TOOL_CLASSES = [
@@ -25,6 +26,7 @@ const TOOL_CLASSES = [
   LifecycleTool,
   StickinessTool,
   ListEventNamesTool,
+  ListPropertyValuesTool,
   PathsTool,
 ];
 

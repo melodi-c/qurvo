@@ -7,9 +7,12 @@ import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
+import { queryEventPropertyValues, type PropertyValueRow } from './event-property-values.query';
 import { DIRECT_COLUMNS } from '../utils/property-filter';
 import { EventNotFoundException } from './exceptions/event-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
+
+export type { PropertyValueRow };
 
 @Injectable()
 export class EventsService {
@@ -43,6 +46,15 @@ export class EventsService {
 
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', PROPERTY_NAMES_CACHE_TTL_SECONDS);
     return names;
+  }
+
+  async getEventPropertyValues(
+    projectId: string,
+    propertyName: string,
+    eventName?: string,
+    limit = 50,
+  ): Promise<PropertyValueRow[]> {
+    return queryEventPropertyValues(this.ch, { project_id: projectId, property_name: propertyName, event_name: eventName, limit });
   }
 
   async getEventPropertyNames(projectId: string, eventName?: string): Promise<string[]> {
