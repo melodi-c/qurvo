@@ -190,19 +190,15 @@ export async function queryOverview(
   const queryParams = buildBaseQueryParams(params);
   const filterConditions = buildFilterConditions(params.filters, queryParams);
 
-  // Current KPIs
-  const current = await queryKPIs(ch, { ...queryParams }, filterConditions);
-
-  // Previous period KPIs
+  // Previous period params
   const prev = shiftPeriod(params.date_from, params.date_to);
   const prevParams: Record<string, unknown> = {
     ...queryParams,
     from: toChTs(prev.from),
     to: toChTs(prev.to, true),
   };
-  const previous = await queryKPIs(ch, prevParams, filterConditions);
 
-  // Timeseries
+  // Timeseries SQL
   const bucketExpr = granularityTruncExpr(granularity, 'session_start');
   const tsSql = `
     WITH ${buildSessionStatsCTE(queryParams, filterConditions)}
@@ -215,9 +211,14 @@ export async function queryOverview(
     GROUP BY bucket
     ORDER BY bucket ASC`;
 
-  const tsResult = await ch.query({ query: tsSql, query_params: queryParams, format: 'JSONEachRow' });
-  const tsRows = await tsResult.json<RawTimeseriesRow>();
+  // Run all three independent queries in parallel
+  const [current, previous, tsResult] = await Promise.all([
+    queryKPIs(ch, { ...queryParams }, filterConditions),
+    queryKPIs(ch, prevParams, filterConditions),
+    ch.query({ query: tsSql, query_params: queryParams, format: 'JSONEachRow' }),
+  ]);
 
+  const tsRows = await tsResult.json<RawTimeseriesRow>();
   const timeseries: TimeseriesPoint[] = tsRows.map((r) => ({
     bucket: r.bucket,
     unique_visitors: Number(r.unique_visitors),

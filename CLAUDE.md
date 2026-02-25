@@ -96,6 +96,7 @@ Each package has its own `CLAUDE.md` with detailed docs.
 - **`@qurvo/sdk-core`** — fetch-based transport with queue
 - **`@qurvo/sdk-browser`** / **`@qurvo/sdk-node`** — platform-specific SDK wrappers
 - **`@qurvo/distributed-lock`** — Redis-based distributed lock (SET NX + Lua-guarded release). Used by processor's DLQ replay and cohort-worker's membership service.
+- **`@qurvo/worker-core`** — shared worker bootstrap (`bootstrapWorker()`), logger factory (`workerLoggerModule()`), periodic timer mixin (`PeriodicWorkerMixin`). Used by processor, billing-worker, cohort-worker.
 - **`@qurvo/testing`** — shared testcontainers + per-worker DB isolation + factories + date helpers. See `packages/@qurvo/testing/CLAUDE.md`
 
 ### Integration Tests

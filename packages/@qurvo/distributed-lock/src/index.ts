@@ -8,6 +8,14 @@ const RELEASE_SCRIPT = `
   end
 `;
 
+const EXTEND_SCRIPT = `
+  if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('expire', KEYS[1], ARGV[2])
+  else
+    return 0
+  end
+`;
+
 export class DistributedLock {
   constructor(
     private readonly redis: Redis,
@@ -25,6 +33,13 @@ export class DistributedLock {
       'NX',
     );
     return result !== null;
+  }
+
+  async extend(ttlSeconds?: number): Promise<boolean> {
+    const result = await this.redis.eval(
+      EXTEND_SCRIPT, 1, this.key, this.instanceId, ttlSeconds ?? this.ttlSeconds,
+    );
+    return result === 1;
   }
 
   async release(): Promise<void> {

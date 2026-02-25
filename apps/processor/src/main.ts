@@ -1,17 +1,10 @@
 import './tracer';
 import 'dotenv/config';
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { Logger } from 'nestjs-pino';
+import { bootstrapWorker } from '@qurvo/worker-core';
 import { AppModule } from './app.module';
 
-async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(AppModule, { bufferLogs: true });
-  app.useLogger(app.get(Logger));
-  app.enableShutdownHooks();
-}
-
-bootstrap().catch((err) => {
+bootstrapWorker({ module: AppModule }).catch((err) => {
   console.error('Fatal error', err);
   process.exit(1);
 });

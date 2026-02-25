@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { EventsService } from '../../events/events.service';
@@ -25,7 +25,7 @@ export class EventsController {
 
   @Get('events/:eventId')
   async getEventDetail(
-    @Param('eventId') eventId: string,
+    @Param('eventId', ParseUUIDPipe) eventId: string,
     @Query() query: EventDetailQueryDto,
   ): Promise<EventDetailDto> {
     return this.eventsService.getEventDetail(query.project_id, eventId);

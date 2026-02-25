@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { PersonsService } from '../../persons/persons.service';
@@ -44,7 +44,7 @@ export class PersonsController {
   @Get(':personId')
   async getPersonById(
     @Query() query: PersonByIdQueryDto,
-    @Param('personId') personId: string,
+    @Param('personId', ParseUUIDPipe) personId: string,
   ): Promise<PersonDto> {
     return this.personsService.getPersonById(query.project_id, personId) as any;
   }
@@ -52,7 +52,7 @@ export class PersonsController {
   @Get(':personId/events')
   async getPersonEvents(
     @Query() query: PersonEventsQueryDto,
-    @Param('personId') personId: string,
+    @Param('personId', ParseUUIDPipe) personId: string,
   ): Promise<PersonEventRowDto[]> {
     return this.personsService.getPersonEvents({
       project_id: query.project_id,

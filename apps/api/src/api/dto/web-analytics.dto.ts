@@ -34,7 +34,7 @@ export class WebAnalyticsTimeseriesPointDto {
   sessions: number;
 }
 
-export class WebAnalyticsOverviewResponseDto {
+export class WebAnalyticsOverviewDataDto {
   @Type(() => WebAnalyticsKPIsDto)
   current: WebAnalyticsKPIsDto;
 
@@ -47,13 +47,20 @@ export class WebAnalyticsOverviewResponseDto {
   granularity: string;
 }
 
+export class WebAnalyticsOverviewResponseDto {
+  @Type(() => WebAnalyticsOverviewDataDto)
+  data: WebAnalyticsOverviewDataDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
 export class WebAnalyticsDimensionRowDto {
   name: string;
   visitors: number;
   pageviews: number;
 }
 
-export class WebAnalyticsPathsResponseDto {
+export class WebAnalyticsPathsDataDto {
   @Type(() => WebAnalyticsDimensionRowDto)
   top_pages: WebAnalyticsDimensionRowDto[];
 
@@ -64,7 +71,14 @@ export class WebAnalyticsPathsResponseDto {
   exit_pages: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsSourcesResponseDto {
+export class WebAnalyticsPathsResponseDto {
+  @Type(() => WebAnalyticsPathsDataDto)
+  data: WebAnalyticsPathsDataDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export class WebAnalyticsSourcesDataDto {
   @Type(() => WebAnalyticsDimensionRowDto)
   referrers: WebAnalyticsDimensionRowDto[];
 
@@ -78,7 +92,14 @@ export class WebAnalyticsSourcesResponseDto {
   utm_campaigns: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsDevicesResponseDto {
+export class WebAnalyticsSourcesResponseDto {
+  @Type(() => WebAnalyticsSourcesDataDto)
+  data: WebAnalyticsSourcesDataDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export class WebAnalyticsDevicesDataDto {
   @Type(() => WebAnalyticsDimensionRowDto)
   device_types: WebAnalyticsDimensionRowDto[];
 
@@ -89,7 +110,14 @@ export class WebAnalyticsDevicesResponseDto {
   oses: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsGeographyResponseDto {
+export class WebAnalyticsDevicesResponseDto {
+  @Type(() => WebAnalyticsDevicesDataDto)
+  data: WebAnalyticsDevicesDataDto;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+export class WebAnalyticsGeographyDataDto {
   @Type(() => WebAnalyticsDimensionRowDto)
   countries: WebAnalyticsDimensionRowDto[];
 
@@ -98,4 +126,11 @@ export class WebAnalyticsGeographyResponseDto {
 
   @Type(() => WebAnalyticsDimensionRowDto)
   cities: WebAnalyticsDimensionRowDto[];
+}
+
+export class WebAnalyticsGeographyResponseDto {
+  @Type(() => WebAnalyticsGeographyDataDto)
+  data: WebAnalyticsGeographyDataDto;
+  cached_at: string;
+  from_cache: boolean;
 }

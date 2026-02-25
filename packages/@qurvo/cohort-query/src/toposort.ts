@@ -15,6 +15,32 @@ export interface ToposortResult {
  * Topologically sorts cohorts so dependencies are computed first (Kahn's algorithm).
  * References to cohort IDs not in the input set are ignored (already fresh).
  */
+/**
+ * Groups already-sorted cohorts into dependency levels.
+ * Level 0 = no in-set dependencies; level N = depends on at least one node at level N-1.
+ */
+export function groupCohortsByLevel(sorted: CohortForSort[]): CohortForSort[][] {
+  if (sorted.length === 0) return [];
+
+  const idSet = new Set(sorted.map((c) => c.id));
+  const depth = new Map<string, number>();
+
+  for (const c of sorted) {
+    const refs = extractCohortReferences(c.definition).filter((id) => idSet.has(id));
+    const maxRefDepth = refs.length > 0
+      ? Math.max(...refs.map((id) => depth.get(id) ?? 0))
+      : -1;
+    depth.set(c.id, maxRefDepth + 1);
+  }
+
+  const maxLevel = Math.max(...sorted.map((c) => depth.get(c.id)!));
+  const levels: CohortForSort[][] = Array.from({ length: maxLevel + 1 }, () => []);
+  for (const c of sorted) {
+    levels[depth.get(c.id)!].push(c);
+  }
+  return levels;
+}
+
 export function topologicalSortCohorts(cohorts: CohortForSort[]): ToposortResult {
   if (cohorts.length === 0) return { sorted: [], cyclic: [] };
 

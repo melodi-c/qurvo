@@ -10,7 +10,8 @@ import {
 } from '@qurvo/db';
 import { detectCircularDependency } from '@qurvo/cohort-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
-import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory, type CohortFilterInput } from './cohorts.query';
+import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
 
 @Injectable()

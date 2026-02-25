@@ -1,5 +1,5 @@
 import type { PinoLogger } from 'nestjs-pino';
-import type { RawMessage, ValidationResult } from './types';
+import type { RawMessage, ValidMessage, ValidationResult } from './types';
 
 const REQUIRED_FIELDS = ['project_id', 'event_name', 'distinct_id'] as const;
 
@@ -12,7 +12,7 @@ const ILLEGAL_DISTINCT_IDS = new Set([
 
 /** Step 2: Validate and split into valid events + invalid IDs for XACK. */
 export function validateMessages(parsed: RawMessage[], logger: PinoLogger): ValidationResult {
-  const valid: RawMessage[] = [];
+  const valid: ValidMessage[] = [];
   const invalidIds: string[] = [];
 
   for (const item of parsed) {
@@ -24,7 +24,8 @@ export function validateMessages(parsed: RawMessage[], logger: PinoLogger): Vali
       logger.warn({ messageId: item.id, distinctId: item.fields.distinct_id }, 'Dropping event with illegal distinct_id');
       invalidIds.push(item.id);
     } else {
-      valid.push(item);
+      // Safe cast: REQUIRED_FIELDS check above guarantees these fields exist
+      valid.push(item as ValidMessage);
     }
   }
 

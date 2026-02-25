@@ -44,6 +44,7 @@ COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
 COPY packages/@qurvo/distributed-lock/package.json packages/@qurvo/distributed-lock/
 COPY packages/@qurvo/heartbeat/package.json packages/@qurvo/heartbeat/
 COPY packages/@qurvo/nestjs-infra/package.json packages/@qurvo/nestjs-infra/
+COPY packages/@qurvo/worker-core/package.json packages/@qurvo/worker-core/
 
 RUN pnpm install --frozen-lockfile
 
@@ -90,6 +91,7 @@ COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
 COPY packages/@qurvo/distributed-lock/package.json packages/@qurvo/distributed-lock/
 COPY packages/@qurvo/heartbeat/package.json packages/@qurvo/heartbeat/
 COPY packages/@qurvo/nestjs-infra/package.json packages/@qurvo/nestjs-infra/
+COPY packages/@qurvo/worker-core/package.json packages/@qurvo/worker-core/
 
 RUN pnpm install --frozen-lockfile --prod
 
@@ -102,6 +104,7 @@ COPY --from=nestjs-builder /repo/packages/@qurvo/cohort-query/dist   packages/@q
 COPY --from=nestjs-builder /repo/packages/@qurvo/distributed-lock/dist packages/@qurvo/distributed-lock/dist/
 COPY --from=nestjs-builder /repo/packages/@qurvo/heartbeat/dist packages/@qurvo/heartbeat/dist/
 COPY --from=nestjs-builder /repo/packages/@qurvo/nestjs-infra/dist packages/@qurvo/nestjs-infra/dist/
+COPY --from=nestjs-builder /repo/packages/@qurvo/worker-core/dist packages/@qurvo/worker-core/dist/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser

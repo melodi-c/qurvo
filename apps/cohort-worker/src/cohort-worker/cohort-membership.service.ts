@@ -1,6 +1,9 @@
-import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { topologicalSortCohorts } from '@qurvo/cohort-query';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue, type QueueEvents } from 'bullmq';
+import { PeriodicWorkerMixin } from '@qurvo/worker-core';
+import { topologicalSortCohorts, groupCohortsByLevel } from '@qurvo/cohort-query';
 import { type DistributedLock } from '@qurvo/distributed-lock';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
@@ -8,53 +11,29 @@ import {
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
   COHORT_INITIAL_DELAY_MS,
   COHORT_GC_EVERY_N_CYCLES,
+  COHORT_COMPUTE_QUEUE,
 } from '../constants';
-import { DISTRIBUTED_LOCK } from './tokens';
+import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
+import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processor';
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class CohortMembershipService implements OnApplicationBootstrap {
-  private timer: NodeJS.Timeout | null = null;
-  private stopped = false;
-  private cycleInFlight: Promise<void> | null = null;
+export class CohortMembershipService extends PeriodicWorkerMixin {
+  protected readonly intervalMs = COHORT_MEMBERSHIP_INTERVAL_MS;
+  protected readonly initialDelayMs = COHORT_INITIAL_DELAY_MS;
   private gcCycleCounter = 0;
 
   constructor(
     @Inject(DISTRIBUTED_LOCK) private readonly lock: DistributedLock,
+    @InjectQueue(COHORT_COMPUTE_QUEUE) private readonly computeQueue: Queue<ComputeJobData, ComputeJobResult>,
+    @Inject(COMPUTE_QUEUE_EVENTS) private readonly queueEvents: QueueEvents,
     @InjectPinoLogger(CohortMembershipService.name)
-    private readonly logger: PinoLogger,
+    protected readonly logger: PinoLogger,
     private readonly computation: CohortComputationService,
-  ) {}
-
-  onApplicationBootstrap() {
-    this.timer = setTimeout(() => this.scheduledCycle(), COHORT_INITIAL_DELAY_MS);
-  }
-
-  async stop(): Promise<void> {
-    this.stopped = true;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-    if (this.cycleInFlight) {
-      await this.cycleInFlight;
-    }
-  }
-
-  private async scheduledCycle() {
-    this.cycleInFlight = this.runCycle();
-    try {
-      await this.cycleInFlight;
-    } catch (err) {
-      this.logger.error({ err }, 'Cohort membership cycle failed');
-    } finally {
-      this.cycleInFlight = null;
-      if (!this.stopped) {
-        this.timer = setTimeout(() => this.scheduledCycle(), COHORT_MEMBERSHIP_INTERVAL_MS);
-      }
-    }
+  ) {
+    super();
   }
 
   /** @internal — exposed for integration tests */
@@ -64,7 +43,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     const hasLock = await this.lock.acquire();
     if (!hasLock) {
       this.logger.debug('Cohort membership cycle skipped: another instance holds the lock');
-      // gcCycleCounter not incremented — GC only runs by the lock holder
       return;
     }
 
@@ -103,16 +81,46 @@ export class CohortMembershipService implements OnApplicationBootstrap {
         }
       }
 
-      // ── 4. Compute each cohort ─────────────────────────────────────────
+      // ── 4. Group by dependency level and compute in parallel ─────────
+      const levels = groupCohortsByLevel(sorted);
       const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
       const pendingDeletions: Array<{ cohortId: string; version: number }> = [];
 
-      for (const { id } of sorted) {
-        const result = await this.processOneCohort(cohortById.get(id)!);
-        computed += result.computed;
-        pgFailed += result.pgFailed;
-        if (result.version !== undefined) {
-          pendingDeletions.push({ cohortId: id, version: result.version });
+      for (const level of levels) {
+        // Extend lock TTL before processing each level
+        await this.lock.extend().catch(() => {});
+
+        // Enqueue all cohorts in this level for parallel computation
+        const jobs = await this.computeQueue.addBulk(
+          level.map((c) => {
+            const cohort = cohortById.get(c.id)!;
+            return {
+              name: 'compute',
+              data: {
+                cohortId: cohort.id,
+                projectId: cohort.project_id,
+                definition: cohort.definition,
+              } satisfies ComputeJobData,
+            };
+          }),
+        );
+
+        // Wait for all jobs in this level to complete
+        const results = await Promise.allSettled(
+          jobs.map((j) => j.waitUntilFinished(this.queueEvents)),
+        );
+
+        // Collect results
+        for (const r of results) {
+          if (r.status === 'fulfilled') {
+            const result = r.value as ComputeJobResult;
+            computed += result.success ? 1 : 0;
+            pgFailed += result.pgFailed ? 1 : 0;
+            if (result.success && result.version !== undefined) {
+              pendingDeletions.push({ cohortId: result.cohortId, version: result.version });
+            }
+          }
+          // rejected = job threw unexpectedly (shouldn't happen — processor catches all errors)
         }
       }
 
@@ -133,27 +141,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       );
 
       await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
-    }
-  }
-
-  private async processOneCohort(
-    cohort: StaleCohort,
-  ): Promise<{ computed: number; pgFailed: number; version?: number }> {
-    try {
-      const version = Date.now();
-      await this.computation.computeMembership(cohort.id, cohort.project_id, cohort.definition, version);
-      const pgOk = await this.computation.markComputationSuccess(cohort.id, version);
-      if (pgOk) {
-        await this.computation.recordSizeHistory(cohort.id, cohort.project_id);
-      }
-      return { computed: 1, pgFailed: pgOk ? 0 : 1, version };
-    } catch (err) {
-      await this.computation.recordError(cohort.id, err);
-      this.logger.error(
-        { err, cohortId: cohort.id, projectId: cohort.project_id },
-        'Failed to compute membership for cohort',
-      );
-      return { computed: 0, pgFailed: 0 };
     }
   }
 

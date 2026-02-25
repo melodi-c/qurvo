@@ -89,13 +89,17 @@ constructor(
 3. Public endpoints (register, login, verify-email/token, health) use `@Public()` decorator from `src/api/decorators/public.decorator.ts` to skip auth
 4. Session tokens stored as SHA-256 hashes in PostgreSQL, cached in Redis (60s TTL)
 
+### UUID Path Parameter Validation
+All UUID path parameters (`cohortId`, `dashboardId`, `personId`, etc.) use NestJS `ParseUUIDPipe` for automatic format validation. Exception: `projectId` is validated by `ProjectMemberGuard` (regex check) instead, since it goes through the guard before reaching the handler.
+
 ### Project Authorization (ProjectMemberGuard)
 Project-scoped endpoints use `ProjectMemberGuard` (from `src/api/guards/project-member.guard.ts`) instead of calling `getMembership()` in every service method:
 1. Guard reads `projectId` from `request.params.projectId` or `request.query.project_id`
-2. Calls `ProjectsService.getMembership()` once to verify access
-3. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy via `PROJECT_ROLE_LEVELS` from `constants.ts`: `owner (3) > editor (2) > viewer (1)`
-4. Guard throws `AppBadRequestException` when `projectId` is missing from request
-5. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
+2. Validates UUID format via regex before querying DB
+3. Calls `ProjectsService.getMembership()` once to verify access
+4. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy via `PROJECT_ROLE_LEVELS` from `constants.ts`: `owner (3) > editor (2) > viewer (1)`
+5. Guard throws `AppBadRequestException` when `projectId` is missing from request
+6. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
 
 **Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id in body — `AiService.validateChatAccess()` is called **before** SSE `writeHead` so auth errors return proper HTTP status codes instead of being swallowed into SSE events).
 
