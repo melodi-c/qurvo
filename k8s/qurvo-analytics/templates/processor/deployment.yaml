@@ -25,9 +25,6 @@ spec:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- include "qurvo.datadogLogAnnotations" (dict "container" "processor" "source" "nodejs" "root" .) | nindent 8 }}
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9090"
-        prometheus.io/path: "/metrics"
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
