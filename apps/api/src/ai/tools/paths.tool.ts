@@ -35,6 +35,7 @@ const tool = defineTool({
 @Injectable()
 export class PathsTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(@Inject(PATHS_SERVICE) private readonly pathsService: AnalyticsQueryService<PathsQueryParams, PathsQueryResult>) {}
 

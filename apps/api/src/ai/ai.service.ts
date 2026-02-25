@@ -21,18 +21,6 @@ import type { AiTool } from './tools/ai-tool.interface';
 import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_SUMMARIZATION_MODEL } from '../constants';
 import { REDIS } from '../providers/redis.provider';
 
-/** Tools whose results are cached in Redis for 5 minutes (analytics queries only). */
-const CACHEABLE_TOOLS = new Set([
-  'query_trend',
-  'query_funnel',
-  'query_retention',
-  'query_lifecycle',
-  'query_stickiness',
-  'query_paths',
-  'query_funnel_gaps',
-  'analyze_metric_change',
-]);
-
 const AI_TOOL_CACHE_TTL_SECONDS = 300;
 
 type AiStreamChunk =
@@ -441,7 +429,7 @@ export class AiService implements OnModuleInit {
         const tool = this.toolMap.get(tc.function.name);
         if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
 
-        if (CACHEABLE_TOOLS.has(tc.function.name)) {
+        if (tool.cacheable === true) {
           const cacheKey = this.buildToolCacheKey(tc.function.name, args, projectId);
           const cached = await this.redis.get(cacheKey);
           if (cached !== null) {

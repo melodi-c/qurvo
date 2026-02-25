@@ -19,6 +19,7 @@ export const propertyFilterSchema = z.object({
 /** Common interface consumed by AiService */
 export interface AiTool {
   readonly name: string;
+  readonly cacheable?: boolean;
   definition(): ChatCompletionTool;
   run(rawArgs: Record<string, unknown>, userId: string, projectId: string): Promise<ToolCallResult>;
 }

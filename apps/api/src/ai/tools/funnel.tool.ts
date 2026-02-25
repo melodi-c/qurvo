@@ -29,6 +29,7 @@ const tool = defineTool({
 @Injectable()
 export class FunnelTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(@Inject(FUNNEL_SERVICE) private readonly funnelService: AnalyticsQueryService<FunnelQueryParams, FunnelQueryResult>) {}
 

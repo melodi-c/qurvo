@@ -26,6 +26,7 @@ const tool = defineTool({
 @Injectable()
 export class RetentionTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(@Inject(RETENTION_SERVICE) private readonly retentionService: AnalyticsQueryService<RetentionQueryParams, RetentionQueryResult>) {}
 

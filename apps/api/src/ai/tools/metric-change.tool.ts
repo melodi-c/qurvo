@@ -267,6 +267,7 @@ async function queryOverallTotals(
 @Injectable()
 export class MetricChangeTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,

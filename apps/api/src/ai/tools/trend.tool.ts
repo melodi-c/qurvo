@@ -32,6 +32,7 @@ const tool = defineTool({
 @Injectable()
 export class TrendTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(@Inject(TREND_SERVICE) private readonly trendService: AnalyticsQueryService<TrendQueryParams, TrendQueryResult>) {}
 

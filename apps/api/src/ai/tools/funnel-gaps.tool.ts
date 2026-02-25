@@ -53,6 +53,7 @@ export interface FunnelGapItem {
 @Injectable()
 export class FunnelGapsTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,

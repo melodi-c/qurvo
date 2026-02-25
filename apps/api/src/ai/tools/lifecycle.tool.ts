@@ -24,6 +24,7 @@ const tool = defineTool({
 @Injectable()
 export class LifecycleTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(@Inject(LIFECYCLE_SERVICE) private readonly lifecycleService: AnalyticsQueryService<LifecycleQueryParams, LifecycleQueryResult>) {}
 

@@ -24,6 +24,7 @@ const tool = defineTool({
 @Injectable()
 export class StickinessTool implements AiTool {
   readonly name = tool.name;
+  readonly cacheable = true;
 
   constructor(@Inject(STICKINESS_SERVICE) private readonly stickinessService: AnalyticsQueryService<StickinessQueryParams, StickinessQueryResult>) {}
 
