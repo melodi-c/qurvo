@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
@@ -9,6 +9,7 @@ interface UseInsightEditorOptions<T extends CreateInsight['config']> {
   defaultName: string;
   defaultConfig: () => T;
   cleanConfig?: (config: T) => T;
+  isConfigValid?: (config: T) => boolean;
 }
 
 export function useInsightEditor<T extends CreateInsight['config']>({
@@ -16,6 +17,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   defaultName,
   defaultConfig,
   cleanConfig,
+  isConfigValid: isConfigValidFn,
 }: UseInsightEditorOptions<T>) {
   const identityFn = useRef((c: T) => c);
   const cleanFn = cleanConfig ?? identityFn.current;
@@ -64,6 +66,11 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     }
   }, [name, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn]);
 
+  const previewId = isNew ? `${type}-new` : insightId!;
+  const isConfigValid = isConfigValidFn ? isConfigValidFn(config) : true;
+  const isValid = name.trim() !== '' && isConfigValid;
+  const showSkeleton = (loading: boolean, data: unknown) => loading && !data;
+
   return {
     name,
     setName,
@@ -76,5 +83,9 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     handleSave,
     insightId,
     projectId,
+    previewId,
+    isConfigValid,
+    isValid,
+    showSkeleton,
   };
 }

@@ -37,13 +37,12 @@ export default function FunnelEditorPage() {
     defaultName: t('defaultName'),
     defaultConfig: defaultFunnelConfig,
     cleanConfig: cleanFunnelConfig,
+    isConfigValid: (cfg) =>
+      cfg.steps.length >= 2 && cfg.steps.every((s) => s.event_name.trim() !== ''),
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
-
-  const isConfigValid =
-    config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
-  const isValid = name.trim() !== '' && isConfigValid;
+  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+    previewId, isConfigValid, isValid, showSkeleton } = editor;
 
   const [viewMode, setViewMode] = useState<ViewMode>('conversion');
   const { fromStep, setFromStep, toStep, setToStep } = useTimeToConvertState(config.steps.length);
@@ -58,7 +57,6 @@ export default function FunnelEditorPage() {
   );
 
   // Funnel data
-  const previewId = editor.isNew ? 'funnel-new' : editor.insightId!;
   const { data, isLoading, isFetching } = useFunnelData(config, previewId);
   const funnelResult = data?.data;
   const steps = funnelResult?.steps;
@@ -70,7 +68,7 @@ export default function FunnelEditorPage() {
     () => ({ ...config, from_step: fromStep, to_step: toStep }),
     [config, fromStep, toStep],
   );
-  const ttcPreviewId = editor.isNew ? 'funnel-ttc-new' : `${editor.insightId!}-ttc`;
+  const ttcPreviewId = `${previewId}-ttc`;
   const {
     data: ttcData,
     isLoading: ttcIsLoading,
@@ -81,7 +79,7 @@ export default function FunnelEditorPage() {
   const isTimeToConvert = viewMode === 'time_to_convert';
   const activeIsLoading = isTimeToConvert ? ttcIsLoading : isLoading;
   const activeIsFetching = isTimeToConvert ? ttcIsFetching : isFetching;
-  const activeShowSkeleton = activeIsLoading && !(isTimeToConvert ? ttcData : data);
+  const activeShowSkeleton = showSkeleton(activeIsLoading, isTimeToConvert ? ttcData : data);
   const activeIsEmpty = isTimeToConvert
     ? !ttcResult || ttcResult.sample_size === 0
     : !steps || steps.length === 0;

@@ -25,19 +25,16 @@ export default function TrendEditorPage() {
     defaultName: t('defaultName'),
     defaultConfig: () => defaultTrendConfig(t('seriesLabel')),
     cleanConfig: cleanTrendConfig,
+    isConfigValid: (cfg) =>
+      cfg.series.length >= 1 && cfg.series.every((s) => s.event_name.trim() !== ''),
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
+  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+    previewId, isConfigValid, isValid, showSkeleton } = editor;
 
-  const isConfigValid =
-    config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
-  const isValid = name.trim() !== '' && isConfigValid;
-
-  const previewId = editor.isNew ? 'trend-new' : editor.insightId!;
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
   const result = data?.data;
   const series = result?.series;
-  const showSkeleton = isLoading && !data;
 
   const totalValue = series?.reduce(
     (acc, s) => acc + s.data.reduce((sum, dp) => sum + dp.value, 0),
@@ -68,7 +65,7 @@ export default function TrendEditorPage() {
       saveError={saveError}
       queryPanel={<TrendQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={isConfigValid}
-      showSkeleton={showSkeleton}
+      showSkeleton={showSkeleton(isLoading, data)}
       isEmpty={!series || series.length === 0}
       isFetching={isFetching}
       configureIcon={BarChart3}

@@ -20,17 +20,14 @@ export default function RetentionEditorPage() {
     type: 'retention',
     defaultName: t('defaultName'),
     defaultConfig: defaultRetentionConfig,
+    isConfigValid: (cfg) => cfg.target_event.trim() !== '',
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
+  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+    previewId, isConfigValid, isValid, showSkeleton } = editor;
 
-  const isConfigValid = config.target_event.trim() !== '';
-  const isValid = name.trim() !== '' && isConfigValid;
-
-  const previewId = editor.isNew ? 'retention-new' : editor.insightId!;
   const { data, isLoading, isFetching } = useRetentionData(config, previewId);
   const result = data?.data;
-  const showSkeleton = isLoading && !data;
 
   return (
     <InsightEditorLayout
@@ -45,7 +42,7 @@ export default function RetentionEditorPage() {
       saveError={saveError}
       queryPanel={<RetentionQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={isConfigValid}
-      showSkeleton={showSkeleton}
+      showSkeleton={showSkeleton(isLoading, data)}
       isEmpty={!result || result.cohorts.length === 0}
       isFetching={isFetching}
       configureIcon={CalendarCheck}

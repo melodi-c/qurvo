@@ -21,15 +21,12 @@ export default function PathsEditorPage() {
     defaultConfig: defaultPathsConfig,
   });
 
-  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave } = editor;
+  const { name, setName, config, setConfig, isSaving, saveError, listPath, handleSave,
+    previewId, isValid, showSkeleton } = editor;
 
-  const isValid = name.trim() !== '';
-
-  const previewId = editor.isNew ? 'paths-new' : editor.insightId!;
   const { data, isLoading, isFetching } = usePathsData(config, previewId);
   const result = data?.data;
   const transitions = result?.transitions;
-  const showSkeleton = isLoading && !data;
 
   const totalUsers = transitions
     ? transitions
@@ -52,7 +49,7 @@ export default function PathsEditorPage() {
       saveError={saveError}
       queryPanel={<PathsQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={true}
-      showSkeleton={showSkeleton}
+      showSkeleton={showSkeleton(isLoading, data)}
       isEmpty={!transitions || transitions.length === 0}
       isFetching={isFetching}
       noResultsIcon={Route}
