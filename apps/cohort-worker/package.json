@@ -18,6 +18,7 @@
     "@qurvo/db": "workspace:*",
     "@qurvo/distributed-lock": "workspace:*",
     "@qurvo/nestjs-infra": "workspace:*",
+    "@qurvo/worker-core": "workspace:*",
     "bullmq": "^5.70.1",
     "dd-trace": "^5.0.0",
     "dotenv": "^16.4.0",

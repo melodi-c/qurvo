@@ -19,7 +19,9 @@ export class ProjectMemberGuard implements CanActivate {
 
     const projectId: string | undefined =
       request.params?.projectId ?? request.query?.project_id;
-    if (!projectId) throw new AppBadRequestException('projectId is required');
+    if (!projectId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+      throw new AppBadRequestException('projectId must be a valid UUID');
+    }
 
     const membership = await this.projectsService.getMembership(
       user.user_id,

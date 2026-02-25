@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MembersService } from '../../members/members.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
@@ -32,7 +32,7 @@ export class MembersController {
   @Put(':memberId/role')
   async updateRole(
     @Param('projectId') projectId: string,
-    @Param('memberId') memberId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
     @Body() body: UpdateMemberRoleDto,
   ): Promise<MemberDto> {
     return this.membersService.updateMemberRole(projectId, memberId, body.role);
@@ -42,7 +42,7 @@ export class MembersController {
   @Delete(':memberId')
   async removeMember(
     @Param('projectId') projectId: string,
-    @Param('memberId') memberId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
   ): Promise<void> {
     await this.membersService.removeMember(projectId, memberId);
   }
@@ -79,7 +79,7 @@ export class InvitesController {
   @Delete(':inviteId')
   async cancelInvite(
     @Param('projectId') projectId: string,
-    @Param('inviteId') inviteId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
   ): Promise<void> {
     await this.membersService.cancelInvite(projectId, inviteId);
   }
@@ -101,7 +101,7 @@ export class MyInvitesController {
   @Post(':inviteId/accept')
   async acceptInvite(
     @CurrentUser() user: RequestUser,
-    @Param('inviteId') inviteId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
   ): Promise<void> {
     await this.membersService.respondToInvite(user.user_id, user.email, inviteId, 'accept');
   }
@@ -109,7 +109,7 @@ export class MyInvitesController {
   @Post(':inviteId/decline')
   async declineInvite(
     @CurrentUser() user: RequestUser,
-    @Param('inviteId') inviteId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
   ): Promise<void> {
     await this.membersService.respondToInvite(user.user_id, user.email, inviteId, 'decline');
   }

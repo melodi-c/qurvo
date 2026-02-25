@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type { CohortFilterInput } from '../../cohorts/cohorts.query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────

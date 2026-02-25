@@ -8,7 +8,7 @@ import {
   msAgo,
   type ContainerContext,
 } from '@qurvo/testing';
-import { type CohortFilterInput } from '../../cohorts/cohorts.query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { queryFunnel, type FunnelQueryResult } from '../../analytics/funnel/funnel.query';
 import { queryTrend, type TrendQueryResult } from '../../analytics/trend/trend.query';
 import type { CohortConditionGroup } from '@qurvo/db';

@@ -111,9 +111,10 @@ export class AiService implements OnModuleInit {
             };
             messages.push(assistantMsg);
           } else if (msg.role === 'tool') {
+            if (!msg.tool_call_id) continue;
             messages.push({
               role: 'tool',
-              tool_call_id: msg.tool_call_id!,
+              tool_call_id: msg.tool_call_id,
               content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
             });
           }

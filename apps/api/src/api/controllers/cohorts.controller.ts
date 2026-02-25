@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CohortsService } from '../../cohorts/cohorts.service';
@@ -43,7 +43,7 @@ export class CohortsController {
   @Get(':cohortId')
   async getById(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
   ): Promise<CohortDto> {
     return this.cohortsService.getById(projectId, cohortId) as any;
   }
@@ -52,7 +52,7 @@ export class CohortsController {
   @Put(':cohortId')
   async update(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Body() body: UpdateCohortDto,
   ): Promise<CohortDto> {
     return this.cohortsService.update(projectId, cohortId, body) as any;
@@ -62,7 +62,7 @@ export class CohortsController {
   @Delete(':cohortId')
   async remove(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
   ): Promise<void> {
     await this.cohortsService.remove(projectId, cohortId);
   }
@@ -70,7 +70,7 @@ export class CohortsController {
   @Get(':cohortId/history')
   async getSizeHistory(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Query() query: CohortSizeHistoryQueryDto,
   ): Promise<CohortHistoryPointDto[]> {
     return this.cohortsService.getSizeHistory(projectId, cohortId, query.days ?? 30) as any;
@@ -79,7 +79,7 @@ export class CohortsController {
   @Get(':cohortId/count')
   async getMemberCount(
     @Param('projectId') projectId: string,
-    @Param('cohortId') cohortId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
   ): Promise<CohortMemberCountDto> {
     const count = await this.cohortsService.getMemberCount(projectId, cohortId);
     return { count };

@@ -3,7 +3,7 @@ import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
-import { withAnalyticsCache } from '../analytics/with-analytics-cache';
+import { withAnalyticsCache, type AnalyticsCacheResult } from '../analytics/with-analytics-cache';
 import {
   queryOverview,
   queryTopPages,
@@ -27,23 +27,23 @@ export class WebAnalyticsService {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
-  async getOverview(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<OverviewResult> {
+  async getOverview(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<OverviewResult>> {
     return this.runQuery(params, 'wa:overview', queryOverview);
   }
 
-  async getPaths(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<PathsResult> {
+  async getPaths(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<PathsResult>> {
     return this.runQuery(params, 'wa:paths', queryTopPages);
   }
 
-  async getSources(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<SourcesResult> {
+  async getSources(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<SourcesResult>> {
     return this.runQuery(params, 'wa:sources', querySources);
   }
 
-  async getDevices(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<DevicesResult> {
+  async getDevices(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<DevicesResult>> {
     return this.runQuery(params, 'wa:devices', queryDevices);
   }
 
-  async getGeography(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<GeographyResult> {
+  async getGeography(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<GeographyResult>> {
     return this.runQuery(params, 'wa:geography', queryGeography);
   }
 
@@ -51,8 +51,8 @@ export class WebAnalyticsService {
     params: WebAnalyticsQueryParams & { force?: boolean },
     prefix: string,
     queryFn: (ch: ClickHouseClient, p: WebAnalyticsQueryParams) => Promise<T>,
-  ): Promise<T> {
+  ): Promise<AnalyticsCacheResult<T>> {
     const { force, ...queryParams } = params;
-    return (await withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger })).data;
+    return withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger });
   }
 }

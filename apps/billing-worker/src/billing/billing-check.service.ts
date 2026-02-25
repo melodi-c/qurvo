@@ -1,5 +1,6 @@
-import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { PeriodicWorkerMixin } from '@qurvo/worker-core';
 import Redis from 'ioredis';
 import { eq, isNotNull } from 'drizzle-orm';
 import { projects, plans } from '@qurvo/db';
@@ -14,33 +15,16 @@ import {
 } from '../constants';
 
 @Injectable()
-export class BillingCheckService implements OnApplicationBootstrap {
-  private timer: NodeJS.Timeout | null = null;
-  private stopped = false;
-  private cycleInFlight: Promise<void> | null = null;
+export class BillingCheckService extends PeriodicWorkerMixin {
+  protected readonly intervalMs = BILLING_CHECK_INTERVAL_MS;
+  protected readonly initialDelayMs = BILLING_INITIAL_DELAY_MS;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(DRIZZLE) private readonly db: Database,
-    @InjectPinoLogger(BillingCheckService.name) private readonly logger: PinoLogger,
-  ) {}
-
-  onApplicationBootstrap() {
-    this.timer = setTimeout(() => this.scheduledCycle(), BILLING_INITIAL_DELAY_MS);
-  }
-
-  private async scheduledCycle() {
-    this.cycleInFlight = this.runCycle();
-    try {
-      await this.cycleInFlight;
-    } catch (err) {
-      this.logger.error({ err }, 'Billing check cycle failed');
-    } finally {
-      this.cycleInFlight = null;
-      if (!this.stopped) {
-        this.timer = setTimeout(() => this.scheduledCycle(), BILLING_CHECK_INTERVAL_MS);
-      }
-    }
+    @InjectPinoLogger(BillingCheckService.name) protected readonly logger: PinoLogger,
+  ) {
+    super();
   }
 
   /** @internal — exposed for integration tests */
@@ -87,16 +71,5 @@ export class BillingCheckService implements OnApplicationBootstrap {
       { total: rows.length, overLimit: overLimit.length },
       'Billing check completed',
     );
-  }
-
-  async stop(): Promise<void> {
-    this.stopped = true;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-    if (this.cycleInFlight) {
-      await this.cycleInFlight;
-    }
   }
 }

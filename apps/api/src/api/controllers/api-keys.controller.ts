@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApiKeysService } from '../../api-keys/api-keys.service';
 import { RequireRole } from '../decorators/require-role.decorator';
@@ -25,7 +25,7 @@ export class ApiKeysController {
 
   @RequireRole('editor')
   @Delete(':keyId')
-  async revoke(@Param('projectId') projectId: string, @Param('keyId') keyId: string): Promise<void> {
+  async revoke(@Param('projectId') projectId: string, @Param('keyId', ParseUUIDPipe) keyId: string): Promise<void> {
     await this.apiKeysService.revoke(projectId, keyId);
   }
 }
