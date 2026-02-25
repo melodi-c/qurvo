@@ -104,6 +104,8 @@ export function AiMessage({ message, isStreaming, onSuggestionClick, onEdit }: A
     );
   }
 
+  if (!message.content && !message.isStreaming) return null;
+
   if (isEditing) {
     return (
       <div className="flex gap-3 flex-row-reverse">
