@@ -7,11 +7,17 @@ import { useElementWidth } from '@/hooks/use-element-width';
 import { useDashboardStore, type RglItem } from '../store';
 import { InsightCard } from './InsightCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
+import type { Widget } from '@/api/generated/Api';
 
 const BREAKPOINTS = { sm: 1024, xs: 0 };
 const COLS = { sm: 24, xs: 1 };
-const MOBILE_WIDGET_HEIGHT = 320;
 const GRID_ROW_HEIGHT = 40;
+
+function getWidgetMobileHeight(widget: Widget): number {
+  if (widget.insight?.type === 'retention') return 440;
+  if (!widget.insight) return 200;
+  return 320;
+}
 const GRID_MARGIN: [number, number] = [12, 12];
 const GRID_CONTAINER_PADDING: [number, number] = [0, 0];
 const RESIZE_HANDLES = ['s', 'e', 'se'] as const;
@@ -52,7 +58,7 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     return (
       <div className="flex flex-col gap-3">
         {localWidgets.map((widget) => (
-          <div key={widget.id} style={{ height: MOBILE_WIDGET_HEIGHT }}>
+          <div key={widget.id} style={{ height: getWidgetMobileHeight(widget) }}>
             <InsightCard widget={widget} />
           </div>
         ))}
