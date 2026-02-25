@@ -45,6 +45,11 @@ export interface SendOptions {
 
 export type LogFn = (message: string, error?: unknown) => void;
 
+export interface QueuePersistence {
+  save(events: unknown[]): void;
+  load(): unknown[];
+}
+
 export type CompressFn = (data: string) => Promise<Blob>;
 
 export interface Transport {
