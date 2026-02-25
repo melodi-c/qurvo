@@ -2,6 +2,7 @@ import { Controller, Post, Get, Patch, Delete, Body, Param, Query, Res, Headers,
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
+import { AiChatService } from '../../ai/ai-chat.service';
 import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from '../../ai/guards/ai-quota.guard';
 import { detectLanguageFromHeader } from '../../ai/system-prompt';
@@ -16,7 +17,10 @@ import { ConversationNotFoundException } from '../../ai/exceptions/conversation-
 export class AiController {
   private readonly logger = new Logger(AiController.name);
 
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly chatService: AiChatService,
+  ) {}
 
   @Post('chat')
   @UseGuards(AiQuotaGuard, AiRateLimitGuard)
@@ -72,9 +76,9 @@ export class AiController {
     @Query() query: AiConversationsQueryDto,
   ): Promise<AiConversationDto[] | AiSharedConversationDto[]> {
     if (query.shared) {
-      return this.aiService.listSharedConversations(query.project_id) as any;
+      return this.chatService.listSharedConversations(query.project_id) as any;
     }
-    return this.aiService.listConversations(user.user_id, query.project_id) as any;
+    return this.chatService.listConversations(user.user_id, query.project_id) as any;
   }
 
   @Get('conversations/:id')
@@ -86,10 +90,10 @@ export class AiController {
   ): Promise<AiConversationDetailDto> {
     // First try to load as owner. If not found, fall back to shared conversation access.
     try {
-      return await this.aiService.getConversation(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
+      return await this.chatService.getConversationAuthorized(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
     } catch {
       // Any project member can view shared conversations (read-only)
-      return this.aiService.getSharedConversation(id, query.project_id, query.limit, query.before_sequence) as any;
+      return this.chatService.getSharedConversationAuthorized(id, query.project_id, query.limit, query.before_sequence) as any;
     }
   }
 
@@ -103,15 +107,15 @@ export class AiController {
   ): Promise<AiConversationDto> {
     // Handle is_shared toggle only
     if (body.is_shared !== undefined && body.title === undefined) {
-      return this.aiService.setShared(user.user_id, id, query.project_id, body.is_shared) as any;
+      return this.chatService.setSharedAuthorized(user.user_id, id, query.project_id, body.is_shared) as any;
     }
     // Handle rename (with optional is_shared toggle)
     if (body.title !== undefined) {
-      await this.aiService.renameConversation(user.user_id, id, query.project_id, body.title);
+      await this.chatService.renameConversationAuthorized(user.user_id, id, query.project_id, body.title);
       if (body.is_shared !== undefined) {
-        return this.aiService.setShared(user.user_id, id, query.project_id, body.is_shared) as any;
+        return this.chatService.setSharedAuthorized(user.user_id, id, query.project_id, body.is_shared) as any;
       }
-      return this.aiService.getConversation(user.user_id, id, query.project_id) as any;
+      return this.chatService.getConversationAuthorized(user.user_id, id, query.project_id) as any;
     }
     throw new ConversationNotFoundException();
   }
@@ -123,6 +127,6 @@ export class AiController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: AiConversationAccessDto,
   ): Promise<void> {
-    await this.aiService.deleteConversation(user.user_id, id, query.project_id);
+    await this.chatService.deleteConversationAuthorized(user.user_id, id, query.project_id);
   }
 }

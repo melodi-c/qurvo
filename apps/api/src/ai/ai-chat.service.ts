@@ -4,6 +4,7 @@ import { aiConversations, aiMessages, users } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
+import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
 
 export interface SavedMessage {
   role: 'user' | 'assistant' | 'tool';
@@ -199,5 +200,69 @@ export class AiChatService {
       .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
       .returning();
     return row ?? null;
+  }
+
+  // ─── Authorized CRUD (projectId scope) ────────────────────────────────────
+
+  async getConversationAuthorized(
+    userId: string,
+    conversationId: string,
+    projectId: string,
+    limit?: number,
+    beforeSequence?: number,
+  ) {
+    const conv = await this.getConversation(conversationId, userId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    const { messages, hasMore } = await this.getMessages(conversationId, limit, beforeSequence);
+    return { ...conv, messages, has_more: hasMore };
+  }
+
+  async getSharedConversationAuthorized(
+    conversationId: string,
+    projectId: string,
+    limit?: number,
+    beforeSequence?: number,
+  ) {
+    const conv = await this.getConversationByProject(conversationId, projectId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (!conv.is_shared) throw new ConversationNotFoundException();
+    const { messages, hasMore } = await this.getMessages(conversationId, limit, beforeSequence);
+    return { ...conv, messages, has_more: hasMore };
+  }
+
+  async deleteConversationAuthorized(userId: string, conversationId: string, projectId: string) {
+    const conv = await this.getConversation(conversationId, userId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    await this.deleteConversation(conversationId, userId);
+  }
+
+  async renameConversationAuthorized(
+    userId: string,
+    conversationId: string,
+    projectId: string,
+    title: string,
+  ) {
+    const conv = await this.getConversation(conversationId, userId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    const updated = await this.renameConversation(conversationId, userId, title);
+    if (!updated) throw new ConversationNotFoundException();
+    return updated;
+  }
+
+  async setSharedAuthorized(
+    userId: string,
+    conversationId: string,
+    projectId: string,
+    isShared: boolean,
+  ) {
+    const conv = await this.getConversation(conversationId, userId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    const updated = await this.setShared(conversationId, userId, isShared);
+    if (!updated) throw new ConversationNotFoundException();
+    return updated;
   }
 }
