@@ -8,6 +8,7 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
 import { FunnelExclusionBuilder } from './FunnelExclusionBuilder';
@@ -78,7 +79,10 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         {/* Order type */}
         <section className="space-y-3">
-          <SectionHeader icon={Shuffle} label={t('orderType')} />
+          <div className="flex items-center gap-1">
+            <SectionHeader icon={Shuffle} label={t('orderType')} />
+            <InfoTooltip content={t('orderTypeTooltip')} />
+          </div>
           <PillToggleGroup
             options={orderOptions}
             value={config.funnel_order_type ?? 'ordered'}
@@ -90,7 +94,10 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         {/* Conversion window */}
         <section className="space-y-3">
-          <SectionHeader icon={Timer} label={t('conversionWindow')} />
+          <div className="flex items-center gap-1">
+            <SectionHeader icon={Timer} label={t('conversionWindow')} />
+            <InfoTooltip content={t('conversionWindowTooltip')} />
+          </div>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -137,7 +144,10 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         {/* Display: conversion rate mode */}
         <section className="space-y-3">
-          <SectionHeader icon={BarChart3} label={t('conversionRate')} />
+          <div className="flex items-center gap-1">
+            <SectionHeader icon={BarChart3} label={t('conversionRate')} />
+            <InfoTooltip content={t('conversionRateTooltip')} />
+          </div>
           <PillToggleGroup
             options={rateDisplayOptions}
             value={config.conversion_rate_display ?? 'total'}

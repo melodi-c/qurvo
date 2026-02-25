@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { TargetEventQueryPanel } from '../shared/TargetEventQueryPanel';
 import translations from './RetentionQueryPanel.translations';
@@ -27,7 +28,10 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
       eventIcon={CalendarCheck}
       extraDisplayContent={
         <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">{t('retentionType')}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">{t('retentionType')}</span>
+            <InfoTooltip content={t('retentionTypeTooltip')} />
+          </div>
           <PillToggleGroup
             options={retentionTypeOptions}
             value={config.retention_type}
@@ -37,7 +41,10 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
       }
       granularityAdjacentContent={
         <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">{t('periods')}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">{t('periods')}</span>
+            <InfoTooltip content={t('periodsTooltip')} />
+          </div>
           <Input
             type="number"
             min={1}

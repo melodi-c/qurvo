@@ -6,6 +6,7 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { SectionHeader } from '@/components/ui/section-header';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { EditableListSection } from './EditableListSection';
 import translations from './PathsQueryPanel.translations';
@@ -36,7 +37,10 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
 
           <div className="space-y-2">
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('steps')}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('steps')}</span>
+                <InfoTooltip content={t('stepLimitTooltip')} />
+              </div>
               <Input
                 type="number"
                 min={3}
@@ -66,7 +70,10 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
             </div>
 
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('minUsersPerPath')}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('minUsersPerPath')}</span>
+                <InfoTooltip content={t('minPersonsTooltip')} />
+              </div>
               <Input
                 type="number"
                 min={1}

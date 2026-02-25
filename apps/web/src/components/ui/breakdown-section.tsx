@@ -3,6 +3,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { CohortSelector } from '@/features/cohorts/components/CohortSelector';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -17,6 +18,7 @@ interface BreakdownSectionProps {
   onBreakdownTypeChange?: (type: 'property' | 'cohort') => void;
   breakdownCohortIds?: string[];
   onBreakdownCohortIdsChange?: (ids: string[]) => void;
+  tooltip?: string;
 }
 
 export function BreakdownSection({
@@ -28,6 +30,7 @@ export function BreakdownSection({
   onBreakdownTypeChange,
   breakdownCohortIds = [],
   onBreakdownCohortIdsChange,
+  tooltip,
 }: BreakdownSectionProps) {
   const { t } = useLocalTranslation(translations);
 
@@ -38,7 +41,10 @@ export function BreakdownSection({
 
   return (
     <section className="space-y-3">
-      <SectionHeader icon={SlidersHorizontal} label={t('breakdown')} />
+      <div className="flex items-center gap-1">
+        <SectionHeader icon={SlidersHorizontal} label={t('breakdown')} />
+        {tooltip && <InfoTooltip content={tooltip} />}
+      </div>
 
       {onBreakdownTypeChange && (
         <PillToggleGroup

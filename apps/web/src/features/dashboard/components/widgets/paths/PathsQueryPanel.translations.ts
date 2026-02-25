@@ -19,6 +19,8 @@ export default createTranslations({
     aliasPlaceholder: 'alias',
     wildcardPatternPlaceholder: '/product/*',
     wildcardAliasPlaceholder: 'Product page',
+    stepLimitTooltip: 'Maximum path depth: how many steps to show in the user journey visualization.',
+    minPersonsTooltip: 'Hide paths taken by fewer than this many users. Higher values reduce noise and focus on common journeys.',
   },
   ru: {
     pathSettings: 'Настройки путей',
@@ -38,5 +40,7 @@ export default createTranslations({
     aliasPlaceholder: 'псевдоним',
     wildcardPatternPlaceholder: '/product/*',
     wildcardAliasPlaceholder: 'Страница продукта',
+    stepLimitTooltip: 'Максимальная глубина пути: сколько шагов отображать в визуализации пользовательского пути.',
+    minPersonsTooltip: 'Скрывает пути, по которым прошло меньше указанного числа пользователей. Большие значения снижают шум и фокусируют на часто встречающихся маршрутах.',
   },
 });
