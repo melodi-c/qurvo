@@ -59,6 +59,7 @@ export function buildPropertyFilterConditions(
   for (const [j, f] of filters.entries()) {
     const expr = resolvePropertyExpr(f.property);
     const pk = `${prefix}_f${j}_v`;
+    const source = resolvePropertySource(f.property);
     switch (f.operator) {
       case 'eq':
         queryParams[pk] = f.value ?? '';
@@ -77,10 +78,22 @@ export function buildPropertyFilterConditions(
         parts.push(`${expr} NOT LIKE {${pk}:String}`);
         break;
       case 'is_set':
-        parts.push(`${expr} != ''`);
+        // For JSON columns use JSONHas() so that boolean false and 0 are treated as set.
+        // For direct columns (plain String) fall back to != '' check.
+        if (source) {
+          parts.push(`JSONHas(${source.jsonColumn}, '${source.key}')`);
+        } else {
+          parts.push(`${expr} != ''`);
+        }
         break;
       case 'is_not_set':
-        parts.push(`${expr} = ''`);
+        // For JSON columns use NOT JSONHas() so that boolean false and 0 are not treated as unset.
+        // For direct columns (plain String) fall back to = '' check.
+        if (source) {
+          parts.push(`NOT JSONHas(${source.jsonColumn}, '${source.key}')`);
+        } else {
+          parts.push(`${expr} = ''`);
+        }
         break;
     }
   }
