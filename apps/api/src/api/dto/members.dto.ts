@@ -31,6 +31,7 @@ export class MemberDto {
   id: string;
   project_id: string;
   user: MemberUserDto;
+  @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
   role: 'owner' | 'editor' | 'viewer';
   created_at: Date;
 }
@@ -46,7 +47,9 @@ export class InviteDto {
   project_id: string;
   invited_by: InviterDto;
   email: string;
+  @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
   role: 'owner' | 'editor' | 'viewer';
+  @ApiProperty({ enum: ['pending', 'accepted', 'declined', 'cancelled'] })
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: Date;
   responded_at: Date | null;
@@ -56,7 +59,9 @@ export class MyInviteDto {
   id: string;
   project: { id: string; name: string; slug: string };
   invited_by: InviterDto;
+  @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
   role: 'owner' | 'editor' | 'viewer';
+  @ApiProperty({ enum: ['pending', 'accepted', 'declined', 'cancelled'] })
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: Date;
 }

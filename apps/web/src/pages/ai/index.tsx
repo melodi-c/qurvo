@@ -128,7 +128,7 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
     loadMoreMessages,
     startNewConversation,
     stopStreaming,
-  } = useAiChat();
+  } = useAiChat(projectId);
 
   // Load existing conversation on mount
   const loadedRef = useRef(false);

@@ -71,7 +71,7 @@ function finalizeStreamingMessages(messages: AiMessageData[]): AiMessageData[] {
   return messages.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m));
 }
 
-export function useAiChat() {
+export function useAiChat(projectId: string) {
   const [state, setState] = useState<AiChatState>({
     messages: [],
     conversationId: null,
@@ -177,7 +177,7 @@ export function useAiChat() {
 
   const loadConversation = useCallback(async (convId: string) => {
     try {
-      const data = await api.aiControllerGetConversation({ id: convId, limit: PAGE_SIZE });
+      const data = await api.aiControllerGetConversation({ id: convId, limit: PAGE_SIZE, project_id: projectId });
 
       setState({
         messages: mapMessages(data.messages ?? []),
@@ -210,6 +210,7 @@ export function useAiChat() {
         id: state.conversationId!,
         limit: PAGE_SIZE,
         before_sequence: oldestSeq,
+        project_id: projectId,
       });
 
       const older = mapMessages(data.messages ?? []);

@@ -93,6 +93,9 @@ export class EventDetailDto extends EventRowDto {
 export class EventDetailQueryDto {
   @IsUUID()
   project_id: string;
+
+  @IsDateString()
+  timestamp: string;
 }
 
 export class EventNamesQueryDto {

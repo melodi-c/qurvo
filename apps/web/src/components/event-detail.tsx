@@ -103,6 +103,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
       api.eventsControllerGetEventDetail({
         eventId: event.event_id,
         project_id: projectId!,
+        timestamp: event.timestamp,
       }),
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,

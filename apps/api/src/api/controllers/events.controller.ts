@@ -28,7 +28,7 @@ export class EventsController {
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Query() query: EventDetailQueryDto,
   ): Promise<EventDetailDto> {
-    return this.eventsService.getEventDetail(query.project_id, eventId);
+    return this.eventsService.getEventDetail(query.project_id, eventId, query.timestamp);
   }
 
   @Get('event-names')

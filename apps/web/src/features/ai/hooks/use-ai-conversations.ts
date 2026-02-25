@@ -16,7 +16,7 @@ export function useDeleteConversation(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await api.aiControllerDeleteConversation({ id });
+      await api.aiControllerDeleteConversation({ id, project_id: projectId });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });

@@ -133,7 +133,7 @@ export interface ChangePassword {
 }
 
 export interface ProjectWithRole {
-  role: string;
+  role: ProjectWithRoleDtoRoleEnum;
   id: string;
   name: string;
   slug: string;
@@ -381,8 +381,8 @@ export interface RetentionCohort {
 }
 
 export interface RetentionResult {
-  retention_type: string;
-  granularity: string;
+  retention_type: RetentionResultDtoRetentionTypeEnum;
+  granularity: RetentionResultDtoGranularityEnum;
   cohorts: RetentionCohort[];
   average_retention: number[];
 }
@@ -409,7 +409,7 @@ export interface LifecycleTotals {
 }
 
 export interface LifecycleResult {
-  granularity: string;
+  granularity: LifecycleResultDtoGranularityEnum;
   data: LifecycleDataPoint[];
   totals: LifecycleTotals;
 }
@@ -426,7 +426,7 @@ export interface StickinessDataPoint {
 }
 
 export interface StickinessResult {
-  granularity: string;
+  granularity: StickinessResultDtoGranularityEnum;
   total_periods: number;
   data: StickinessDataPoint[];
 }
@@ -438,7 +438,15 @@ export interface StickinessResponse {
 }
 
 export interface PathCleaningRule {
+  /**
+   * @maxLength 500
+   * @pattern /^[^\x00-\x1f'\\]+$/
+   */
   regex: string;
+  /**
+   * @maxLength 500
+   * @pattern /^[\w\s\-./]+$/
+   */
   alias: string;
 }
 
@@ -465,9 +473,9 @@ export interface PathsResult {
 }
 
 export interface PathsResponse {
-  data: PathsResult;
   cached_at: string;
   from_cache: boolean;
+  data: PathsResult;
 }
 
 export interface Dashboard {
@@ -845,10 +853,10 @@ export interface MemberUser {
 }
 
 export interface Member {
+  role: MemberDtoRoleEnum;
   id: string;
   project_id: string;
   user: MemberUser;
-  role: string;
   /** @format date-time */
   created_at: string;
 }
@@ -864,12 +872,12 @@ export interface Inviter {
 }
 
 export interface Invite {
+  role: InviteDtoRoleEnum;
+  status: InviteDtoStatusEnum;
   id: string;
   project_id: string;
   invited_by: Inviter;
   email: string;
-  role: string;
-  status: string;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
@@ -886,6 +894,8 @@ export interface CreateInvite {
 }
 
 export interface MyInvite {
+  role: MyInviteDtoRoleEnum;
+  status: MyInviteDtoStatusEnum;
   id: string;
   project: {
     id: string;
@@ -893,8 +903,6 @@ export interface MyInvite {
     slug: string;
   };
   invited_by: Inviter;
-  role: string;
-  status: string;
   /** @format date-time */
   created_at: string;
 }
@@ -1040,9 +1048,9 @@ export interface WebAnalyticsOverviewData {
 }
 
 export interface WebAnalyticsOverviewResponse {
-  data: WebAnalyticsOverviewData;
   cached_at: string;
   from_cache: boolean;
+  data: WebAnalyticsOverviewData;
 }
 
 export interface WebAnalyticsDimensionRow {
@@ -1058,9 +1066,9 @@ export interface WebAnalyticsPathsData {
 }
 
 export interface WebAnalyticsPathsResponse {
-  data: WebAnalyticsPathsData;
   cached_at: string;
   from_cache: boolean;
+  data: WebAnalyticsPathsData;
 }
 
 export interface WebAnalyticsSourcesData {
@@ -1071,9 +1079,9 @@ export interface WebAnalyticsSourcesData {
 }
 
 export interface WebAnalyticsSourcesResponse {
-  data: WebAnalyticsSourcesData;
   cached_at: string;
   from_cache: boolean;
+  data: WebAnalyticsSourcesData;
 }
 
 export interface WebAnalyticsDevicesData {
@@ -1083,9 +1091,9 @@ export interface WebAnalyticsDevicesData {
 }
 
 export interface WebAnalyticsDevicesResponse {
-  data: WebAnalyticsDevicesData;
   cached_at: string;
   from_cache: boolean;
+  data: WebAnalyticsDevicesData;
 }
 
 export interface WebAnalyticsGeographyData {
@@ -1095,9 +1103,9 @@ export interface WebAnalyticsGeographyData {
 }
 
 export interface WebAnalyticsGeographyResponse {
-  data: WebAnalyticsGeographyData;
   cached_at: string;
   from_cache: boolean;
+  data: WebAnalyticsGeographyData;
 }
 
 export interface BillingStatus {
@@ -1113,7 +1121,13 @@ export interface BillingStatus {
   data_retention_days?: number | null;
   /** @example null */
   max_projects?: number | null;
-  features: object;
+  features: {
+    cohorts?: boolean;
+    lifecycle?: boolean;
+    stickiness?: boolean;
+    api_export?: boolean;
+    ai_insights?: boolean;
+  };
   /** @example "2026-02-01T00:00:00.000Z" */
   period_start: string;
   /** @example "2026-03-01T00:00:00.000Z" */
@@ -1122,6 +1136,8 @@ export interface BillingStatus {
 
 export type UpdateProfileDtoLanguageEnum = "ru" | "en";
 
+export type ProjectWithRoleDtoRoleEnum = "owner" | "editor" | "viewer";
+
 export type StepFilterDtoOperatorEnum =
   | "eq"
   | "neq"
@@ -1129,6 +1145,14 @@ export type StepFilterDtoOperatorEnum =
   | "not_contains"
   | "is_set"
   | "is_not_set";
+
+export type RetentionResultDtoRetentionTypeEnum = "first_time" | "recurring";
+
+export type RetentionResultDtoGranularityEnum = "day" | "week" | "month";
+
+export type LifecycleResultDtoGranularityEnum = "day" | "week" | "month";
+
+export type StickinessResultDtoGranularityEnum = "day" | "week" | "month";
 
 export type FunnelWidgetConfigDtoTypeEnum = "funnel";
 
@@ -1163,9 +1187,27 @@ export type PathsWidgetConfigDtoTypeEnum = "paths";
 
 export type CohortConditionGroupDtoTypeEnum = "AND" | "OR";
 
+export type MemberDtoRoleEnum = "owner" | "editor" | "viewer";
+
 export type UpdateMemberRoleDtoRoleEnum = "editor" | "viewer";
 
+export type InviteDtoRoleEnum = "owner" | "editor" | "viewer";
+
+export type InviteDtoStatusEnum =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "cancelled";
+
 export type CreateInviteDtoRoleEnum = "editor" | "viewer";
+
+export type MyInviteDtoRoleEnum = "owner" | "editor" | "viewer";
+
+export type MyInviteDtoStatusEnum =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "cancelled";
 
 export type AiMessageDtoRoleEnum = "user" | "assistant" | "tool";
 
@@ -1331,6 +1373,7 @@ export interface EventsControllerGetEventsParams {
 export interface EventsControllerGetEventDetailParams {
   /** @format uuid */
   project_id: string;
+  timestamp: string;
   eventId: string;
 }
 
@@ -1683,10 +1726,14 @@ export interface AiControllerGetConversationParams {
   limit?: number;
   /** @min 0 */
   before_sequence?: number;
+  /** @format uuid */
+  project_id: string;
   id: string;
 }
 
 export interface AiControllerDeleteConversationParams {
+  /** @format uuid */
+  project_id: string;
   id: string;
 }
 
@@ -3510,6 +3557,7 @@ export class Api<
       this.request<void, any>({
         path: `/api/ai/conversations/${id}`,
         method: "DELETE",
+        query: query,
         secure: true,
         ...params,
       }),

@@ -38,7 +38,9 @@ export class RetentionCohortDto {
 }
 
 export class RetentionResultDto {
+  @ApiProperty({ enum: ['first_time', 'recurring'] })
   retention_type: 'first_time' | 'recurring';
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
   granularity: 'day' | 'week' | 'month';
   @Type(() => RetentionCohortDto)
   cohorts: RetentionCohortDto[];

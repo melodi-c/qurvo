@@ -169,6 +169,8 @@ Swagger schema is generated via `swagger-cli` from the compiled NestJS metadata.
 - `@ApiPropertyOptional()` — optional fields that need explicit optionality in the schema
 - `@ApiProperty({ type: 'object' })` — `Record<string, unknown>` or other generic object types
 
+**IMPORTANT: String union fields on response DTOs MUST have `@ApiProperty({ enum: [...] })`**. Without it, the swagger generator emits `object` instead of `string`, which breaks the generated TypeScript client. This applies to both request and response DTOs — any field typed as a string union (e.g. `role: 'owner' | 'editor' | 'viewer'`) needs the decorator.
+
 ### Controller Return Types & `as any`
 Controllers declare explicit return types (e.g. `Promise<CohortDto>`) so Swagger can generate correct response schemas. Drizzle ORM returns `InferSelectModel<T>` which is structurally compatible but not assignable to DTO classes, so `as any` is required on `return` statements. **Never remove `as any` from controller returns** — it will break Swagger generation. Void actions (delete, revoke, etc.) return `Promise<void>` — never `{ ok: true }`.
 

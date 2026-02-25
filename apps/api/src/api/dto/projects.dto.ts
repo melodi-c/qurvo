@@ -1,4 +1,5 @@
 import { IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateProjectDto {
   @IsString()
@@ -25,5 +26,6 @@ export class ProjectDto {
 }
 
 export class ProjectWithRoleDto extends ProjectDto {
+  @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
   role: 'owner' | 'editor' | 'viewer';
 }

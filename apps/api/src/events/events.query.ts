@@ -132,12 +132,21 @@ export async function queryEvents(
 interface EventDetailParams {
   project_id: string;
   event_id: string;
+  timestamp: string;
 }
 
 export async function queryEventDetail(
   ch: ClickHouseClient,
   params: EventDetailParams,
 ): Promise<EventDetailRow | null> {
+  const ms = new Date(params.timestamp).getTime();
+  const queryParams: Record<string, unknown> = {
+    project_id: params.project_id,
+    event_id: params.event_id,
+    ts_hint_from: new Date(ms - 5 * 60_000).toISOString().slice(0, 19).replace('T', ' '),
+    ts_hint_to: new Date(ms + 5 * 60_000).toISOString().slice(0, 19).replace('T', ' '),
+  };
+
   const query = `
     SELECT ${EVENT_BASE_COLUMNS},
       properties,
@@ -146,15 +155,14 @@ export async function queryEventDetail(
     WHERE
       project_id = {project_id:UUID}
       AND event_id = {event_id:UUID}
+      AND events.timestamp >= {ts_hint_from:DateTime}
+      AND events.timestamp <= {ts_hint_to:DateTime}
     LIMIT 1
   `;
 
   const result = await ch.query({
     query,
-    query_params: {
-      project_id: params.project_id,
-      event_id: params.event_id,
-    },
+    query_params: queryParams,
     format: 'JSONEachRow',
   });
 

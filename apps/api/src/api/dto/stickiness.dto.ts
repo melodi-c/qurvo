@@ -24,6 +24,7 @@ export class StickinessDataPointDto {
 }
 
 export class StickinessResultDto {
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
   granularity: 'day' | 'week' | 'month';
   total_periods: number;
   @Type(() => StickinessDataPointDto)

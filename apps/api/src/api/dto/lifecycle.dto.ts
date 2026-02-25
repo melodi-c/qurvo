@@ -34,6 +34,7 @@ export class LifecycleTotalsDto {
 }
 
 export class LifecycleResultDto {
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
   granularity: 'day' | 'week' | 'month';
   @Type(() => LifecycleDataPointDto)
   data: LifecycleDataPointDto[];

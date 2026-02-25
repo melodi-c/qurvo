@@ -20,7 +20,16 @@ export class BillingStatusDto {
   @ApiPropertyOptional({ example: null, nullable: true })
   max_projects: number | null;
 
-  @ApiProperty()
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      cohorts: { type: 'boolean' },
+      lifecycle: { type: 'boolean' },
+      stickiness: { type: 'boolean' },
+      api_export: { type: 'boolean' },
+      ai_insights: { type: 'boolean' },
+    },
+  })
   features: PlanFeatures;
 
   @ApiProperty({ example: '2026-02-01T00:00:00.000Z' })

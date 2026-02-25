@@ -23,8 +23,8 @@ export class EventsService {
     return queryEvents(this.ch, params);
   }
 
-  async getEventDetail(projectId: string, eventId: string): Promise<EventDetailRow> {
-    const row = await queryEventDetail(this.ch, { project_id: projectId, event_id: eventId });
+  async getEventDetail(projectId: string, eventId: string, timestamp: string): Promise<EventDetailRow> {
+    const row = await queryEventDetail(this.ch, { project_id: projectId, event_id: eventId, timestamp });
     if (!row) throw new EventNotFoundException();
     return row;
   }
