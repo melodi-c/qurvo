@@ -8,6 +8,7 @@ import {
   dateOffset,
   type ContainerContext,
 } from '@qurvo/testing';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { queryPaths } from '../../analytics/paths/paths.query';
 
 let ctx: ContainerContext;
@@ -357,5 +358,98 @@ describe('queryPaths — project isolation', () => {
     expect(result.transitions).toHaveLength(1);
     expect(result.transitions[0].source).toBe('pageview');
     expect(result.transitions[0].target).toBe('signup');
+  });
+});
+
+// ── cohort_filters ────────────────────────────────────────────────────────────
+
+describe('queryPaths — cohort filters', () => {
+  it('inline cohort filter restricts paths to cohort members only', async () => {
+    const projectId = randomUUID();
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+
+    // premiumUser: pageview → signup → purchase
+    // freeUser:   pageview → signup → browse
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'pageview',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'pageview',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'browse',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const cohortFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }],
+      },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 5,
+      cohort_filters: [cohortFilter],
+    });
+
+    // Only premium user's path should appear: pageview → signup → purchase
+    // free user's path (browse) must not appear
+    const allTargets = result.transitions.map((t) => t.target);
+    expect(allTargets).toContain('signup');
+    expect(allTargets).toContain('purchase');
+    expect(allTargets).not.toContain('browse');
+
+    // All transitions should belong to the premium user only (person_count = 1)
+    for (const t of result.transitions) {
+      expect(t.person_count).toBe(1);
+    }
   });
 });
