@@ -1,87 +1,75 @@
-import * as http from 'http';
-import { Injectable, OnModuleInit, OnApplicationShutdown } from '@nestjs/common';
-import { Counter, Gauge, Histogram, Registry } from 'prom-client';
-
-const METRICS_PORT = 9090;
+import { Injectable, OnApplicationShutdown } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import StatsD from 'hot-shots';
 
 @Injectable()
-export class MetricsService implements OnModuleInit, OnApplicationShutdown {
-  private readonly registry = new Registry();
-  private server: http.Server | null = null;
+export class MetricsService implements OnApplicationShutdown {
+  private readonly dogstatsd: InstanceType<typeof StatsD>;
 
-  readonly eventsProcessed = new Counter({
-    name: 'processor_events_processed_total',
-    help: 'Total number of successfully processed events',
-    registers: [this.registry],
-  });
-
-  readonly eventsFailed = new Counter({
-    name: 'processor_events_failed_total',
-    help: 'Total number of failed events',
-    labelNames: ['reason'] as const,
-    registers: [this.registry],
-  });
-
-  readonly flushDuration = new Histogram({
-    name: 'processor_batch_flush_duration_seconds',
-    help: 'Duration of ClickHouse batch insert in seconds',
-    buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
-    registers: [this.registry],
-  });
-
-  readonly bufferSize = new Gauge({
-    name: 'processor_buffer_size',
-    help: 'Current number of events in the flush buffer',
-    registers: [this.registry],
-  });
-
-  readonly personBatchQueueSize = new Gauge({
-    name: 'processor_person_batch_queue_size',
-    help: 'Number of pending persons in PersonBatchStore',
-    registers: [this.registry],
-  });
-
-  readonly dlqSize = new Gauge({
-    name: 'processor_dlq_size',
-    help: 'Number of messages in the DLQ stream (XLEN events:dlq)',
-    registers: [this.registry],
-  });
-
-  readonly consecutiveErrors = new Gauge({
-    name: 'processor_consecutive_errors',
-    help: 'Number of consecutive errors in the consumer loop',
-    registers: [this.registry],
-  });
-
-  readonly pelSize = new Gauge({
-    name: 'processor_pel_size',
-    help: 'Number of pending (unacknowledged) messages in the consumer group PEL',
-    registers: [this.registry],
-  });
-
-  onModuleInit() {
-    this.server = http.createServer(async (req, res) => {
-      if (req.url === '/metrics') {
-        try {
-          const metrics = await this.registry.metrics();
-          res.setHeader('Content-Type', this.registry.contentType);
-          res.end(metrics);
-        } catch {
-          res.writeHead(500);
-          res.end();
-        }
-      } else {
-        res.writeHead(404);
-        res.end();
-      }
+  constructor(
+    @InjectPinoLogger(MetricsService.name) private readonly logger: PinoLogger,
+  ) {
+    this.dogstatsd = new StatsD({
+      host: process.env.DD_AGENT_HOST || 'localhost',
+      port: 8125,
+      prefix: 'qurvo.',
+      errorHandler: (err) => this.logger.warn({ err: err.message }, 'DogStatsD error'),
     });
-    this.server.listen(METRICS_PORT);
   }
 
   onApplicationShutdown() {
-    if (this.server) {
-      this.server.close();
-      this.server = null;
-    }
+    this.dogstatsd.close();
   }
+
+  readonly eventsProcessed = {
+    inc: (count: number) => {
+      this.dogstatsd.increment('processor.events_processed_total', count);
+    },
+  };
+
+  readonly eventsFailed = {
+    inc: (labels: { reason: string }, count: number) => {
+      this.dogstatsd.increment('processor.events_failed_total', count, { reason: labels.reason });
+    },
+  };
+
+  readonly flushDuration = {
+    startTimer: (): (() => void) => {
+      const start = Date.now();
+      return () => {
+        const durationMs = Date.now() - start;
+        this.dogstatsd.timing('processor.batch_flush_duration_ms', durationMs);
+      };
+    },
+  };
+
+  readonly bufferSize = {
+    set: (value: number) => {
+      this.dogstatsd.gauge('processor.buffer_size', value);
+    },
+  };
+
+  readonly personBatchQueueSize = {
+    set: (value: number) => {
+      this.dogstatsd.gauge('processor.person_batch_queue_size', value);
+    },
+  };
+
+  readonly dlqSize = {
+    set: (value: number) => {
+      this.dogstatsd.gauge('processor.dlq_size', value);
+    },
+  };
+
+  readonly consecutiveErrors = {
+    set: (value: number) => {
+      this.dogstatsd.gauge('processor.consecutive_errors', value);
+    },
+  };
+
+  readonly pelSize = {
+    set: (value: number) => {
+      this.dogstatsd.gauge('processor.pel_size', value);
+    },
+  };
 }
