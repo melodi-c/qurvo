@@ -25,6 +25,16 @@ function parseSuggestions(content: string): { text: string; suggestions: string[
 }
 
 export function AiMessage({ message, onSuggestionClick }: AiMessageProps) {
+  const isUser = message.role === 'user';
+
+  const { text, suggestions } = useMemo(() => {
+    if (message.role === 'tool') return { text: '', suggestions: [] };
+    if (!isUser && message.content && !message.isStreaming) {
+      return parseSuggestions(message.content);
+    }
+    return { text: message.content ?? '', suggestions: [] };
+  }, [message.role, isUser, message.content, message.isStreaming]);
+
   if (message.role === 'tool') {
     return (
       <AiToolResult
@@ -34,15 +44,6 @@ export function AiMessage({ message, onSuggestionClick }: AiMessageProps) {
       />
     );
   }
-
-  const isUser = message.role === 'user';
-
-  const { text, suggestions } = useMemo(() => {
-    if (!isUser && message.content && !message.isStreaming) {
-      return parseSuggestions(message.content);
-    }
-    return { text: message.content ?? '', suggestions: [] };
-  }, [isUser, message.content, message.isStreaming]);
 
   return (
     <div className={cn('flex gap-3', isUser && 'flex-row-reverse')}>

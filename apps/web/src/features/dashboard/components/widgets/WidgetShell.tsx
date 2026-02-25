@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -126,7 +127,7 @@ export function WidgetShell<Response>({
               disabled={isFetching}
               title={t('refresh')}
             >
-              <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+              <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
             </Button>
           </div>
         </div>

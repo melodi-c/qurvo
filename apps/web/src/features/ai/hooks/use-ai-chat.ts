@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { authFetch, getAuthHeaders } from '@/lib/auth-fetch';
 import { consumeSseStream } from '../lib/sse-stream.js';
 import type { SseToolResultEvent } from '../lib/sse-stream.js';
@@ -92,6 +92,7 @@ export function useAiChat() {
   });
 
   const abortRef = useRef<AbortController | null>(null);
+  const oldestSequenceRef = useRef<number | undefined>(undefined);
 
   const sendMessage = useCallback(
     async (text: string, projectId: string, conversationId?: string | null) => {
@@ -205,18 +206,23 @@ export function useAiChat() {
     }
   }, []);
 
+  // Keep oldest sequence ref in sync without causing callback rebuilds
+  useEffect(() => {
+    oldestSequenceRef.current = state.messages[0]?.sequence;
+  }, [state.messages]);
+
   const loadMoreMessages = useCallback(async () => {
     if (!state.conversationId || state.isLoadingMore || !state.hasMore) return;
 
-    const oldest = state.messages[0];
-    if (!oldest?.sequence) return;
+    const oldestSeq = oldestSequenceRef.current;
+    if (!oldestSeq) return;
 
     setState((prev) => ({ ...prev, isLoadingMore: true }));
 
     try {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
-        before_sequence: String(oldest.sequence),
+        before_sequence: String(oldestSeq),
       });
       const res = await authFetch(
         `/api/ai/conversations/${state.conversationId}?${params}`,
@@ -234,7 +240,7 @@ export function useAiChat() {
     } catch (err: unknown) {
       setState((prev) => ({ ...prev, isLoadingMore: false, error: err instanceof Error ? err.message : 'Failed to load messages' }));
     }
-  }, [state.conversationId, state.isLoadingMore, state.hasMore, state.messages]);
+  }, [state.conversationId, state.isLoadingMore, state.hasMore]);
 
   const startNewConversation = useCallback(() => {
     abortRef.current?.abort();

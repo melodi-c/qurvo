@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { DatePicker } from '@/components/ui/date-picker';
 import { SectionHeader } from '@/components/ui/section-header';
 import { daysAgoIso, todayIso } from '@/lib/date-utils';
@@ -41,11 +42,12 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
             key={value}
             type="button"
             onClick={() => onChange(daysAgoIso(days), todayIso())}
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={cn(
+              'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
               activePreset === value
                 ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground'
-            }`}
+                : 'border-border bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground',
+            )}
           >
             {label}
           </button>

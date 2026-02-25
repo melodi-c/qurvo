@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { YAxis, GridLines, Bar } from './FunnelBar';
 import { BarTooltip } from './FunnelTooltip';
 import { StepLegend } from './FunnelStepLegend';
@@ -19,41 +19,45 @@ export function BreakdownFunnel({
   const [hovered, setHovered] = useState<{ si: number; gi: number } | null>(null);
   const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
 
-  // Build: step_num → breakdown_value → FunnelStepResult
-  const stepMap = new Map<number, Map<string, FunnelStepResult>>();
-  const insertOrder: string[] = [];
+  const { stepMap, stepNums, step1Map, groups, groupConvs, bw } = useMemo(() => {
+    // Build: step_num → breakdown_value → FunnelStepResult
+    const sm = new Map<number, Map<string, FunnelStepResult>>();
+    const insertOrder: string[] = [];
 
-  for (const s of steps) {
-    const bv = s.breakdown_value ?? '(none)';
-    if (!stepMap.has(s.step)) stepMap.set(s.step, new Map());
-    stepMap.get(s.step)!.set(bv, s);
-    if (!insertOrder.includes(bv)) insertOrder.push(bv);
-  }
+    for (const s of steps) {
+      const bv = s.breakdown_value ?? '(none)';
+      if (!sm.has(s.step)) sm.set(s.step, new Map());
+      sm.get(s.step)!.set(bv, s);
+      if (!insertOrder.includes(bv)) insertOrder.push(bv);
+    }
 
-  const stepNums = [...stepMap.keys()].sort((a, b) => a - b);
-  const step1Map = stepMap.get(stepNums[0]) ?? new Map();
+    const sNums = [...sm.keys()].sort((a, b) => a - b);
+    const s1Map = sm.get(sNums[0]) ?? new Map();
 
-  // Sort groups by step-1 count desc
-  const groups = [...insertOrder].sort(
-    (a, b) => (step1Map.get(b)?.count ?? 0) - (step1Map.get(a)?.count ?? 0),
-  );
-
-  const bw = barWidthPx(groups.length, compact);
-
-  // Per-group step-to-step conversions (for tooltip "from prev" value)
-  const groupConvs = new Map<string, (number | null)[]>();
-  for (const gv of groups) {
-    groupConvs.set(
-      gv,
-      stepNums.map((sn, i) => {
-        if (i === 0) return null;
-        const prev = stepMap.get(stepNums[i - 1])?.get(gv);
-        const curr = stepMap.get(sn)?.get(gv);
-        if (!prev || !curr) return null;
-        return prev.count > 0 ? Math.round((curr.count / prev.count) * 1000) / 10 : 0;
-      }),
+    // Sort groups by step-1 count desc
+    const grps = [...insertOrder].sort(
+      (a, b) => (s1Map.get(b)?.count ?? 0) - (s1Map.get(a)?.count ?? 0),
     );
-  }
+
+    // Per-group step-to-step conversions (for tooltip "from prev" value)
+    const gConvs = new Map<string, (number | null)[]>();
+    for (const gv of grps) {
+      gConvs.set(
+        gv,
+        sNums.map((sn, i) => {
+          if (i === 0) return null;
+          const prev = sm.get(sNums[i - 1])?.get(gv);
+          const curr = sm.get(sn)?.get(gv);
+          if (!prev || !curr) return null;
+          return prev.count > 0 ? Math.round((curr.count / prev.count) * 1000) / 10 : 0;
+        }),
+      );
+    }
+
+    const bw = barWidthPx(grps.length, compact);
+
+    return { stepMap: sm, stepNums: sNums, step1Map: s1Map, groups: grps, groupConvs: gConvs, bw };
+  }, [steps, compact]);
 
   return (
     <div className="flex flex-col gap-0 select-none">

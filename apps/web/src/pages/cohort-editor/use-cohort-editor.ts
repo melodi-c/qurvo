@@ -51,7 +51,7 @@ export function useCohortEditor() {
     return { type: 'OR', values: groups };
   }, [groups]);
 
-  const definitionHash = JSON.stringify(definition);
+  const definitionHash = useMemo(() => JSON.stringify(definition), [definition]);
   const debouncedHash = useDebounce(definitionHash, 800);
 
   const hasValidConditions = useMemo(() => {

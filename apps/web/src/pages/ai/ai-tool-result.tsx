@@ -6,21 +6,84 @@ import { RetentionChart } from '@/features/dashboard/components/widgets/retentio
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
+import type {
+  TrendSeriesResult,
+  TrendGranularity,
+  FunnelStepResult,
+  RetentionResult,
+  LifecycleResult,
+  StickinessResult,
+  PathTransition,
+  TopPath,
+} from '@/api/generated/Api';
 
-interface AiToolResultProps {
-  toolName: string;
-  result: any;
-  visualizationType: string | null;
+interface TrendToolResult {
+  series: TrendSeriesResult[];
+  series_previous?: TrendSeriesResult[];
+  granularity?: TrendGranularity;
+}
+
+interface FunnelToolResult {
+  steps: FunnelStepResult[];
+  breakdown?: boolean;
+  aggregate_steps?: FunnelStepResult[];
+}
+
+interface RetentionToolResult extends RetentionResult {}
+
+interface LifecycleToolResult extends LifecycleResult {}
+
+interface StickinessToolResult extends StickinessResult {}
+
+interface PathsToolResult {
+  transitions: PathTransition[];
+  top_paths?: TopPath[];
+}
+
+type AiToolResultData =
+  | { type: 'trend_chart'; data: TrendToolResult }
+  | { type: 'funnel_chart'; data: FunnelToolResult }
+  | { type: 'retention_chart'; data: RetentionToolResult }
+  | { type: 'lifecycle_chart'; data: LifecycleToolResult }
+  | { type: 'stickiness_chart'; data: StickinessToolResult }
+  | { type: 'paths_chart'; data: PathsToolResult };
+
+function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
+  if (!visualizationType || !result || typeof result !== 'object') return null;
+  const r = result as Record<string, unknown>;
+
+  switch (visualizationType) {
+    case 'trend_chart':
+      if (Array.isArray(r.series)) return { type: 'trend_chart', data: r as unknown as TrendToolResult };
+      return null;
+    case 'funnel_chart':
+      if (Array.isArray(r.steps)) return { type: 'funnel_chart', data: r as unknown as FunnelToolResult };
+      return null;
+    case 'retention_chart':
+      if (Array.isArray((r as Record<string, unknown>).cohorts)) return { type: 'retention_chart', data: r as unknown as RetentionToolResult };
+      return null;
+    case 'lifecycle_chart':
+      if (Array.isArray(r.data)) return { type: 'lifecycle_chart', data: r as unknown as LifecycleToolResult };
+      return null;
+    case 'stickiness_chart':
+      if (Array.isArray(r.data)) return { type: 'stickiness_chart', data: r as unknown as StickinessToolResult };
+      return null;
+    case 'paths_chart':
+      if (Array.isArray(r.transitions)) return { type: 'paths_chart', data: r as unknown as PathsToolResult };
+      return null;
+    default:
+      return null;
+  }
 }
 
 /**
  * ClickHouse returns bucket as "2026-02-22 00:00:00" but TrendChart expects
  * "2026-02-22" (day) or "2026-02-22T10" (hour). Normalize the format.
  */
-function normalizeTrendSeries(series: any[]): any[] {
-  return series.map((s: any) => ({
+function normalizeTrendSeries(series: TrendSeriesResult[]): TrendSeriesResult[] {
+  return series.map((s) => ({
     ...s,
-    data: s.data.map((dp: any) => ({
+    data: s.data.map((dp) => ({
       ...dp,
       bucket: normalizeBucket(dp.bucket),
     })),
@@ -38,47 +101,51 @@ function normalizeBucket(bucket: string): string {
   return bucket;
 }
 
-export function AiToolResult({ result, visualizationType }: AiToolResultProps) {
-  if (!result || !visualizationType) return null;
+interface AiToolResultProps {
+  toolName: string;
+  result: unknown;
+  visualizationType: string | null;
+}
 
-  const normalizedSeries = useMemo(() => {
-    if (visualizationType === 'trend_chart' && result.series) {
-      return normalizeTrendSeries(result.series);
-    }
-    return null;
-  }, [visualizationType, result]);
+export function AiToolResult({ result, visualizationType }: AiToolResultProps) {
+  const parsed = useMemo(
+    () => parseToolResult(visualizationType, result),
+    [visualizationType, result],
+  );
+
+  if (!parsed) return null;
 
   return (
     <Card className="my-2">
       <CardContent className="pt-4 pb-3">
-        {visualizationType === 'trend_chart' && normalizedSeries && (
+        {parsed.type === 'trend_chart' && (
           <TrendChart
-            series={normalizedSeries}
-            previousSeries={result.series_previous ? normalizeTrendSeries(result.series_previous) : undefined}
+            series={normalizeTrendSeries(parsed.data.series)}
+            previousSeries={parsed.data.series_previous ? normalizeTrendSeries(parsed.data.series_previous) : undefined}
             chartType="line"
-            granularity={result.granularity}
+            granularity={parsed.data.granularity}
           />
         )}
-        {visualizationType === 'funnel_chart' && result.steps && (
+        {parsed.type === 'funnel_chart' && (
           <FunnelChart
-            steps={result.steps}
-            breakdown={result.breakdown}
-            aggregateSteps={result.aggregate_steps}
+            steps={parsed.data.steps}
+            breakdown={parsed.data.breakdown}
+            aggregateSteps={parsed.data.aggregate_steps}
           />
         )}
-        {visualizationType === 'retention_chart' && result.cohorts && (
-          <RetentionChart result={result} />
+        {parsed.type === 'retention_chart' && (
+          <RetentionChart result={parsed.data} />
         )}
-        {visualizationType === 'lifecycle_chart' && result.data && (
-          <LifecycleChart result={result} />
+        {parsed.type === 'lifecycle_chart' && (
+          <LifecycleChart result={parsed.data} />
         )}
-        {visualizationType === 'stickiness_chart' && result.data && (
-          <StickinessChart result={result} />
+        {parsed.type === 'stickiness_chart' && (
+          <StickinessChart result={parsed.data} />
         )}
-        {visualizationType === 'paths_chart' && result.transitions && (
+        {parsed.type === 'paths_chart' && (
           <PathsChart
-            transitions={result.transitions}
-            topPaths={result.top_paths ?? []}
+            transitions={parsed.data.transitions}
+            topPaths={parsed.data.top_paths ?? []}
           />
         )}
       </CardContent>
