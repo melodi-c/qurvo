@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { StepFilter } from '@/api/generated/Api';
 import { daysAgoIso, todayIso } from '@/lib/date-utils';
 import { parseFilters } from '@/lib/filter-utils';
+import { useDebouncedUrlSync } from '@/hooks/use-debounced-url-sync';
 
 export interface EventsFilterState {
   eventName: string;
@@ -11,8 +12,23 @@ export interface EventsFilterState {
   filters: StepFilter[];
 }
 
+function serializeEventsFilters(state: EventsFilterState, prev: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(prev);
+
+  if (state.eventName) next.set('event', state.eventName);
+  else next.delete('event');
+
+  next.set('from', state.dateFrom);
+  next.set('to', state.dateTo);
+
+  if (state.filters.length > 0) next.set('filters', JSON.stringify(state.filters));
+  else next.delete('filters');
+
+  return next;
+}
+
 export function useEventsFilters() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [filterState, setFilterState] = useState<EventsFilterState>(() => ({
     eventName: searchParams.get('event') ?? '',
@@ -23,36 +39,8 @@ export function useEventsFilters() {
 
   const [page, setPage] = useState(0);
 
-  // Debounced URL sync
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const isInitialMount = useRef(true);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-
-        if (filterState.eventName) next.set('event', filterState.eventName);
-        else next.delete('event');
-
-        next.set('from', filterState.dateFrom);
-        next.set('to', filterState.dateTo);
-
-        if (filterState.filters.length > 0) next.set('filters', JSON.stringify(filterState.filters));
-        else next.delete('filters');
-
-        return next;
-      }, { replace: true });
-    }, 400);
-
-    return () => clearTimeout(timerRef.current);
-  }, [filterState, setSearchParams]);
+  const serializeRef = useRef(serializeEventsFilters);
+  useDebouncedUrlSync(filterState, serializeRef.current, 400);
 
   const handleEventNameChange = useCallback((eventName: string) => {
     setFilterState((s) => ({ ...s, eventName }));
