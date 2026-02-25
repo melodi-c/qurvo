@@ -19,6 +19,7 @@ import {
   toolResultToMarkdown,
   downloadCsv,
   captureChartAsBlob,
+  downloadChartAsPng,
   type AiToolResultData,
 } from './ai-tool-result-export';
 import type {
@@ -165,11 +166,19 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
     setIsCopyingChart(true);
     try {
       const blob = await captureChartAsBlob(chartRef.current);
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob }),
-      ]);
-      toast.success(t('chartCopied'));
-    } catch {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob }),
+        ]);
+        toast.success(t('chartCopied'));
+      } catch (clipboardErr) {
+        console.error('[copyChart]', clipboardErr);
+        const filename = `chart_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.png`;
+        downloadChartAsPng(blob, filename);
+        toast.success(t('chartDownloaded'));
+      }
+    } catch (err) {
+      console.error('[copyChart]', err);
       toast.error(t('copyError'));
     } finally {
       setIsCopyingChart(false);
