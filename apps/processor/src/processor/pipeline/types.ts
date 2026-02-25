@@ -11,7 +11,20 @@ export interface PipelineContext {
   geoService: GeoService;
   logger: PinoLogger;
   onWarning?: (warning: IngestionWarning) => void;
+  /** Prefetched person ID cache (populated by prefetchPersons step). Passed into resolve step. */
+  personCache?: Map<string, string>;
 }
+
+/**
+ * A single enrichment function that receives the raw validated fields, the event being built
+ * (partial, accumulated from previous enrichers), and the pipeline context. Returns the updated
+ * partial event — each enricher is responsible for merging its own fields.
+ */
+export type EventEnricher = (
+  data: ValidatedFields,
+  event: Partial<Event>,
+  ctx: PipelineContext,
+) => Promise<Partial<Event>>;
 
 /** Raw Redis Stream message after XREADGROUP / XAUTOCLAIM. */
 export interface RawMessage {
