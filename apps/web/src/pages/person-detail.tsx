@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
+import { PropsTable } from '@/components/event-props-table';
 import { getPersonDisplayName } from '@/lib/person';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { usePersonDetail } from '@/hooks/use-person-detail';
@@ -90,14 +91,7 @@ export default function PersonDetailPage() {
               ) : Object.keys(props).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('noProperties')}</p>
               ) : (
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  {Object.entries(props).map(([k, v]) => (
-                    <div key={k}>
-                      <dt className="text-muted-foreground text-xs truncate">{k}</dt>
-                      <dd className="font-medium truncate">{String(v)}</dd>
-                    </div>
-                  ))}
-                </dl>
+                <PropsTable rows={Object.entries(props).map(([k, v]) => ({ key: k, value: String(v) }))} />
               )}
             </CardContent>
           </Card>
