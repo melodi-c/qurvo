@@ -1,14 +1,15 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, Query, Res, Headers, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Query, Res, Headers, UseGuards, Logger, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
 import { AiChatService } from '../../ai/ai-chat.service';
+import { AiFeedbackService } from '../../ai/ai-feedback.service';
 import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from '../../ai/guards/ai-quota.guard';
 import { detectLanguageFromHeader } from '../../utils/detect-language';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto, AiConversationSearchQueryDto, AiConversationSearchResultDto } from '../dto/ai.dto';
+import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto, AiConversationSearchQueryDto, AiConversationSearchResultDto, AiMessageFeedbackDto, AiMessageFeedbackResponseDto } from '../dto/ai.dto';
 import { ConversationNotFoundException } from '../../ai/exceptions/conversation-not-found.exception';
 
 @ApiTags('AI')
@@ -20,6 +21,7 @@ export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly chatService: AiChatService,
+    private readonly feedbackService: AiFeedbackService,
   ) {}
 
   @Post('chat')
@@ -130,5 +132,24 @@ export class AiController {
     @Query() query: AiConversationAccessDto,
   ): Promise<void> {
     await this.chatService.deleteConversationAuthorized(user.user_id, id, query.project_id);
+  }
+
+  @Post('messages/:id/feedback')
+  @ApiOkResponse({ type: AiMessageFeedbackResponseDto })
+  async submitFeedback(
+    @CurrentUser() user: RequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AiMessageFeedbackDto,
+  ): Promise<AiMessageFeedbackResponseDto> {
+    return this.feedbackService.upsertFeedback(id, user.user_id, body.rating, body.comment) as any;
+  }
+
+  @Delete('messages/:id/feedback')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteFeedback(
+    @CurrentUser() user: RequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.feedbackService.deleteFeedback(id, user.user_id);
   }
 }
