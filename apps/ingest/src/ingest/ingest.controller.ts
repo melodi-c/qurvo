@@ -43,25 +43,28 @@ export class IngestController {
     const { events: rawEvents, sent_at } = BatchWrapperSchema.parse(body);
 
     const validEvents: TrackEvent[] = [];
-    let dropped = 0;
-    for (const raw of rawEvents) {
-      const result = TrackEventSchema.safeParse(raw);
+    const dropReasons: { index: number; errors: unknown[] }[] = [];
+    for (let i = 0; i < rawEvents.length; i++) {
+      const result = TrackEventSchema.safeParse(rawEvents[i]);
       if (result.success) {
         validEvents.push(result.data);
       } else {
-        dropped++;
+        dropReasons.push({ index: i, errors: result.error.issues.map((e) => ({ path: e.path, message: e.message })) });
       }
     }
 
     if (validEvents.length === 0) {
       throw new HttpException(
-        { statusCode: 400, message: 'All events failed validation', count: 0, dropped },
+        { statusCode: 400, message: 'All events failed validation', count: 0, dropped: dropReasons.length },
         400,
       );
     }
 
-    if (dropped > 0) {
-      this.logger.warn({ projectId, dropped, total: rawEvents.length }, 'Some events dropped due to validation');
+    if (dropReasons.length > 0) {
+      this.logger.warn(
+        { projectId, dropped: dropReasons.length, total: rawEvents.length, reasons: dropReasons.slice(0, 5) },
+        'Some events dropped due to validation',
+      );
     }
 
     try {
@@ -81,12 +84,12 @@ export class IngestController {
     }
 
     reply.status(202);
-    return { ok: true, count: validEvents.length, dropped };
+    return { ok: true, count: validEvents.length, dropped: dropReasons.length };
   }
 
   @Post('v1/import')
   @HttpCode(202)
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(ApiKeyGuard, RateLimitGuard)
   async import(
     @ProjectId() projectId: string,
     @Body() body: unknown,

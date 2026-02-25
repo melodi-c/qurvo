@@ -4,7 +4,16 @@ import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { apiKeys, projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
-import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS } from '../constants';
+import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, API_KEY_MAX_LENGTH } from '../constants';
+
+function isValidApiKeyFormat(key: string): boolean {
+  if (key.length > API_KEY_MAX_LENGTH) return false;
+  for (let i = 0; i < key.length; i++) {
+    const code = key.charCodeAt(i);
+    if (code < 0x20 || code > 0x7e) return false; // printable ASCII only
+  }
+  return true;
+}
 
 interface CachedKeyInfo {
   project_id: string;
@@ -32,6 +41,10 @@ export class ApiKeyGuard implements CanActivate {
 
     if (!apiKey) {
       throw new UnauthorizedException('Missing API key');
+    }
+
+    if (!isValidApiKeyFormat(apiKey)) {
+      throw new UnauthorizedException('Invalid API key format');
     }
 
     const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');

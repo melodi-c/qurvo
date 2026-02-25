@@ -58,4 +58,22 @@ describe('resolveTimestamp', () => {
     // offset = 0, resolved = serverTime - 0 = serverTime
     expect(resolveTimestamp(clientTs, serverTime, sentAt)).toBe(serverTime);
   });
+
+  it('caps drift at 48h — offset exceeding MAX_TIMESTAMP_DRIFT_MS falls back to serverTime', () => {
+    // Event supposedly created 3 days before sentAt (offset = 72h > 48h cap)
+    const clientTs = '2026-01-12T12:00:00.000Z';
+    const sentAt = '2026-01-15T12:00:00.000Z';
+
+    expect(resolveTimestamp(clientTs, serverTime, sentAt)).toBe(serverTime);
+  });
+
+  it('allows drift within 48h cap', () => {
+    // Event created 24h before sentAt (offset = 24h < 48h cap)
+    const clientTs = '2026-01-14T12:00:00.000Z';
+    const sentAt = '2026-01-15T12:00:00.000Z';
+
+    const result = resolveTimestamp(clientTs, serverTime, sentAt);
+    // offset = 24h, resolved = serverTime - 24h
+    expect(result).toBe('2026-01-14T12:00:00.000Z');
+  });
 });
