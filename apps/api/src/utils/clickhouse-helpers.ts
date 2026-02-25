@@ -13,8 +13,8 @@ export function granularityTruncExpr(granularity: Granularity, col: string): str
   switch (granularity) {
     case 'hour':  return `toStartOfHour(${col})`;
     case 'day':   return `toStartOfDay(${col})`;
-    case 'week':  return `toStartOfWeek(${col}, 1)`;
-    case 'month': return `toStartOfMonth(${col})`;
+    case 'week':  return `toDateTime(toStartOfWeek(${col}, 1))`;
+    case 'month': return `toDateTime(toStartOfMonth(${col}))`;
   }
 }
 
