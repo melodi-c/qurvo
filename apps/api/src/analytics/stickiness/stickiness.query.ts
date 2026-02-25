@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
+import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ export interface StickinessQueryParams {
   granularity: StickinessGranularity;
   date_from: string;
   date_to: string;
+  event_filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
 }
 
@@ -72,6 +74,11 @@ export async function queryStickiness(
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
+  const eventFilterConditions = buildPropertyFilterConditions(params.event_filters ?? [], 'ef', queryParams);
+  const eventFilterClause = eventFilterConditions.length > 0
+    ? ' AND ' + eventFilterConditions.join(' AND ')
+    : '';
+
   const sql = `
     WITH person_active_periods AS (
       SELECT ${RESOLVED_PERSON} AS person_id,
@@ -80,7 +87,7 @@ export async function queryStickiness(
       WHERE project_id = {project_id:UUID}
         AND event_name = {target_event:String}
         AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}${cohortClause}
+        AND timestamp <= {to:DateTime64(3)}${eventFilterClause}${cohortClause}
       GROUP BY person_id
     )
     SELECT active_periods, count() AS user_count
