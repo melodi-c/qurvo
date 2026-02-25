@@ -1,11 +1,9 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
-import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
-import { withRetry } from './retry';
-import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
-import { DefinitionSyncService } from './definition-sync.service';
-import { PersonBatchStore } from './person-batch-store';
+import type { Event } from '@qurvo/clickhouse';
+import { REDIS } from '@qurvo/nestjs-infra';
+import { BatchWriter } from './batch-writer';
 import type { BufferedEvent } from './pipeline';
 import {
   PROCESSOR_BATCH_SIZE,
@@ -26,10 +24,8 @@ export class FlushService implements OnApplicationBootstrap {
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
-    @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(FlushService.name) private readonly logger: PinoLogger,
-    private readonly definitionSync: DefinitionSyncService,
-    private readonly personBatchStore: PersonBatchStore,
+    private readonly batchWriter: BatchWriter,
   ) {}
 
   onApplicationBootstrap() {
@@ -74,25 +70,9 @@ export class FlushService implements OnApplicationBootstrap {
       // Flush person batch to PG before CH insert.
       // Critical: if PG write fails, events go to DLQ rather than writing to CH
       // with orphaned person_ids that have no PG row.
-      await this.personBatchStore.flush();
-
-      await withRetry(
-        () => this.ch.insert({
-          table: 'events',
-          values: events,
-          format: 'JSONEachRow',
-        }),
-        'ClickHouse insert',
-        this.logger,
-        RETRY_CLICKHOUSE,
-      );
+      await this.batchWriter.write(events);
       this.logger.info({ eventCount: events.length }, 'Flushed events to ClickHouse');
       await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);
-      try {
-        await this.definitionSync.syncFromBatch(events);
-      } catch (err) {
-        this.logger.warn({ err }, 'Definition sync failed (non-critical)');
-      }
     } catch (err) {
       this.logger.error({ err, eventCount: events.length }, 'Batch failed — routing to DLQ');
       try {
