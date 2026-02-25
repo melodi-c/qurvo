@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryItemCard } from '../QueryItemCard';
 import { useDragReorder } from '@/hooks/use-drag-reorder';
-import type { TrendSeries, StepFilter } from '@/api/generated/Api';
+import { useFilterManager } from '@/hooks/use-filter-manager';
+import type { TrendSeries } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { SERIES_LETTERS } from './trend-shared';
 import { CHART_COLORS_TW } from '@/lib/chart-colors';
@@ -19,9 +21,14 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
   const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(series, onChange);
 
-  const update = (idx: number, patch: Partial<TrendSeries>) => {
-    onChange(series.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
-  };
+  const update = useCallback(
+    (idx: number, patch: Partial<TrendSeries>) => {
+      onChange(series.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+    },
+    [series, onChange],
+  );
+
+  const { addFilter, updateFilter, removeFilter } = useFilterManager(series, update);
 
   const addSeries = () => {
     if (series.length >= 5) return;
@@ -31,21 +38,6 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
   const removeSeries = (idx: number) => {
     if (series.length <= 1) return;
     onChange(series.filter((_, i) => i !== idx));
-  };
-
-  const addFilter = (idx: number) => {
-    const filters: StepFilter[] = [...(series[idx].filters ?? []), { property: '', operator: 'eq', value: '' }];
-    update(idx, { filters });
-  };
-
-  const updateFilter = (seriesIdx: number, filterIdx: number, f: StepFilter) => {
-    const filters = (series[seriesIdx].filters ?? []).map((existing, i) => (i === filterIdx ? f : existing));
-    update(seriesIdx, { filters });
-  };
-
-  const removeFilter = (seriesIdx: number, filterIdx: number) => {
-    const filters = (series[seriesIdx].filters ?? []).filter((_, i) => i !== filterIdx);
-    update(seriesIdx, { filters });
   };
 
   return (

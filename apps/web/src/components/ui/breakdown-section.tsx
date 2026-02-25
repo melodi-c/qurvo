@@ -38,7 +38,7 @@ export function BreakdownSection({
 
   return (
     <section className="space-y-3">
-      <SectionHeader icon={SlidersHorizontal} label="Breakdown" />
+      <SectionHeader icon={SlidersHorizontal} label={t('breakdown')} />
 
       {onBreakdownTypeChange && (
         <PillToggleGroup
@@ -62,7 +62,7 @@ export function BreakdownSection({
             <Input
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="e.g. country, plan, properties.utm_source"
+              placeholder={t('propertyPlaceholder')}
               className="h-8 text-sm"
             />
           )}

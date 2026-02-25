@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { Button } from '@/components/ui/button';
 import { routes } from '@/lib/routes';
-import { useEventDefinitions } from '@/features/event-definitions/hooks/use-event-definitions';
+import { useEventDefinitions } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './translations';
 import { EventInfoCard } from './EventInfoCard';

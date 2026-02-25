@@ -58,5 +58,10 @@ export const CHART_TOOLTIP_STYLE = {
 /** Shared axis tick fill color — use instead of hardcoded '#a1a1aa'. */
 export const CHART_AXIS_TICK_COLOR = 'var(--color-muted-foreground)';
 
+/** Shared axis tick style. Use for Recharts `tick` prop on XAxis/YAxis. */
+export function chartAxisTick(compact?: boolean) {
+  return { fontSize: compact ? 10 : 12, fill: CHART_AXIS_TICK_COLOR };
+}
+
 /** Shared grid stroke color — use instead of hardcoded '#27272a'. */
 export const CHART_GRID_COLOR = 'var(--color-border)';

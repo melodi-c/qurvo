@@ -40,8 +40,9 @@ export function useMembers(projectId: string) {
       queryClient.invalidateQueries({ queryKey: ['invites', projectId] });
       toast.success(t('inviteSent'));
     },
-    onError: (err: any) => {
-      const message = err?.error?.message || t('inviteFailed');
+    onError: (err) => {
+      const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+      const message = data?.message || t('inviteFailed');
       toast.error(message);
     },
   });

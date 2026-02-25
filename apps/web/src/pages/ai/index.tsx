@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
-import { ConfirmDialog, useConfirmDelete } from '@/components/ui/confirm-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useAiChat } from '@/features/ai/hooks/use-ai-chat';
 import { useConversations, useDeleteConversation } from '@/features/ai/hooks/use-ai-conversations';
@@ -190,9 +191,9 @@ function AiChatView({ chatId, projectId }: { chatId: string | null; projectId: s
   }, [startNewConversation, setSearchParams]);
 
   return (
-    <div className="-m-4 lg:-m-6 flex flex-col h-[calc(100vh-44px)] lg:h-screen">
+    <div className="-m-4 lg:-m-6 flex flex-col h-[calc(100vh-var(--topbar-height))] lg:h-screen">
       {/* Header */}
-      <div className="h-[44px] flex items-center gap-2 px-4 border-b border-border shrink-0">
+      <div className="h-[var(--topbar-height)] flex items-center gap-2 px-4 border-b border-border shrink-0">
         <button
           onClick={goBack}
           className="text-muted-foreground hover:text-foreground transition-colors"

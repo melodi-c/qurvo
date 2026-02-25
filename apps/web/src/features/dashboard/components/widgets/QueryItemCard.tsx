@@ -6,6 +6,7 @@ import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { StepFilterRow } from '@/components/StepFilterRow';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import translations from './QueryItemCard.translations';
+import { cn } from '@/lib/utils';
 import type { StepFilter } from '@/api/generated/Api';
 
 export interface QueryItem {
@@ -70,11 +71,12 @@ export function QueryItemCard({
 
   return (
     <div
-      className={`rounded-lg border transition-colors ${
+      className={cn(
+        'rounded-lg border transition-colors',
         isDragOver
           ? 'border-primary/50 bg-primary/5'
-          : 'border-border/70 bg-muted/20'
-      }`}
+          : 'border-border/70 bg-muted/20',
+      )}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}

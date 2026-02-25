@@ -1,9 +1,11 @@
+import { useCallback } from 'react';
 import { Plus, ArrowDown } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { QueryItemCard } from '../QueryItemCard';
 import { useDragReorder } from '@/hooks/use-drag-reorder';
+import { useFilterManager } from '@/hooks/use-filter-manager';
 import translations from './FunnelStepBuilder.translations';
-import type { FunnelStep, StepFilter } from '@/api/generated/Api';
+import type { FunnelStep } from '@/api/generated/Api';
 
 interface FunnelStepBuilderProps {
   steps: FunnelStep[];
@@ -14,9 +16,14 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
   const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(steps, onChange);
 
-  const updateStep = (i: number, patch: Partial<FunnelStep>) => {
-    onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  };
+  const updateStep = useCallback(
+    (i: number, patch: Partial<FunnelStep>) => {
+      onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+    },
+    [steps, onChange],
+  );
+
+  const { addFilter, updateFilter, removeFilter } = useFilterManager(steps, updateStep);
 
   const addStep = () =>
     onChange([...steps, { event_name: '', label: t('stepN', { n: String(steps.length + 1) }) }]);
@@ -24,24 +31,6 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
   const removeStep = (i: number) => {
     if (steps.length <= 2) return;
     onChange(steps.filter((_, idx) => idx !== i));
-  };
-
-  const addFilter = (i: number) => {
-    const filters: StepFilter[] = [
-      ...(steps[i].filters ?? []),
-      { property: '', operator: 'eq', value: '' },
-    ];
-    updateStep(i, { filters });
-  };
-
-  const updateFilter = (i: number, j: number, filter: StepFilter) => {
-    const filters = (steps[i].filters ?? []).map((f, idx) => (idx === j ? filter : f));
-    updateStep(i, { filters });
-  };
-
-  const removeFilter = (i: number, j: number) => {
-    const filters = (steps[i].filters ?? []).filter((_, idx) => idx !== j);
-    updateStep(i, { filters });
   };
 
   return (

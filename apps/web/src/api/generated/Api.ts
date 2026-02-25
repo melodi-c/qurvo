@@ -722,25 +722,25 @@ export interface PersonEventRow {
   user_properties: string;
 }
 
+export interface CohortConditionGroup {
+  type: CohortConditionGroupDtoTypeEnum;
+  /** @minItems 1 */
+  values: object[];
+}
+
 export interface Cohort {
   description?: string | null;
+  definition?: CohortConditionGroup | null;
   last_error_at?: string | null;
   last_error_message?: string | null;
   id: string;
   project_id: string;
   created_by: string;
   name: string;
-  definition: object;
   is_static: boolean;
   errors_calculating: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface CohortConditionGroup {
-  type: CohortConditionGroupDtoTypeEnum;
-  /** @minItems 1 */
-  values: object[];
 }
 
 export interface CreateCohort {

@@ -1,6 +1,7 @@
 /** Shared formatting utilities for charts and data display. */
 
 import { useLanguageStore } from '@/stores/language';
+import { pluralize } from '@/i18n/pluralize';
 
 function getLocale(): string {
   return useLanguageStore.getState().language;
@@ -59,24 +60,15 @@ export function formatSeconds(s: number | null | undefined): string | null {
 
 /** Pluralize a granularity label (day/week/month) for a given count. */
 export function formatGranularity(count: number, granularity: string): string {
-  const locale = getLocale();
-  const forms: Record<string, { en: [string, string]; ru: [string, string, string] }> = {
-    day:   { en: ['day', 'days'],       ru: ['день', 'дня', 'дней'] },
-    week:  { en: ['week', 'weeks'],     ru: ['неделя', 'недели', 'недель'] },
-    month: { en: ['month', 'months'],   ru: ['месяц', 'месяца', 'месяцев'] },
+  const lang = getLocale() as 'en' | 'ru';
+  const forms: Record<string, { one: string; few: string; many: string }> = {
+    day:   { one: lang === 'ru' ? 'день' : 'day',     few: lang === 'ru' ? 'дня' : 'days',     many: lang === 'ru' ? 'дней' : 'days' },
+    week:  { one: lang === 'ru' ? 'неделя' : 'week',  few: lang === 'ru' ? 'недели' : 'weeks',  many: lang === 'ru' ? 'недель' : 'weeks' },
+    month: { one: lang === 'ru' ? 'месяц' : 'month',  few: lang === 'ru' ? 'месяца' : 'months', many: lang === 'ru' ? 'месяцев' : 'months' },
   };
   const f = forms[granularity];
   if (!f) return granularity;
-
-  if (locale === 'ru') {
-    const abs = Math.abs(count);
-    const mod10 = abs % 10;
-    const mod100 = abs % 100;
-    if (mod10 === 1 && mod100 !== 11) return f.ru[0];
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return f.ru[1];
-    return f.ru[2];
-  }
-  return Math.abs(count) === 1 ? f.en[0] : f.en[1];
+  return pluralize(count, f, lang);
 }
 
 /** Get ISO week number. */

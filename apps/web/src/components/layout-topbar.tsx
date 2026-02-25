@@ -14,7 +14,7 @@ export function LayoutTopbar({ onMenuOpen, userInitial, logoHref }: LayoutTopbar
   const { t } = useLocalTranslation(translations);
 
   return (
-    <header className="lg:hidden flex items-center gap-3 h-[44px] px-4 border-b border-border bg-sidebar shrink-0">
+    <header className="lg:hidden flex items-center gap-3 h-[var(--topbar-height)] px-4 border-b border-border bg-sidebar shrink-0">
       <button
         onClick={onMenuOpen}
         className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"

@@ -25,10 +25,19 @@ interface WebKpiRowProps {
   current?: WebAnalyticsKPIs;
   previous?: WebAnalyticsKPIs;
   isLoading: boolean;
+  isError?: boolean;
 }
 
-export function WebKpiRow({ current, previous, isLoading }: WebKpiRowProps) {
+export function WebKpiRow({ current, previous, isLoading, isError }: WebKpiRowProps) {
   const { t } = useLocalTranslation(translations);
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-6 text-center text-sm text-destructive/80">
+        {t('loadError')}
+      </div>
+    );
+  }
 
   if (isLoading || !current || !previous) {
     return (

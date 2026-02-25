@@ -7,6 +7,7 @@ export default createTranslations({
     sessions: 'Sessions',
     avgDuration: 'Avg Duration',
     bounceRate: 'Bounce Rate',
+    loadError: 'Failed to load metrics',
   },
   ru: {
     uniqueVisitors: 'Уникальные посетители',
@@ -14,5 +15,6 @@ export default createTranslations({
     sessions: 'Сессии',
     avgDuration: 'Средняя длительность',
     bounceRate: 'Показатель отказов',
+    loadError: 'Не удалось загрузить метрики',
   },
 });

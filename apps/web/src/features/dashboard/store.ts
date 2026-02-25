@@ -34,7 +34,7 @@ interface DashboardStore {
   snapshot: Snapshot | null;
 
   initSession: (id: string, name: string, widgets: Widget[]) => void;
-  setEditing: (editing: boolean) => void;
+  exitEditModeAfterSave: () => void;
   setLocalName: (name: string) => void;
   updateLayout: (layout: readonly RglItem[]) => void;
   addWidget: (widget: Widget) => void;
@@ -99,7 +99,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     });
   },
 
-  setEditing: (editing) => set({ isEditing: editing }),
+  exitEditModeAfterSave: () => set({ isEditing: false, isDirty: false, snapshot: null }),
 
   setLocalName: (name) => set({ localName: name, isDirty: true }),
 
@@ -156,7 +156,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       isDirty: true,
     })),
 
-  markSaved: () => set({ isDirty: false, snapshot: null }),
+  markSaved: () => set({ isDirty: false }),
 
   enterEditMode: () =>
     set((s) => ({
