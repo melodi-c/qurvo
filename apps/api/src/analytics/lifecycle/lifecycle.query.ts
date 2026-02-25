@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval } from '../../utils/clickhouse-helpers';
+import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export interface LifecycleQueryParams {
   granularity: LifecycleGranularity;
   date_from: string;
   date_to: string;
+  event_filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
 }
 
@@ -104,6 +106,9 @@ export async function queryLifecycle(
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
+  const eventFilterParts = buildPropertyFilterConditions(params.event_filters ?? [], 'lc', queryParams);
+  const eventFilterClause = eventFilterParts.length > 0 ? '\n          AND ' + eventFilterParts.join('\n          AND ') : '';
+
   const sql = `
     WITH
       person_buckets AS (
@@ -115,7 +120,7 @@ export async function queryLifecycle(
         WHERE project_id = {project_id:UUID}
           AND event_name = {target_event:String}
           AND timestamp >= {extended_from:DateTime64(3)}
-          AND timestamp <= {to:DateTime64(3)}${cohortClause}
+          AND timestamp <= {to:DateTime64(3)}${cohortClause}${eventFilterClause}
         GROUP BY person_id
       )
     SELECT
