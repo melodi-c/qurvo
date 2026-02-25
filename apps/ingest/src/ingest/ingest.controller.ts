@@ -76,6 +76,7 @@ export class IngestController {
         { projectId, dropped: dropReasons.length, total: rawEvents.length, reasons: dropReasons.slice(0, 5) },
         'Some events dropped due to validation',
       );
+      this.ingestService.reportDropped('validation', dropReasons.length);
     }
 
     await this.callOrThrow503(() => this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at), projectId, validEvents.length);

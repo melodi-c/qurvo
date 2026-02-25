@@ -17,6 +17,7 @@
     "@qurvo/worker-core": "workspace:*",
     "dd-trace": "^5.0.0",
     "dotenv": "^16.4.0",
+    "hot-shots": "^14.0.0",
     "drizzle-orm": "^0.39.0",
     "ioredis": "^5.4.0",
     "nestjs-pino": "^4.6.0",
