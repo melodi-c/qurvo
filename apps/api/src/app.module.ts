@@ -8,6 +8,7 @@ import { DatabaseModule } from './database/database.module';
 import { ApiModule } from './api/api.module';
 import { HealthModule } from './health/health.module';
 import { EmailModule } from './email/email.module';
+import { AdminModule } from './admin/admin.module';
 import { SessionAuthGuard } from './api/guards/session-auth.guard';
 import { REDIS } from './providers/redis.provider';
 
@@ -36,6 +37,7 @@ import { REDIS } from './providers/redis.provider';
     }),
     ApiModule,
     HealthModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

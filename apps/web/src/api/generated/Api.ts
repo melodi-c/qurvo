@@ -1156,6 +1156,24 @@ export interface IngestionWarning {
   timestamp: string;
 }
 
+export interface AdminStats {
+  total_users: number;
+  total_projects: number;
+  total_events: number;
+  redis_stream_depth: number;
+}
+
+export interface PatchUserStaff {
+  is_staff: boolean;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  display_name: string;
+  is_staff: boolean;
+}
+
 export type UpdateProfileDtoLanguageEnum = "ru" | "en";
 
 export type ProjectWithRoleDtoRoleEnum = "owner" | "editor" | "viewer";
@@ -1935,6 +1953,10 @@ export interface IngestionWarningsControllerGetIngestionWarningsParams {
   limit?: number;
   /** @format uuid */
   project_id: string;
+}
+
+export interface AdminUsersControllerPatchUserParams {
+  id: string;
 }
 
 import type {
@@ -3928,6 +3950,47 @@ export class Api<
       this.request<void, any>({
         path: `/health`,
         method: "GET",
+        ...params,
+      }),
+  };
+  admin = {
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminStatsControllerGetStats
+     * @request GET:/admin/stats
+     * @secure
+     */
+    adminStatsControllerGetStats: (params: RequestParams = {}) =>
+      this.request<AdminStats, any>({
+        path: `/admin/stats`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminUsersControllerPatchUser
+     * @request PATCH:/admin/users/{id}
+     * @secure
+     */
+    adminUsersControllerPatchUser: (
+      { id, ...query }: AdminUsersControllerPatchUserParams,
+      data: PatchUserStaff,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdminUser, any>({
+        path: `/admin/users/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
   };
