@@ -11,7 +11,7 @@ import translations from './web-analytics.translations';
 
 export default function WebAnalyticsPage() {
   const { t } = useLocalTranslation(translations);
-  const { dateFrom, dateTo, setDateRange, queryParams } = useWebAnalyticsParams();
+  const { dateFrom, dateTo, filters, setDateRange, setFilters, queryParams } = useWebAnalyticsParams();
   const [chartMetric, setChartMetric] = useState<MetricKey>('unique_visitors');
 
   const overview = useWebOverview(queryParams);
@@ -53,6 +53,8 @@ export default function WebAnalyticsPage() {
         dateFrom={dateFrom}
         dateTo={dateTo}
         onDateRangeChange={setDateRange}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
 
       <WebKpiRow
