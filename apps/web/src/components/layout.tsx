@@ -1,9 +1,19 @@
+import { Suspense } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useLayoutData } from '@/hooks/use-layout-data';
 import { LayoutTopbar } from '@/components/layout-topbar';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { ProjectSwitcher, UserMenu } from '@/components/user-menu';
 import { routes } from '@/lib/routes';
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center gap-2 h-full min-h-64 text-muted-foreground">
+      <Loader2 className="h-5 w-5 animate-spin" />
+    </div>
+  );
+}
 
 export default function Layout() {
   const {
@@ -84,7 +94,9 @@ export default function Layout() {
       {/* Main content */}
       <main className="flex-1 overflow-auto">
         <div className="p-4 lg:p-6">
-          <Outlet />
+          <Suspense fallback={<PageLoadingFallback />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>
