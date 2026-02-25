@@ -2,9 +2,7 @@
 export const REDIS = Symbol('REDIS');
 export const DRIZZLE = Symbol('DRIZZLE');
 
-// Intentionally duplicated in apps/processor/src/constants.ts — both apps share
-// the same Redis stream contract but have no shared runtime dependency.
-export const REDIS_STREAM_EVENTS = 'events:incoming';
+export { REDIS_STREAM_EVENTS } from '@qurvo/nestjs-infra';
 export const REDIS_STREAM_MAXLEN = 1_000_000;
 
 // Stream payload schema version — bump when payload shape changes.
@@ -17,6 +15,11 @@ export const API_KEY_CACHE_TTL_SECONDS = 300;
 
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 
+// Billing quota: Redis Set populated by billing-check worker in @qurvo/cohort-worker.
+// Intentionally duplicated in apps/cohort-worker/src/constants.ts — both apps share
+// the same Redis key but have no shared runtime dependency.
+export const BILLING_QUOTA_LIMITED_KEY = 'billing:quota_limited';
+
 // Gzip bomb protection: max allowed size after decompression (matches Fastify bodyLimit)
 export const MAX_DECOMPRESSED_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -28,6 +31,22 @@ export const RATE_LIMIT_KEY_PREFIX = 'ratelimit';
 export const RATE_LIMIT_WINDOW_SECONDS = 60;
 export const RATE_LIMIT_MAX_EVENTS = 100_000; // 100K events per 60s per project
 export const RATE_LIMIT_BUCKET_SECONDS = 10;
+
+export function rateLimitBucketKey(projectId: string, nowSec = Math.floor(Date.now() / 1000)): string {
+  const bucket = Math.floor(nowSec / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
+  return `${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`;
+}
+
+/** All bucket keys covering the sliding window — used by the rate limit guard to sum counters. */
+export function rateLimitWindowKeys(projectId: string, nowSec = Math.floor(Date.now() / 1000)): string[] {
+  const bucketCount = RATE_LIMIT_WINDOW_SECONDS / RATE_LIMIT_BUCKET_SECONDS;
+  const keys: string[] = [];
+  for (let i = 0; i < bucketCount; i++) {
+    const bucket = Math.floor((nowSec - i * RATE_LIMIT_BUCKET_SECONDS) / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
+    keys.push(`${RATE_LIMIT_KEY_PREFIX}:${projectId}:${bucket}`);
+  }
+  return keys;
+}
 
 // Max timestamp drift cap: events queued longer than this on the client
 // are timestamped at server time to prevent ClickHouse TTL bypass.

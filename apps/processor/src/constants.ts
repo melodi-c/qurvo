@@ -1,6 +1,5 @@
 // ── Stream / Consumer ────────────────────────────────────────────────────────
-// NOTE: must match apps/ingest/src/constants.ts
-export const REDIS_STREAM_EVENTS = 'events:incoming';
+export { REDIS_STREAM_EVENTS } from '@qurvo/nestjs-infra';
 export const REDIS_CONSUMER_GROUP = 'processor-group';
 export const PENDING_CLAIM_INTERVAL_MS = 30_000;
 export const PENDING_IDLE_MS = 60_000;

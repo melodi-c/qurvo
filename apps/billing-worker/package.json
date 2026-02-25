@@ -1,5 +1,5 @@
 {
-  "name": "@qurvo/ingest",
+  "name": "@qurvo/billing-worker",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -12,21 +12,15 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-fastify": "^11.0.0",
     "@qurvo/db": "workspace:*",
     "@qurvo/nestjs-infra": "workspace:*",
     "dd-trace": "^5.0.0",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.39.0",
-    "fastify": "^5.0.0",
     "ioredis": "^5.4.0",
     "nestjs-pino": "^4.6.0",
     "pino": "^10.3.1",
-    "pino-http": "^11.0.0",
-    "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.0",
-    "uuid": "^13.0.0",
-    "zod": "^4.3.6"
+    "reflect-metadata": "^0.2.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

@@ -103,12 +103,13 @@ export class IngestController {
   }
 
   private async callOrThrow503(fn: () => Promise<void>, projectId: string, eventCount: number): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         fn(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Handler timeout')), HANDLER_TIMEOUT_MS),
-        ),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Handler timeout')), HANDLER_TIMEOUT_MS);
+        }),
       ]);
     } catch (err) {
       this.logger.error({ err, projectId, eventCount }, 'Failed to write events to stream');
@@ -116,6 +117,8 @@ export class IngestController {
         { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
         HttpStatus.SERVICE_UNAVAILABLE,
       );
+    } finally {
+      clearTimeout(timer);
     }
   }
 }
