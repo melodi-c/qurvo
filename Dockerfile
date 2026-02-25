@@ -62,7 +62,8 @@ RUN pnpm --filter @qurvo/${APP}... build && \
     mkdir -p packages/@qurvo/cohort-query/dist && \
     mkdir -p packages/@qurvo/distributed-lock/dist && \
     mkdir -p packages/@qurvo/heartbeat/dist && \
-    mkdir -p packages/@qurvo/nestjs-infra/dist
+    mkdir -p packages/@qurvo/nestjs-infra/dist && \
+    mkdir -p packages/@qurvo/worker-core/dist
 
 # ==============================================================================
 # Stage: nestjs — production runtime for api/ingest/processor
