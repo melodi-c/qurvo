@@ -141,7 +141,7 @@ export class CohortComputationService {
     }
   }
 
-  async recordSizeHistory(cohortId: string, projectId: string): Promise<void> {
+  async recordSizeHistory(cohortId: string, projectId: string, version: number): Promise<void> {
     try {
       await this.ch.command({
         query: `
@@ -150,10 +150,12 @@ export class CohortComputationService {
             {project_id:UUID},
             {cohort_id:UUID},
             today(),
-            uniqExact(person_id)
-          FROM cohort_members FINAL
-          WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
-        query_params: { project_id: projectId, cohort_id: cohortId },
+            count()
+          FROM cohort_members
+          WHERE project_id = {project_id:UUID}
+            AND cohort_id = {cohort_id:UUID}
+            AND version = {version:UInt64}`,
+        query_params: { project_id: projectId, cohort_id: cohortId, version },
       });
     } catch (err) {
       this.logger.warn({ err, cohortId, projectId }, 'Failed to record cohort size history');
@@ -169,7 +171,9 @@ export class CohortComputationService {
     const allDynamicIds = allDynamic.map((c) => c.id);
 
     if (allDynamicIds.length === 0) {
-      this.logger.debug('Orphan GC skipped — no dynamic cohorts found in PostgreSQL');
+      // No dynamic cohorts exist — all cohort_members rows are orphans
+      await this.ch.command({ query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1` });
+      this.logger.debug('Orphan GC: deleted all cohort_members (no dynamic cohorts in PG)');
       return;
     }
 

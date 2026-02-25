@@ -11,3 +11,7 @@ export const COHORT_GC_EVERY_N_CYCLES = 6; // ~1 hour at 10min interval
 export const COHORT_LOCK_KEY = 'cohort_membership:lock';
 export const COHORT_LOCK_TTL_SECONDS = 660;
 export const COHORT_INITIAL_DELAY_MS = 30_000;
+
+// ── Bull queue ───────────────────────────────────────────────────────────
+export const COHORT_COMPUTE_QUEUE = 'cohort-compute';
+export const COHORT_COMPUTE_CONCURRENCY = 4;

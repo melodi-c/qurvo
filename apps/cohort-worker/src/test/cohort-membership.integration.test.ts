@@ -431,6 +431,52 @@ describe('cohort membership', () => {
     }
   });
 
+  it('not_performed_event cohort — persons active but did NOT perform specific event', async () => {
+    const projectId = testProject.projectId;
+    const personActive = randomUUID(); // has page_view only
+    const personPerformed = randomUUID(); // has page_view + purchase
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personActive,
+        distinct_id: `coh-np-active-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ status: 'active' }),
+        timestamp: ts(1),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personPerformed,
+        distinct_id: `coh-np-perf-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ status: 'performed' }),
+        timestamp: ts(1, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personPerformed,
+        distinct_id: `coh-np-perf-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ status: 'performed' }),
+        timestamp: ts(1, 11),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Not Purchased', {
+      type: 'AND',
+      values: [
+        { type: 'not_performed_event', event_name: 'purchase', time_window_days: 30 },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personActive);
+    expect(members).not.toContain(personPerformed);
+  });
+
   it('distributed lock blocks runCycle', async () => {
     await ctx.redis.set(COHORT_LOCK_KEY, 'other-instance', 'EX', 120);
 
