@@ -7,6 +7,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { RequireProject } from '@/components/require-project';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useEventDefinitions } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -15,7 +16,7 @@ import type { EventDefinition } from '@/api/generated/Api';
 
 export default function EventDefinitionsPage() {
   const { t } = useLocalTranslation(translations);
-  const { go, projectId } = useAppNavigate();
+  const { go } = useAppNavigate();
   const [search, setSearch] = useState('');
 
   const { data: definitions, isLoading, isError, refetch } = useEventDefinitions();
@@ -85,60 +86,58 @@ export default function EventDefinitionsPage() {
     <div className="space-y-6">
       <PageHeader title={t('title')} />
 
-      {!projectId && (
-        <EmptyState icon={Database} description={t('selectProject')} />
-      )}
+      <RequireProject icon={Database} description={t('selectProject')}>
+        {isLoading && <ListSkeleton count={8} />}
 
-      {projectId && isLoading && <ListSkeleton count={8} />}
+        {!isLoading && isError && (
+          <EmptyState
+            icon={AlertTriangle}
+            description={t('errorLoading')}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t('retry')}
+              </Button>
+            }
+          />
+        )}
 
-      {projectId && !isLoading && isError && (
-        <EmptyState
-          icon={AlertTriangle}
-          description={t('errorLoading')}
-          action={
-            <Button variant="outline" onClick={() => refetch()}>
-              {t('retry')}
-            </Button>
-          }
-        />
-      )}
+        {!isLoading && !isError && (
+          <>
+            <div className="flex items-center gap-3">
+              <Input
+                placeholder={t('searchPlaceholder')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="max-w-sm"
+              />
+              {filtered && (
+                <span className="text-sm text-muted-foreground">
+                  {filtered.length !== 1
+                    ? t('eventCountPlural', { count: filtered.length })
+                    : t('eventCount', { count: filtered.length })}
+                </span>
+              )}
+            </div>
 
-      {projectId && !isLoading && !isError && (
-        <>
-          <div className="flex items-center gap-3">
-            <Input
-              placeholder={t('searchPlaceholder')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
-            {filtered && (
-              <span className="text-sm text-muted-foreground">
-                {filtered.length !== 1
-                  ? t('eventCountPlural', { count: filtered.length })
-                  : t('eventCount', { count: filtered.length })}
-              </span>
+            {filtered && filtered.length === 0 && (
+              <EmptyState
+                icon={Database}
+                title={t('noEventsFound')}
+                description={search ? t('noEventsMatch') : t('noEventsTracked')}
+              />
             )}
-          </div>
 
-          {filtered && filtered.length === 0 && (
-            <EmptyState
-              icon={Database}
-              title={t('noEventsFound')}
-              description={search ? t('noEventsMatch') : t('noEventsTracked')}
-            />
-          )}
-
-          {filtered && filtered.length > 0 && (
-            <DataTable
-              columns={columns}
-              data={filtered}
-              rowKey={(row) => row.event_name}
-              onRowClick={handleRowClick}
-            />
-          )}
-        </>
-      )}
+            {filtered && filtered.length > 0 && (
+              <DataTable
+                columns={columns}
+                data={filtered}
+                rowKey={(row) => row.event_name}
+                onRowClick={handleRowClick}
+              />
+            )}
+          </>
+        )}
+      </RequireProject>
     </div>
   );
 }
