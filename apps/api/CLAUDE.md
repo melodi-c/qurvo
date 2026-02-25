@@ -76,7 +76,7 @@ constructor(
 
 ### Exception Layering
 - Services throw plain domain exceptions (extend base exception classes), never `HttpException`
-- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`, `AppBadRequestException`, `TooManyRequestsException`
+- Base exception classes in `src/exceptions/`: `AppNotFoundException`, `AppConflictException`, `AppForbiddenException`, `AppUnauthorizedException`, `AppBadRequestException`, `AppUnprocessableEntityException`, `TooManyRequestsException`
 - Cross-module exceptions (used by multiple modules) live in `src/exceptions/`, not in any single module's `exceptions/` dir
 - Each module owns its concrete exceptions in `{module}/exceptions/`, extending the appropriate base class
 - Exception filters use `createHttpFilter()` factory from `src/api/filters/create-http-filter.ts` — catches base class, maps to HTTP status

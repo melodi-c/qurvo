@@ -15,6 +15,15 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+const COHORT_OPERATORS = [
+  'eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
+  'is_set', 'is_not_set', 'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
+  'in', 'not_in', 'between', 'not_between',
+  'is_date_before', 'is_date_after', 'is_date_exact',
+] as const;
+
+type CohortOperator = typeof COHORT_OPERATORS[number];
+
 // ── Event filter DTO ────────────────────────────────────────────────────────
 
 export class CohortEventFilterDto {
@@ -22,14 +31,8 @@ export class CohortEventFilterDto {
   @IsNotEmpty()
   property: string;
 
-  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
-    'is_set', 'is_not_set', 'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
-    'in', 'not_in', 'between', 'not_between',
-    'is_date_before', 'is_date_after', 'is_date_exact'])
-  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'contains_multi' | 'not_contains_multi'
-    | 'is_set' | 'is_not_set' | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
-    | 'in' | 'not_in' | 'between' | 'not_between'
-    | 'is_date_before' | 'is_date_after' | 'is_date_exact';
+  @IsIn(COHORT_OPERATORS)
+  operator: CohortOperator;
 
   @IsString()
   @IsOptional()
@@ -51,14 +54,8 @@ export class CohortPropertyConditionDto {
   @IsNotEmpty()
   property: string;
 
-  @IsIn(['eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
-    'is_set', 'is_not_set', 'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
-    'in', 'not_in', 'between', 'not_between',
-    'is_date_before', 'is_date_after', 'is_date_exact'])
-  operator: 'eq' | 'neq' | 'contains' | 'not_contains' | 'contains_multi' | 'not_contains_multi'
-    | 'is_set' | 'is_not_set' | 'gt' | 'lt' | 'gte' | 'lte' | 'regex' | 'not_regex'
-    | 'in' | 'not_in' | 'between' | 'not_between'
-    | 'is_date_before' | 'is_date_after' | 'is_date_exact';
+  @IsIn(COHORT_OPERATORS)
+  operator: CohortOperator;
 
   @IsString()
   @IsOptional()

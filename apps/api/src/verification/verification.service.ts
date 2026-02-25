@@ -14,6 +14,7 @@ import {
   VERIFICATION_RESEND_COOLDOWN_SECONDS,
   VERIFICATION_MAX_ATTEMPTS,
   VERIFICATION_ATTEMPTS_WINDOW_SECONDS,
+  APP_BASE_URL,
 } from '../constants';
 import { InvalidVerificationCodeException } from './exceptions/invalid-verification-code.exception';
 import { VerificationCooldownException } from './exceptions/verification-cooldown.exception';
@@ -53,8 +54,7 @@ export class VerificationService {
       expires_at,
     });
 
-    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
-    const verifyUrl = `${baseUrl}/verify-email?token=${tokenRaw}`;
+    const verifyUrl = `${APP_BASE_URL}/verify-email?token=${tokenRaw}`;
 
     await this.emailProvider.sendEmailVerification(email, code, verifyUrl);
 

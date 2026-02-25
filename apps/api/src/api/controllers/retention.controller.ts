@@ -4,7 +4,6 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { RETENTION_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { RetentionQueryParams, RetentionQueryResult } from '../../analytics/retention/retention.query';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RetentionQueryDto, RetentionResponseDto } from '../dto/retention.dto';
 
 @ApiTags('Analytics')
@@ -16,7 +15,6 @@ export class RetentionController {
 
   @Get('retention')
   async getRetention(
-    @CurrentUser() user: RequestUser,
     @Query() query: RetentionQueryDto,
   ): Promise<RetentionResponseDto> {
     return this.retentionService.query(query);

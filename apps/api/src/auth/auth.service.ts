@@ -19,6 +19,14 @@ import { WrongPasswordException } from './exceptions/wrong-password.exception';
 import { VerificationService } from '../verification/verification.service';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
+const USER_PROFILE_COLUMNS = {
+  id: users.id,
+  email: users.email,
+  display_name: users.display_name,
+  language: users.language,
+  email_verified: users.email_verified,
+};
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -165,7 +173,7 @@ export class AuthService {
 
     if (Object.keys(setFields).length === 0) {
       const [user] = await this.db
-        .select({ id: users.id, email: users.email, display_name: users.display_name, language: users.language, email_verified: users.email_verified })
+        .select(USER_PROFILE_COLUMNS)
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
@@ -178,13 +186,7 @@ export class AuthService {
       .update(users)
       .set(setFields)
       .where(eq(users.id, userId))
-      .returning({
-        id: users.id,
-        email: users.email,
-        display_name: users.display_name,
-        language: users.language,
-        email_verified: users.email_verified,
-      });
+      .returning(USER_PROFILE_COLUMNS);
 
     await invalidateUserSessionCaches(this.db, this.redis, userId);
     this.logger.log({ userId }, 'Profile updated');

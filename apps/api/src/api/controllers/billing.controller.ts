@@ -1,7 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BillingService } from '../../billing/billing.service';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { BillingStatusDto } from '../dto/billing.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
@@ -14,7 +13,6 @@ export class BillingController {
 
   @Get()
   async getStatus(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<BillingStatusDto> {
     return this.billingService.getStatus(projectId) as any;

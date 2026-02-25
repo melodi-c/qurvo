@@ -4,7 +4,6 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { LIFECYCLE_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { LifecycleQueryParams, LifecycleQueryResult } from '../../analytics/lifecycle/lifecycle.query';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { LifecycleQueryDto, LifecycleResponseDto } from '../dto/lifecycle.dto';
 
 @ApiTags('Analytics')
@@ -16,7 +15,6 @@ export class LifecycleController {
 
   @Get('lifecycle')
   async getLifecycle(
-    @CurrentUser() user: RequestUser,
     @Query() query: LifecycleQueryDto,
   ): Promise<LifecycleResponseDto> {
     return this.lifecycleService.query(query);
