@@ -2,6 +2,7 @@ import type { UseMutationResult } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -41,8 +42,9 @@ export function InviteForm({ inviteMutation }: InviteFormProps) {
       <CardContent className="pt-6">
         <div className="flex items-end gap-3">
           <div className="flex-1 space-y-1">
-            <label className="text-xs text-muted-foreground">{t('email')}</label>
+            <Label htmlFor="invite-email" className="text-xs text-muted-foreground">{t('email')}</Label>
             <Input
+              id="invite-email"
               type="email"
               placeholder="user@example.com"
               value={inviteEmail}
@@ -51,9 +53,9 @@ export function InviteForm({ inviteMutation }: InviteFormProps) {
             />
           </div>
           <div className="w-32 space-y-1">
-            <label className="text-xs text-muted-foreground">{t('role')}</label>
+            <Label htmlFor="invite-role" className="text-xs text-muted-foreground">{t('role')}</Label>
             <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as InviteRole)}>
-              <SelectTrigger>
+              <SelectTrigger id="invite-role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

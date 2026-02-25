@@ -104,15 +104,18 @@ export function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+            <div className="flex items-center gap-2">
               <input
+                id="event-verified"
                 type="checkbox"
                 checked={verified}
                 onChange={(e) => setVerified(e.target.checked)}
                 className="h-4 w-4 rounded border-border text-primary accent-primary cursor-pointer"
               />
-              {t('verified')}
-            </label>
+              <Label htmlFor="event-verified" className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-normal">
+                {t('verified')}
+              </Label>
+            </div>
             <span className="text-sm text-muted-foreground">
               {t('lastSeen')} <span className="tabular-nums font-medium text-foreground">{eventDef.last_seen_at ? new Date(eventDef.last_seen_at).toLocaleDateString() : '\u2014'}</span>
             </span>

@@ -3,6 +3,8 @@ import { UsersRound, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
@@ -95,9 +97,14 @@ export default function CohortEditorPage() {
   let previewContent: React.ReactNode;
   if (!hasValidConditions) {
     previewContent = (
-      <div>
-        <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('addConditionsDescription')}</p>
+      <div className="text-center space-y-3">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
+          <UsersRound className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('addConditionsDescription')}</p>
+        </div>
       </div>
     );
   } else if (previewMutation.isPending) {
@@ -109,7 +116,7 @@ export default function CohortEditorPage() {
     );
   } else if (previewMutation.data) {
     previewContent = (
-      <div>
+      <div className="text-center">
         <p className="text-4xl font-bold tabular-nums text-primary">
           {previewMutation.data.count.toLocaleString()}
         </p>
@@ -118,9 +125,10 @@ export default function CohortEditorPage() {
     );
   } else {
     previewContent = (
-      <div>
-        <p className="text-sm font-medium">{t('previewPlaceholder')}</p>
-      </div>
+      <EmptyState
+        icon={UsersRound}
+        description={t('previewPlaceholder')}
+      />
     );
   }
 
@@ -141,8 +149,9 @@ export default function CohortEditorPage() {
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
         <QueryPanelShell>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</label>
+            <Label htmlFor="cohort-description" className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</Label>
             <Input
+              id="cohort-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('descriptionPlaceholder')}
@@ -150,10 +159,10 @@ export default function CohortEditorPage() {
             />
           </div>
 
-          <div className="border-t border-border" />
+          <Separator />
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</label>
+            <Label className="text-xs font-medium text-muted-foreground">{t('conditionsLabel')}</Label>
             <CohortGroupBuilder
               groups={groups}
               onChange={setGroups}
@@ -203,12 +212,7 @@ export default function CohortEditorPage() {
           </main>
         ) : (
           <main className="flex-1 overflow-auto flex flex-col items-center justify-center">
-            <div className="text-center space-y-3">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
-                <UsersRound className="h-8 w-8 text-muted-foreground" />
-              </div>
-              {previewContent}
-            </div>
+            {previewContent}
           </main>
         )}
       </div>
