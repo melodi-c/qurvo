@@ -132,13 +132,13 @@ export class AiService implements OnModuleInit {
     const client = this.getClient();
 
     // Create or load conversation
-    let conversation: { id: string; title: string };
+    let conversation: { id: string; title: string; history_summary?: string | null; summary_failed?: boolean | null };
     let isNew = false;
 
     if (params.conversation_id) {
       const existing = await this.chatService.getConversation(params.conversation_id, userId);
       if (!existing) throw new ConversationNotFoundException();
-      conversation = { id: existing.id, title: existing.title };
+      conversation = existing;
     } else {
       const created = await this.chatService.createConversation(userId, params.project_id);
       conversation = { id: created.id, title: created.title };
@@ -169,10 +169,9 @@ export class AiService implements OnModuleInit {
         totalMessageCount = await this.chatService.getMessageCount(conversation.id);
 
         if (totalMessageCount > AI_SUMMARY_THRESHOLD) {
-          // Load the conversation record to get any cached summary
-          const convRecord = await this.chatService.getConversation(conversation.id, userId);
-          existingSummary = convRecord?.history_summary ?? null;
-          summaryFailed = convRecord?.summary_failed ?? false;
+          // Use the already-loaded conversation record to get any cached summary
+          existingSummary = conversation.history_summary ?? null;
+          summaryFailed = conversation.summary_failed ?? false;
 
           // Inject cached summary as a system message if available
           if (existingSummary) {
