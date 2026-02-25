@@ -31,7 +31,7 @@ export class MemberDto {
   id: string;
   project_id: string;
   user: MemberUserDto;
-  role: string;
+  role: 'owner' | 'editor' | 'viewer';
   created_at: Date;
 }
 
@@ -46,8 +46,8 @@ export class InviteDto {
   project_id: string;
   invited_by: InviterDto;
   email: string;
-  role: string;
-  status: string;
+  role: 'owner' | 'editor' | 'viewer';
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: Date;
   responded_at: Date | null;
 }
@@ -56,7 +56,7 @@ export class MyInviteDto {
   id: string;
   project: { id: string; name: string; slug: string };
   invited_by: InviterDto;
-  role: string;
-  status: string;
+  role: 'owner' | 'editor' | 'viewer';
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: Date;
 }

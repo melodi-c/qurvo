@@ -34,7 +34,7 @@ export class LifecycleTotalsDto {
 }
 
 export class LifecycleResultDto {
-  granularity: string;
+  granularity: 'day' | 'week' | 'month';
   @Type(() => LifecycleDataPointDto)
   data: LifecycleDataPointDto[];
   @Type(() => LifecycleTotalsDto)

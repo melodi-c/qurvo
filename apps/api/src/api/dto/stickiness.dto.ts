@@ -24,7 +24,7 @@ export class StickinessDataPointDto {
 }
 
 export class StickinessResultDto {
-  granularity: string;
+  granularity: 'day' | 'week' | 'month';
   total_periods: number;
   @Type(() => StickinessDataPointDto)
   data: StickinessDataPointDto[];

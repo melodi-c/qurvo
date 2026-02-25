@@ -62,7 +62,7 @@ export class PropertyDefinitionQueryDto extends PaginatedQueryDto {
 
 export class PropertyDefinitionDto {
   @ApiProperty() property_name: string;
-  @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
+  @ApiProperty({ enum: ['event', 'person'] }) property_type: 'event' | 'person';
   @ApiPropertyOptional() value_type: string | null;
   @ApiProperty() is_numerical: boolean;
   @ApiProperty() id: string;
@@ -82,7 +82,7 @@ export class UpsertPropertyDefinitionResponseDto {
   id: string;
   project_id: string;
   property_name: string;
-  @ApiProperty({ enum: ['event', 'person'] }) property_type: string;
+  @ApiProperty({ enum: ['event', 'person'] }) property_type: 'event' | 'person';
   @ApiPropertyOptional() value_type: string | null;
   @ApiProperty() is_numerical: boolean;
   @ApiPropertyOptional() description: string | null;

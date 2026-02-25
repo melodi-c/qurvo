@@ -1,6 +1,5 @@
 import {
   IsArray,
-  IsDateString,
   IsOptional,
   IsUUID,
   IsBoolean,
@@ -8,15 +7,16 @@ import {
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { parseJsonArray } from './transforms';
+import { IsDateOnly } from './is-date-only.decorator';
 
 export class CoreQueryDto {
   @IsUUID()
   project_id: string;
 
-  @IsDateString()
+  @IsDateOnly()
   date_from: string;
 
-  @IsDateString()
+  @IsDateOnly()
   date_to: string;
 
   @Transform(({ value }) => value === 'true' || value === true)

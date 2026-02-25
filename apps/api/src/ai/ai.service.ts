@@ -337,14 +337,18 @@ export class AiService implements OnModuleInit {
     return this.chatService.listConversations(userId, projectId);
   }
 
-  async getConversation(userId: string, conversationId: string, limit?: number, beforeSequence?: number) {
+  async getConversation(userId: string, conversationId: string, projectId: string, limit?: number, beforeSequence?: number) {
     const conv = await this.chatService.getConversation(conversationId, userId);
     if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
     const { messages, hasMore } = await this.chatService.getMessages(conversationId, limit, beforeSequence);
     return { ...conv, messages, has_more: hasMore };
   }
 
-  async deleteConversation(userId: string, conversationId: string) {
+  async deleteConversation(userId: string, conversationId: string, projectId: string) {
+    const conv = await this.chatService.getConversation(conversationId, userId);
+    if (!conv) throw new ConversationNotFoundException();
+    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
     await this.chatService.deleteConversation(conversationId, userId);
   }
 }

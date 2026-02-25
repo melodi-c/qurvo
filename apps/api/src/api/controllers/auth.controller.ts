@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Patch, Body, Ip, Headers, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { AccountService } from '../../auth/account.service';
 import { AuthService } from '../../auth/auth.service';
 import { VERIFICATION_RESEND_COOLDOWN_SECONDS } from '../../constants';
 import { VerificationService } from '../../verification/verification.service';
@@ -17,6 +18,7 @@ import {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly accountService: AccountService,
     private readonly verificationService: VerificationService,
   ) {}
 
@@ -47,7 +49,16 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   async me(@CurrentUser() user: RequestUser): Promise<MeResponseDto> {
-    return { user } as any;
+    return {
+      user: {
+        session_id: user.session_id,
+        user_id: user.user_id,
+        email: user.email,
+        display_name: user.display_name,
+        language: user.language,
+        email_verified: user.email_verified,
+      },
+    } as any;
   }
 
   @Post('verify-email/code')
@@ -78,7 +89,7 @@ export class AuthController {
   @Patch('profile')
   @ApiBearerAuth()
   async updateProfile(@Body() body: UpdateProfileDto, @CurrentUser() user: RequestUser): Promise<ProfileResponseDto> {
-    return this.authService.updateProfile(user.user_id, body) as any;
+    return this.accountService.updateProfile(user.user_id, body) as any;
   }
 
   @Post('change-password')
@@ -86,6 +97,6 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ short: { limit: 5, ttl: 60000 }, medium: { limit: 5, ttl: 60000 } })
   async changePassword(@Body() body: ChangePasswordDto, @CurrentUser() user: RequestUser): Promise<void> {
-    await this.authService.changePassword(user.user_id, body.current_password, body.new_password);
+    await this.accountService.changePassword(user.user_id, body.current_password, body.new_password);
   }
 }

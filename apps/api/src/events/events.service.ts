@@ -1,18 +1,22 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { eq, and, desc, asc } from 'drizzle-orm';
+import type Redis from 'ioredis';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
+import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
 import { DIRECT_COLUMNS } from '../utils/property-filter';
 import { EventNotFoundException } from './exceptions/event-not-found.exception';
+import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
 
 @Injectable()
 export class EventsService {
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(DRIZZLE) private readonly db: Database,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   async getEvents(params: EventsQueryParams): Promise<EventRow[]> {
@@ -26,12 +30,19 @@ export class EventsService {
   }
 
   async getEventNames(projectId: string): Promise<string[]> {
+    const cacheKey = `event_names:${projectId}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached) as string[];
+
     const rows = await this.db
       .select({ event_name: eventDefinitions.event_name })
       .from(eventDefinitions)
       .where(eq(eventDefinitions.project_id, projectId))
       .orderBy(desc(eventDefinitions.last_seen_at));
-    return rows.map((r) => r.event_name);
+    const names = rows.map((r) => r.event_name);
+
+    await this.redis.set(cacheKey, JSON.stringify(names), 'EX', PROPERTY_NAMES_CACHE_TTL_SECONDS);
+    return names;
   }
 
   async getEventPropertyNames(projectId: string, eventName?: string): Promise<string[]> {

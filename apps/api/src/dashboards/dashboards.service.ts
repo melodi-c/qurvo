@@ -61,21 +61,22 @@ export class DashboardsService {
   }
 
   async update(projectId: string, dashboardId: string, input: { name?: string }) {
-    await this.assertDashboardExists(projectId, dashboardId);
-
     const [updated] = await this.db
       .update(dashboards)
       .set({ ...buildConditionalUpdate(input, ['name']), updated_at: new Date() })
-      .where(eq(dashboards.id, dashboardId))
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .returning();
+    if (!updated) throw new DashboardNotFoundException();
     this.logger.log({ dashboardId, projectId }, 'Dashboard updated');
     return updated;
   }
 
   async remove(projectId: string, dashboardId: string) {
-    await this.assertDashboardExists(projectId, dashboardId);
-
-    await this.db.delete(dashboards).where(eq(dashboards.id, dashboardId));
+    const [deleted] = await this.db
+      .delete(dashboards)
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
+      .returning({ id: dashboards.id });
+    if (!deleted) throw new DashboardNotFoundException();
     this.logger.log({ dashboardId, projectId }, 'Dashboard deleted');
   }
 
@@ -105,23 +106,26 @@ export class DashboardsService {
     widgetId: string,
     input: { insight_id?: string; layout?: WidgetLayout; content?: string },
   ) {
-    await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
-
-    const values: Record<string, unknown> = { updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) };
+    await this.assertDashboardExists(projectId, dashboardId);
 
     const [updated] = await this.db
       .update(widgets)
-      .set(values)
-      .where(eq(widgets.id, widgetId))
+      .set({ updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) })
+      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId)))
       .returning();
+    if (!updated) throw new WidgetNotFoundException();
     this.logger.log({ widgetId, dashboardId, projectId }, 'Widget updated');
     return updated;
   }
 
   async removeWidget(projectId: string, dashboardId: string, widgetId: string) {
-    await this.assertDashboardAndWidgetExist(projectId, dashboardId, widgetId);
+    await this.assertDashboardExists(projectId, dashboardId);
 
-    await this.db.delete(widgets).where(eq(widgets.id, widgetId));
+    const [deleted] = await this.db
+      .delete(widgets)
+      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId)))
+      .returning({ id: widgets.id });
+    if (!deleted) throw new WidgetNotFoundException();
     this.logger.log({ widgetId, dashboardId, projectId }, 'Widget removed');
   }
 
@@ -132,19 +136,5 @@ export class DashboardsService {
       .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .limit(1);
     if (!row) throw new DashboardNotFoundException();
-  }
-
-  private async assertDashboardAndWidgetExist(projectId: string, dashboardId: string, widgetId: string) {
-    const [row] = await this.db
-      .select({ widget_id: widgets.id })
-      .from(widgets)
-      .innerJoin(dashboards, eq(widgets.dashboard_id, dashboards.id))
-      .where(and(
-        eq(dashboards.id, dashboardId),
-        eq(dashboards.project_id, projectId),
-        eq(widgets.id, widgetId),
-      ))
-      .limit(1);
-    if (!row) throw new WidgetNotFoundException();
   }
 }

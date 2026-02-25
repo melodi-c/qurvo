@@ -354,6 +354,7 @@ describe('queryCohortSizeHistory', () => {
         { project_id: projectId, cohort_id: cohortId, date: today, count: 15 },
       ],
       format: 'JSONEachRow',
+      clickhouse_settings: { async_insert: 0 },
     });
 
     const history = await queryCohortSizeHistory(ctx.ch, projectId, cohortId, 30);
@@ -377,6 +378,7 @@ describe('queryCohortSizeHistory', () => {
         { project_id: projectId, cohort_id: cohortId, date: today, count: 20 },
       ],
       format: 'JSONEachRow',
+      clickhouse_settings: { async_insert: 0 },
     });
 
     const history = await queryCohortSizeHistory(ctx.ch, projectId, cohortId, 7);
@@ -394,6 +396,15 @@ describe('queryCohortSizeHistory', () => {
 });
 
 // ── Static cohort CSV import ────────────────────────────────────────────────
+
+// NOTE: StaticCohortsService is a NestJS injectable requiring the full app
+// module (Drizzle DB, CohortsService, etc.). These integration tests use bare
+// container clients from @qurvo/testing, so we replicate the service's
+// resolveEmailsToPersonIds query directly. The query below mirrors the SQL in
+// StaticCohortsService.resolveEmailsToPersonIds (including RESOLVED_PERSON).
+
+const RESOLVED_PERSON =
+  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
 describe('importStaticCohortCsv — email resolution', () => {
   it('resolves email to person_id via ClickHouse events', async () => {
@@ -421,11 +432,11 @@ describe('importStaticCohortCsv — email resolution', () => {
       }),
     ]);
 
-    // Resolve emails to person_ids via ClickHouse
+    // Resolve emails to person_ids — mirrors StaticCohortsService.resolveEmailsToPersonIds
     const emails = ['alice@example.com', 'unknown@example.com'];
     const result = await ctx.ch.query({
       query: `
-        SELECT DISTINCT person_id AS resolved_person_id
+        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
         FROM events FINAL
         WHERE project_id = {project_id:UUID}
           AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
@@ -437,5 +448,46 @@ describe('importStaticCohortCsv — email resolution', () => {
     // alice resolves, unknown does not
     expect(rows.length).toBe(1);
     expect(rows[0].resolved_person_id).toBe(personA);
+  });
+
+  it('resolves multiple known emails and ignores unknown', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'alice-did',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'alice@example.com' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'bob-did',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'bob@example.com' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    const emails = ['alice@example.com', 'bob@example.com', 'nobody@example.com'];
+    const result = await ctx.ch.query({
+      query: `
+        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        FROM events FINAL
+        WHERE project_id = {project_id:UUID}
+          AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
+      query_params: { project_id: projectId, emails },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ resolved_person_id: string }>();
+
+    expect(rows.length).toBe(2);
+    const resolvedIds = rows.map((r) => r.resolved_person_id).sort();
+    expect(resolvedIds).toEqual([personA, personB].sort());
   });
 });

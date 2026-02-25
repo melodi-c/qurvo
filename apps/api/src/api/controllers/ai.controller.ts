@@ -4,7 +4,7 @@ import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { AiChatDto, AiConversationsQueryDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
+import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
 
 @ApiTags('AI')
 @ApiBearerAuth()
@@ -64,19 +64,22 @@ export class AiController {
   }
 
   @Get('conversations/:id')
+  @UseGuards(ProjectMemberGuard)
   async getConversation(
     @CurrentUser() user: RequestUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: AiConversationMessagesQueryDto,
   ): Promise<AiConversationDetailDto> {
-    return this.aiService.getConversation(user.user_id, id, query.limit, query.before_sequence) as any;
+    return this.aiService.getConversation(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
   }
 
   @Delete('conversations/:id')
+  @UseGuards(ProjectMemberGuard)
   async deleteConversation(
     @CurrentUser() user: RequestUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AiConversationAccessDto,
   ): Promise<void> {
-    await this.aiService.deleteConversation(user.user_id, id);
+    await this.aiService.deleteConversation(user.user_id, id, query.project_id);
   }
 }

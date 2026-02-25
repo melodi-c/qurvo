@@ -6,20 +6,27 @@ import {
   IsInt,
   Min,
   Max,
+  MaxLength,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { parseJsonArray } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class PathCleaningRuleDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
+  @Matches(/^[^\x00-\x1f'\\]+$/, { message: 'Must not contain control characters, quotes, or backslashes' })
   regex: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
+  @Matches(/^[\w\s\-./]+$/, { message: 'Must contain only alphanumeric, spaces, hyphens, dots, and slashes' })
   alias: string;
 }
 
@@ -99,10 +106,7 @@ export class PathsResultDto {
   top_paths: TopPathDto[];
 }
 
-export class PathsResponseDto {
+export class PathsResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => PathsResultDto)
   data: PathsResultDto;
-
-  cached_at: string;
-  from_cache: boolean;
 }

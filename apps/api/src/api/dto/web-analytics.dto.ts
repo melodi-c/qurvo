@@ -8,6 +8,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray } from './shared/transforms';
 import { CoreQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class WebAnalyticsQueryDto extends CoreQueryDto {
   @ApiPropertyOptional({ type: [StepFilterDto] })
@@ -47,11 +48,9 @@ export class WebAnalyticsOverviewDataDto {
   granularity: string;
 }
 
-export class WebAnalyticsOverviewResponseDto {
+export class WebAnalyticsOverviewResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => WebAnalyticsOverviewDataDto)
   data: WebAnalyticsOverviewDataDto;
-  cached_at: string;
-  from_cache: boolean;
 }
 
 export class WebAnalyticsDimensionRowDto {
@@ -71,11 +70,9 @@ export class WebAnalyticsPathsDataDto {
   exit_pages: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsPathsResponseDto {
+export class WebAnalyticsPathsResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => WebAnalyticsPathsDataDto)
   data: WebAnalyticsPathsDataDto;
-  cached_at: string;
-  from_cache: boolean;
 }
 
 export class WebAnalyticsSourcesDataDto {
@@ -92,11 +89,9 @@ export class WebAnalyticsSourcesDataDto {
   utm_campaigns: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsSourcesResponseDto {
+export class WebAnalyticsSourcesResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => WebAnalyticsSourcesDataDto)
   data: WebAnalyticsSourcesDataDto;
-  cached_at: string;
-  from_cache: boolean;
 }
 
 export class WebAnalyticsDevicesDataDto {
@@ -110,11 +105,9 @@ export class WebAnalyticsDevicesDataDto {
   oses: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsDevicesResponseDto {
+export class WebAnalyticsDevicesResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => WebAnalyticsDevicesDataDto)
   data: WebAnalyticsDevicesDataDto;
-  cached_at: string;
-  from_cache: boolean;
 }
 
 export class WebAnalyticsGeographyDataDto {
@@ -128,9 +121,7 @@ export class WebAnalyticsGeographyDataDto {
   cities: WebAnalyticsDimensionRowDto[];
 }
 
-export class WebAnalyticsGeographyResponseDto {
+export class WebAnalyticsGeographyResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => WebAnalyticsGeographyDataDto)
   data: WebAnalyticsGeographyDataDto;
-  cached_at: string;
-  from_cache: boolean;
 }

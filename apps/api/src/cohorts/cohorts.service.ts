@@ -240,8 +240,9 @@ export class CohortsService {
         try {
           const refCohort = await this.getById(projectId, refId);
           return refCohort.definition;
-        } catch {
-          return null;
+        } catch (err) {
+          if (err instanceof CohortNotFoundException) return null;
+          throw err;
         }
       },
     );
