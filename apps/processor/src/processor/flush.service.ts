@@ -22,7 +22,7 @@ export class FlushService implements OnApplicationBootstrap {
   private buffer: BufferedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private stopped = false;
-  private isFlushing = false;
+  private flushPromise: Promise<void> | null = null;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -39,10 +39,7 @@ export class FlushService implements OnApplicationBootstrap {
   async shutdown() {
     this.stopped = true;
     if (this.flushTimer) clearTimeout(this.flushTimer);
-    // Wait for in-progress flush to complete before the final flush
-    while (this.isFlushing) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
+    if (this.flushPromise) await this.flushPromise;
     await this.flush();
   }
 
@@ -59,12 +56,12 @@ export class FlushService implements OnApplicationBootstrap {
   }
 
   async flush(): Promise<void> {
-    if (this.isFlushing || this.buffer.length === 0) return;
-    this.isFlushing = true;
+    if (this.flushPromise || this.buffer.length === 0) return;
+    this.flushPromise = this._doFlush();
     try {
-      await this._doFlush();
+      await this.flushPromise;
     } finally {
-      this.isFlushing = false;
+      this.flushPromise = null;
     }
   }
 

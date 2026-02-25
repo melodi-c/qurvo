@@ -31,7 +31,7 @@ src/
 │   │   ├── prefetch.step.ts            # Step 3: batch MGET person IDs from Redis
 │   │   ├── resolve.step.ts             # Step 4: person resolution + UA parsing + Event DTO building (concurrent across groups)
 │   │   └── index.ts                    # Re-exports all steps + BufferedEvent type
-│   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + concurrency guard + shutdown()
+│   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + promise-based concurrency guard + shutdown()
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── value-type.ts                    # detectValueType() + helpers (extracted from definition-sync)
 │   ├── hourly-cache.ts                  # Time-bucketed deduplication cache (used by definition-sync + person-batch-store)
@@ -76,7 +76,7 @@ Redis Stream (events:incoming)
 | Service | Responsibility | Key config |
 |---|---|---|
 | `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, pipeline orchestration | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, exits after 100 consecutive errors for K8s restart, `consecutiveErrors` only resets after successful `processMessages()` (not on empty XREADGROUP) |
-| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, PG person flush is critical (failure → DLQ), 3 CH retries then DLQ, concurrency guard, `shutdown()` = wait for in-progress flush + final flush. Root cause of batch failure is logged before DLQ routing. |
+| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, PG person flush is critical (failure → DLQ), 3 CH retries then DLQ, promise-based concurrency guard, `shutdown()` = wait for in-progress flush + final flush. Root cause of batch failure is logged before DLQ routing. |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Deterministic person_id resolution via UUIDv5 + Redis cache + PG fallback | Batch MGET prefetch, deterministic UUIDs (same project+distinct_id → same person_id), Redis SET NX with 90d TTL, PG cold-start fallback for legacy data |
 | `PersonBatchStore` | Batched person writes + identity merge | Promise-based flush lock (concurrent callers await previous flush then run), bulk upsert persons/distinct_ids with conditional WHERE (skip unchanged), updated_at floored to hour, re-queues pending data on flush failure, transactional merge with retry (3×200ms), failed merges persisted to Redis for retry (`processor:failed_merges`), `HourlyCache` for knownDistinctIds dedup |
