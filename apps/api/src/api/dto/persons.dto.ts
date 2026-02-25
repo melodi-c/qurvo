@@ -3,6 +3,7 @@ import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested 
 import { Type, Transform } from 'class-transformer';
 import { StepFilterDto } from './shared/filters.dto';
 import { makeJsonArrayTransform } from './shared/transforms';
+import { EventDetailDto } from './events.dto';
 
 export class PersonsQueryDto {
   @IsUUID()
@@ -73,35 +74,7 @@ export class PersonEventsQueryDto {
   offset?: number = 0;
 }
 
-export class PersonEventRowDto {
-  event_id: string;
-  event_name: string;
-  event_type: string;
-  distinct_id: string;
-  person_id: string;
-  session_id: string;
-  timestamp: string;
-  url: string;
-  referrer: string;
-  page_title: string;
-  page_path: string;
-  device_type: string;
-  browser: string;
-  browser_version: string;
-  os: string;
-  os_version: string;
-  screen_width: number;
-  screen_height: number;
-  country: string;
-  region: string;
-  city: string;
-  language: string;
-  timezone: string;
-  sdk_name: string;
-  sdk_version: string;
-  properties: string;
-  user_properties: string;
-}
+export class PersonEventRowDto extends EventDetailDto {}
 
 export class PersonByIdQueryDto {
   @IsUUID()

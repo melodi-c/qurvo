@@ -7,8 +7,10 @@ import {
   REDIS_STREAM_EVENTS,
   REDIS_STREAM_MAXLEN,
   STREAM_SCHEMA_VERSION,
-  BILLING_EVENTS_TTL_SECONDS,
+  MAX_TIMESTAMP_DRIFT_MS,
+  STREAM_BACKPRESSURE_THRESHOLD,
   billingCounterKey,
+  billingCounterExpireAt,
   RATE_LIMIT_KEY_PREFIX,
   RATE_LIMIT_WINDOW_SECONDS,
   RATE_LIMIT_BUCKET_SECONDS,
@@ -61,6 +63,7 @@ export function resolveTimestamp(clientTs: string | undefined, serverTime: strin
   const offsetMs = sentAtMs - clientTsMs;
 
   if (offsetMs < 0) return serverTime;
+  if (offsetMs > MAX_TIMESTAMP_DRIFT_MS) return serverTime;
 
   const resolvedMs = serverMs - offsetMs;
   return new Date(resolvedMs).toISOString();
@@ -81,6 +84,7 @@ export class IngestService {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
+    await this.checkBackpressure();
     const serverTime = new Date().toISOString();
     const batchId = uuidv7();
     const ua = parseUa(userAgent);
@@ -92,6 +96,7 @@ export class IngestService {
   }
 
   async importBatch(projectId: string, events: ImportEvent[]) {
+    await this.checkBackpressure();
     const batchId = `import-${uuidv7()}`;
     const payloads = events.map((event) =>
       this.buildPayload(projectId, event, event.timestamp, { batchId, event_id: event.event_id }),
@@ -144,6 +149,14 @@ export class IngestService {
     return payload;
   }
 
+  private async checkBackpressure(): Promise<void> {
+    const len = await this.redis.xlen(REDIS_STREAM_EVENTS);
+    if (len >= STREAM_BACKPRESSURE_THRESHOLD) {
+      this.logger.error({ streamLength: len, threshold: STREAM_BACKPRESSURE_THRESHOLD }, 'Redis stream backpressure — rejecting writes');
+      throw new Error(`Redis stream at ${len}/${REDIS_STREAM_MAXLEN} — processor may be behind`);
+    }
+  }
+
   private async writeToStream(payloads: Record<string, string>[]): Promise<void> {
     const pipeline = this.redis.pipeline();
     for (const payload of payloads) {
@@ -155,6 +168,8 @@ export class IngestService {
     }
     const failed = results.filter(([err]) => err !== null);
     if (failed.length > 0) {
+      const sampleErrors = failed.slice(0, 3).map(([err]) => String(err));
+      this.logger.error({ failedCount: failed.length, totalCount: results.length, sampleErrors }, 'Partial Redis pipeline failure');
       throw new Error(`${failed.length} of ${results.length} events failed to write to Redis stream`);
     }
   }
@@ -177,7 +192,7 @@ export class IngestService {
 
     const pipeline = this.redis.pipeline();
     pipeline.incrby(counterKey, count);
-    pipeline.expire(counterKey, BILLING_EVENTS_TTL_SECONDS);
+    pipeline.expireat(counterKey, billingCounterExpireAt());
     pipeline.exec().catch((err: unknown) =>
       this.logger.warn({ err, projectId }, 'Failed to increment billing counter'),
     );

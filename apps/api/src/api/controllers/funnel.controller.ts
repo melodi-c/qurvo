@@ -4,7 +4,6 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { FUNNEL_SERVICE, FUNNEL_TTC_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { FunnelQueryParams, FunnelQueryResult, TimeToConvertParams, TimeToConvertResult } from '../../analytics/funnel/funnel.query';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   FunnelQueryDto,
   FunnelResponseDto,
@@ -24,7 +23,6 @@ export class FunnelController {
 
   @Get('funnel')
   async getFunnel(
-    @CurrentUser() user: RequestUser,
     @Query() query: FunnelQueryDto,
   ): Promise<FunnelResponseDto> {
     return this.funnelService.query(query) as any;
@@ -32,7 +30,6 @@ export class FunnelController {
 
   @Get('funnel/time-to-convert')
   async getFunnelTimeToConvert(
-    @CurrentUser() user: RequestUser,
     @Query() query: FunnelTimeToConvertQueryDto,
   ): Promise<TimeToConvertResponseDto> {
     return this.ttcService.query(query) as any;

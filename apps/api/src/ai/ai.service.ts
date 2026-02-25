@@ -14,6 +14,7 @@ import { ConversationNotFoundException } from './exceptions/conversation-not-fou
 import { buildSystemPrompt } from './system-prompt';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
+import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT } from '../constants';
 
 export type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
@@ -92,7 +93,7 @@ export class AiService implements OnModuleInit {
 
     // Load history
     if (!isNew) {
-      const { messages: history } = await this.chatService.getMessages(conversation.id, 200);
+      const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
       for (const msg of history) {
         if (msg.role === 'user') {
           messages.push({ role: 'user', content: msg.content ?? '' });
@@ -144,7 +145,7 @@ export class AiService implements OnModuleInit {
     userId: string,
     projectId: string,
   ): AsyncGenerator<AiStreamChunk, number> {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
       const stream = await client.chat.completions.create({
         model: this.model,
         messages,
@@ -259,6 +260,7 @@ export class AiService implements OnModuleInit {
       }
     }
 
+    this.logger.warn({ conversationId }, `Tool-call loop exhausted after ${AI_MAX_TOOL_CALL_ITERATIONS} iterations`);
     return seq;
   }
 

@@ -11,6 +11,16 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+const PROJECT_COLUMNS = {
+  id: projects.id,
+  name: projects.name,
+  slug: projects.slug,
+  plan: plans.slug,
+  created_at: projects.created_at,
+  updated_at: projects.updated_at,
+  role: projectMembers.role,
+};
+
 @Injectable()
 export class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
@@ -19,15 +29,7 @@ export class ProjectsService {
 
   async list(userId: string) {
     return this.db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        slug: projects.slug,
-        plan: plans.slug,
-        created_at: projects.created_at,
-        updated_at: projects.updated_at,
-        role: projectMembers.role,
-      })
+      .select(PROJECT_COLUMNS)
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.project_id, projects.id))
       .leftJoin(plans, eq(projects.plan_id, plans.id))
@@ -35,24 +37,16 @@ export class ProjectsService {
   }
 
   async getById(userId: string, projectId: string) {
-    const result = await this.db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        slug: projects.slug,
-        plan: plans.slug,
-        created_at: projects.created_at,
-        updated_at: projects.updated_at,
-        role: projectMembers.role,
-      })
+    const [project] = await this.db
+      .select(PROJECT_COLUMNS)
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.project_id, projects.id))
       .leftJoin(plans, eq(projects.plan_id, plans.id))
       .where(and(eq(projectMembers.project_id, projectId), eq(projectMembers.user_id, userId)))
       .limit(1);
 
-    if (result.length === 0) throw new ProjectNotFoundException();
-    return result[0];
+    if (!project) throw new ProjectNotFoundException();
+    return project;
   }
 
   async create(userId: string, input: { name: string }) {

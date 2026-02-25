@@ -1,13 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { SessionUserDto } from '../dto/auth.dto';
 
-export interface RequestUser {
-  session_id: string;
-  user_id: string;
-  email: string;
-  display_name: string;
-  language: string;
-  email_verified: boolean;
-}
+export type RequestUser = SessionUserDto;
 
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): RequestUser => {

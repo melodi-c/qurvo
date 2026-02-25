@@ -676,7 +676,7 @@ describe('Rate limiting', () => {
     expect(res.status).toBe(202);
   });
 
-  it('does not rate-limit import endpoint', async () => {
+  it('rate-limits import endpoint', async () => {
     const tp = await createTestProject(ctx.db);
     await seedRateLimitBuckets(tp.projectId, RATE_LIMIT_MAX_EVENTS * 2);
 
@@ -684,7 +684,7 @@ describe('Rate limiting', () => {
       events: [{ event: 'imported', distinct_id: 'u1', timestamp: new Date().toISOString() }],
     });
 
-    expect(res.status).toBe(202);
+    expect(res.status).toBe(429);
   });
 
   it('increments rate limit counter after successful batch', async () => {

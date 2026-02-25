@@ -1,7 +1,6 @@
 import { Controller, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EventDefinitionsService } from '../../definitions/event-definitions.service';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
 import {
   EventDefinitionsListResponseDto,
@@ -20,12 +19,11 @@ export class EventDefinitionsController {
 
   @Get()
   async list(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Query() query: EventDefinitionsQueryDto,
   ): Promise<EventDefinitionsListResponseDto> {
     return this.eventDefinitionsService.list(projectId, {
-      search: query.search,
+      ...query,
       limit: query.limit ?? 100,
       offset: query.offset ?? 0,
       order_by: query.order_by ?? 'last_seen_at',
@@ -36,7 +34,6 @@ export class EventDefinitionsController {
   @RequireRole('editor')
   @Patch(':eventName')
   async upsert(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('eventName') eventName: string,
     @Body() body: UpsertEventDefinitionDto,
@@ -51,7 +48,6 @@ export class EventDefinitionsController {
   @RequireRole('editor')
   @Delete(':eventName')
   async remove(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('eventName') eventName: string,
   ): Promise<void> {

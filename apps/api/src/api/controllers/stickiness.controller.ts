@@ -4,7 +4,6 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { STICKINESS_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { StickinessQueryParams, StickinessQueryResult } from '../../analytics/stickiness/stickiness.query';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { StickinessQueryDto, StickinessResponseDto } from '../dto/stickiness.dto';
 
 @ApiTags('Analytics')
@@ -16,7 +15,6 @@ export class StickinessController {
 
   @Get('stickiness')
   async getStickiness(
-    @CurrentUser() user: RequestUser,
     @Query() query: StickinessQueryDto,
   ): Promise<StickinessResponseDto> {
     return this.stickinessService.query(query);

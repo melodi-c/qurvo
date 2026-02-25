@@ -45,8 +45,7 @@ import { AppUnauthorizedException } from '../exceptions/app-unauthorized.excepti
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { TooManyRequestsException } from '../exceptions/too-many-requests.exception';
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
-import { WrongPasswordException } from '../auth/exceptions/wrong-password.exception';
-import { InvalidVerificationCodeException } from '../verification/exceptions/invalid-verification-code.exception';
+import { AppUnprocessableEntityException } from '../exceptions/app-unprocessable-entity.exception';
 
 const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundException);
 const ConflictFilter = createHttpFilter(HttpStatus.CONFLICT, AppConflictException);
@@ -55,7 +54,7 @@ const UnauthorizedFilter = createHttpFilter(HttpStatus.UNAUTHORIZED, AppUnauthor
 const BadRequestFilter = createHttpFilter(HttpStatus.BAD_REQUEST, AppBadRequestException);
 const TooManyRequestsFilter = createHttpFilter(HttpStatus.TOO_MANY_REQUESTS, TooManyRequestsException);
 const AiNotConfiguredFilter = createHttpFilter(HttpStatus.NOT_IMPLEMENTED, AiNotConfiguredException);
-const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, WrongPasswordException, InvalidVerificationCodeException);
+const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTITY, AppUnprocessableEntityException);
 
 @Module({
   imports: [

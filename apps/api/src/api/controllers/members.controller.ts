@@ -23,7 +23,6 @@ export class MembersController {
 
   @Get()
   async listMembers(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<MemberDto[]> {
     return this.membersService.listMembers(projectId);
@@ -32,7 +31,6 @@ export class MembersController {
   @RequireRole('owner')
   @Put(':memberId/role')
   async updateRole(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('memberId') memberId: string,
     @Body() body: UpdateMemberRoleDto,
@@ -43,7 +41,6 @@ export class MembersController {
   @RequireRole('owner')
   @Delete(':memberId')
   async removeMember(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('memberId') memberId: string,
   ): Promise<void> {
@@ -63,7 +60,6 @@ export class InvitesController {
   @RequireRole('owner')
   @Get()
   async listInvites(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<InviteDto[]> {
     return this.membersService.listInvites(projectId);
@@ -82,7 +78,6 @@ export class InvitesController {
   @RequireRole('owner')
   @Delete(':inviteId')
   async cancelInvite(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('inviteId') inviteId: string,
   ): Promise<void> {
