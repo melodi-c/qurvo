@@ -4,7 +4,6 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { PATHS_SERVICE } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import type { PathsQueryParams, PathsQueryResult } from '../../analytics/paths/paths.query';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { PathsQueryDto, PathsResponseDto } from '../dto/paths.dto';
 
 @ApiTags('Analytics')
@@ -16,12 +15,8 @@ export class PathsController {
 
   @Get('paths')
   async getPaths(
-    @CurrentUser() user: RequestUser,
     @Query() query: PathsQueryDto,
   ): Promise<PathsResponseDto> {
-    return this.pathsService.query({
-      ...query,
-      step_limit: query.step_limit ?? 5,
-    });
+    return this.pathsService.query({ ...query, step_limit: query.step_limit ?? 5 });
   }
 }

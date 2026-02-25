@@ -3,6 +3,7 @@ import { eq, and, desc, lt } from 'drizzle-orm';
 import { aiConversations, aiMessages } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface SavedMessage {
   role: string;
@@ -102,11 +103,9 @@ export class AiChatService {
   }
 
   async finalizeConversation(conversationId: string, title?: string) {
-    const set: Record<string, unknown> = { updated_at: new Date() };
-    if (title !== undefined) set.title = title;
     await this.db
       .update(aiConversations)
-      .set(set)
+      .set({ updated_at: new Date(), ...buildConditionalUpdate({ title }, ['title']) })
       .where(eq(aiConversations.id, conversationId));
   }
 }

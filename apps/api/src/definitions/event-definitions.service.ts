@@ -101,20 +101,15 @@ export class EventDefinitionsService {
   }
 
   async delete(projectId: string, eventName: string) {
-    const existing = await this.db
-      .select({ id: eventDefinitions.id })
-      .from(eventDefinitions)
-      .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)));
-
-    if (existing.length === 0) throw new DefinitionNotFoundException('event', eventName);
-
     await this.db.transaction(async (tx) => {
       await tx
         .delete(eventProperties)
         .where(and(eq(eventProperties.project_id, projectId), eq(eventProperties.event_name, eventName)));
-      await tx
+      const deleted = await tx
         .delete(eventDefinitions)
-        .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)));
+        .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)))
+        .returning({ id: eventDefinitions.id });
+      if (deleted.length === 0) throw new DefinitionNotFoundException('event', eventName);
     });
   }
 }

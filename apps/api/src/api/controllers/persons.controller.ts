@@ -2,7 +2,6 @@ import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { PersonsService } from '../../persons/persons.service';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   PersonsQueryDto,
   PersonsListResponseDto,
@@ -13,18 +12,6 @@ import {
   PersonPropertyNamesQueryDto,
   PersonPropertyNamesResponseDto,
 } from '../dto/persons.dto';
-import type { PersonRow } from '../../persons/persons.query';
-
-function toPersonDto(p: PersonRow): PersonDto {
-  return {
-    id: p.id,
-    project_id: p.project_id,
-    properties: p.properties,
-    distinct_ids: p.distinct_ids ?? [],
-    created_at: p.created_at.toISOString(),
-    updated_at: p.updated_at.toISOString(),
-  };
-}
 
 @ApiTags('Persons')
 @ApiBearerAuth()
@@ -35,23 +22,17 @@ export class PersonsController {
 
   @Get()
   async getPersons(
-    @CurrentUser() user: RequestUser,
     @Query() query: PersonsQueryDto,
   ): Promise<PersonsListResponseDto> {
-    const { persons, total } = await this.personsService.getPersons({
-      project_id: query.project_id,
-      search: query.search,
-      filters: query.filters,
+    return this.personsService.getPersons({
+      ...query,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
-    });
-
-    return { persons: persons.map(toPersonDto), total };
+    }) as any;
   }
 
   @Get('property-names')
   async getPersonPropertyNames(
-    @CurrentUser() user: RequestUser,
     @Query() query: PersonPropertyNamesQueryDto,
   ): Promise<PersonPropertyNamesResponseDto> {
     const property_names = await this.personsService.getPersonPropertyNames(
@@ -62,17 +43,14 @@ export class PersonsController {
 
   @Get(':personId')
   async getPersonById(
-    @CurrentUser() user: RequestUser,
     @Query() query: PersonByIdQueryDto,
     @Param('personId') personId: string,
   ): Promise<PersonDto> {
-    const person = await this.personsService.getPersonById(query.project_id, personId);
-    return toPersonDto(person);
+    return this.personsService.getPersonById(query.project_id, personId) as any;
   }
 
   @Get(':personId/events')
   async getPersonEvents(
-    @CurrentUser() user: RequestUser,
     @Query() query: PersonEventsQueryDto,
     @Param('personId') personId: string,
   ): Promise<PersonEventRowDto[]> {

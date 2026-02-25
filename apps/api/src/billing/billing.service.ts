@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { projects, plans } from '@qurvo/db';
@@ -13,8 +13,6 @@ const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 
 @Injectable()
 export class BillingService {
-  private readonly logger = new Logger(BillingService.name);
-
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,

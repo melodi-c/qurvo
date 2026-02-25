@@ -35,32 +35,23 @@ export class EventsService {
   }
 
   async getEventPropertyNames(projectId: string, eventName?: string): Promise<string[]> {
-    if (eventName) {
-      // Event-scoped: query event_properties
-      const rows = await this.db
-        .select({ property_name: eventProperties.property_name })
-        .from(eventProperties)
-        .where(and(
-          eq(eventProperties.project_id, projectId),
-          eq(eventProperties.event_name, eventName),
-        ))
-        .orderBy(desc(eventProperties.last_seen_at));
-
-      const jsonKeys = rows.map((r) => r.property_name);
-      const directCols = [...DIRECT_COLUMNS].sort();
-      return [...directCols, ...jsonKeys];
-    }
-
-    // Global: query all distinct property names from event_properties
-    const rows = await this.db
-      .select({ property_name: eventProperties.property_name })
-      .from(eventProperties)
-      .where(eq(eventProperties.project_id, projectId))
-      .groupBy(eventProperties.property_name)
-      .orderBy(asc(eventProperties.property_name));
+    const rows = eventName
+      ? await this.db
+          .select({ property_name: eventProperties.property_name })
+          .from(eventProperties)
+          .where(and(
+            eq(eventProperties.project_id, projectId),
+            eq(eventProperties.event_name, eventName),
+          ))
+          .orderBy(desc(eventProperties.last_seen_at))
+      : await this.db
+          .select({ property_name: eventProperties.property_name })
+          .from(eventProperties)
+          .where(eq(eventProperties.project_id, projectId))
+          .groupBy(eventProperties.property_name)
+          .orderBy(asc(eventProperties.property_name));
 
     const jsonKeys = rows.map((r) => r.property_name);
-    const directCols = [...DIRECT_COLUMNS].sort();
-    return [...directCols, ...jsonKeys];
+    return [...[...DIRECT_COLUMNS].sort(), ...jsonKeys];
   }
 }

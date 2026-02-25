@@ -25,7 +25,6 @@ export class CohortsController {
 
   @Get()
   async list(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
   ): Promise<CohortDto[]> {
     return this.cohortsService.list(projectId) as any;
@@ -43,7 +42,6 @@ export class CohortsController {
 
   @Get(':cohortId')
   async getById(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
   ): Promise<CohortDto> {
@@ -53,7 +51,6 @@ export class CohortsController {
   @RequireRole('editor')
   @Put(':cohortId')
   async update(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
     @Body() body: UpdateCohortDto,
@@ -64,7 +61,6 @@ export class CohortsController {
   @RequireRole('editor')
   @Delete(':cohortId')
   async remove(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
   ): Promise<void> {
@@ -73,7 +69,6 @@ export class CohortsController {
 
   @Get(':cohortId/history')
   async getSizeHistory(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
     @Query() query: CohortSizeHistoryQueryDto,
@@ -83,7 +78,6 @@ export class CohortsController {
 
   @Get(':cohortId/count')
   async getMemberCount(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
   ): Promise<CohortMemberCountDto> {
@@ -93,7 +87,6 @@ export class CohortsController {
 
   @Post('preview-count')
   async previewCount(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Body() body: CohortPreviewDto,
   ): Promise<CohortMemberCountDto> {

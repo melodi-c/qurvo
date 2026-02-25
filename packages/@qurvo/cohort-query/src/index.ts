@@ -1,4 +1,4 @@
-export { RESOLVED_PERSON, resolvePropertyExpr, resolveEventPropertyExpr, buildEventFilterClauses, TOP_LEVEL_COLUMNS } from './helpers';
+export { RESOLVED_PERSON, resolvePropertyExpr, resolveEventPropertyExpr, buildEventFilterClauses, buildOperatorClause, TOP_LEVEL_COLUMNS } from './helpers';
 export { buildGroupSubquery, buildCohortSubquery, buildCohortFilterClause } from './builder';
 export { buildPropertyConditionSubquery } from './conditions/property';
 export { buildEventConditionSubquery } from './conditions/event';

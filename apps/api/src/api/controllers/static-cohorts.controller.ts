@@ -43,7 +43,6 @@ export class StaticCohortsController {
   @RequireRole('editor')
   @Post(':cohortId/upload-csv')
   async uploadCsv(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
     @Body() body: UploadCsvDto,
@@ -54,7 +53,6 @@ export class StaticCohortsController {
   @RequireRole('editor')
   @Post(':cohortId/members')
   async addMembers(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
     @Body() body: StaticCohortMembersDto,
@@ -65,7 +63,6 @@ export class StaticCohortsController {
   @RequireRole('editor')
   @Delete(':cohortId/members')
   async removeMembers(
-    @CurrentUser() user: RequestUser,
     @Param('projectId') projectId: string,
     @Param('cohortId') cohortId: string,
     @Body() body: StaticCohortMembersDto,

@@ -1,5 +1,32 @@
 import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto, PathsWidgetConfigDto } from './dashboards.dto';
+
+type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto | LifecycleWidgetConfigDto | StickinessWidgetConfigDto | PathsWidgetConfigDto;
+
+function insightConfigSchema() {
+  return {
+    oneOf: [
+      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
+      { $ref: getSchemaPath(TrendWidgetConfigDto) },
+      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
+      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
+      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
+      { $ref: getSchemaPath(PathsWidgetConfigDto) },
+    ],
+    discriminator: {
+      propertyName: 'type',
+      mapping: {
+        funnel: getSchemaPath(FunnelWidgetConfigDto),
+        trend: getSchemaPath(TrendWidgetConfigDto),
+        retention: getSchemaPath(RetentionWidgetConfigDto),
+        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
+        stickiness: getSchemaPath(StickinessWidgetConfigDto),
+        paths: getSchemaPath(PathsWidgetConfigDto),
+      },
+    },
+  };
+}
 
 // ── Query DTOs ──────────────────────────────────────────────────────────────
 
@@ -9,9 +36,6 @@ export class ListInsightsQueryDto {
   @IsIn(['trend', 'funnel', 'retention', 'lifecycle', 'stickiness', 'paths'])
   type?: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness' | 'paths';
 }
-import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto, PathsWidgetConfigDto } from './dashboards.dto';
-
-type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto | LifecycleWidgetConfigDto | StickinessWidgetConfigDto | PathsWidgetConfigDto;
 
 // ── Create / Update DTOs ──────────────────────────────────────────────────────
 
@@ -33,27 +57,7 @@ export class CreateInsightDto {
   description?: string;
 
   @IsObject()
-  @ApiProperty({
-    oneOf: [
-      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
-      { $ref: getSchemaPath(TrendWidgetConfigDto) },
-      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
-      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
-      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
-      { $ref: getSchemaPath(PathsWidgetConfigDto) },
-    ],
-    discriminator: {
-      propertyName: 'type',
-      mapping: {
-        funnel: getSchemaPath(FunnelWidgetConfigDto),
-        trend: getSchemaPath(TrendWidgetConfigDto),
-        retention: getSchemaPath(RetentionWidgetConfigDto),
-        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
-        stickiness: getSchemaPath(StickinessWidgetConfigDto),
-        paths: getSchemaPath(PathsWidgetConfigDto),
-      },
-    },
-  })
+  @ApiProperty(insightConfigSchema())
   config: AnyInsightConfig;
 }
 
@@ -71,27 +75,7 @@ export class UpdateInsightDto {
 
   @IsObject()
   @IsOptional()
-  @ApiPropertyOptional({
-    oneOf: [
-      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
-      { $ref: getSchemaPath(TrendWidgetConfigDto) },
-      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
-      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
-      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
-      { $ref: getSchemaPath(PathsWidgetConfigDto) },
-    ],
-    discriminator: {
-      propertyName: 'type',
-      mapping: {
-        funnel: getSchemaPath(FunnelWidgetConfigDto),
-        trend: getSchemaPath(TrendWidgetConfigDto),
-        retention: getSchemaPath(RetentionWidgetConfigDto),
-        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
-        stickiness: getSchemaPath(StickinessWidgetConfigDto),
-        paths: getSchemaPath(PathsWidgetConfigDto),
-      },
-    },
-  })
+  @ApiPropertyOptional(insightConfigSchema())
   config?: AnyInsightConfig;
 
   @IsBoolean()
@@ -114,27 +98,7 @@ export class InsightDto {
   name: string;
   @ApiPropertyOptional() description: string | null;
 
-  @ApiProperty({
-    oneOf: [
-      { $ref: getSchemaPath(FunnelWidgetConfigDto) },
-      { $ref: getSchemaPath(TrendWidgetConfigDto) },
-      { $ref: getSchemaPath(RetentionWidgetConfigDto) },
-      { $ref: getSchemaPath(LifecycleWidgetConfigDto) },
-      { $ref: getSchemaPath(StickinessWidgetConfigDto) },
-      { $ref: getSchemaPath(PathsWidgetConfigDto) },
-    ],
-    discriminator: {
-      propertyName: 'type',
-      mapping: {
-        funnel: getSchemaPath(FunnelWidgetConfigDto),
-        trend: getSchemaPath(TrendWidgetConfigDto),
-        retention: getSchemaPath(RetentionWidgetConfigDto),
-        lifecycle: getSchemaPath(LifecycleWidgetConfigDto),
-        stickiness: getSchemaPath(StickinessWidgetConfigDto),
-        paths: getSchemaPath(PathsWidgetConfigDto),
-      },
-    },
-  })
+  @ApiProperty(insightConfigSchema())
   config: AnyInsightConfig;
 
   is_favorite: boolean;

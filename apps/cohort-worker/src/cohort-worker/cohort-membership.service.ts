@@ -1,20 +1,16 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { eq, and, or, isNull, sql } from 'drizzle-orm';
-import { type Database, cohorts } from '@qurvo/db';
 import { topologicalSortCohorts } from '@qurvo/cohort-query';
-import { DRIZZLE } from '@qurvo/nestjs-infra';
 import { type DistributedLock } from '@qurvo/distributed-lock';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
-  COHORT_STALE_THRESHOLD_MINUTES,
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
   COHORT_ERROR_BACKOFF_MAX_EXPONENT,
   COHORT_INITIAL_DELAY_MS,
   COHORT_GC_EVERY_N_CYCLES,
 } from '../constants';
 import { DISTRIBUTED_LOCK } from './tokens';
-import { CohortComputationService } from './cohort-computation.service';
+import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +23,6 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
   constructor(
     @Inject(DISTRIBUTED_LOCK) private readonly lock: DistributedLock,
-    @Inject(DRIZZLE) private readonly db: Database,
     @InjectPinoLogger(CohortMembershipService.name)
     private readonly logger: PinoLogger,
     private readonly computation: CohortComputationService,
@@ -81,24 +76,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
 
     try {
       // ── 1. Fetch only stale dynamic cohorts ────────────────────────────
-      const staleCohorts = await this.db
-        .select({
-          id: cohorts.id,
-          project_id: cohorts.project_id,
-          definition: cohorts.definition,
-          errors_calculating: cohorts.errors_calculating,
-          last_error_at: cohorts.last_error_at,
-        })
-        .from(cohorts)
-        .where(
-          and(
-            eq(cohorts.is_static, false),
-            or(
-              isNull(cohorts.membership_computed_at),
-              sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '1 minute' * ${COHORT_STALE_THRESHOLD_MINUTES}`,
-            ),
-          ),
-        );
+      const staleCohorts = await this.computation.findStaleCohorts();
 
       staleCount = staleCohorts.length;
 
@@ -121,38 +99,17 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       if (cyclic.length > 0) {
         this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
         for (const id of cyclic) {
-          await this.computation
-            .recordError(id, new Error('Cyclic cohort dependency detected'))
-            .catch((err) => this.logger.error({ err, cohortId: id }, 'Failed to record cyclic dependency error'));
+          await this.computation.recordError(id, new Error('Cyclic cohort dependency detected'));
         }
       }
 
       // ── 4. Compute each cohort ─────────────────────────────────────────
       const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
 
-      for (const { id, definition } of sorted) {
-        const cohort = cohortById.get(id)!;
-        try {
-          const version = Date.now();
-          await this.computation.computeMembership(id, cohort.project_id, definition, version);
-          const pgOk = await this.computation.markComputationSuccess(id, version);
-          if (pgOk) {
-            await this.computation.recordSizeHistory(id, cohort.project_id);
-          } else {
-            pgFailed++;
-          }
-          computed++;
-        } catch (err) {
-          try {
-            await this.computation.recordError(id, err);
-          } catch (recordErr) {
-            this.logger.error({ err: recordErr, cohortId: id }, 'Failed to record error');
-          }
-          this.logger.error(
-            { err, cohortId: id, projectId: cohort.project_id },
-            'Failed to compute membership for cohort',
-          );
-        }
+      for (const { id } of sorted) {
+        const result = await this.processOneCohort(cohortById.get(id)!);
+        computed += result.computed;
+        pgFailed += result.pgFailed;
       }
     } finally {
       // ── 5. GC orphaned memberships (every N cycles, skips the first) ──
@@ -165,6 +122,27 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       );
 
       await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
+    }
+  }
+
+  private async processOneCohort(
+    cohort: StaleCohort,
+  ): Promise<{ computed: number; pgFailed: number }> {
+    try {
+      const version = Date.now();
+      await this.computation.computeMembership(cohort.id, cohort.project_id, cohort.definition, version);
+      const pgOk = await this.computation.markComputationSuccess(cohort.id, version);
+      if (pgOk) {
+        await this.computation.recordSizeHistory(cohort.id, cohort.project_id);
+      }
+      return { computed: 1, pgFailed: pgOk ? 0 : 1 };
+    } catch (err) {
+      await this.computation.recordError(cohort.id, err);
+      this.logger.error(
+        { err, cohortId: cohort.id, projectId: cohort.project_id },
+        'Failed to compute membership for cohort',
+      );
+      return { computed: 0, pgFailed: 0 };
     }
   }
 

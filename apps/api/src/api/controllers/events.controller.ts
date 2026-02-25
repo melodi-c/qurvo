@@ -2,7 +2,6 @@ import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { EventsService } from '../../events/events.service';
-import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import {
   EventsQueryDto, EventRowDto,
   EventDetailDto, EventDetailQueryDto,
@@ -19,7 +18,6 @@ export class EventsController {
 
   @Get('events')
   async getEvents(
-    @CurrentUser() user: RequestUser,
     @Query() query: EventsQueryDto,
   ): Promise<EventRowDto[]> {
     return this.eventsService.getEvents(query);
@@ -27,7 +25,6 @@ export class EventsController {
 
   @Get('events/:eventId')
   async getEventDetail(
-    @CurrentUser() user: RequestUser,
     @Param('eventId') eventId: string,
     @Query() query: EventDetailQueryDto,
   ): Promise<EventDetailDto> {
@@ -36,7 +33,6 @@ export class EventsController {
 
   @Get('event-names')
   async getEventNames(
-    @CurrentUser() user: RequestUser,
     @Query() query: EventNamesQueryDto,
   ): Promise<EventNamesResponseDto> {
     const event_names = await this.eventsService.getEventNames(query.project_id);
@@ -45,7 +41,6 @@ export class EventsController {
 
   @Get('event-property-names')
   async getEventPropertyNames(
-    @CurrentUser() user: RequestUser,
     @Query() query: EventPropertyNamesQueryDto,
   ): Promise<EventPropertyNamesResponseDto> {
     const property_names = await this.eventsService.getEventPropertyNames(query.project_id, query.event_name);

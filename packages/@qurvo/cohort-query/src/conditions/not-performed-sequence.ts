@@ -1,32 +1,13 @@
 import type { CohortNotPerformedEventSequenceCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses } from '../helpers';
+import { RESOLVED_PERSON } from '../helpers';
 import type { BuildContext } from '../types';
+import { buildSequenceCore } from './sequence-core';
 
 export function buildNotPerformedEventSequenceSubquery(
   cond: CohortNotPerformedEventSequenceCondition,
   ctx: BuildContext,
 ): string {
-  const condIdx = ctx.counter.value++;
-  const daysPk = `coh_${condIdx}_days`;
-
-  ctx.queryParams[daysPk] = cond.time_window_days;
-
-  // Build sequenceMatch pattern: (?1).*(?2).*...
-  const patternParts = cond.steps.map((_, i) => `(?${i + 1})`);
-  const pattern = patternParts.join('.*');
-
-  // Build condition expressions for each step
-  const stepConditions = cond.steps.map((step, i) => {
-    const stepEventPk = `coh_${condIdx}_seq_${i}`;
-    ctx.queryParams[stepEventPk] = step.event_name;
-
-    let filterExpr = `event_name = {${stepEventPk}:String}`;
-    if (step.event_filters && step.event_filters.length > 0) {
-      const filterClause = buildEventFilterClauses(step.event_filters, `coh_${condIdx}_s${i}`, ctx.queryParams);
-      filterExpr += filterClause;
-    }
-    return filterExpr;
-  });
+  const { pattern, stepConditions, daysPk } = buildSequenceCore(cond, ctx);
 
   return `
     SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
