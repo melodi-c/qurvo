@@ -53,74 +53,72 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
   if (cohorts.length === 0) return null;
 
   return (
-    <div className="overflow-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="sticky left-0 bg-background z-10 min-w-[100px]">{t('cohort')}</TableHead>
-            <TableHead className="text-right min-w-[60px]">{t('users')}</TableHead>
-            {periodHeaders.map((h) => (
-              <TableHead key={h} className="text-center min-w-[70px] text-xs">{h}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {/* Average row */}
-          <TableRow className="border-b-2 border-border font-medium">
-            <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground">
-              {t('average')}
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="sticky left-0 bg-background z-20 min-w-[100px]">{t('cohort')}</TableHead>
+          <TableHead className="text-right min-w-[60px]">{t('users')}</TableHead>
+          {periodHeaders.map((h) => (
+            <TableHead key={h} className="text-center min-w-[70px] text-xs">{h}</TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {/* Average row */}
+        <TableRow className="border-b-2 border-border font-medium">
+          <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground">
+            {t('average')}
+          </TableCell>
+          <TableCell />
+          {average_retention.slice(0, maxPeriods).map((pct, i) => (
+            <TableCell
+              key={i}
+              className="text-center text-xs"
+              style={{ backgroundColor: heatmapColor(pct) }}
+            >
+              {pct.toFixed(1)}%
             </TableCell>
-            <TableCell />
-            {average_retention.slice(0, maxPeriods).map((pct, i) => (
-              <TableCell
-                key={i}
-                className="text-center text-xs"
-                style={{ backgroundColor: heatmapColor(pct) }}
-              >
-                {pct.toFixed(1)}%
+          ))}
+        </TableRow>
+
+        {/* Cohort rows */}
+        {cohorts.map((cohort) => {
+          const periods = cohort.periods.slice(0, maxPeriods);
+          return (
+            <TableRow key={cohort.cohort_date}>
+              <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
+                {formatDate(cohort.cohort_date, granularity)}
               </TableCell>
-            ))}
-          </TableRow>
+              <TableCell className="text-right text-xs tabular-nums">
+                {cohort.cohort_size.toLocaleString()}
+              </TableCell>
+              {periods.map((count, i) => {
+                const pct = cohort.cohort_size > 0 ? (count / cohort.cohort_size) * 100 : 0;
+                const cell = (
+                  <TableCell
+                    key={i}
+                    className="text-center text-xs tabular-nums"
+                    style={{ backgroundColor: heatmapColor(pct) }}
+                  >
+                    {pct.toFixed(1)}%
+                  </TableCell>
+                );
 
-          {/* Cohort rows */}
-          {cohorts.map((cohort) => {
-            const periods = cohort.periods.slice(0, maxPeriods);
-            return (
-              <TableRow key={cohort.cohort_date}>
-                <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
-                  {formatDate(cohort.cohort_date, granularity)}
-                </TableCell>
-                <TableCell className="text-right text-xs tabular-nums">
-                  {cohort.cohort_size.toLocaleString()}
-                </TableCell>
-                {periods.map((count, i) => {
-                  const pct = cohort.cohort_size > 0 ? (count / cohort.cohort_size) * 100 : 0;
-                  const cell = (
-                    <TableCell
-                      key={i}
-                      className="text-center text-xs tabular-nums"
-                      style={{ backgroundColor: heatmapColor(pct) }}
-                    >
-                      {pct.toFixed(1)}%
-                    </TableCell>
-                  );
+                if (compact) return cell;
 
-                  if (compact) return cell;
-
-                  return (
-                    <Tooltip key={i}>
-                      <TooltipTrigger asChild>{cell}</TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">{t('usersCount', { count: count.toLocaleString(), pct: pct.toFixed(1) })}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+                return (
+                  <Tooltip key={i}>
+                    <TooltipTrigger asChild>{cell}</TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{t('usersCount', { count: count.toLocaleString(), pct: pct.toFixed(1) })}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
