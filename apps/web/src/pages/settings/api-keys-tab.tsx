@@ -2,29 +2,23 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Plus, Key, Copy, Check } from 'lucide-react';
+import { Key, Copy, Check } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import { formatRelativeTime } from '@/lib/formatting';
+import { CreateApiKeyForm } from './create-api-key-form';
 import translations from './api-keys-tab.translations';
 
-const AVAILABLE_SCOPES = ['ingest', 'read'] as const;
-
 export function ApiKeysTab({ projectId }: { projectId: string }) {
-  const [showCreate, setShowCreate] = useState(false);
-  const [name, setName] = useState('');
-  const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
-  const [expiresAt, setExpiresAt] = useState('');
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
   const queryClient = useQueryClient();
   const { t } = useLocalTranslation(translations);
   const confirmRevoke = useConfirmDelete();
@@ -36,15 +30,11 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; scopes?: string[]; expires_at?: string }) =>
+    mutationFn: (data: Parameters<typeof api.apiKeysControllerCreate>[1]) =>
       api.apiKeysControllerCreate({ projectId }, data),
     onSuccess: (data) => {
       setCreatedKey(data.key);
       queryClient.invalidateQueries({ queryKey: ['apiKeys', projectId] });
-      setShowCreate(false);
-      setName('');
-      setSelectedScopes([]);
-      setExpiresAt('');
     },
     onError: () => toast.error(t('createFailed')),
   });
@@ -59,32 +49,9 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
     await revokeMutation.mutateAsync(confirmRevoke.itemId);
   }, [confirmRevoke.itemId, revokeMutation]);
 
-  const handleCreate = useCallback(() => {
-    const payload: { name: string; scopes?: string[]; expires_at?: string } = { name };
-    if (selectedScopes.length > 0) payload.scopes = selectedScopes;
-    if (expiresAt) payload.expires_at = new Date(expiresAt).toISOString();
-    createMutation.mutate(payload);
-  }, [name, selectedScopes, expiresAt, createMutation]);
-
-  const toggleScope = useCallback((scope: string) => {
-    setSelectedScopes((prev) =>
-      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
-    );
-  }, []);
-
-  const copyKey = async () => {
-    if (createdKey) {
-      await navigator.clipboard.writeText(createdKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-2xl">
-      <Button onClick={() => setShowCreate(true)}>
-        <Plus className="h-4 w-4 mr-2" /> {t('newKey')}
-      </Button>
+      <CreateApiKeyForm createMutation={createMutation} />
 
       {createdKey && (
         <Card className={STATUS_COLORS.successBorder}>
@@ -92,79 +59,11 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
             <p className={`text-sm ${STATUS_COLORS.successText} mb-2`}>{t('keyCreated')}</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-muted p-3 rounded text-sm break-all">{createdKey}</code>
-              <Button size="icon" variant="outline" onClick={copyKey}>
+              <Button size="icon" variant="outline" onClick={() => copy(createdKey)}>
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
             <Button variant="ghost" size="sm" className="mt-2" onClick={() => setCreatedKey(null)}>{t('dismiss')}</Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {showCreate && (
-        <Card>
-          <CardContent className="pt-6">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleCreate();
-              }}
-              className="space-y-4"
-            >
-              <Input
-                placeholder={t('placeholder')}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoFocus
-              />
-
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">{t('scopesLabel')}</Label>
-                <div className="flex gap-3">
-                  {AVAILABLE_SCOPES.map((scope) => (
-                    <label key={scope} className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedScopes.includes(scope)}
-                        onChange={() => toggleScope(scope)}
-                        className="rounded border-border"
-                      />
-                      <span className="text-sm">{scope}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="expires-at" className="text-sm text-muted-foreground">{t('expiresLabel')}</Label>
-                <Input
-                  id="expires-at"
-                  type="date"
-                  value={expiresAt}
-                  onChange={(e) => setExpiresAt(e.target.value)}
-                  min={new Date().toISOString().slice(0, 10)}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {t('createLabel')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowCreate(false);
-                    setName('');
-                    setSelectedScopes([]);
-                    setExpiresAt('');
-                  }}
-                >
-                  {t('cancel')}
-                </Button>
-              </div>
-            </form>
           </CardContent>
         </Card>
       )}
