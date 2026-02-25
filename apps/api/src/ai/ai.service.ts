@@ -61,11 +61,16 @@ export class AiService implements OnModuleInit {
     return this.client;
   }
 
+  /** Pre-stream validation: throws domain exceptions before SSE headers are sent. */
+  async validateChatAccess(userId: string, projectId: string): Promise<void> {
+    await this.projectsService.getMembership(userId, projectId);
+    this.getClient();
+  }
+
   async *chat(
     userId: string,
     params: { project_id: string; conversation_id?: string; message: string },
   ): AsyncGenerator<AiStreamChunk> {
-    await this.projectsService.getMembership(userId, params.project_id);
     const client = this.getClient();
 
     // Create or load conversation
@@ -145,6 +150,7 @@ export class AiService implements OnModuleInit {
     userId: string,
     projectId: string,
   ): AsyncGenerator<AiStreamChunk, number> {
+    let exhausted = true;
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
       const stream = await client.chat.completions.create({
         model: this.model,
@@ -189,6 +195,7 @@ export class AiService implements OnModuleInit {
           tool_result: null,
           visualization_type: null,
         });
+        exhausted = false;
         break;
       }
 
@@ -260,7 +267,9 @@ export class AiService implements OnModuleInit {
       }
     }
 
-    this.logger.warn({ conversationId }, `Tool-call loop exhausted after ${AI_MAX_TOOL_CALL_ITERATIONS} iterations`);
+    if (exhausted) {
+      this.logger.warn({ conversationId }, `Tool-call loop exhausted after ${AI_MAX_TOOL_CALL_ITERATIONS} iterations`);
+    }
     return seq;
   }
 

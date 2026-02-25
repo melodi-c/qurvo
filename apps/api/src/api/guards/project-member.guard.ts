@@ -4,8 +4,7 @@ import { ProjectsService } from '../../projects/projects.service';
 import { InsufficientPermissionsException } from '../../projects/exceptions/insufficient-permissions.exception';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { REQUIRED_ROLE_KEY, type ProjectRole } from '../decorators/require-role.decorator';
-
-const ROLE_LEVEL: Record<string, number> = { owner: 3, editor: 2, viewer: 1 };
+import { PROJECT_ROLE_LEVELS } from '../../constants';
 
 @Injectable()
 export class ProjectMemberGuard implements CanActivate {
@@ -33,7 +32,7 @@ export class ProjectMemberGuard implements CanActivate {
 
     if (
       requiredRole &&
-      ROLE_LEVEL[membership.role] < ROLE_LEVEL[requiredRole]
+      PROJECT_ROLE_LEVELS[membership.role] < PROJECT_ROLE_LEVELS[requiredRole]
     ) {
       throw new InsufficientPermissionsException();
     }

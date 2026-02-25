@@ -93,6 +93,10 @@ export class CohortsService {
 
     const definition = input.definition;
 
+    if (definition !== undefined && existing[0].is_static) {
+      throw new AppBadRequestException('Cannot set a definition on a static cohort');
+    }
+
     if (definition) {
       await this.checkCircularDependency(cohortId, definition, projectId);
     }

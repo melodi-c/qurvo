@@ -3,6 +3,7 @@ import { eq, and, desc, asc, ilike, inArray, count, SQL, type AnyColumn } from '
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { propertyDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface PropertyDefinitionItem {
@@ -20,13 +21,13 @@ export interface PropertyDefinitionItem {
 
 export interface PropertyDefinitionListParams {
   type?: 'event' | 'person';
-  eventName?: string;
+  event_name?: string;
   search?: string;
   is_numerical?: boolean;
-  limit: number;
-  offset: number;
-  order_by: string;
-  order: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+  order_by?: string;
+  order?: 'asc' | 'desc';
 }
 
 const columnMap: Record<string, AnyColumn> = {
@@ -43,7 +44,7 @@ export class PropertyDefinitionsService {
   ) {}
 
   async list(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
-    if (params.eventName) {
+    if (params.event_name) {
       return this.listEventScoped(projectId, params);
     }
 
@@ -57,8 +58,10 @@ export class PropertyDefinitionsService {
     if (params.is_numerical !== undefined) conditions.push(eq(propertyDefinitions.is_numerical, params.is_numerical));
 
     const where = and(...conditions)!;
-    const orderCol = columnMap[params.order_by] ?? propertyDefinitions.last_seen_at;
+    const orderCol = columnMap[params.order_by ?? 'last_seen_at'] ?? propertyDefinitions.last_seen_at;
     const orderFn = params.order === 'asc' ? asc : desc;
+    const limit = params.limit ?? 100;
+    const offset = params.offset ?? 0;
 
     const [rows, countResult] = await Promise.all([
       this.db
@@ -66,8 +69,8 @@ export class PropertyDefinitionsService {
         .from(propertyDefinitions)
         .where(where)
         .orderBy(orderFn(orderCol))
-        .limit(params.limit)
-        .offset(params.offset),
+        .limit(limit)
+        .offset(offset),
       this.db
         .select({ count: count() })
         .from(propertyDefinitions)
@@ -94,7 +97,7 @@ export class PropertyDefinitionsService {
   private async listEventScoped(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     const epConditions: SQL[] = [
       eq(eventProperties.project_id, projectId),
-      eq(eventProperties.event_name, params.eventName!),
+      eq(eventProperties.event_name, params.event_name!),
     ];
     if (params.type) epConditions.push(eq(eventProperties.property_type, params.type));
     if (params.search) epConditions.push(ilike(eventProperties.property_name, `%${params.search}%`));
@@ -111,8 +114,8 @@ export class PropertyDefinitionsService {
         .from(eventProperties)
         .where(epWhere)
         .orderBy(desc(eventProperties.last_seen_at))
-        .limit(params.limit)
-        .offset(params.offset),
+        .limit(params.limit ?? 100)
+        .offset(params.offset ?? 0),
       this.db
         .select({ count: count() })
         .from(eventProperties)
@@ -160,9 +163,12 @@ export class PropertyDefinitionsService {
   async upsert(
     projectId: string,
     propertyName: string,
-    propertyType: 'event' | 'person',
+    propertyType: string,
     input: { description?: string; tags?: string[]; verified?: boolean; value_type?: string; is_numerical?: boolean },
   ) {
+    if (propertyType !== 'event' && propertyType !== 'person') {
+      throw new AppBadRequestException(`propertyType must be "event" or "person", got "${propertyType}"`);
+    }
     const rows = await this.db
       .insert(propertyDefinitions)
       .values({
@@ -187,7 +193,10 @@ export class PropertyDefinitionsService {
     return rows[0];
   }
 
-  async delete(projectId: string, propertyName: string, propertyType: 'event' | 'person') {
+  async delete(projectId: string, propertyName: string, propertyType: string) {
+    if (propertyType !== 'event' && propertyType !== 'person') {
+      throw new AppBadRequestException(`propertyType must be "event" or "person", got "${propertyType}"`);
+    }
     const rows = await this.db
       .delete(propertyDefinitions)
       .where(and(

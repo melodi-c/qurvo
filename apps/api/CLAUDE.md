@@ -93,11 +93,11 @@ constructor(
 Project-scoped endpoints use `ProjectMemberGuard` (from `src/api/guards/project-member.guard.ts`) instead of calling `getMembership()` in every service method:
 1. Guard reads `projectId` from `request.params.projectId` or `request.query.project_id`
 2. Calls `ProjectsService.getMembership()` once to verify access
-3. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy: `owner (3) > editor (2) > viewer (1)`
+3. If `@RequireRole('editor')` or `@RequireRole('owner')` is present, checks role hierarchy via `PROJECT_ROLE_LEVELS` from `constants.ts`: `owner (3) > editor (2) > viewer (1)`
 4. Guard throws `AppBadRequestException` when `projectId` is missing from request
 5. All write operations (POST/PUT/DELETE) on project-scoped controllers must use `@RequireRole('editor')` or `@RequireRole('owner')`
 
-**Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id sometimes in body — `AiService` calls `getMembership()` directly).
+**Not guarded** (by design): `AuthController`, `ProjectsController` (mixed endpoints, uses `:id` not `:projectId`), `HealthController` (`@Public()`), `MyInvitesController` (user-scoped), `AiController` (project_id in body — `AiService.validateChatAccess()` is called **before** SSE `writeHead` so auth errors return proper HTTP status codes instead of being swallowed into SSE events).
 
 ### Analytics Queries
 All analytics services are created via `createAnalyticsQueryProvider()` factory in `src/analytics/analytics-query.factory.ts`. Each provider wraps a pure query function with shared logic:
@@ -133,7 +133,7 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 `src/api/dto/shared/` contains shared DTO utilities:
 - `base-analytics-query.dto.ts` — `CoreQueryDto` base class with common fields (`project_id`, `date_from`, `date_to`, `force?`). `BaseAnalyticsQueryDto` extends it adding `cohort_ids?` and `widget_id?`. Analytics query DTOs extend `BaseAnalyticsQueryDto`; `WebAnalyticsQueryDto` extends `CoreQueryDto`.
 - `filters.dto.ts` — `StepFilterDto` class, re-exports `FilterOperator` from `utils/property-filter.ts`
-- `transforms.ts` — `parseJsonArray()` for query params arriving as JSON strings; `makeJsonArrayTransform(TargetClass)` for JSON-encoded arrays that need `plainToInstance` instantiation
+- `transforms.ts` — `parseJsonArray()` for query params arriving as JSON strings (throws `AppBadRequestException` on invalid JSON); `makeJsonArrayTransform(TargetClass)` for JSON-encoded arrays that need `plainToInstance` instantiation
 
 ### Controller Organization
 Controllers and DTOs live in `src/api/controllers/` and `src/api/dto/`, **not** inside feature module directories. This is intentional: `ApiModule` acts as a **composition layer** — controllers may inject services from multiple feature modules (e.g. a dashboard controller using both `DashboardsService` and `AnalyticsService`). Feature modules (`src/{feature}/`) contain only services, queries, and domain exceptions. **Do not move controllers into feature modules.**
