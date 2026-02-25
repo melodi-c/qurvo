@@ -50,18 +50,20 @@ src/
 
 | Method | Path | Auth | Response | Description |
 |---|---|---|---|---|
-| GET | `/health` | No | 200 `{ status: 'ok' }` | Health check |
+| GET | `/health` | No | 200 `{ status: 'ok' }` | Liveness check (k8s liveness + startup probes) |
+| GET | `/ready` | No | 200 `{ status: 'ok' }` or 503 | Readiness check — Redis PING (k8s readiness probe) |
 | POST | `/v1/batch` | `x-api-key` header or `api_key` body field | 202 `{ ok, count, dropped }` or 204 (beacon) | Batch event ingestion (1-500, per-event validation) |
 | POST | `/v1/batch?beacon=1` | same | 204 No Content | Beacon mode for `navigator.sendBeacon()` |
-| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | Historical import (1-5000, strict validation, no billing, rate-limited) |
+| POST | `/v1/import` | `x-api-key` header or `api_key` body field | 202 `{ ok, count }` | **Temporary endpoint** — historical import (1-5000, strict validation, no billing). Will be removed once migration is complete. |
 
 ## Key Patterns
 
 ### Event Pipeline
 ```
 SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod validation → IngestService.buildPayload()
-  → UA parsing (ua-parser-js) → Redis XADD (events:incoming)
+  → Redis XADD (events:incoming)
 ```
+UA parsing is deferred to the processor — ingest stores raw `user_agent` string in the stream payload. SDK context fields (browser, os, device_type) are passed through as-is if present.
 
 ### Guard Chain
 - **`ApiKeyGuard`** — validates API key format (printable ASCII, ≤128 chars) before any IO, then authenticates via SHA-256 hash lookup (300s Redis cache, DB fallback). Sets `request.projectId`, `request.eventsLimit`, and initializes `request.quotaLimited = false`. Checks both `expires_at` and `revoked_at` on cache hit and DB path — revoked keys are immediately rejected even from cache. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
@@ -97,8 +99,9 @@ Batch endpoint validates each event individually via `TrackEventSchema.safeParse
 ### Payload Enrichment
 `buildPayload()` merges SDK event with server-side context via `BuildPayloadOpts`:
 - `schema_version`, `event_id` (UUIDv7), `project_id`, `timestamp`
-- UA fields: `browser`, `browser_version`, `os`, `os_version`, `device_type`
-- Context: `ip`, `url`, `referrer`, `page_title`, `page_path`
+- `user_agent` (raw User-Agent header — UA parsing deferred to processor)
+- SDK context fields passed through: `browser`, `os`, `device_type`, etc. (empty if SDK doesn't send them)
+- Server context: `ip`, `url`, `referrer`, `page_title`, `page_path`
 
 ### Batch Writes
 Batch endpoint uses `redis.pipeline()` for atomic multi-event writes to the stream.
@@ -120,7 +123,7 @@ Before writing to the Redis stream, `IngestService` checks `XLEN` against `STREA
 Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 days) instead of relative `EXPIRE`. This is idempotent — calling EXPIREAT multiple times sets the same absolute timestamp instead of resetting a sliding TTL window.
 
 ### Error Handling: Retryable vs Non-Retryable
-Controller wraps `IngestService` calls in try-catch. Redis stream write failures and backpressure → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`. Partial Redis pipeline failures are logged with sample errors for debugging.
+`callOrThrow503()` wraps service calls — Redis stream write failures and backpressure → **503** `{ retryable: true }` (signals SDK to retry with backoff). All other errors (validation, auth) remain 4xx (SDK drops batch, no retry). This pairs with `NonRetryableError` in `@qurvo/sdk-core`. Partial Redis pipeline failures are logged with sample errors for debugging.
 
 ### Event Type Mapping
 `EVENT_TYPE_MAP` maps SDK event names to ClickHouse `event_type`: `$identify` → `identify`, `$pageview` → `pageview`, `$pageleave` → `pageleave`, `$set` → `set`, `$set_once` → `set_once`, `$screen` → `screen`, everything else → `track`.
@@ -151,5 +154,5 @@ Controller wraps `IngestService` calls in try-catch. Redis stream write failures
 - Schema version: schema_version field present in stream payload
 - UUIDv7: event_id format validation
 - Max batch size: 400 on >500 batch events, 400 on >5000 import events
-- UA enrichment: browser/os/device from User-Agent header, SDK context overrides UA-parsed values
+- User-Agent passthrough: raw UA stored in stream, SDK context fields passed through, UA parsing deferred to processor
 - Rate limiting: 429 when exceeded, 202 under limit, 429 on import when exceeded, counter increment

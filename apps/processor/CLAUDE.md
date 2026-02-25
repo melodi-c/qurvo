@@ -29,8 +29,8 @@ src/
 │   │   ├── parse.step.ts               # Step 1: flat Redis arrays → RawMessage[]
 │   │   ├── validate.step.ts            # Step 2: validate required fields + illegal distinct_ids
 │   │   ├── prefetch.step.ts            # Step 3: batch MGET person IDs from Redis
-│   │   ├── resolve.step.ts             # Step 4: person resolution + Event DTO building (concurrent across groups)
-│   │   └── index.ts                    # Re-exports all steps + types
+│   │   ├── resolve.step.ts             # Step 4: person resolution + UA parsing + Event DTO building (concurrent across groups)
+│   │   └── index.ts                    # Re-exports all steps + BufferedEvent type
 │   ├── flush.service.ts                 # Buffer → ClickHouse batch insert + concurrency guard + shutdown()
 │   ├── definition-sync.service.ts       # Upsert event/property definitions to PG + cache invalidation
 │   ├── value-type.ts                    # detectValueType() + helpers (extracted from definition-sync)
@@ -39,8 +39,8 @@ src/
 │   ├── deterministic-person-id.ts       # UUIDv5 person ID generation (fixed namespace — NEVER change)
 │   ├── person-utils.ts                  # parseUserProperties() — $set/$set_once/$unset parsing + noisy property filtering
 │   ├── person-batch-store.ts            # Batched person writes + identity merge transaction + failed merge persistence
-│   ├── dlq.service.ts                   # Dead letter queue replay with flush-wait safety
-│   ├── event-utils.ts                   # safeScreenDimension() + groupByKey() — shared utilities
+│   ├── dlq.service.ts                   # Dead letter queue replay
+│   ├── event-utils.ts                   # safeScreenDimension() + groupByKey() + parseUa() — shared utilities
 │   ├── time-utils.ts                    # floorToHourMs() — shared time utilities
 │   ├── redis-utils.ts                   # parseRedisFields() — shared Redis field parser
 │   ├── retry.ts                         # withRetry() linear backoff + jitter
@@ -64,7 +64,7 @@ Redis Stream (events:incoming)
   → pipeline/validate.step  — drop invalid events (missing fields / illegal distinct_ids), XACK them
   → pipeline/prefetch.step  — batch MGET person IDs from Redis (single RTT)
   → pipeline/resolve.step   — GroupBy project_id:distinct_id, concurrent groups via allSettled
-                              → GeoIP lookup + person resolution → Event DTO
+                              → GeoIP lookup + UA parsing + person resolution → Event DTO
   → Buffer (max 1000 events)
   → FlushService: batch insert to ClickHouse (every 5s or on threshold, concurrency-guarded)
   → XACK (confirm consumption)
@@ -76,7 +76,7 @@ Redis Stream (events:incoming)
 | Service | Responsibility | Key config |
 |---|---|---|
 | `EventConsumerService` | XREADGROUP loop, XAUTOCLAIM for pending, heartbeat, pipeline orchestration | Claim idle >60s every 30s, backpressure via `PROCESSOR_BACKPRESSURE_THRESHOLD`, exits after 100 consecutive errors for K8s restart, `consecutiveErrors` only resets after successful `processMessages()` (not on empty XREADGROUP) |
-| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, PG person flush is critical (failure → DLQ), 3 CH retries then DLQ, concurrency guard, `shutdown()` = wait for in-progress flush + final flush |
+| `FlushService` | Buffer events, batch insert to ClickHouse | 1000 events or 5s interval, PG person flush is critical (failure → DLQ), 3 CH retries then DLQ, concurrency guard, `shutdown()` = wait for in-progress flush + final flush. Root cause of batch failure is logged before DLQ routing. |
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Deterministic person_id resolution via UUIDv5 + Redis cache + PG fallback | Batch MGET prefetch, deterministic UUIDs (same project+distinct_id → same person_id), Redis SET NX with 90d TTL, PG cold-start fallback for legacy data |
 | `PersonBatchStore` | Batched person writes + identity merge | Promise-based flush lock (concurrent callers await previous flush then run), bulk upsert persons/distinct_ids with conditional WHERE (skip unchanged), updated_at floored to hour, re-queues pending data on flush failure, transactional merge with retry (3×200ms), failed merges persisted to Redis for retry (`processor:failed_merges`), `HourlyCache` for knownDistinctIds dedup |
@@ -145,6 +145,9 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 - **PersonResolver uses deterministic UUIDs (UUIDv5)** — person_id = UUIDv5(projectId:distinctId) with a fixed namespace. Two processor instances always compute the same UUID for the same input, eliminating races entirely. Redis SET NX + PG fallback kept for backward compat with legacy random UUIDs. Batch MGET prefetch reduces per-event Redis RTTs to a single batch call. The namespace in `deterministic-person-id.ts` must NEVER change.
 - **Pipeline steps are function-level in `pipeline/` directory** — `processMessages()` orchestrates 4 typed step functions: `parseMessages()`, `validateMessages()`, `prefetchPersons()`, `resolveAndBuildEvents()`. Each step has typed input/output. Full class-level pipeline framework (PostHog V2 style) is overkill at current scale — functions are simpler and more testable. `buildEvent()` lives inside `resolve.step.ts` as a private helper.
 - **Overflow routing for noisy tenants** — Not needed at current scale. If one project dominates traffic, consider a second Redis Stream `events:overflow` + separate consumer routed by project_id.
+
+### UA Parsing
+`parseUa()` in `event-utils.ts` uses `ua-parser-js` to extract browser, OS, and device type from the raw `user_agent` field. SDK context fields (`data.browser`, `data.os`, etc.) take precedence over parsed values — UA parsing is the fallback for when the SDK doesn't provide structured device info.
 
 ### Noisy Person Property Filtering
 `parseUserProperties()` in `person-utils.ts` filters out high-churn properties (browser, OS, screen size, URL, GeoIP) from `$set`/`$set_once` before they reach PG. These properties change on every pageview and are already stored as dedicated columns in CH events. Filtering them reduces PG write amplification significantly for active users. The filtered set is defined in `NOISY_PERSON_PROPERTIES`. Custom user properties (e.g. `plan`, `company`) are NOT filtered.

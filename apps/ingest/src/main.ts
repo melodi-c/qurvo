@@ -5,6 +5,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { addGzipPreParsing } from './hooks/gzip-preparsing';
+import { MAX_DECOMPRESSED_BYTES } from './constants';
 import { validateEnv, env } from './env';
 
 async function bootstrap() {
@@ -17,7 +18,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ bodyLimit: 5242880, trustProxy: true }),
+    new FastifyAdapter({ bodyLimit: MAX_DECOMPRESSED_BYTES, trustProxy: true }),
     { bufferLogs: true },
   );
 

@@ -32,6 +32,7 @@ export async function writeEventToStream(
     language: '',
     timezone: '',
     ip: '',
+    user_agent: '',
     sdk_name: '',
     sdk_version: '',
     properties: '{}',

@@ -585,16 +585,17 @@ describe('Max batch size enforcement', () => {
   });
 });
 
-describe('UA enrichment', () => {
-  it('parses User-Agent header and writes browser/os/device fields to stream', async () => {
+describe('User-Agent passthrough', () => {
+  it('stores raw User-Agent string in stream (UA parsing deferred to processor)', async () => {
     const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+    const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
     const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': testProject.apiKey,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
       },
       body: JSON.stringify({
         events: [{ event: 'ua_test', distinct_id: 'ua-user', timestamp: new Date().toISOString() }],
@@ -607,12 +608,14 @@ describe('UA enrichment', () => {
 
     const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
     const fields = parseRedisFields(messages[0][1]);
-    expect(fields.browser).toBe('Chrome');
-    expect(fields.os).toBe('macOS');
-    expect(fields.device_type).toBe('desktop');
+    expect(fields.user_agent).toBe(userAgent);
+    // browser/os/device_type are empty when no SDK context — processor parses UA
+    expect(fields.browser).toBe('');
+    expect(fields.os).toBe('');
+    expect(fields.device_type).toBe('');
   });
 
-  it('prefers SDK-reported context fields over UA-parsed values', async () => {
+  it('stores SDK context fields alongside raw user_agent', async () => {
     const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
 
     const res = await fetch(`${getBaseUrl(app)}/v1/batch`, {
@@ -638,9 +641,12 @@ describe('UA enrichment', () => {
 
     const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
     const fields = parseRedisFields(messages[0][1]);
+    // SDK context fields are stored as-is
     expect(fields.browser).toBe('CustomBrowser');
     expect(fields.os).toBe('CustomOS');
     expect(fields.device_type).toBe('mobile');
+    // Raw UA is also stored for processor fallback
+    expect(fields.user_agent).toContain('Chrome');
   });
 });
 

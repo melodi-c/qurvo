@@ -4,7 +4,7 @@ import type { ValidMessage, BufferedEvent, ResolveResult } from './types';
 import type { PersonResolverService } from '../person-resolver.service';
 import type { PersonBatchStore } from '../person-batch-store';
 import type { GeoService } from '../geo.service';
-import { safeScreenDimension, groupByKey } from '../event-utils';
+import { safeScreenDimension, groupByKey, parseUa } from '../event-utils';
 
 /**
  * Step 4: Resolve persons and build Event DTOs.
@@ -94,6 +94,9 @@ async function buildEvent(
     deps.logger.warn({ projectId, distinctId: data.distinct_id }, 'Event missing timestamp, using current time');
   }
 
+  // Parse UA from raw user_agent string; SDK context fields (already in data.*) take precedence
+  const ua = parseUa(data.user_agent);
+
   return {
     event_id: data.event_id || '',
     project_id: projectId,
@@ -108,11 +111,11 @@ async function buildEvent(
     referrer: data.referrer,
     page_title: data.page_title,
     page_path: data.page_path,
-    device_type: data.device_type,
-    browser: data.browser,
-    browser_version: data.browser_version,
-    os: data.os,
-    os_version: data.os_version,
+    device_type: data.device_type || ua.device_type,
+    browser: data.browser || ua.browser,
+    browser_version: data.browser_version || ua.browser_version,
+    os: data.os || ua.os,
+    os_version: data.os_version || ua.os_version,
     screen_width: safeScreenDimension(data.screen_width),
     screen_height: safeScreenDimension(data.screen_height),
     country,

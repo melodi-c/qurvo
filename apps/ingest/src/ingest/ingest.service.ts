@@ -1,7 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { v7 as uuidv7 } from 'uuid';
-import { UAParser } from 'ua-parser-js';
 import {
   REDIS,
   REDIS_STREAM_EVENTS,
@@ -31,22 +30,6 @@ function resolveEventType(eventName: string): string {
   return EVENT_TYPE_MAP[eventName] ?? 'track';
 }
 
-type ParsedUa = { browser: string; browser_version: string; os: string; os_version: string; device_type: string };
-
-const EMPTY_UA: ParsedUa = { browser: '', browser_version: '', os: '', os_version: '', device_type: '' };
-
-function parseUa(userAgent?: string): ParsedUa {
-  if (!userAgent) return EMPTY_UA;
-  const result = new UAParser(userAgent).getResult();
-  return {
-    browser: result.browser.name ?? '',
-    browser_version: result.browser.version ?? '',
-    os: result.os.name ?? '',
-    os_version: result.os.version ?? '',
-    device_type: result.device.type ?? 'desktop',
-  };
-}
-
 /**
  * PostHog-style timestamp resolution.
  * If sent_at is available: server_now - (sent_at - event_timestamp)
@@ -72,7 +55,7 @@ export function resolveTimestamp(clientTs: string | undefined, serverTime: strin
 interface BuildPayloadOpts {
   batchId: string;
   ip?: string;
-  ua?: ParsedUa;
+  userAgent?: string;
   sentAt?: string;
   event_id?: string;
 }
@@ -87,8 +70,7 @@ export class IngestService {
     await this.checkBackpressure();
     const serverTime = new Date().toISOString();
     const batchId = uuidv7();
-    const ua = parseUa(userAgent);
-    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, ua, batchId, sentAt }));
+    const payloads = events.map((event) => this.buildPayload(projectId, event, serverTime, { ip, userAgent, batchId, sentAt }));
     await this.writeToStream(payloads);
     this.incrementBillingCounter(projectId, events.length);
     this.incrementRateLimitCounter(projectId, events.length);
@@ -112,9 +94,7 @@ export class IngestService {
     serverTime: string,
     opts: BuildPayloadOpts,
   ): Record<string, string> {
-    const ua = opts.ua ?? EMPTY_UA;
-
-    const payload: Record<string, string> = {
+    return {
       schema_version: STREAM_SCHEMA_VERSION,
       event_id: opts.event_id || uuidv7(),
       project_id: projectId,
@@ -128,16 +108,17 @@ export class IngestService {
       referrer: event.context?.referrer || '',
       page_title: event.context?.page_title || '',
       page_path: event.context?.page_path || '',
-      device_type: event.context?.device_type || ua.device_type,
-      browser: event.context?.browser || ua.browser,
-      browser_version: event.context?.browser_version || ua.browser_version,
-      os: event.context?.os || ua.os,
-      os_version: event.context?.os_version || ua.os_version,
+      device_type: event.context?.device_type || '',
+      browser: event.context?.browser || '',
+      browser_version: event.context?.browser_version || '',
+      os: event.context?.os || '',
+      os_version: event.context?.os_version || '',
       screen_width: String(Math.max(0, event.context?.screen_width || 0)),
       screen_height: String(Math.max(0, event.context?.screen_height || 0)),
       language: event.context?.language || '',
       timezone: event.context?.timezone || '',
       ip: opts.ip || '',
+      user_agent: opts.userAgent || '',
       sdk_name: event.context?.sdk_name || '',
       sdk_version: event.context?.sdk_version || '',
       properties: JSON.stringify(event.properties || {}),
@@ -145,8 +126,6 @@ export class IngestService {
       batch_id: opts.batchId,
       timestamp: resolveTimestamp(event.timestamp, serverTime, opts.sentAt),
     };
-
-    return payload;
   }
 
   private async checkBackpressure(): Promise<void> {
@@ -185,6 +164,15 @@ export class IngestService {
     pipeline.exec().catch((err: unknown) =>
       this.logger.warn({ err, projectId }, 'Failed to increment rate limit counter'),
     );
+  }
+
+  async isReady(): Promise<boolean> {
+    try {
+      await this.redis.ping();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private incrementBillingCounter(projectId: string, count: number): void {

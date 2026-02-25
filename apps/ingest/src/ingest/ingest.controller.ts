@@ -19,6 +19,16 @@ export class IngestController {
     return { status: 'ok' };
   }
 
+  @Get('ready')
+  async ready(@Res({ passthrough: true }) reply: FastifyReply) {
+    const ok = await this.ingestService.isReady();
+    if (!ok) {
+      reply.status(503);
+      return { status: 'not ready' };
+    }
+    return { status: 'ok' };
+  }
+
   @Post('v1/batch')
   @UseGuards(ApiKeyGuard, RateLimitGuard, BillingGuard)
   async batch(
@@ -67,15 +77,7 @@ export class IngestController {
       );
     }
 
-    try {
-      await this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at);
-    } catch (err) {
-      this.logger.error({ err, projectId, eventCount: validEvents.length }, 'Failed to write events to stream');
-      throw new HttpException(
-        { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
+    await this.callOrThrow503(() => this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at), projectId, validEvents.length);
 
     // sendBeacon() — return 204 No Content (browser ignores response body)
     if (beacon === '1') {
@@ -95,15 +97,19 @@ export class IngestController {
     @Body() body: unknown,
   ) {
     const { events } = ImportBatchSchema.parse(body);
+    await this.callOrThrow503(() => this.ingestService.importBatch(projectId, events), projectId, events.length);
+    return { ok: true, count: events.length };
+  }
+
+  private async callOrThrow503(fn: () => Promise<void>, projectId: string, eventCount: number): Promise<void> {
     try {
-      await this.ingestService.importBatch(projectId, events);
+      await fn();
     } catch (err) {
-      this.logger.error({ err, projectId, eventCount: events.length }, 'Failed to write import events to stream');
+      this.logger.error({ err, projectId, eventCount }, 'Failed to write events to stream');
       throw new HttpException(
         { statusCode: HttpStatus.SERVICE_UNAVAILABLE, message: 'Event ingestion temporarily unavailable', retryable: true },
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-    return { ok: true, count: events.length };
   }
 }
