@@ -48,6 +48,11 @@ export default function DashboardBuilderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dashboard, isEditing]);
 
+  // Reset edit mode when navigating away so that returning to this dashboard
+  // (or visiting another) does not leave stale dirty/editing state in the store.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => cancelEditMode(), []);
+
   const handleSave = async () => {
     // Read latest state imperatively — avoids subscribing to frequent layout/widget updates
     const { localWidgets, localLayout, localName, widgetMeta } = useDashboardStore.getState();
