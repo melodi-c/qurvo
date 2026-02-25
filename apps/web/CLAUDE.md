@@ -81,9 +81,9 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `FilterListSection` | `FilterListSection.tsx` | `label`, `addLabel`, `filters`, `onFiltersChange`, `propertyNames?`, `propertyDescriptions?`, `icon?` | Self-contained filter list with add/update/remove logic, SectionHeader, and "Add filter" button. Encapsulates the repeated pattern from EventsFilterPanel, PersonsFilterPanel, DashboardFilterBar |
 | `EventTypeIcon` | `EventTypeIcon.tsx` | `eventName: string` | Event type icon by event name ($pageview, $identify, etc.). Used in EventTable, EventDetail |
 | `CrudListPage<T>` | `crud-list-page.tsx` | `title`, `icon`, `basePath`, `newLabel`, `entityLabel`, `columns`, `data`, `isLoading`, `onDelete`, `emptyTitle`, `emptyDescription`, `showEmptyAction?` | Generic CRUD list page with PageHeader, EmptyState, ListSkeleton, DataTable, and ConfirmDialog delete. Automatically adds name + actions columns. Use for trends, funnels, cohorts |
-| `EventTable` | `event-table.tsx` | `events: EventLike[]`, `showPerson?`, `projectId`, `page`, `onPageChange`, `hasMore`, `className?` | Expandable event list with header, rows, and pagination. Used on events page and person-detail. Wraps `EventTableRow` from `event-detail.tsx` |
-| `EventTableRow` | `event-detail.tsx` | `event`, `expanded`, `onToggle`, `showPerson`, `projectId` | Single expandable event row. Use via `EventTable` — not directly |
-| `EventDetail` | `event-detail.tsx` | `event`, `projectId` | Expanded event detail panel with tabs (Event/Person). Rendered inside `EventTableRow` |
+| `EventTable` | `event-table.tsx` | `events: EventLike[]`, `showPerson?`, `projectId`, `page`, `onPageChange`, `hasMore`, `className?` | Expandable event list with header, rows, and pagination. Used on events page and person-detail |
+| `EventDetail` | `event-detail.tsx` | `event`, `projectId` | Expanded event detail panel with tabs (Event/Person properties). Rendered inside `EventTable` expanded row |
+| `PropsTable` / `PropsTableGrouped` | `event-props-table.tsx` | `rows: PropEntry[]` / `groups: { label, rows }[]` | Key-value property tables. Used internally by `EventDetail` |
 
 ## Shared Hooks (`src/hooks/`)
 
@@ -92,7 +92,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 | `useProjectId` | `use-project-id.ts` | `() => string` | Read current project ID from `?project=` URL param. Canonical source — use instead of local `useSearchParams().get('project')` |
 | `useEventPropertyNames` | `use-event-property-names.ts` | `(eventName?) => { data: string[], descriptions: Record }` | Fetch property names (optionally filtered by event). Returns flat names + description map. Use with `PropertyNameCombobox` |
 | `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
-| `useConfirmDelete` | `confirm-dialog.tsx` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
+| `useConfirmDelete` | `use-confirm-delete.ts` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
 | `useDragReorder<T>` | `use-drag-reorder.ts` | `(items: T[], onChange: (items: T[]) => void) => { dragIdx, overIdx, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave }` | Reorderable lists via native HTML5 drag events. Used in FunnelStepBuilder and TrendSeriesBuilder |
 | `useFilterManager<T>` | `use-filter-manager.ts` | `(items: T[], updateItem) => { addFilter, updateFilter, removeFilter }` | Shared filter CRUD for items with `filters?: StepFilter[]`. Used by TrendSeriesBuilder and FunnelStepBuilder |
 

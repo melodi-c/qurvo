@@ -9,6 +9,8 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';
 import { EventTypeIcon } from '@/components/EventTypeIcon';
+import { PropsTable, PropsTableGrouped } from '@/components/event-props-table';
+import type { PropEntry } from '@/components/event-props-table';
 import translations from './event-detail.translations';
 
 export interface EventLike {
@@ -46,7 +48,7 @@ function parseSafe(json: string | undefined): Record<string, unknown> {
   try { return JSON.parse(json) as Record<string, unknown>; } catch { return {}; }
 }
 
-// ─── value renderers ──────────────────────────────────────────────────────────
+// --- value renderers ---
 
 function ExternalLinkValue({ value }: { value: string }) {
   if (!value) return null;
@@ -84,78 +86,7 @@ function PersonLink({ personId, projectId }: { personId: string; projectId?: str
   return <span className="font-mono break-all">{personId}</span>;
 }
 
-// ─── property table ───────────────────────────────────────────────────────────
-
-type PropValue = string | number | undefined | null;
-
-interface PropEntry {
-  key: string;
-  value: PropValue;
-  render?: (value: string) => React.ReactNode;
-}
-
-function isNonEmpty(v: PropValue): boolean {
-  return v !== '' && v !== 0 && v != null;
-}
-
-function PropsTable({ rows }: { rows: PropEntry[] }) {
-  const visible = rows.filter((r) => isNonEmpty(r.value));
-  if (visible.length === 0) return null;
-  return (
-    <table className="w-full text-xs">
-      <tbody>
-        {visible.map(({ key, value, render }) => (
-          <tr key={key} className="border-b border-border/50 last:border-0">
-            <td className="py-1.5 pr-4 w-40 shrink-0 text-muted-foreground align-top">{key}</td>
-            <td className="py-1.5 text-foreground">
-              {render ? render(String(value)) : <span className="font-mono break-all">{String(value)}</span>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function PropsTableGrouped({ groups }: { groups: { label: string; rows: PropEntry[] }[] }) {
-  const nonEmpty = groups.filter((g) => g.rows.some((r) => isNonEmpty(r.value)));
-  if (nonEmpty.length === 0) return null;
-  return (
-    <table className="w-full text-xs">
-      <tbody>
-        {nonEmpty.map((group) => {
-          const visible = group.rows.filter((r) => isNonEmpty(r.value));
-          if (visible.length === 0) return null;
-          return (
-            <tr key={`section-${group.label}`}>
-              <td colSpan={2} className="p-0">
-                <table className="w-full">
-                  <tbody>
-                    <tr>
-                      <td colSpan={2} className="pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                        {group.label}
-                      </td>
-                    </tr>
-                    {visible.map(({ key, value, render }) => (
-                      <tr key={key} className="border-b border-border/50 last:border-0">
-                        <td className="py-1.5 pr-4 w-40 shrink-0 text-muted-foreground align-top">{key}</td>
-                        <td className="py-1.5 text-foreground">
-                          {render ? render(String(value)) : <span className="font-mono break-all">{String(value)}</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
-// ─── EventDetail panel ────────────────────────────────────────────────────────
+// --- EventDetail panel ---
 
 type DetailTab = 'event' | 'person';
 
@@ -308,4 +239,3 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
     </div>
   );
 }
-

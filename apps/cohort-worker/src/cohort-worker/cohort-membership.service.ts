@@ -6,7 +6,6 @@ import { topologicalSortCohorts } from '@qurvo/cohort-query';
 import { DRIZZLE } from '@qurvo/nestjs-infra';
 import { type DistributedLock } from '@qurvo/distributed-lock';
 import {
-  DISTRIBUTED_LOCK,
   COHORT_MEMBERSHIP_INTERVAL_MS,
   COHORT_STALE_THRESHOLD_MINUTES,
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
@@ -14,6 +13,7 @@ import {
   COHORT_INITIAL_DELAY_MS,
   COHORT_GC_EVERY_N_CYCLES,
 } from '../constants';
+import { DISTRIBUTED_LOCK } from './tokens';
 import { CohortComputationService } from './cohort-computation.service';
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -74,6 +74,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
     }
 
     let computed = 0;
+    let pgFailed = 0;
     let staleCount = 0;
     let eligibleCount = 0;
     let cyclicCount = 0;
@@ -127,15 +128,19 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       }
 
       // ── 4. Compute each cohort ─────────────────────────────────────────
-      const version = Date.now();
       const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
 
       for (const { id, definition } of sorted) {
         const cohort = cohortById.get(id)!;
         try {
+          const version = Date.now();
           await this.computation.computeMembership(id, cohort.project_id, definition, version);
-          await this.computation.markComputationSuccess(id, version);
-          await this.computation.recordSizeHistory(id, cohort.project_id);
+          const pgOk = await this.computation.markComputationSuccess(id, version);
+          if (pgOk) {
+            await this.computation.recordSizeHistory(id, cohort.project_id);
+          } else {
+            pgFailed++;
+          }
           computed++;
         } catch (err) {
           try {
@@ -155,7 +160,7 @@ export class CohortMembershipService implements OnApplicationBootstrap {
       this.gcCycleCounter++;
 
       this.logger.info(
-        { computed, stale: staleCount, eligible: eligibleCount, cyclic: cyclicCount, durationMs: Date.now() - startMs },
+        { computed, pgFailed, stale: staleCount, eligible: eligibleCount, cyclic: cyclicCount, durationMs: Date.now() - startMs },
         'Cohort membership cycle completed',
       );
 
