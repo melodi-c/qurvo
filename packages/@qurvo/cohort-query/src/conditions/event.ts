@@ -16,6 +16,10 @@ function buildAggregationExpr(type: CohortAggregationType | undefined, property:
     case 'p90': return `quantile(0.90)(${numExpr})`;
     case 'p95': return `quantile(0.95)(${numExpr})`;
     case 'p99': return `quantile(0.99)(${numExpr})`;
+    default: {
+      const _exhaustive: never = type;
+      throw new Error(`Unhandled aggregation type: ${_exhaustive}`);
+    }
   }
 }
 

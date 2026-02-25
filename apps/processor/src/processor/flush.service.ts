@@ -6,6 +6,7 @@ import { withRetry } from './retry';
 import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { DefinitionSyncService } from './definition-sync.service';
 import { PersonBatchStore } from './person-batch-store';
+import type { BufferedEvent } from './pipeline';
 import {
   PROCESSOR_BATCH_SIZE,
   PROCESSOR_FLUSH_INTERVAL_MS,
@@ -15,11 +16,6 @@ import {
   REDIS_STREAM_EVENTS,
   RETRY_CLICKHOUSE,
 } from '../constants';
-
-export interface BufferedEvent {
-  messageId: string;
-  event: Event;
-}
 
 @Injectable()
 export class FlushService implements OnApplicationBootstrap {
@@ -100,7 +96,8 @@ export class FlushService implements OnApplicationBootstrap {
       } catch (err) {
         this.logger.warn({ err }, 'Definition sync failed (non-critical)');
       }
-    } catch {
+    } catch (err) {
+      this.logger.error({ err, eventCount: events.length }, 'Batch failed — routing to DLQ');
       try {
         await this.moveToDlq(events);
         await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...messageIds);

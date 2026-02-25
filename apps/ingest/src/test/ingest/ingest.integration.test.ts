@@ -559,6 +559,23 @@ describe('UUIDv7 event IDs', () => {
     // UUIDv7: version nibble is '7', variant nibble is 8/9/a/b
     expect(fields.event_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
+
+  it('preserves client-provided event_id instead of generating a server one', async () => {
+    const clientEventId = 'aaaaaaaa-bbbb-4ccc-9ddd-eeeeeeeeeeee';
+    const streamLenBefore = await ctx.redis.xlen(REDIS_STREAM_EVENTS);
+
+    const res = await postBatch(app, testProject.apiKey, {
+      events: [{ event: 'client_id_test', distinct_id: 'client-id-user', timestamp: new Date().toISOString(), event_id: clientEventId }],
+    });
+
+    expect(res.status).toBe(202);
+
+    await waitForRedisStreamLength(ctx.redis, REDIS_STREAM_EVENTS, streamLenBefore + 1);
+
+    const messages = await ctx.redis.xrevrange(REDIS_STREAM_EVENTS, '+', '-', 'COUNT', 1);
+    const fields = parseRedisFields(messages[0][1]);
+    expect(fields.event_id).toBe(clientEventId);
+  });
 });
 
 describe('Max batch size enforcement', () => {

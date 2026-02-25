@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { open, Reader, CountryResponse } from 'maxmind';
-import { createWriteStream, existsSync } from 'fs';
+import { createWriteStream, existsSync, statSync } from 'fs';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 
@@ -13,6 +13,8 @@ const LOOPBACK = new Set(['::1', '127.0.0.1', '::ffff:127.0.0.1']);
 const DOWNLOAD_MAX_ATTEMPTS = 3;
 const DOWNLOAD_TIMEOUT_MS = 10_000;
 const DOWNLOAD_RETRY_DELAY_MS = 2_000;
+/** Re-download MMDB if cached file is older than 30 days. */
+const MMDB_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class GeoService implements OnModuleInit {
@@ -26,9 +28,17 @@ export class GeoService implements OnModuleInit {
   async onModuleInit() {
     try {
       if (existsSync(MMDB_PATH)) {
-        this.reader = await open<CountryResponse>(MMDB_PATH);
-        this.logger.info('GeoLite2-Country reader initialized from cached file');
-        return;
+        const stats = statSync(MMDB_PATH);
+        const ageMs = Date.now() - stats.mtimeMs;
+        const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+
+        if (ageMs < MMDB_MAX_AGE_MS) {
+          this.reader = await open<CountryResponse>(MMDB_PATH);
+          this.logger.info({ ageDays }, 'GeoLite2-Country reader initialized from cached file');
+          return;
+        }
+
+        this.logger.info({ ageDays }, 'Cached MMDB file is stale, re-downloading');
       }
 
       const url = process.env.GEOLITE2_COUNTRY_URL || DEFAULT_MMDB_URL;
@@ -36,6 +46,14 @@ export class GeoService implements OnModuleInit {
       this.reader = await open<CountryResponse>(MMDB_PATH);
       this.logger.info('GeoLite2-Country reader initialized');
     } catch (err) {
+      // If download fails but a stale file exists, use it as fallback
+      if (existsSync(MMDB_PATH)) {
+        try {
+          this.reader = await open<CountryResponse>(MMDB_PATH);
+          this.logger.warn({ err }, 'Failed to download fresh MMDB — using stale cached file as fallback');
+          return;
+        } catch { /* fall through to disabled state */ }
+      }
       this.logger.warn({ err }, 'Failed to load GeoLite2-Country MMDB — geo lookup disabled');
     }
   }

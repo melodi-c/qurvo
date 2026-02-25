@@ -7,6 +7,7 @@ import { BillingGuard } from '../guards/billing.guard';
 import { ProjectId } from '../decorators/project-id.decorator';
 import { BatchWrapperSchema, TrackEventSchema, type TrackEvent } from '../schemas/event';
 import { ImportBatchSchema } from '../schemas/import-event';
+import { HANDLER_TIMEOUT_MS } from '../constants';
 
 @Controller()
 export class IngestController {
@@ -103,7 +104,12 @@ export class IngestController {
 
   private async callOrThrow503(fn: () => Promise<void>, projectId: string, eventCount: number): Promise<void> {
     try {
-      await fn();
+      await Promise.race([
+        fn(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Handler timeout')), HANDLER_TIMEOUT_MS),
+        ),
+      ]);
     } catch (err) {
       this.logger.error({ err, projectId, eventCount }, 'Failed to write events to stream');
       throw new HttpException(

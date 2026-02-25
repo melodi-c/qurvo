@@ -108,6 +108,7 @@ class QurvoBrowser {
       properties,
       context: getContext(),
       timestamp: new Date().toISOString(),
+      event_id: generateId(),
     };
     this.queue.enqueue(payload);
   }
@@ -124,6 +125,7 @@ class QurvoBrowser {
       user_properties: userProperties,
       context: getContext(),
       timestamp: new Date().toISOString(),
+      event_id: generateId(),
     };
     this.queue.enqueue(payload);
   }
@@ -146,6 +148,7 @@ class QurvoBrowser {
       user_properties: { $set: properties },
       context: getContext(),
       timestamp: new Date().toISOString(),
+      event_id: generateId(),
     };
     this.queue.enqueue(payload);
   }
@@ -160,6 +163,7 @@ class QurvoBrowser {
       user_properties: { $set_once: properties },
       context: getContext(),
       timestamp: new Date().toISOString(),
+      event_id: generateId(),
     };
     this.queue.enqueue(payload);
   }

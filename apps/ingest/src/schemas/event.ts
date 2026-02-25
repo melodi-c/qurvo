@@ -48,6 +48,7 @@ export const TrackEventSchema = z.object({
   user_properties: EventPropertiesSchema,
   context: EventContextSchema,
   timestamp: z.string().datetime().optional(),
+  event_id: z.string().uuid().optional(),
 });
 
 export const BatchWrapperSchema = z.object({

@@ -83,6 +83,7 @@ export class AuthController {
   @Post('change-password')
   @ApiBearerAuth()
   @HttpCode(200)
+  @Throttle({ short: { limit: 5, ttl: 60000 }, medium: { limit: 5, ttl: 60000 } })
   async changePassword(@Body() body: ChangePasswordDto, @CurrentUser() user: RequestUser): Promise<void> {
     await this.authService.changePassword(user.user_id, body.current_password, body.new_password);
   }

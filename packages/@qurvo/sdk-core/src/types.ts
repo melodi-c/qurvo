@@ -15,6 +15,7 @@ export interface EventPayload {
   user_properties?: Record<string, unknown>;
   context?: EventContext;
   timestamp?: string;
+  event_id?: string;
 }
 
 
