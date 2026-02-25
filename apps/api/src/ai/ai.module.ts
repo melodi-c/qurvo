@@ -28,6 +28,7 @@ import { QueryPersonsTool } from './tools/query-persons.tool';
 import { CreateInsightTool } from './tools/create-insight.tool';
 import { ListDashboardsTool } from './tools/list-dashboards.tool';
 import { SaveToDashboardTool } from './tools/save-to-dashboard.tool';
+import { MetricChangeTool } from './tools/metric-change.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -43,6 +44,7 @@ const TOOL_CLASSES = [
   CreateInsightTool,
   ListDashboardsTool,
   SaveToDashboardTool,
+  MetricChangeTool,
 ];
 
 @Module({
