@@ -17,10 +17,10 @@ export interface EventDefinitionItem {
 
 export interface EventDefinitionListParams {
   search?: string;
-  limit: number;
-  offset: number;
-  order_by: string;
-  order: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+  order_by?: string;
+  order?: 'asc' | 'desc';
 }
 
 const columnMap: Record<string, AnyColumn> = {
@@ -43,8 +43,10 @@ export class EventDefinitionsService {
     }
 
     const where = and(...conditions)!;
-    const orderCol = columnMap[params.order_by] ?? eventDefinitions.last_seen_at;
+    const orderCol = columnMap[params.order_by ?? 'last_seen_at'] ?? eventDefinitions.last_seen_at;
     const orderFn = params.order === 'asc' ? asc : desc;
+    const limit = params.limit ?? 100;
+    const offset = params.offset ?? 0;
 
     const [rows, countResult] = await Promise.all([
       this.db
@@ -52,8 +54,8 @@ export class EventDefinitionsService {
         .from(eventDefinitions)
         .where(where)
         .orderBy(orderFn(orderCol))
-        .limit(params.limit)
-        .offset(params.offset),
+        .limit(limit)
+        .offset(offset),
       this.db
         .select({ count: count() })
         .from(eventDefinitions)

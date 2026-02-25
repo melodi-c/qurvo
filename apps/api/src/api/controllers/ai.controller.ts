@@ -19,6 +19,9 @@ export class AiController {
     @Body() body: AiChatDto,
     @Res() reply: FastifyReply,
   ) {
+    // Validate access before sending SSE headers — allows proper HTTP error responses
+    await this.aiService.validateChatAccess(user.user_id, body.project_id);
+
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',

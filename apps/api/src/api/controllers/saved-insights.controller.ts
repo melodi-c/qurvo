@@ -5,6 +5,7 @@ import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
 import { CreateInsightDto, UpdateInsightDto, InsightDto, ListInsightsQueryDto } from '../dto/insights.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
+import type { InsightConfig } from '@qurvo/db';
 
 @ApiTags('Insights')
 @ApiBearerAuth()
@@ -28,7 +29,11 @@ export class SavedInsightsController {
     @Param('projectId') projectId: string,
     @Body() body: CreateInsightDto,
   ): Promise<InsightDto> {
-    return this.insightsService.create(user.user_id, projectId, body as any) as any;
+    const { config, ...rest } = body;
+    return this.insightsService.create(user.user_id, projectId, {
+      ...rest,
+      config: config as unknown as InsightConfig,
+    }) as any;
   }
 
   @Get(':insightId')
@@ -46,7 +51,11 @@ export class SavedInsightsController {
     @Param('insightId') insightId: string,
     @Body() body: UpdateInsightDto,
   ): Promise<InsightDto> {
-    return this.insightsService.update(projectId, insightId, body as any) as any;
+    const { config, ...rest } = body;
+    return this.insightsService.update(projectId, insightId, {
+      ...rest,
+      ...(config !== undefined && { config: config as unknown as InsightConfig }),
+    }) as any;
   }
 
   @RequireRole('editor')
