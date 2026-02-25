@@ -926,6 +926,13 @@ export interface AiConversation {
   updated_at: string;
 }
 
+export interface AiConversationSearchResult {
+  id: string;
+  title: string;
+  snippet: string;
+  matched_at: string;
+}
+
 export interface AiMessage {
   role: AiMessageDtoRoleEnum;
   content?: string | null;
@@ -1756,6 +1763,16 @@ export interface AiControllerListConversationsParams {
   shared?: boolean;
   /** @format uuid */
   project_id: string;
+}
+
+export interface AiControllerSearchConversationsParams {
+  /** @format uuid */
+  project_id: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  q: string;
 }
 
 export interface AiControllerGetConversationParams {
@@ -3576,6 +3593,27 @@ export class Api<
     ) =>
       this.request<AiConversation[], any>({
         path: `/api/ai/conversations`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
+     * @name AiControllerSearchConversations
+     * @request GET:/api/ai/conversations/search
+     * @secure
+     */
+    aiControllerSearchConversations: (
+      query: AiControllerSearchConversationsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiConversationSearchResult[], any>({
+        path: `/api/ai/conversations/search`,
         method: "GET",
         query: query,
         secure: true,

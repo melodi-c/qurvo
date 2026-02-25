@@ -8,7 +8,7 @@ import { AiQuotaGuard } from '../../ai/guards/ai-quota.guard';
 import { detectLanguageFromHeader } from '../../utils/detect-language';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto } from '../dto/ai.dto';
+import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto, AiConversationSearchQueryDto, AiConversationSearchResultDto } from '../dto/ai.dto';
 import { ConversationNotFoundException } from '../../ai/exceptions/conversation-not-found.exception';
 
 @ApiTags('AI')
@@ -79,6 +79,16 @@ export class AiController {
       return this.chatService.listSharedConversations(query.project_id) as any;
     }
     return this.chatService.listConversations(user.user_id, query.project_id) as any;
+  }
+
+  @Get('conversations/search')
+  @UseGuards(ProjectMemberGuard)
+  @ApiOkResponse({ type: [AiConversationSearchResultDto] })
+  async searchConversations(
+    @CurrentUser() user: RequestUser,
+    @Query() query: AiConversationSearchQueryDto,
+  ): Promise<AiConversationSearchResultDto[]> {
+    return this.chatService.searchConversations(user.user_id, query.project_id, query.q) as any;
   }
 
   @Get('conversations/:id')
