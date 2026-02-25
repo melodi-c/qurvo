@@ -54,7 +54,7 @@ function buildConditionSubquery(
  * Builds a subquery returning person_ids matching a nested AND/OR group.
  * AND groups use INTERSECT, OR groups use UNION DISTINCT.
  */
-export function buildGroupSubquery(
+function buildGroupSubquery(
   group: CohortConditionGroup,
   ctx: BuildContext,
   resolveCohortIsStatic?: (cohortId: string) => boolean,

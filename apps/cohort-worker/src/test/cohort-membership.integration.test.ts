@@ -356,6 +356,81 @@ describe('cohort membership', () => {
     expect(members).not.toContain(personId);
   });
 
+  it('batch delete — multiple cohorts cleaned up in a single mutation', async () => {
+    const projectId = testProject.projectId;
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: `coh-batch-a-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ tier: 'gold' }),
+        timestamp: ts(1),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: `coh-batch-b-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ tier: 'silver' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortA = await createCohort(projectId, testProject.userId, 'Gold Tier', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' }],
+    });
+    const cohortB = await createCohort(projectId, testProject.userId, 'Silver Tier', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'silver' }],
+    });
+
+    // Cycle 1: inserts V1 for both cohorts
+    await runCycle();
+
+    // Cycle 2: inserts V2 + batch-deletes V1 for both cohorts in one mutation
+    await runCycle();
+
+    // Poll until batch ALTER DELETE mutation completes
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const res = await ctx.ch.query({
+        query: `SELECT count() AS cnt FROM cohort_members
+                WHERE cohort_id IN ({a:UUID}, {b:UUID})`,
+        query_params: { a: cohortA, b: cohortB },
+        format: 'JSONEachRow',
+      });
+      const total = Number((await res.json<{ cnt: string }>())[0].cnt);
+      // 2 cohorts × 1 person each = 2 rows after dedup
+      if (total <= 2) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    // Verify both cohorts still have their correct members
+    const membersA = await getCohortMembers(ctx.ch, projectId, cohortA);
+    const membersB = await getCohortMembers(ctx.ch, projectId, cohortB);
+    expect(membersA).toContain(personA);
+    expect(membersB).toContain(personB);
+
+    // Verify only 1 version per person per cohort remains (FINAL dedup)
+    const result = await ctx.ch.query({
+      query: `SELECT cohort_id, count() AS cnt
+              FROM cohort_members FINAL
+              WHERE cohort_id IN ({a:UUID}, {b:UUID})
+              GROUP BY cohort_id`,
+      query_params: { a: cohortA, b: cohortB },
+      format: 'JSONEachRow',
+    });
+    const counts = await result.json<{ cohort_id: string; cnt: string }>();
+    for (const row of counts) {
+      expect(Number(row.cnt)).toBe(1);
+    }
+  });
+
   it('distributed lock blocks runCycle', async () => {
     await ctx.redis.set(COHORT_LOCK_KEY, 'other-instance', 'EX', 120);
 

@@ -3,6 +3,7 @@ export type ValueType = 'String' | 'Numeric' | 'Boolean' | 'DateTime';
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T|\s)/;
 const DATE_RE = /^((\d{4}[/-][0-2]\d[/-][0-3]\d)|([0-2]\d[/-][0-3]\d[/-]\d{4}))([ T][0-2]\d:[0-6]\d:[0-6]\d.*)?$/;
 const SIX_MONTHS_S = 15_768_000;
+const TEN_YEARS_S = 10 * 365 * 24 * 60 * 60;
 
 /** Keywords in property names that hint at DateTime type (PostHog: DATETIME_PROPERTY_NAME_KEYWORDS). */
 const DATETIME_NAME_KEYWORDS = ['time', 'timestamp', 'date', '_at', '-at', 'createdat', 'updatedat'];
@@ -13,8 +14,8 @@ export function isLikelyDateString(s: string): boolean {
 
 export function isLikelyUnixTimestamp(n: number): boolean {
   if (!Number.isFinite(n) || n < 0) return false;
-  const threshold = Math.floor(Date.now() / 1000) - SIX_MONTHS_S;
-  return n >= threshold;
+  const nowS = Math.floor(Date.now() / 1000);
+  return n >= nowS - SIX_MONTHS_S && n <= nowS + TEN_YEARS_S;
 }
 
 /**

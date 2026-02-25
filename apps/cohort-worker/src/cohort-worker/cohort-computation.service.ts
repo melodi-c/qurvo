@@ -76,13 +76,26 @@ export class CohortComputationService {
       },
     });
 
-    // Remove old versions
-    await this.ch.command({
-      query: `ALTER TABLE cohort_members DELETE WHERE cohort_id = {cm_cohort_id:UUID} AND version < {cm_version:UInt64}`,
-      query_params: { cm_cohort_id: cohortId, cm_version: version },
+    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
+  }
+
+  async deleteOldVersions(deletions: Array<{ cohortId: string; version: number }>): Promise<void> {
+    if (deletions.length === 0) return;
+
+    const conditions = deletions.map((_, i) => {
+      return `(cohort_id = {del_cid_${i}:UUID} AND version < {del_ver_${i}:UInt64})`;
     });
 
-    this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
+    const queryParams: Record<string, unknown> = {};
+    for (let i = 0; i < deletions.length; i++) {
+      queryParams[`del_cid_${i}`] = deletions[i].cohortId;
+      queryParams[`del_ver_${i}`] = deletions[i].version;
+    }
+
+    await this.ch.command({
+      query: `ALTER TABLE cohort_members DELETE WHERE ${conditions.join(' OR ')}`,
+      query_params: queryParams,
+    });
   }
 
   /** Update PG tracking columns + reset error state. Separated from computeMembership
