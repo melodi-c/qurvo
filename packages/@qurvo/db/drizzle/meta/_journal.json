@@ -169,6 +169,13 @@
       "when": 1773600000000,
       "tag": "0024_add_cohort_error_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1773700000000,
+      "tag": "0025_add_ai_history_summary",
+      "breakpoints": true
     }
   ]
 }

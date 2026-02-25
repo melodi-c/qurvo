@@ -7,6 +7,7 @@ export const aiConversations = pgTable('ai_conversations', {
   project_id: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 200 }).notNull().default('New conversation'),
+  history_summary: text('history_summary'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
