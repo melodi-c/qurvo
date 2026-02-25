@@ -15,6 +15,7 @@ export default createTranslations({
     revokeConfirm: 'Revoke',
     createFailed: 'Failed to create API key',
     revokeFailed: 'Failed to revoke API key',
+    copyFailed: 'Failed to copy to clipboard',
     // Form fields
     scopesLabel: 'Scopes',
     scopeIngest: 'ingest',
@@ -43,6 +44,7 @@ export default createTranslations({
     revokeConfirm: 'Отозвать',
     createFailed: 'Не удалось создать API ключ',
     revokeFailed: 'Не удалось отозвать API ключ',
+    copyFailed: 'Не удалось скопировать в буфер обмена',
     // Form fields
     scopesLabel: 'Разрешения',
     scopeIngest: 'ingest',

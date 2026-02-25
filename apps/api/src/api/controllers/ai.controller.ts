@@ -5,7 +5,7 @@ import { AiService } from '../../ai/ai.service';
 import { AiChatService } from '../../ai/ai-chat.service';
 import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from '../../ai/guards/ai-quota.guard';
-import { detectLanguageFromHeader } from '../../ai/system-prompt';
+import { detectLanguageFromHeader } from '../../utils/detect-language';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto } from '../dto/ai.dto';
@@ -91,7 +91,8 @@ export class AiController {
     // First try to load as owner. If not found, fall back to shared conversation access.
     try {
       return await this.chatService.getConversationAuthorized(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ConversationNotFoundException)) throw err;
       // Any project member can view shared conversations (read-only)
       return this.chatService.getSharedConversationAuthorized(id, query.project_id, query.limit, query.before_sequence) as any;
     }
