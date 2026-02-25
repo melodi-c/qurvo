@@ -1,6 +1,4 @@
-import type { PinoLogger } from 'nestjs-pino';
-import type { IngestionWarning } from '@qurvo/clickhouse';
-import type { RawMessage, ValidMessage, ValidationResult } from './types';
+import type { RawMessage, ValidMessage, ValidationResult, PipelineContext } from './types';
 
 const REQUIRED_FIELDS = ['project_id', 'event_name', 'distinct_id'] as const;
 
@@ -14,8 +12,7 @@ const ILLEGAL_DISTINCT_IDS = new Set([
 /** Step 2: Validate and split into valid events + invalid IDs for XACK. */
 export function validateMessages(
   parsed: RawMessage[],
-  logger: PinoLogger,
-  onWarning?: (warning: IngestionWarning) => void,
+  ctx: PipelineContext,
 ): ValidationResult {
   const valid: ValidMessage[] = [];
   const invalidIds: string[] = [];
@@ -24,10 +21,10 @@ export function validateMessages(
   for (const item of parsed) {
     const missing = REQUIRED_FIELDS.filter((f) => !item.fields[f]);
     if (missing.length > 0) {
-      logger.warn({ messageId: item.id, missingFields: missing }, 'Dropping invalid event');
+      ctx.logger.warn({ messageId: item.id, missingFields: missing }, 'Dropping invalid event');
       invalidIds.push(item.id);
-      if (onWarning && item.fields['project_id']) {
-        onWarning({
+      if (ctx.onWarning && item.fields['project_id']) {
+        ctx.onWarning({
           project_id: item.fields['project_id'],
           type: 'invalid_event',
           details: JSON.stringify({
@@ -39,9 +36,9 @@ export function validateMessages(
         });
       }
     } else if (ILLEGAL_DISTINCT_IDS.has(item.fields.distinct_id.trim().toLowerCase())) {
-      logger.warn({ messageId: item.id, distinctId: item.fields.distinct_id }, 'Dropping event with illegal distinct_id');
+      ctx.logger.warn({ messageId: item.id, distinctId: item.fields.distinct_id }, 'Dropping event with illegal distinct_id');
       invalidIds.push(item.id);
-      onWarning?.({
+      ctx.onWarning?.({
         project_id: item.fields['project_id'],
         type: 'illegal_distinct_id',
         details: JSON.stringify({

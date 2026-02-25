@@ -1,9 +1,5 @@
-import type { PinoLogger } from 'nestjs-pino';
 import type { Event } from '@qurvo/clickhouse';
-import type { ValidMessage, BufferedEvent, ResolveResult, ValidatedFields } from './types';
-import type { PersonResolverService } from '../person-resolver.service';
-import type { PersonBatchStore } from '../person-batch-store';
-import type { GeoService } from '../geo.service';
+import type { ValidMessage, BufferedEvent, ResolveResult, ValidatedFields, PipelineContext } from './types';
 import { safeScreenDimension, groupByKey, parseUa } from '../event-utils';
 
 /**
@@ -15,12 +11,7 @@ import { safeScreenDimension, groupByKey, parseUa } from '../event-utils';
 export async function resolveAndBuildEvents(
   valid: ValidMessage[],
   personCache: Map<string, string>,
-  deps: {
-    personResolver: PersonResolverService;
-    personBatchStore: PersonBatchStore;
-    geoService: GeoService;
-    logger: PinoLogger;
-  },
+  ctx: PipelineContext,
 ): Promise<ResolveResult> {
   const groups = groupByKey(valid, (item) =>
     `${item.fields.project_id}:${item.fields.distinct_id}`,
@@ -33,7 +24,7 @@ export async function resolveAndBuildEvents(
       for (const item of group) {
         results.push({
           messageId: item.id,
-          event: await buildEvent(item.fields, personCache, deps),
+          event: await buildEvent(item.fields, personCache, ctx),
         });
       }
       return results;
@@ -50,7 +41,7 @@ export async function resolveAndBuildEvents(
     } else {
       const group = groupEntries[i];
       failedIds.push(...group.map((item) => item.id));
-      deps.logger.error(
+      ctx.logger.error(
         { err: result.reason, groupSize: group.length, distinctId: group[0].fields.distinct_id },
         'Group processing failed — messages stay in PEL for re-delivery',
       );
@@ -63,34 +54,29 @@ export async function resolveAndBuildEvents(
 async function buildEvent(
   data: ValidatedFields,
   personCache: Map<string, string>,
-  deps: {
-    personResolver: PersonResolverService;
-    personBatchStore: PersonBatchStore;
-    geoService: GeoService;
-    logger: PinoLogger;
-  },
+  ctx: PipelineContext,
 ): Promise<Event> {
   const ip = data.ip || '';
-  const country = deps.geoService.lookupCountry(ip);
+  const country = ctx.geoService.lookupCountry(ip);
 
   let personId: string;
   let mergedFromPersonId: string | null = null;
 
   if (data.event_name === '$identify' && data.anonymous_id) {
-    const result = await deps.personResolver.handleIdentify(data.project_id, data.distinct_id, data.anonymous_id, personCache);
+    const result = await ctx.personResolver.handleIdentify(data.project_id, data.distinct_id, data.anonymous_id, personCache);
     personId = result.personId;
     mergedFromPersonId = result.mergedFromPersonId;
   } else {
-    personId = await deps.personResolver.resolve(data.project_id, data.distinct_id, personCache);
+    personId = await ctx.personResolver.resolve(data.project_id, data.distinct_id, personCache);
   }
 
-  deps.personBatchStore.enqueue(data.project_id, personId, data.distinct_id, data.user_properties || '{}');
+  ctx.personBatchStore.enqueue(data.project_id, personId, data.distinct_id, data.user_properties || '{}');
   if (mergedFromPersonId) {
-    deps.personBatchStore.enqueueMerge(data.project_id, mergedFromPersonId, personId);
+    ctx.personBatchStore.enqueueMerge(data.project_id, mergedFromPersonId, personId);
   }
 
   if (!data.timestamp) {
-    deps.logger.warn({ projectId: data.project_id, distinctId: data.distinct_id }, 'Event missing timestamp, using current time');
+    ctx.logger.warn({ projectId: data.project_id, distinctId: data.distinct_id }, 'Event missing timestamp, using current time');
   }
 
   // Parse UA from raw user_agent string; SDK context fields (already in data.*) take precedence

@@ -1,4 +1,17 @@
-import type { Event } from '@qurvo/clickhouse';
+import type { Event, IngestionWarning } from '@qurvo/clickhouse';
+import type { PinoLogger } from 'nestjs-pino';
+import type { PersonResolverService } from '../person-resolver.service';
+import type { PersonBatchStore } from '../person-batch-store';
+import type { GeoService } from '../geo.service';
+
+/** Unified context passed to every pipeline step. */
+export interface PipelineContext {
+  personResolver: PersonResolverService;
+  personBatchStore: PersonBatchStore;
+  geoService: GeoService;
+  logger: PinoLogger;
+  onWarning?: (warning: IngestionWarning) => void;
+}
 
 /** Raw Redis Stream message after XREADGROUP / XAUTOCLAIM. */
 export interface RawMessage {

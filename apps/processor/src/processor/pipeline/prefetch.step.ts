@@ -1,10 +1,9 @@
-import type { ValidMessage, PersonKey } from './types';
-import type { PersonResolverService } from '../person-resolver.service';
+import type { ValidMessage, PersonKey, PipelineContext } from './types';
 
 /** Step 3: Collect unique person keys and batch-prefetch from Redis (single MGET). */
 export function prefetchPersons(
   valid: ValidMessage[],
-  personResolver: PersonResolverService,
+  ctx: PipelineContext,
 ): Promise<Map<string, string>> {
   const uniqueKeys = new Map<string, PersonKey>();
 
@@ -21,5 +20,5 @@ export function prefetchPersons(
     }
   }
 
-  return personResolver.prefetchPersonIds(Array.from(uniqueKeys.values()));
+  return ctx.personResolver.prefetchPersonIds(Array.from(uniqueKeys.values()));
 }

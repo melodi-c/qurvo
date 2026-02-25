@@ -25,6 +25,7 @@ import {
   prefetchPersons,
   resolveAndBuildEvents,
 } from './pipeline';
+import type { PipelineContext } from './pipeline/types';
 
 const MAX_CONSECUTIVE_ERRORS = 100;
 
@@ -35,6 +36,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private pendingTimer: NodeJS.Timeout | null = null;
   private readonly consumerName = process.env.PROCESSOR_CONSUMER_NAME || `processor-${process.pid}`;
   private readonly heartbeat: Heartbeat;
+  private readonly pipelineCtx: PipelineContext;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -51,6 +53,13 @@ export class EventConsumerService implements OnApplicationBootstrap {
       staleMs: HEARTBEAT_LOOP_STALE_MS,
       onStale: (loopAge) => this.logger.warn({ loopAge }, 'Consumer loop stale, skipping heartbeat'),
     });
+    this.pipelineCtx = {
+      personResolver: this.personResolver,
+      personBatchStore: this.personBatchStore,
+      geoService: this.geoService,
+      logger: this.logger,
+      onWarning: (w) => this.warningsBuffer.addWarning(w),
+    };
   }
 
   onApplicationBootstrap() {
@@ -168,22 +177,17 @@ export class EventConsumerService implements OnApplicationBootstrap {
     const parsed = parseMessages(messages);
 
     // Step 2: Validate
-    const { valid, invalidIds } = validateMessages(parsed, this.logger, (w) => this.warningsBuffer.addWarning(w));
+    const { valid, invalidIds } = validateMessages(parsed, this.pipelineCtx);
     if (invalidIds.length > 0) {
       await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
     }
     if (valid.length === 0) return;
 
     // Step 3: Prefetch person IDs
-    const personCache = await prefetchPersons(valid, this.personResolver);
+    const personCache = await prefetchPersons(valid, this.pipelineCtx);
 
     // Step 4: Resolve persons + build Event DTOs
-    const { buffered, failedIds } = await resolveAndBuildEvents(valid, personCache, {
-      personResolver: this.personResolver,
-      personBatchStore: this.personBatchStore,
-      geoService: this.geoService,
-      logger: this.logger,
-    });
+    const { buffered, failedIds } = await resolveAndBuildEvents(valid, personCache, this.pipelineCtx);
 
     if (failedIds.length > 0) {
       this.logger.warn(
