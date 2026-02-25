@@ -8,6 +8,7 @@ import { ProjectsModule } from '../projects/projects.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
+import { CohortsModule } from '../cohorts/cohorts.module';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { TrendTool } from './tools/trend.tool';
@@ -18,6 +19,7 @@ import { StickinessTool } from './tools/stickiness.tool';
 import { ListEventNamesTool } from './tools/list-event-names.tool';
 import { ListPropertyValuesTool } from './tools/list-property-values.tool';
 import { PathsTool } from './tools/paths.tool';
+import { QueryCohortMembersTool } from './tools/query-cohort-members.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -28,6 +30,7 @@ const TOOL_CLASSES = [
   ListEventNamesTool,
   ListPropertyValuesTool,
   PathsTool,
+  QueryCohortMembersTool,
 ];
 
 @Module({
@@ -36,6 +39,7 @@ const TOOL_CLASSES = [
     AnalyticsModule,
     EventsModule,
     PersonsModule,
+    CohortsModule,
   ],
   providers: [
     AiService,
