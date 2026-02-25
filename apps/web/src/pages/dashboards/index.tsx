@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
-import { Plus, LayoutDashboard } from 'lucide-react';
+import { Plus, LayoutDashboard, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { toast } from 'sonner';
@@ -21,7 +21,7 @@ export default function DashboardsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
 
-  const { data: dashboards, isLoading } = useDashboardList();
+  const { data: dashboards, isLoading, isError, refetch } = useDashboardList();
   const createMutation = useCreateDashboard();
   const deleteMutation = useDeleteDashboard();
   const confirmDelete = useConfirmDelete();
@@ -73,7 +73,19 @@ export default function DashboardsPage() {
 
           {isLoading && <ListSkeleton count={5} height="h-12" />}
 
-          {!isLoading && (dashboards || []).length > 0 && (
+          {!isLoading && isError && (
+            <EmptyState
+              icon={AlertTriangle}
+              description={t('errorLoading')}
+              action={
+                <Button variant="outline" onClick={() => refetch()}>
+                  {t('retry')}
+                </Button>
+              }
+            />
+          )}
+
+          {!isLoading && !isError && (dashboards || []).length > 0 && (
             <div className="space-y-1">
               {(dashboards || []).map((dashboard) => (
                 <ClickableListRow
@@ -88,7 +100,7 @@ export default function DashboardsPage() {
             </div>
           )}
 
-          {!isLoading && (dashboards || []).length === 0 && (
+          {!isLoading && !isError && (dashboards || []).length === 0 && (
             <EmptyState
               icon={LayoutDashboard}
               title={t('noYet')}

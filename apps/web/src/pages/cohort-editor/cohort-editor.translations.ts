@@ -21,6 +21,8 @@ export default createTranslations({
     calculationError: 'Calculation error',
     overviewTab: 'Overview',
     membersTab: 'Members',
+    errorLoading: 'Failed to load cohort. Check your connection and try again.',
+    retry: 'Retry',
   },
   ru: {
     backLabel: 'Когорты',
@@ -42,5 +44,7 @@ export default createTranslations({
     calculationError: 'Ошибка вычисления',
     overviewTab: 'Обзор',
     membersTab: 'Участники',
+    errorLoading: 'Не удалось загрузить когорту. Проверьте соединение и попробуйте снова.',
+    retry: 'Повторить',
   },
 });

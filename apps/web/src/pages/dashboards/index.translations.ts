@@ -14,6 +14,8 @@ export default createTranslations({
     deleteTitle: 'Delete "{{name}}"?',
     deleteDescription: 'This dashboard and all its widgets will be permanently removed.',
     delete: 'Delete',
+    errorLoading: 'Failed to load dashboards. Check your connection and try again.',
+    retry: 'Retry',
   },
   ru: {
     title: 'Дашборды',
@@ -28,5 +30,7 @@ export default createTranslations({
     deleteTitle: 'Удалить "{{name}}"?',
     deleteDescription: 'Этот дашборд и все его виджеты будут удалены безвозвратно.',
     delete: 'Удалить',
+    errorLoading: 'Не удалось загрузить дашборды. Проверьте соединение и попробуйте снова.',
+    retry: 'Повторить',
   },
 });

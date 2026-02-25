@@ -14,7 +14,7 @@ export function useCohortEditor() {
   const { go, link, projectId } = useAppNavigate();
   const isNew = !cohortId || cohortId === 'new';
 
-  const { data: existingCohort, isLoading: loadingCohort } = useCohort(isNew ? '' : cohortId!);
+  const { data: existingCohort, isLoading: loadingCohort, isError: errorCohort, refetch: refetchCohort } = useCohort(isNew ? '' : cohortId!);
   const createMutation = useCreateCohort();
   const updateMutation = useUpdateCohort();
   const previewMutation = useCohortPreviewCount();
@@ -103,6 +103,8 @@ export function useCohortEditor() {
     isNew,
     cohortId,
     loadingCohort,
+    errorCohort,
+    refetchCohort,
     existingCohort,
     memberCount,
     sizeHistory,

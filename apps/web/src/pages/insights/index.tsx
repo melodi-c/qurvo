@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useProjectId } from '@/hooks/use-project-id';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,7 +18,7 @@ export default function InsightsPage() {
   const { t } = useLocalTranslation(translations);
   const projectId = useProjectId();
 
-  const { data: insights, isLoading } = useInsights();
+  const { data: insights, isLoading, isError, refetch } = useInsights();
   const deleteMutation = useDeleteInsight();
   const toggleFavoriteMutation = useToggleFavorite();
   const { filters, setFilter } = useInsightsFilters();
@@ -59,8 +60,8 @@ export default function InsightsPage() {
     return result;
   }, [insights, filters]);
 
-  const isEmpty = !isLoading && insights && insights.length === 0;
-  const noResults = !isLoading && insights && insights.length > 0 && filtered.length === 0;
+  const isEmpty = !isLoading && !isError && insights && insights.length === 0;
+  const noResults = !isLoading && !isError && insights && insights.length > 0 && filtered.length === 0;
 
   return (
     <div className="space-y-4">
@@ -77,7 +78,19 @@ export default function InsightsPage() {
 
       {projectId && isLoading && <ListSkeleton count={5} />}
 
-      {projectId && !isLoading && (
+      {projectId && !isLoading && isError && (
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('errorLoading')}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t('retry')}
+            </Button>
+          }
+        />
+      )}
+
+      {projectId && !isLoading && !isError && (
         <>
           {!isEmpty && (
             <InsightsFilterBar filters={filters} setFilter={setFilter} />

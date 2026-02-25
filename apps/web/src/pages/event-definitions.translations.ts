@@ -15,6 +15,8 @@ export default createTranslations({
     description: 'Description',
     tags: 'Tags',
     noDescription: 'No description',
+    errorLoading: 'Failed to load event definitions. Check your connection and try again.',
+    retry: 'Retry',
   },
   ru: {
     title: 'Управление данными',
@@ -30,5 +32,7 @@ export default createTranslations({
     description: 'Описание',
     tags: 'Теги',
     noDescription: 'Нет описания',
+    errorLoading: 'Не удалось загрузить определения событий. Проверьте соединение и попробуйте снова.',
+    retry: 'Повторить',
   },
 });

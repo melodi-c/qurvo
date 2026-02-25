@@ -7,6 +7,8 @@ export default createTranslations({
     noYet: 'No insights yet',
     createFirst: 'Create your first trend, funnel, or retention analysis',
     noMatch: 'No insights match your current filters',
+    errorLoading: 'Failed to load insights. Check your connection and try again.',
+    retry: 'Retry',
   },
   ru: {
     title: 'Инсайты',
@@ -14,5 +16,7 @@ export default createTranslations({
     noYet: 'Инсайтов пока нет',
     createFirst: 'Создайте первый тренд, воронку или анализ удержания',
     noMatch: 'Нет инсайтов, соответствующих текущим фильтрам',
+    errorLoading: 'Не удалось загрузить инсайты. Проверьте соединение и попробуйте снова.',
+    retry: 'Повторить',
   },
 });

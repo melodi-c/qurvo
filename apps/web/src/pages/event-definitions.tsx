@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Database, Check } from 'lucide-react';
+import { Database, Check, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -17,7 +18,7 @@ export default function EventDefinitionsPage() {
   const { go, projectId } = useAppNavigate();
   const [search, setSearch] = useState('');
 
-  const { data: definitions, isLoading } = useEventDefinitions();
+  const { data: definitions, isLoading, isError, refetch } = useEventDefinitions();
 
   const filtered = useMemo(
     () => definitions?.filter((d) => d.event_name.toLowerCase().includes(search.toLowerCase())),
@@ -90,7 +91,19 @@ export default function EventDefinitionsPage() {
 
       {projectId && isLoading && <ListSkeleton count={8} />}
 
-      {projectId && !isLoading && (
+      {projectId && !isLoading && isError && (
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('errorLoading')}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t('retry')}
+            </Button>
+          }
+        />
+      )}
+
+      {projectId && !isLoading && !isError && (
         <>
           <div className="flex items-center gap-3">
             <Input

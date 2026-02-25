@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { GridSkeleton } from '@/components/ui/grid-skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Plus, FolderOpen } from 'lucide-react';
+import { Plus, FolderOpen, AlertTriangle } from 'lucide-react';
 import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './projects.translations';
@@ -23,7 +24,7 @@ export default function ProjectsPage() {
   const [, setSearchParams] = useSearchParams();
   const { t } = useLocalTranslation(translations);
 
-  const { data: projects, isLoading } = useQuery({
+  const { data: projects, isLoading, isError, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.projectsControllerList(),
   });
@@ -60,6 +61,22 @@ export default function ProjectsPage() {
   };
 
   const hasProjects = projects && projects.length > 0;
+
+  if (!isLoading && isError) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('errorLoading')}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t('retry')}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   // Empty state — no projects yet
   if (!isLoading && !hasProjects) {

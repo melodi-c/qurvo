@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { UsersRound, Loader2 } from 'lucide-react';
+import { UsersRound, Loader2, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
@@ -23,6 +25,8 @@ export default function CohortEditorPage() {
     isNew,
     cohortId,
     loadingCohort,
+    errorCohort,
+    refetchCohort,
     existingCohort,
     memberCount,
     sizeHistory,
@@ -65,6 +69,25 @@ export default function CohortEditorPage() {
             <Skeleton className="h-32 w-48" />
           </main>
         </div>
+      </div>
+    );
+  }
+
+  if (!isNew && errorCohort) {
+    return (
+      <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
+        <div className="h-[var(--topbar-height)] border-b border-border shrink-0" />
+        <main className="flex-1 flex items-center justify-center">
+          <EmptyState
+            icon={AlertTriangle}
+            description={t('errorLoading')}
+            action={
+              <Button variant="outline" onClick={() => refetchCohort()}>
+                {t('retry')}
+              </Button>
+            }
+          />
+        </main>
       </div>
     );
   }

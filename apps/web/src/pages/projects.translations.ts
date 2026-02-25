@@ -13,6 +13,8 @@ export default createTranslations({
     deleteFailed: 'Failed to delete project',
     deleteTitle: 'Delete "{{name}}"?',
     deleteDescription: 'This action cannot be undone. All project data will be permanently removed, including events, dashboards, insights, API keys, and cohorts.',
+    errorLoading: 'Failed to load projects. Check your connection and try again.',
+    retry: 'Retry',
   },
   ru: {
     title: 'Проекты',
@@ -26,5 +28,7 @@ export default createTranslations({
     deleteFailed: 'Не удалось удалить проект',
     deleteTitle: 'Удалить "{{name}}"?',
     deleteDescription: 'Это действие нельзя отменить. Все данные проекта будут удалены безвозвратно, включая события, дашборды, инсайты, API ключи и когорты.',
+    errorLoading: 'Не удалось загрузить проекты. Проверьте соединение и попробуйте снова.',
+    retry: 'Повторить',
   },
 });
