@@ -49,8 +49,9 @@ export class CohortComputationService {
   }
 
   /** Update PG tracking columns + reset error state. Separated from computeMembership
-   *  so that a transient PG failure doesn't trigger error backoff for a successful CH write. */
-  async markComputationSuccess(cohortId: string, version: number): Promise<void> {
+   *  so that a transient PG failure doesn't trigger error backoff for a successful CH write.
+   *  Returns false if PG update failed (caller should skip recordSizeHistory). */
+  async markComputationSuccess(cohortId: string, version: number): Promise<boolean> {
     try {
       await this.db
         .update(cohorts)
@@ -62,11 +63,13 @@ export class CohortComputationService {
           last_error_message: null,
         })
         .where(eq(cohorts.id, cohortId));
+      return true;
     } catch (err) {
       this.logger.warn(
         { err, cohortId },
         'PG tracking update failed after successful CH computation',
       );
+      return false;
     }
   }
 

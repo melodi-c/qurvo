@@ -96,7 +96,7 @@ export class ApiKeyGuard implements CanActivate {
       project_id: keyInfo.project_id,
       key_id: keyInfo.key_id,
       expires_at: keyInfo.expires_at?.toISOString() ?? null,
-      revoked_at: keyInfo.revoked_at?.toISOString() ?? null,
+      revoked_at: null,
       events_limit: keyInfo.events_limit ?? null,
     };
     this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS)
