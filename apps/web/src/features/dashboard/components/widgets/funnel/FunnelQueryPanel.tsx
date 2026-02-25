@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Timer, TrendingDown, Shuffle, Ban, BarChart3, FlaskConical } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Timer, TrendingDown, Shuffle, Ban, BarChart3, FlaskConical, ChevronDown, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -10,6 +10,9 @@ import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
 import { FunnelExclusionBuilder } from './FunnelExclusionBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
@@ -27,6 +30,7 @@ const WINDOW_UNITS = ['second', 'minute', 'hour', 'day', 'week', 'month'] as con
 export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames();
   const { t } = useLocalTranslation(translations);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const orderOptions = useMemo(() => [
     { label: t('ordered'), value: 'ordered' as const },
@@ -55,6 +59,24 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
     month: t('month'),
   }), [t]);
 
+  const activeAdvancedCount = useMemo(() => [
+    config.funnel_order_type !== undefined && config.funnel_order_type !== 'ordered',
+    (config.exclusions?.length ?? 0) > 0,
+    config.sampling_factor !== undefined && config.sampling_factor !== 1,
+    (config.breakdown_cohort_ids?.length ?? 0) > 0,
+  ].filter(Boolean).length, [config.funnel_order_type, config.exclusions, config.sampling_factor, config.breakdown_cohort_ids]);
+
+  function handleResetAdvanced() {
+    onChange({
+      ...config,
+      funnel_order_type: 'ordered',
+      exclusions: undefined,
+      sampling_factor: undefined,
+      breakdown_cohort_ids: undefined,
+      ...(config.breakdown_type === 'cohort' ? { breakdown_type: 'property' } : {}),
+    });
+  }
+
   return (
     <QueryPanelShell>
 
@@ -72,21 +94,6 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           <FunnelStepBuilder
             steps={config.steps}
             onChange={(steps) => onChange({ ...config, steps })}
-          />
-        </section>
-
-        <Separator />
-
-        {/* Order type */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-1">
-            <SectionHeader icon={Shuffle} label={t('orderType')} />
-            <InfoTooltip content={t('orderTypeTooltip')} />
-          </div>
-          <PillToggleGroup
-            options={orderOptions}
-            value={config.funnel_order_type ?? 'ordered'}
-            onChange={(funnel_order_type) => onChange({ ...config, funnel_order_type })}
           />
         </section>
 
@@ -157,30 +164,6 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         <Separator />
 
-        {/* Exclusion steps */}
-        <section className="space-y-3">
-          <SectionHeader icon={Ban} label={t('exclusions')} />
-          <FunnelExclusionBuilder
-            exclusions={config.exclusions ?? []}
-            onChange={(exclusions) => onChange({ ...config, exclusions })}
-            stepCount={config.steps.length}
-          />
-        </section>
-
-        <Separator />
-
-        {/* Sampling */}
-        <section className="space-y-3">
-          <SectionHeader icon={FlaskConical} label={t('sampling')} />
-          <PillToggleGroup
-            options={samplingOptions}
-            value={String(config.sampling_factor ?? 1)}
-            onChange={(v) => onChange({ ...config, sampling_factor: Number(v) === 1 ? undefined : Number(v) })}
-          />
-        </section>
-
-        <Separator />
-
         <CohortFilterSection
           value={config.cohort_ids ?? []}
           onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
@@ -205,6 +188,72 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
             breakdown_cohort_ids: ids.length ? ids : undefined,
           })}
         />
+
+        <Separator />
+
+        {/* Advanced options */}
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <div className="flex items-center justify-between">
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              {advancedOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              {t('advancedOptions')}
+              {activeAdvancedCount > 0 && (
+                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px]">
+                  {activeAdvancedCount}
+                </Badge>
+              )}
+            </CollapsibleTrigger>
+            {activeAdvancedCount > 0 && (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleResetAdvanced}
+              >
+                {t('resetAdvanced')}
+              </Button>
+            )}
+          </div>
+
+          <CollapsibleContent className="space-y-4 pt-3">
+            {/* Order type */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-1">
+                <SectionHeader icon={Shuffle} label={t('orderType')} />
+                <InfoTooltip content={t('orderTypeTooltip')} />
+              </div>
+              <PillToggleGroup
+                options={orderOptions}
+                value={config.funnel_order_type ?? 'ordered'}
+                onChange={(funnel_order_type) => onChange({ ...config, funnel_order_type })}
+              />
+            </section>
+
+            <Separator />
+
+            {/* Exclusion steps */}
+            <section className="space-y-3">
+              <SectionHeader icon={Ban} label={t('exclusions')} />
+              <FunnelExclusionBuilder
+                exclusions={config.exclusions ?? []}
+                onChange={(exclusions) => onChange({ ...config, exclusions })}
+                stepCount={config.steps.length}
+              />
+            </section>
+
+            <Separator />
+
+            {/* Sampling */}
+            <section className="space-y-3">
+              <SectionHeader icon={FlaskConical} label={t('sampling')} />
+              <PillToggleGroup
+                options={samplingOptions}
+                value={String(config.sampling_factor ?? 1)}
+                onChange={(v) => onChange({ ...config, sampling_factor: Number(v) === 1 ? undefined : Number(v) })}
+              />
+            </section>
+          </CollapsibleContent>
+        </Collapsible>
     </QueryPanelShell>
   );
 }

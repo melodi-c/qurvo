@@ -27,6 +27,8 @@ export default createTranslations({
     day: 'day',
     week: 'wk',
     month: 'mo',
+    advancedOptions: 'Advanced',
+    resetAdvanced: 'Reset advanced options',
   },
   ru: {
     steps: 'Шаги',
@@ -54,5 +56,7 @@ export default createTranslations({
     day: 'дн',
     week: 'нед',
     month: 'мес',
+    advancedOptions: 'Дополнительно',
+    resetAdvanced: 'Сбросить расширенные настройки',
   },
 });
