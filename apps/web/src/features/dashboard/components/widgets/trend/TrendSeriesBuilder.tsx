@@ -32,7 +32,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
 
   const addSeries = () => {
     if (series.length >= 5) return;
-    onChange([...series, { event_name: '', label: `Series ${series.length + 1}` }]);
+    onChange([...series, { event_name: '', label: t('seriesN', { n: String(series.length + 1) }) }]);
   };
 
   const removeSeries = (idx: number) => {
@@ -53,7 +53,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
               <span className="text-[10px] font-mono font-semibold text-muted-foreground leading-none">{SERIES_LETTERS[idx]}</span>
             </div>
           }
-          labelPlaceholder="Label"
+          labelPlaceholder={t('labelPlaceholder')}
           canRemove={series.length > 1}
           onLabelChange={(label) => update(idx, { label })}
           onEventChange={(event_name) => update(idx, { event_name })}

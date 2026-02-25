@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { TrendingUp, BarChart3 } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -7,7 +8,7 @@ import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useTrendData, cleanSeries } from '@/features/dashboard/hooks/use-trend';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
-import { defaultTrendConfig, METRIC_OPTIONS } from '@/features/dashboard/components/widgets/trend/trend-shared';
+import { defaultTrendConfig } from '@/features/dashboard/components/widgets/trend/trend-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './trend-editor.translations';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
@@ -22,7 +23,7 @@ export default function TrendEditorPage() {
   const editor = useInsightEditor<TrendWidgetConfig>({
     type: 'trend',
     defaultName: t('defaultName'),
-    defaultConfig: defaultTrendConfig,
+    defaultConfig: () => defaultTrendConfig(t('seriesLabel')),
     cleanConfig: cleanTrendConfig,
   });
 
@@ -43,7 +44,16 @@ export default function TrendEditorPage() {
     0,
   ) ?? 0;
   const seriesCount = series?.length ?? 0;
-  const metricLabel = METRIC_OPTIONS.find((o) => o.value === config.metric)?.label ?? config.metric;
+  const METRIC_LABELS: Record<string, string> = useMemo(() => ({
+    total_events: t('totalEvents'),
+    unique_users: t('uniqueUsers'),
+    events_per_user: t('eventsPerUser'),
+    property_sum: t('propertySum'),
+    property_avg: t('propertyAvg'),
+    property_min: t('propertyMin'),
+    property_max: t('propertyMax'),
+  }), [t]);
+  const metricLabel = METRIC_LABELS[config.metric] ?? config.metric;
 
   return (
     <InsightEditorLayout

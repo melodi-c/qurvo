@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useDashboardStore } from '../store';
+import cardTranslations from './InsightCard.translations';
 import { applyFilterOverrides } from '../lib/filter-overrides';
 import { InsightCardHeader } from './InsightCardHeader';
 import { InsightCardDetails } from './InsightCardDetails';
@@ -17,6 +19,7 @@ interface InsightCardProps {
 }
 
 export function InsightCard({ widget }: InsightCardProps) {
+  const { t } = useLocalTranslation(cardTranslations);
   const filterOverrides = useDashboardStore((s) => s.filterOverrides);
   const requestTextFocus = useDashboardStore((s) => s.requestTextFocus);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -58,7 +61,7 @@ export function InsightCard({ widget }: InsightCardProps) {
         <Dialog open onOpenChange={(open) => !open && setFullscreen(false)}>
           <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle>{widget.insight?.name || 'Widget'}</DialogTitle>
+              <DialogTitle>{widget.insight?.name || t('widget')}</DialogTitle>
             </DialogHeader>
             <div className="flex-1 min-h-0">
               <InsightCardViz widget={widget} configOverride={mergedConfig} />

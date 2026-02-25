@@ -14,6 +14,11 @@ export default createTranslations({
     addRule: 'Add rule',
     wildcardGroups: 'Wildcard groups',
     addGroup: 'Add group',
+    eventNamePlaceholder: 'event_name',
+    regexPlaceholder: 'regex',
+    aliasPlaceholder: 'alias',
+    wildcardPatternPlaceholder: '/product/*',
+    wildcardAliasPlaceholder: 'Product page',
   },
   ru: {
     pathSettings: 'Настройки путей',
@@ -28,5 +33,10 @@ export default createTranslations({
     addRule: 'Добавить правило',
     wildcardGroups: 'Группы подстановок',
     addGroup: 'Добавить группу',
+    eventNamePlaceholder: 'имя_события',
+    regexPlaceholder: 'регулярное выражение',
+    aliasPlaceholder: 'псевдоним',
+    wildcardPatternPlaceholder: '/product/*',
+    wildcardAliasPlaceholder: 'Страница продукта',
   },
 });

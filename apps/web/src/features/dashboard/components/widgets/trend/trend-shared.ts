@@ -3,11 +3,11 @@ import { defaultDateRange } from '@/lib/date-utils';
 
 export const SERIES_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
 
-export function defaultTrendConfig(): TrendWidgetConfig {
+export function defaultTrendConfig(seriesLabel = 'Series 1'): TrendWidgetConfig {
   const { from, to } = defaultDateRange();
   return {
     type: 'trend',
-    series: [{ event_name: '', label: 'Series 1' }],
+    series: [{ event_name: '', label: seriesLabel }],
     metric: 'total_events',
     granularity: 'day',
     chart_type: 'line',
@@ -16,25 +16,3 @@ export function defaultTrendConfig(): TrendWidgetConfig {
     compare: false,
   };
 }
-
-export const METRIC_OPTIONS = [
-  { value: 'total_events', label: 'Total events' },
-  { value: 'unique_users', label: 'Unique users' },
-  { value: 'events_per_user', label: 'Events per user' },
-  { value: 'property_sum', label: 'Sum of property' },
-  { value: 'property_avg', label: 'Average of property' },
-  { value: 'property_min', label: 'Min of property' },
-  { value: 'property_max', label: 'Max of property' },
-] as const;
-
-export const GRANULARITY_OPTIONS = [
-  { value: 'hour', label: 'Hour' },
-  { value: 'day', label: 'Day' },
-  { value: 'week', label: 'Week' },
-  { value: 'month', label: 'Month' },
-] as const;
-
-export const CHART_TYPE_OPTIONS = [
-  { value: 'line', label: 'Line' },
-  { value: 'bar', label: 'Bar' },
-] as const;

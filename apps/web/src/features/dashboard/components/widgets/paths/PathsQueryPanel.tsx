@@ -91,7 +91,7 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
             <EventNameCombobox
               value={ev}
               onChange={onItemChange}
-              placeholder="event_name"
+              placeholder={t('eventNamePlaceholder')}
             />
           )}
           onChange={(items) => onChange({ ...config, exclusions: items.length ? items : undefined })}
@@ -111,13 +111,13 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
               <Input
                 value={rule.regex}
                 onChange={(e) => onItemChange({ ...rule, regex: e.target.value })}
-                placeholder="regex"
+                placeholder={t('regexPlaceholder')}
                 className="h-8 text-xs font-mono flex-1"
               />
               <Input
                 value={rule.alias}
                 onChange={(e) => onItemChange({ ...rule, alias: e.target.value })}
-                placeholder="alias"
+                placeholder={t('aliasPlaceholder')}
                 className="h-8 text-xs flex-1"
               />
             </>
@@ -139,13 +139,13 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
               <Input
                 value={wg.pattern}
                 onChange={(e) => onItemChange({ ...wg, pattern: e.target.value })}
-                placeholder="/product/*"
+                placeholder={t('wildcardPatternPlaceholder')}
                 className="h-8 text-xs font-mono flex-1"
               />
               <Input
                 value={wg.alias}
                 onChange={(e) => onItemChange({ ...wg, alias: e.target.value })}
-                placeholder="Product page"
+                placeholder={t('wildcardAliasPlaceholder')}
                 className="h-8 text-xs flex-1"
               />
             </>
