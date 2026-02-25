@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
+import { AiFeedbackService } from './ai-feedback.service';
 import { AiContextService } from './ai-context.service';
 import { AiRateLimitGuard } from './guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from './guards/ai-quota.guard';
@@ -62,6 +63,7 @@ const TOOL_CLASSES = [
   providers: [
     AiService,
     AiChatService,
+    AiFeedbackService,
     AiContextService,
     AiRateLimitGuard,
     AiQuotaGuard,
@@ -80,6 +82,6 @@ const TOOL_CLASSES = [
       inject: TOOL_CLASSES,
     },
   ],
-  exports: [AiService, AiChatService],
+  exports: [AiService, AiChatService, AiFeedbackService],
 })
 export class AiModule {}

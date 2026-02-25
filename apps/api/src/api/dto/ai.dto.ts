@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, Min, Max, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, IsIn, Min, Max, MaxLength, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -122,4 +122,27 @@ export class AiConversationSearchResultDto {
   title: string;
   snippet: string;
   matched_at: string;
+}
+
+export class AiMessageFeedbackDto {
+  @ApiProperty({ enum: ['positive', 'negative'] })
+  @IsIn(['positive', 'negative'])
+  rating: 'positive' | 'negative';
+
+  @ApiPropertyOptional()
+  @IsString()
+  @MaxLength(2000)
+  @IsOptional()
+  comment?: string;
+}
+
+export class AiMessageFeedbackResponseDto {
+  id: string;
+  message_id: string;
+  user_id: string;
+  @ApiProperty({ enum: ['positive', 'negative'] })
+  rating: 'positive' | 'negative';
+  @ApiPropertyOptional()
+  comment: string | null;
+  created_at: string;
 }

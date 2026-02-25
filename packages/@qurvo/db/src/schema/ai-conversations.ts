@@ -36,3 +36,14 @@ export const aiMessages = pgTable('ai_messages', {
 }, (table) => [
   index('ai_messages_conversation_seq_idx').on(table.conversation_id, table.sequence),
 ]);
+
+export const aiMessageFeedback = pgTable('ai_message_feedback', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  message_id: uuid('message_id').notNull().references(() => aiMessages.id, { onDelete: 'cascade' }),
+  user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  rating: varchar('rating', { length: 10 }).notNull(),
+  comment: text('comment'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('ai_message_feedback_message_user_idx').on(table.message_id, table.user_id),
+]);
