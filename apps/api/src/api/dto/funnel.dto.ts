@@ -18,6 +18,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class FunnelStepDto {
   @IsString()
@@ -161,11 +162,9 @@ export class FunnelResultDto {
   aggregate_steps?: FunnelStepResultDto[];
 }
 
-export class FunnelResponseDto {
+export class FunnelResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => FunnelResultDto)
   data: FunnelResultDto;
-  cached_at: string;
-  from_cache: boolean;
 }
 
 export class TimeToConvertBinDto {
@@ -184,9 +183,7 @@ export class TimeToConvertResultDto {
   bins: TimeToConvertBinDto[];
 }
 
-export class TimeToConvertResponseDto {
+export class TimeToConvertResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => TimeToConvertResultDto)
   data: TimeToConvertResultDto;
-  cached_at: string;
-  from_cache: boolean;
 }

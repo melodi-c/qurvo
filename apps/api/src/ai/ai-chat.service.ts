@@ -6,12 +6,12 @@ import type { Database } from '@qurvo/db';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 export interface SavedMessage {
-  role: string;
+  role: 'user' | 'assistant' | 'tool';
   content: string | null;
-  tool_calls: unknown | null;
+  tool_calls: Record<string, unknown>[] | null;
   tool_call_id: string | null;
   tool_name: string | null;
-  tool_result: unknown | null;
+  tool_result: unknown;
   visualization_type: string | null;
 }
 

@@ -9,22 +9,43 @@ import type {
 import { ProjectsService } from '../projects/projects.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
+import { AI_CONFIG } from './ai-config.provider';
+import type { AiConfig } from './ai-config.provider';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
-import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { AppNotFoundException } from '../exceptions/app-not-found.exception';
 import { buildSystemPrompt } from './system-prompt';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT } from '../constants';
 
-export type AiStreamChunk =
+type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
   | { type: 'text_delta'; content: string }
   | { type: 'tool_call_start'; tool_call_id: string; name: string }
   | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string }
   | { type: 'error'; message: string }
   | { type: 'done' };
+
+interface AccumulatedToolCall {
+  id: string;
+  function: { name: string; arguments: string };
+}
+
+interface StreamTurnResult {
+  assistantContent: string;
+  toolCalls: AccumulatedToolCall[];
+}
+
+interface DispatchedToolResult {
+  toolCallId: string;
+  toolName: string;
+  result: unknown;
+  visualizationType?: string;
+}
+
+function isAiSafeError(err: unknown): err is Error & { isSafeForAi: true } {
+  return err instanceof Error && 'isSafeForAi' in err && (err as any).isSafeForAi === true;
+}
 
 @Injectable()
 export class AiService implements OnModuleInit {
@@ -37,20 +58,20 @@ export class AiService implements OnModuleInit {
   constructor(
     private readonly projectsService: ProjectsService,
     private readonly chatService: AiChatService,
+    @Inject(AI_CONFIG) private readonly config: AiConfig,
     @Inject(AI_TOOLS) tools: AiTool[],
     private readonly contextService: AiContextService,
   ) {
-    this.model = process.env.OPENAI_MODEL || 'gpt-4o';
+    this.model = config.model;
     this.toolMap = new Map(tools.map((t) => [t.name, t]));
     this.toolDefinitions = tools.map((t) => t.definition());
   }
 
   onModuleInit() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey) {
+    if (this.config.apiKey) {
       this.client = new OpenAI({
-        apiKey,
-        baseURL: process.env.OPENAI_API_BASE_URL || undefined,
+        apiKey: this.config.apiKey,
+        baseURL: this.config.baseURL,
       });
       this.logger.log('OpenAI client initialized');
     } else {
@@ -161,39 +182,9 @@ export class AiService implements OnModuleInit {
     projectId: string,
   ): AsyncGenerator<AiStreamChunk, number> {
     let exhausted = true;
+
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
-      const stream = await client.chat.completions.create({
-        model: this.model,
-        messages,
-        tools: this.toolDefinitions,
-        stream: true,
-      });
-
-      let assistantContent = '';
-      const toolCalls: { id: string; function: { name: string; arguments: string } }[] = [];
-
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta;
-        if (!delta) continue;
-
-        if (delta.content) {
-          assistantContent += delta.content;
-          yield { type: 'text_delta', content: delta.content };
-        }
-
-        if (delta.tool_calls) {
-          for (const tc of delta.tool_calls) {
-            if (tc.index !== undefined) {
-              if (!toolCalls[tc.index]) {
-                toolCalls[tc.index] = { id: '', function: { name: '', arguments: '' } };
-              }
-              if (tc.id) toolCalls[tc.index].id = tc.id;
-              if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
-              if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
-            }
-          }
-        }
-      }
+      const { assistantContent, toolCalls } = yield* this.streamOneTurn(client, messages);
 
       if (toolCalls.length === 0) {
         await this.chatService.saveMessage(conversationId, seq++, {
@@ -232,51 +223,24 @@ export class AiService implements OnModuleInit {
         visualization_type: null,
       });
 
-      // Execute tool calls
-      for (const tc of toolCalls) {
-        yield { type: 'tool_call_start', tool_call_id: tc.id, name: tc.function.name };
+      // Execute tool calls and append results to messages
+      const results = yield* this.dispatchToolCalls(toolCalls, userId, projectId);
 
-        let toolResult: unknown;
-        let vizType: string | undefined;
-        try {
-          const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-          const tool = this.toolMap.get(tc.function.name);
-          if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
-          const res = await tool.run(args, userId, projectId);
-          toolResult = res.result;
-          vizType = res.visualization_type;
-        } catch (err) {
-          this.logger.warn({ err, tool: tc.function.name }, `Tool ${tc.function.name} failed`);
-          const safeMessage =
-            err instanceof AppBadRequestException || err instanceof AppNotFoundException
-              ? err.message
-              : 'The query failed. Please try a different approach.';
-          toolResult = { error: safeMessage };
-        }
-
-        yield {
-          type: 'tool_result',
-          tool_call_id: tc.id,
-          name: tc.function.name,
-          result: toolResult,
-          visualization_type: vizType,
-        };
-
-        const toolResultStr = JSON.stringify(toolResult);
+      for (const r of results) {
         messages.push({
           role: 'tool',
-          tool_call_id: tc.id,
-          content: toolResultStr,
+          tool_call_id: r.toolCallId,
+          content: JSON.stringify(r.result),
         });
 
         await this.chatService.saveMessage(conversationId, seq++, {
           role: 'tool',
           content: null,
           tool_calls: null,
-          tool_call_id: tc.id,
-          tool_name: tc.function.name,
-          tool_result: toolResult,
-          visualization_type: vizType ?? null,
+          tool_call_id: r.toolCallId,
+          tool_name: r.toolName,
+          tool_result: r.result,
+          visualization_type: r.visualizationType ?? null,
         });
       }
     }
@@ -288,8 +252,88 @@ export class AiService implements OnModuleInit {
     return seq;
   }
 
+  private async *streamOneTurn(
+    client: OpenAI,
+    messages: ChatCompletionMessageParam[],
+  ): AsyncGenerator<AiStreamChunk, StreamTurnResult> {
+    const stream = await client.chat.completions.create({
+      model: this.model,
+      messages,
+      tools: this.toolDefinitions,
+      stream: true,
+    });
+
+    let assistantContent = '';
+    const toolCalls: AccumulatedToolCall[] = [];
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (!delta) continue;
+
+      if (delta.content) {
+        assistantContent += delta.content;
+        yield { type: 'text_delta', content: delta.content };
+      }
+
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          if (tc.index !== undefined) {
+            if (!toolCalls[tc.index]) {
+              toolCalls[tc.index] = { id: '', function: { name: '', arguments: '' } };
+            }
+            if (tc.id) toolCalls[tc.index].id = tc.id;
+            if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
+            if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
+          }
+        }
+      }
+    }
+
+    return { assistantContent, toolCalls };
+  }
+
+  private async *dispatchToolCalls(
+    toolCalls: AccumulatedToolCall[],
+    userId: string,
+    projectId: string,
+  ): AsyncGenerator<AiStreamChunk, DispatchedToolResult[]> {
+    const results: DispatchedToolResult[] = [];
+
+    for (const tc of toolCalls) {
+      yield { type: 'tool_call_start', tool_call_id: tc.id, name: tc.function.name };
+
+      let toolResult: unknown;
+      let vizType: string | undefined;
+      try {
+        const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+        const tool = this.toolMap.get(tc.function.name);
+        if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
+        const res = await tool.run(args, userId, projectId);
+        toolResult = res.result;
+        vizType = res.visualization_type;
+      } catch (err) {
+        this.logger.warn({ err, tool: tc.function.name }, `Tool ${tc.function.name} failed`);
+        const safeMessage = isAiSafeError(err)
+          ? err.message
+          : 'The query failed. Please try a different approach.';
+        toolResult = { error: safeMessage };
+      }
+
+      yield {
+        type: 'tool_result',
+        tool_call_id: tc.id,
+        name: tc.function.name,
+        result: toolResult,
+        visualization_type: vizType,
+      };
+
+      results.push({ toolCallId: tc.id, toolName: tc.function.name, result: toolResult, visualizationType: vizType });
+    }
+
+    return results;
+  }
+
   async listConversations(userId: string, projectId: string) {
-    await this.projectsService.getMembership(userId, projectId);
     return this.chatService.listConversations(userId, projectId);
   }
 

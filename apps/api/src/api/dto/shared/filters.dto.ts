@@ -6,8 +6,6 @@ import {
 } from 'class-validator';
 import type { FilterOperator } from '../../../utils/property-filter';
 
-export { type FilterOperator };
-
 export class StepFilterDto {
   @IsString()
   @IsNotEmpty()

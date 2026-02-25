@@ -13,6 +13,7 @@ import { CohortNotFoundException } from './exceptions/cohort-not-found.exception
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
+import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
 @Injectable()
 export class CohortsService {
@@ -102,19 +103,20 @@ export class CohortsService {
       await this.checkCircularDependency(cohortId, definition, projectId);
     }
 
-    const updateData: Record<string, unknown> = { updated_at: new Date() };
-    if (input.name !== undefined) updateData.name = input.name;
-    if (input.description !== undefined) updateData.description = input.description;
-    if (definition !== undefined) {
-      updateData.definition = definition;
-      // Reset materialized membership — force fallback until recomputation
-      updateData.membership_version = null;
-      updateData.membership_computed_at = null;
-      // Reset error tracking — definition changed, give it a fresh chance
-      updateData.errors_calculating = 0;
-      updateData.last_error_at = null;
-      updateData.last_error_message = null;
-    }
+    const updateData = {
+      updated_at: new Date(),
+      ...buildConditionalUpdate(input, ['name', 'description']),
+      ...(definition !== undefined && {
+        definition,
+        // Reset materialized membership — force fallback until recomputation
+        membership_version: null,
+        membership_computed_at: null,
+        // Reset error tracking — definition changed, give it a fresh chance
+        errors_calculating: 0,
+        last_error_at: null,
+        last_error_message: null,
+      }),
+    };
 
     const rows = await this.db
       .update(cohorts)

@@ -299,7 +299,7 @@ export class CohortRestartedPerformingConditionDto {
 
 // ── Condition Group DTO (recursive nested AND/OR) ────────────────────────────
 
-export type CohortConditionValue =
+type CohortConditionValue =
   | CohortPropertyConditionDto
   | CohortEventConditionDto
   | CohortCohortConditionDto

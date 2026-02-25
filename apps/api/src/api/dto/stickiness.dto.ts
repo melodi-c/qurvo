@@ -6,6 +6,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
 export class StickinessQueryDto extends BaseAnalyticsQueryDto {
   @IsString()
@@ -29,9 +30,7 @@ export class StickinessResultDto {
   data: StickinessDataPointDto[];
 }
 
-export class StickinessResponseDto {
+export class StickinessResponseDto extends BaseAnalyticsResponseDto {
   @Type(() => StickinessResultDto)
   data: StickinessResultDto;
-  cached_at: string;
-  from_cache: boolean;
 }

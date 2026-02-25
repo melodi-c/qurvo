@@ -1,10 +1,11 @@
-import type { Transport, LogFn } from './types';
+import type { Transport, LogFn, QueuePersistence } from './types';
 import { QuotaExceededError, NonRetryableError } from './types';
 
 export class EventQueue {
   private queue: unknown[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
   private flushing = false;
+  private inFlightBatch: unknown[] | null = null;
   private failureCount = 0;
   private retryAfter = 0;
   private readonly maxBackoffMs = 30_000;
@@ -18,7 +19,20 @@ export class EventQueue {
     private readonly maxQueueSize: number = 1000,
     private readonly sendTimeoutMs: number = 30_000,
     private readonly logger?: LogFn,
-  ) {}
+    private readonly persistence?: QueuePersistence,
+  ) {
+    if (this.persistence) {
+      try {
+        const persisted = this.persistence.load();
+        if (persisted.length > 0) {
+          this.queue.push(...persisted);
+          this.logger?.(`restored ${persisted.length} events from persistence`);
+        }
+      } catch {
+        this.logger?.('failed to restore persisted events');
+      }
+    }
+  }
 
   enqueue(event: unknown) {
     if (this.queue.length >= this.maxQueueSize) {
@@ -26,6 +40,7 @@ export class EventQueue {
       this.logger?.(`queue full (${this.maxQueueSize}), oldest event dropped`);
     }
     this.queue.push(event);
+    this.persist();
 
     if (this.queue.length >= this.flushSize) {
       this.flush();
@@ -49,7 +64,7 @@ export class EventQueue {
     if (Date.now() < this.retryAfter) return;
 
     this.flushing = true;
-    const batch = this.queue.splice(0, this.flushSize);
+    this.inFlightBatch = this.queue.splice(0, this.flushSize);
 
     try {
       const controller = new AbortController();
@@ -58,14 +73,14 @@ export class EventQueue {
         const ok = await this.transport.send(
           this.endpoint,
           this.apiKey,
-          { events: batch, sent_at: new Date().toISOString() },
+          { events: this.inFlightBatch, sent_at: new Date().toISOString() },
           { signal: controller.signal },
         );
         if (!ok) {
-          this.queue.unshift(...batch);
+          this.queue.unshift(...this.inFlightBatch);
           this.scheduleBackoff();
           const backoffMs = Math.min(1000 * Math.pow(2, this.failureCount - 1), this.maxBackoffMs);
-          this.logger?.(`flush failed, ${batch.length} events re-queued, retry in ${backoffMs}ms`);
+          this.logger?.(`flush failed, ${this.inFlightBatch.length} events re-queued, retry in ${backoffMs}ms`);
         } else {
           this.failureCount = 0;
           this.retryAfter = 0;
@@ -76,18 +91,20 @@ export class EventQueue {
     } catch (err) {
       if (err instanceof QuotaExceededError) {
         this.queue.length = 0;
+        this.inFlightBatch = null;
         this.stop();
         this.logger?.('quota exceeded, events dropped and queue stopped');
       } else if (err instanceof NonRetryableError) {
-        // 4xx: bad data or auth — drop batch, don't retry (retrying won't help)
-        this.logger?.(`non-retryable error (${err.statusCode}), ${batch.length} events dropped`, err);
+        this.logger?.(`non-retryable error (${err.statusCode}), ${this.inFlightBatch.length} events dropped`, err);
       } else {
-        this.queue.unshift(...batch);
+        this.queue.unshift(...this.inFlightBatch);
         this.scheduleBackoff();
-        this.logger?.(`flush error, ${batch.length} events re-queued`, err);
+        this.logger?.(`flush error, ${this.inFlightBatch.length} events re-queued`, err);
       }
     } finally {
+      this.inFlightBatch = null;
       this.flushing = false;
+      this.persist();
     }
   }
 
@@ -109,7 +126,7 @@ export class EventQueue {
 
   async shutdown(timeoutMs: number = 30_000): Promise<void> {
     this.stop();
-    if (this.queue.length === 0) return;
+    if (this.size === 0) return;
     await Promise.race([
       this.flushAll(),
       new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
@@ -117,13 +134,23 @@ export class EventQueue {
   }
 
   flushForUnload(): void {
-    if (this.queue.length === 0) return;
+    const batch = [...(this.inFlightBatch || []), ...this.queue.splice(0)];
+    this.inFlightBatch = null;
+    this.persist();
+    if (batch.length === 0) return;
 
-    const batch = this.queue.splice(0);
     this.transport.send(this.endpoint, this.apiKey, { events: batch, sent_at: new Date().toISOString() }, { keepalive: true }).catch(() => {});
   }
 
   get size() {
-    return this.queue.length;
+    return this.queue.length + (this.inFlightBatch?.length || 0);
+  }
+
+  private persist() {
+    try {
+      this.persistence?.save(this.queue);
+    } catch {
+      // persistence is best-effort
+    }
   }
 }

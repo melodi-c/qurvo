@@ -23,7 +23,7 @@ export const DIRECT_COLUMNS = new Set([
  * Resolves a property name to its JSON source ('properties' or 'user_properties')
  * and the extracted key. Returns null for direct columns.
  */
-export function resolvePropertySource(prop: string): { jsonColumn: string; key: string } | null {
+function resolvePropertySource(prop: string): { jsonColumn: string; key: string } | null {
   if (prop.startsWith('properties.')) {
     return { jsonColumn: 'properties', key: prop.slice('properties.'.length).replace(/'/g, "\\'") };
   }

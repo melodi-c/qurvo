@@ -1,8 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import type { CohortConditionGroup } from '@qurvo/db';
-import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
+import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr, resolveNumericPropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
@@ -27,7 +26,7 @@ export interface TrendQueryParams {
   date_from: string;
   date_to: string;
   breakdown_property?: string;
-  breakdown_cohort_ids?: { cohort_id: string; name: string; is_static: boolean; materialized: boolean; definition: CohortConditionGroup }[];
+  breakdown_cohort_ids?: CohortBreakdownEntry[];
   compare?: boolean;
   cohort_filters?: CohortFilterInput[];
 }

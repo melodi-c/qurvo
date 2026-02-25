@@ -1,6 +1,6 @@
 import { gzipSync, strToU8 } from 'fflate';
 import { EventQueue, FetchTransport } from '@qurvo/sdk-core';
-import type { EventPayload } from '@qurvo/sdk-core';
+import type { EventPayload, QueuePersistence } from '@qurvo/sdk-core';
 import { SDK_VERSION } from './version';
 
 const SDK_NAME = '@qurvo/sdk-browser';
@@ -14,21 +14,9 @@ function safeGetItem(storage: Storage, key: string): string | null {
 function safeSetItem(storage: Storage, key: string, value: string): void {
   try { storage.setItem(key, value); } catch { /* noop */ }
 }
-function safeRemoveItem(storage: Storage, key: string): void {
-  try { storage.removeItem(key); } catch { /* noop */ }
-}
 
 function generateId(): string {
   return crypto.randomUUID?.() || Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
-function getAnonymousId(): string {
-  let id = safeGetItem(localStorage, ANON_ID_KEY);
-  if (!id) {
-    id = generateId();
-    safeSetItem(localStorage, ANON_ID_KEY, id);
-  }
-  return id;
 }
 
 function getSessionId(): string {
@@ -59,6 +47,8 @@ function getContext() {
 export interface BrowserSdkConfig {
   apiKey: string;
   endpoint?: string;
+  /** If known upfront (e.g. Telegram Mini App), pass user ID to avoid identity gaps and namespace storage per user. */
+  distinctId?: string;
   autocapture?: boolean;
   flushInterval?: number;
   flushSize?: number;
@@ -72,22 +62,60 @@ class QurvoBrowser {
   init(config: BrowserSdkConfig) {
     if (this.initialized) return;
 
+    // If distinctId passed at init — use it, otherwise fall back to stored/anonymous
+    if (config.distinctId) {
+      this.userId = config.distinctId;
+      safeSetItem(localStorage, USER_ID_KEY, config.distinctId);
+    } else {
+      this.userId = safeGetItem(localStorage, USER_ID_KEY);
+    }
+
     const endpoint = config.endpoint || 'http://localhost:3001';
     const compress = async (data: string) => {
       const compressed = gzipSync(strToU8(data), { mtime: 0 });
       return new Blob([compressed.buffer as ArrayBuffer], { type: 'text/plain' });
     };
     const transport = new FetchTransport(compress);
+
+    const queueKey = this.userId ? `qurvo_queue:${this.userId}` : 'qurvo_queue';
+    const maxEventAgeMs = 24 * 60 * 60 * 1000; // drop events older than 24h
+    const persistence: QueuePersistence = {
+      save(events) {
+        if (events.length === 0) {
+          try { localStorage.removeItem(queueKey); } catch { /* noop */ }
+          return;
+        }
+        safeSetItem(localStorage, queueKey, JSON.stringify(events));
+      },
+      load() {
+        const raw = safeGetItem(localStorage, queueKey);
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return [];
+          const cutoff = Date.now() - maxEventAgeMs;
+          return parsed.filter((e: any) => {
+            const ts = e?.timestamp;
+            return ts && new Date(ts).getTime() > cutoff;
+          });
+        } catch {
+          return [];
+        }
+      },
+    };
+
     this.queue = new EventQueue(
       transport,
       `${endpoint}/v1/batch`,
       config.apiKey,
-      config.flushInterval || 10000,
+      config.flushInterval || 3000,
       config.flushSize || 10,
       1000,
+      30_000,
+      undefined,
+      persistence,
     );
     this.queue.start();
-    this.userId = safeGetItem(localStorage, USER_ID_KEY);
     this.initialized = true;
 
     if (config.autocapture !== false) {
@@ -103,8 +131,8 @@ class QurvoBrowser {
 
     const payload: EventPayload = {
       event,
-      distinct_id: this.userId || getAnonymousId(),
-      anonymous_id: getAnonymousId(),
+      distinct_id: this.userId || this.getAnonymousId(),
+      anonymous_id: this.getAnonymousId(),
       properties,
       context: getContext(),
       timestamp: new Date().toISOString(),
@@ -121,7 +149,7 @@ class QurvoBrowser {
     const payload: EventPayload = {
       event: '$identify',
       distinct_id: userId,
-      anonymous_id: getAnonymousId(),
+      anonymous_id: this.getAnonymousId(),
       user_properties: userProperties,
       context: getContext(),
       timestamp: new Date().toISOString(),
@@ -143,8 +171,8 @@ class QurvoBrowser {
 
     const payload: EventPayload = {
       event: '$set',
-      distinct_id: this.userId || getAnonymousId(),
-      anonymous_id: getAnonymousId(),
+      distinct_id: this.userId || this.getAnonymousId(),
+      anonymous_id: this.getAnonymousId(),
       user_properties: { $set: properties },
       context: getContext(),
       timestamp: new Date().toISOString(),
@@ -158,8 +186,8 @@ class QurvoBrowser {
 
     const payload: EventPayload = {
       event: '$set_once',
-      distinct_id: this.userId || getAnonymousId(),
-      anonymous_id: getAnonymousId(),
+      distinct_id: this.userId || this.getAnonymousId(),
+      anonymous_id: this.getAnonymousId(),
       user_properties: { $set_once: properties },
       context: getContext(),
       timestamp: new Date().toISOString(),
@@ -170,9 +198,16 @@ class QurvoBrowser {
 
   reset() {
     this.userId = null;
-    safeRemoveItem(localStorage, ANON_ID_KEY);
-    safeRemoveItem(sessionStorage, SESSION_ID_KEY);
-    safeRemoveItem(localStorage, USER_ID_KEY);
+  }
+
+  /** Anonymous ID — always per-device, never namespaced. Links pre-identify events to identified users. */
+  private getAnonymousId(): string {
+    let id = safeGetItem(localStorage, ANON_ID_KEY);
+    if (!id) {
+      id = generateId();
+      safeSetItem(localStorage, ANON_ID_KEY, id);
+    }
+    return id;
   }
 
   private setupAutocapture() {
@@ -205,11 +240,14 @@ class QurvoBrowser {
       }
     };
 
+    // pagehide is more reliable than beforeunload in mobile webviews (Telegram, TikTok, etc.)
+    // see https://calendar.perfplanet.com/2020/beaconing-in-practice/#beaconing-reliability-avoiding-abandons
+    const unloadEvent = 'onpagehide' in self ? 'pagehide' : 'beforeunload';
+    window.addEventListener(unloadEvent, flushForUnload);
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') flushForUnload();
     });
-
-    window.addEventListener('beforeunload', flushForUnload);
   }
 }
 

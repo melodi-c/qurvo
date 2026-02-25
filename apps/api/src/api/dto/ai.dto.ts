@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, Min, Max, MaxLength } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class AiChatDto {
@@ -31,7 +31,8 @@ export class AiConversationDto {
 
 export class AiMessageDto {
   id: string;
-  role: string;
+  @ApiProperty({ enum: ['user', 'assistant', 'tool'] })
+  role: 'user' | 'assistant' | 'tool';
   @ApiPropertyOptional() content: string | null;
   @ApiPropertyOptional() tool_calls: unknown;
   @ApiPropertyOptional() tool_call_id: string | null;

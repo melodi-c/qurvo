@@ -129,7 +129,7 @@ export async function queryEvents(
   return result.json<EventRow>();
 }
 
-export interface EventDetailParams {
+interface EventDetailParams {
   project_id: string;
   event_id: string;
 }

@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import { projectMembers, projectInvites, users, projects } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
-import { InsufficientPermissionsException } from '../projects/exceptions/insufficient-permissions.exception';
+import { InsufficientPermissionsException } from '../exceptions/insufficient-permissions.exception';
 import { InviteNotFoundException } from './exceptions/invite-not-found.exception';
 import { InviteConflictException } from './exceptions/invite-conflict.exception';
 import { AlreadyMemberException } from './exceptions/already-member.exception';
