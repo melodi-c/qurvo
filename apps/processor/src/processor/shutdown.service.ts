@@ -19,17 +19,25 @@ export class ShutdownService implements OnApplicationShutdown {
   ) {}
 
   async onApplicationShutdown() {
-    await this.eventConsumerService.shutdown().catch((err) =>
-      this.logger.error({ err }, 'Consumer shutdown error'),
-    );
+    let hasCriticalError = false;
+
+    await this.eventConsumerService.shutdown().catch((err) => {
+      this.logger.error({ err }, 'Consumer shutdown error');
+      hasCriticalError = true;
+    });
     await this.dlqService.stop().catch((err) =>
       this.logger.error({ err }, 'DLQ shutdown error'),
     );
     // FlushService.shutdown() runs a final flush which includes personBatchStore.flush() internally
-    await this.flushService.shutdown().catch((err) =>
-      this.logger.error({ err }, 'Flush shutdown error'),
-    );
+    await this.flushService.shutdown().catch((err) => {
+      this.logger.error({ err }, 'Flush shutdown error');
+      hasCriticalError = true;
+    });
     await this.ch.close().catch(() => {});
     await this.redis.quit().catch(() => {});
+
+    if (hasCriticalError) {
+      setTimeout(() => process.exit(1), 100);
+    }
   }
 }
