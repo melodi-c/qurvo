@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, and, desc, lt } from 'drizzle-orm';
+import { eq, and, desc, lt, count } from 'drizzle-orm';
 import { aiConversations, aiMessages } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
@@ -106,6 +106,31 @@ export class AiChatService {
     await this.db
       .update(aiConversations)
       .set({ updated_at: new Date(), ...buildConditionalUpdate({ title }, ['title']) })
+      .where(eq(aiConversations.id, conversationId));
+  }
+
+  async getMessageCount(conversationId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ count: count() })
+      .from(aiMessages)
+      .where(eq(aiMessages.conversation_id, conversationId));
+    return row?.count ?? 0;
+  }
+
+  async getMessagesForSummary(conversationId: string, limit: number) {
+    const rows = await this.db
+      .select()
+      .from(aiMessages)
+      .where(eq(aiMessages.conversation_id, conversationId))
+      .orderBy(aiMessages.sequence)
+      .limit(limit);
+    return rows;
+  }
+
+  async saveHistorySummary(conversationId: string, summary: string) {
+    await this.db
+      .update(aiConversations)
+      .set({ history_summary: summary })
       .where(eq(aiConversations.id, conversationId));
   }
 }

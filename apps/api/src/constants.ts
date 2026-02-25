@@ -21,6 +21,9 @@ export const AI_MAX_TOOL_CALL_ITERATIONS = 10;
 export const AI_CONTEXT_MESSAGE_LIMIT = 200;
 export const AI_RATE_LIMIT_PER_MINUTE = parseInt(process.env.AI_RATE_LIMIT_PER_MINUTE ?? '20', 10);
 export const AI_RATE_LIMIT_PER_HOUR = parseInt(process.env.AI_RATE_LIMIT_PER_HOUR ?? '200', 10);
+export const AI_SUMMARY_THRESHOLD = 40;
+export const AI_SUMMARY_KEEP_RECENT = 20;
+export const AI_SUMMARIZATION_MODEL = 'gpt-4o-mini';
 export const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
 
 export const PROJECT_ROLE_LEVELS: Record<string, number> = { owner: 3, editor: 2, viewer: 1 };

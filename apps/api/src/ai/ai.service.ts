@@ -16,7 +16,7 @@ import { ConversationNotFoundException } from './exceptions/conversation-not-fou
 import { buildSystemPrompt } from './system-prompt';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
-import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT } from '../constants';
+import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_SUMMARIZATION_MODEL } from '../constants';
 
 type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
@@ -120,26 +120,67 @@ export class AiService implements OnModuleInit {
 
       const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
 
-      // Load history
+      // Load history with summarization
+      let totalMessageCount = 0;
+      let existingSummary: string | null = null;
       if (!isNew) {
-        const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
-        for (const msg of history) {
-          if (msg.role === 'user') {
-            messages.push({ role: 'user', content: msg.content ?? '' });
-          } else if (msg.role === 'assistant') {
-            const assistantMsg: ChatCompletionAssistantMessageParam = {
-              role: 'assistant',
-              content: msg.content ?? null,
-              ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
-            };
-            messages.push(assistantMsg);
-          } else if (msg.role === 'tool') {
-            if (!msg.tool_call_id) continue;
+        totalMessageCount = await this.chatService.getMessageCount(conversation.id);
+
+        if (totalMessageCount > AI_SUMMARY_THRESHOLD) {
+          // Load the conversation record to get any cached summary
+          const convRecord = await this.chatService.getConversation(conversation.id, userId);
+          existingSummary = convRecord?.history_summary ?? null;
+
+          // Inject cached summary as a system message if available
+          if (existingSummary) {
             messages.push({
-              role: 'tool',
-              tool_call_id: msg.tool_call_id,
-              content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
+              role: 'system',
+              content: `## Summary of earlier conversation\n\n${existingSummary}`,
             });
+          }
+
+          // Only load the most recent messages verbatim
+          const { messages: recentHistory } = await this.chatService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
+          for (const msg of recentHistory) {
+            if (msg.role === 'user') {
+              messages.push({ role: 'user', content: msg.content ?? '' });
+            } else if (msg.role === 'assistant') {
+              const assistantMsg: ChatCompletionAssistantMessageParam = {
+                role: 'assistant',
+                content: msg.content ?? null,
+                ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
+              };
+              messages.push(assistantMsg);
+            } else if (msg.role === 'tool') {
+              if (!msg.tool_call_id) continue;
+              messages.push({
+                role: 'tool',
+                tool_call_id: msg.tool_call_id,
+                content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
+              });
+            }
+          }
+        } else {
+          // Conversation is short enough — load all messages
+          const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
+          for (const msg of history) {
+            if (msg.role === 'user') {
+              messages.push({ role: 'user', content: msg.content ?? '' });
+            } else if (msg.role === 'assistant') {
+              const assistantMsg: ChatCompletionAssistantMessageParam = {
+                role: 'assistant',
+                content: msg.content ?? null,
+                ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
+              };
+              messages.push(assistantMsg);
+            } else if (msg.role === 'tool') {
+              if (!msg.tool_call_id) continue;
+              messages.push({
+                role: 'tool',
+                tool_call_id: msg.tool_call_id,
+                content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
+              });
+            }
           }
         }
       }
@@ -159,6 +200,20 @@ export class AiService implements OnModuleInit {
 
       // Run tool-call loop
       seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
+
+      // Update summary when history exceeds the threshold.
+      // Always refresh on first crossing (no existing summary), or when the
+      // conversation has grown by at least AI_SUMMARY_KEEP_RECENT new messages
+      // since the last summary was generated.
+      const currentCount = seq; // seq is the next sequence number, i.e. total messages saved
+      const shouldRefreshSummary =
+        currentCount > AI_SUMMARY_THRESHOLD &&
+        (!existingSummary || currentCount - totalMessageCount >= AI_SUMMARY_KEEP_RECENT);
+      if (shouldRefreshSummary) {
+        this.updateHistorySummary(client, conversation.id).catch((err) => {
+          this.logger.warn({ err, conversationId: conversation.id }, 'Failed to update history summary');
+        });
+      }
 
       yield { type: 'done' };
     } finally {
@@ -356,5 +411,68 @@ export class AiService implements OnModuleInit {
     if (!conv) throw new ConversationNotFoundException();
     if (conv.project_id !== projectId) throw new ConversationNotFoundException();
     await this.chatService.deleteConversation(conversationId, userId);
+  }
+
+  /**
+   * Generates a concise summary of all messages older than AI_SUMMARY_KEEP_RECENT
+   * using a cheaper/faster model, then persists it to ai_conversations.history_summary.
+   * Called fire-and-forget after the main turn completes.
+   */
+  private async updateHistorySummary(client: OpenAI, conversationId: string): Promise<void> {
+    // Load all messages except the most recent AI_SUMMARY_KEEP_RECENT (those stay verbatim)
+    const totalCount = await this.chatService.getMessageCount(conversationId);
+    const oldMessagesCount = totalCount - AI_SUMMARY_KEEP_RECENT;
+    if (oldMessagesCount <= 0) return;
+
+    const oldMessages = await this.chatService.getMessagesForSummary(conversationId, oldMessagesCount);
+    if (oldMessages.length === 0) return;
+
+    // Build a readable transcript of the older messages for the summarizer
+    const transcript = oldMessages
+      .map((msg) => {
+        if (msg.role === 'user') {
+          return `User: ${msg.content ?? ''}`;
+        } else if (msg.role === 'assistant') {
+          const parts: string[] = [];
+          if (msg.content) parts.push(`Assistant: ${msg.content}`);
+          if (msg.tool_calls) parts.push(`[Used tools: ${(msg.tool_calls as Array<{ function?: { name?: string } }>).map((tc) => tc?.function?.name).filter(Boolean).join(', ')}]`);
+          return parts.join('\n');
+        } else if (msg.role === 'tool') {
+          const resultStr = typeof msg.tool_result === 'string'
+            ? msg.tool_result
+            : JSON.stringify(msg.tool_result);
+          const truncated = resultStr.length > 500 ? resultStr.slice(0, 500) + '...' : resultStr;
+          return `[Tool result for ${msg.tool_name ?? 'unknown'}: ${truncated}]`;
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    const response = await client.chat.completions.create({
+      model: AI_SUMMARIZATION_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a helpful assistant that summarizes conversations. ' +
+            'Produce a concise but comprehensive summary of the conversation transcript provided. ' +
+            'Include: key topics discussed, any analytics queries run and their findings, ' +
+            'important facts or decisions reached, and any open questions. ' +
+            'Keep the summary under 500 words. Write in third person.',
+        },
+        {
+          role: 'user',
+          content: `Please summarize the following conversation transcript:\n\n${transcript}`,
+        },
+      ],
+      stream: false,
+    });
+
+    const summary = response.choices[0]?.message?.content;
+    if (summary) {
+      await this.chatService.saveHistorySummary(conversationId, summary);
+      this.logger.debug({ conversationId, summaryLength: summary.length }, 'History summary updated');
+    }
   }
 }
