@@ -132,7 +132,8 @@ function isLinkResult(result: unknown): result is LinkToolResult {
   return typeof result === 'object' && result !== null && typeof (result as Record<string, unknown>).link === 'string';
 }
 
-function getLinkLabel(toolName: string, result: LinkToolResult, t: (key: string) => string): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getLinkLabel(toolName: string, result: LinkToolResult, t: (key: any) => string): string {
   if (toolName === 'create_insight') {
     return result.name ? t('openInsight') + ': ' + result.name : t('openInsight');
   }

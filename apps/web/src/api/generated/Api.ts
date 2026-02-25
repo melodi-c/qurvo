@@ -3534,7 +3534,7 @@ export class Api<
       query: AiControllerListConversationsParams,
       params: RequestParams = {},
     ) =>
-      this.request<object, any>({
+      this.request<AiConversation[], any>({
         path: `/api/ai/conversations`,
         method: "GET",
         query: query,

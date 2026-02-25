@@ -29,7 +29,8 @@ function formatDateRange(from: unknown, to: unknown): string | null {
   return `${fShort} – ${tShort}`;
 }
 
-function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: string, vars?: Record<string, string>) => string): string[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: any, vars?: Record<string, string>) => string): string[] {
   const details: string[] = [];
   const dateRange = formatDateRange(args.date_from, args.date_to);
 
