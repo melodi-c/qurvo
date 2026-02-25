@@ -45,15 +45,18 @@ export default function EventsPage() {
           <EmptyState icon={AlertTriangle} description={t('errorLoading')} />
         )}
 
-        {!isLoading && !isError && (
+        {!isLoading && !isError && (events ?? []).length === 0 && (
+          <EmptyState icon={List} description={t('noEvents')} />
+        )}
+
+        {!isLoading && !isError && (events ?? []).length > 0 && (
           <EventTable
-            events={events ?? []}
+            events={events!}
             showPerson
             projectId={projectId}
             page={page}
             onPageChange={setPage}
-            // API returns EventRow[] without total count; use length heuristic
-            hasMore={(events ?? []).length >= limit}
+            hasMore={events!.length >= limit}
           />
         )}
       </RequireProject>

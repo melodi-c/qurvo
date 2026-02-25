@@ -32,7 +32,7 @@ export default function PersonDetailPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={personLoading ? '...' : (displayName ?? '')} />
+      <PageHeader title={personLoading ? <Skeleton className="h-7 w-48" /> : (displayName ?? '')} />
 
       {!personLoading && personError && (
         <EmptyState icon={AlertTriangle} description={t('errorLoadingPerson')} />

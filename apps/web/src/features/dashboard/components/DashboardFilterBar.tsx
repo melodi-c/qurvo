@@ -26,7 +26,11 @@ export function DashboardFilterBar() {
   // View mode with active overrides — compact banner
   if (!isEditing && hasOverrides) {
     const parts: string[] = [];
-    if (hasDateOverride) parts.push(`${filterOverrides.dateFrom} — ${filterOverrides.dateTo}`);
+    if (hasDateOverride) {
+      const from = filterOverrides.dateFrom ? new Date(filterOverrides.dateFrom).toLocaleDateString() : '';
+      const to = filterOverrides.dateTo ? new Date(filterOverrides.dateTo).toLocaleDateString() : '';
+      parts.push(`${from} — ${to}`);
+    }
     if (hasPropertyOverrides) {
       parts.push(
         filterOverrides.propertyFilters
