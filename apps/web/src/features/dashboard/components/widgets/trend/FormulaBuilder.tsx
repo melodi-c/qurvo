@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Plus, X, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { STATUS_COLORS } from '@/lib/chart-colors';
 import { validateFormula } from './formula-evaluator';
 import { SERIES_LETTERS } from './trend-shared';
 import translations from './FormulaBuilder.translations';
@@ -29,20 +30,20 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
     [seriesCount],
   );
 
-  const addFormula = () => {
+  const addFormula = useCallback(() => {
     onChange([
       ...formulas,
       { id: crypto.randomUUID(), label: '', expression: '' },
     ]);
-  };
+  }, [formulas, onChange]);
 
-  const updateFormula = (idx: number, patch: Partial<TrendFormula>) => {
+  const updateFormula = useCallback((idx: number, patch: Partial<TrendFormula>) => {
     onChange(formulas.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
-  };
+  }, [formulas, onChange]);
 
-  const removeFormula = (idx: number) => {
+  const removeFormula = useCallback((idx: number) => {
     onChange(formulas.filter((_, i) => i !== idx));
-  };
+  }, [formulas, onChange]);
 
   return (
     <div className="space-y-2">
@@ -83,7 +84,7 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
                 className={`h-7 text-xs font-mono ${hasError ? 'border-red-500/60 focus-visible:ring-red-500/30' : ''}`}
               />
               {hasError && errorKey && (
-                <p className="text-[10px] text-red-400">{t(errorKey as keyof typeof translations['en'])}</p>
+                <p className={`text-[10px] ${STATUS_COLORS.negative}`}>{t(errorKey as keyof typeof translations['en'])}</p>
               )}
             </div>
           </div>

@@ -22,7 +22,7 @@ NAMESPACE="default"
 KUBECONFIG_PATH="$HELM_CHART/config.yaml"
 export KUBECONFIG="$KUBECONFIG_PATH"
 
-ALL_APPS=(api ingest processor cohort-worker web landing)
+ALL_APPS=(api ingest processor cohort-worker billing-worker web landing)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
 NO_HOOKS=false

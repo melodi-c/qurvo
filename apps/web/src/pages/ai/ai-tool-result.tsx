@@ -29,12 +29,6 @@ interface FunnelToolResult {
   aggregate_steps?: FunnelStepResult[];
 }
 
-interface RetentionToolResult extends RetentionResult {}
-
-interface LifecycleToolResult extends LifecycleResult {}
-
-interface StickinessToolResult extends StickinessResult {}
-
 interface PathsToolResult {
   transitions: PathTransition[];
   top_paths?: TopPath[];
@@ -43,10 +37,34 @@ interface PathsToolResult {
 type AiToolResultData =
   | { type: 'trend_chart'; data: TrendToolResult }
   | { type: 'funnel_chart'; data: FunnelToolResult }
-  | { type: 'retention_chart'; data: RetentionToolResult }
-  | { type: 'lifecycle_chart'; data: LifecycleToolResult }
-  | { type: 'stickiness_chart'; data: StickinessToolResult }
+  | { type: 'retention_chart'; data: RetentionResult }
+  | { type: 'lifecycle_chart'; data: LifecycleResult }
+  | { type: 'stickiness_chart'; data: StickinessResult }
   | { type: 'paths_chart'; data: PathsToolResult };
+
+function isTrendResult(r: Record<string, unknown>): r is Record<string, unknown> & TrendToolResult {
+  return Array.isArray(r.series);
+}
+
+function isFunnelResult(r: Record<string, unknown>): r is Record<string, unknown> & FunnelToolResult {
+  return Array.isArray(r.steps);
+}
+
+function isRetentionResult(r: Record<string, unknown>): r is Record<string, unknown> & RetentionResult {
+  return Array.isArray(r.cohorts);
+}
+
+function isLifecycleResult(r: Record<string, unknown>): r is Record<string, unknown> & LifecycleResult {
+  return Array.isArray(r.data);
+}
+
+function isStickinessResult(r: Record<string, unknown>): r is Record<string, unknown> & StickinessResult {
+  return Array.isArray(r.data);
+}
+
+function isPathsResult(r: Record<string, unknown>): r is Record<string, unknown> & PathsToolResult {
+  return Array.isArray(r.transitions);
+}
 
 function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
   if (!visualizationType || !result || typeof result !== 'object') return null;
@@ -54,23 +72,17 @@ function parseToolResult(visualizationType: string | null, result: unknown): AiT
 
   switch (visualizationType) {
     case 'trend_chart':
-      if (Array.isArray(r.series)) return { type: 'trend_chart', data: r as unknown as TrendToolResult };
-      return null;
+      return isTrendResult(r) ? { type: 'trend_chart', data: r } : null;
     case 'funnel_chart':
-      if (Array.isArray(r.steps)) return { type: 'funnel_chart', data: r as unknown as FunnelToolResult };
-      return null;
+      return isFunnelResult(r) ? { type: 'funnel_chart', data: r } : null;
     case 'retention_chart':
-      if (Array.isArray((r as Record<string, unknown>).cohorts)) return { type: 'retention_chart', data: r as unknown as RetentionToolResult };
-      return null;
+      return isRetentionResult(r) ? { type: 'retention_chart', data: r } : null;
     case 'lifecycle_chart':
-      if (Array.isArray(r.data)) return { type: 'lifecycle_chart', data: r as unknown as LifecycleToolResult };
-      return null;
+      return isLifecycleResult(r) ? { type: 'lifecycle_chart', data: r } : null;
     case 'stickiness_chart':
-      if (Array.isArray(r.data)) return { type: 'stickiness_chart', data: r as unknown as StickinessToolResult };
-      return null;
+      return isStickinessResult(r) ? { type: 'stickiness_chart', data: r } : null;
     case 'paths_chart':
-      if (Array.isArray(r.transitions)) return { type: 'paths_chart', data: r as unknown as PathsToolResult };
-      return null;
+      return isPathsResult(r) ? { type: 'paths_chart', data: r } : null;
     default:
       return null;
   }

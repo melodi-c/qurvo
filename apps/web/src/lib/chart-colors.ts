@@ -65,3 +65,29 @@ export function chartAxisTick(compact?: boolean) {
 
 /** Shared grid stroke color — use instead of hardcoded '#27272a'. */
 export const CHART_GRID_COLOR = 'var(--color-border)';
+
+/** Semantic status colors for UI indicators (deltas, conversion, drop-off, success, warnings). */
+export const STATUS_COLORS = {
+  positive: 'text-emerald-400',
+  negative: 'text-red-400',
+  warning: 'text-amber-400',
+  success: 'text-green-500',
+  successBorder: 'border-green-800',
+  successText: 'text-green-400',
+} as const;
+
+/** Event type icon colors — keyed by event name prefix. */
+export const EVENT_TYPE_COLORS = {
+  pageview: 'text-blue-400',
+  pageleave: 'text-orange-400',
+  identify: 'text-violet-400',
+  set: 'text-green-400',
+  screen: 'text-sky-400',
+  custom: 'text-amber-400',
+} as const;
+
+/** Funnel step legend colors. */
+export const FUNNEL_LEGEND_COLORS = {
+  conversion: 'text-emerald-500',
+  dropOff: 'text-red-400',
+} as const;

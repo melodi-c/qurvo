@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
-import { usePersonPropertyNames } from '@/pages/persons/use-person-property-names';
+import { usePersonPropertyNames } from '@/hooks/use-person-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { ConditionRowWrapper } from './ConditionRowWrapper';
 import translations from './PropertyConditionRow.translations';

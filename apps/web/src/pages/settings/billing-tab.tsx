@@ -6,6 +6,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { CreditCard, Check, X } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './billing-tab.translations';
 
 function formatNumber(n: number): string {
@@ -113,7 +114,7 @@ export function BillingTab({ projectId }: { projectId: string }) {
                   <dt className="text-muted-foreground">{label}</dt>
                   <dd>
                     {features[key] ? (
-                      <Check className="h-4 w-4 text-green-500" />
+                      <Check className={`h-4 w-4 ${STATUS_COLORS.success}`} />
                     ) : (
                       <X className="h-4 w-4 text-muted-foreground" />
                     )}

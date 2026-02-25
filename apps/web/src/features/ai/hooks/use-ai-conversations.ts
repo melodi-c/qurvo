@@ -1,21 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authFetch } from '@/lib/auth-fetch';
+import { api } from '@/api/client';
+import type { AiConversation } from '@/api/generated/Api';
 
-export interface Conversation {
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-}
+export type { AiConversation as Conversation };
 
 export function useConversations(projectId: string) {
-  return useQuery<Conversation[]>({
+  return useQuery<AiConversation[]>({
     queryKey: ['ai-conversations', projectId],
-    queryFn: async () => {
-      const res = await authFetch(`/api/ai/conversations?project_id=${projectId}`);
-      if (!res.ok) throw new Error('Failed to load conversations');
-      return res.json();
-    },
+    queryFn: () => api.aiControllerListConversations({ project_id: projectId }),
     enabled: !!projectId,
   });
 }
@@ -24,7 +16,7 @@ export function useDeleteConversation(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await authFetch(`/api/ai/conversations/${id}`, { method: 'DELETE' });
+      await api.aiControllerDeleteConversation({ id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });

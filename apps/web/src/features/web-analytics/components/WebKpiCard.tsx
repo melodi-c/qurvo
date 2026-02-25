@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './WebKpiCard.translations';
 
 interface WebKpiCardProps {
@@ -40,7 +41,7 @@ export function WebKpiCard({
         <div
           className={cn(
             'flex items-center gap-1 text-xs font-medium',
-            isPositive ? 'text-emerald-400' : 'text-red-400',
+            isPositive ? STATUS_COLORS.positive : STATUS_COLORS.negative,
           )}
         >
           {isPositive ? (

@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, Inject, UnauthorizedExceptio
 import * as crypto from 'crypto';
 import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
-import { apiKeys, projects, plans } from '@qurvo/db';
+import { apiKeys } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, API_KEY_MAX_LENGTH } from '../constants';
 
@@ -20,7 +20,6 @@ interface CachedKeyInfo {
   key_id: string;
   expires_at: string | null;
   revoked_at: string | null;
-  events_limit: number | null;
 }
 
 @Injectable()
@@ -67,7 +66,6 @@ export class ApiKeyGuard implements CanActivate {
         throw new UnauthorizedException('API key expired');
       }
       request.projectId = info.project_id;
-      request.eventsLimit = info.events_limit;
       request.quotaLimited = false;
       return true;
     }
@@ -80,11 +78,8 @@ export class ApiKeyGuard implements CanActivate {
         project_id: apiKeys.project_id,
         expires_at: apiKeys.expires_at,
         revoked_at: apiKeys.revoked_at,
-        events_limit: plans.events_limit,
       })
       .from(apiKeys)
-      .innerJoin(projects, eq(apiKeys.project_id, projects.id))
-      .leftJoin(plans, eq(projects.plan_id, plans.id))
       .where(eq(apiKeys.key_hash, keyHash))
       .limit(1);
 
@@ -110,7 +105,6 @@ export class ApiKeyGuard implements CanActivate {
       key_id: keyInfo.key_id,
       expires_at: keyInfo.expires_at?.toISOString() ?? null,
       revoked_at: null,
-      events_limit: keyInfo.events_limit ?? null,
     };
     this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS)
       .catch((err: unknown) => this.logger.error({ err }, 'Failed to write API key cache'));
@@ -122,7 +116,6 @@ export class ApiKeyGuard implements CanActivate {
     this.logger.debug({ projectId: keyInfo.project_id }, 'API key authenticated');
 
     request.projectId = keyInfo.project_id;
-    request.eventsLimit = keyInfo.events_limit;
     request.quotaLimited = false;
     return true;
   }
