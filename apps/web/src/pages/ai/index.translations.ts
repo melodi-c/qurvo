@@ -24,6 +24,9 @@ export default createTranslations({
     quotaUnlimited: 'Unlimited messages',
     quotaExceeded: 'Monthly AI message quota exceeded. Upgrade your plan to continue.',
     upgradePrompt: 'Upgrade plan',
+    searchPlaceholder: 'Search conversations…',
+    searchNoResults: 'No conversations found',
+    searchNoResultsDescription: 'Try a different search query',
   },
   ru: {
     selectProject: 'Выберите проект для использования AI-ассистента',
@@ -48,5 +51,8 @@ export default createTranslations({
     quotaUnlimited: 'Безлимитные сообщения',
     quotaExceeded: 'Месячный лимит AI-сообщений исчерпан. Обновите тариф для продолжения.',
     upgradePrompt: 'Обновить тариф',
+    searchPlaceholder: 'Поиск по чатам…',
+    searchNoResults: 'Чаты не найдены',
+    searchNoResultsDescription: 'Попробуйте другой поисковый запрос',
   },
 });

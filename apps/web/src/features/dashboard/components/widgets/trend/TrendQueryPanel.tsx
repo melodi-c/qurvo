@@ -13,6 +13,7 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { FormulaBuilder } from './FormulaBuilder';
@@ -103,7 +104,10 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           <SectionHeader icon={BarChart3} label={t('display')} />
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('metric')}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('metric')}</span>
+                <InfoTooltip content={t('metricTooltip')} />
+              </div>
               <Select
                 value={config.metric}
                 onValueChange={(v) => {
@@ -130,7 +134,10 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               </Select>
             </div>
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('granularity')}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('granularity')}</span>
+                <InfoTooltip content={t('granularityTooltip')} />
+              </div>
               <Select
                 value={config.granularity}
                 onValueChange={(v) => onChange({ ...config, granularity: v as TrendWidgetConfig['granularity'] })}
@@ -187,6 +194,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
             />
             <span className="text-sm text-muted-foreground">{t('compareToPrevious')}</span>
+            <InfoTooltip content={t('compareTooltip')} />
           </label>
         </section>
 
@@ -215,6 +223,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
             ...config,
             breakdown_cohort_ids: ids.length ? ids : undefined,
           })}
+          tooltip={t('breakdownTooltip')}
         />
     </QueryPanelShell>
   );

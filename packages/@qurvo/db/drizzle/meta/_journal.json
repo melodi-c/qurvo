@@ -211,6 +211,13 @@
       "when": 1774200000000,
       "tag": "0030_add_is_staff",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1774300000000,
+      "tag": "0031_ai_fts_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
-import type { AiConversation, AiConversationDetail } from '@/api/generated/Api';
+import type { AiConversation, AiConversationDetail, AiConversationSearchResult } from '@/api/generated/Api';
 
 export type { AiConversation as Conversation };
 export type { AiConversationDetail };
+export type { AiConversationSearchResult };
 
 export interface AiQuotaInfo {
   ai_messages_per_month: number | null;
@@ -89,6 +90,15 @@ export function useToggleSharedConversation(projectId: string) {
       qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
       qc.invalidateQueries({ queryKey: ['ai-conversations-shared', projectId] });
     },
+  });
+}
+
+export function useSearchConversations(projectId: string, query: string) {
+  return useQuery<AiConversationSearchResult[]>({
+    queryKey: ['ai-conversations-search', projectId, query],
+    queryFn: () => api.aiControllerSearchConversations({ project_id: projectId, q: query }),
+    enabled: !!projectId && query.trim().length > 0,
+    staleTime: 10_000,
   });
 }
 
