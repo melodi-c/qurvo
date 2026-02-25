@@ -20,8 +20,8 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
 import { createDefaultCondition, conditionKey, type CohortCondition, type CohortConditionGroup } from '../types';
 
-/** Horizontal divider with a centered label, used between OR groups and AND conditions */
-function ConditionDivider({ label, variant }: { label: string; variant: 'or' | 'and' }) {
+/** Horizontal divider with a centered label and optional subtext, used between OR groups and AND conditions */
+function ConditionDivider({ label, subtext, variant }: { label: string; subtext?: string; variant: 'or' | 'and' }) {
   const isOr = variant === 'or';
   const borderClass = isOr ? 'border-primary/30' : 'border-border/40';
   const textClass = isOr
@@ -30,12 +30,19 @@ function ConditionDivider({ label, variant }: { label: string; variant: 'or' | '
   const py = isOr ? 'py-1.5' : 'py-1';
 
   return (
-    <div className={`flex items-center gap-2 ${py}`}>
-      <div className={`flex-1 border-t ${borderClass}`} />
-      <span className={`text-[10px] uppercase tracking-wider ${textClass}`}>
-        {label}
-      </span>
-      <div className={`flex-1 border-t ${borderClass}`} />
+    <div className={`flex flex-col items-center gap-0.5 ${py}`}>
+      <div className="flex items-center gap-2 w-full">
+        <div className={`flex-1 border-t ${borderClass}`} />
+        <span className={`text-[10px] uppercase tracking-wider ${textClass}`}>
+          {label}
+        </span>
+        <div className={`flex-1 border-t ${borderClass}`} />
+      </div>
+      {subtext && (
+        <span className="text-[10px] text-muted-foreground/40 italic">
+          {subtext}
+        </span>
+      )}
     </div>
   );
 }
@@ -68,10 +75,11 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
       {groups.map((group, groupIdx) => (
         <div key={group._key ?? groupIdx}>
           {groupIdx > 0 && (
-            <ConditionDivider label={t('or')} variant="or" />
+            <ConditionDivider label={t('or')} subtext={t('orSubtext')} variant="or" />
           )}
           <AndGroupCard
             group={group}
+            groupIndex={groupIdx}
             onUpdate={(g) => updateGroup(groupIdx, g)}
             onRemove={groups.length > 1 ? () => removeGroup(groupIdx) : undefined}
             excludeCohortId={excludeCohortId}
@@ -95,17 +103,21 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
 /** A single AND group — a card with conditions joined by AND */
 function AndGroupCard({
   group,
+  groupIndex,
   onUpdate,
   onRemove,
   excludeCohortId,
 }: {
   group: CohortConditionGroup;
+  groupIndex: number;
   onUpdate: (g: CohortConditionGroup) => void;
   onRemove?: () => void;
   excludeCohortId?: string;
 }) {
   const { t } = useLocalTranslation(translations);
   const conditions = group.values as CohortCondition[];
+
+  const groupLabel = String.fromCharCode(65 + groupIndex);
 
   const addCondition = useCallback((type: CohortCondition['type']) => {
     onUpdate({ ...group, values: [...conditions, createDefaultCondition(type)] });
@@ -121,23 +133,28 @@ function AndGroupCard({
 
   const conditionTypes = useMemo(() => ({
     basic: [
-      { type: 'person_property' as const, label: t('personProperty') },
-      { type: 'event' as const, label: t('performedEvent') },
-      { type: 'cohort' as const, label: t('cohortMembership') },
+      { type: 'person_property' as const, label: t('personProperty'), description: t('descPersonProperty') },
+      { type: 'event' as const, label: t('performedEvent'), description: t('descPerformedEvent') },
+      { type: 'cohort' as const, label: t('cohortMembership'), description: t('descCohortMembership') },
     ],
     behavioral: [
-      { type: 'first_time_event' as const, label: t('firstTimeEvent') },
-      { type: 'not_performed_event' as const, label: t('notPerformedEvent') },
-      { type: 'event_sequence' as const, label: t('eventSequence') },
-      { type: 'not_performed_event_sequence' as const, label: t('notPerformedEventSequence') },
-      { type: 'performed_regularly' as const, label: t('performedRegularly') },
-      { type: 'stopped_performing' as const, label: t('stoppedPerforming') },
-      { type: 'restarted_performing' as const, label: t('restartedPerforming') },
+      { type: 'first_time_event' as const, label: t('firstTimeEvent'), description: t('descFirstTimeEvent') },
+      { type: 'not_performed_event' as const, label: t('notPerformedEvent'), description: t('descNotPerformedEvent') },
+      { type: 'event_sequence' as const, label: t('eventSequence'), description: t('descEventSequence') },
+      { type: 'not_performed_event_sequence' as const, label: t('notPerformedEventSequence'), description: t('descNotPerformedEventSequence') },
+      { type: 'performed_regularly' as const, label: t('performedRegularly'), description: t('descPerformedRegularly') },
+      { type: 'stopped_performing' as const, label: t('stoppedPerforming'), description: t('descStoppedPerforming') },
+      { type: 'restarted_performing' as const, label: t('restartedPerforming'), description: t('descRestartedPerforming') },
     ],
   }), [t]);
 
   return (
-    <div className="rounded-lg border border-border bg-muted/10 p-3 space-y-2.5">
+    <div className="relative rounded-lg border border-border bg-muted/10 p-3 space-y-2.5">
+      {/* Group label badge (A, B, C...) */}
+      <div className="absolute top-2 left-2 flex items-center justify-center h-4 w-4 rounded-sm bg-muted text-[10px] font-bold text-muted-foreground select-none">
+        {groupLabel}
+      </div>
+
       {onRemove && (
         <div className="flex justify-end">
           <Button
@@ -152,10 +169,13 @@ function AndGroupCard({
         </div>
       )}
 
+      {/* Add top padding when no remove button to offset the group label badge */}
+      {!onRemove && <div className="h-2" />}
+
       {conditions.map((cond, idx) => (
         <div key={cond._key ?? idx}>
           {idx > 0 && (
-            <ConditionDivider label={t('and')} variant="and" />
+            <ConditionDivider label={t('and')} subtext={t('andSubtext')} variant="and" />
           )}
           <ConditionSwitch
             condition={cond}
@@ -173,13 +193,14 @@ function AndGroupCard({
             {t('addCondition')}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent align="start" className="w-64">
           <div className="px-2 py-1">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('basicConditions')}</span>
           </div>
           {conditionTypes.basic.map((ct) => (
-            <DropdownMenuItem key={ct.type} onClick={() => addCondition(ct.type)} className="text-xs">
-              {ct.label}
+            <DropdownMenuItem key={ct.type} onClick={() => addCondition(ct.type)} className="text-xs flex flex-col items-start gap-0.5 py-2">
+              <span>{ct.label}</span>
+              <span className="text-[10px] text-muted-foreground font-normal leading-tight">{ct.description}</span>
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
@@ -187,8 +208,9 @@ function AndGroupCard({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('behavioralConditions')}</span>
           </div>
           {conditionTypes.behavioral.map((ct) => (
-            <DropdownMenuItem key={ct.type} onClick={() => addCondition(ct.type)} className="text-xs">
-              {ct.label}
+            <DropdownMenuItem key={ct.type} onClick={() => addCondition(ct.type)} className="text-xs flex flex-col items-start gap-0.5 py-2">
+              <span>{ct.label}</span>
+              <span className="text-[10px] text-muted-foreground font-normal leading-tight">{ct.description}</span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

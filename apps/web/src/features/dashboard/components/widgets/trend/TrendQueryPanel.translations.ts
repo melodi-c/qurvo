@@ -24,6 +24,10 @@ export default createTranslations({
     line: 'Line',
     bar: 'Bar',
     formulas: 'Formulas',
+    metricTooltip: 'How to aggregate events: total count, unique users, events per user, or a numeric property aggregation (sum / average / min / max).',
+    granularityTooltip: 'X-axis step: group data points by hour, day, week, or month.',
+    breakdownTooltip: 'Split the chart into separate lines — one per distinct value of the chosen property.',
+    compareTooltip: 'Overlay the same metric for the equivalent previous period on the same chart.',
   },
   ru: {
     series: 'Серии',
@@ -48,5 +52,9 @@ export default createTranslations({
     line: 'Линия',
     bar: 'Столбцы',
     formulas: 'Формулы',
+    metricTooltip: 'Способ агрегации событий: общее количество, уникальные пользователи, событий на пользователя или агрегация числового свойства (сумма / среднее / мин / макс).',
+    granularityTooltip: 'Шаг оси X: группировка точек данных по часам, дням, неделям или месяцам.',
+    breakdownTooltip: 'Разбивает график на отдельные линии — по одной для каждого уникального значения выбранного свойства.',
+    compareTooltip: 'Накладывает ту же метрику за аналогичный предыдущий период на тот же график.',
   },
 });
