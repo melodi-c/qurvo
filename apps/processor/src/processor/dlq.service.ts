@@ -90,6 +90,9 @@ export class DlqService implements OnApplicationBootstrap {
           );
         }
       }
+
+      // PersonBatchStore.flush() uses a promise-based lock: if FlushService is mid-flush,
+      // this call awaits its completion and then runs a fresh flush with DLQ person data.
       await this.personBatchStore.flush();
 
       await withRetry(
@@ -127,4 +130,5 @@ export class DlqService implements OnApplicationBootstrap {
       await this.lock.release().catch((err) => this.logger.warn({ err }, 'DLQ lock release failed'));
     }
   }
+
 }
