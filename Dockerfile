@@ -1,21 +1,42 @@
 # ==============================================================================
 # Multi-stage Dockerfile for qurvo-analytics monorepo
 #
-# Build NestJS apps (api, ingest, processor, cohort-worker):
+# Build NestJS apps:
 #   docker build --target nestjs --build-arg APP=api -t qurvo-api .
 #   docker build --target nestjs --build-arg APP=ingest -t qurvo-ingest .
 #   docker build --target nestjs --build-arg APP=processor -t qurvo-processor .
 #   docker build --target nestjs --build-arg APP=cohort-worker -t qurvo-cohort-worker .
+#   docker build --target nestjs --build-arg APP=billing-worker -t qurvo-billing-worker .
 #
 # Build web (nginx + SPA):
 #   docker build --target web -t qurvo-web .
 #
 # Build landing (nginx + static landing page):
 #   docker build --target landing -t qurvo-landing .
+#
+# Adding a new app or package? No Dockerfile changes needed.
 # ==============================================================================
 
 # ==============================================================================
-# Stage: base — install dependencies
+# Stage: manifests — extract package.json files for layer caching
+#
+# Rebuilds on every code change, but the OUTPUT is content-addressed by BuildKit:
+# downstream pnpm install only re-runs when package.json files actually change.
+# ==============================================================================
+FROM node:22-alpine AS manifests
+
+COPY . /src
+
+RUN mkdir /out && cd /src && \
+    for f in package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json; do \
+      [ -f "$f" ] && cp "$f" /out/; \
+    done && \
+    find apps packages -name "package.json" | while IFS= read -r f; do \
+      mkdir -p "/out/$(dirname "$f")" && cp "$f" "/out/$f"; \
+    done
+
+# ==============================================================================
+# Stage: base — install all dependencies + copy source
 # ==============================================================================
 FROM node:22-alpine AS base
 
@@ -23,50 +44,35 @@ RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
 WORKDIR /repo
 
-# Copy manifests first for layer caching
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
-COPY apps/api/package.json                     apps/api/
-COPY apps/ingest/package.json                  apps/ingest/
-COPY apps/processor/package.json               apps/processor/
-COPY apps/cohort-worker/package.json           apps/cohort-worker/
-COPY apps/billing-worker/package.json          apps/billing-worker/
-COPY apps/web/package.json                     apps/web/
-COPY apps/landing/package.json                 apps/landing/
-COPY packages/@qurvo/db/package.json            packages/@qurvo/db/
-COPY packages/@qurvo/clickhouse/package.json    packages/@qurvo/clickhouse/
-COPY packages/@qurvo/sdk-core/package.json      packages/@qurvo/sdk-core/
-COPY packages/@qurvo/sdk-browser/package.json   packages/@qurvo/sdk-browser/
-COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
-COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
-COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
-COPY packages/@qurvo/testing/package.json       packages/@qurvo/testing/
-COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
-COPY packages/@qurvo/distributed-lock/package.json packages/@qurvo/distributed-lock/
-COPY packages/@qurvo/heartbeat/package.json packages/@qurvo/heartbeat/
-COPY packages/@qurvo/nestjs-infra/package.json packages/@qurvo/nestjs-infra/
-COPY packages/@qurvo/worker-core/package.json packages/@qurvo/worker-core/
-
+COPY --from=manifests /out/ .
 RUN pnpm install --frozen-lockfile
 
 # Copy all source code
 COPY . .
 
 # ==============================================================================
-# Stage: nestjs-builder — build target NestJS app + dependencies
+# Stage: nestjs-builder — build target NestJS app + all its dependencies
 # ==============================================================================
 FROM base AS nestjs-builder
 
 ARG APP
 
-RUN pnpm --filter @qurvo/${APP}... build && \
-    mkdir -p packages/@qurvo/cohort-query/dist && \
-    mkdir -p packages/@qurvo/distributed-lock/dist && \
-    mkdir -p packages/@qurvo/heartbeat/dist && \
-    mkdir -p packages/@qurvo/nestjs-infra/dist && \
-    mkdir -p packages/@qurvo/worker-core/dist
+# pnpm --filter @qurvo/${APP}... builds the app AND all transitive workspace deps
+RUN pnpm --filter @qurvo/${APP}... build
+
+# Auto-collect all built dist/ dirs + drizzle migrations into /pkg-dists
+RUN mkdir -p /pkg-dists && \
+    find packages/@qurvo -maxdepth 2 -name "dist" -type d -not -path "*/node_modules/*" | \
+    while IFS= read -r d; do \
+      mkdir -p "/pkg-dists/$(dirname "$d")" && cp -r "$d" "/pkg-dists/$d"; \
+    done && \
+    if [ -d packages/@qurvo/db/drizzle ]; then \
+      mkdir -p /pkg-dists/packages/@qurvo/db && \
+      cp -r packages/@qurvo/db/drizzle /pkg-dists/packages/@qurvo/db/; \
+    fi
 
 # ==============================================================================
-# Stage: nestjs — production runtime for api/ingest/processor
+# Stage: nestjs — production runtime
 # ==============================================================================
 FROM node:22-alpine AS nestjs
 
@@ -78,34 +84,16 @@ RUN corepack enable && corepack prepare pnpm@10.11.0 --activate && \
 
 WORKDIR /repo
 
-# Copy manifests for production install (exclude @qurvo/testing)
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY apps/${APP}/package.json                  apps/${APP}/
-COPY packages/@qurvo/db/package.json            packages/@qurvo/db/
-COPY packages/@qurvo/clickhouse/package.json    packages/@qurvo/clickhouse/
-COPY packages/@qurvo/sdk-core/package.json      packages/@qurvo/sdk-core/
-COPY packages/@qurvo/sdk-browser/package.json   packages/@qurvo/sdk-browser/
-COPY packages/@qurvo/sdk-node/package.json      packages/@qurvo/sdk-node/
-COPY packages/@qurvo/tsconfig/package.json      packages/@qurvo/tsconfig/
-COPY packages/@qurvo/eslint-config/package.json packages/@qurvo/eslint-config/
-COPY packages/@qurvo/cohort-query/package.json  packages/@qurvo/cohort-query/
-COPY packages/@qurvo/distributed-lock/package.json packages/@qurvo/distributed-lock/
-COPY packages/@qurvo/heartbeat/package.json packages/@qurvo/heartbeat/
-COPY packages/@qurvo/nestjs-infra/package.json packages/@qurvo/nestjs-infra/
-COPY packages/@qurvo/worker-core/package.json packages/@qurvo/worker-core/
+# Install only production deps for the target app + workspace packages
+COPY --from=manifests /out/package.json /out/pnpm-workspace.yaml /out/pnpm-lock.yaml ./
+COPY --from=manifests /out/apps/${APP}/package.json apps/${APP}/
+COPY --from=manifests /out/packages/ packages/
 
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy built artifacts
-COPY --from=nestjs-builder /repo/apps/${APP}/dist                   apps/${APP}/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/db/dist             packages/@qurvo/db/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/db/drizzle          packages/@qurvo/db/drizzle/
-COPY --from=nestjs-builder /repo/packages/@qurvo/clickhouse/dist     packages/@qurvo/clickhouse/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/cohort-query/dist   packages/@qurvo/cohort-query/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/distributed-lock/dist packages/@qurvo/distributed-lock/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/heartbeat/dist packages/@qurvo/heartbeat/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/nestjs-infra/dist packages/@qurvo/nestjs-infra/dist/
-COPY --from=nestjs-builder /repo/packages/@qurvo/worker-core/dist packages/@qurvo/worker-core/dist/
+# Copy built app + all package dist directories (auto-collected by builder)
+COPY --from=nestjs-builder /repo/apps/${APP}/dist apps/${APP}/dist/
+COPY --from=nestjs-builder /pkg-dists/packages/ packages/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
