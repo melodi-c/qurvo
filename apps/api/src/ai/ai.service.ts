@@ -146,6 +146,7 @@ export class AiService implements OnModuleInit {
       // Load history with summarization
       let totalMessageCount = 0;
       let existingSummary: string | null = null;
+      let summaryFailed = false;
       if (!isNew) {
         totalMessageCount = await this.chatService.getMessageCount(conversation.id);
 
@@ -153,6 +154,7 @@ export class AiService implements OnModuleInit {
           // Load the conversation record to get any cached summary
           const convRecord = await this.chatService.getConversation(conversation.id, userId);
           existingSummary = convRecord?.history_summary ?? null;
+          summaryFailed = convRecord?.summary_failed ?? false;
 
           // Inject cached summary as a system message if available
           if (existingSummary) {
@@ -202,12 +204,11 @@ export class AiService implements OnModuleInit {
       // since the last summary was generated.
       const currentCount = seq; // seq is the next sequence number, i.e. total messages saved
       const shouldRefreshSummary =
+        !summaryFailed &&
         currentCount > AI_SUMMARY_THRESHOLD &&
         (!existingSummary || currentCount - totalMessageCount >= AI_SUMMARY_KEEP_RECENT);
       if (shouldRefreshSummary) {
-        this.updateHistorySummary(client, conversation.id).catch((err) => {
-          this.logger.warn({ err, conversationId: conversation.id }, 'Failed to update history summary');
-        });
+        this.scheduleSummarization(client, conversation.id);
       }
 
       yield { type: 'done' };
@@ -444,6 +445,42 @@ export class AiService implements OnModuleInit {
     }
 
     return results;
+  }
+
+  /**
+   * Schedules summarization with up to 2 retries (3 total attempts) using exponential
+   * backoff (30 s, 60 s). Logs every failure. If all attempts fail, marks the
+   * conversation with summary_failed = true so no further attempts are made.
+   */
+  private scheduleSummarization(client: OpenAI, conversationId: string, attempt = 1): void {
+    const MAX_ATTEMPTS = 3;
+    const BASE_DELAY_MS = 30_000;
+
+    this.updateHistorySummary(client, conversationId).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        { conversationId, attempt, error: message },
+        `Summarization failed (attempt ${attempt}/${MAX_ATTEMPTS})`,
+      );
+
+      if (attempt < MAX_ATTEMPTS) {
+        const delayMs = BASE_DELAY_MS * attempt; // 30 s, 60 s
+        setTimeout(() => {
+          this.scheduleSummarization(client, conversationId, attempt + 1);
+        }, delayMs);
+      } else {
+        this.logger.error(
+          { conversationId },
+          'Summarization permanently failed after 3 attempts — marking summary_failed in DB',
+        );
+        this.chatService.markSummaryFailed(conversationId).catch((dbErr: unknown) => {
+          this.logger.error(
+            { conversationId, error: dbErr instanceof Error ? dbErr.message : String(dbErr) },
+            'Failed to persist summary_failed flag',
+          );
+        });
+      }
+    });
   }
 
   /**

@@ -197,6 +197,13 @@
       "when": 1774000000000,
       "tag": "0028_add_ai_quota",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1774100000000,
+      "tag": "0029_add_ai_summary_failed",
+      "breakpoints": true
     }
   ]
 }

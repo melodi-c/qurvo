@@ -9,6 +9,7 @@ export const aiConversations = pgTable('ai_conversations', {
   title: varchar('title', { length: 200 }).notNull().default('New conversation'),
   is_shared: boolean('is_shared').notNull().default(false),
   history_summary: text('history_summary'),
+  summary_failed: boolean('summary_failed').notNull().default(false),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

@@ -180,6 +180,13 @@ export class AiChatService {
       .where(eq(aiConversations.id, conversationId));
   }
 
+  async markSummaryFailed(conversationId: string) {
+    await this.db
+      .update(aiConversations)
+      .set({ summary_failed: true })
+      .where(eq(aiConversations.id, conversationId));
+  }
+
   async deleteMessagesAfterSequence(conversationId: string, sequence: number) {
     await this.db
       .delete(aiMessages)
