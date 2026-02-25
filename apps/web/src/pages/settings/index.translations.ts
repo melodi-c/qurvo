@@ -7,6 +7,7 @@ export default createTranslations({
     members: 'Members',
     apiKeys: 'API Keys',
     billing: 'Billing',
+    warnings: 'Ingestion Warnings',
   },
   ru: {
     title: 'Настройки',
@@ -14,5 +15,6 @@ export default createTranslations({
     members: 'Участники',
     apiKeys: 'API ключи',
     billing: 'Тариф',
+    warnings: 'Предупреждения приёма',
   },
 });

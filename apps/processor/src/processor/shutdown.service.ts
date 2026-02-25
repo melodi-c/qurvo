@@ -6,6 +6,7 @@ import { REDIS, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { FlushService } from './flush.service';
 import { DlqService } from './dlq.service';
 import { EventConsumerService } from './event-consumer.service';
+import { WarningsBufferService } from './warnings-buffer.service';
 
 @Injectable()
 export class ShutdownService implements OnApplicationShutdown {
@@ -16,6 +17,7 @@ export class ShutdownService implements OnApplicationShutdown {
     private readonly eventConsumerService: EventConsumerService,
     private readonly flushService: FlushService,
     private readonly dlqService: DlqService,
+    private readonly warningsBuffer: WarningsBufferService,
   ) {}
 
   async onApplicationShutdown() {
@@ -33,6 +35,9 @@ export class ShutdownService implements OnApplicationShutdown {
       this.logger.error({ err }, 'Flush shutdown error');
       hasCriticalError = true;
     });
+    await this.warningsBuffer.shutdown().catch((err) =>
+      this.logger.warn({ err }, 'Warnings buffer shutdown error'),
+    );
     await this.ch.close().catch(() => {});
     await this.redis.quit().catch(() => {});
 

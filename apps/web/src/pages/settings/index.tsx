@@ -9,12 +9,13 @@ import { GeneralTab } from './general-tab';
 import { MembersTab } from './members-tab';
 import { ApiKeysTab } from './api-keys-tab';
 import { BillingTab } from './billing-tab';
+import { IngestionWarningsTab } from './ingestion-warnings-tab';
 
-type TabId = 'general' | 'members' | 'keys' | 'billing';
+type TabId = 'general' | 'members' | 'keys' | 'billing' | 'warnings';
 
 export default function SettingsPage() {
   const projectId = useProjectId();
-  const VALID_TABS = ['general', 'members', 'keys', 'billing'] as const;
+  const VALID_TABS = ['general', 'members', 'keys', 'billing', 'warnings'] as const;
   const [activeTab, setTab] = useUrlTab<TabId>('general', VALID_TABS);
   const { t } = useLocalTranslation(translations);
 
@@ -23,6 +24,7 @@ export default function SettingsPage() {
     { id: 'members' as const, label: t('members') },
     { id: 'keys' as const, label: t('apiKeys') },
     { id: 'billing' as const, label: t('billing') },
+    { id: 'warnings' as const, label: t('warnings') },
   ], [t]);
 
   return (
@@ -35,6 +37,7 @@ export default function SettingsPage() {
       {activeTab === 'members' && <MembersTab projectId={projectId} />}
       {activeTab === 'keys' && <ApiKeysTab projectId={projectId} />}
       {activeTab === 'billing' && <BillingTab projectId={projectId} />}
+      {activeTab === 'warnings' && <IngestionWarningsTab projectId={projectId} />}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { FlushService } from './flush.service';
 import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
+import { WarningsBufferService } from './warnings-buffer.service';
 import {
   parseMessages,
   validateMessages,
@@ -41,6 +42,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     private readonly personResolver: PersonResolverService,
     private readonly personBatchStore: PersonBatchStore,
     private readonly geoService: GeoService,
+    private readonly warningsBuffer: WarningsBufferService,
     @InjectPinoLogger(EventConsumerService.name) private readonly logger: PinoLogger,
   ) {
     this.heartbeat = new Heartbeat({
@@ -166,7 +168,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     const parsed = parseMessages(messages);
 
     // Step 2: Validate
-    const { valid, invalidIds } = validateMessages(parsed, this.logger);
+    const { valid, invalidIds } = validateMessages(parsed, this.logger, (w) => this.warningsBuffer.addWarning(w));
     if (invalidIds.length > 0) {
       await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
     }
