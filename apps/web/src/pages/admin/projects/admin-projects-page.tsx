@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { api } from '@/api/client';
+import { apiClient } from '@/api/client';
 import { routes } from '@/lib/routes';
 import type { AdminProjectListItem } from '@/api/generated/Api';
 import translations from './admin-projects-page.translations';
@@ -18,7 +18,7 @@ export default function AdminProjectsPage() {
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['admin', 'projects'],
-    queryFn: () => api.adminProjectsControllerListProjects(),
+    queryFn: () => apiClient.admin.adminProjectsControllerListProjects(),
   });
 
   const columns: Column<AdminProjectListItem>[] = [
