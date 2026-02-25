@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useLayoutData } from '@/hooks/use-layout-data';
@@ -36,6 +36,17 @@ export default function Layout() {
     userInitial,
     logoHref,
   } = useLayoutData();
+
+  useEffect(() => {
+    if (sidebar.isOpen) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [sidebar.isOpen]);
 
   if (shouldRedirectToProjects) {
     return <Navigate to={routes.projects()} replace />;
