@@ -10,21 +10,30 @@ function periodBucketExpr(periodType: 'day' | 'week' | 'month'): string {
   }
 }
 
+function periodIntervalExpr(periodType: 'day' | 'week' | 'month', paramKey: string): string {
+  switch (periodType) {
+    case 'day':   return `INTERVAL {${paramKey}:UInt32} DAY`;
+    case 'week':  return `INTERVAL {${paramKey}:UInt32} WEEK`;
+    case 'month': return `INTERVAL {${paramKey}:UInt32} MONTH`;
+  }
+}
+
 export function buildPerformedRegularlySubquery(
   cond: CohortPerformedRegularlyCondition,
   ctx: BuildContext,
 ): string {
   const condIdx = ctx.counter.value++;
   const eventPk = `coh_${condIdx}_event`;
-  const daysPk = `coh_${condIdx}_days`;
+  const totalPk = `coh_${condIdx}_total`;
   const minPk = `coh_${condIdx}_min`;
 
   ctx.queryParams[eventPk] = cond.event_name;
-  ctx.queryParams[daysPk] = cond.time_window_days;
+  ctx.queryParams[totalPk] = cond.total_periods;
   ctx.queryParams[minPk] = cond.min_periods;
 
   const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const bucketExpr = periodBucketExpr(cond.period_type);
+  const interval = periodIntervalExpr(cond.period_type, totalPk);
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
@@ -32,7 +41,7 @@ export function buildPerformedRegularlySubquery(
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
       AND event_name = {${eventPk}:String}
-      AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} DAY${filterClause}
+      AND timestamp >= now() - ${interval}${filterClause}
     GROUP BY person_id
     HAVING uniqExact(${bucketExpr}) >= {${minPk}:UInt32}`;
 }

@@ -5,7 +5,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import { CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
-import { COHORT_STALE_THRESHOLD_MINUTES } from '../constants';
+import { COHORT_STALE_THRESHOLD_MINUTES, COHORT_MAX_ERRORS } from '../constants';
 
 export interface StaleCohort {
   id: string;
@@ -37,6 +37,7 @@ export class CohortComputationService {
       .where(
         and(
           eq(cohorts.is_static, false),
+          sql`${cohorts.errors_calculating} < ${COHORT_MAX_ERRORS}`,
           or(
             isNull(cohorts.membership_computed_at),
             sql`${cohorts.membership_computed_at} < NOW() - INTERVAL '1 minute' * ${COHORT_STALE_THRESHOLD_MINUTES}`,
@@ -67,6 +68,12 @@ export class CohortComputationService {
     await this.ch.command({
       query: insertSql,
       query_params: { ...queryParams, cm_cohort_id: cohortId, cm_project_id: projectId, cm_version: version },
+      clickhouse_settings: {
+        max_execution_time: 600,
+        optimize_on_insert: 0,
+        max_bytes_before_external_group_by: '1000000000',
+        max_bytes_before_external_sort: '1000000000',
+      },
     });
 
     // Remove old versions
@@ -149,7 +156,7 @@ export class CohortComputationService {
     const allDynamicIds = allDynamic.map((c) => c.id);
 
     if (allDynamicIds.length === 0) {
-      this.logger.warn('Orphan GC skipped — no dynamic cohorts found in PostgreSQL');
+      this.logger.debug('Orphan GC skipped — no dynamic cohorts found in PostgreSQL');
       return;
     }
 

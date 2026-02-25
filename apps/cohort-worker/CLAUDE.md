@@ -40,8 +40,8 @@ src/
 
 | Service | Responsibility | Key config |
 |---|---|---|
-| `CohortComputationService` | All data access: `findStaleCohorts` (PG read), CH operations (`computeMembership`), PG tracking (`markComputationSuccess` → returns boolean, `recordError` → returns boolean), history (`recordSizeHistory` via single INSERT...SELECT), GC orphans. Both PG tracking methods catch errors internally and return boolean — a transient PG failure never propagates | — |
-| `CohortMembershipService` | Pure orchestrator (no direct DB access): scheduling, lock, backoff (`filterByBackoff`), per-cohort processing (`processOneCohort`), GC scheduling (`runGcIfDue`), delegates all data ops to computation. `runCycle()` is `@internal` public for tests. Tracks `pgFailed` for observability | 10min interval, 30s initial delay, distributed lock (660s TTL), error backoff (2^n * 30min, max ~21 days), GC every 6 cycles (~1hr, skips first cycle) |
+| `CohortComputationService` | All data access: `findStaleCohorts` (PG read, excludes cohorts with `errors >= COHORT_MAX_ERRORS`), CH operations (`computeMembership` with CH settings: `max_execution_time`, `optimize_on_insert`, external sort/group spill), PG tracking (`markComputationSuccess` → returns boolean, `recordError` → returns boolean), history (`recordSizeHistory` via single INSERT...SELECT), GC orphans. Both PG tracking methods catch errors internally and return boolean — a transient PG failure never propagates | — |
+| `CohortMembershipService` | Pure orchestrator (no direct DB access): scheduling, lock, backoff (`filterByBackoff`), per-cohort processing (`processOneCohort`), GC scheduling (`runGcIfDue`), delegates all data ops to computation. `runCycle()` is `@internal` public for tests. Tracks `pgFailed` for observability | 10min interval, 30s initial delay, distributed lock (660s TTL), error backoff (2^n * 30min, max ~21 days), max errors cap (20, excluded at SQL level), GC every 6 cycles (~1hr, skips first cycle) |
 | `ShutdownService` | Graceful shutdown orchestrator | Stops service (awaits in-flight cycle), then closes CH + PG pool + Redis with error logging |
 
 ## Key Patterns
@@ -62,7 +62,7 @@ Injected via `DISTRIBUTED_LOCK` DI token (defined in `tokens.ts`, provider facto
 
 ### Error Backoff
 
-Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 30 minutes`, capped at ~21 days (exponent max 10).
+Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 30 minutes`, capped at ~21 days (exponent max 10). Cohorts with `errors_calculating >= 20` are permanently excluded from recalculation at the SQL level (`COHORT_MAX_ERRORS`).
 
 ### Startup Env Validation
 
@@ -70,9 +70,10 @@ Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 3
 
 ## Integration Tests
 
-Tests in `src/test/`. 7 integration tests:
+Tests in `src/test/`. 8 integration tests:
 - Property/event condition cohorts (eq, gte)
-- AND (INTERSECT) / OR (UNION) logic
+- AND (INTERSECT) / OR (UNION DISTINCT) logic
 - Version cleanup (old rows removed)
 - Orphan GC (deleted cohort memberships removed)
+- Max errors cap (cohorts with >= 20 errors excluded)
 - Distributed lock blocks concurrent runs
