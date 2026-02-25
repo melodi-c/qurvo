@@ -6,8 +6,18 @@ export interface RawMessage {
   fields: Record<string, string>;
 }
 
-/** Validated message that passed all checks. */
-export type ValidMessage = RawMessage;
+/** Fields guaranteed to exist after validation. */
+export interface ValidatedFields extends Record<string, string> {
+  project_id: string;
+  event_name: string;
+  distinct_id: string;
+}
+
+/** Validated message that passed all checks — required fields are guaranteed. */
+export interface ValidMessage {
+  id: string;
+  fields: ValidatedFields;
+}
 
 /** Result of the validation step. */
 export interface ValidationResult {

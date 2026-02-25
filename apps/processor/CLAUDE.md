@@ -25,7 +25,7 @@ src/
 │   ├── processor.module.ts              # All providers + services, OnApplicationShutdown
 │   ├── event-consumer.service.ts        # XREADGROUP loop + XAUTOCLAIM + heartbeat + pipeline orchestration
 │   ├── pipeline/                        # Typed pipeline steps (extracted from EventConsumerService)
-│   │   ├── types.ts                     # RawMessage, ValidMessage, BufferedEvent, ResolveResult, PersonKey
+│   │   ├── types.ts                     # RawMessage, ValidatedFields, ValidMessage, BufferedEvent, ResolveResult, PersonKey
 │   │   ├── parse.step.ts               # Step 1: flat Redis arrays → RawMessage[]
 │   │   ├── validate.step.ts            # Step 2: validate required fields + illegal distinct_ids
 │   │   ├── prefetch.step.ts            # Step 3: batch MGET person IDs from Redis
@@ -80,7 +80,7 @@ Redis Stream (events:incoming)
 | `DefinitionSyncService` | Upsert event/property definitions to PG | `HourlyCache` dedup, cache invalidation via Redis DEL |
 | `PersonResolverService` | Deterministic person_id resolution via UUIDv5 + Redis cache + PG fallback | Batch MGET prefetch, deterministic UUIDs (same project+distinct_id → same person_id), Redis SET NX with 90d TTL, PG cold-start fallback for legacy data |
 | `PersonBatchStore` | Batched person writes + identity merge | Promise-based flush lock (concurrent callers await previous flush then run), bulk upsert persons/distinct_ids with conditional WHERE (skip unchanged), updated_at floored to hour, re-queues pending data on flush failure, transactional merge with retry (3×200ms), failed merges persisted to Redis for retry (`processor:failed_merges`), `HourlyCache` for knownDistinctIds dedup |
-| `DlqService` | Replay dead-letter events with full pipeline | 100 events every 5min, re-enqueues person data + flushes via PersonBatchStore (promise lock handles concurrency with FlushService) + runs definition sync during replay, cross-instance circuit breaker via Redis (5 failures, 5min reset). DLQ events are already-processed Event DTOs — no re-parsing of screen dimensions needed |
+| `DlqService` | Replay dead-letter events with full pipeline | 100 events every 5min, re-enqueues person data + flushes via PersonBatchStore (promise lock handles concurrency with FlushService) + runs definition sync during replay, cross-instance circuit breaker via Redis (5 failures, 5min reset). DLQ events are already-processed Event DTOs — no re-parsing of screen dimensions needed. `stop()` awaits in-flight replay before returning (prevents shutdown race with connection close). |
 | `ShutdownService` | Graceful shutdown orchestration | Error-isolated: each step wrapped in catch so failures don't abort subsequent steps |
 
 ## Key Patterns
@@ -92,7 +92,7 @@ Pipeline logic is extracted into `pipeline/` directory with typed functions:
 - `prefetchPersons()` — collect unique keys, single MGET → `Map<string, string>`
 - `resolveAndBuildEvents()` — group by distinct_id, concurrent resolution via `Promise.allSettled` → `{ buffered, failedIds }`
 
-All types are in `pipeline/types.ts`: `RawMessage`, `ValidMessage`, `BufferedEvent`, `ResolveResult`, `PersonKey`. Only `BufferedEvent` is re-exported from `pipeline/index.ts` (used by `FlushService`); other types are internal to the pipeline. `EventConsumerService.processMessages()` orchestrates these steps. Each step is a pure function (except resolve, which depends on services passed as deps).
+All types are in `pipeline/types.ts`: `RawMessage`, `ValidatedFields`, `ValidMessage`, `BufferedEvent`, `ResolveResult`, `PersonKey`. `ValidMessage` carries `ValidatedFields` — an interface extending `Record<string, string>` with explicitly typed `project_id`, `event_name`, `distinct_id` (guaranteed by the validate step). Only `BufferedEvent` is re-exported from `pipeline/index.ts` (used by `FlushService`); other types are internal to the pipeline. `EventConsumerService.processMessages()` orchestrates these steps. Each step is a pure function (except resolve, which depends on services passed as deps).
 
 ### Heartbeat
 Uses `@qurvo/heartbeat` package — framework-agnostic file-based liveness heartbeat. Created in `EventConsumerService` constructor, started/stopped with the consumer loop. If the loop doesn't call `touch()` within 30s, heartbeat writes are skipped (stale detection).
@@ -154,6 +154,9 @@ Named retry configs in `constants.ts`: `RETRY_CLICKHOUSE` (3×1000ms), `RETRY_PO
 
 ### Conditional Person Updates
 `PersonBatchStore.flushPersons()` uses `WHERE persons.properties IS DISTINCT FROM excluded.properties OR persons.updated_at < excluded.updated_at` to skip PG writes when nothing changed. Combined with `updated_at` floored to the hour (PostHog pattern), this eliminates redundant writes for active users within the same hour.
+
+### Shared Constants
+`REDIS_STREAM_EVENTS` is imported from `@qurvo/nestjs-infra` (single source of truth shared with `@qurvo/ingest`). `REDIS_CONSUMER_GROUP` remains local to processor (processor-specific).
 
 ### Shared Utilities
 `redis-utils.ts` contains `parseRedisFields()` — converts flat Redis `[key, value, key, value, ...]` arrays into `Record<string, string>`. Used by both `EventConsumerService` and `DlqService`. Do NOT inline this back into individual services or duplicate it — keep it in `redis-utils.ts`.

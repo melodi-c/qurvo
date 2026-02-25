@@ -22,7 +22,9 @@ export class ShutdownService implements OnApplicationShutdown {
     await this.eventConsumerService.shutdown().catch((err) =>
       this.logger.error({ err }, 'Consumer shutdown error'),
     );
-    this.dlqService.stop();
+    await this.dlqService.stop().catch((err) =>
+      this.logger.error({ err }, 'DLQ shutdown error'),
+    );
     // FlushService.shutdown() runs a final flush which includes personBatchStore.flush() internally
     await this.flushService.shutdown().catch((err) =>
       this.logger.error({ err }, 'Flush shutdown error'),

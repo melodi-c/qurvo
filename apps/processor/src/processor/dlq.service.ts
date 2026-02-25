@@ -24,6 +24,7 @@ import { DefinitionSyncService } from './definition-sync.service';
 export class DlqService implements OnApplicationBootstrap {
   private dlqTimer: NodeJS.Timeout | null = null;
   private stopped = false;
+  private replayPromise: Promise<void> | null = null;
   private readonly lock: DistributedLock;
 
   constructor(
@@ -40,17 +41,20 @@ export class DlqService implements OnApplicationBootstrap {
     this.scheduleReplay();
   }
 
-  stop() {
+  async stop() {
     this.stopped = true;
     if (this.dlqTimer) {
       clearTimeout(this.dlqTimer);
       this.dlqTimer = null;
     }
+    if (this.replayPromise) await this.replayPromise;
   }
 
   private scheduleReplay() {
     this.dlqTimer = setTimeout(async () => {
-      await this.replayDlq();
+      this.replayPromise = this.replayDlq();
+      await this.replayPromise;
+      this.replayPromise = null;
       if (!this.stopped) this.scheduleReplay();
     }, DLQ_REPLAY_INTERVAL_MS);
   }
