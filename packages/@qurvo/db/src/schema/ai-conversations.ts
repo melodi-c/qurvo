@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, jsonb, integer, numeric, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, jsonb, integer, numeric, boolean, timestamp, index } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
 
@@ -7,11 +7,13 @@ export const aiConversations = pgTable('ai_conversations', {
   project_id: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 200 }).notNull().default('New conversation'),
+  is_shared: boolean('is_shared').notNull().default(false),
   history_summary: text('history_summary'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('ai_conversations_user_project_idx').on(table.user_id, table.project_id),
+  index('ai_conversations_project_shared_idx').on(table.project_id, table.is_shared),
 ]);
 
 export const aiMessages = pgTable('ai_messages', {

@@ -907,25 +907,15 @@ export interface MyInvite {
   created_at: string;
 }
 
-export interface RenameConversation {
-  /** @maxLength 200 */
-  title: string;
-}
-
 export interface AiChat {
   /** @format uuid */
   conversation_id?: string;
+  /** @min 0 */
+  edit_sequence?: number;
   /** @format uuid */
   project_id: string;
   /** @maxLength 10000 */
   message: string;
-}
-
-export interface AiConversation {
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface AiMessage {
@@ -942,12 +932,28 @@ export interface AiMessage {
 }
 
 export interface AiConversationDetail {
+  is_shared: boolean;
+  owner_name?: string;
+  messages: AiMessage[];
+  has_more: boolean;
   id: string;
   title: string;
   created_at: string;
   updated_at: string;
-  messages: AiMessage[];
-  has_more: boolean;
+}
+
+export interface UpdateConversation {
+  /** @maxLength 200 */
+  title?: string;
+  is_shared?: boolean;
+}
+
+export interface AiConversation {
+  is_shared: boolean;
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface EventDefinition {
@@ -1718,6 +1724,7 @@ export interface MyInvitesControllerDeclineInviteParams {
 }
 
 export interface AiControllerListConversationsParams {
+  shared?: boolean;
   /** @format uuid */
   project_id: string;
 }
@@ -1736,7 +1743,7 @@ export interface AiControllerGetConversationParams {
   id: string;
 }
 
-export interface AiControllerRenameConversationParams {
+export interface AiControllerUpdateConversationParams {
   /** @format uuid */
   project_id: string;
   id: string;
@@ -3523,7 +3530,7 @@ export class Api<
       query: AiControllerListConversationsParams,
       params: RequestParams = {},
     ) =>
-      this.request<AiConversation[], any>({
+      this.request<object, any>({
         path: `/api/ai/conversations`,
         method: "GET",
         query: query,
@@ -3557,13 +3564,13 @@ export class Api<
      * No description
      *
      * @tags AI
-     * @name AiControllerRenameConversation
+     * @name AiControllerUpdateConversation
      * @request PATCH:/api/ai/conversations/{id}
      * @secure
      */
-    aiControllerRenameConversation: (
-      { id, ...query }: AiControllerRenameConversationParams,
-      data: RenameConversation,
+    aiControllerUpdateConversation: (
+      { id, ...query }: AiControllerUpdateConversationParams,
+      data: UpdateConversation,
       params: RequestParams = {},
     ) =>
       this.request<AiConversation, any>({

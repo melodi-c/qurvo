@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, Min, Max, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, Min, Max, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -27,13 +27,25 @@ export class AiChatDto {
 export class AiConversationsQueryDto {
   @IsUUID()
   project_id: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  @IsOptional()
+  shared?: boolean;
 }
 
 export class AiConversationDto {
   id: string;
   title: string;
+  @ApiProperty()
+  is_shared: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export class AiSharedConversationDto extends AiConversationDto {
+  owner_name: string;
 }
 
 export class AiMessageDto {
@@ -73,13 +85,23 @@ export class AiConversationMessagesQueryDto extends AiConversationAccessDto {
 }
 
 export class AiConversationDetailDto extends AiConversationDto {
+  @ApiPropertyOptional()
+  owner_name?: string;
+  @ApiProperty({ type: [AiMessageDto] })
   messages: AiMessageDto[];
   has_more: boolean;
 }
 
-export class RenameConversationDto {
+export class UpdateConversationDto {
+  @ApiPropertyOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
-  title: string;
+  @IsOptional()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  is_shared?: boolean;
 }

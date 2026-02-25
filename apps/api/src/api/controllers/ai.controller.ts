@@ -6,7 +6,8 @@ import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
 import { detectLanguageFromHeader } from '../../ai/system-prompt';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, RenameConversationDto } from '../dto/ai.dto';
+import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto } from '../dto/ai.dto';
+import { ConversationNotFoundException } from '../../ai/exceptions/conversation-not-found.exception';
 
 @ApiTags('AI')
 @ApiBearerAuth()
@@ -67,7 +68,10 @@ export class AiController {
   async listConversations(
     @CurrentUser() user: RequestUser,
     @Query() query: AiConversationsQueryDto,
-  ): Promise<AiConversationDto[]> {
+  ): Promise<AiConversationDto[] | AiSharedConversationDto[]> {
+    if (query.shared) {
+      return this.aiService.listSharedConversations(query.project_id) as any;
+    }
     return this.aiService.listConversations(user.user_id, query.project_id) as any;
   }
 
@@ -78,18 +82,36 @@ export class AiController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: AiConversationMessagesQueryDto,
   ): Promise<AiConversationDetailDto> {
-    return this.aiService.getConversation(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
+    // First try to load as owner. If not found, fall back to shared conversation access.
+    try {
+      return await this.aiService.getConversation(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
+    } catch {
+      // Any project member can view shared conversations (read-only)
+      return this.aiService.getSharedConversation(id, query.project_id, query.limit, query.before_sequence) as any;
+    }
   }
 
   @Patch('conversations/:id')
   @UseGuards(ProjectMemberGuard)
-  async renameConversation(
+  async updateConversation(
     @CurrentUser() user: RequestUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: AiConversationAccessDto,
-    @Body() body: RenameConversationDto,
+    @Body() body: UpdateConversationDto,
   ): Promise<AiConversationDto> {
-    return this.aiService.renameConversation(user.user_id, id, query.project_id, body.title) as any;
+    // Handle is_shared toggle only
+    if (body.is_shared !== undefined && body.title === undefined) {
+      return this.aiService.setShared(user.user_id, id, query.project_id, body.is_shared) as any;
+    }
+    // Handle rename (with optional is_shared toggle)
+    if (body.title !== undefined) {
+      await this.aiService.renameConversation(user.user_id, id, query.project_id, body.title);
+      if (body.is_shared !== undefined) {
+        return this.aiService.setShared(user.user_id, id, query.project_id, body.is_shared) as any;
+      }
+      return this.aiService.getConversation(user.user_id, id, query.project_id) as any;
+    }
+    throw new ConversationNotFoundException();
   }
 
   @Delete('conversations/:id')

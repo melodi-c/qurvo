@@ -22,6 +22,8 @@ export interface AiMessageData {
 interface AiChatState {
   messages: AiMessageData[];
   conversationId: string | null;
+  isShared: boolean;
+  ownerName: string | null;
   isStreaming: boolean;
   error: string | null;
   hasMore: boolean;
@@ -157,6 +159,8 @@ export function useAiChat(projectId: string) {
   const [state, setState] = useState<AiChatState>({
     messages: [],
     conversationId: null,
+    isShared: false,
+    ownerName: null,
     isStreaming: false,
     error: null,
     hasMore: false,
@@ -267,6 +271,8 @@ export function useAiChat(projectId: string) {
       setState({
         messages: mapMessages(data.messages ?? []),
         conversationId: convId,
+        isShared: data.is_shared ?? false,
+        ownerName: data.owner_name ?? null,
         isStreaming: false,
         error: null,
         hasMore: data.has_more ?? false,
@@ -315,6 +321,8 @@ export function useAiChat(projectId: string) {
     setState({
       messages: [],
       conversationId: null,
+      isShared: false,
+      ownerName: null,
       isStreaming: false,
       error: null,
       hasMore: false,
@@ -334,6 +342,8 @@ export function useAiChat(projectId: string) {
   return {
     messages: state.messages,
     conversationId: state.conversationId,
+    isShared: state.isShared,
+    ownerName: state.ownerName,
     isStreaming: state.isStreaming,
     error: state.error,
     hasMore: state.hasMore,

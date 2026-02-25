@@ -10,12 +10,14 @@ interface AiChatPanelProps {
   messages: AiMessageData[];
   isStreaming: boolean;
   error: string | null;
-  onSend: (text: string) => void;
-  onStop: () => void;
+  onSend?: (text: string) => void;
+  onStop?: () => void;
   onEdit?: (sequence: number, newText: string) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  readOnly?: boolean;
+  readOnlyMessage?: string;
 }
 
 export function AiChatPanel({
@@ -28,6 +30,8 @@ export function AiChatPanel({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  readOnly = false,
+  readOnlyMessage,
 }: AiChatPanelProps) {
   const { t } = useLocalTranslation(translations);
   const [input, setInput] = useState('');
@@ -68,8 +72,8 @@ export function AiChatPanel({
   }, [messages]);
 
   useEffect(() => {
-    if (!isStreaming) inputRef.current?.focus();
-  }, [isStreaming]);
+    if (!isStreaming && !readOnly) inputRef.current?.focus();
+  }, [isStreaming, readOnly]);
 
   // Detect scroll to top for loading more messages
   const handleScroll = useCallback(() => {
@@ -90,7 +94,7 @@ export function AiChatPanel({
 
   const handleSubmit = useCallback(() => {
     const text = input.trim();
-    if (!text || isStreaming) return;
+    if (!text || isStreaming || !onSend) return;
     setInput('');
     onSend(text);
   }, [input, isStreaming, onSend]);
@@ -129,8 +133,8 @@ export function AiChatPanel({
             key={msg.id}
             message={msg}
             isStreaming={isStreaming}
-            onSuggestionClick={onSend}
-            onEdit={onEdit}
+            onSuggestionClick={readOnly ? undefined : onSend}
+            onEdit={readOnly ? undefined : onEdit}
           />
         ))}
         {error && (
@@ -142,35 +146,43 @@ export function AiChatPanel({
       </div>
 
       {/* Input area */}
-      <div className="border-t border-border px-4 py-3">
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t('inputPlaceholder')}
-            rows={1}
-            className="flex-1 resize-none bg-input/30 border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
-            style={{ minHeight: '38px' }}
-            disabled={isStreaming}
-          />
-          {isStreaming ? (
-            <Button size="icon" variant="outline" onClick={onStop} className="shrink-0">
-              <Square className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              onClick={handleSubmit}
-              disabled={!input.trim()}
-              className="shrink-0"
-            >
-              <SendHorizonal className="w-4 h-4" />
-            </Button>
-          )}
+      {readOnly ? (
+        <div className="border-t border-border px-4 py-3">
+          <p className="text-xs text-muted-foreground text-center">
+            {readOnlyMessage}
+          </p>
         </div>
-      </div>
+      ) : (
+        <div className="border-t border-border px-4 py-3">
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t('inputPlaceholder')}
+              rows={1}
+              className="flex-1 resize-none bg-input/30 border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
+              style={{ minHeight: '38px' }}
+              disabled={isStreaming}
+            />
+            {isStreaming ? (
+              <Button size="icon" variant="outline" onClick={onStop} className="shrink-0">
+                <Square className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                onClick={handleSubmit}
+                disabled={!input.trim()}
+                className="shrink-0"
+              >
+                <SendHorizonal className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

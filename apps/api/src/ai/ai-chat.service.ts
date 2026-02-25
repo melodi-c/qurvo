@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { eq, and, desc, lt, gt, count } from 'drizzle-orm';
-import { aiConversations, aiMessages } from '@qurvo/db';
+import { aiConversations, aiMessages, users } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
@@ -44,17 +44,54 @@ export class AiChatService {
     return row ?? null;
   }
 
+  /** Fetch a conversation by ID for any project member (used when the conversation is shared). */
+  async getConversationByProject(conversationId: string, projectId: string) {
+    const [row] = await this.db
+      .select()
+      .from(aiConversations)
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.project_id, projectId)))
+      .limit(1);
+    return row ?? null;
+  }
+
   async listConversations(userId: string, projectId: string) {
     return this.db
       .select({
         id: aiConversations.id,
         title: aiConversations.title,
+        is_shared: aiConversations.is_shared,
         created_at: aiConversations.created_at,
         updated_at: aiConversations.updated_at,
       })
       .from(aiConversations)
       .where(and(eq(aiConversations.user_id, userId), eq(aiConversations.project_id, projectId)))
       .orderBy(desc(aiConversations.updated_at));
+  }
+
+  /** List conversations shared with a project (visible to all project members). */
+  async listSharedConversations(projectId: string) {
+    return this.db
+      .select({
+        id: aiConversations.id,
+        title: aiConversations.title,
+        is_shared: aiConversations.is_shared,
+        created_at: aiConversations.created_at,
+        updated_at: aiConversations.updated_at,
+        owner_name: users.display_name,
+      })
+      .from(aiConversations)
+      .innerJoin(users, eq(aiConversations.user_id, users.id))
+      .where(and(eq(aiConversations.project_id, projectId), eq(aiConversations.is_shared, true)))
+      .orderBy(desc(aiConversations.updated_at));
+  }
+
+  async setShared(conversationId: string, userId: string, isShared: boolean) {
+    const [row] = await this.db
+      .update(aiConversations)
+      .set({ is_shared: isShared, updated_at: new Date() })
+      .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
+      .returning();
+    return row ?? null;
   }
 
   async deleteConversation(conversationId: string, userId: string) {
