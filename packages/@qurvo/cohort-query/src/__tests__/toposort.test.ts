@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { topologicalSortCohorts, type CohortForSort } from '../toposort';
+import { topologicalSortCohorts, groupCohortsByLevel, type CohortForSort } from '../toposort';
 import type { CohortConditionGroup } from '@qurvo/db';
 
 function makeCohort(id: string, cohortRefs: string[] = []): CohortForSort {
@@ -68,5 +68,46 @@ describe('topologicalSortCohorts', () => {
     const { sorted, cyclic } = topologicalSortCohorts(cohorts);
     expect(sorted).toEqual([]);
     expect(cyclic.sort()).toEqual(['A', 'B']);
+  });
+});
+
+describe('groupCohortsByLevel', () => {
+  it('empty input → empty output', () => {
+    expect(groupCohortsByLevel([])).toEqual([]);
+  });
+
+  it('no dependencies → single level', () => {
+    const sorted = [makeCohort('A'), makeCohort('B'), makeCohort('C')];
+    const levels = groupCohortsByLevel(sorted);
+    expect(levels).toHaveLength(1);
+    expect(levels[0].map((c) => c.id)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('linear chain → one node per level', () => {
+    // Sorted order after toposort: C, B, A (C has no deps, B depends on C, A on B)
+    const { sorted } = topologicalSortCohorts([
+      makeCohort('A', ['B']),
+      makeCohort('B', ['C']),
+      makeCohort('C'),
+    ]);
+    const levels = groupCohortsByLevel(sorted);
+    expect(levels).toHaveLength(3);
+    expect(levels[0].map((c) => c.id)).toEqual(['C']);
+    expect(levels[1].map((c) => c.id)).toEqual(['B']);
+    expect(levels[2].map((c) => c.id)).toEqual(['A']);
+  });
+
+  it('diamond → D at level 0, B+C at level 1, A at level 2', () => {
+    const { sorted } = topologicalSortCohorts([
+      makeCohort('A', ['B', 'C']),
+      makeCohort('B', ['D']),
+      makeCohort('C', ['D']),
+      makeCohort('D'),
+    ]);
+    const levels = groupCohortsByLevel(sorted);
+    expect(levels).toHaveLength(3);
+    expect(levels[0].map((c) => c.id)).toEqual(['D']);
+    expect(levels[1].map((c) => c.id).sort()).toEqual(['B', 'C']);
+    expect(levels[2].map((c) => c.id)).toEqual(['A']);
   });
 });
