@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -70,13 +71,12 @@ export function GeneralTab({ projectId }: { projectId: string }) {
           <CardTitle className="text-sm">{t('projectDetails')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <dl className="divide-y divide-border text-sm">
+          <DefinitionList>
             {/* Name */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('name')}</dt>
-              <dd className="text-right">
+            <DefinitionListRow label={t('name')}>
+              <span className="text-right">
                 {editing ? (
-                  <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2">
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -97,7 +97,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
                     <Button size="xs" variant="ghost" onClick={() => setEditing(false)}>
                       {t('cancel')}
                     </Button>
-                  </div>
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5">
                     {project?.name}
@@ -108,21 +108,19 @@ export function GeneralTab({ projectId }: { projectId: string }) {
                     )}
                   </span>
                 )}
-              </dd>
-            </div>
+              </span>
+            </DefinitionListRow>
 
             {/* Slug */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('slug')}</dt>
-              <dd className="text-muted-foreground font-mono text-xs">{project?.slug}</dd>
-            </div>
+            <DefinitionListRow label={t('slug')}>
+              <span className="text-muted-foreground font-mono text-xs">{project?.slug}</span>
+            </DefinitionListRow>
 
             {/* Role */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('yourRole')}</dt>
-              <dd className="capitalize">{project?.role}</dd>
-            </div>
-          </dl>
+            <DefinitionListRow label={t('yourRole')}>
+              <span className="capitalize">{project?.role}</span>
+            </DefinitionListRow>
+          </DefinitionList>
         </CardContent>
       </Card>
 

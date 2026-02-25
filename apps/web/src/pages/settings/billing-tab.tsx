@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { api } from '@/api/client';
 import { CreditCard, Check, X } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -57,17 +58,15 @@ export function BillingTab({ projectId }: { projectId: string }) {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <dl className="divide-y divide-border text-sm">
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('eventsThisMonth')}</dt>
-              <dd className="font-mono">{formatNumber(data?.events_this_month ?? 0)}</dd>
-            </div>
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('monthlyLimit')}</dt>
-              <dd className="font-mono">
+          <DefinitionList>
+            <DefinitionListRow label={t('eventsThisMonth')}>
+              <span className="font-mono">{formatNumber(data?.events_this_month ?? 0)}</span>
+            </DefinitionListRow>
+            <DefinitionListRow label={t('monthlyLimit')}>
+              <span className="font-mono">
                 {data?.events_limit ? formatNumber(data.events_limit) : t('unlimited')}
-              </dd>
-            </div>
+              </span>
+            </DefinitionListRow>
             {pct !== null && (
               <div className="px-6 py-3 space-y-2">
                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -83,36 +82,31 @@ export function BillingTab({ projectId }: { projectId: string }) {
               </div>
             )}
             {data?.data_retention_days != null && (
-              <div className="flex items-center justify-between px-6 py-3">
-                <dt className="text-muted-foreground">{t('dataRetention')}</dt>
-                <dd>{t('dataRetentionDays', { days: data.data_retention_days })}</dd>
-              </div>
+              <DefinitionListRow label={t('dataRetention')}>
+                {t('dataRetentionDays', { days: data.data_retention_days })}
+              </DefinitionListRow>
             )}
             {data?.max_projects != null && (
-              <div className="flex items-center justify-between px-6 py-3">
-                <dt className="text-muted-foreground">{t('maxProjects')}</dt>
-                <dd>{data.max_projects}</dd>
-              </div>
+              <DefinitionListRow label={t('maxProjects')}>
+                {data.max_projects}
+              </DefinitionListRow>
             )}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('aiMessagesLimit')}</dt>
-              <dd className="font-mono">
+            <DefinitionListRow label={t('aiMessagesLimit')}>
+              <span className="font-mono">
                 {(data?.ai_messages_per_month ?? null) !== null && (data?.ai_messages_per_month ?? -1) >= 0
                   ? formatNumber(data!.ai_messages_per_month!)
                   : t('aiMessagesUnlimited')}
-              </dd>
-            </div>
+              </span>
+            </DefinitionListRow>
             {(data?.ai_messages_per_month ?? null) !== null && (data?.ai_messages_per_month ?? -1) >= 0 && (
-              <div className="flex items-center justify-between px-6 py-3">
-                <dt className="text-muted-foreground">{t('aiMessagesUsed')}</dt>
-                <dd className="font-mono">{formatNumber(data?.ai_messages_used ?? 0)}</dd>
-              </div>
+              <DefinitionListRow label={t('aiMessagesUsed')}>
+                <span className="font-mono">{formatNumber(data?.ai_messages_used ?? 0)}</span>
+              </DefinitionListRow>
             )}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('billingPeriod')}</dt>
-              <dd className="text-xs text-muted-foreground">{periodStart} – {periodEnd}</dd>
-            </div>
-          </dl>
+            <DefinitionListRow label={t('billingPeriod')}>
+              <span className="text-xs text-muted-foreground">{periodStart} – {periodEnd}</span>
+            </DefinitionListRow>
+          </DefinitionList>
         </CardContent>
       </Card>
 
@@ -122,20 +116,17 @@ export function BillingTab({ projectId }: { projectId: string }) {
             <CardTitle className="text-sm">{t('features')}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <dl className="divide-y divide-border text-sm">
+            <DefinitionList>
               {Object.entries(featureLabels).map(([key, label]) => (
-                <div key={key} className="flex items-center justify-between px-6 py-3">
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd>
-                    {features[key] ? (
-                      <Check className={`h-4 w-4 ${STATUS_COLORS.success}`} />
-                    ) : (
-                      <X className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </dd>
-                </div>
+                <DefinitionListRow key={key} label={label}>
+                  {features[key] ? (
+                    <Check className={`h-4 w-4 ${STATUS_COLORS.success}`} />
+                  ) : (
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </DefinitionListRow>
               ))}
-            </dl>
+            </DefinitionList>
           </CardContent>
         </Card>
       )}

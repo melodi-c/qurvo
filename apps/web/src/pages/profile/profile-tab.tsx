@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
+import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './profile-tab.translations';
@@ -65,13 +66,12 @@ export function ProfileTab() {
           <CardTitle className="text-sm">{t('profileDetails')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <dl className="divide-y divide-border text-sm">
+          <DefinitionList>
             {/* Name */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('name')}</dt>
-              <dd className="text-right">
+            <DefinitionListRow label={t('name')}>
+              <span className="text-right">
                 {editingName ? (
-                  <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2">
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -93,7 +93,7 @@ export function ProfileTab() {
                     <Button size="xs" variant="ghost" onClick={() => setEditingName(false)}>
                       {t('cancel')}
                     </Button>
-                  </div>
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5">
                     {user?.display_name}
@@ -105,15 +105,14 @@ export function ProfileTab() {
                     </button>
                   </span>
                 )}
-              </dd>
-            </div>
+              </span>
+            </DefinitionListRow>
 
             {/* Email */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <dt className="text-muted-foreground">{t('email')}</dt>
-              <dd className="text-muted-foreground">{user?.email}</dd>
-            </div>
-          </dl>
+            <DefinitionListRow label={t('email')}>
+              <span className="text-muted-foreground">{user?.email}</span>
+            </DefinitionListRow>
+          </DefinitionList>
         </CardContent>
       </Card>
 
