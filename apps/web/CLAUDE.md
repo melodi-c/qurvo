@@ -169,8 +169,20 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 ### Dialogs Over Native APIs
 - **Never use `confirm()`, `alert()`, or `prompt()`**. Use `ConfirmDialog` for destructive confirmations and `Dialog` for other modal interactions.
 
+### Generated API Client — Never Edit Directly
+
+**`src/api/generated/Api.ts` is auto-generated. NEVER edit it manually.**
+
+If a method has a wrong return type or missing signature — the fix goes in the **backend** (NestJS controller + Swagger decorators), not in the generated file. After fixing the backend:
+```bash
+pnpm swagger:generate   # regenerates apps/api/docs/swagger.json
+pnpm generate-api       # regenerates apps/web/src/api/generated/Api.ts
+```
+
+Any manual change to `Api.ts` will be overwritten on the next `pnpm generate-api`. Committing such changes is a mistake — it creates a false fix that hides the real backend issue.
+
 ### Type Safety — No `as any` / `as unknown`
-- **NEVER cast the `api` object or its return types to `as any` or `as unknown`.** If a method is missing or has wrong signature, regenerate the client (`pnpm swagger:generate && pnpm generate-api`).
+- **NEVER cast the `api` object or its return types to `as any` or `as unknown`.** If a method is missing or has wrong signature, fix the backend and regenerate the client (`pnpm swagger:generate && pnpm generate-api`).
 - **NEVER cast API response types** (e.g. `res.user as any`). Use the generated types (`User`, `SessionUser`, etc.) directly, mapping fields explicitly when shapes differ.
 - Narrowing casts (`as SpecificType`) from a known union are acceptable; widening casts (`as any`, `as unknown as X`) are not.
 
