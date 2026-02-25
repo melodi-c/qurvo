@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,7 @@ import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel
 import { defaultFunnelConfig } from '@/features/dashboard/components/widgets/funnel/funnel-shared';
 import { formatSeconds } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useTimeToConvertState } from '@/hooks/use-time-to-convert-state';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './funnel-editor.translations';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
@@ -45,18 +46,7 @@ export default function FunnelEditorPage() {
   const isValid = name.trim() !== '' && isConfigValid;
 
   const [viewMode, setViewMode] = useState<ViewMode>('conversion');
-  const [fromStep, setFromStep] = useState(0);
-  const [toStep, setToStep] = useState(1);
-
-  // Auto-clamp step indices when steps change
-  useEffect(() => {
-    const maxIdx = config.steps.length - 1;
-    if (maxIdx < 1) return;
-    const clampedFrom = Math.min(fromStep, maxIdx - 1);
-    const clampedTo = Math.max(Math.min(toStep, maxIdx), clampedFrom + 1);
-    if (clampedFrom !== fromStep) setFromStep(clampedFrom);
-    if (clampedTo !== toStep) setToStep(clampedTo);
-  }, [config.steps.length, fromStep, toStep]);
+  const { fromStep, setFromStep, toStep, setToStep } = useTimeToConvertState(config.steps.length);
 
   const viewModeOptions = useMemo(
     () =>
