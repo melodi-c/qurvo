@@ -1,1 +1,2 @@
 export const DISTRIBUTED_LOCK = Symbol('DISTRIBUTED_LOCK');
+export const COMPUTE_QUEUE_EVENTS = Symbol('COMPUTE_QUEUE_EVENTS');
