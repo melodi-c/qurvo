@@ -15,6 +15,19 @@ export default createTranslations({
     revokeConfirm: 'Revoke',
     createFailed: 'Failed to create API key',
     revokeFailed: 'Failed to revoke API key',
+    // Form fields
+    scopesLabel: 'Scopes',
+    scopeIngest: 'ingest',
+    scopeRead: 'read',
+    expiresLabel: 'Expires at',
+    expiresNever: 'Never',
+    createLabel: 'Create',
+    cancel: 'Cancel',
+    // Key card
+    lastUsed: 'Last used',
+    expires: 'Expires',
+    never: 'never',
+    noScopes: 'All scopes',
   },
   ru: {
     selectProject: 'Выберите проект для управления API ключами',
@@ -30,5 +43,18 @@ export default createTranslations({
     revokeConfirm: 'Отозвать',
     createFailed: 'Не удалось создать API ключ',
     revokeFailed: 'Не удалось отозвать API ключ',
+    // Form fields
+    scopesLabel: 'Разрешения',
+    scopeIngest: 'ingest',
+    scopeRead: 'read',
+    expiresLabel: 'Дата истечения',
+    expiresNever: 'Никогда',
+    createLabel: 'Создать',
+    cancel: 'Отмена',
+    // Key card
+    lastUsed: 'Использован',
+    expires: 'Истекает',
+    never: 'никогда',
+    noScopes: 'Все разрешения',
   },
 });
