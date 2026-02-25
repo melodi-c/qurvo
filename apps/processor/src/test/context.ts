@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { INestApplicationContext } from '@nestjs/common';
 import {
   setupContainers,
+  teardownContainers,
   createTestProject,
   type ContainerContext,
   type TestProject,
@@ -52,11 +53,13 @@ async function bootstrap(): Promise<TestContext> {
 }
 
 /**
- * Shuts down the shared NestJS app. Called once at the very end (globalSetup teardown).
+ * Shuts down the shared NestJS app and closes all test connections.
+ * Called once at the very end (setupFiles afterAll teardown).
  */
 export async function closeTestContext(): Promise<void> {
   if (!cached) return;
   const { app } = await cached;
-  await app.close();
   cached = null;
+  await app.close();
+  await teardownContainers();
 }

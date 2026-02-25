@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.integration.test.ts'],
     globalSetup: ['./src/test/setup.ts'],
+    setupFiles: ['./src/test/teardown.ts'],
     pool: 'forks',
     poolOptions: {
       forks: {

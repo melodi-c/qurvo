@@ -19,6 +19,7 @@ export async function teardownWorkerContext(): Promise<void> {
   const ctx = await contextPromise;
   await ctx.ch.close();
   ctx.redis.disconnect();
+  await ctx.db.$pool.end();
   contextPromise = null;
 }
 
