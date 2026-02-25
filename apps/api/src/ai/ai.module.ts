@@ -21,6 +21,7 @@ import { ListEventNamesTool } from './tools/list-event-names.tool';
 import { ListPropertyValuesTool } from './tools/list-property-values.tool';
 import { PathsTool } from './tools/paths.tool';
 import { QueryCohortMembersTool } from './tools/query-cohort-members.tool';
+import { QueryPersonsTool } from './tools/query-persons.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -32,6 +33,7 @@ const TOOL_CLASSES = [
   ListPropertyValuesTool,
   PathsTool,
   QueryCohortMembersTool,
+  QueryPersonsTool,
 ];
 
 @Module({
