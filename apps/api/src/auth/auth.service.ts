@@ -207,6 +207,7 @@ export class AuthService {
 
     const valid = await argon2.verify(user.password_hash, currentPassword);
     if (!valid) {
+      this.logger.warn({ userId }, 'Password change failed: wrong current password');
       throw new WrongPasswordException();
     }
 

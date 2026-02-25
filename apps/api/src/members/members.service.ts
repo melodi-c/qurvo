@@ -98,41 +98,43 @@ export class MembersService {
   }
 
   async createInvite(userId: string, projectId: string, input: { email: string; role: 'editor' | 'viewer' }) {
-    // Verify user exists
-    const [targetUser] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, input.email))
-      .limit(1);
-    if (!targetUser) throw new AppBadRequestException('Unable to invite this email');
+    const invite = await this.db.transaction(async (tx) => {
+      // Verify user exists
+      const [targetUser] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, input.email))
+        .limit(1);
+      if (!targetUser) throw new AppBadRequestException('Unable to invite this email');
 
-    // Check if already a member
-    const [existingMember] = await this.db
-      .select({ id: projectMembers.id })
-      .from(projectMembers)
-      .where(and(eq(projectMembers.user_id, targetUser.id), eq(projectMembers.project_id, projectId)))
-      .limit(1);
-    if (existingMember) throw new AlreadyMemberException();
+      // Check if already a member
+      const [existingMember] = await tx
+        .select({ id: projectMembers.id })
+        .from(projectMembers)
+        .where(and(eq(projectMembers.user_id, targetUser.id), eq(projectMembers.project_id, projectId)))
+        .limit(1);
+      if (existingMember) throw new AlreadyMemberException();
 
-    // Check for existing pending invite
-    const [existingInvite] = await this.db
-      .select({ id: projectInvites.id })
-      .from(projectInvites)
-      .where(and(
-        eq(projectInvites.project_id, projectId),
-        eq(projectInvites.email, input.email),
-        eq(projectInvites.status, 'pending'),
-      ))
-      .limit(1);
-    if (existingInvite) throw new InviteConflictException();
+      // Check for existing pending invite
+      const [existingInvite] = await tx
+        .select({ id: projectInvites.id })
+        .from(projectInvites)
+        .where(and(
+          eq(projectInvites.project_id, projectId),
+          eq(projectInvites.email, input.email),
+          eq(projectInvites.status, 'pending'),
+        ))
+        .limit(1);
+      if (existingInvite) throw new InviteConflictException();
 
-    const [invite] = await this.db
-      .insert(projectInvites)
-      .values({ project_id: projectId, invited_by: userId, email: input.email, role: input.role })
-      .returning();
+      const [created] = await tx
+        .insert(projectInvites)
+        .values({ project_id: projectId, invited_by: userId, email: input.email, role: input.role })
+        .returning();
+      return created;
+    });
+
     this.logger.log({ inviteId: invite.id, projectId, email: input.email }, 'Invite created');
-
-    // Return with inviter info
     return this.hydrateInvite(invite.id);
   }
 

@@ -48,19 +48,7 @@ export class DashboardsService {
       .where(eq(widgets.dashboard_id, dashboardId))
       .orderBy(widgets.created_at);
 
-    return {
-      ...dashboard,
-      widgets: widgetRows.map((row) => ({
-        id: row.id,
-        dashboard_id: row.dashboard_id,
-        insight_id: row.insight_id,
-        layout: row.layout,
-        content: row.content,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        insight: row.insight,
-      })),
-    };
+    return { ...dashboard, widgets: widgetRows };
   }
 
   async create(userId: string, projectId: string, input: { name: string }) {

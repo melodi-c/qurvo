@@ -89,57 +89,64 @@ export class AiService implements OnModuleInit {
 
     yield { type: 'conversation', conversation_id: conversation.id, title: conversation.title };
 
-    // Build messages
-    const projectContext = await this.contextService.getProjectContext(params.project_id);
-    const today = new Date().toISOString().split('T')[0];
-    const systemContent = buildSystemPrompt(today, projectContext);
+    try {
+      // Build messages
+      const projectContext = await this.contextService.getProjectContext(params.project_id);
+      const today = new Date().toISOString().split('T')[0];
+      const systemContent = buildSystemPrompt(today, projectContext);
 
-    const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
+      const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
 
-    // Load history
-    if (!isNew) {
-      const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
-      for (const msg of history) {
-        if (msg.role === 'user') {
-          messages.push({ role: 'user', content: msg.content ?? '' });
-        } else if (msg.role === 'assistant') {
-          const assistantMsg: ChatCompletionAssistantMessageParam = {
-            role: 'assistant',
-            content: msg.content ?? null,
-            ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
-          };
-          messages.push(assistantMsg);
-        } else if (msg.role === 'tool') {
-          messages.push({
-            role: 'tool',
-            tool_call_id: msg.tool_call_id!,
-            content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
-          });
+      // Load history
+      if (!isNew) {
+        const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
+        for (const msg of history) {
+          if (msg.role === 'user') {
+            messages.push({ role: 'user', content: msg.content ?? '' });
+          } else if (msg.role === 'assistant') {
+            const assistantMsg: ChatCompletionAssistantMessageParam = {
+              role: 'assistant',
+              content: msg.content ?? null,
+              ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
+            };
+            messages.push(assistantMsg);
+          } else if (msg.role === 'tool') {
+            messages.push({
+              role: 'tool',
+              tool_call_id: msg.tool_call_id!,
+              content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
+            });
+          }
         }
       }
+
+      // Add user message
+      messages.push({ role: 'user', content: params.message });
+      let seq = await this.chatService.getNextSequence(conversation.id);
+      await this.chatService.saveMessage(conversation.id, seq++, {
+        role: 'user',
+        content: params.message,
+        tool_calls: null,
+        tool_call_id: null,
+        tool_name: null,
+        tool_result: null,
+        visualization_type: null,
+      });
+
+      // Run tool-call loop
+      seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
+
+      yield { type: 'done' };
+    } finally {
+      // Finalize conversation: updates title + updated_at.
+      // Runs on both normal completion and client disconnect (generator return).
+      const derivedTitle = isNew
+        ? (params.message.length > 100 ? params.message.slice(0, 100) + '...' : params.message)
+        : undefined;
+      await this.chatService.finalizeConversation(conversation.id, derivedTitle).catch((err) => {
+        this.logger.warn({ err, conversationId: conversation.id }, 'Failed to finalize conversation on cleanup');
+      });
     }
-
-    // Add user message
-    messages.push({ role: 'user', content: params.message });
-    let seq = await this.chatService.getNextSequence(conversation.id);
-    await this.chatService.saveMessage(conversation.id, seq++, {
-      role: 'user',
-      content: params.message,
-      tool_calls: null,
-      tool_call_id: null,
-      tool_name: null,
-      tool_result: null,
-      visualization_type: null,
-    });
-
-    // Run tool-call loop
-    seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
-
-    const derivedTitle = isNew
-      ? (params.message.length > 100 ? params.message.slice(0, 100) + '...' : params.message)
-      : undefined;
-    await this.chatService.finalizeConversation(conversation.id, derivedTitle);
-    yield { type: 'done' };
   }
 
   private async *runToolCallLoop(
@@ -269,6 +276,7 @@ export class AiService implements OnModuleInit {
 
     if (exhausted) {
       this.logger.warn({ conversationId }, `Tool-call loop exhausted after ${AI_MAX_TOOL_CALL_ITERATIONS} iterations`);
+      yield { type: 'text_delta', content: '\n\n[Analysis was cut short due to reaching the tool call limit. Please try a more specific question.]' };
     }
     return seq;
   }
