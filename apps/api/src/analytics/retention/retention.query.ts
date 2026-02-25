@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate } from '../../utils/clickhouse-helpers';
+import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ export interface RetentionQueryParams {
   periods: number;
   date_from: string;
   date_to: string;
+  filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
 }
 
@@ -113,6 +115,10 @@ export async function queryRetention(
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
+  // Build event property filter conditions (applied to both initial and return events)
+  const filterParts = buildPropertyFilterConditions(params.filters ?? [], 'ret', queryParams);
+  const filterClause = filterParts.length ? ' AND ' + filterParts.join(' AND ') : '';
+
   let initialCte: string;
 
   if (params.retention_type === 'recurring') {
@@ -123,7 +129,7 @@ export async function queryRetention(
       WHERE project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
         AND timestamp <= {to:DateTime64(3)}
-        AND event_name = {target_event:String}${cohortClause}
+        AND event_name = {target_event:String}${cohortClause}${filterClause}
       GROUP BY person_id, cohort_period`;
   } else {
     // First-time: only the first ever occurrence of the event
@@ -134,7 +140,7 @@ export async function queryRetention(
                min(${granExpr}) AS cohort_period
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND event_name = {target_event:String}${cohortClause}
+          AND event_name = {target_event:String}${cohortClause}${filterClause}
         GROUP BY person_id
       )
       WHERE cohort_period >= {from:DateTime64(3)}
@@ -150,7 +156,7 @@ export async function queryRetention(
         WHERE project_id = {project_id:UUID}
           AND timestamp >= {from:DateTime64(3)}
           AND timestamp <= {extended_to:DateTime64(3)}
-          AND event_name = {target_event:String}${cohortClause}
+          AND event_name = {target_event:String}${cohortClause}${filterClause}
         GROUP BY person_id, return_period
       ),
       retention_raw AS (
