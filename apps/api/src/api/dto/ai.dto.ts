@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, Min, Max, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, IsBoolean, Min, Max, MaxLength, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -104,4 +104,22 @@ export class UpdateConversationDto {
   @IsBoolean()
   @IsOptional()
   is_shared?: boolean;
+}
+
+export class AiConversationSearchQueryDto {
+  @IsUUID()
+  project_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
+  @MaxLength(200)
+  q: string;
+}
+
+export class AiConversationSearchResultDto {
+  id: string;
+  title: string;
+  snippet: string;
+  matched_at: string;
 }

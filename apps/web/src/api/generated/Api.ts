@@ -926,6 +926,13 @@ export interface AiConversation {
   updated_at: string;
 }
 
+export interface AiConversationSearchResult {
+  id: string;
+  title: string;
+  snippet: string;
+  matched_at: string;
+}
+
 export interface AiMessage {
   role: AiMessageDtoRoleEnum;
   content?: string | null;
@@ -1163,6 +1170,34 @@ export interface AdminStats {
   redis_stream_depth: number;
 }
 
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  display_name: string;
+  is_staff: boolean;
+  email_verified: boolean;
+  /** @format date-time */
+  created_at: string;
+  project_count: number;
+}
+
+export interface AdminUserProject {
+  role: AdminUserProjectDtoRoleEnum;
+  id: string;
+  name: string;
+}
+
+export interface AdminUserDetail {
+  projects: AdminUserProject[];
+  id: string;
+  email: string;
+  display_name: string;
+  is_staff: boolean;
+  email_verified: boolean;
+  /** @format date-time */
+  created_at: string;
+}
+
 export interface PatchUserStaff {
   is_staff: boolean;
 }
@@ -1172,6 +1207,41 @@ export interface AdminUser {
   email: string;
   display_name: string;
   is_staff: boolean;
+}
+
+export interface AdminProjectListItem {
+  id: string;
+  name: string;
+  slug: string;
+  plan_id: string | null;
+  plan_name: string | null;
+  member_count: number;
+  /** @format date-time */
+  created_at: string;
+}
+
+export interface AdminProjectMember {
+  role: AdminProjectMemberDtoRoleEnum;
+  id: string;
+  email: string;
+  display_name: string;
+}
+
+export interface AdminProjectDetail {
+  members: AdminProjectMember[];
+  id: string;
+  name: string;
+  slug: string;
+  plan_id: string | null;
+  plan_name: string | null;
+  api_key_count: number;
+  /** @format date-time */
+  created_at: string;
+}
+
+export interface PatchAdminProject {
+  /** @format uuid */
+  plan_id?: string | null;
 }
 
 export type UpdateProfileDtoLanguageEnum = "ru" | "en";
@@ -1256,6 +1326,10 @@ export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
 export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
   | "event"
   | "person";
+
+export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
+
+export type AdminProjectMemberDtoRoleEnum = "owner" | "editor" | "viewer";
 
 export interface ProjectsControllerGetByIdParams {
   id: string;
@@ -1758,6 +1832,16 @@ export interface AiControllerListConversationsParams {
   project_id: string;
 }
 
+export interface AiControllerSearchConversationsParams {
+  /** @format uuid */
+  project_id: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  q: string;
+}
+
 export interface AiControllerGetConversationParams {
   /**
    * @min 1
@@ -1955,7 +2039,19 @@ export interface IngestionWarningsControllerGetIngestionWarningsParams {
   project_id: string;
 }
 
+export interface AdminUsersControllerGetUserParams {
+  id: string;
+}
+
 export interface AdminUsersControllerPatchUserParams {
+  id: string;
+}
+
+export interface AdminProjectsControllerGetProjectParams {
+  id: string;
+}
+
+export interface AdminProjectsControllerPatchProjectParams {
   id: string;
 }
 
@@ -3587,6 +3683,27 @@ export class Api<
      * No description
      *
      * @tags AI
+     * @name AiControllerSearchConversations
+     * @request GET:/api/ai/conversations/search
+     * @secure
+     */
+    aiControllerSearchConversations: (
+      query: AiControllerSearchConversationsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiConversationSearchResult[], any>({
+        path: `/api/ai/conversations/search`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI
      * @name AiControllerGetConversation
      * @request GET:/api/ai/conversations/{id}
      * @secure
@@ -3975,6 +4092,43 @@ export class Api<
      * No description
      *
      * @tags Admin
+     * @name AdminUsersControllerListUsers
+     * @request GET:/admin/users
+     * @secure
+     */
+    adminUsersControllerListUsers: (params: RequestParams = {}) =>
+      this.request<AdminUserListItem[], any>({
+        path: `/admin/users`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminUsersControllerGetUser
+     * @request GET:/admin/users/{id}
+     * @secure
+     */
+    adminUsersControllerGetUser: (
+      { id, ...query }: AdminUsersControllerGetUserParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdminUserDetail, any>({
+        path: `/admin/users/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
      * @name AdminUsersControllerPatchUser
      * @request PATCH:/admin/users/{id}
      * @secure
@@ -3986,6 +4140,66 @@ export class Api<
     ) =>
       this.request<AdminUser, any>({
         path: `/admin/users/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminProjectsControllerListProjects
+     * @request GET:/admin/projects
+     * @secure
+     */
+    adminProjectsControllerListProjects: (params: RequestParams = {}) =>
+      this.request<AdminProjectListItem[], any>({
+        path: `/admin/projects`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminProjectsControllerGetProject
+     * @request GET:/admin/projects/{id}
+     * @secure
+     */
+    adminProjectsControllerGetProject: (
+      { id, ...query }: AdminProjectsControllerGetProjectParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdminProjectDetail, any>({
+        path: `/admin/projects/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminProjectsControllerPatchProject
+     * @request PATCH:/admin/projects/{id}
+     * @secure
+     */
+    adminProjectsControllerPatchProject: (
+      { id, ...query }: AdminProjectsControllerPatchProjectParams,
+      data: PatchAdminProject,
+      params: RequestParams = {},
+    ) =>
+      this.request<AdminProjectDetail, any>({
+        path: `/admin/projects/${id}`,
         method: "PATCH",
         body: data,
         secure: true,
