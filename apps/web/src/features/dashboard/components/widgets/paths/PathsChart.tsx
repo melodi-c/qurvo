@@ -130,6 +130,9 @@ function CustomTooltip({ active, payload, usersLabel }: CustomTooltipProps) {
 /** Minimum width per step column so labels don't overlap */
 const MIN_WIDTH_PER_STEP = 180;
 
+/** Minimum Sankey width for readable rendering on mobile */
+const MIN_SANKEY_WIDTH = 600;
+
 export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) {
   const { t } = useLocalTranslation(translations);
   const sankeyData = useMemo(() => toSankeyData(transitions), [transitions]);
@@ -146,15 +149,13 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
   // Count unique steps to calculate minimum width
   const maxStep = transitions.reduce((m, t) => Math.max(m, t.step), 0);
   const stepCount = maxStep + 1; // +1 for the target column
-  const minWidth = stepCount * MIN_WIDTH_PER_STEP;
+  const minWidth = Math.max(stepCount * MIN_WIDTH_PER_STEP, MIN_SANKEY_WIDTH);
   const chartHeight = compact ? 250 : 400;
-  const chartWidth = compact
-    ? Math.max(containerWidth || 350, 350)
-    : Math.max(containerWidth || 600, minWidth);
+  const chartWidth = Math.max(containerWidth || MIN_SANKEY_WIDTH, minWidth);
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      {/* Sankey diagram -- scrollable horizontally */}
+      {/* Sankey diagram -- scrollable horizontally on mobile */}
       <div
         ref={containerRef}
         className={`${compact ? 'flex-1 min-h-0' : 'h-[400px]'} overflow-x-auto overflow-y-hidden`}
