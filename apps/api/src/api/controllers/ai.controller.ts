@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Delete, Body, Param, Query, Res, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Query, Res, Headers, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
+import { detectLanguageFromHeader } from '../../ai/system-prompt';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto } from '../dto/ai.dto';
@@ -19,9 +20,12 @@ export class AiController {
     @CurrentUser() user: RequestUser,
     @Body() body: AiChatDto,
     @Res() reply: FastifyReply,
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
     // Validate access before sending SSE headers — allows proper HTTP error responses
     await this.aiService.validateChatAccess(user.user_id, body.project_id);
+
+    const language = detectLanguageFromHeader(acceptLanguage);
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -35,6 +39,7 @@ export class AiController {
         project_id: body.project_id,
         conversation_id: body.conversation_id,
         message: body.message,
+        language,
       });
 
       for await (const chunk of stream) {

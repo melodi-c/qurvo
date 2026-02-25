@@ -1,4 +1,90 @@
-export function buildSystemPrompt(today: string, projectContext: string): string {
+export function detectLanguageFromHeader(acceptLanguage: string | undefined): string {
+  if (!acceptLanguage) return 'English';
+
+  // Parse the first (highest-priority) language tag, e.g. "ru-RU,ru;q=0.9,en;q=0.8" → "ru"
+  const primaryTag = acceptLanguage.split(',')[0].split(';')[0].trim().split('-')[0].toLowerCase();
+
+  const languageMap: Record<string, string> = {
+    af: 'Afrikaans',
+    ar: 'Arabic',
+    az: 'Azerbaijani',
+    be: 'Belarusian',
+    bg: 'Bulgarian',
+    bn: 'Bengali',
+    bs: 'Bosnian',
+    ca: 'Catalan',
+    cs: 'Czech',
+    cy: 'Welsh',
+    da: 'Danish',
+    de: 'German',
+    el: 'Greek',
+    en: 'English',
+    eo: 'Esperanto',
+    es: 'Spanish',
+    et: 'Estonian',
+    eu: 'Basque',
+    fa: 'Persian',
+    fi: 'Finnish',
+    fr: 'French',
+    ga: 'Irish',
+    gl: 'Galician',
+    gu: 'Gujarati',
+    he: 'Hebrew',
+    hi: 'Hindi',
+    hr: 'Croatian',
+    hu: 'Hungarian',
+    hy: 'Armenian',
+    id: 'Indonesian',
+    is: 'Icelandic',
+    it: 'Italian',
+    ja: 'Japanese',
+    ka: 'Georgian',
+    kk: 'Kazakh',
+    km: 'Khmer',
+    kn: 'Kannada',
+    ko: 'Korean',
+    lt: 'Lithuanian',
+    lv: 'Latvian',
+    mk: 'Macedonian',
+    ml: 'Malayalam',
+    mn: 'Mongolian',
+    mr: 'Marathi',
+    ms: 'Malay',
+    mt: 'Maltese',
+    my: 'Burmese',
+    nb: 'Norwegian',
+    ne: 'Nepali',
+    nl: 'Dutch',
+    nn: 'Norwegian Nynorsk',
+    no: 'Norwegian',
+    pa: 'Punjabi',
+    pl: 'Polish',
+    pt: 'Portuguese',
+    ro: 'Romanian',
+    ru: 'Russian',
+    sk: 'Slovak',
+    sl: 'Slovenian',
+    sq: 'Albanian',
+    sr: 'Serbian',
+    sv: 'Swedish',
+    sw: 'Swahili',
+    ta: 'Tamil',
+    te: 'Telugu',
+    th: 'Thai',
+    tl: 'Filipino',
+    tr: 'Turkish',
+    uk: 'Ukrainian',
+    ur: 'Urdu',
+    uz: 'Uzbek',
+    vi: 'Vietnamese',
+    zh: 'Chinese',
+    zu: 'Zulu',
+  };
+
+  return languageMap[primaryTag] ?? 'English';
+}
+
+export function buildSystemPrompt(today: string, projectContext: string, language: string = 'English'): string {
   return `You are an AI analytics assistant for Qurvo, a product analytics platform.
 Your role is to help users understand their data by querying analytics tools and interpreting results.
 
@@ -10,7 +96,7 @@ Your role is to help users understand their data by querying analytics tools and
 - Granularity: use "day" for ranges <60 days, "week" for 60-180 days, "month" for >180 days.
 - Default metric for trends: "total_events".
 - Default retention type: "first_time".
-- Answer in the same language the user uses.
+- Always respond in ${language}. Use ${language} for all explanations and summaries. Keep tool names and technical terms in English.
 - Today's date: ${today}
 - Trend and funnel tools support per-series/per-step filters. Use filters to narrow events by property values (e.g. properties.promocode = "FEB2117"). Always use filters when the user asks about a specific property value.
 
