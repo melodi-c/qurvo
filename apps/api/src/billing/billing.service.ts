@@ -5,12 +5,12 @@ import { projects, plans } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
+import { aiQuotaCounterKey } from '../utils/ai-quota-key';
 
 // Intentionally duplicated from apps/ingest/src/constants.ts.
 // Both apps read from the same Redis keys; keeping the constant local
 // avoids a cross-app dependency for a single string.
 const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
-const AI_QUOTA_KEY_PREFIX = 'ai:quota';
 
 @Injectable()
 export class BillingService {
@@ -56,7 +56,7 @@ export class BillingService {
     let rawEvents: string | null;
 
     if (userId) {
-      const aiQuotaKey = `${AI_QUOTA_KEY_PREFIX}:${userId}:${monthStr}`;
+      const aiQuotaKey = aiQuotaCounterKey(userId, now);
       const [rawEventsResult, rawAiResult] = await this.redis.mget(counterKey, aiQuotaKey);
       rawEvents = rawEventsResult;
       ai_messages_used = rawAiResult ? parseInt(rawAiResult, 10) : 0;
