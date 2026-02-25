@@ -918,6 +918,14 @@ export interface AiChat {
   message: string;
 }
 
+export interface AiConversation {
+  is_shared: boolean;
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AiMessage {
   role: AiMessageDtoRoleEnum;
   content?: string | null;
@@ -946,14 +954,6 @@ export interface UpdateConversation {
   /** @maxLength 200 */
   title?: string;
   is_shared?: boolean;
-}
-
-export interface AiConversation {
-  is_shared: boolean;
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface EventDefinition {

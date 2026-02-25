@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Patch, Delete, Body, Param, Query, Res, Headers, UseGuards, Logger, ParseUUIDPipe } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { AiService } from '../../ai/ai.service';
 import { AiRateLimitGuard } from '../../ai/guards/ai-rate-limit.guard';
@@ -66,6 +66,7 @@ export class AiController {
 
   @Get('conversations')
   @UseGuards(ProjectMemberGuard)
+  @ApiOkResponse({ type: [AiConversationDto] })
   async listConversations(
     @CurrentUser() user: RequestUser,
     @Query() query: AiConversationsQueryDto,
