@@ -102,8 +102,11 @@ function prepareQuery(params: WebAnalyticsQueryParams): { queryParams: Record<st
   return { queryParams, filterConditions };
 }
 
-function buildSessionStatsCTE(
-  queryParams: Record<string, unknown>,
+/**
+ * Lightweight session CTE for KPIs and timeseries.
+ * Only computes metrics needed for overview — no dimension columns.
+ */
+function buildKpiSessionCTE(
   filterConditions: string,
 ): string {
   return `
@@ -112,22 +115,34 @@ function buildSessionStatsCTE(
         session_id,
         countIf(event_name = '$pageview') AS pageview_count,
         min(timestamp) AS session_start,
-        max(timestamp) AS session_end,
         dateDiff('second', min(timestamp), max(timestamp)) AS duration_seconds,
-        argMinIf(page_path, timestamp, event_name = '$pageview') AS entry_page,
-        argMaxIf(page_path, timestamp, event_name = '$pageview') AS exit_page,
-        any(country) AS country,
-        any(region) AS region,
-        any(city) AS city,
-        any(browser) AS browser,
-        any(os) AS os,
-        any(device_type) AS device_type,
-        any(referrer) AS referrer,
-        any(JSONExtractString(properties, 'utm_source')) AS utm_source,
-        any(JSONExtractString(properties, 'utm_medium')) AS utm_medium,
-        any(JSONExtractString(properties, 'utm_campaign')) AS utm_campaign,
         if(countIf(event_name = '$pageview') = 1
            AND dateDiff('second', min(timestamp), max(timestamp)) < 10, 1, 0) AS is_bounce,
+        any(${RESOLVED_PERSON}) AS resolved_person
+      FROM events
+      WHERE project_id = {project_id:UUID}
+        AND timestamp >= {from:DateTime64(3)}
+        AND timestamp <= {to:DateTime64(3)}
+        AND event_name IN ('$pageview', '$pageleave')
+        ${filterConditions}
+      GROUP BY session_id
+      HAVING pageview_count > 0
+    )`;
+}
+
+/**
+ * Session CTE with entry/exit page columns. Used only by paths query.
+ */
+function buildPathsSessionCTE(
+  filterConditions: string,
+): string {
+  return `
+    session_stats AS (
+      SELECT
+        session_id,
+        countIf(event_name = '$pageview') AS pageview_count,
+        argMinIf(page_path, timestamp, event_name = '$pageview') AS entry_page,
+        argMaxIf(page_path, timestamp, event_name = '$pageview') AS exit_page,
         any(${RESOLVED_PERSON}) AS resolved_person
       FROM events
       WHERE project_id = {project_id:UUID}
@@ -174,7 +189,7 @@ async function queryKPIs(
   filterConditions: string,
 ): Promise<WebAnalyticsKPIs> {
   const sql = `
-    WITH ${buildSessionStatsCTE(queryParams, filterConditions)}
+    WITH ${buildKpiSessionCTE(filterConditions)}
     SELECT
       uniqExact(resolved_person) AS unique_visitors,
       sum(pageview_count) AS pageviews,
@@ -206,7 +221,7 @@ export async function queryOverview(
   // Timeseries SQL
   const bucketExpr = granularityTruncExpr(granularity, 'session_start');
   const tsSql = `
-    WITH ${buildSessionStatsCTE(queryParams, filterConditions)}
+    WITH ${buildKpiSessionCTE(filterConditions)}
     SELECT
       ${bucketExpr} AS bucket,
       uniqExact(resolved_person) AS unique_visitors,
@@ -234,7 +249,7 @@ export async function queryOverview(
   return { current, previous, timeseries, granularity };
 }
 
-// ── Dimension Query Helper ────────────────────────────────────────────────────
+// ── Dimension Query Helpers ───────────────────────────────────────────────────
 
 interface RawDimensionRow {
   name: string;
@@ -242,7 +257,19 @@ interface RawDimensionRow {
   pageviews: string;
 }
 
-async function queryDimension(
+function parseDimensionRows(rows: RawDimensionRow[]): DimensionRow[] {
+  return rows.map((r) => ({
+    name: r.name,
+    visitors: Number(r.visitors),
+    pageviews: Number(r.pageviews),
+  }));
+}
+
+/**
+ * Session-based dimension query (heavy). Only used for entry_page / exit_page
+ * which require argMinIf/argMaxIf across session events.
+ */
+async function querySessionDimension(
   ch: ClickHouseClient,
   queryParams: Record<string, unknown>,
   filterConditions: string,
@@ -251,7 +278,7 @@ async function queryDimension(
 ): Promise<DimensionRow[]> {
   const dimParams = { ...queryParams, dim_limit: limit };
   const sql = `
-    WITH ${buildSessionStatsCTE(dimParams, filterConditions)}
+    WITH ${buildPathsSessionCTE(filterConditions)}
     SELECT
       ${dimensionExpr} AS name,
       uniqExact(resolved_person) AS visitors,
@@ -263,12 +290,41 @@ async function queryDimension(
     LIMIT {dim_limit:UInt32}`;
 
   const result = await ch.query({ query: sql, query_params: dimParams, format: 'JSONEachRow' });
-  const rows = await result.json<RawDimensionRow>();
-  return rows.map((r) => ({
-    name: r.name,
-    visitors: Number(r.visitors),
-    pageviews: Number(r.pageviews),
-  }));
+  return parseDimensionRows(await result.json<RawDimensionRow>());
+}
+
+/**
+ * Direct event aggregation (lightweight). Used for simple column dimensions
+ * (country, browser, os, device_type, referrer, utm_*) — no session grouping needed.
+ * Reads only the dimension column + person_id, skipping all other columns.
+ * Filters to $pageview only (pageleave needed only for session duration/bounce).
+ */
+async function queryDirectDimension(
+  ch: ClickHouseClient,
+  queryParams: Record<string, unknown>,
+  filterConditions: string,
+  columnExpr: string,
+  limit = 20,
+): Promise<DimensionRow[]> {
+  const dimParams = { ...queryParams, dim_limit: limit };
+  const sql = `
+    SELECT
+      ${columnExpr} AS name,
+      uniqExact(${RESOLVED_PERSON}) AS visitors,
+      count() AS pageviews
+    FROM events
+    WHERE project_id = {project_id:UUID}
+      AND timestamp >= {from:DateTime64(3)}
+      AND timestamp <= {to:DateTime64(3)}
+      AND event_name = '$pageview'
+      AND name != ''
+      ${filterConditions}
+    GROUP BY name
+    ORDER BY visitors DESC
+    LIMIT {dim_limit:UInt32}`;
+
+  const result = await ch.query({ query: sql, query_params: dimParams, format: 'JSONEachRow' });
+  return parseDimensionRows(await result.json<RawDimensionRow>());
 }
 
 // ── Paths Query ───────────────────────────────────────────────────────────────
@@ -281,8 +337,8 @@ export async function queryTopPages(
 
   const [top_pages, entry_pages, exit_pages] = await Promise.all([
     queryTopPagesDimension(ch, queryParams, filterConditions),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'entry_page'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'exit_page'),
+    querySessionDimension(ch, { ...queryParams }, filterConditions, 'entry_page'),
+    querySessionDimension(ch, { ...queryParams }, filterConditions, 'exit_page'),
   ]);
 
   return { top_pages, entry_pages, exit_pages };
@@ -328,10 +384,10 @@ export async function querySources(
   const { queryParams, filterConditions } = prepareQuery(params);
 
   const [referrers, utm_sources, utm_mediums, utm_campaigns] = await Promise.all([
-    queryDimension(ch, { ...queryParams }, filterConditions, 'referrer'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'utm_source'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'utm_medium'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'utm_campaign'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'referrer'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, `JSONExtractString(properties, 'utm_source')`),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, `JSONExtractString(properties, 'utm_medium')`),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, `JSONExtractString(properties, 'utm_campaign')`),
   ]);
 
   return { referrers, utm_sources, utm_mediums, utm_campaigns };
@@ -346,9 +402,9 @@ export async function queryDevices(
   const { queryParams, filterConditions } = prepareQuery(params);
 
   const [device_types, browsers, oses] = await Promise.all([
-    queryDimension(ch, { ...queryParams }, filterConditions, 'device_type'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'browser'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'os'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'device_type'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'browser'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'os'),
   ]);
 
   return { device_types, browsers, oses };
@@ -363,9 +419,9 @@ export async function queryGeography(
   const { queryParams, filterConditions } = prepareQuery(params);
 
   const [countries, regions, cities] = await Promise.all([
-    queryDimension(ch, { ...queryParams }, filterConditions, 'country'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'region'),
-    queryDimension(ch, { ...queryParams }, filterConditions, 'city'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'country'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'region'),
+    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'city'),
   ]);
 
   return { countries, regions, cities };
