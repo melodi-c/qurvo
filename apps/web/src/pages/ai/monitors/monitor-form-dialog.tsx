@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCreateMonitor, useUpdateMonitor } from '@/features/ai-monitors/use-monitors';
@@ -145,7 +146,10 @@ export function MonitorFormDialog({ open, onOpenChange, projectId, monitor }: Mo
           </div>
 
           <div className="space-y-1.5">
-            <Label>{t('fieldThreshold')}</Label>
+            <Label className="flex items-center gap-1.5">
+              {t('fieldThreshold')}
+              <InfoTooltip content={t('thresholdTooltip')} />
+            </Label>
             <Input
               type="number"
               min={1}
