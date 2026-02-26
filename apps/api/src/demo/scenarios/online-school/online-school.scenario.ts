@@ -192,9 +192,6 @@ export class OnlineSchoolScenario extends BaseScenario {
       referrer: string,
       timestamp: Date,
     ) => {
-      eventNames.add('$pageview');
-      eventNames.add('$pageleave');
-
       const userProps: Record<string, string | number | boolean | null> = {
         name: student.name,
         email: student.email,
@@ -425,6 +422,7 @@ export class OnlineSchoolScenario extends BaseScenario {
     // Build definitions with explicit descriptions
     const definitions: EventDefinitionInput[] = [
       { eventName: '$pageview', description: 'Просмотр страницы пользователем' },
+      { eventName: '$pageleave', description: 'Уход пользователя со страницы' },
       { eventName: 'signed_up', description: 'Регистрация нового пользователя на платформе' },
       { eventName: 'course_viewed', description: 'Просмотр страницы курса' },
       { eventName: 'course_enrolled', description: 'Запись пользователя на курс' },
