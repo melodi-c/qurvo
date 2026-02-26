@@ -35,11 +35,14 @@ export function granularityTruncExpr(granularity: Granularity, col: string): str
 }
 
 export function shiftPeriod(dateFrom: string, dateTo: string): { from: string; to: string } {
-  const from = new Date(dateFrom);
-  const to = new Date(`${dateTo}T23:59:59Z`);
-  const durationMs = to.getTime() - from.getTime();
-  const prevTo = new Date(from.getTime() - 1000);
-  const prevFrom = new Date(from.getTime() - durationMs - 1000);
+  const from = new Date(`${dateFrom}T00:00:00Z`);
+  const to = new Date(`${dateTo}T00:00:00Z`);
+  // Calculate inclusive duration in whole days
+  const durationDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
+  // Previous period ends the day before current period starts
+  const prevTo = new Date(from.getTime() - 86400000);
+  // Previous period has the same number of days
+  const prevFrom = new Date(from.getTime() - durationDays * 86400000);
   return {
     from: prevFrom.toISOString().slice(0, 10),
     to: prevTo.toISOString().slice(0, 10),
