@@ -3,6 +3,7 @@ import type { WebAnalyticsDimensionRow } from '@/api/generated/Api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TabNav } from '@/components/ui/tab-nav';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './WebDimensionTile.translations';
 
@@ -58,10 +59,7 @@ export function WebDimensionTile<T extends string>({
             </div>
             {rows.map((row) => (
               <div key={row.name} className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-md bg-primary/5"
-                  style={{ width: `${(row.visitors / maxVisitors) * 100}%` }}
-                />
+                <ProgressBar value={row.visitors} max={maxVisitors} />
                 <span className="relative min-w-0 flex-1 truncate text-foreground/80">{row.name}</span>
                 <span className="relative w-16 text-right tabular-nums text-foreground/70 sm:w-20">
                   {row.visitors.toLocaleString()}
