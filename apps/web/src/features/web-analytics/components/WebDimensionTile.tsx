@@ -52,9 +52,9 @@ export function WebDimensionTile<T extends string>({
         ) : (
           <div className="space-y-1">
             <div className="flex items-center text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide px-2 pb-1">
-              <span className="flex-1">{t('name')}</span>
-              <span className="w-20 text-right">{t('visitors')}</span>
-              <span className="w-20 text-right">{t('views')}</span>
+              <span className="min-w-0 flex-1 truncate">{t('name')}</span>
+              <span className="w-16 text-right sm:w-20">{t('visitors')}</span>
+              <span className="hidden w-16 text-right sm:block sm:w-20">{t('views')}</span>
             </div>
             {rows.map((row) => (
               <div key={row.name} className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm">
@@ -62,11 +62,11 @@ export function WebDimensionTile<T extends string>({
                   className="absolute inset-y-0 left-0 rounded-md bg-primary/5"
                   style={{ width: `${(row.visitors / maxVisitors) * 100}%` }}
                 />
-                <span className="relative flex-1 truncate text-foreground/80">{row.name}</span>
-                <span className="relative w-20 text-right tabular-nums text-foreground/70">
+                <span className="relative min-w-0 flex-1 truncate text-foreground/80">{row.name}</span>
+                <span className="relative w-16 text-right tabular-nums text-foreground/70 sm:w-20">
                   {row.visitors.toLocaleString()}
                 </span>
-                <span className="relative w-20 text-right tabular-nums text-muted-foreground">
+                <span className="relative hidden w-16 text-right tabular-nums text-muted-foreground sm:block sm:w-20">
                   {row.pageviews.toLocaleString()}
                 </span>
               </div>

@@ -76,7 +76,7 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     return (
       <div className="flex flex-col gap-3">
         {localWidgets.map((widget) => (
-          <div key={widget.id} style={{ height: getWidgetMobileHeight(widget) }}>
+          <div key={widget.id} style={{ minHeight: getWidgetMobileHeight(widget) }}>
             <InsightCard widget={widget} />
           </div>
         ))}
