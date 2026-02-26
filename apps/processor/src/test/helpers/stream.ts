@@ -48,7 +48,7 @@ export async function writeEventToStream(
 
 export async function getEventCount(ch: ClickHouseClient, projectId: string): Promise<number> {
   const result = await ch.query({
-    query: 'SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID}',
+    query: 'SELECT count() AS cnt FROM events WHERE project_id = {p:UUID}',
     query_params: { p: projectId },
     format: 'JSONEachRow',
   });
@@ -59,6 +59,8 @@ export async function getEventCount(ch: ClickHouseClient, projectId: string): Pr
 /**
  * Polls ClickHouse until at least `minCount` events with the given batch_id appear.
  * Independent of other tests — only looks at our specific batch_id.
+ * Does not use FINAL — each event has a unique event_id so ReplacingMergeTree
+ * never produces duplicates for distinct events.
  */
 export async function waitForEventByBatchId(
   ch: ClickHouseClient,
@@ -70,7 +72,7 @@ export async function waitForEventByBatchId(
   await pollUntil(
     async () => {
       const result = await ch.query({
-        query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+        query: `SELECT count() AS cnt FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
         query_params: { p: projectId, b: batchId },
         format: 'JSONEachRow',
       });

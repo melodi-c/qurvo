@@ -80,7 +80,7 @@ describe('dead letter queue', () => {
     expect(await getDlqLength(ctx.redis)).toBe(0);
 
     const result = await ctx.ch.query({
-      query: `SELECT event_name FROM events FINAL WHERE project_id = {p:UUID} AND event_id = {e:UUID}`,
+      query: `SELECT event_name FROM events WHERE project_id = {p:UUID} AND event_id = {e:UUID}`,
       query_params: { p: projectId, e: eventId },
       format: 'JSONEachRow',
     });

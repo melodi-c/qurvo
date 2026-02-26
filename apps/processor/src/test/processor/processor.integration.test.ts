@@ -39,7 +39,7 @@ describe('event processing: Redis stream → ClickHouse', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
     const result = await ctx.ch.query({
-      query: 'SELECT event_name, distinct_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}',
+      query: 'SELECT event_name, distinct_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}',
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
@@ -65,7 +65,7 @@ describe('event processing: Redis stream → ClickHouse', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId, { minCount: batchSize });
 
     const result = await ctx.ch.query({
-      query: 'SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}',
+      query: 'SELECT count() AS cnt FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}',
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
@@ -87,7 +87,7 @@ describe('event processing: Redis stream → ClickHouse', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
     const result = await ctx.ch.query({
-      query: 'SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}',
+      query: 'SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}',
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
@@ -127,7 +127,7 @@ describe('$identify event processing', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId2);
 
     const result = await ctx.ch.query({
-      query: `SELECT event_name, distinct_id FROM events FINAL
+      query: `SELECT event_name, distinct_id FROM events
               WHERE project_id = {p:UUID} AND distinct_id IN ({ids:Array(String)})`,
       query_params: { p: projectId, ids: [anonId, userId] },
       format: 'JSONEachRow',

@@ -46,7 +46,7 @@ async function sendEventAndGetPersonId(
   await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
   const result = await ctx.ch.query({
-    query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+    query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
     query_params: { p: projectId, b: batchId },
     format: 'JSONEachRow',
   });
@@ -224,7 +224,7 @@ describe('person properties', () => {
 
     // Verify all persons exist in PG with correct properties
     const result = await ctx.ch.query({
-      query: `SELECT person_id, properties FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id, properties FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
@@ -261,7 +261,7 @@ describe('person properties', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
     const result = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });

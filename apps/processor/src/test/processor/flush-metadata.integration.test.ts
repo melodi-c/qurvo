@@ -45,7 +45,7 @@ describe('flush and metadata cache invalidation', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId, { minCount: batchSize });
 
     const result = await ctx.ch.query({
-      query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT count() AS cnt FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
@@ -231,7 +231,7 @@ describe('concurrent FlushService and DLQ PersonBatchStore flush', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId, { minCount: batchSize, timeoutMs: 15_000 });
 
     const result = await ctx.ch.query({
-      query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT count() AS cnt FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });

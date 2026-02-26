@@ -50,7 +50,7 @@ describe('person resolution', () => {
 
     const result = await ctx.ch.query({
       query: `SELECT DISTINCT person_id
-              FROM events FINAL
+              FROM events
               WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
@@ -92,7 +92,7 @@ describe('person resolution', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId2);
 
     const result = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId2 },
       format: 'JSONEachRow',
     });
@@ -128,7 +128,7 @@ describe('person resolution', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId2);
 
     const result1 = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId2 },
       format: 'JSONEachRow',
     });
@@ -145,7 +145,7 @@ describe('person resolution', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId3);
 
     const result2 = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId3 },
       format: 'JSONEachRow',
     });
@@ -190,7 +190,7 @@ describe('person resolution', () => {
     expect(overrides.length).toBeGreaterThanOrEqual(1);
 
     const result = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId2 },
       format: 'JSONEachRow',
     });
@@ -225,7 +225,7 @@ describe('person resolution', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId2);
 
     const result1 = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId2 },
       format: 'JSONEachRow',
     });
@@ -244,7 +244,7 @@ describe('person resolution', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId3);
 
     const result2 = await ctx.ch.query({
-      query: `SELECT DISTINCT person_id FROM events FINAL WHERE project_id = {p:UUID} AND distinct_id = {d:String}`,
+      query: `SELECT DISTINCT person_id FROM events WHERE project_id = {p:UUID} AND distinct_id = {d:String}`,
       query_params: { p: projectId, d: userId },
       format: 'JSONEachRow',
     });
@@ -270,7 +270,7 @@ describe('person resolution', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
     const result = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });

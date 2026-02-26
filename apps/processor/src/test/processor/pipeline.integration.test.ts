@@ -46,7 +46,7 @@ describe('person_id consistency PG ↔ CH', () => {
     await waitForEventByBatchId(ctx.ch, projectId, batchId);
 
     const chResult = await ctx.ch.query({
-      query: `SELECT person_id FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT person_id FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
@@ -115,8 +115,11 @@ describe('graceful shutdown flushes buffer', () => {
     // Close triggers onApplicationShutdown → flush
     await shutdownApp.close();
 
+    // Force synchronous merge so ReplacingMergeTree deduplication is complete before asserting
+    await ctx.ch.command({ query: 'OPTIMIZE TABLE events FINAL' });
+
     const result = await ctx.ch.query({
-      query: `SELECT count() AS cnt FROM events FINAL WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
+      query: `SELECT count() AS cnt FROM events WHERE project_id = {p:UUID} AND batch_id = {b:String}`,
       query_params: { p: projectId, b: batchId },
       format: 'JSONEachRow',
     });
