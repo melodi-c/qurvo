@@ -17,11 +17,8 @@ import { ScheduledJobFormDialog } from './scheduled-job-form-dialog';
 import { AiTabNav } from '../ai-tab-nav';
 import translations from './scheduled-jobs.translations';
 import { extractApiErrorMessage } from '@/lib/utils';
-<<<<<<< HEAD
 import { getChannelTypeLabel } from '@/lib/channel-utils';
-=======
 import { formatDate } from '@/lib/formatting';
->>>>>>> cd18cc3 (fix(web): add formatDate() to formatting.ts and replace bare toLocaleDateString() in 18 files)
 
 export default function ScheduledJobsPage() {
   const { t } = useLocalTranslation(translations);

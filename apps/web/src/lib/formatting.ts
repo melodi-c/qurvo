@@ -12,17 +12,19 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(getLocale());
 }
 
-/** Format an ISO timestamp into a relative time string (e.g. "5m ago"). */
+/** Format an ISO timestamp into a relative time string (e.g. "5 minutes ago"). Uses Intl.RelativeTimeFormat for locale-aware output. */
 export function formatRelativeTime(iso: string): string {
+  const locale = getLocale();
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 0) return 'just now';
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  if (diff < 0) return rtf.format(0, 'second');
   const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return rtf.format(-s, 'second');
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return rtf.format(-m, 'minute');
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return new Date(iso).toLocaleDateString(getLocale());
+  if (h < 24) return rtf.format(-h, 'hour');
+  return new Date(iso).toLocaleDateString(locale);
 }
 
 /** Return a badge variant for a given event name. */
