@@ -9,6 +9,7 @@ import {
   waitForDistinctIdMapping,
   getOverrides,
   flushBuffer,
+  pollUntil,
 } from '../helpers';
 import { PersonBatchStore } from '../../processor/person-batch-store';
 
@@ -179,10 +180,13 @@ describe('person resolution', () => {
 
     await waitForEventByBatchId(ctx.ch, projectId, batchId2);
 
-    // Wait briefly for override write to complete
-    await new Promise((r) => setTimeout(r, 500));
-
-    const overrides = await getOverrides(ctx.ch, projectId, anonId);
+    // Poll until override write is visible in ClickHouse
+    const overrides = await pollUntil(
+      () => getOverrides(ctx.ch, projectId, anonId),
+      (rows) => rows.length >= 1,
+      'override written to CH',
+      { timeoutMs: 5_000, intervalMs: 100 },
+    );
     expect(overrides.length).toBeGreaterThanOrEqual(1);
 
     const result = await ctx.ch.query({
