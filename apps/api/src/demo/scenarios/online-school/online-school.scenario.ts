@@ -527,7 +527,7 @@ export class OnlineSchoolScenario extends BaseScenario {
           type: 'trend',
           series: [{ event_name: 'payment_made', label: 'Выручка' }],
           metric: 'property_sum',
-          metric_property: 'amount',
+          metric_property: 'properties.amount',
           granularity: 'week',
           chart_type: 'bar',
           date_from: dateFrom,
