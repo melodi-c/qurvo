@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import type { LifecycleResult } from '@/api/generated/Api';
 import { CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
-import { formatCompactNumber } from '@/lib/formatting';
+import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { LIFECYCLE_STATUS_COLORS } from './lifecycle-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './LifecycleChart.translations';
@@ -27,7 +27,7 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
   const data = useMemo(
     () =>
       result.data.map((d) => ({
-        bucket: d.bucket.slice(0, 10),
+        bucket: d.bucket,
         new: d.new,
         returning: d.returning,
         resurrecting: d.resurrecting,
@@ -59,6 +59,7 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} opacity={0.5} />
             <XAxis
               dataKey="bucket"
+              tickFormatter={(v) => formatBucket(v, result.granularity, compact)}
               tick={{ fill: CHART_AXIS_TICK_COLOR, fontSize: compact ? 10 : 12 }}
               axisLine={false}
               tickLine={false}
@@ -73,6 +74,7 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
+              labelFormatter={(v) => formatBucket(v as string, result.granularity)}
             />
             <Bar dataKey="new" stackId="a" fill={LIFECYCLE_STATUS_COLORS.new} name={t('new')} />
             <Bar dataKey="returning" stackId="a" fill={LIFECYCLE_STATUS_COLORS.returning} name={t('returning')} />
@@ -81,16 +83,17 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {compact && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 px-1">
-          {statuses.map((s) => (
-            <div key={s.key} className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-              <span className="text-[10px] text-muted-foreground">{s.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className={compact ? 'flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 px-1' : 'flex flex-wrap gap-x-4 gap-y-1 pt-3 px-2'}>
+        {statuses.map((s) => (
+          <div key={s.key} className="flex items-center gap-1.5">
+            <span
+              className={compact ? 'inline-block h-2 w-2 rounded-full shrink-0' : 'inline-block h-3 w-3 rounded-full shrink-0'}
+              style={{ backgroundColor: s.color }}
+            />
+            <span className={compact ? 'text-[10px] text-muted-foreground' : 'text-xs text-muted-foreground'}>{s.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
