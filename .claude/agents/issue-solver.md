@@ -19,6 +19,13 @@ color: green
 
 **Прочитай `BASE_BRANCH` из входных данных промпта** (по умолчанию `main`).
 
+Если в промпте есть `WORKTREE_PATH` — worktree уже существует (перезапуск после NEEDS_USER_INPUT). Пропусти создание, сразу перейди в него:
+```bash
+WORKTREE_PATH="<значение из промпта>"
+cd "$WORKTREE_PATH"
+# Убедись что всё на месте и продолжай с Шага 2
+```
+
 КРИТИЧНО: использовать ЛОКАЛЬНУЮ ветку, НЕ origin/. НЕ делать git fetch перед созданием worktree.
 
 ```bash
@@ -119,12 +126,13 @@ pnpm --filter @qurvo/<app> exec tsc --noEmit
 ```
 
 ### 4.4 Build
-КРИТИЧНО: запускай `pnpm build` из корня worktree.
+Собери только затронутые приложения из AFFECTED_APPS:
 ```bash
-cd "$WORKTREE_PATH" && pnpm build
+# Для каждого app из AFFECTED_APPS:
+pnpm --filter @qurvo/<app> build
 ```
 
-Проверь что Docker образы собираются для затронутых приложений:
+Docker build — только если issue имеет тип `feat` или является эпиком (заголовок начинается с `feat(`):
 ```bash
 # Для каждого app из AFFECTED_APPS
 # Допустимые --target: api, ingest, processor, cohort-worker, billing-worker,
@@ -132,6 +140,7 @@ cd "$WORKTREE_PATH" && pnpm build
 cd "$WORKTREE_PATH" && docker build --target <app> -t qurvo/<app>:check . --quiet
 ```
 Если Docker недоступен — зафиксируй предупреждение в финальном отчёте, не блокируй мерж.
+Для `fix`, `refactor`, `chore`, `perf`, `docs`, `test` — Docker build пропускай.
 
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
 ```bash
@@ -172,7 +181,8 @@ git merge "$BASE_BRANCH"
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
 pnpm --filter @qurvo/<app> exec vitest run
-cd "$WORKTREE_PATH" && pnpm build
+# Для каждого app из AFFECTED_APPS:
+pnpm --filter @qurvo/<app> build
 ```
 
 ### 4.9 Мерж в BASE_BRANCH и push

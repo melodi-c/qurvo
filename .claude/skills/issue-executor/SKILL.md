@@ -155,6 +155,7 @@ echo "Worktree dir: $REPO_ROOT/.claude/worktrees"
 
 ```bash
 gh label create "in-progress" --description "Currently being worked on" --color "0052CC" 2>/dev/null || true
+gh label create "blocked" --description "Blocked, needs attention" --color "B60205" 2>/dev/null || true
 ```
 
 ---
@@ -258,7 +259,7 @@ Parent issue **не передаётся** в issue-solver — он являет
      # Убедись что последний коммит относится к данному issue
      ```
   4. Если проверки прошли — добавь в отчёт как успешный. Если нет — считай FAILED.
-- `STATUS: NEEDS_USER_INPUT | <причина>` — оставь лейбл `in-progress` пока ждёшь ответа. Немедленно сообщи пользователю, передай причину. После ответа пользователя -- перезапусти подагента с дополненным промптом (добавь уточнение пользователя в секцию "Задача").
+- `STATUS: NEEDS_USER_INPUT | <причина>` — оставь лейбл `in-progress` пока ждёшь ответа. Немедленно сообщи пользователю, передай причину. После ответа пользователя -- перезапусти подагента с дополненным промптом: добавь уточнение пользователя в секцию "Задача" и добавь строку `WORKTREE_PATH: .claude/worktrees/issue-<NUMBER>` — агент проверит что worktree уже существует и войдёт в него, не создавая новый.
 - `STATUS: FAILED | <причина>` — сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`. Добавь в отчёт как failed.
 
 Если строка STATUS не найдена -- считай результат как FAILED с причиной "подагент не вернул статус". Сними лейбл `in-progress`.
