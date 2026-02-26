@@ -1,4 +1,5 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
+import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
 import { eq, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
@@ -306,9 +307,13 @@ export class DemoSeedService {
 
   /**
    * Clear all existing demo data and re-seed with the named scenario.
+   * Throws AppForbiddenException if the project is not a demo project.
    * Returns the number of events seeded.
    */
-  async reset(projectId: string, scenarioName: string, userId: string): Promise<{ count: number }> {
+  async reset(projectId: string, scenarioName: string, userId: string, isDemo: boolean): Promise<{ count: number }> {
+    if (!isDemo) {
+      throw new AppForbiddenException('This endpoint is only available for demo projects');
+    }
     await this.clear(projectId);
     const scenario = this.scenarioRegistry.get(scenarioName);
     if (!scenario) {

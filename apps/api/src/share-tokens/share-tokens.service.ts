@@ -52,6 +52,22 @@ export class ShareTokensService {
     return shareToken;
   }
 
+  async findDashboardToken(token: string) {
+    const shareToken = await this.findByToken(token);
+    if (!shareToken || shareToken.resource_type !== 'dashboard') {
+      throw new ShareTokenNotFoundException();
+    }
+    return shareToken;
+  }
+
+  async findInsightToken(token: string) {
+    const shareToken = await this.findByToken(token);
+    if (!shareToken || shareToken.resource_type !== 'insight') {
+      throw new ShareTokenNotFoundException();
+    }
+    return shareToken;
+  }
+
   async listByResource(projectId: string, resourceType: ShareTokenResourceType, resourceId: string) {
     return this.db
       .select()
