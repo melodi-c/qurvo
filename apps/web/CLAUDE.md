@@ -265,6 +265,38 @@ Use `useDragReorder<T>` hook from `hooks/use-drag-reorder.ts` for reorderable li
 ### Tailwind v4 Border Color
 Tailwind v4 sets `border-color: var(--color-border)` on all elements in the base layer. Utilities like `border-b-white` on a child may not override this due to cascade. For colored borders on specific sides, use absolutely positioned `<span>` elements with `bg-*` instead (see `TabNav` component for reference).
 
+## Visual Verification
+
+Use this workflow whenever you change a UI component — especially for complex layouts, responsiveness, states (empty/loading/error), and when verifying how multiple components look together.
+
+### Workflow
+
+1. Start Storybook:
+   ```bash
+   pnpm --filter @qurvo/web storybook
+   # → http://localhost:6006
+   ```
+
+2. Take a screenshot via Chrome CLI (no extra dependencies, uses system Chrome):
+   ```bash
+   /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+     --headless=new \
+     --screenshot=/tmp/story.png \
+     --window-size=1280,800 \
+     "http://localhost:6006/iframe.html?id=ui-emptystate--default"
+   ```
+   Then read `/tmp/story.png` (Claude has vision).
+
+3. Fix any visual bugs, re-take the screenshot, repeat until correct before committing.
+
+### Temporary Stories for Component Composition
+
+If you need to verify how several components look together (e.g. EditorHeader + QueryPanel + Chart), create a `ComponentName.tmp.stories.tsx` file next to the component. These files are in `.gitignore` and will not be committed. Delete after verification.
+
+### Story ID Format
+
+Story IDs are derived from the file path and story name: `ui-emptystate--default`, `ui-button--primary`, etc. The full list is available at `http://localhost:6006`.
+
 ## Internationalization (i18n)
 
 Custom i18n system without external libraries. Supports Russian (`ru`) and English (`en`), default is Russian.
