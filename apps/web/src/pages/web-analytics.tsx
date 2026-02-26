@@ -6,7 +6,7 @@ import { WebFilterBar } from '@/features/web-analytics/components/WebFilterBar';
 import { WebKpiRow } from '@/features/web-analytics/components/WebKpiRow';
 import { WebTimeseriesChart, type MetricKey } from '@/features/web-analytics/components/WebTimeseriesChart';
 import { WebDimensionTile } from '@/features/web-analytics/components/WebDimensionTile';
-import { WorldMapChart } from '@/features/web-analytics/components/WorldMapChart';
+import { WorldMapChart, type WorldMapMetric } from '@/features/web-analytics/components/WorldMapChart';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './web-analytics.translations';
 
@@ -14,6 +14,7 @@ export default function WebAnalyticsPage() {
   const { t } = useLocalTranslation(translations);
   const { dateFrom, dateTo, filters, setDateRange, setFilters, queryParams } = useWebAnalyticsParams();
   const [chartMetric, setChartMetric] = useState<MetricKey>('unique_visitors');
+  const [mapMetric, setMapMetric] = useState<WorldMapMetric>('visitors');
 
   const overview = useWebOverview(queryParams);
   const paths = useWebPaths(queryParams);
@@ -114,6 +115,8 @@ export default function WebAnalyticsPage() {
         title={t('geography')}
         data={geography.data?.countries}
         isLoading={geography.isLoading}
+        metric={mapMetric}
+        onMetricChange={setMapMetric}
       />
 
       <WebDimensionTile

@@ -4,11 +4,13 @@ export default createTranslations({
   en: {
     noData: 'No geographic data available',
     visitors: 'visitors',
+    pageviews: 'pageviews',
     loadError: 'Failed to load map data',
   },
   ru: {
     noData: 'Нет данных по географии',
     visitors: 'посетителей',
+    pageviews: 'просмотров',
     loadError: 'Не удалось загрузить данные карты',
   },
 });
