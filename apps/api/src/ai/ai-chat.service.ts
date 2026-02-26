@@ -163,6 +163,16 @@ export class AiChatService {
       .where(eq(aiConversations.id, conversationId));
   }
 
+  async incrementTokenUsage(conversationId: string, deltaInput: number, deltaOutput: number) {
+    await this.db
+      .update(aiConversations)
+      .set({
+        tokens_input: sql`${aiConversations.tokens_input} + ${deltaInput}`,
+        tokens_output: sql`${aiConversations.tokens_output} + ${deltaOutput}`,
+      })
+      .where(eq(aiConversations.id, conversationId));
+  }
+
   async getMessageCount(conversationId: string): Promise<number> {
     const [row] = await this.db
       .select({ count: count() })
