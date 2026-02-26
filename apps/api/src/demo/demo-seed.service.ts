@@ -107,9 +107,66 @@ export class DemoSeedService {
 
   /**
    * Clear all existing demo data and re-seed with the named scenario.
+   * Returns the number of events seeded.
    */
-  async reset(projectId: string, scenarioName: string): Promise<void> {
+  async reset(projectId: string, scenarioName: string): Promise<{ count: number }> {
     await this.clear(projectId);
-    await this.seed(projectId, scenarioName);
+    const scenario = this.scenarioRegistry.get(scenarioName);
+    if (!scenario) {
+      throw new NotFoundException(
+        `Demo scenario '${scenarioName}' not found. Available: ${this.scenarioRegistry.list().join(', ') || 'none'}`,
+      );
+    }
+    const { events, definitions, propertyDefinitions: propDefs } = await scenario.generate(projectId);
+
+    if (events.length > 0) {
+      await this.ch.insert({
+        table: 'events',
+        values: events,
+        format: 'JSONEachRow',
+        clickhouse_settings: {
+          async_insert: 0,
+          wait_for_async_insert: 0,
+        },
+      });
+      this.logger.log(`Re-seeded ${events.length} events for project ${projectId} (scenario: ${scenarioName})`);
+    }
+
+    if (definitions.length > 0) {
+      const now = new Date();
+      await this.db
+        .insert(eventDefinitions)
+        .values(
+          definitions.map((d) => ({
+            project_id: projectId,
+            event_name: d.eventName,
+            last_seen_at: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [eventDefinitions.project_id, eventDefinitions.event_name],
+          set: { last_seen_at: sql`excluded.last_seen_at` },
+        });
+    }
+
+    if (propDefs.length > 0) {
+      const now = new Date();
+      await this.db
+        .insert(propertyDefinitions)
+        .values(
+          propDefs.map((p) => ({
+            project_id: projectId,
+            property_name: p.propertyName,
+            property_type: 'event' as const,
+            last_seen_at: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
+          set: { last_seen_at: sql`excluded.last_seen_at` },
+        });
+    }
+
+    return { count: events.length };
   }
 }

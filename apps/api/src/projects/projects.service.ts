@@ -50,6 +50,19 @@ export class ProjectsService {
     return project;
   }
 
+  async getBySlug(userId: string, slug: string) {
+    const [project] = await this.db
+      .select({ ...PROJECT_COLUMNS, demo_scenario: projects.demo_scenario })
+      .from(projectMembers)
+      .innerJoin(projects, eq(projectMembers.project_id, projects.id))
+      .leftJoin(plans, eq(projects.plan_id, plans.id))
+      .where(and(eq(projects.slug, slug), eq(projectMembers.user_id, userId)))
+      .limit(1);
+
+    if (!project) throw new ProjectNotFoundException();
+    return project;
+  }
+
   async create(userId: string, input: { name: string; is_demo?: boolean; demo_scenario?: string }) {
     const slug = slugify(input.name);
     const project = await this.db.transaction(async (tx) => {
