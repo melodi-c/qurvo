@@ -81,6 +81,8 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
     setTooltip(null);
   }
 
+  const isEmpty = !isLoading && (!data || data.length === 0);
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -88,14 +90,18 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
       </CardHeader>
       <CardContent className="pt-0 pb-3">
         {isLoading ? (
-          <Skeleton className="h-[240px] w-full rounded-lg" />
+          <Skeleton className="h-[180px] w-full rounded-lg" />
+        ) : isEmpty ? (
+          <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+            {t('noData')}
+          </div>
         ) : (
           <div className="relative select-none">
             <ComposableMap
               projection="geoMercator"
               projectionConfig={{ scale: 110, center: [0, 30] }}
               width={800}
-              height={380}
+              height={300}
               style={{ width: '100%', height: 'auto' }}
             >
               <Geographies geography={GEO_URL}>
