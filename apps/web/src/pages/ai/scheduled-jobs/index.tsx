@@ -17,6 +17,7 @@ import { ScheduledJobFormDialog } from './scheduled-job-form-dialog';
 import { AiTabNav } from '../ai-tab-nav';
 import translations from './scheduled-jobs.translations';
 import { extractApiErrorMessage } from '@/lib/utils';
+import { getChannelTypeLabel } from '@/lib/channel-utils';
 
 export default function ScheduledJobsPage() {
   const { t } = useLocalTranslation(translations);
@@ -68,13 +69,7 @@ export default function ScheduledJobsPage() {
       key: 'channel_type',
       header: t('channel'),
       render: (j) => (
-        <span>
-          {j.channel_type === 'slack'
-            ? t('channelSlack')
-            : j.channel_type === 'telegram'
-              ? t('channelTelegram')
-              : t('channelEmail')}
-        </span>
+        <span>{getChannelTypeLabel(j.channel_type, t)}</span>
       ),
     },
     {

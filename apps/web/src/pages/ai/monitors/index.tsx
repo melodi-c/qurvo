@@ -17,6 +17,7 @@ import { MonitorFormDialog } from './monitor-form-dialog';
 import { AiTabNav } from '../ai-tab-nav';
 import translations from './monitors.translations';
 import { extractApiErrorMessage } from '@/lib/utils';
+import { getChannelTypeLabel } from '@/lib/channel-utils';
 
 export default function MonitorsPage() {
   const { t } = useLocalTranslation(translations);
@@ -59,13 +60,7 @@ export default function MonitorsPage() {
       key: 'channel_type',
       header: t('channel'),
       render: (m) => (
-        <span>
-          {m.channel_type === 'slack'
-            ? t('channelSlack')
-            : m.channel_type === 'telegram'
-              ? t('channelTelegram')
-              : t('channelEmail')}
-        </span>
+        <span>{getChannelTypeLabel(m.channel_type, t)}</span>
       ),
     },
     {
