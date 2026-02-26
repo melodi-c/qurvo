@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import type { InsightType } from '@qurvo/db';
+import type { InsightConfig, InsightType } from '@qurvo/db';
 
 const argsSchema = z.object({
   name: z.string().min(1).max(200).describe('Insight title'),
@@ -32,7 +32,9 @@ export class CreateInsightTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const config = { type: args.query_type as InsightType, ...args.query_params } as Parameters<typeof this.savedInsightsService.create>[2]['config'];
+    // query_params is Record<string, unknown> from Zod; the AI is expected to pass a
+    // structurally valid config object matching the query type, so a single cast is used.
+    const config = { type: args.query_type as InsightType, ...args.query_params } as InsightConfig;
 
     const insight = await this.savedInsightsService.create(userId, projectId, {
       type: args.query_type as InsightType,

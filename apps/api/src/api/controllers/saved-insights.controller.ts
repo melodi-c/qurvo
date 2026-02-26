@@ -37,7 +37,9 @@ export class SavedInsightsController {
     const { config, ...rest } = body;
     return this.insightsService.create(user.user_id, projectId, {
       ...rest,
-      config: config as unknown as InsightConfig,
+      // AnyInsightConfig (DTO) and InsightConfig (db interface) are structurally compatible;
+      // class-validator ensures shape at runtime, so a single cast is sufficient.
+      config: config as InsightConfig,
     }) as any;
   }
 
@@ -59,7 +61,7 @@ export class SavedInsightsController {
     const { config, ...rest } = body;
     return this.insightsService.update(projectId, insightId, {
       ...rest,
-      ...(config !== undefined && { config: config as unknown as InsightConfig }),
+      ...(config !== undefined && { config: config as InsightConfig }),
     }) as any;
   }
 
