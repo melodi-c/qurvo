@@ -10,13 +10,14 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
 import { Settings } from 'lucide-react';
-import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useNavigate } from 'react-router-dom';
+import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './general-tab.translations';
 
 export function GeneralTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
-  const { go } = useAppNavigate();
+  const navigate = useNavigate();
   const { t } = useLocalTranslation(translations);
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
@@ -38,7 +39,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     mutationFn: () => api.projectsControllerRemove({ id: projectId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      go.settings();
+      navigate(routes.projects());
       toast.success(t('deleted'));
     },
     onError: () => toast.error(t('deleteFailed')),

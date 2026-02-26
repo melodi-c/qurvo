@@ -211,7 +211,7 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
   if (!parsed) {
     if (isLinkResult(result) && (toolName === 'create_insight' || toolName === 'save_to_dashboard')) {
       const linkResult = result as LinkToolResult;
-      const href = projectId ? `${linkResult.link}?project=${projectId}` : linkResult.link;
+      const href = linkResult.link;
       const label = getLinkLabel(toolName, linkResult, t);
       return (
         <div className="my-1">

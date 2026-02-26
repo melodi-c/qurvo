@@ -19,7 +19,7 @@ function PageLoadingFallback() {
 export default function Layout() {
   const {
     t,
-    setSearchParams,
+    navigate,
     logout,
     user,
     sidebar,
@@ -85,7 +85,7 @@ export default function Layout() {
             currentProject={currentProject}
             currentProjectName={currentProjectName}
             currentProjectIsDemo={currentProjectIsDemo}
-            onProjectSwitch={(id) => setSearchParams({ project: id })}
+            onProjectSwitch={(id) => navigate(`/projects/${id}/dashboards`)}
             selectProjectLabel={t('selectProject')}
             switchProjectLabel={t('switchProject')}
             newProjectLabel={t('newProject')}

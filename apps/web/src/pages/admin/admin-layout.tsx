@@ -68,7 +68,7 @@ export default function AdminLayout() {
         {/* Back to dashboard */}
         <div className="border-t border-border p-2">
           <Link
-            to={routes.dashboards.list()}
+            to={routes.projects()}
             className="flex items-center gap-2.5 px-2 py-[6px] rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 shrink-0" />
