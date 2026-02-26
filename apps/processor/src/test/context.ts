@@ -60,6 +60,9 @@ export async function closeTestContext(): Promise<void> {
   if (!cached) return;
   const { app } = await cached;
   cached = null;
-  await app.close();
-  await teardownContainers();
+  try {
+    await app.close();
+  } finally {
+    await teardownContainers();
+  }
 }
