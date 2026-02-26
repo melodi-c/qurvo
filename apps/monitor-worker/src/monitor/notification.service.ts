@@ -7,6 +7,7 @@ import {
   type EmailChannelConfig,
   type TelegramChannelConfig,
 } from '@qurvo/nestjs-infra';
+import { computeChangePercent } from './monitor.utils';
 
 export type { SlackChannelConfig, EmailChannelConfig, TelegramChannelConfig };
 
@@ -35,9 +36,7 @@ export class NotificationService extends BaseNotificationService {
     current: number,
     baselineAvg: number,
   ): string {
-    const changePercent = baselineAvg > 0
-      ? Math.round(((current - baselineAvg) / baselineAvg) * 100)
-      : 0;
+    const changePercent = computeChangePercent(current, baselineAvg);
     const direction = current > baselineAvg ? 'increased' : 'decreased';
     return (
       `Anomaly detected for event "${monitor.event_name}" (${monitor.metric})\n` +
