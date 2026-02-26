@@ -7,6 +7,8 @@
 #   docker build --target nestjs --build-arg APP=processor -t qurvo-processor .
 #   docker build --target nestjs --build-arg APP=cohort-worker -t qurvo-cohort-worker .
 #   docker build --target nestjs --build-arg APP=billing-worker -t qurvo-billing-worker .
+#   docker build --target nestjs --build-arg APP=monitor-worker -t qurvo-monitor-worker .
+#   docker build --target nestjs --build-arg APP=scheduled-jobs-worker -t qurvo-scheduled-jobs-worker .
 #
 # Build web (nginx + SPA):
 #   docker build --target web -t qurvo-web .

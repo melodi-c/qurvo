@@ -150,6 +150,50 @@ billing-worker:
       memory: "256Mi"
 
 # ==============================================================================
+# Monitor Worker
+# ==============================================================================
+monitor-worker:
+  enabled: true
+  image:
+    repository: "monitor-worker"
+    tag: ""
+  replicas: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  env:
+    SMTP_HOST: ""
+    SMTP_PORT: ""
+    SMTP_SECURE: ""
+    SMTP_FROM: ""
+
+# ==============================================================================
+# Scheduled Jobs Worker
+# ==============================================================================
+scheduled-jobs-worker:
+  enabled: true
+  image:
+    repository: "scheduled-jobs-worker"
+    tag: ""
+  replicas: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  env:
+    SMTP_HOST: ""
+    SMTP_PORT: ""
+    SMTP_SECURE: ""
+    SMTP_FROM: ""
+
+# ==============================================================================
 # Web
 # ==============================================================================
 web:
