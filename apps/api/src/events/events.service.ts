@@ -11,7 +11,7 @@ import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, t
 import { queryEventPropertyValues, type PropertyValueRow } from './event-property-values.query';
 import { DIRECT_COLUMNS } from '../utils/property-filter';
 import { EventNotFoundException } from './exceptions/event-not-found.exception';
-import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
+import { PROPERTY_NAMES_CACHE_TTL_SECONDS, AI_CONTEXT_MAX_EVENT_NAMES } from '../constants';
 
 export type { PropertyValueRow };
 
@@ -42,7 +42,8 @@ export class EventsService {
       .select({ event_name: eventDefinitions.event_name })
       .from(eventDefinitions)
       .where(eq(eventDefinitions.project_id, projectId))
-      .orderBy(desc(eventDefinitions.last_seen_at));
+      .orderBy(desc(eventDefinitions.last_seen_at))
+      .limit(AI_CONTEXT_MAX_EVENT_NAMES);
     const names = rows.map((r) => r.event_name);
 
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', PROPERTY_NAMES_CACHE_TTL_SECONDS);

@@ -32,6 +32,8 @@ export const AI_RATE_LIMIT_MINUTE_WINDOW_SECONDS = 60;
 export const AI_RATE_LIMIT_HOUR_WINDOW_SECONDS = 3600; // 1 hour
 export const AI_QUOTA_KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days — slightly longer than billing period
 export const AI_PLAN_LIMIT_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes — plan changes only on upgrade/downgrade
+export const AI_CONTEXT_MAX_EVENT_NAMES = 100;
+export const AI_CONTEXT_MAX_PROPERTY_NAMES = 50;
 
 /** Redis key prefixes for AI rate-limiting buckets */
 export const AI_RATE_LIMIT_MINUTE_KEY_PREFIX = 'ai:rl:m:';
