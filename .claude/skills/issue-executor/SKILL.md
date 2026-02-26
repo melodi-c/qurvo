@@ -55,6 +55,10 @@ gh issue view <N> --json number,title,body,labels,comments
 2. Какие issues могут выполняться параллельно (не пересекаются по затрагиваемым файлам/модулям)
 3. Какие issues должны выполняться последовательно (пересекаются)
 
+ВАЖНО — обязательные правила параллелизации:
+- Если два или более issues затрагивают схему БД (`packages/@qurvo/db` или `packages/@qurvo/clickhouse`) — они ВСЕГДА должны быть в РАЗНЫХ последовательных группах, даже если остальной код не пересекается. Параллельная генерация миграций создаёт дублирующие номера.
+- Если issue затрагивает `packages/@qurvo/db` и другой затрагивает только `apps/*` без изменения схемы — они могут быть параллельными.
+
 Верни ТОЛЬКО JSON в таком формате, без другого текста:
 {
   "issues": {
@@ -119,6 +123,8 @@ gh label create "in-progress" --description "Currently being worked on" --color 
 
 ```
 Ты -- автономный разработчик в monorepo Qurvo. Твоя задача -- полностью реализовать GitHub issue #{ISSUE_NUMBER} и довести до мержа в main.
+
+> **После compact**: если контекст был сжат и инструкции потеряны — немедленно перечитай `.claude/skills/issue-executor/SKILL.md` и продолжи с того шага, на котором остановился.
 
 ## Задача
 
@@ -196,8 +202,27 @@ pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts
 Если важные интеграционные тесты отсутствуют -- напиши их.
 
 ### 4.2 Миграции
-- PostgreSQL: если изменилась схема -- `pnpm --filter @qurvo/db db:generate`
-- ClickHouse: если изменилась схема -- `pnpm ch:generate <name>`
+
+**КРИТИЧНО — защита от дублей**: перед генерацией миграции сверь последний номер в worktree с локальным main:
+
+```bash
+# Последний номер миграции в worktree (в котором ты работаешь)
+LAST_IN_WORKTREE=$(ls "$WORKTREE_PATH/packages/@qurvo/db/drizzle/"*.sql 2>/dev/null | grep -oP '\d+(?=_)' | sort -n | tail -1)
+
+# Последний номер в локальном main
+LAST_IN_MAIN=$(ls "$REPO_ROOT/packages/@qurvo/db/drizzle/"*.sql 2>/dev/null | grep -oP '\d+(?=_)' | sort -n | tail -1)
+
+echo "Последняя миграция в worktree: $LAST_IN_WORKTREE, в main: $LAST_IN_MAIN"
+
+if [ "$LAST_IN_MAIN" != "$LAST_IN_WORKTREE" ]; then
+  echo "ВНИМАНИЕ: main продвинулся вперёд — синхронизируй схему Drizzle с main перед генерацией (git merge main)"
+  exit 1
+fi
+```
+
+Если проверка прошла — генерируй:
+- PostgreSQL: `pnpm --filter @qurvo/db db:generate`
+- ClickHouse: `pnpm ch:generate <name>`
 
 ### 4.3 TypeScript
 ```bash
