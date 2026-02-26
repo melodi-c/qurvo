@@ -48,7 +48,7 @@ export function useLayoutData() {
           { path: routes.cohorts.list.pattern, label: t('cohorts'), icon: UsersRound },
           { path: routes.persons.list.pattern, label: t('persons'), icon: Users },
           { path: routes.events.pattern, label: t('events'), icon: List },
-          { path: routes.ai.pattern, label: t('aiAssistant'), icon: Sparkles },
+          { path: routes.ai.pattern, label: t('aiAssistant'), icon: Sparkles, exact: true },
           { path: routes.aiMonitors.pattern, label: t('aiMonitors'), icon: Bell },
           { path: routes.aiScheduledJobs.pattern, label: t('aiScheduledJobs'), icon: Clock },
         ],
@@ -81,7 +81,8 @@ export function useLayoutData() {
   const hasProjects = projects && projects.length > 0;
   const projectsLoaded = projects !== undefined;
 
-  function isActive(path: string): boolean {
+  function isActive(path: string, exact?: boolean): boolean {
+    if (exact) return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(path + '/');
   }
 
