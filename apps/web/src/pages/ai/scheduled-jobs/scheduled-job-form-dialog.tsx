@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCreateScheduledJob, useUpdateScheduledJob } from '@/features/ai-scheduled-jobs/use-scheduled-jobs';
 import type { AiScheduledJob } from '@/api/generated/Api';
@@ -169,7 +170,10 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
           </div>
 
           <div className="space-y-1.5">
-            <Label>{t('fieldPrompt')}</Label>
+            <Label className="flex items-center gap-1.5">
+              {t('fieldPrompt')}
+              <InfoTooltip content={t('promptTooltip')} />
+            </Label>
             <Textarea
               value={form.prompt}
               onChange={(e) => setForm((s) => ({ ...s, prompt: e.target.value }))}
