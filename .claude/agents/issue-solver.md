@@ -56,11 +56,26 @@ git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" "$BASE_HASH"
   || { echo "FATAL: worktree не создан по пути '$WORKTREE_PATH'"; exit 1; }
 git worktree list | grep -qF "$WORKTREE_PATH" \
   || { echo "FATAL: '$WORKTREE_PATH' не зарегистрирован в git worktree list"; exit 1; }
-
-cd "$WORKTREE_PATH"
 ```
 
 Все дальнейшие действия выполняй ТОЛЬКО внутри worktree.
+
+**КРИТИЧНО — правила изоляции (нарушение = правки попадут в main):**
+
+1. `cd` в Bash **не сохраняется** между вызовами инструмента. Каждый Bash-вызов стартует из `$REPO_ROOT`.
+   → **КАЖДУЮ** Bash-команду с файлами/git пиши как `cd "$WORKTREE_PATH" && <команда>`
+
+2. Читая файл в `$REPO_ROOT/apps/foo.ts`, ты должен редактировать его по пути `$WORKTREE_PATH/apps/foo.ts`.
+   → Edit/Write/Read **ВСЕГДА** используют пути с префиксом `$WORKTREE_PATH/`
+
+3. Никогда не запускай `git add`, `git commit`, `pnpm`, `tsc` без явного `cd "$WORKTREE_PATH" &&` или `-C "$WORKTREE_PATH"`.
+
+Проверка изоляции (выполни сразу после создания worktree):
+```bash
+cd "$WORKTREE_PATH" && git rev-parse --abbrev-ref HEAD | grep -qF "$BRANCH_NAME" \
+  || { echo "FATAL: не на ветке $BRANCH_NAME в worktree"; exit 1; }
+echo "Изоляция подтверждена: работаем в $WORKTREE_PATH на ветке $BRANCH_NAME"
+```
 
 ЗАПРЕЩЕНО в этом шаге и в любом другом месте:
 - `git rev-parse origin/main` — использовать только `git rev-parse "$BASE_BRANCH"`
@@ -87,7 +102,8 @@ cd "$WORKTREE_PATH"
 - Реализуй задачу в worktree
 - НЕ делай деструктивных git-операций (--force, reset --hard, checkout ., clean -f)
 - Следуй CLAUDE.md соответствующего приложения (если есть)
-- Используй абсолютные пути к файлам
+- **ВСЕ пути к файлам** — с префиксом `$WORKTREE_PATH/` (например `$WORKTREE_PATH/apps/web/src/foo.tsx`)
+- **ВСЕ Bash-команды** — с `cd "$WORKTREE_PATH" && <команда>`
 
 ---
 
@@ -97,14 +113,14 @@ cd "$WORKTREE_PATH"
 
 ### 4.1 Тесты
 ```bash
-pnpm --filter @qurvo/<app> exec vitest run
-pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts
 ```
 Если важные интеграционные тесты отсутствуют -- напиши их.
 
 После прогона тестов (успешного или нет) всегда выполняй cleanup orphaned testcontainers:
 ```bash
-pnpm test:cleanup
+cd "$WORKTREE_PATH" && pnpm test:cleanup
 ```
 
 ### 4.2 Миграции
@@ -122,19 +138,19 @@ fi
 ```
 
 Если проверка прошла — генерируй:
-- PostgreSQL: `pnpm --filter @qurvo/db db:generate`
-- ClickHouse: `pnpm ch:generate <name>`
+- PostgreSQL: `cd "$WORKTREE_PATH" && pnpm --filter @qurvo/db db:generate`
+- ClickHouse: `cd "$WORKTREE_PATH" && pnpm ch:generate <name>`
 
 ### 4.3 TypeScript
 ```bash
-pnpm --filter @qurvo/<app> exec tsc --noEmit
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec tsc --noEmit
 ```
 
 ### 4.4 Build
 Собери только затронутые приложения из AFFECTED_APPS:
 ```bash
 # Для каждого app из AFFECTED_APPS:
-pnpm --filter @qurvo/<app> build
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> build
 ```
 
 Docker build — только если issue имеет тип `feat` или является эпиком (заголовок начинается с `feat(`):
@@ -149,12 +165,12 @@ cd "$WORKTREE_PATH" && docker build --target <app> -t qurvo/<app>:check . --quie
 
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
 ```bash
-pnpm --filter @qurvo/api build && pnpm swagger:generate && pnpm generate-api
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/api build && pnpm swagger:generate && pnpm generate-api
 ```
 
 Проверь swagger.json на пустые схемы:
 ```bash
-node -e "
+cd "$WORKTREE_PATH" && node -e "
 const s = require('./apps/api/docs/swagger.json');
 const schemas = s.components?.schemas || {};
 const bad = Object.entries(schemas).filter(([name, schema]) => {
@@ -167,7 +183,7 @@ else console.log('OK');
 
 Проверь Api.ts на плохие типы:
 ```bash
-grep -n ': object\b\|Record<string, object>\|: any\b' apps/web/src/api/generated/Api.ts
+grep -n ': object\b\|Record<string, object>\|: any\b' "$WORKTREE_PATH/apps/web/src/api/generated/Api.ts"
 ```
 
 ### 4.6 Обновить CLAUDE.md
@@ -175,8 +191,8 @@ grep -n ': object\b\|Record<string, object>\|: any\b' apps/web/src/api/generated
 
 ### 4.7 Коммит
 ```bash
-git add <конкретные файлы>
-git commit -m "<осмысленное сообщение>"
+cd "$WORKTREE_PATH" && git add <конкретные файлы>
+cd "$WORKTREE_PATH" && git commit -m "<осмысленное сообщение>"
 ```
 
 ### 4.7.1 Code Review
@@ -196,14 +212,14 @@ BASE_BRANCH: <ветка>
 
 ### 4.8 Финальная проверка с актуальным BASE_BRANCH
 ```bash
-git merge "$BASE_BRANCH"
+cd "$WORKTREE_PATH" && git merge "$BASE_BRANCH"
 # Если конфликты -- попытайся разрешить самостоятельно
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
-pnpm --filter @qurvo/<app> exec vitest run
-pnpm test:cleanup
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run
+cd "$WORKTREE_PATH" && pnpm test:cleanup
 # Для каждого app из AFFECTED_APPS:
-pnpm --filter @qurvo/<app> build
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> build
 ```
 
 ### 4.9 Мерж в BASE_BRANCH и push
@@ -233,9 +249,9 @@ git -C "$REPO_ROOT" push origin "$BASE_BRANCH"
 
 ### 4.10 SDK (только если были правки SDK-пакетов)
 ```bash
-pnpm --filter @qurvo/sdk-core publish --access public --no-git-checks
-pnpm --filter @qurvo/sdk-browser publish --access public --no-git-checks
-pnpm --filter @qurvo/sdk-node publish --access public --no-git-checks
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-core publish --access public --no-git-checks
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-browser publish --access public --no-git-checks
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-node publish --access public --no-git-checks
 ```
 
 ### 4.11 Закрыть issue и очистить worktree
