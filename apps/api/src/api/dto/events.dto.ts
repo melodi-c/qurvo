@@ -13,6 +13,7 @@ import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { makeJsonArrayTransform } from './shared/transforms';
+import { IsDateOnly } from './shared/is-date-only.decorator';
 
 export class EventsQueryDto {
   @IsUUID()
@@ -24,12 +25,12 @@ export class EventsQueryDto {
   event_name?: string;
 
   @ApiPropertyOptional()
-  @IsDateString()
+  @IsDateOnly()
   @IsOptional()
   date_from?: string;
 
   @ApiPropertyOptional()
-  @IsDateString()
+  @IsDateOnly()
   @IsOptional()
   date_to?: string;
 
