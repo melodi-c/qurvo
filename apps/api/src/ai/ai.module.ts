@@ -15,6 +15,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
 import { PersonsModule } from '../persons/persons.module';
 import { CohortsModule } from '../cohorts/cohorts.module';
+import { AiMonitorsModule } from '../ai-monitors/ai-monitors.module';
 import { SavedInsightsModule } from '../saved-insights/saved-insights.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
 import { AI_TOOLS } from './tools/ai-tool.interface';
@@ -35,6 +36,7 @@ import { SaveToDashboardTool } from './tools/save-to-dashboard.tool';
 import { FunnelGapsTool } from './tools/funnel-gaps.tool';
 import { MetricChangeTool } from './tools/metric-change.tool';
 import { CreateCohortTool } from './tools/create-cohort.tool';
+import { CreateMonitorTool } from './tools/create-monitor.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -53,6 +55,7 @@ const TOOL_CLASSES = [
   FunnelGapsTool,
   MetricChangeTool,
   CreateCohortTool,
+  CreateMonitorTool,
 ];
 
 @Module({
@@ -62,6 +65,7 @@ const TOOL_CLASSES = [
     EventsModule,
     PersonsModule,
     CohortsModule,
+    AiMonitorsModule,
     SavedInsightsModule,
     DashboardsModule,
   ],
