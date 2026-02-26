@@ -53,14 +53,14 @@ async function createJob(
 }
 
 describe('ScheduledJobsService', () => {
-  describe('runJob() without OPENAI_API_KEY', () => {
-    it('logs a warning and returns without throwing when OPENAI_API_KEY is not set', async () => {
-      // The context bootstraps with OPENAI_API_KEY deleted, so client == null
+  describe('runJob() without AI runner config', () => {
+    it('logs a warning and returns without throwing when INTERNAL_API_URL/TOKEN are not set', async () => {
+      // The context bootstraps without INTERNAL_API_URL/TOKEN, so aiRunner.isConfigured == false
       const tp = await createTestProject(ctx.db);
       const jobId = await createJob(tp.projectId, tp.userId, 'daily', null);
 
       // runCycle calls isDue (null last_run_at → always due) then runJob
-      // runJob should return early without throwing since client is null
+      // runJob should return early without throwing since aiRunner is not configured
       await expect(svc.runCycle()).resolves.not.toThrow();
     });
   });
@@ -74,8 +74,8 @@ describe('ScheduledJobsService', () => {
 
       await svc.runCycle();
 
-      // Since no OPENAI_API_KEY, job is skipped early — but last_run_at is NOT updated
-      // (the update happens after OpenAI call, which is skipped)
+      // Since INTERNAL_API_URL/TOKEN are not configured, job is skipped early — but last_run_at is NOT updated
+      // (the update happens after AI call, which is skipped)
       // The key assertion is that runCycle() doesn't throw
       const jobs = await ctx.db
         .select()
@@ -83,7 +83,7 @@ describe('ScheduledJobsService', () => {
         .where(eq(aiScheduledJobs.id, dueJobId));
 
       expect(jobs).toHaveLength(1);
-      // last_run_at stays null because runJob() returns early before the update
+      // last_run_at stays null because runJob() returns early (aiRunner not configured)
       expect(jobs[0].last_run_at).toBeNull();
     });
 
@@ -151,8 +151,8 @@ describe('ScheduledJobsService', () => {
         .from(aiScheduledJobs)
         .where(eq(aiScheduledJobs.id, notDueWeeklyJobId));
 
-      // Due job: ran but since no OPENAI_API_KEY, last_run_at not updated
-      // (runJob exits before DB update when client is null)
+      // Due job: ran but since INTERNAL_API_URL/TOKEN not configured, last_run_at not updated
+      // (runJob exits before DB update when aiRunner is not configured)
       // Not-due job: skipped entirely, last_run_at unchanged
       expect(notDueJob.last_run_at?.toISOString()).toBe(threeDaysAgo.toISOString());
     });
