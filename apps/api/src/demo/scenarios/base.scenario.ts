@@ -66,7 +66,7 @@ export interface ScenarioOutput {
   events: Event[];
   definitions: EventDefinitionInput[];
   propertyDefinitions: PropertyDefinitionInput[];
-  persons: { id: string; properties: Record<string, unknown> }[];
+  persons: { id: string; properties: Record<string, unknown>; created_at?: Date }[];
   personDistinctIds: { personId: string; distinctId: string }[];
   dashboards: DashboardInput[];
   insights: InsightInput[];

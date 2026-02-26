@@ -459,6 +459,7 @@ export class OnlineSchoolScenario extends BaseScenario {
     const persons = students.map((student) => ({
       id: this.makePersonId(projectId, student.email),
       properties: studentLatestProps.get(student.email) ?? {},
+      created_at: student.signup_date,
     }));
 
     const personDistinctIds = students.map((student) => ({

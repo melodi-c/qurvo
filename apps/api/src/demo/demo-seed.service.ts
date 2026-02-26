@@ -116,7 +116,7 @@ export class DemoSeedService {
             id: p.id,
             project_id: projectId,
             properties: p.properties,
-            created_at: now,
+            created_at: p.created_at ?? now,
             updated_at: now,
           })),
         )
@@ -390,7 +390,7 @@ export class DemoSeedService {
             id: p.id,
             project_id: projectId,
             properties: p.properties,
-            created_at: now,
+            created_at: p.created_at ?? now,
             updated_at: now,
           })),
         )
