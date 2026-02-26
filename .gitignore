@@ -17,3 +17,6 @@ values.local-secrets.yaml
 
 .claude/worktrees/*
 .mcp.json
+
+# Temporary Storybook stories (not committed)
+apps/web/src/**/*.tmp.stories.tsx

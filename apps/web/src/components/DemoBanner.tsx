@@ -105,7 +105,7 @@ export function DemoBanner({ projectId, projectSlug, isDemo }: DemoBannerProps) 
         title={t('resetConfirmTitle')}
         description={t('resetConfirmDescription')}
         variant="destructive"
-        onConfirm={() => resetMutation.mutateAsync()}
+        onConfirm={async () => { await resetMutation.mutateAsync(); }}
       />
     </>
   );
