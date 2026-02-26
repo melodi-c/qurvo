@@ -16,6 +16,8 @@ import { EmailConflictException } from './exceptions/email-conflict.exception';
 import { InvalidCredentialsException } from './exceptions/invalid-credentials.exception';
 import { VerificationService } from '../verification/verification.service';
 import { isPgUniqueViolation } from '../utils/pg-errors';
+import { DemoSeedService } from '../demo/demo-seed.service';
+import { ProjectsService } from '../projects/projects.service';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +27,8 @@ export class AuthService {
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(REDIS) private readonly redis: Redis,
     private readonly verificationService: VerificationService,
+    private readonly projectsService: ProjectsService,
+    private readonly demoSeedService: DemoSeedService,
   ) {}
 
   async register(input: { email: string; password: string; display_name: string }) {
@@ -61,6 +65,21 @@ export class AuthService {
       await this.verificationService.sendVerificationCode(user.id, user.email);
     } catch (err) {
       this.logger.error({ userId: user.id, err }, 'Failed to send verification email');
+    }
+
+    // Create demo project and fire-and-forget seeding
+    try {
+      const demoProject = await this.projectsService.create(user.id, {
+        name: 'LearnFlow (Demo)',
+        is_demo: true,
+        demo_scenario: 'online_school',
+      });
+
+      this.demoSeedService.seed(demoProject.id, 'online_school').catch((err) => {
+        this.logger.error({ userId: user.id, projectId: demoProject.id, err }, 'Demo seeding failed');
+      });
+    } catch (err) {
+      this.logger.error({ userId: user.id, err }, 'Failed to create demo project');
     }
 
     return this.buildAuthResponse(token, user);

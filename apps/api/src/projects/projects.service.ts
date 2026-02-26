@@ -50,7 +50,7 @@ export class ProjectsService {
     return project;
   }
 
-  async create(userId: string, input: { name: string }) {
+  async create(userId: string, input: { name: string; is_demo?: boolean; demo_scenario?: string }) {
     const slug = slugify(input.name);
     const project = await this.db.transaction(async (tx) => {
       const freePlan = await tx
@@ -63,6 +63,8 @@ export class ProjectsService {
         name: input.name,
         slug,
         plan_id: freePlan[0]?.id ?? null,
+        is_demo: input.is_demo ?? false,
+        demo_scenario: input.demo_scenario ?? null,
       }).returning();
 
       await tx.insert(projectMembers).values({

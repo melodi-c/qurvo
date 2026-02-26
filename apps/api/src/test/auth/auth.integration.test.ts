@@ -6,6 +6,8 @@ import { users, sessions, emailVerificationCodes } from '@qurvo/db';
 import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { AccountService } from '../../auth/account.service';
+import { ProjectsService } from '../../projects/projects.service';
+import { DemoSeedService } from '../../demo/demo-seed.service';
 import { EmailConflictException } from '../../auth/exceptions/email-conflict.exception';
 import { InvalidCredentialsException } from '../../auth/exceptions/invalid-credentials.exception';
 import { TooManyRequestsException } from '../../exceptions/too-many-requests.exception';
@@ -30,7 +32,9 @@ function makeAuthService(c: ContainerContext): AuthService {
     c.redis as any,
     mockEmailProvider,
   );
-  return new AuthService(c.db as any, c.redis as any, verificationService);
+  const projectsService = new ProjectsService(c.db as any);
+  const demoSeedService = { seed: async () => {} } as unknown as DemoSeedService;
+  return new AuthService(c.db as any, c.redis as any, verificationService, projectsService, demoSeedService);
 }
 
 function makeVerificationService(c: ContainerContext): VerificationService {
