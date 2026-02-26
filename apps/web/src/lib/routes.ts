@@ -192,6 +192,10 @@ export const routes = {
     '/projects/:projectId/ai',
     (projectId: string) => `/projects/${projectId}/ai`,
   ),
+  aiDiscoveries: route(
+    '/projects/:projectId/ai/discoveries',
+    (projectId: string) => `/projects/${projectId}/ai/discoveries`,
+  ),
   aiMonitors: route(
     '/projects/:projectId/ai/monitors',
     (projectId: string) => `/projects/${projectId}/ai/monitors`,
