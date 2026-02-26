@@ -1,6 +1,6 @@
 import { afterAll } from 'vitest';
-import { teardownContainers } from '@qurvo/testing';
+import { closeTestContext } from './context';
 
 afterAll(async () => {
-  await teardownContainers();
+  await closeTestContext();
 });
