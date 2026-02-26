@@ -66,7 +66,15 @@ describe('queryFunnel — with breakdown', () => {
     expect(chromeSteps.find((s) => s.step === 1)?.count).toBe(2);
     expect(firefoxSteps.find((s) => s.step === 1)?.count).toBe(1);
     expect(rBd.aggregate_steps).toBeDefined();
-    expect(rBd.aggregate_steps.find((s) => s.step === 1)?.count).toBe(3);
+    const aggStep1 = rBd.aggregate_steps.find((s) => s.step === 1);
+    const aggStep2 = rBd.aggregate_steps.find((s) => s.step === 2);
+    expect(aggStep1?.count).toBe(3);
+    // drop_off for step 1 = users who entered step 1 but did not reach step 2
+    // All 3 users signed up but none did 'checkout', so drop_off = 3 - 0 = 3
+    expect(aggStep1?.drop_off).toBe(3);
+    expect(aggStep1?.drop_off_rate).toBe(100);
+    // step 2 is the last step — drop_off is 0
+    expect(aggStep2?.drop_off).toBe(0);
   });
 });
 

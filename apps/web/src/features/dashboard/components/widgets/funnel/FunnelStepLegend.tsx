@@ -48,7 +48,7 @@ export function StepLegend({
             {!isFirst && <span className="text-[9px] text-muted-foreground">({conversionRate}%)</span>}
           </div>
 
-          {!isFirst && !isLast && dropOff > 0 && (
+          {!isLast && dropOff > 0 && (
             <div className={`flex items-center gap-1 ${FUNNEL_LEGEND_COLORS.dropOff}`}>
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0">
                 <path d="M2 5h10M8 9l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -87,7 +87,7 @@ export function StepLegend({
           {!isFirst && <span className="text-[11px] text-muted-foreground">({conversionRate}%)</span>}
         </div>
 
-        {!isFirst && !isLast && dropOff > 0 && (
+        {!isLast && dropOff > 0 && (
           <div className={`flex items-center gap-1.5 ${FUNNEL_LEGEND_COLORS.dropOff}`}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
               <path d="M2 5h10M8 9l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

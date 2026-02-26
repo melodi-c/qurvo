@@ -99,12 +99,11 @@ export function computeAggregateSteps(
   const step1Total = stepTotals.get(stepNums[0]) ?? 0;
   return stepNums.map((sn, idx) => {
     const total = stepTotals.get(sn) ?? 0;
-    const isFirst = idx === 0;
     const isLast = idx === stepNums.length - 1;
-    const prevTotal = isFirst ? total : (stepTotals.get(stepNums[idx - 1]) ?? total);
-    const dropOff = isFirst || isLast ? 0 : prevTotal - total;
-    const dropOffRate = !isFirst && !isLast && prevTotal > 0
-      ? Math.round((dropOff / prevTotal) * 1000) / 10
+    const nextTotal = isLast ? 0 : (stepTotals.get(stepNums[idx + 1]) ?? 0);
+    const dropOff = isLast ? 0 : total - nextTotal;
+    const dropOffRate = !isLast && total > 0
+      ? Math.round((dropOff / total) * 1000) / 10
       : 0;
     return {
       step: sn,
