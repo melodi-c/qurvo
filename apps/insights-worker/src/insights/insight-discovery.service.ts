@@ -204,50 +204,28 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
    *
    * ClickHouse does NOT support correlated subqueries (outer column refs inside subquery WHERE).
    * We use INNER JOIN between cohort and return-events CTEs to avoid this limitation.
+   *
+   * The current cohort excludes users who were already in prev_cohort — this ensures the two
+   * cohorts are disjoint and prevents prev-retained users (whose return events fall in the
+   * current_cohort time window) from inflating current_cohort_size.
    */
   async detectRetentionAnomalies(projectId: string, projectName: string): Promise<void> {
-    // Current cohort: users who did event X between 14 and 7 days ago (day-0 window).
-    // They are "retained" if they did the same event within the past 7 days.
+    // Cohort windows:
+    //   current cohort (day-0): users who did event X 14-7 days ago, NOT seen 21-14 days ago
+    //   prev cohort (day-0):    users who did event X 21-14 days ago
     //
-    // Previous cohort: users who did event X between 21 and 14 days ago.
-    // They are "retained" if they did the same event between 14 and 7 days ago.
+    // Return windows:
+    //   current return:  events in last 7 days (after current cohort window)
+    //   prev return:     events 14-7 days ago (after prev cohort window)
     //
-    // We INNER JOIN cohort with return-events on both event_name + distinct_id to count
-    // retained users per event without correlated subqueries.
+    // prev_return and current_cohort share the same time window. Without exclusion,
+    // prev-retained users who appear in prev_return also contaminate current_cohort.
+    // Excluding prev_cohort members from current_cohort fixes this.
+    //
+    // We INNER JOIN cohort with return-events on (event_name, distinct_id) — ClickHouse
+    // does NOT support correlated subqueries with outer CTE column references.
     const query = `
       WITH
-        current_cohort AS (
-          SELECT
-            event_name,
-            distinct_id
-          FROM events
-          WHERE
-            project_id = {projectId:String}
-            AND timestamp >= now() - INTERVAL 14 DAY
-            AND timestamp < now() - INTERVAL 7 DAY
-          GROUP BY event_name, distinct_id
-        ),
-        current_return AS (
-          SELECT
-            event_name,
-            distinct_id
-          FROM events
-          WHERE
-            project_id = {projectId:String}
-            AND timestamp >= now() - INTERVAL 7 DAY
-          GROUP BY event_name, distinct_id
-        ),
-        current_cohort_size AS (
-          SELECT event_name, count() AS cohort_size
-          FROM current_cohort
-          GROUP BY event_name
-        ),
-        current_retained AS (
-          SELECT cc.event_name, count() AS retained_count
-          FROM current_cohort cc
-          INNER JOIN current_return cr ON cc.event_name = cr.event_name AND cc.distinct_id = cr.distinct_id
-          GROUP BY cc.event_name
-        ),
         prev_cohort AS (
           SELECT
             event_name,
@@ -280,6 +258,43 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
           FROM prev_cohort pc
           INNER JOIN prev_return pr ON pc.event_name = pr.event_name AND pc.distinct_id = pr.distinct_id
           GROUP BY pc.event_name
+        ),
+        current_cohort_raw AS (
+          SELECT
+            event_name,
+            distinct_id
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 14 DAY
+            AND timestamp < now() - INTERVAL 7 DAY
+          GROUP BY event_name, distinct_id
+        ),
+        current_cohort AS (
+          SELECT event_name, distinct_id
+          FROM current_cohort_raw
+          WHERE (event_name, distinct_id) NOT IN (SELECT event_name, distinct_id FROM prev_cohort)
+        ),
+        current_return AS (
+          SELECT
+            event_name,
+            distinct_id
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 7 DAY
+          GROUP BY event_name, distinct_id
+        ),
+        current_cohort_size AS (
+          SELECT event_name, count() AS cohort_size
+          FROM current_cohort
+          GROUP BY event_name
+        ),
+        current_retained AS (
+          SELECT cc.event_name, count() AS retained_count
+          FROM current_cohort cc
+          INNER JOIN current_return cr ON cc.event_name = cr.event_name AND cc.distinct_id = cr.distinct_id
+          GROUP BY cc.event_name
         )
       SELECT
         cs.event_name AS event_name,
@@ -370,13 +385,12 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
     // A user "converted" if they did the conversion event in the last 30 days.
     // An intermediate event has lift if users who did it converted at a higher rate.
     // We look at the 30-day window and compare:
-    //   base_rate = converters / all_users_who_did_conversion_event_at_least_once_or_any_event
+    //   base_rate = converters / all_users_who_did_any_event
     //   conditional_rate = users_who_did_intermediate_AND_converted / users_who_did_intermediate
     //
-    // For simplicity and to match the funnel_gaps pattern:
     //   total_users = distinct users who did ANY event in the project in the last 30 days
     //   converters = distinct users who did the conversion event
-    //   intermediate_users = distinct users who did the intermediate event (but not the conversion event itself)
+    //   intermediate_users = distinct users who did the intermediate event (not the conversion event)
     //   intermediate_and_converted = users who did both intermediate and conversion events
     for (const topEvent of topEvents) {
       const correlationQuery = `

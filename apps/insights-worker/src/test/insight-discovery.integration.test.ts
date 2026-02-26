@@ -450,10 +450,13 @@ describe('InsightDiscoveryService', () => {
       const corrInsights = insights.filter((i) => i.type === 'conversion_correlation');
       expect(corrInsights.length).toBeGreaterThan(0);
 
-      // Find the specific correlation for our intermediate event
-      const targetInsight = corrInsights.find((i) => i.title.includes(intermediateEvent));
+      // Find the specific insight where add_to_cart is the INTERMEDIATE event
+      // and purchase is the CONVERSION event (matching by data_json fields).
+      const targetInsight = corrInsights.find((i) => {
+        const d = i.data_json as { conversion_event?: string; intermediate_event?: string };
+        return d.conversion_event === conversionEvent && d.intermediate_event === intermediateEvent;
+      });
       expect(targetInsight).toBeDefined();
-      expect(targetInsight!.title).toContain(conversionEvent);
 
       const data = targetInsight!.data_json as {
         relative_lift: number;
