@@ -13,6 +13,34 @@ import { buildStoppedPerformingSubquery } from './conditions/stopped';
 import { buildRestartedPerformingSubquery } from './conditions/restarted';
 import { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
 
+// ── Strategy registry ────────────────────────────────────────────────────────
+
+type ConditionType = CohortCondition['type'];
+
+/**
+ * Unified builder signature: each handler receives the condition (narrowed to
+ * its concrete type), the build context, and the optional cohort-resolution
+ * callback (only used by the 'cohort' handler; others safely ignore it).
+ */
+type ConditionBuilder<T extends CohortCondition = CohortCondition> = (
+  cond: T,
+  ctx: BuildContext,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
+) => string;
+
+const CONDITION_BUILDERS: { [K in ConditionType]: ConditionBuilder<Extract<CohortCondition, { type: K }>> } = {
+  person_property: (cond, ctx) => buildPropertyConditionSubquery(cond, ctx),
+  event:           (cond, ctx) => buildEventConditionSubquery(cond, ctx),
+  cohort:          (cond, ctx, resolve) => buildCohortRefConditionSubquery(cond, ctx, resolve),
+  first_time_event:             (cond, ctx) => buildFirstTimeEventSubquery(cond, ctx),
+  not_performed_event:          (cond, ctx) => buildNotPerformedEventSubquery(cond, ctx),
+  event_sequence:               (cond, ctx) => buildEventSequenceSubquery(cond, ctx),
+  performed_regularly:          (cond, ctx) => buildPerformedRegularlySubquery(cond, ctx),
+  stopped_performing:           (cond, ctx) => buildStoppedPerformingSubquery(cond, ctx),
+  restarted_performing:         (cond, ctx) => buildRestartedPerformingSubquery(cond, ctx),
+  not_performed_event_sequence: (cond, ctx) => buildNotPerformedEventSequenceSubquery(cond, ctx),
+};
+
 // ── Single condition dispatch ────────────────────────────────────────────────
 
 function buildConditionSubquery(
@@ -20,32 +48,11 @@ function buildConditionSubquery(
   ctx: BuildContext,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): string {
-  switch (cond.type) {
-    case 'person_property':
-      return buildPropertyConditionSubquery(cond, ctx);
-    case 'event':
-      return buildEventConditionSubquery(cond, ctx);
-    case 'cohort':
-      return buildCohortRefConditionSubquery(cond, ctx, resolveCohortIsStatic);
-    case 'first_time_event':
-      return buildFirstTimeEventSubquery(cond, ctx);
-    case 'not_performed_event':
-      return buildNotPerformedEventSubquery(cond, ctx);
-    case 'event_sequence':
-      return buildEventSequenceSubquery(cond, ctx);
-    case 'performed_regularly':
-      return buildPerformedRegularlySubquery(cond, ctx);
-    case 'stopped_performing':
-      return buildStoppedPerformingSubquery(cond, ctx);
-    case 'restarted_performing':
-      return buildRestartedPerformingSubquery(cond, ctx);
-    case 'not_performed_event_sequence':
-      return buildNotPerformedEventSequenceSubquery(cond, ctx);
-    default: {
-      const _exhaustive: never = cond;
-      throw new Error(`Unhandled condition type: ${(_exhaustive as { type: string }).type}`);
-    }
+  const builder = CONDITION_BUILDERS[cond.type] as ConditionBuilder;
+  if (!builder) {
+    throw new Error(`Unknown condition type: ${(cond as { type: string }).type}`);
   }
+  return builder(cond, ctx, resolveCohortIsStatic);
 }
 
 // ── Recursive group builder ──────────────────────────────────────────────────

@@ -67,7 +67,10 @@ export function useRenameConversation(projectId: string) {
   });
 }
 
-export function useToggleSharedConversation(projectId: string) {
+export function useToggleSharedConversation(
+  projectId: string,
+  onToggled?: (is_shared: boolean) => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, is_shared }: { id: string; is_shared: boolean }) => {
@@ -80,6 +83,9 @@ export function useToggleSharedConversation(projectId: string) {
         old ? old.map((c) => (c.id === id ? { ...c, is_shared } : c)) : old,
       );
       return { previous };
+    },
+    onSuccess: (_data, { is_shared }) => {
+      onToggled?.(is_shared);
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
