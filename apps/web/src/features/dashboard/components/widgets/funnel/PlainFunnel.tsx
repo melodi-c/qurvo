@@ -22,7 +22,7 @@ export function PlainFunnel({ steps, compact, relative }: { steps: FunnelStepRes
     : steps.map((s) => s.conversion_rate);
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto h-full">
     <div className="flex items-start gap-0 select-none min-w-max">
       <YAxis h={barH} />
 

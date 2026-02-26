@@ -60,7 +60,7 @@ export function BreakdownFunnel({
   }, [steps, compact]);
 
   return (
-    <div className="flex flex-col gap-0 select-none">
+    <div className="flex flex-col gap-0 select-none h-full">
       {/* Color legend */}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-5">
         {groups.map((bv, idx) => {
