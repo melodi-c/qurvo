@@ -4,7 +4,7 @@ import type Redis from 'ioredis';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { REDIS } from '../providers/redis.provider';
-import { AI_TOOL_CACHE_TTL_SECONDS } from '../constants';
+import { AI_TOOL_CACHE_TTL_SECONDS, AI_TOOL_CACHE_KEY_PREFIX } from '../constants';
 
 export interface AccumulatedToolCall {
   id: string;
@@ -117,6 +117,6 @@ export class AiToolDispatcher {
   private buildToolCacheKey(toolName: string, args: Record<string, unknown>, projectId: string): string {
     const sortedArgs = JSON.stringify(args, Object.keys(args).sort());
     const hash = crypto.createHash('sha256').update(`${toolName}:${sortedArgs}:${projectId}`).digest('hex');
-    return `ai:tool_cache:${hash}`;
+    return `${AI_TOOL_CACHE_KEY_PREFIX}${hash}`;
   }
 }

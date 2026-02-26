@@ -31,6 +31,32 @@ export const AI_RATE_LIMIT_MINUTE_WINDOW_SECONDS = 60;
 export const AI_RATE_LIMIT_HOUR_WINDOW_SECONDS = 3600; // 1 hour
 export const AI_QUOTA_KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days — slightly longer than billing period
 export const AI_PLAN_LIMIT_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes — plan changes only on upgrade/downgrade
+
+/** Redis key prefixes for AI rate-limiting buckets */
+export const AI_RATE_LIMIT_MINUTE_KEY_PREFIX = 'ai:rl:m:';
+export const AI_RATE_LIMIT_HOUR_KEY_PREFIX = 'ai:rl:h:';
+/** Redis key prefix for AI tool result cache */
+export const AI_TOOL_CACHE_KEY_PREFIX = 'ai:tool_cache:';
+
+/** Default title assigned to a newly created AI conversation */
+export const AI_DEFAULT_CONVERSATION_TITLE = 'New conversation';
+
+/** Cost per 1M tokens in USD for each supported OpenAI model: { input, output } */
+export const MODEL_COST_PER_1M: Record<string, { input: number; output: number }> = {
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.60 },
+};
+
+/** URL path slug for each insight type — used when building navigation links */
+export const INSIGHT_TYPE_SLUGS: Record<string, string> = {
+  trend: 'trends',
+  funnel: 'funnels',
+  retention: 'retentions',
+  lifecycle: 'lifecycles',
+  stickiness: 'stickiness',
+  paths: 'paths',
+};
+
 export const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
 
 export type ProjectRole = 'owner' | 'editor' | 'viewer';

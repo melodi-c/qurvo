@@ -4,6 +4,7 @@ import { SavedInsightsService } from '../../saved-insights/saved-insights.servic
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import type { InsightConfig, InsightType } from '@qurvo/db';
+import { INSIGHT_TYPE_SLUGS } from '../../constants';
 
 const argsSchema = z.object({
   name: z.string().min(1).max(200).describe('Insight title'),
@@ -43,20 +44,11 @@ export class CreateInsightTool implements AiTool {
       config,
     });
 
-    const TYPE_SLUGS: Record<InsightType, string> = {
-      trend: 'trends',
-      funnel: 'funnels',
-      retention: 'retentions',
-      lifecycle: 'lifecycles',
-      stickiness: 'stickiness',
-      paths: 'paths',
-    };
-
     return {
       insight_id: insight.id,
       name: insight.name,
       type: insight.type,
-      link: `/insights/${TYPE_SLUGS[insight.type]}/${insight.id}`,
+      link: `/insights/${INSIGHT_TYPE_SLUGS[insight.type]}/${insight.id}`,
     };
   });
 }

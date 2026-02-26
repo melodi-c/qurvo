@@ -14,7 +14,7 @@ import { AI_CONFIG } from './ai-config.provider';
 import type { AiConfig } from './ai-config.provider';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
-import { AI_MAX_TOOL_CALL_ITERATIONS, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT } from '../constants';
+import { AI_MAX_TOOL_CALL_ITERATIONS, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, MODEL_COST_PER_1M } from '../constants';
 
 type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
@@ -34,12 +34,6 @@ interface StreamTurnResult {
   toolCalls: AccumulatedToolCall[];
   usage: TokenUsage | null;
 }
-
-/** Cost per 1M tokens in USD: { input, output } */
-const MODEL_COST_PER_1M: Record<string, { input: number; output: number }> = {
-  'gpt-4o': { input: 2.5, output: 10.0 },
-  'gpt-4o-mini': { input: 0.15, output: 0.60 },
-};
 
 function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
   const rates = MODEL_COST_PER_1M[model] ?? MODEL_COST_PER_1M['gpt-4o'];

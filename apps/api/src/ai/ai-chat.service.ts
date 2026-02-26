@@ -5,6 +5,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
+import { AI_DEFAULT_CONVERSATION_TITLE } from '../constants';
 
 export interface ConversationSearchResult {
   id: string;
@@ -37,7 +38,7 @@ export class AiChatService {
       .values({
         user_id: userId,
         project_id: projectId,
-        title: title ?? 'New conversation',
+        title: title ?? AI_DEFAULT_CONVERSATION_TITLE,
       })
       .returning();
     return row;

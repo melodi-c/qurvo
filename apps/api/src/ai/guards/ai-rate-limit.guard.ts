@@ -7,6 +7,8 @@ import {
   AI_RATE_LIMIT_PER_HOUR,
   AI_RATE_LIMIT_MINUTE_WINDOW_SECONDS,
   AI_RATE_LIMIT_HOUR_WINDOW_SECONDS,
+  AI_RATE_LIMIT_MINUTE_KEY_PREFIX,
+  AI_RATE_LIMIT_HOUR_KEY_PREFIX,
 } from '../../constants';
 
 @Injectable()
@@ -22,8 +24,8 @@ export class AiRateLimitGuard implements CanActivate {
     const minuteBucket = Math.floor(now / AI_RATE_LIMIT_MINUTE_WINDOW_SECONDS);
     const hourBucket = Math.floor(now / AI_RATE_LIMIT_HOUR_WINDOW_SECONDS);
 
-    const minuteKey = `ai:rl:m:${userId}:${minuteBucket}`;
-    const hourKey = `ai:rl:h:${userId}:${hourBucket}`;
+    const minuteKey = `${AI_RATE_LIMIT_MINUTE_KEY_PREFIX}${userId}:${minuteBucket}`;
+    const hourKey = `${AI_RATE_LIMIT_HOUR_KEY_PREFIX}${userId}:${hourBucket}`;
 
     const [minuteCount, hourCount] = await this.redis
       .pipeline()
