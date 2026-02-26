@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { AnnotationDialog } from './annotation-dialog';
 import { Button } from './button';
-import type { Annotation, CreateAnnotation } from '@/api/generated/Api';
+import type { CreateAnnotation } from '@/api/generated/Api';
+import { ANNOTATION_1 } from '@/stories/mocks';
 
 const meta: Meta = {
   title: 'UI/AnnotationDialog',
@@ -10,18 +11,6 @@ const meta: Meta = {
 };
 
 export default meta;
-
-const MOCK_ANNOTATION: Annotation = {
-  id: 'ann-1',
-  project_id: 'proj-1',
-  created_by: 'user-1',
-  date: '2026-02-15',
-  label: 'Deploy v2.0',
-  description: 'Major release with new dashboard features.',
-  color: '#3b82f6',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
 
 export const Create: StoryObj = {
   render: () => {
@@ -51,7 +40,7 @@ export const Edit: StoryObj = {
         <AnnotationDialog
           open={open}
           onOpenChange={setOpen}
-          annotation={MOCK_ANNOTATION}
+          annotation={ANNOTATION_1}
           onSave={async (data: CreateAnnotation) => {
             console.log('Updated annotation:', data);
           }}
