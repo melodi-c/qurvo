@@ -10,7 +10,7 @@ export function WidgetTransition({ isFetching, children }: WidgetTransitionProps
   return (
     <div
       className={cn(
-        'h-full animate-in fade-in duration-300',
+        'h-full min-h-0 animate-in fade-in duration-300',
         isFetching && 'opacity-60 transition-opacity',
       )}
     >

@@ -7,6 +7,7 @@ import { useElementWidth } from '@/hooks/use-element-width';
 import { useDashboardStore, type RglItem } from '../store';
 import { InsightCard } from './InsightCard';
 import { DashboardEmptyState } from './DashboardEmptyState';
+import { DEFAULT_WIDGET_SIZE } from '../lib/default-sizes';
 import type { Widget } from '@/api/generated/Api';
 
 const BREAKPOINTS = { sm: 1024, xs: 0 };
@@ -38,10 +39,27 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
     (currentLayout: readonly RglItem[]) => updateLayout(currentLayout),
     [updateLayout],
   );
-  const smLayout = useMemo(() => localLayout.map((l) => ({ ...l, minH: 4 })), [localLayout]);
+  const widgetTypeById = useMemo(
+    () => Object.fromEntries(localWidgets.map((w) => [w.id, w.insight?.type ?? 'text'])),
+    [localWidgets],
+  );
+  const smLayout = useMemo(
+    () =>
+      localLayout.map((l) => ({
+        ...l,
+        minH: DEFAULT_WIDGET_SIZE[widgetTypeById[l.i] ?? '']?.minH ?? 4,
+      })),
+    [localLayout, widgetTypeById],
+  );
   const xsLayout = useMemo(
-    () => localLayout.map((l) => ({ ...l, x: 0, w: 1, minH: 4 })),
-    [localLayout],
+    () =>
+      localLayout.map((l) => ({
+        ...l,
+        x: 0,
+        w: 1,
+        minH: DEFAULT_WIDGET_SIZE[widgetTypeById[l.i] ?? '']?.minH ?? 4,
+      })),
+    [localLayout, widgetTypeById],
   );
 
   if (localWidgets.length === 0) {
