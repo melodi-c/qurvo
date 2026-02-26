@@ -3,11 +3,13 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
 import Redis from 'ioredis';
 import { REDIS } from '@qurvo/nestjs-infra';
-import { AI_QUOTA_KEY_PREFIX, currentMonthKey, previousMonthKey } from '../constants';
-
-// Run once per hour — quota reset is not time-sensitive
-const AI_QUOTA_RESET_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const AI_QUOTA_RESET_INITIAL_DELAY_MS = 10_000; // 10s
+import {
+  AI_QUOTA_KEY_PREFIX,
+  AI_QUOTA_RESET_INTERVAL_MS,
+  AI_QUOTA_RESET_INITIAL_DELAY_MS,
+  currentMonthKey,
+  previousMonthKey,
+} from '../constants';
 
 @Injectable()
 export class AiQuotaResetService extends PeriodicWorkerMixin {

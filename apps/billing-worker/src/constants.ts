@@ -8,6 +8,10 @@ export const BILLING_SET_TTL_SECONDS = 120; // safety TTL if worker stops
 export const BILLING_EVENTS_KEY_PREFIX = 'billing:events';
 export const BILLING_QUOTA_LIMITED_KEY = 'billing:quota_limited';
 
+// ── AI quota reset (periodic stale-key cleanup) ───────────────────────────────
+export const AI_QUOTA_RESET_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+export const AI_QUOTA_RESET_INITIAL_DELAY_MS = 10_000; // 10s
+
 // AI quota counter prefix (duplicated from apps/api/src/ai/guards/ai-quota.guard.ts)
 // Key pattern: ai:quota:{userId}:{YYYY-MM}
 export const AI_QUOTA_KEY_PREFIX = 'ai:quota';

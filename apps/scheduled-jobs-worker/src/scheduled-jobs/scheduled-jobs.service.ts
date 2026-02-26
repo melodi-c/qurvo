@@ -7,6 +7,7 @@ import type { AiScheduledJob, Database } from '@qurvo/db';
 import { DRIZZLE } from '@qurvo/nestjs-infra';
 import { NotificationService } from './notification.service';
 import { AiRunnerService } from './ai-runner.service';
+import { SCHEDULED_JOBS_CHECK_INTERVAL_MS, SCHEDULED_JOBS_INITIAL_DELAY_MS } from '../constants';
 
 export function isDue(job: Pick<AiScheduledJob, 'last_run_at' | 'schedule'>, now: Date): boolean {
   if (!job.last_run_at) return true; // Never ran before
@@ -24,9 +25,6 @@ export function isDue(job: Pick<AiScheduledJob, 'last_run_at' | 'schedule'>, now
   }
   return false;
 }
-
-const SCHEDULED_JOBS_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const SCHEDULED_JOBS_INITIAL_DELAY_MS = 60_000; // 60s
 
 @Injectable()
 export class ScheduledJobsService extends PeriodicWorkerMixin {
