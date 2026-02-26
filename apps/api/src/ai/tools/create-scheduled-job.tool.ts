@@ -3,19 +3,10 @@ import { z } from 'zod';
 import { AiScheduledJobsService } from '../../ai-scheduled-jobs/ai-scheduled-jobs.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-
-const slackChannelConfigSchema = z.object({
-  webhook_url: z.string().url().describe('Slack incoming webhook URL'),
-});
-
-const emailChannelConfigSchema = z.object({
-  email: z.string().email().describe('Recipient email address'),
-});
-
-const telegramChannelConfigSchema = z.object({
-  chat_id: z.string().describe('Telegram chat ID'),
-  bot_token: z.string().describe('Telegram bot token'),
-});
+import {
+  channelConfigSchema,
+  channelConfigDescription,
+} from '../channel-config.schema';
 
 const argsSchema = z.object({
   name: z.string().min(1).max(255).describe('Human-readable name for the scheduled job (e.g. "Weekly conversion report")'),
@@ -28,16 +19,7 @@ const argsSchema = z.object({
   channel_type: z.enum(['slack', 'email', 'telegram']).describe(
     'Delivery channel for the report: "slack", "email", or "telegram".',
   ),
-  channel_config: z.union([
-    slackChannelConfigSchema,
-    emailChannelConfigSchema,
-    telegramChannelConfigSchema,
-  ]).describe(
-    'Channel configuration. ' +
-    'For slack: { webhook_url: string }. ' +
-    'For email: { email: string }. ' +
-    'For telegram: { chat_id: string, bot_token: string }.',
-  ),
+  channel_config: channelConfigSchema.describe(channelConfigDescription),
 });
 
 const tool = defineTool({

@@ -3,19 +3,10 @@ import { z } from 'zod';
 import { AiMonitorsService } from '../../ai-monitors/ai-monitors.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-
-const slackChannelConfigSchema = z.object({
-  webhook_url: z.string().url().describe('Slack incoming webhook URL'),
-});
-
-const emailChannelConfigSchema = z.object({
-  to: z.string().email().describe('Recipient email address'),
-});
-
-const telegramChannelConfigSchema = z.object({
-  bot_token: z.string().describe('Telegram bot token'),
-  chat_id: z.string().describe('Telegram chat ID'),
-});
+import {
+  channelConfigSchema,
+  channelConfigDescription,
+} from '../channel-config.schema';
 
 const argsSchema = z.object({
   event_name: z.string().min(1).max(255).describe('Name of the event to monitor (e.g. "purchase", "signup")'),
@@ -28,16 +19,7 @@ const argsSchema = z.object({
   channel_type: z.enum(['email', 'slack', 'telegram']).describe(
     'Notification channel: "email", "slack", or "telegram".',
   ),
-  channel_config: z.union([
-    slackChannelConfigSchema,
-    emailChannelConfigSchema,
-    telegramChannelConfigSchema,
-  ]).describe(
-    'Channel configuration. ' +
-    'For slack: { webhook_url: string }. ' +
-    'For email: { to: string }. ' +
-    'For telegram: { bot_token: string, chat_id: string }.',
-  ),
+  channel_config: channelConfigSchema.describe(channelConfigDescription),
 });
 
 const tool = defineTool({
