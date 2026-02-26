@@ -47,6 +47,10 @@ secrets:
   openaiApiKey: ""
   smtpUser: ""
   smtpPass: ""
+  # Bearer token for the service account used by scheduled-jobs-worker to call
+  # the internal AI API. Must be a valid unexpired session token for a user that
+  # has access to all projects whose scheduled jobs will be executed.
+  internalApiToken: ""
 
 # ==============================================================================
 # GeoIP (MaxMind GeoLite2-Country MMDB)
@@ -192,6 +196,9 @@ scheduled-jobs-worker:
     SMTP_PORT: ""
     SMTP_SECURE: ""
     SMTP_FROM: ""
+    # Internal API URL for AI chat calls (e.g. "http://qurvo-api:3000").
+    # Leave empty to disable AI integration (jobs will be skipped with a warning).
+    INTERNAL_API_URL: ""
 
 # ==============================================================================
 # Web

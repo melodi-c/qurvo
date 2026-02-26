@@ -1,6 +1,6 @@
 # Scheduled Jobs Worker App
 
-NestJS background worker. No HTTP server. Periodically evaluates active AI scheduled jobs, executes their prompts via OpenAI, and delivers results over Slack or email.
+NestJS background worker. No HTTP server. Periodically evaluates active AI scheduled jobs, calls the internal Qurvo API (AI chat with analytics tools), and delivers results over Slack, email, or Telegram.
 
 ## Commands
 
@@ -19,7 +19,8 @@ src/
 ├── tracer.ts                                   # Datadog APM init (imported first in main.ts)
 ├── scheduled-jobs/
 │   ├── scheduled-jobs.module.ts                # DrizzleProvider + services (no ClickHouse)
-│   ├── scheduled-jobs.service.ts               # Periodic cycle: due-check → OpenAI call → notify → update last_run_at
+│   ├── scheduled-jobs.service.ts               # Periodic cycle: due-check → AI runner → notify → update last_run_at
+│   ├── ai-runner.service.ts                    # Calls POST /api/ai/chat (SSE), collects assistant text
 │   ├── notification.service.ts                 # Result dispatch: Slack webhook or email via BaseNotificationService
 │   ├── shutdown.service.ts                     # Graceful shutdown: stops service, closes PG pool
 │   └── scheduled-jobs.service.unit.test.ts    # Pure unit tests for isDue scheduling logic
@@ -30,11 +31,21 @@ src/
 Every hour (initial delay: 60s after startup):
 1. Load all active jobs from `ai_scheduled_jobs` (PostgreSQL, `is_active = true`).
 2. For each job, call `isDue(job, now)` to determine if it is time to run.
-3. If due, call OpenAI Chat Completions API with the job's `prompt`.
-4. Send the AI response via the configured notification channel (Slack or email).
+3. If due, call `AiRunnerService.runPrompt(projectId, prompt)` — sends the prompt to the internal API (`POST /api/ai/chat`) and streams the SSE response, collecting the final assistant text. The AI has access to all analytics tools (ClickHouse event data, cohorts, trends, etc.).
+4. Send the AI response via the configured notification channel (Slack, email, or Telegram).
 5. Update `last_run_at` and `updated_at` in PostgreSQL.
 
-If `OPENAI_API_KEY` is not set, the worker starts but skips all AI calls and logs a warning per job.
+If `INTERNAL_API_URL` or `INTERNAL_API_TOKEN` is not set, the worker starts but skips all AI calls and logs a warning per job.
+
+### AI Runner (`AiRunnerService`)
+
+Calls `POST /api/ai/chat` with `Bearer ${INTERNAL_API_TOKEN}`. This endpoint accepts `{ project_id, message }` and streams an SSE response. The runner:
+- Collects `text_delta` chunks into the final assistant text
+- Handles `error` events by throwing
+- Ignores `conversation`, `tool_call_start`, `tool_result`, `done` events
+- Returns `'(no response)'` if the stream produces no text
+
+The bearer token must be a valid, non-expired session token for a user who has access to the project. Token is stored as `INTERNAL_API_TOKEN` secret.
 
 ### Scheduling Logic (`isDue`)
 
@@ -49,11 +60,12 @@ Monthly scheduling uses `Date.setMonth(+1)`, not a fixed 30-day offset. JS overf
 
 ### Environment Variables
 
-| variable          | purpose                                          | default        |
-|-------------------|--------------------------------------------------|----------------|
-| `OPENAI_API_KEY`  | Required for AI calls; if absent, jobs are skipped | —            |
-| `OPENAI_MODEL`    | Model to use for chat completions                | `gpt-4o-mini`  |
-| `OPENAI_BASE_URL` | Optional custom base URL (e.g. Azure proxy)      | OpenAI default |
+| variable              | purpose                                                           | default |
+|-----------------------|-------------------------------------------------------------------|---------|
+| `INTERNAL_API_URL`    | Base URL of the internal Qurvo API (e.g. `http://qurvo-api:3000`) | —       |
+| `INTERNAL_API_TOKEN`  | Bearer token for auth (valid session token for a project member)  | —       |
+
+Both must be set for AI calls. If either is absent, jobs are skipped with a warning.
 
 ### Notification Channels
 

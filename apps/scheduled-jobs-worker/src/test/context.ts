@@ -28,8 +28,9 @@ async function bootstrap(): Promise<TestContext> {
   const ctx = await setupContainers();
 
   process.env.DATABASE_URL = ctx.pgUrl;
-  // Remove OPENAI_API_KEY to ensure tests run without real API calls
-  delete process.env.OPENAI_API_KEY;
+  // Remove AI runner env vars to ensure tests run without real API calls
+  delete process.env.INTERNAL_API_URL;
+  delete process.env.INTERNAL_API_TOKEN;
 
   const testProject = await createTestProject(ctx.db);
 
