@@ -89,7 +89,7 @@ export default function Layout() {
             onProjectSwitch={(id) => navigate(`/projects/${id}/dashboards`)}
             selectProjectLabel={t('selectProject')}
             switchProjectLabel={t('switchProject')}
-            newProjectLabel={t('newProject')}
+            manageProjectsLabel={t('manageProjects')}
             demoBadgeLabel={t('demo')}
           />
         )}
