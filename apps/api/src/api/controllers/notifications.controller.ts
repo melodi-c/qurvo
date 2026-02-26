@@ -2,6 +2,7 @@ import { Controller, Post, Body, Param, UseGuards, HttpCode, HttpStatus } from '
 import { ApiBearerAuth, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import { NotificationService } from '../../notifications/notification.service';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
+import { RequireRole } from '../decorators/require-role.decorator';
 import { TestNotificationDto } from '../dto/notifications.dto';
 
 @ApiTags('Notifications')
@@ -12,6 +13,7 @@ export class NotificationsController {
   constructor(private readonly notificationService: NotificationService) {}
 
   @Post('test')
+  @RequireRole('editor')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
   async testNotification(
