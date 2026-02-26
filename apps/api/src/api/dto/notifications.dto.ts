@@ -14,8 +14,3 @@ export class TestNotificationDto {
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;
 }
-
-export class TestNotificationResponseDto {
-  @ApiProperty()
-  ok: boolean;
-}
