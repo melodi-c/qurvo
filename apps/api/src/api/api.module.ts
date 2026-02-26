@@ -16,6 +16,7 @@ import { DefinitionsModule } from '../definitions/definitions.module';
 import { WebAnalyticsModule } from '../web-analytics/web-analytics.module';
 import { BillingModule } from '../billing/billing.module';
 import { IngestionWarningsModule } from '../ingestion-warnings/ingestion-warnings.module';
+import { DemoModule } from '../demo/demo.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -77,6 +78,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     WebAnalyticsModule,
     BillingModule,
     IngestionWarningsModule,
+    DemoModule,
   ],
   controllers: [
     AuthController,
