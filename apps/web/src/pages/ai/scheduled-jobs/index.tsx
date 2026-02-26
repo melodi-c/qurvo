@@ -14,6 +14,7 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useScheduledJobs, useDeleteScheduledJob } from '@/features/ai-scheduled-jobs/use-scheduled-jobs';
 import type { AiScheduledJob } from '@/api/generated/Api';
 import { ScheduledJobFormDialog } from './scheduled-job-form-dialog';
+import { AiTabNav } from '../ai-tab-nav';
 import translations from './scheduled-jobs.translations';
 import { extractApiErrorMessage } from '@/lib/utils';
 
@@ -130,6 +131,8 @@ export default function ScheduledJobsPage() {
           {t('newJob')}
         </Button>
       </PageHeader>
+
+      <AiTabNav />
 
       {isLoading && <ListSkeleton count={3} />}
 
