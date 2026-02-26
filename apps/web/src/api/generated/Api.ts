@@ -2815,6 +2815,23 @@ export class Api<
     /**
      * No description
      *
+     * @tags Projects
+     * @name ProjectsControllerCreateDemo
+     * @request POST:/api/projects/demo
+     * @secure
+     */
+    projectsControllerCreateDemo: (params: RequestParams = {}) =>
+      this.request<Project, any>({
+        path: `/api/projects/demo`,
+        method: "POST",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
      * @tags API Keys
      * @name ApiKeysControllerList
      * @request GET:/api/projects/{projectId}/keys

@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Plus, FolderOpen, AlertTriangle } from 'lucide-react';
+import { Plus, FolderOpen, AlertTriangle, Sparkles } from 'lucide-react';
 import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './projects.translations';
@@ -43,6 +43,16 @@ export default function ProjectsPage() {
       setShowCreate(false);
       setName('');
     },
+  });
+
+  const createDemoMutation = useMutation({
+    mutationFn: () => api.projectsControllerCreateDemo(),
+    onSuccess: async (demoProject) => {
+      await queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success(t('demoCreated'));
+      navigate(`${routes.dashboards.list()}?project=${demoProject.id}`);
+    },
+    onError: () => toast.error(t('demoFailed')),
   });
 
   const deleteMutation = useMutation({
@@ -104,9 +114,24 @@ export default function ProjectsPage() {
               />
             </div>
           ) : (
-            <Button onClick={() => setShowCreate(true)} size="lg">
-              <Plus className="h-4 w-4 mr-2" /> {t('newProject')}
-            </Button>
+            <div className="flex flex-col items-center gap-3 w-full">
+              <Button onClick={() => setShowCreate(true)} size="lg">
+                <Plus className="h-4 w-4 mr-2" /> {t('newProject')}
+              </Button>
+              <span className="text-xs text-muted-foreground">{t('orLabel')}</span>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => createDemoMutation.mutate()}
+                disabled={createDemoMutation.isPending}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                {createDemoMutation.isPending ? t('demoCreating') : t('tryDemo')}
+              </Button>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                {t('tryDemoDescription')}
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -116,9 +141,19 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t('title')}>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4 mr-2" /> {t('newProject')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => createDemoMutation.mutate()}
+            disabled={createDemoMutation.isPending}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            {createDemoMutation.isPending ? t('demoCreating') : t('tryDemo')}
+          </Button>
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4 mr-2" /> {t('newProject')}
+          </Button>
+        </div>
       </PageHeader>
 
       {showCreate && (
