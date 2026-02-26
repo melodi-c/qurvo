@@ -138,72 +138,11 @@ export class AiService implements OnModuleInit {
     yield { type: 'conversation', conversation_id: conversation.id, title: conversation.title };
 
     try {
-      // Handle edit: truncate history and update the edited message
-      if (params.edit_sequence !== undefined) {
-        await this.chatService.deleteMessagesAfterSequence(conversation.id, params.edit_sequence);
-        await this.chatService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
-      }
-
-      // Build messages
-      const projectContext = await this.contextService.getProjectContext(params.project_id);
-      const today = new Date().toISOString().split('T')[0];
-      const systemContent = buildSystemPrompt(today, projectContext, params.language);
-
-      const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
-
-      // Load history with summarization
-      let totalMessageCount = 0;
-      let existingSummary: string | null = null;
-      let summaryFailed = false;
-      if (!isNew) {
-        totalMessageCount = await this.chatService.getMessageCount(conversation.id);
-
-        if (totalMessageCount > AI_SUMMARY_THRESHOLD) {
-          // Use the already-loaded conversation record to get any cached summary
-          existingSummary = conversation.history_summary ?? null;
-          summaryFailed = conversation.summary_failed ?? false;
-
-          // Inject cached summary as a system message if available
-          if (existingSummary) {
-            messages.push({
-              role: 'system',
-              content: `## Summary of earlier conversation\n\n${existingSummary}`,
-            });
-          }
-
-          // Only load the most recent messages verbatim
-          const { messages: recentHistory } = await this.chatService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
-          this.appendHistoryMessages(messages, recentHistory);
-        } else {
-          // Conversation is short enough — load all messages
-          const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
-          this.appendHistoryMessages(messages, history);
-        }
-      }
-
-      // For an edit, history already includes the updated user message at edit_sequence.
-      // The last message in `messages` is already the edited user message — skip re-adding.
-      let seq: number;
-      if (params.edit_sequence !== undefined) {
-        // seq starts right after the edited message (all later messages were deleted)
-        seq = params.edit_sequence + 1;
-      } else {
-        // Add user message normally
-        messages.push({ role: 'user', content: params.message });
-        seq = await this.chatService.getNextSequence(conversation.id);
-        await this.chatService.saveMessage(conversation.id, seq++, {
-          role: 'user',
-          content: params.message,
-          tool_calls: null,
-          tool_call_id: null,
-          tool_name: null,
-          tool_result: null,
-          visualization_type: null,
-        });
-      }
+      const { messages, seq: initialSeq, shouldSummarize, existingSummary, summaryFailed, totalMessageCount } =
+        await this.buildMessageHistory(conversation, isNew, params, userId);
 
       // Run tool-call loop
-      seq = yield* this.runToolCallLoop(client, messages, conversation.id, seq, userId, params.project_id);
+      const seq = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
 
       // Update summary when history exceeds the threshold.
       // Always refresh on first crossing (no existing summary), or when the
@@ -212,6 +151,7 @@ export class AiService implements OnModuleInit {
       const currentCount = seq; // seq is the next sequence number, i.e. total messages saved
       const shouldRefreshSummary =
         !summaryFailed &&
+        shouldSummarize &&
         currentCount > AI_SUMMARY_THRESHOLD &&
         (!existingSummary || currentCount - totalMessageCount >= AI_SUMMARY_KEEP_RECENT);
       if (shouldRefreshSummary) {
@@ -229,6 +169,88 @@ export class AiService implements OnModuleInit {
         this.logger.warn({ err, conversationId: conversation.id }, 'Failed to finalize conversation on cleanup');
       });
     }
+  }
+
+  private async buildMessageHistory(
+    conversation: { id: string; history_summary?: string | null; summary_failed?: boolean | null },
+    isNew: boolean,
+    params: { message: string; edit_sequence?: number; project_id: string; language?: string },
+    _userId: string,
+  ): Promise<{
+    messages: ChatCompletionMessageParam[];
+    seq: number;
+    shouldSummarize: boolean;
+    existingSummary: string | null;
+    summaryFailed: boolean;
+    totalMessageCount: number;
+  }> {
+    // Handle edit: truncate history and update the edited message
+    if (params.edit_sequence !== undefined) {
+      await this.chatService.deleteMessagesAfterSequence(conversation.id, params.edit_sequence);
+      await this.chatService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
+    }
+
+    // Build messages
+    const projectContext = await this.contextService.getProjectContext(params.project_id);
+    const today = new Date().toISOString().split('T')[0];
+    const systemContent = buildSystemPrompt(today, projectContext, params.language);
+
+    const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
+
+    // Load history with summarization
+    let totalMessageCount = 0;
+    let existingSummary: string | null = null;
+    let summaryFailed = false;
+    let shouldSummarize = false;
+    if (!isNew) {
+      totalMessageCount = await this.chatService.getMessageCount(conversation.id);
+
+      if (totalMessageCount > AI_SUMMARY_THRESHOLD) {
+        shouldSummarize = true;
+        // Use the already-loaded conversation record to get any cached summary
+        existingSummary = conversation.history_summary ?? null;
+        summaryFailed = conversation.summary_failed ?? false;
+
+        // Inject cached summary as a system message if available
+        if (existingSummary) {
+          messages.push({
+            role: 'system',
+            content: `## Summary of earlier conversation\n\n${existingSummary}`,
+          });
+        }
+
+        // Only load the most recent messages verbatim
+        const { messages: recentHistory } = await this.chatService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
+        this.appendHistoryMessages(messages, recentHistory);
+      } else {
+        // Conversation is short enough — load all messages
+        const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
+        this.appendHistoryMessages(messages, history);
+      }
+    }
+
+    // For an edit, history already includes the updated user message at edit_sequence.
+    // The last message in `messages` is already the edited user message — skip re-adding.
+    let seq: number;
+    if (params.edit_sequence !== undefined) {
+      // seq starts right after the edited message (all later messages were deleted)
+      seq = params.edit_sequence + 1;
+    } else {
+      // Add user message normally
+      messages.push({ role: 'user', content: params.message });
+      seq = await this.chatService.getNextSequence(conversation.id);
+      await this.chatService.saveMessage(conversation.id, seq++, {
+        role: 'user',
+        content: params.message,
+        tool_calls: null,
+        tool_call_id: null,
+        tool_name: null,
+        tool_result: null,
+        visualization_type: null,
+      });
+    }
+
+    return { messages, seq, shouldSummarize, existingSummary, summaryFailed, totalMessageCount };
   }
 
   private appendHistoryMessages(
