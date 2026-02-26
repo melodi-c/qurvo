@@ -9,6 +9,8 @@ export default createTranslations({
     tryAdjusting: 'Try adjusting the date range or steps',
     refresh: 'Refresh',
     fresh: 'fresh',
+    step1Label: 'Step 1',
+    step2Label: 'Step 2',
   },
   ru: {
     noInsightLinked: 'Инсайт не привязан',
@@ -18,5 +20,7 @@ export default createTranslations({
     tryAdjusting: 'Попробуйте изменить диапазон дат или шаги',
     refresh: 'Обновить',
     fresh: 'актуально',
+    step1Label: 'Шаг 1',
+    step2Label: 'Шаг 2',
   },
 });

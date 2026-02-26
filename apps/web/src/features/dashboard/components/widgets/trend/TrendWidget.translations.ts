@@ -11,6 +11,7 @@ export default createTranslations({
     adjustRange: 'Try adjusting the date range or series',
     fresh: 'fresh',
     refresh: 'Refresh',
+    seriesLabel: 'Series 1',
   },
   ru: {
     noInsight: 'Инсайт не привязан',
@@ -22,5 +23,6 @@ export default createTranslations({
     adjustRange: 'Попробуйте изменить диапазон дат или серии',
     fresh: 'актуально',
     refresh: 'Обновить',
+    seriesLabel: 'Серия 1',
   },
 });
