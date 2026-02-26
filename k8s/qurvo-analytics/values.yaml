@@ -211,6 +211,13 @@ storybook:
       cpu: "100m"
       memory: "64Mi"
   basicAuth:
+    # REQUIRED when storybook.enabled=true.
+    # Must be set in values.local-secrets.yaml (this file is gitignored).
+    # Generate with: htpasswd -nb <user> <password>
+    # Example entry in values.local-secrets.yaml:
+    #   storybook:
+    #     basicAuth:
+    #       htpasswd: "admin:$apr1$xyz..."
     htpasswd: ""
 
 # ==============================================================================
