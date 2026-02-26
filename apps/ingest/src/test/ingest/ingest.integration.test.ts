@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { createHash } from 'crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -11,8 +10,6 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
-import { eq } from 'drizzle-orm';
-import { apiKeys } from '@qurvo/db';
 import { AppModule } from '../../app.module';
 import {
   REDIS_STREAM_EVENTS,
@@ -258,90 +255,37 @@ describe('API key auth', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 401 for an expired API key', async () => {
-    const tp = await createTestProject(ctx.db);
+  it('returns 401 for a non-existent token (cache miss path)', async () => {
+    // Clear any cached entry first
+    const fakeToken = 'fake_token_that_does_not_exist_in_db';
+    await ctx.redis.del(`project_token:${fakeToken}`);
 
-    // Set expires_at in the past
-    await ctx.db
-      .update(apiKeys)
-      .set({ expires_at: new Date('2020-01-01') } as any)
-      .where(eq(apiKeys.id, tp.apiKeyId));
-
-    // Clear Redis cache so the guard hits the DB
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.del(`apikey:${keyHash}`);
-
-    const res = await postBatch(app, tp.apiKey, {
+    const res = await postBatch(app, fakeToken, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
     });
     expect(res.status).toBe(401);
   });
 
-  it('returns 401 for a revoked API key', async () => {
+  it('uses Redis cache for subsequent requests with the same token', async () => {
     const tp = await createTestProject(ctx.db);
 
-    // Revoke the key
-    await ctx.db
-      .update(apiKeys)
-      .set({ revoked_at: new Date() } as any)
-      .where(eq(apiKeys.id, tp.apiKeyId));
-
-    // Clear Redis cache so the guard hits the DB
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.del(`apikey:${keyHash}`);
-
-    const res = await postBatch(app, tp.apiKey, {
-      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    // First request — DB lookup, populates cache
+    const res1 = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'e1', distinct_id: 'u1', timestamp: new Date().toISOString() }],
     });
-    expect(res.status).toBe(401);
-  });
+    expect(res1.status).toBe(202);
 
-  it('returns 401 for a revoked key found in Redis cache', async () => {
-    const tp = await createTestProject(ctx.db);
+    // Verify cache was populated
+    const cached = await ctx.redis.get(`project_token:${tp.apiKey}`);
+    expect(cached).not.toBeNull();
+    const parsed = JSON.parse(cached!);
+    expect(parsed.project_id).toBe(tp.projectId);
 
-    // Seed the Redis cache directly with a revoked entry
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.set(
-      `apikey:${keyHash}`,
-      JSON.stringify({
-        project_id: tp.projectId,
-        key_id: tp.apiKeyId,
-        expires_at: null,
-        revoked_at: new Date().toISOString(),
-        events_limit: null,
-      }),
-      'EX',
-      60,
-    );
-
-    const res = await postBatch(app, tp.apiKey, {
-      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    // Second request — cache hit
+    const res2 = await postBatch(app, tp.apiKey, {
+      events: [{ event: 'e2', distinct_id: 'u2', timestamp: new Date().toISOString() }],
     });
-    expect(res.status).toBe(401);
-  });
-
-  it('returns 401 for an expired key found in Redis cache', async () => {
-    const tp = await createTestProject(ctx.db);
-
-    // Seed the Redis cache directly with an expired entry
-    const keyHash = createHash('sha256').update(tp.apiKey).digest('hex');
-    await ctx.redis.set(
-      `apikey:${keyHash}`,
-      JSON.stringify({
-        project_id: tp.projectId,
-        key_id: tp.apiKeyId,
-        expires_at: '2020-01-01T00:00:00.000Z',
-        revoked_at: null,
-        events_limit: null,
-      }),
-      'EX',
-      60,
-    );
-
-    const res = await postBatch(app, tp.apiKey, {
-      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
-    });
-    expect(res.status).toBe(401);
+    expect(res2.status).toBe(202);
   });
 });
 

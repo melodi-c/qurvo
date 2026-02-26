@@ -2,7 +2,7 @@ import { Controller, Get, Patch, Body, Param, UseGuards, ParseUUIDPipe } from '@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from '@qurvo/db';
-import { projects, plans, projectMembers, users, apiKeys } from '@qurvo/db';
+import { projects, plans, projectMembers, users } from '@qurvo/db';
 import { Inject } from '@nestjs/common';
 import { DRIZZLE } from '../../providers/drizzle.provider';
 import { IsStaffGuard } from '../guards/is-staff.guard';
@@ -55,6 +55,7 @@ export class AdminProjectsController {
         id: projects.id,
         name: projects.name,
         slug: projects.slug,
+        token: projects.token,
         plan_id: projects.plan_id,
         plan_name: plans.name,
         created_at: projects.created_at,
@@ -81,16 +82,8 @@ export class AdminProjectsController {
       .innerJoin(users, eq(projectMembers.user_id, users.id))
       .where(eq(projectMembers.project_id, id));
 
-    const apiKeyCountRows = await this.db
-      .select({ api_key_count: sql<number>`COUNT(*)::int` })
-      .from(apiKeys)
-      .where(eq(apiKeys.project_id, id));
-
-    const api_key_count = apiKeyCountRows[0]?.api_key_count ?? 0;
-
     return {
       ...project,
-      api_key_count,
       members: memberRows,
     } as any;
   }

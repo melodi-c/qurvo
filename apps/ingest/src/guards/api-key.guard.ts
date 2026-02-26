@@ -1,25 +1,21 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, UnauthorizedException, Logger } from '@nestjs/common';
-import * as crypto from 'crypto';
 import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
-import { apiKeys } from '@qurvo/db';
+import { projects } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, API_KEY_MAX_LENGTH } from '../constants';
 
-function isValidApiKeyFormat(key: string): boolean {
-  if (key.length > API_KEY_MAX_LENGTH) return false;
-  for (let i = 0; i < key.length; i++) {
-    const code = key.charCodeAt(i);
+function isValidTokenFormat(token: string): boolean {
+  if (token.length > API_KEY_MAX_LENGTH) return false;
+  for (let i = 0; i < token.length; i++) {
+    const code = token.charCodeAt(i);
     if (code < 0x20 || code > 0x7e) return false; // printable ASCII only
   }
   return true;
 }
 
-interface CachedKeyInfo {
+interface CachedProjectInfo {
   project_id: string;
-  key_id: string;
-  expires_at: string | null;
-  revoked_at: string | null;
 }
 
 @Injectable()
@@ -36,86 +32,59 @@ export class ApiKeyGuard implements CanActivate {
 
     const fromHeader = request.headers[API_KEY_HEADER];
     const fromBody = (request.body as Record<string, unknown> | null)?.api_key;
-    const apiKey = (typeof fromHeader === 'string' && fromHeader) || (typeof fromBody === 'string' && fromBody) || null;
+    const token = (typeof fromHeader === 'string' && fromHeader) || (typeof fromBody === 'string' && fromBody) || null;
 
-    if (!apiKey) {
+    if (!token) {
       throw new UnauthorizedException('Missing API key');
     }
 
-    if (!isValidApiKeyFormat(apiKey)) {
+    if (!isValidTokenFormat(token)) {
       throw new UnauthorizedException('Invalid API key format');
     }
 
-    const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
-    const cacheKey = `apikey:${keyHash}`;
+    const cacheKey = `project_token:${token}`;
 
     let cached: string | null = null;
     try {
       cached = await this.redis.get(cacheKey);
     } catch (err) {
-      this.logger.error({ err }, 'Redis error reading API key cache — falling back to DB');
+      this.logger.error({ err }, 'Redis error reading project token cache — falling back to DB');
     }
 
     if (cached) {
-      this.logger.debug('API key cache hit');
-      const info: CachedKeyInfo = JSON.parse(cached);
-      if (info.revoked_at) {
-        throw new UnauthorizedException('API key revoked');
-      }
-      if (info.expires_at && new Date(info.expires_at) < new Date()) {
-        throw new UnauthorizedException('API key expired');
-      }
+      this.logger.debug('Project token cache hit');
+      const info: CachedProjectInfo = JSON.parse(cached);
       request.projectId = info.project_id;
       request.quotaLimited = false;
       return true;
     }
 
-    this.logger.debug('API key cache miss, querying database');
+    this.logger.debug('Project token cache miss, querying database');
 
     const result = await this.db
       .select({
-        key_id: apiKeys.id,
-        project_id: apiKeys.project_id,
-        expires_at: apiKeys.expires_at,
-        revoked_at: apiKeys.revoked_at,
+        project_id: projects.id,
       })
-      .from(apiKeys)
-      .where(eq(apiKeys.key_hash, keyHash))
+      .from(projects)
+      .where(eq(projects.token, token))
       .limit(1);
 
     if (result.length === 0) {
-      this.logger.warn('Invalid API key');
+      this.logger.warn('Invalid project token');
       throw new UnauthorizedException('Invalid API key');
     }
 
-    const keyInfo = result[0];
+    const projectInfo = result[0];
 
-    if (keyInfo.revoked_at) {
-      this.logger.warn({ keyId: keyInfo.key_id }, 'Revoked API key');
-      throw new UnauthorizedException('API key revoked');
-    }
-
-    if (keyInfo.expires_at && keyInfo.expires_at < new Date()) {
-      this.logger.warn({ keyId: keyInfo.key_id }, 'Expired API key');
-      throw new UnauthorizedException('API key expired');
-    }
-
-    const info: CachedKeyInfo = {
-      project_id: keyInfo.project_id,
-      key_id: keyInfo.key_id,
-      expires_at: keyInfo.expires_at?.toISOString() ?? null,
-      revoked_at: null,
+    const info: CachedProjectInfo = {
+      project_id: projectInfo.project_id,
     };
     this.redis.set(cacheKey, JSON.stringify(info), 'EX', API_KEY_CACHE_TTL_SECONDS)
-      .catch((err: unknown) => this.logger.error({ err }, 'Failed to write API key cache'));
+      .catch((err: unknown) => this.logger.error({ err }, 'Failed to write project token cache'));
 
-    this.db.update(apiKeys).set({ last_used_at: new Date() }).where(eq(apiKeys.id, keyInfo.key_id))
-      .execute()
-      .catch((err: unknown) => this.logger.error({ err, keyId: keyInfo.key_id }, 'Failed to update last_used_at'));
+    this.logger.debug({ projectId: projectInfo.project_id }, 'Project token authenticated');
 
-    this.logger.debug({ projectId: keyInfo.project_id }, 'API key authenticated');
-
-    request.projectId = keyInfo.project_id;
+    request.projectId = projectInfo.project_id;
     request.quotaLimited = false;
     return true;
   }

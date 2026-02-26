@@ -26,7 +26,7 @@ pnpm generate-api                    # swagger.json → apps/web/src/api/generat
 | `ApiModule` | HTTP infra | Guards, filters, decorators, DTOs |
 | `AuthModule` | Auth | Login/register/logout, sessions, `AuthGuard`, `AccountService` (profile/password) |
 | `ProjectsModule` | Projects CRUD | Project management, members |
-| `ApiKeysModule` | API keys CRUD | Key create/revoke for SDK auth |
+| — | _(removed)_ | API keys replaced by `token` field on `projects` |
 | `EventsModule` | Event explorer | Paginated event queries from ClickHouse |
 | `PersonsModule` | User profiles | Person list, detail, events by person |
 | `AnalyticsModule` | Analytics queries | Factory-based providers for Trend, Funnel, Retention, Lifecycle, Stickiness, Paths |
@@ -50,7 +50,7 @@ src/
 │   └── paths/         # PathsService, paths.query.ts
 ├── auth/              # AuthService, AuthGuard, session management
 ├── projects/          # ProjectsService, ProjectsController
-├── api-keys/          # ApiKeysService, ApiKeysController
+├── projects/          # ProjectsService (creates token on project creation)
 ├── events/            # EventsService (ClickHouse queries)
 ├── persons/           # PersonsService (ClickHouse queries)
 ├── cohorts/           # CohortsService, cohorts.query.ts

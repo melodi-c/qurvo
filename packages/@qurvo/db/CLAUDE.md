@@ -15,7 +15,7 @@ pnpm --filter @qurvo/db db:migrate    # tsx src/migrate.ts (apply migrations)
 
 ```typescript
 import { createDb, type Database } from '@qurvo/db';
-import { users, sessions, projects, apiKeys, ... } from '@qurvo/db';
+import { users, sessions, projects, ... } from '@qurvo/db';
 ```
 
 - `createDb(databaseUrl)` — creates Drizzle client with `postgres` driver
@@ -28,9 +28,8 @@ import { users, sessions, projects, apiKeys, ... } from '@qurvo/db';
 |---|---|---|
 | `users` | `schema/users.ts` | User accounts (email, password hash) |
 | `sessions` | `schema/sessions.ts` | Bearer token sessions (SHA-256 hash) |
-| `projects` | `schema/projects.ts` | Analytics projects |
+| `projects` | `schema/projects.ts` | Analytics projects (includes `token` field for SDK auth) |
 | `project_members` | `schema/project-members.ts` | Project membership |
-| `api_keys` | `schema/api-keys.ts` | SDK API keys (SHA-256 hash) |
 | `persons` | `schema/persons.ts` | Resolved person entities |
 | `person_distinct_ids` | `schema/person-distinct-ids.ts` | Distinct ID → person mapping |
 | `cohorts` | `schema/cohorts.ts` | Saved cohort definitions |

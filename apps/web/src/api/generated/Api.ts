@@ -137,6 +137,7 @@ export interface ProjectWithRole {
   id: string;
   name: string;
   slug: string;
+  token: string;
   plan: string | null;
   is_demo: boolean;
   /** @format date-time */
@@ -157,6 +158,7 @@ export interface Project {
   id: string;
   name: string;
   slug: string;
+  token: string;
   plan: string | null;
   is_demo: boolean;
   /** @format date-time */
@@ -171,40 +173,6 @@ export interface UpdateProject {
    * @maxLength 100
    */
   name?: string;
-}
-
-export interface ApiKey {
-  id: string;
-  name: string;
-  key_prefix: string;
-  scopes: string[];
-  /** @format date-time */
-  last_used_at: string | null;
-  /** @format date-time */
-  expires_at: string | null;
-  /** @format date-time */
-  revoked_at: string | null;
-  /** @format date-time */
-  created_at: string;
-}
-
-export interface CreateApiKey {
-  /**
-   * @minLength 1
-   * @maxLength 100
-   */
-  name: string;
-  scopes?: string[];
-  expires_at?: string;
-}
-
-export interface ApiKeyCreated {
-  id: string;
-  name: string;
-  key: string;
-  key_prefix: string;
-  /** @format date-time */
-  created_at: string;
 }
 
 export interface FunnelExclusion {
@@ -1362,9 +1330,9 @@ export interface AdminProjectDetail {
   id: string;
   name: string;
   slug: string;
+  token: string;
   plan_id: string | null;
   plan_name: string | null;
-  api_key_count: number;
   /** @format date-time */
   created_at: string;
 }
@@ -1580,19 +1548,6 @@ export interface ProjectsControllerUpdateParams {
 
 export interface ProjectsControllerRemoveParams {
   id: string;
-}
-
-export interface ApiKeysControllerListParams {
-  projectId: string;
-}
-
-export interface ApiKeysControllerCreateParams {
-  projectId: string;
-}
-
-export interface ApiKeysControllerRevokeParams {
-  projectId: string;
-  keyId: string;
 }
 
 export interface FunnelControllerGetFunnelParams {
@@ -2826,68 +2781,6 @@ export class Api<
         method: "POST",
         secure: true,
         format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags API Keys
-     * @name ApiKeysControllerList
-     * @request GET:/api/projects/{projectId}/keys
-     * @secure
-     */
-    apiKeysControllerList: (
-      { projectId, ...query }: ApiKeysControllerListParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<ApiKey[], any>({
-        path: `/api/projects/${projectId}/keys`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags API Keys
-     * @name ApiKeysControllerCreate
-     * @request POST:/api/projects/{projectId}/keys
-     * @secure
-     */
-    apiKeysControllerCreate: (
-      { projectId, ...query }: ApiKeysControllerCreateParams,
-      data: CreateApiKey,
-      params: RequestParams = {},
-    ) =>
-      this.request<ApiKeyCreated, any>({
-        path: `/api/projects/${projectId}/keys`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags API Keys
-     * @name ApiKeysControllerRevoke
-     * @request DELETE:/api/projects/{projectId}/keys/{keyId}
-     * @secure
-     */
-    apiKeysControllerRevoke: (
-      { projectId, keyId, ...query }: ApiKeysControllerRevokeParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/keys/${keyId}`,
-        method: "DELETE",
-        secure: true,
         ...params,
       }),
 

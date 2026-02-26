@@ -1,5 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and, ne } from 'drizzle-orm';
+import * as crypto from 'crypto';
 import { projects, projectMembers, plans } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import type { Database } from '@qurvo/db';
@@ -15,6 +16,7 @@ const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
   slug: projects.slug,
+  token: projects.token,
   plan: plans.slug,
   is_demo: projects.is_demo,
   created_at: projects.created_at,
@@ -52,7 +54,7 @@ export class ProjectsService {
 
   async getBySlug(userId: string, slug: string) {
     const [project] = await this.db
-      .select({ ...PROJECT_COLUMNS, demo_scenario: projects.demo_scenario })
+      .select({ ...PROJECT_COLUMNS, demo_scenario: projects.demo_scenario, token: projects.token })
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.project_id, projects.id))
       .leftJoin(plans, eq(projects.plan_id, plans.id))
@@ -72,9 +74,12 @@ export class ProjectsService {
         .where(eq(plans.slug, 'free'))
         .limit(1);
 
+      const token = crypto.randomBytes(24).toString('base64url');
+
       const [created] = await tx.insert(projects).values({
         name: input.name,
         slug,
+        token,
         plan_id: freePlan[0]?.id ?? null,
         is_demo: input.is_demo ?? false,
         demo_scenario: input.demo_scenario ?? null,

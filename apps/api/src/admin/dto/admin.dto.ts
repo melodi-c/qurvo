@@ -82,9 +82,9 @@ export class AdminProjectDetailDto {
   id: string;
   name: string;
   slug: string;
+  token: string;
   plan_id: string | null;
   plan_name: string | null;
-  api_key_count: number;
   created_at: Date;
   @ApiProperty({ type: [AdminProjectMemberDto] })
   members: AdminProjectMemberDto[];

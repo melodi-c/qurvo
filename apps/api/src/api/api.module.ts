@@ -2,7 +2,6 @@ import { Module, HttpStatus } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { AuthModule } from '../auth/auth.module';
 import { ProjectsModule } from '../projects/projects.module';
-import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { EventsModule } from '../events/events.module';
 import { DashboardsModule } from '../dashboards/dashboards.module';
@@ -22,7 +21,6 @@ import { AiInsightsModule } from '../ai-insights/ai-insights.module';
 import { AiScheduledJobsModule } from '../ai-scheduled-jobs/ai-scheduled-jobs.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
-import { ApiKeysController } from './controllers/api-keys.controller';
 import { FunnelController } from './controllers/funnel.controller';
 import { EventsController } from './controllers/events.controller';
 import { TrendController } from './controllers/trend.controller';
@@ -71,7 +69,6 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
   imports: [
     AuthModule,
     ProjectsModule,
-    ApiKeysModule,
     AnalyticsModule,
     EventsModule,
     DashboardsModule,
@@ -93,7 +90,6 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
   controllers: [
     AuthController,
     ProjectsController,
-    ApiKeysController,
     FunnelController,
     EventsController,
     TrendController,

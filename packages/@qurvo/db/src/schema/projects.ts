@@ -5,6 +5,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 100 }).notNull(),
   slug: varchar('slug', { length: 100 }).notNull().unique(),
+  token: varchar('token').notNull().unique(),
   plan_id: uuid('plan_id').references(() => plans.id),
   is_demo: boolean('is_demo').notNull().default(false),
   demo_scenario: varchar('demo_scenario', { length: 50 }),

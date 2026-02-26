@@ -1,24 +1,19 @@
-import { randomUUID, randomBytes, createHash } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import type { Database } from '@qurvo/db';
-import { users, projects, apiKeys, projectMembers } from '@qurvo/db';
+import { users, projects, projectMembers } from '@qurvo/db';
 import type { ClickHouseClient, Event } from '@qurvo/clickhouse';
 
 export interface TestProject {
   projectId: string;
   userId: string;
-  apiKeyId: string;
   apiKey: string;
-  apiKeyHash: string;
 }
 
 export async function createTestProject(db: Database): Promise<TestProject> {
   const projectId = randomUUID();
   const userId = randomUUID();
-  const apiKeyId = randomUUID();
 
-  const rawKey = `test_${randomBytes(24).toString('hex')}`;
-  const keyHash = createHash('sha256').update(rawKey).digest('hex');
-  const keyPrefix = rawKey.slice(0, 8);
+  const token = `test_${randomBytes(24).toString('base64url')}`;
   const slug = `test-project-${randomBytes(4).toString('hex')}`;
 
   await db.insert(users).values({
@@ -32,6 +27,7 @@ export async function createTestProject(db: Database): Promise<TestProject> {
     id: projectId,
     name: 'Test Project',
     slug,
+    token,
   } as any);
 
   await db.insert(projectMembers).values({
@@ -40,16 +36,7 @@ export async function createTestProject(db: Database): Promise<TestProject> {
     role: 'owner',
   } as any);
 
-  await db.insert(apiKeys).values({
-    id: apiKeyId,
-    project_id: projectId,
-    name: 'Test Key',
-    key_prefix: keyPrefix,
-    key_hash: keyHash,
-    scopes: [],
-  } as any);
-
-  return { projectId, userId, apiKeyId, apiKey: rawKey, apiKeyHash: keyHash };
+  return { projectId, userId, apiKey: token };
 }
 
 export function buildEvent(overrides: Partial<Event> & { project_id: string; person_id: string }): Event {

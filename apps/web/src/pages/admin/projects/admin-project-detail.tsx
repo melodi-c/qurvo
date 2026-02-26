@@ -141,16 +141,13 @@ export default function AdminProjectDetailPage() {
         </CardContent>
       </Card>
 
-      {/* API Keys Section */}
+      {/* Project Token Section */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('apiKeys')}</CardTitle>
+          <CardTitle>{t('projectToken')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t('apiKeyCount')}:</span>
-            <span className="text-sm font-semibold">{project.api_key_count}</span>
-          </div>
+          <code className="block bg-muted p-3 rounded text-sm break-all">{project.token}</code>
         </CardContent>
       </Card>
     </div>
