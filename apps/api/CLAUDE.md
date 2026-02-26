@@ -186,7 +186,7 @@ Edit controllers → `pnpm swagger:generate` → `pnpm generate-api` → use upd
 
 Tests in `src/test/{module}/`. Run with `vitest.integration.config.ts`.
 
-- Use `setupContainers()` from `@qurvo/testing` for PostgreSQL + Redis + ClickHouse
+- Use `getTestContext()` from `src/test/context.ts` for PostgreSQL + Redis + ClickHouse — do **not** call `setupContainers()` directly in test files
 - Date helpers (`daysAgo`, `ts`, `msAgo`, `dateOffset`) from `@qurvo/testing`
 - API-specific `sumSeriesValues()` in `src/test/helpers/`
 - 132 tests: trends (11), funnels (14), cohorts (20), retention (8), lifecycle (5), stickiness (7), paths (11), persons (9), event/property-definitions (27), etc.
