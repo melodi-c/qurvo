@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Preview } from '@storybook/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import '../src/index.css';
@@ -23,15 +23,21 @@ const preview: Preview = {
     },
   },
   decorators: [
-    (Story) => (
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TooltipProvider>
-            <Story />
-          </TooltipProvider>
-        </MemoryRouter>
-      </QueryClientProvider>
-    ),
+    (Story, context) => {
+      const initialEntries: string[] = context.parameters.memoryRouter?.initialEntries ?? ['/'];
+      const path: string = context.parameters.memoryRouter?.path ?? '*';
+      return (
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={initialEntries}>
+            <TooltipProvider>
+              <Routes>
+                <Route path={path} element={<Story />} />
+              </Routes>
+            </TooltipProvider>
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+    },
   ],
 };
 

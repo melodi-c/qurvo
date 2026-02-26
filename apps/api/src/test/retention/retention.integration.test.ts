@@ -419,6 +419,134 @@ describe('queryRetention — event property filters', () => {
   });
 });
 
+describe('queryRetention — first_time + property filters', () => {
+  it('uses true first event as cohort date even when it does not match property filter', async () => {
+    // Scenario: user's FIRST event has source=direct (no match), but their SECOND event
+    // has source=organic (matches). Without the fix, filterClause on the inner subquery
+    // would cause min(granExpr) to skip the first event and treat the second event as
+    // the "first" — producing a wrong cohort date.
+    // With the fix, cohort date = true first event (regardless of filter). The filter
+    // only applies to return_events, so the user must also perform an organic event
+    // in a later period to show up in the returned count.
+    const projectId = randomUUID();
+    const mixedUser = randomUUID();   // first event: no match, later events: match
+    const organicUser = randomUUID(); // all events match the filter
+
+    await insertTestEvents(ctx.ch, [
+      // mixedUser: first event on day-6 WITHOUT matching property (source=direct)
+      buildEvent({
+        project_id: projectId,
+        person_id: mixedUser,
+        distinct_id: 'mixed',
+        event_name: 'page_view',
+        properties: JSON.stringify({ source: 'direct' }),
+        timestamp: ts(6, 12),
+      }),
+      // mixedUser: second event on day-5 WITH matching property (source=organic)
+      buildEvent({
+        project_id: projectId,
+        person_id: mixedUser,
+        distinct_id: 'mixed',
+        event_name: 'page_view',
+        properties: JSON.stringify({ source: 'organic' }),
+        timestamp: ts(5, 12),
+      }),
+      // organicUser: first event on day-5 WITH matching property (source=organic)
+      buildEvent({
+        project_id: projectId,
+        person_id: organicUser,
+        distinct_id: 'organic',
+        event_name: 'page_view',
+        properties: JSON.stringify({ source: 'organic' }),
+        timestamp: ts(5, 12),
+      }),
+      // organicUser returns on day-4 with organic
+      buildEvent({
+        project_id: projectId,
+        person_id: organicUser,
+        distinct_id: 'organic',
+        event_name: 'page_view',
+        properties: JSON.stringify({ source: 'organic' }),
+        timestamp: ts(4, 12),
+      }),
+    ]);
+
+    // Query range: day-6 to day-5
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'page_view',
+      retention_type: 'first_time',
+      granularity: 'day',
+      periods: 2,
+      date_from: daysAgo(6),
+      date_to: daysAgo(5),
+      filters: [{ property: 'properties.source', operator: 'eq', value: 'organic' }],
+    });
+
+    // mixedUser's true first event is day-6 → cohort day-6.
+    // organicUser's first event is day-5 → cohort day-5.
+    expect(result.cohorts).toHaveLength(2);
+
+    const cohortDay6 = result.cohorts[0]; // mixedUser's cohort
+    // cohort_size = periods[0] = count of users with a matching organic event ON their
+    // cohort day (day-6). mixedUser's only day-6 event has source=direct (no match),
+    // so periods[0] = 0.  But they DO have an organic event on day-5 → periods[1] = 1.
+    expect(cohortDay6.cohort_size).toBe(0);
+    // mixedUser's return event on day-5 has source=organic → period_1 = 1
+    expect(cohortDay6.periods[1]).toBe(1);
+
+    const cohortDay5 = result.cohorts[1]; // organicUser's cohort
+    // organicUser's day-5 event has source=organic → periods[0] = 1
+    expect(cohortDay5.cohort_size).toBe(1);
+    // organicUser returned on day-4 with source=organic → period_1 = 1
+    expect(cohortDay5.periods[1]).toBe(1);
+  });
+
+  it('first_time with filter: user whose ONLY events lack the property is excluded from cohort', async () => {
+    // A user whose first event lacks the filter property never shows a return_event
+    // matching the filter → they appear in initial_events but have no matching return
+    // at period_0. Actually they ARE included in the cohort (period_0 = 1) but only
+    // if there is an organic event on the same day as their cohort date.
+    // This test verifies that a user with ZERO matching events is entirely absent.
+    const projectId = randomUUID();
+    const directOnlyUser = randomUUID(); // all events: source=direct (never matches filter)
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: directOnlyUser,
+        distinct_id: 'direct-only',
+        event_name: 'page_view',
+        properties: JSON.stringify({ source: 'direct' }),
+        timestamp: ts(5, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: directOnlyUser,
+        distinct_id: 'direct-only',
+        event_name: 'page_view',
+        properties: JSON.stringify({ source: 'direct' }),
+        timestamp: ts(4, 12),
+      }),
+    ]);
+
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'page_view',
+      retention_type: 'first_time',
+      granularity: 'day',
+      periods: 1,
+      date_from: daysAgo(5),
+      date_to: daysAgo(5),
+      filters: [{ property: 'properties.source', operator: 'eq', value: 'organic' }],
+    });
+
+    // directOnlyUser has no organic events → return_events CTE is empty for them
+    // → JOIN produces no rows → no cohort periods → cohorts list is empty
+    expect(result.cohorts).toHaveLength(0);
+  });
+});
+
 describe('queryRetention — cohort filters', () => {
   it('restricts cohort to users matching inline cohort definition', async () => {
     const projectId = randomUUID();

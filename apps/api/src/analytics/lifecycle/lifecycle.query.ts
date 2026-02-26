@@ -83,9 +83,19 @@ function assembleLifecycleResult(
 
 // ── Core query ───────────────────────────────────────────────────────────────
 //
-// Single-scan approach: collect per-person active buckets into a sorted array,
-// then ARRAY JOIN + has() to classify each bucket. This avoids CTE inlining
-// that previously caused 5x table scans (ClickHouse CTEs are not materialised).
+// Two-CTE approach:
+//   person_buckets  — per-person sorted bucket array over [extended_from, to].
+//                     extended_from = date_from - 1 period gives the 'returning'
+//                     classifier one look-back period.
+//   prior_active    — users with any matching event strictly before extended_from.
+//                     Used to distinguish truly 'new' users from users who are
+//                     'resurrecting' after a long absence (> 1 period).
+//
+// Classification rules per bucket:
+//   new         — first_bucket in extended window AND no prior history
+//   returning   — active in the immediately preceding period
+//   resurrecting — was active at some earlier point but not in the preceding period
+//   dormant     — was active in period N but not in period N+1 (emitted for N+1)
 
 export async function queryLifecycle(
   ch: ClickHouseClient,
@@ -111,6 +121,10 @@ export async function queryLifecycle(
 
   const sql = `
     WITH
+      -- Collect per-person active buckets within [extended_from, to].
+      -- extended_from is 1 period before date_from, giving the returning classifier
+      -- access to the previous period.  first_bucket is the earliest bucket in this
+      -- window; it is used together with prior_active to decide 'new' vs 'resurrecting'.
       person_buckets AS (
         SELECT
           ${RESOLVED_PERSON} AS person_id,
@@ -122,6 +136,15 @@ export async function queryLifecycle(
           AND timestamp >= {extended_from:DateTime64(3)}
           AND timestamp <= {to:DateTime64(3)}${cohortClause}${eventFilterClause}
         GROUP BY person_id
+      ),
+      -- Users who have ANY matching event strictly before extended_from.
+      -- A user in this set has prior history and must never be classified as 'new'.
+      prior_active AS (
+        SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
+        FROM events
+        WHERE project_id = {project_id:UUID}
+          AND event_name = {target_event:String}
+          AND timestamp < {extended_from:DateTime64(3)}${cohortClause}${eventFilterClause}
       )
     SELECT
       toString(ts_bucket) AS period,
@@ -130,7 +153,8 @@ export async function queryLifecycle(
     FROM (
       SELECT person_id, bucket AS ts_bucket,
         multiIf(
-          bucket = first_bucket, 'new',
+          -- 'new': first appearance in the extended window AND no prior history at all
+          bucket = first_bucket AND person_id NOT IN (SELECT person_id FROM prior_active), 'new',
           has(buckets, bucket - ${interval}), 'returning',
           'resurrecting'
         ) AS status

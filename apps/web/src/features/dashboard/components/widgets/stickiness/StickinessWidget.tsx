@@ -51,7 +51,7 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result ? handleExportCsv : undefined}
     >
-      <StickinessChart result={result!} compact />
+      {result && <StickinessChart result={result} compact />}
     </WidgetShell>
   );
 }

@@ -53,7 +53,7 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result ? handleExportCsv : undefined}
     >
-      <LifecycleChart result={result!} compact />
+      {result && <LifecycleChart result={result} compact />}
     </WidgetShell>
   );
 }
