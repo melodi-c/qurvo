@@ -34,6 +34,7 @@ import { ListDashboardsTool } from './tools/list-dashboards.tool';
 import { SaveToDashboardTool } from './tools/save-to-dashboard.tool';
 import { FunnelGapsTool } from './tools/funnel-gaps.tool';
 import { MetricChangeTool } from './tools/metric-change.tool';
+import { CreateCohortTool } from './tools/create-cohort.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -51,6 +52,7 @@ const TOOL_CLASSES = [
   SaveToDashboardTool,
   FunnelGapsTool,
   MetricChangeTool,
+  CreateCohortTool,
 ];
 
 @Module({
