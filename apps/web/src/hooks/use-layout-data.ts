@@ -71,7 +71,9 @@ export function useLayoutData() {
   });
 
   const pendingInvitesCount = myInvites?.length ?? 0;
-  const currentProjectName = projects?.find((p) => p.id === currentProject)?.name;
+  const currentProjectData = projects?.find((p) => p.id === currentProject);
+  const currentProjectName = currentProjectData?.name;
+  const currentProjectIsDemo = currentProjectData?.is_demo ?? false;
   const hasProjects = projects && projects.length > 0;
   const projectsLoaded = projects !== undefined;
 
@@ -107,6 +109,7 @@ export function useLayoutData() {
     projects,
     pendingInvitesCount,
     currentProjectName,
+    currentProjectIsDemo,
     hasProjects,
     shouldRedirectToProjects,
     isActive,

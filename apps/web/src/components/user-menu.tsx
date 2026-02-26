@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { routes } from '@/lib/routes';
 import type { Language } from '@/i18n/types';
 import type { ProjectWithRole } from '@/api/generated/Api';
@@ -16,20 +17,24 @@ interface ProjectSwitcherProps {
   projects: ProjectWithRole[];
   currentProject: string;
   currentProjectName: string | undefined;
+  currentProjectIsDemo?: boolean;
   onProjectSwitch: (projectId: string) => void;
   selectProjectLabel: string;
   switchProjectLabel: string;
   newProjectLabel: string;
+  demoBadgeLabel: string;
 }
 
 export function ProjectSwitcher({
   projects,
   currentProject,
   currentProjectName,
+  currentProjectIsDemo,
   onProjectSwitch,
   selectProjectLabel,
   switchProjectLabel,
   newProjectLabel,
+  demoBadgeLabel,
 }: ProjectSwitcherProps) {
   const navigate = useNavigate();
 
@@ -43,6 +48,11 @@ export function ProjectSwitcher({
           <span className="flex-1 truncate text-foreground/80">
             {currentProjectName ?? selectProjectLabel}
           </span>
+          {currentProjectIsDemo && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
+              {demoBadgeLabel}
+            </Badge>
+          )}
           <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         </button>
       </DropdownMenuTrigger>
@@ -55,7 +65,12 @@ export function ProjectSwitcher({
             onClick={() => onProjectSwitch(p.id)}
             className={currentProject === p.id ? 'bg-accent' : ''}
           >
-            {p.name}
+            <span className="flex-1 truncate">{p.name}</span>
+            {p.is_demo && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-1 shrink-0">
+                {demoBadgeLabel}
+              </Badge>
+            )}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
