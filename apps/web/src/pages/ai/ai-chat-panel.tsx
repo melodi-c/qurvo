@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { SendHorizonal, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AiMessage } from './ai-message';
@@ -35,6 +35,17 @@ export function AiChatPanel({
 }: AiChatPanelProps) {
   const { t } = useLocalTranslation(translations);
   const [input, setInput] = useState('');
+
+  const examplePrompts = useMemo(
+    () => [
+      t('examplePrompt0'),
+      t('examplePrompt1'),
+      t('examplePrompt2'),
+      t('examplePrompt3'),
+      t('examplePrompt4'),
+    ],
+    [t],
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -125,7 +136,22 @@ export function AiChatPanel({
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
             <p className="text-lg font-medium text-foreground mb-1">{t('askTitle')}</p>
-            <p>{t('askHint')}</p>
+            <p className="mb-4">{t('askHint')}</p>
+            {!readOnly && onSend && (
+              <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                {examplePrompts.map((prompt) => (
+                  <Button
+                    key={prompt}
+                    variant="outline"
+                    size="sm"
+                    className="h-auto py-1.5 px-3 text-xs font-normal text-muted-foreground hover:text-foreground whitespace-normal text-left"
+                    onClick={() => onSend(prompt)}
+                  >
+                    {prompt}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {messages.map((msg) => (
