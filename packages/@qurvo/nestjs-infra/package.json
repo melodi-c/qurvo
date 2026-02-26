@@ -13,11 +13,14 @@
     "@nestjs/common": "^11.0.0",
     "@qurvo/clickhouse": "workspace:*",
     "@qurvo/db": "workspace:*",
-    "ioredis": "^5.4.0"
+    "ioredis": "^5.4.0",
+    "nestjs-pino": "^4.6.0",
+    "nodemailer": "^6.9.0"
   },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
+    "@types/nodemailer": "^6.4.0",
     "typescript": "^5.7.0"
   }
 }
