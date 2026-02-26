@@ -13,5 +13,6 @@ export class TestNotificationDto {
 }
 
 export class TestNotificationResponseDto {
+  @ApiProperty()
   ok: boolean;
 }
