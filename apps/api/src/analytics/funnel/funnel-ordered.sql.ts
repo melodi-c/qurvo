@@ -4,6 +4,7 @@ import {
   buildWindowFunnelExpr,
   buildExclusionColumns,
   buildExcludedUsersCTE,
+  type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
 export interface OrderedCTEOptions {
@@ -14,7 +15,7 @@ export interface OrderedCTEOptions {
   cohortClause: string;
   samplingClause: string;
   numSteps: number;
-  queryParams: Record<string, unknown>;
+  queryParams: FunnelChQueryParams;
   breakdownExpr?: string;
   includeTimestampCols?: boolean;
 }

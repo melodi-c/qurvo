@@ -8,6 +8,7 @@ import {
   buildSamplingClause,
   buildStepCondition,
   validateExclusions,
+  type FunnelChQueryParams,
 } from './funnel-sql-shared';
 import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
 import { buildUnorderedFunnelCTEs } from './funnel-unordered.sql';
@@ -92,7 +93,7 @@ function buildFunnelSQL(
   cohortClause: string,
   samplingClause: string,
   numSteps: number,
-  queryParams: Record<string, unknown>,
+  queryParams: FunnelChQueryParams,
   breakdownExpr?: string,
 ): string {
   const hasBreakdown = !!breakdownExpr;

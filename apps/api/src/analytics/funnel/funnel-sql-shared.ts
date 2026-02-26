@@ -5,6 +5,39 @@ import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.type
 
 export { RESOLVED_PERSON };
 
+// ── ClickHouse query parameter types ─────────────────────────────────────────
+
+/**
+ * Static base parameters shared by all funnel queries.
+ * Dynamic per-step and per-filter keys are captured by the index signature.
+ *
+ * Static keys:
+ *   project_id     — UUID of the project
+ *   from           — start of the date range (ClickHouse DateTime string)
+ *   to             — end of the date range (ClickHouse DateTime string)
+ *   window         — conversion window in seconds (UInt64)
+ *   num_steps      — total number of funnel steps (UInt64)
+ *   all_event_names — all event names across steps and exclusions (Array(String))
+ *
+ * Dynamic keys added by other builders:
+ *   step_{i}             — primary event name for step i (String)
+ *   step_{i}_names       — all event names for step i when using OR-logic (Array(String))
+ *   step_{i}_{prefix}_f{j}_v — filter value for step i, filter j
+ *   excl_{i}_name        — exclusion event name (String)
+ *   excl_{i}_from_step_name — from-step event name for exclusion i (String)
+ *   excl_{i}_to_step_name   — to-step event name for exclusion i (String)
+ *   sample_pct           — sampling percentage 0-100 (UInt8), present only when sampling
+ */
+export interface FunnelChQueryParams {
+  project_id: string;
+  from: string;
+  to: string;
+  window: number;
+  num_steps: number;
+  all_event_names: string[];
+  [key: string]: unknown;
+}
+
 // ── Conversion window ────────────────────────────────────────────────────────
 
 const UNIT_TO_SECONDS: Record<string, number> = {
@@ -40,7 +73,7 @@ export function resolveStepEventNames(step: FunnelStep): string[] {
 export function buildStepCondition(
   step: FunnelStep,
   idx: number,
-  queryParams: Record<string, unknown>,
+  queryParams: FunnelChQueryParams,
 ): string {
   const filterParts = buildPropertyFilterConditions(
     step.filters ?? [],
@@ -69,7 +102,7 @@ export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclus
 /** WHERE-based sampling: deterministic per distinct_id, no SAMPLE BY needed on table. */
 export function buildSamplingClause(
   samplingFactor: number | undefined,
-  queryParams: Record<string, unknown>,
+  queryParams: FunnelChQueryParams,
 ): string {
   if (!samplingFactor || samplingFactor >= 1) return '';
   const pct = Math.round(samplingFactor * 100);
@@ -106,7 +139,7 @@ export function validateExclusions(exclusions: FunnelExclusion[], numSteps: numb
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
   steps: FunnelStep[],
-  queryParams: Record<string, unknown>,
+  queryParams: FunnelChQueryParams,
 ): string[] {
   const lines: string[] = [];
   for (const [i, excl] of exclusions.entries()) {
@@ -139,8 +172,8 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[]): string {
 // ── Base query params builder ────────────────────────────────────────────────
 
 /**
- * Populates the base ClickHouse query params shared by all funnel paths.
- * Returns a fresh mutable Record that callers can extend.
+ * Builds and returns the base ClickHouse query params shared by all funnel paths.
+ * Returns a typed FunnelChQueryParams that callers can extend with dynamic keys.
  */
 export function buildBaseQueryParams(
   params: {
@@ -153,9 +186,9 @@ export function buildBaseQueryParams(
     steps: FunnelStep[];
   },
   allEventNames: string[],
-): Record<string, unknown> {
+): FunnelChQueryParams {
   const windowSeconds = resolveWindowSeconds(params);
-  const queryParams: Record<string, unknown> = {
+  const queryParams: FunnelChQueryParams = {
     project_id: params.project_id,
     from: toChTs(params.date_from),
     to: toChTs(params.date_to, true),

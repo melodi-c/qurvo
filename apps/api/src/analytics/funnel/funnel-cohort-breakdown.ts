@@ -12,6 +12,7 @@ import {
   type RawFunnelRow,
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
+import type { FunnelChQueryParams } from './funnel-sql-shared';
 
 interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];
@@ -25,7 +26,7 @@ interface CohortBreakdownResult {
 export async function runFunnelCohortBreakdown(
   ch: ClickHouseClient,
   params: FunnelQueryParams,
-  baseQueryParams: Record<string, unknown>,
+  baseQueryParams: FunnelChQueryParams,
   stepConditions: string,
   cohortClause: string,
   samplingClause: string,

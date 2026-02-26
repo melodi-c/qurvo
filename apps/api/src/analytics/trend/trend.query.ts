@@ -50,12 +50,37 @@ export type TrendQueryResult =
   | { compare: true; breakdown: false; series: TrendSeriesResult[]; series_previous: TrendSeriesResult[] }
   | { compare: true; breakdown: true; breakdown_property: string; series: TrendSeriesResult[]; series_previous: TrendSeriesResult[] };
 
+// ── ClickHouse query parameter type ──────────────────────────────────────────
+
+/**
+ * ClickHouse query parameters used internally by trend queries.
+ *
+ * Static keys:
+ *   project_id — UUID of the project
+ *   from       — start of the date range (ClickHouse DateTime string)
+ *   to         — end of the date range (ClickHouse DateTime string)
+ *
+ * Dynamic keys added during query building:
+ *   s{i}_event            — event name for series i (String)
+ *   s{i}_f{j}_v           — filter value for series i, filter j
+ *   all_event_names        — all event names for property breakdown path (Array(String))
+ *   cohort_bd_{i}_{j}      — cohort ID for cohort breakdown (UUID)
+ *   cohort_name_{i}_{j}    — cohort label for cohort breakdown (String)
+ *   cohort_filter_*        — params injected by buildCohortClause / buildCohortFilterForBreakdown
+ */
+interface TrendChQueryParams {
+  project_id: string;
+  from: string;
+  to: string;
+  [key: string]: unknown;
+}
+
 // ── Filter condition builder ──────────────────────────────────────────────────
 
 function buildSeriesConditions(
   series: TrendSeries,
   idx: number,
-  queryParams: Record<string, unknown>,
+  queryParams: TrendChQueryParams,
 ): string {
   queryParams[`s${idx}_event`] = series.event_name;
   const filterParts = buildPropertyFilterConditions(
@@ -171,7 +196,7 @@ async function executeTrendQuery(
   dateFrom: string,
   dateTo: string,
 ): Promise<TrendSeriesResult[]> {
-  const queryParams: Record<string, unknown> = {
+  const queryParams: TrendChQueryParams = {
     project_id: params.project_id,
     from: toChTs(dateFrom),
     to: toChTs(dateTo, true),

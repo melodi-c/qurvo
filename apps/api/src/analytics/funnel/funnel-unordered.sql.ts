@@ -3,6 +3,7 @@ import {
   RESOLVED_PERSON,
   buildStepCondition,
   buildExcludedUsersCTE,
+  type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
 export interface UnorderedCTEOptions {
@@ -10,7 +11,7 @@ export interface UnorderedCTEOptions {
   exclusions: FunnelExclusion[];
   cohortClause: string;
   samplingClause: string;
-  queryParams: Record<string, unknown>;
+  queryParams: FunnelChQueryParams;
   breakdownExpr?: string;
 }
 

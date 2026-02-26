@@ -8,7 +8,30 @@ import {
   buildStepCondition,
   buildSamplingClause,
   buildWindowFunnelExpr,
+  type FunnelChQueryParams,
 } from './funnel-sql-shared';
+
+/**
+ * ClickHouse query parameters for the time-to-convert query.
+ *
+ * Static keys:
+ *   project_id   — UUID of the project
+ *   from         — start of the date range (ClickHouse DateTime string)
+ *   to           — end of the date range (ClickHouse DateTime string)
+ *   window       — conversion window in seconds (UInt64)
+ *   step_names   — flat list of all step event names (Array(String))
+ *   to_step_num  — 1-based target step number (UInt64)
+ *
+ * Dynamic keys:
+ *   step_{i}           — primary event name for step i (String)
+ *   step_{i}_names     — all event names for step i when using OR-logic (Array(String))
+ *   step_{i}_{prefix}_f{j}_v — filter value for step i, filter j
+ *   sample_pct         — sampling percentage 0-100 (UInt8), present only when sampling
+ */
+interface TtcChQueryParams extends FunnelChQueryParams {
+  step_names: string[];
+  to_step_num: number;
+}
 
 export async function queryFunnelTimeToConvert(
   ch: ClickHouseClient,
@@ -25,11 +48,13 @@ export async function queryFunnelTimeToConvert(
     throw new AppBadRequestException(`to_step ${toStep} out of range (max ${numSteps - 1})`);
   }
 
-  const queryParams: Record<string, unknown> = {
+  const queryParams: TtcChQueryParams = {
     project_id,
     from: toChTs(params.date_from),
     to: toChTs(params.date_to, true),
     window: windowSeconds,
+    num_steps: steps.length,
+    all_event_names: steps.flatMap((s) => resolveStepEventNames(s)),
     step_names: steps.flatMap((s) => resolveStepEventNames(s)),
     to_step_num: toStep + 1,
   };
