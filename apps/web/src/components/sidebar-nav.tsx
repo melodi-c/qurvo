@@ -7,7 +7,7 @@ import type { ElementType } from 'react';
 
 interface SidebarSection {
   title: string;
-  items: { path: string; label: string; icon: ElementType }[];
+  items: { path: string; label: string; icon: ElementType; exact?: boolean }[];
 }
 
 interface SidebarNavProps {
@@ -16,7 +16,7 @@ interface SidebarNavProps {
   logoHref: string;
   hasProjects: boolean;
   sections: SidebarSection[];
-  isActive: (path: string) => boolean;
+  isActive: (path: string, exact?: boolean) => boolean;
   navLink: (path: string) => string;
   navigationLabel: string;
   closeNavLabel: string;
@@ -82,7 +82,7 @@ export function SidebarNav({
                     to={navLink(item.path)}
                     className={cn(
                       'flex items-center gap-2.5 px-2 py-[6px] rounded-md text-sm transition-colors',
-                      isActive(item.path)
+                      isActive(item.path, item.exact)
                         ? 'bg-accent text-foreground font-medium'
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
                     )}
