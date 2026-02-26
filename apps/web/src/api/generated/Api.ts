@@ -1248,6 +1248,51 @@ export interface AiInsight {
   created_at: string;
 }
 
+export interface AiScheduledJob {
+  schedule: AiScheduledJobDtoScheduleEnum;
+  channel_type: AiScheduledJobDtoChannelTypeEnum;
+  channel_config: Record<string, any>;
+  id: string;
+  project_id: string;
+  user_id: string;
+  name: string;
+  prompt: string;
+  is_active: boolean;
+  /** @format date-time */
+  last_run_at: string | null;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface CreateScheduledJob {
+  schedule: CreateScheduledJobDtoScheduleEnum;
+  channel_type: CreateScheduledJobDtoChannelTypeEnum;
+  channel_config: Record<string, any>;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  /** @minLength 1 */
+  prompt: string;
+}
+
+export interface UpdateScheduledJob {
+  schedule?: UpdateScheduledJobDtoScheduleEnum;
+  channel_type?: UpdateScheduledJobDtoChannelTypeEnum;
+  channel_config?: Record<string, any>;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name?: string;
+  /** @minLength 1 */
+  prompt?: string;
+  is_active?: boolean;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -1508,6 +1553,18 @@ export type AiInsightDtoTypeEnum =
   | "new_event"
   | "retention_anomaly"
   | "conversion_correlation";
+
+export type AiScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
+
+export type AiScheduledJobDtoChannelTypeEnum = "slack" | "email";
+
+export type CreateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
+
+export type CreateScheduledJobDtoChannelTypeEnum = "slack" | "email";
+
+export type UpdateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
+
+export type UpdateScheduledJobDtoChannelTypeEnum = "slack" | "email";
 
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
@@ -2258,6 +2315,24 @@ export interface AiInsightsControllerListParams {
 export interface AiInsightsControllerDismissParams {
   projectId: string;
   id: string;
+}
+
+export interface AiScheduledJobsControllerListParams {
+  projectId: string;
+}
+
+export interface AiScheduledJobsControllerCreateParams {
+  projectId: string;
+}
+
+export interface AiScheduledJobsControllerUpdateParams {
+  projectId: string;
+  jobId: string;
+}
+
+export interface AiScheduledJobsControllerRemoveParams {
+  projectId: string;
+  jobId: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4469,6 +4544,91 @@ export class Api<
       this.request<void, any>({
         path: `/api/projects/${projectId}/ai/insights/${id}/dismiss`,
         method: "POST",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Scheduled Jobs
+     * @name AiScheduledJobsControllerList
+     * @request GET:/api/projects/{projectId}/ai/scheduled-jobs
+     * @secure
+     */
+    aiScheduledJobsControllerList: (
+      { projectId, ...query }: AiScheduledJobsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiScheduledJob[], any>({
+        path: `/api/projects/${projectId}/ai/scheduled-jobs`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Scheduled Jobs
+     * @name AiScheduledJobsControllerCreate
+     * @request POST:/api/projects/{projectId}/ai/scheduled-jobs
+     * @secure
+     */
+    aiScheduledJobsControllerCreate: (
+      { projectId, ...query }: AiScheduledJobsControllerCreateParams,
+      data: CreateScheduledJob,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiScheduledJob, any>({
+        path: `/api/projects/${projectId}/ai/scheduled-jobs`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Scheduled Jobs
+     * @name AiScheduledJobsControllerUpdate
+     * @request PATCH:/api/projects/{projectId}/ai/scheduled-jobs/{jobId}
+     * @secure
+     */
+    aiScheduledJobsControllerUpdate: (
+      { projectId, jobId, ...query }: AiScheduledJobsControllerUpdateParams,
+      data: UpdateScheduledJob,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiScheduledJob, any>({
+        path: `/api/projects/${projectId}/ai/scheduled-jobs/${jobId}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Scheduled Jobs
+     * @name AiScheduledJobsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/ai/scheduled-jobs/{jobId}
+     * @secure
+     */
+    aiScheduledJobsControllerRemove: (
+      { projectId, jobId, ...query }: AiScheduledJobsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/ai/scheduled-jobs/${jobId}`,
+        method: "DELETE",
         secure: true,
         ...params,
       }),

@@ -20,6 +20,7 @@ import {
   Database,
   Sparkles,
   Bell,
+  Clock,
 } from 'lucide-react';
 
 export function useLayoutData() {
@@ -49,6 +50,7 @@ export function useLayoutData() {
           { path: routes.events.pattern, label: t('events'), icon: List },
           { path: routes.ai.pattern, label: t('aiAssistant'), icon: Sparkles },
           { path: routes.aiMonitors.pattern, label: t('aiMonitors'), icon: Bell },
+          { path: routes.aiScheduledJobs.pattern, label: t('aiScheduledJobs'), icon: Clock },
         ],
       },
       {

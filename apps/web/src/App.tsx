@@ -38,6 +38,7 @@ const CohortsPage = lazy(() => import('@/pages/cohorts'));
 const CohortEditorPage = lazy(() => import('@/pages/cohort-editor'));
 const AiPage = lazy(() => import('@/pages/ai/index'));
 const AiMonitorsPage = lazy(() => import('@/pages/ai/monitors/index'));
+const AiScheduledJobsPage = lazy(() => import('@/pages/ai/scheduled-jobs/index'));
 const EventDefinitionsPage = lazy(() => import('@/pages/event-definitions'));
 const EventDefinitionDetailPage = lazy(() => import('@/pages/event-definition-detail'));
 const WebAnalyticsPage = lazy(() => import('@/pages/web-analytics'));
@@ -131,6 +132,7 @@ function AppRoutes() {
         <Route path={routes.persons.detail.pattern} element={<PersonDetailPage />} />
         <Route path={routes.ai.pattern} element={<AiPage />} />
         <Route path={routes.aiMonitors.pattern} element={<AiMonitorsPage />} />
+        <Route path={routes.aiScheduledJobs.pattern} element={<AiScheduledJobsPage />} />
         <Route path={routes.dataManagement.list.pattern} element={<EventDefinitionsPage />} />
         <Route path={routes.dataManagement.detail.pattern} element={<EventDefinitionDetailPage />} />
       </Route>

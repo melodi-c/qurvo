@@ -33,3 +33,5 @@ export { aiMonitors } from './ai-monitors';
 export type { AiMonitor, InsertAiMonitor } from './ai-monitors';
 export { aiInsights } from './ai-insights';
 export type { AiInsightType } from './ai-insights';
+export { aiScheduledJobs } from './ai-scheduled-jobs';
+export type { AiScheduledJob, InsertAiScheduledJob } from './ai-scheduled-jobs';
