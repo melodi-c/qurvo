@@ -15,6 +15,7 @@ export default createTranslations({
     deleteConfirm: 'Delete',
     toastDeleted: 'Insight deleted',
     toastDeleteFailed: 'Failed to delete insight',
+    share: 'Share',
   },
   ru: {
     name: 'Название',
@@ -30,5 +31,6 @@ export default createTranslations({
     deleteConfirm: 'Удалить',
     toastDeleted: 'Инсайт удалён',
     toastDeleteFailed: 'Не удалось удалить инсайт',
+    share: 'Поделиться',
   },
 });

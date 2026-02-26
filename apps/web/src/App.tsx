@@ -1,4 +1,4 @@
-import { lazy, useEffect } from 'react';
+import { lazy, useEffect, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -16,6 +16,10 @@ import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
 import VerifyEmailPage from '@/pages/verify-email';
 import NotFoundPage from '@/pages/not-found';
+
+// Public share pages (lazy: not needed for auth flows)
+const PublicDashboardPage = lazy(() => import('@/pages/public-dashboard'));
+const PublicInsightPage = lazy(() => import('@/pages/public-insight'));
 
 // Lazy: all other pages
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
@@ -91,6 +95,15 @@ function AppRoutes() {
       <Route path={routes.login.pattern} element={<LoginPage />} />
       <Route path={routes.register.pattern} element={<RegisterPage />} />
       <Route path={routes.verifyEmail.pattern} element={<VerifyEmailPage />} />
+      {/* Public share pages — no auth, no layout */}
+      <Route
+        path={routes.share.dashboard.pattern}
+        element={<Suspense fallback={null}><PublicDashboardPage /></Suspense>}
+      />
+      <Route
+        path={routes.share.insight.pattern}
+        element={<Suspense fallback={null}><PublicInsightPage /></Suspense>}
+      />
       {/* Non-project protected routes */}
       <Route
         element={

@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pencil, Trash2, Star } from 'lucide-react';
+import { Pencil, Trash2, Star, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ShareDialog } from '@/components/ui/share-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { InsightTypeIcon } from './InsightTypeIcon';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useProjectId } from '@/hooks/use-project-id';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightsTable.translations';
 import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from '@/api/generated/Api';
@@ -47,8 +49,10 @@ interface InsightsTableProps {
 
 export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTableProps) {
   const { go } = useAppNavigate();
+  const projectId = useProjectId();
   const { t } = useLocalTranslation(translations);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [shareTarget, setShareTarget] = useState<{ id: string } | null>(null);
 
   const typeLabels: Record<string, string> = useMemo(() => ({
     trend: t('typeTrend'),
@@ -130,7 +134,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     {
       key: 'actions',
       header: '',
-      headerClassName: 'text-right w-28',
+      headerClassName: 'text-right w-36',
       className: 'text-right',
       render: (row) => (
         <div
@@ -144,6 +148,15 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
             onClick={() => onToggleFavorite(row.id, row.is_favorite)}
           >
             <Star className={cn('h-3.5 w-3.5', row.is_favorite && 'fill-current')} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 text-muted-foreground"
+            onClick={() => setShareTarget({ id: row.id })}
+            title={t('share')}
+          >
+            <Share2 className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
@@ -182,6 +195,15 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
         confirmLabel={t('deleteConfirm')}
         onConfirm={handleDelete}
       />
+      {shareTarget && (
+        <ShareDialog
+          open={shareTarget !== null}
+          onOpenChange={(open) => { if (!open) setShareTarget(null); }}
+          resourceType="insight"
+          resourceId={shareTarget.id}
+          projectId={projectId}
+        />
+      )}
     </>
   );
 }

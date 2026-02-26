@@ -227,6 +227,17 @@ export const routes = {
     },
   },
 
+  share: {
+    dashboard: route(
+      '/share/dashboard/:shareToken',
+      (shareToken: string) => `/share/dashboard/${shareToken}`,
+    ),
+    insight: route(
+      '/share/insight/:shareToken',
+      (shareToken: string) => `/share/insight/${shareToken}`,
+    ),
+  },
+
   legacy: {
     trends: route('/trends'),
     funnels: route('/funnels'),
