@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { Plus, X, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import { validateFormula } from './formula-evaluator';
@@ -77,6 +78,10 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
               </Button>
             </div>
             <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">{t('expression')}</span>
+                <InfoTooltip content={t('expressionTooltip')} />
+              </div>
               <Input
                 value={formula.expression}
                 onChange={(e) => updateFormula(idx, { expression: e.target.value })}
