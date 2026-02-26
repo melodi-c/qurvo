@@ -8,6 +8,7 @@ import {
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import { queryFunnelTimeToConvert } from '../../analytics/funnel/funnel.query';
+import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 
 let ctx: ContainerContext;
 
@@ -81,8 +82,9 @@ describe('queryFunnelTimeToConvert', () => {
     expect(result.from_step).toBe(0);
     expect(result.to_step).toBe(1);
     expect(result.sample_size).toBe(2); // only A and B converted
-    expect(result.average_seconds).toBeGreaterThan(0);
-    expect(result.median_seconds).toBeGreaterThan(0);
+    // Person A: 10s, Person B: 30s → avg = 20s, median = 20s
+    expect(result.average_seconds).toBeCloseTo(20, 0);
+    expect(result.median_seconds).toBeCloseTo(20, 0);
     expect(result.bins.length).toBeGreaterThan(0);
 
     // Total count in bins should equal sample_size
@@ -121,5 +123,40 @@ describe('queryFunnelTimeToConvert', () => {
     expect(result.average_seconds).toBeNull();
     expect(result.median_seconds).toBeNull();
     expect(result.bins).toHaveLength(0);
+  });
+
+  it('throws AppBadRequestException when from_step >= to_step', async () => {
+    const projectId = randomUUID();
+
+    await expect(
+      queryFunnelTimeToConvert(ctx.ch, {
+        project_id: projectId,
+        steps: [
+          { event_name: 'signup', label: 'Signup' },
+          { event_name: 'purchase', label: 'Purchase' },
+        ],
+        conversion_window_days: 7,
+        date_from: dateOffset(-1),
+        date_to: dateOffset(1),
+        from_step: 1,
+        to_step: 1,
+      }),
+    ).rejects.toThrow(AppBadRequestException);
+
+    await expect(
+      queryFunnelTimeToConvert(ctx.ch, {
+        project_id: projectId,
+        steps: [
+          { event_name: 'signup', label: 'Signup' },
+          { event_name: 'purchase', label: 'Purchase' },
+          { event_name: 'upsell', label: 'Upsell' },
+        ],
+        conversion_window_days: 7,
+        date_from: dateOffset(-1),
+        date_to: dateOffset(1),
+        from_step: 2,
+        to_step: 0,
+      }),
+    ).rejects.toThrow(AppBadRequestException);
   });
 });
