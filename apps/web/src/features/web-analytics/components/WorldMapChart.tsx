@@ -1,25 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import type { WebAnalyticsDimensionRow } from '@/api/generated/Api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './WorldMapChart.translations';
 
 const GEO_URL =
   'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
+export type WorldMapMetric = 'visitors' | 'pageviews';
+
 interface TooltipState {
   x: number;
   y: number;
   name: string;
   visitors: number;
+  pageviews: number;
 }
 
 interface WorldMapChartProps {
   title: string;
   data?: WebAnalyticsDimensionRow[];
   isLoading?: boolean;
+  metric?: WorldMapMetric;
+  onMetricChange?: (metric: WorldMapMetric) => void;
 }
 
 function interpolateColor(t: number): string {
@@ -32,61 +38,100 @@ function interpolateColor(t: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
+export function WorldMapChart({
+  title,
+  data,
+  isLoading,
+  metric = 'visitors',
+  onMetricChange,
+}: WorldMapChartProps) {
   const { t } = useLocalTranslation(translations);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
-  const visitorMap = useMemo(() => {
-    const map = new Map<string, number>();
+  const metricOptions = useMemo(
+    () => [
+      { label: t('visitors'), value: 'visitors' as WorldMapMetric },
+      { label: t('pageviews'), value: 'pageviews' as WorldMapMetric },
+    ],
+    [t],
+  );
+
+  const dataMap = useMemo(() => {
+    const map = new Map<string, { visitors: number; pageviews: number }>();
     if (!data) return map;
     for (const row of data) {
-      if (row.name) map.set(row.name.toUpperCase(), row.visitors);
+      if (row.name) {
+        map.set(row.name.toUpperCase(), {
+          visitors: row.visitors,
+          pageviews: row.pageviews,
+        });
+      }
     }
     return map;
   }, [data]);
 
-  const maxVisitors = useMemo(() => {
-    if (visitorMap.size === 0) return 1;
-    return Math.max(...visitorMap.values());
-  }, [visitorMap]);
+  const maxValue = useMemo(() => {
+    if (dataMap.size === 0) return 1;
+    return Math.max(...Array.from(dataMap.values()).map((v) => v[metric]));
+  }, [dataMap, metric]);
 
-  function getFillColor(isoA2: string): string {
-    const visitors = visitorMap.get(isoA2.toUpperCase());
-    if (!visitors) return '#27272a';
-    const t = Math.pow(visitors / maxVisitors, 0.4);
-    return interpolateColor(t);
-  }
+  const getFillColor = useCallback(
+    (isoA2: string): string => {
+      const entry = dataMap.get(isoA2.toUpperCase());
+      if (!entry) return '#27272a';
+      const value = entry[metric];
+      if (!value) return '#27272a';
+      const normalized = Math.pow(value / maxValue, 0.4);
+      return interpolateColor(normalized);
+    },
+    [dataMap, metric, maxValue],
+  );
 
-  function handlePointerEnter(
-    event: React.PointerEvent<SVGPathElement>,
-    isoA2: string,
-    countryName: string,
-  ) {
-    const visitors = visitorMap.get(isoA2.toUpperCase()) ?? 0;
-    setTooltip({
-      x: event.clientX,
-      y: event.clientY,
-      name: countryName,
-      visitors,
-    });
-  }
+  const handlePointerEnter = useCallback(
+    (
+      event: React.PointerEvent<SVGPathElement>,
+      isoA2: string,
+      countryName: string,
+    ) => {
+      const entry = dataMap.get(isoA2.toUpperCase());
+      setTooltip({
+        x: event.clientX,
+        y: event.clientY,
+        name: countryName,
+        visitors: entry?.visitors ?? 0,
+        pageviews: entry?.pageviews ?? 0,
+      });
+    },
+    [dataMap],
+  );
 
-  function handlePointerMove(event: React.PointerEvent<SVGPathElement>) {
-    setTooltip((prev) =>
-      prev ? { ...prev, x: event.clientX, y: event.clientY } : prev,
-    );
-  }
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<SVGPathElement>) => {
+      setTooltip((prev) =>
+        prev ? { ...prev, x: event.clientX, y: event.clientY } : prev,
+      );
+    },
+    [],
+  );
 
-  function handlePointerLeave() {
+  const handlePointerLeave = useCallback(() => {
     setTooltip(null);
-  }
+  }, []);
 
   const isEmpty = !isLoading && (!data || data.length === 0);
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm">{title}</CardTitle>
+        {onMetricChange && !isLoading && !isEmpty && (
+          <PillToggleGroup
+            options={metricOptions}
+            value={metric}
+            onChange={onMetricChange}
+            className="w-auto"
+          />
+        )}
       </CardHeader>
       <CardContent className="pt-0 pb-3">
         {isLoading ? (
@@ -112,6 +157,7 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
                     const name: string =
                       geo.properties?.name ?? geo.properties?.NAME ?? '';
                     const fill = getFillColor(isoA2);
+                    const hasData = dataMap.has(isoA2.toUpperCase());
                     return (
                       <Geography
                         key={geo.rsmKey}
@@ -120,11 +166,20 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
                         stroke="#09090b"
                         strokeWidth={0.5}
                         style={{
-                          default: { outline: 'none', cursor: visitorMap.has(isoA2.toUpperCase()) ? 'pointer' : 'default' },
-                          hover: { outline: 'none', fill: visitorMap.has(isoA2.toUpperCase()) ? '#a5b4fc' : '#3f3f46', cursor: visitorMap.has(isoA2.toUpperCase()) ? 'pointer' : 'default' },
+                          default: {
+                            outline: 'none',
+                            cursor: hasData ? 'pointer' : 'default',
+                          },
+                          hover: {
+                            outline: 'none',
+                            fill: hasData ? '#a5b4fc' : '#3f3f46',
+                            cursor: hasData ? 'pointer' : 'default',
+                          },
                           pressed: { outline: 'none' },
                         }}
-                        onPointerEnter={(e) => handlePointerEnter(e, isoA2, name)}
+                        onPointerEnter={(e) =>
+                          handlePointerEnter(e, isoA2, name)
+                        }
                         onPointerMove={handlePointerMove}
                         onPointerLeave={handlePointerLeave}
                       />
@@ -133,6 +188,18 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
                 }
               </Geographies>
             </ComposableMap>
+
+            {/* Color legend */}
+            <div className="mt-1 flex items-center gap-2 px-1">
+              <span className="text-[10px] text-muted-foreground">0</span>
+              <div
+                className="h-2 flex-1 rounded-sm"
+                style={{
+                  background: 'linear-gradient(to right, #27272a, #818cf8)',
+                }}
+              />
+              <span className="text-[10px] text-muted-foreground">{t('legendMax')}</span>
+            </div>
 
             {tooltip && (
               <div
@@ -149,6 +216,11 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
                 {tooltip.visitors > 0 && (
                   <div className="text-muted-foreground">
                     {tooltip.visitors.toLocaleString()} {t('visitors')}
+                  </div>
+                )}
+                {tooltip.pageviews > 0 && (
+                  <div className="text-muted-foreground">
+                    {tooltip.pageviews.toLocaleString()} {t('pageviews')}
                   </div>
                 )}
               </div>

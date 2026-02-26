@@ -1,21 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import type { WebAnalyticsDimensionRow } from '@/api/generated/Api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabNav } from '@/components/ui/tab-nav';
+import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './GeographySection.translations';
 
 const GEO_URL =
   'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
+export type GeographyMapMetric = 'visitors' | 'pageviews';
+
 interface TooltipState {
   x: number;
   y: number;
   name: string;
   visitors: number;
+  pageviews: number;
 }
 
 interface GeographySectionProps {
@@ -44,6 +48,7 @@ export function GeographySection({
 }: GeographySectionProps) {
   const { t } = useLocalTranslation(translations);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [mapMetric, setMapMetric] = useState<GeographyMapMetric>('visitors');
 
   const geoTabs = useMemo(
     () =>
@@ -55,6 +60,14 @@ export function GeographySection({
     [t],
   );
 
+  const metricOptions = useMemo(
+    () => [
+      { label: t('visitors'), value: 'visitors' as GeographyMapMetric },
+      { label: t('pageviews'), value: 'pageviews' as GeographyMapMetric },
+    ],
+    [t],
+  );
+
   const [activeTab, setActiveTab] = useState<'countries' | 'regions' | 'cities'>('countries');
 
   const tabData: Record<'countries' | 'regions' | 'cities', WebAnalyticsDimensionRow[] | undefined> =
@@ -63,45 +76,67 @@ export function GeographySection({
       [countries, regions, cities],
     );
 
-  const visitorMap = useMemo(() => {
-    const map = new Map<string, number>();
+  const dataMap = useMemo(() => {
+    const map = new Map<string, { visitors: number; pageviews: number }>();
     if (!countries) return map;
     for (const row of countries) {
-      if (row.name) map.set(row.name.toUpperCase(), row.visitors);
+      if (row.name) {
+        map.set(row.name.toUpperCase(), {
+          visitors: row.visitors,
+          pageviews: row.pageviews,
+        });
+      }
     }
     return map;
   }, [countries]);
 
-  const maxVisitors = useMemo(() => {
-    if (visitorMap.size === 0) return 1;
-    return Math.max(...visitorMap.values());
-  }, [visitorMap]);
+  const maxValue = useMemo(() => {
+    if (dataMap.size === 0) return 1;
+    return Math.max(...Array.from(dataMap.values()).map((v) => v[mapMetric]));
+  }, [dataMap, mapMetric]);
 
-  function getFillColor(isoA2: string): string {
-    const visitors = visitorMap.get(isoA2.toUpperCase());
-    if (!visitors) return '#27272a';
-    const t = Math.pow(visitors / maxVisitors, 0.4);
-    return interpolateColor(t);
-  }
+  const getFillColor = useCallback(
+    (isoA2: string): string => {
+      const entry = dataMap.get(isoA2.toUpperCase());
+      if (!entry) return '#27272a';
+      const value = entry[mapMetric];
+      if (!value) return '#27272a';
+      const normalized = Math.pow(value / maxValue, 0.4);
+      return interpolateColor(normalized);
+    },
+    [dataMap, mapMetric, maxValue],
+  );
 
-  function handlePointerEnter(
-    event: React.PointerEvent<SVGPathElement>,
-    isoA2: string,
-    countryName: string,
-  ) {
-    const visitors = visitorMap.get(isoA2.toUpperCase()) ?? 0;
-    setTooltip({ x: event.clientX, y: event.clientY, name: countryName, visitors });
-  }
+  const handlePointerEnter = useCallback(
+    (
+      event: React.PointerEvent<SVGPathElement>,
+      isoA2: string,
+      countryName: string,
+    ) => {
+      const entry = dataMap.get(isoA2.toUpperCase());
+      setTooltip({
+        x: event.clientX,
+        y: event.clientY,
+        name: countryName,
+        visitors: entry?.visitors ?? 0,
+        pageviews: entry?.pageviews ?? 0,
+      });
+    },
+    [dataMap],
+  );
 
-  function handlePointerMove(event: React.PointerEvent<SVGPathElement>) {
-    setTooltip((prev) =>
-      prev ? { ...prev, x: event.clientX, y: event.clientY } : prev,
-    );
-  }
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<SVGPathElement>) => {
+      setTooltip((prev) =>
+        prev ? { ...prev, x: event.clientX, y: event.clientY } : prev,
+      );
+    },
+    [],
+  );
 
-  function handlePointerLeave() {
+  const handlePointerLeave = useCallback(() => {
     setTooltip(null);
-  }
+  }, []);
 
   const isMapEmpty = !isLoading && (!countries || countries.length === 0);
   const rows = tabData[activeTab] ?? [];
@@ -109,8 +144,16 @@ export function GeographySection({
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm">{t('geography')}</CardTitle>
+        {!isLoading && !isMapEmpty && (
+          <PillToggleGroup
+            options={metricOptions}
+            value={mapMetric}
+            onChange={setMapMetric}
+            className="w-auto"
+          />
+        )}
       </CardHeader>
 
       {/* Map section */}
@@ -138,6 +181,7 @@ export function GeographySection({
                     const name: string =
                       geo.properties?.name ?? geo.properties?.NAME ?? '';
                     const fill = getFillColor(isoA2);
+                    const hasData = dataMap.has(isoA2.toUpperCase());
                     return (
                       <Geography
                         key={geo.rsmKey}
@@ -148,12 +192,12 @@ export function GeographySection({
                         style={{
                           default: {
                             outline: 'none',
-                            cursor: visitorMap.has(isoA2.toUpperCase()) ? 'pointer' : 'default',
+                            cursor: hasData ? 'pointer' : 'default',
                           },
                           hover: {
                             outline: 'none',
-                            fill: visitorMap.has(isoA2.toUpperCase()) ? '#a5b4fc' : '#3f3f46',
-                            cursor: visitorMap.has(isoA2.toUpperCase()) ? 'pointer' : 'default',
+                            fill: hasData ? '#a5b4fc' : '#3f3f46',
+                            cursor: hasData ? 'pointer' : 'default',
                           },
                           pressed: { outline: 'none' },
                         }}
@@ -166,6 +210,18 @@ export function GeographySection({
                 }
               </Geographies>
             </ComposableMap>
+
+            {/* Color legend */}
+            <div className="mt-1 flex items-center gap-2 px-1">
+              <span className="text-[10px] text-muted-foreground">0</span>
+              <div
+                className="h-2 flex-1 rounded-sm"
+                style={{
+                  background: 'linear-gradient(to right, #27272a, #818cf8)',
+                }}
+              />
+              <span className="text-[10px] text-muted-foreground">{t('legendMax')}</span>
+            </div>
 
             {tooltip && (
               <div
@@ -182,6 +238,11 @@ export function GeographySection({
                 {tooltip.visitors > 0 && (
                   <div className="text-muted-foreground">
                     {tooltip.visitors.toLocaleString()} {t('visitors')}
+                  </div>
+                )}
+                {tooltip.pageviews > 0 && (
+                  <div className="text-muted-foreground">
+                    {tooltip.pageviews.toLocaleString()} {t('pageviews')}
                   </div>
                 )}
               </div>
