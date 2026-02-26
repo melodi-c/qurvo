@@ -11,6 +11,7 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { AiChatDto, AiConversationsQueryDto, AiConversationAccessDto, AiConversationDto, AiSharedConversationDto, AiConversationDetailDto, AiConversationMessagesQueryDto, UpdateConversationDto, AiConversationSearchQueryDto, AiConversationSearchResultDto, AiMessageFeedbackDto, AiMessageFeedbackResponseDto } from '../dto/ai.dto';
 import { ConversationNotFoundException } from '../../ai/exceptions/conversation-not-found.exception';
+import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 
 @ApiTags('AI')
 @ApiBearerAuth()
@@ -119,7 +120,7 @@ export class AiController {
     @Body() body: UpdateConversationDto,
   ): Promise<AiConversationDto> {
     if (body.title === undefined && body.is_shared === undefined) {
-      throw new ConversationNotFoundException();
+      throw new AppBadRequestException('At least one field (title or is_shared) must be provided');
     }
     return this.chatService.updateConversationAuthorized(user.user_id, id, query.project_id, body) as any;
   }

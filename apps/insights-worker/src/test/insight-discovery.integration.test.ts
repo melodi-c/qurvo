@@ -177,7 +177,7 @@ describe('InsightDiscoveryService', () => {
       // Recent 24h: 50 events → pct_change = (50 - 20) / 20 = 1.5 (150% increase)
       await insertRecentEvents(tp.projectId, eventName, 50);
 
-      await svc.detectMetricChanges(tp.projectId, 'Test Project');
+      await svc.detectMetricChanges(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -200,7 +200,7 @@ describe('InsightDiscoveryService', () => {
       // Recent 24h: 5 events → pct_change = (5 - 50) / 50 = -0.9 (-90% drop)
       await insertRecentEvents(tp.projectId, eventName, 5);
 
-      await svc.detectMetricChanges(tp.projectId, 'Test Project');
+      await svc.detectMetricChanges(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -226,7 +226,7 @@ describe('InsightDiscoveryService', () => {
       // Recent 24h: 27 events → pct_change = (27 - 25.7) / 25.7 ≈ 5%, below 20% threshold
       await insertRecentEvents(tp.projectId, eventName, 27);
 
-      await svc.detectMetricChanges(tp.projectId, 'Test Project');
+      await svc.detectMetricChanges(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -246,7 +246,7 @@ describe('InsightDiscoveryService', () => {
       // Recent 24h: 30 events (600% spike, but baseline avg is too low)
       await insertRecentEvents(tp.projectId, eventName, 30);
 
-      await svc.detectMetricChanges(tp.projectId, 'Test Project');
+      await svc.detectMetricChanges(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -266,7 +266,7 @@ describe('InsightDiscoveryService', () => {
       // Insert events only in last 24h — no baseline history
       await insertRecentEvents(tp.projectId, newEventName, 5);
 
-      await svc.detectNewEvents(tp.projectId, 'Test Project');
+      await svc.detectNewEvents(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -289,7 +289,7 @@ describe('InsightDiscoveryService', () => {
       // Also insert recent events
       await insertRecentEvents(tp.projectId, existingEvent, 5);
 
-      await svc.detectNewEvents(tp.projectId, 'Test Project');
+      await svc.detectNewEvents(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -315,7 +315,7 @@ describe('InsightDiscoveryService', () => {
       const currentCohortIds = await insertCurrentCohortEvents(tp.projectId, eventName, 20);
       await insertRetentionEvents(tp.projectId, eventName, currentCohortIds.slice(0, 10));
 
-      await svc.detectRetentionAnomalies(tp.projectId, 'Test Project');
+      await svc.detectRetentionAnomalies(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -349,7 +349,7 @@ describe('InsightDiscoveryService', () => {
       const currentCohortIds = await insertCurrentCohortEvents(tp.projectId, eventName, 20);
       await insertRetentionEvents(tp.projectId, eventName, currentCohortIds.slice(0, 14));
 
-      await svc.detectRetentionAnomalies(tp.projectId, 'Test Project');
+      await svc.detectRetentionAnomalies(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -370,7 +370,7 @@ describe('InsightDiscoveryService', () => {
       // Current cohort: 5 users, 0 retained (0% retention — extreme drop)
       await insertCurrentCohortEvents(tp.projectId, eventName, 5);
 
-      await svc.detectRetentionAnomalies(tp.projectId, 'Test Project');
+      await svc.detectRetentionAnomalies(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -439,7 +439,7 @@ describe('InsightDiscoveryService', () => {
         ),
       );
 
-      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+      await svc.detectConversionCorrelations(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -505,7 +505,7 @@ describe('InsightDiscoveryService', () => {
         ),
       );
 
-      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+      await svc.detectConversionCorrelations(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -577,7 +577,7 @@ describe('InsightDiscoveryService', () => {
         ),
       );
 
-      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+      await svc.detectConversionCorrelations(tp.projectId);
 
       const insights = await ctx.db
         .select()
@@ -593,7 +593,7 @@ describe('InsightDiscoveryService', () => {
     it('returns without saving when project has no events', async () => {
       const tp = await createTestProject(ctx.db);
 
-      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+      await svc.detectConversionCorrelations(tp.projectId);
 
       const insights = await ctx.db
         .select()

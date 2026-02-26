@@ -3,6 +3,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import Redis from 'ioredis';
 import type { Database } from '@qurvo/db';
 import { REDIS, DRIZZLE } from '@qurvo/nestjs-infra';
+import { shutdownDb, shutdownRedis } from '@qurvo/worker-core';
 import { BillingCheckService } from './billing-check.service';
 import { AiQuotaResetService } from './ai-quota-reset.service';
 
@@ -23,11 +24,7 @@ export class ShutdownService implements OnApplicationShutdown {
     await this.aiQuotaResetService
       .stop()
       .catch((err) => this.logger.warn({ err }, 'AiQuotaResetService stop failed'));
-    await this.db.$pool.end().catch((err) =>
-      this.logger.warn({ err }, 'PostgreSQL pool close failed'),
-    );
-    await this.redis.quit().catch((err) =>
-      this.logger.warn({ err }, 'Redis quit failed'),
-    );
+    await shutdownDb(this.db, this.logger);
+    await shutdownRedis(this.redis, this.logger);
   }
 }

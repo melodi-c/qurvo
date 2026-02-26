@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
-import { eq, isNull } from 'drizzle-orm';
 import { projects, aiInsights } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import type { AiInsightType } from '@qurvo/db';
@@ -67,16 +66,16 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
 
   /** @internal — exposed for integration tests */
   async runCycle(): Promise<void> {
-    const allProjects = await this.db.select({ id: projects.id, name: projects.name }).from(projects);
+    const allProjects = await this.db.select({ id: projects.id }).from(projects);
 
     this.logger.info({ count: allProjects.length }, 'Starting insight discovery cycle');
 
     for (const project of allProjects) {
       const results = await Promise.allSettled([
-        this.detectMetricChanges(project.id, project.name),
-        this.detectNewEvents(project.id, project.name),
-        this.detectRetentionAnomalies(project.id, project.name),
-        this.detectConversionCorrelations(project.id, project.name),
+        this.detectMetricChanges(project.id),
+        this.detectNewEvents(project.id),
+        this.detectRetentionAnomalies(project.id),
+        this.detectConversionCorrelations(project.id),
       ]);
 
       for (const result of results) {
@@ -89,7 +88,7 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
     this.logger.info({ count: allProjects.length }, 'Insight discovery cycle completed');
   }
 
-  async detectMetricChanges(projectId: string, projectName: string): Promise<void> {
+  async detectMetricChanges(projectId: string): Promise<void> {
     const query = `
       WITH
         last_24h AS (
@@ -153,7 +152,7 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
     }
   }
 
-  async detectNewEvents(projectId: string, projectName: string): Promise<void> {
+  async detectNewEvents(projectId: string): Promise<void> {
     const query = `
       SELECT
         event_name,
@@ -209,7 +208,7 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
    * cohorts are disjoint and prevents prev-retained users (whose return events fall in the
    * current_cohort time window) from inflating current_cohort_size.
    */
-  async detectRetentionAnomalies(projectId: string, projectName: string): Promise<void> {
+  async detectRetentionAnomalies(projectId: string): Promise<void> {
     // Cohort windows:
     //   current cohort (day-0): users who did event X 14-7 days ago, NOT seen 21-14 days ago
     //   prev cohort (day-0):    users who did event X 21-14 days ago
@@ -354,7 +353,7 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
    * that correlate with significantly higher conversion rates (relative lift > 50%).
    * Only reports insights where the intermediate event was seen by >= 30 users.
    */
-  async detectConversionCorrelations(projectId: string, projectName: string): Promise<void> {
+  async detectConversionCorrelations(projectId: string): Promise<void> {
     // Step 1: find the top-5 conversion events by total count in the last 30 days.
     const topEventsQuery = `
       SELECT

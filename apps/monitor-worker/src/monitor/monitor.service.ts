@@ -7,6 +7,7 @@ import type { AiMonitor, Database } from '@qurvo/db';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { DRIZZLE, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { NotificationService } from './notification.service';
+import { computeChangePercent } from './monitor.utils';
 import { MONITOR_CHECK_INTERVAL_MS, MONITOR_INITIAL_DELAY_MS } from '../constants';
 
 interface BaselineRow {
@@ -125,9 +126,7 @@ export class MonitorService extends PeriodicWorkerMixin {
     baselineAvg: number,
     zScore: number,
   ): string {
-    const changePercent = baselineAvg > 0
-      ? Math.round(((current - baselineAvg) / baselineAvg) * 100)
-      : 0;
+    const changePercent = computeChangePercent(current, baselineAvg);
     const direction = current > baselineAvg ? 'higher' : 'lower';
     const sigmaRounded = Math.round(zScore * 10) / 10;
     return (

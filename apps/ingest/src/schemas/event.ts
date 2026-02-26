@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Garbage distinct_ids that SDKs or broken clients may send.
-// Mirrors the blocklist in apps/processor for defense-in-depth.
+// ВАЖНО: держать в синхронизации с apps/processor/src/processor/pipeline/validate.step.ts (ILLEGAL_DISTINCT_IDS)
 const ILLEGAL_DISTINCT_IDS = new Set([
   'anonymous', 'null', 'undefined', 'none', 'nil',
   '[object object]', 'nan', 'true', 'false', '0',
