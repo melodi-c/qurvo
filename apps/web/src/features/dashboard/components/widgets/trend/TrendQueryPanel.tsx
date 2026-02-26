@@ -126,11 +126,8 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {metricOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      <div className="flex flex-col">
-                        <span>{o.label}</span>
-                        <span className="text-xs text-muted-foreground">{o.desc}</span>
-                      </div>
+                    <SelectItem key={o.value} value={o.value} description={o.desc}>
+                      {o.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
