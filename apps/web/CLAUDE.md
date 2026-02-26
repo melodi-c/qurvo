@@ -93,7 +93,7 @@ Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
 
 | Hook | File | Signature | When to use |
 |---|---|---|---|
-| `useProjectId` | `use-project-id.ts` | `() => string` | Read current project ID from `?project=` URL param. Canonical source — use instead of local `useSearchParams().get('project')` |
+| `useProjectId` | `use-project-id.ts` | `() => string` | Read current project ID from `:projectId` URL path param via `useParams()`. Canonical source — use instead of local `useParams().projectId` |
 | `useEventPropertyNames` | `use-event-property-names.ts` | `(eventName?) => { data: string[], descriptions: Record }` | Fetch property names (optionally filtered by event). Returns flat names + description map. Use with `PropertyNameCombobox` |
 | `useDebounce<T>` | `use-debounce.ts` | `(value: T, delay: number) => T` | Debounce any value (search input, form state hash). Returns debounced copy after `delay` ms of inactivity |
 | `useConfirmDelete` | `use-confirm-delete.ts` | `() => { isOpen, itemId, itemName, requestDelete, close }` | Manages confirm dialog state for delete actions. Pair with `ConfirmDialog` component |
@@ -249,7 +249,7 @@ All query panel sections are self-contained components in `components/ui/`. Widg
 **Retention, Lifecycle, Stickiness** share the same query panel structure via `TargetEventQueryPanel` from `features/dashboard/components/widgets/shared/`. Each widget only passes its icon and optional extra sections (e.g. retention type toggle, periods input).
 
 ### Project Context
-Current project ID is always passed via `?project=<uuid>` in URL search params. Read with `useProjectId()` hook from `@/hooks/use-project-id`. Layout preserves `project` param on navigation via `navLink()` helper.
+Current project ID is passed via **URL path param** `:projectId`. Routes follow the pattern `/projects/:projectId/...`. Read the current project ID with `useProjectId()` hook from `@/hooks/use-project-id` — it calls `useParams<{ projectId: string }>()` internally. The `navLink()` helper in layout replaces `:projectId` in path templates with the active project ID via `path.replace(':projectId', currentProject)`.
 
 ### Toast Notifications
 Use `toast.success()` / `toast.error()` from `sonner` for user feedback after mutations. Never use `alert()`.
