@@ -1,11 +1,10 @@
 import { IsString, IsOptional, IsBoolean, IsObject, IsIn, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsValidChannelConfig } from './shared/is-valid-channel-config.decorator';
-import { notificationChannelTypeEnum, type NotificationChannelType } from '@qurvo/db';
+import { type NotificationChannelType } from '@qurvo/db';
+import { ChannelConfigDto, CHANNEL_TYPES } from './shared/channel-config.dto';
 
-const CHANNEL_TYPES = notificationChannelTypeEnum.enumValues;
-
-export class CreateScheduledJobDto {
+export class CreateScheduledJobDto extends ChannelConfigDto {
   @IsString()
   @MinLength(1)
   @MaxLength(255)
@@ -19,16 +18,6 @@ export class CreateScheduledJobDto {
   @IsIn(['daily', 'weekly', 'monthly'])
   @ApiProperty({ enum: ['daily', 'weekly', 'monthly'] })
   schedule: string;
-
-  @IsString()
-  @IsIn(CHANNEL_TYPES)
-  @ApiProperty({ enum: CHANNEL_TYPES })
-  channel_type: NotificationChannelType;
-
-  @IsObject()
-  @IsValidChannelConfig()
-  @ApiProperty({ type: 'object', additionalProperties: true })
-  channel_config: Record<string, unknown>;
 }
 
 export class UpdateScheduledJobDto {

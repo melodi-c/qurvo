@@ -1,11 +1,10 @@
 import { IsString, IsNumber, IsOptional, IsBoolean, IsObject, IsIn, MinLength, MaxLength, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsValidChannelConfig } from './shared/is-valid-channel-config.decorator';
-import { notificationChannelTypeEnum, type NotificationChannelType } from '@qurvo/db';
+import { type NotificationChannelType } from '@qurvo/db';
+import { ChannelConfigDto, CHANNEL_TYPES } from './shared/channel-config.dto';
 
-const CHANNEL_TYPES = notificationChannelTypeEnum.enumValues;
-
-export class CreateMonitorDto {
+export class CreateMonitorDto extends ChannelConfigDto {
   @IsString()
   @MinLength(1)
   @MaxLength(255)
@@ -21,16 +20,6 @@ export class CreateMonitorDto {
   @Max(10)
   @IsOptional()
   threshold_sigma?: number;
-
-  @IsString()
-  @IsIn(CHANNEL_TYPES)
-  @ApiProperty({ enum: CHANNEL_TYPES })
-  channel_type: NotificationChannelType;
-
-  @IsObject()
-  @IsValidChannelConfig()
-  @ApiProperty({ type: 'object', additionalProperties: true })
-  channel_config: Record<string, unknown>;
 }
 
 export class UpdateMonitorDto {
