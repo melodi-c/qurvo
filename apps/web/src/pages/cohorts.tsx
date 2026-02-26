@@ -54,7 +54,7 @@ export default function CohortsPage() {
       linkDetail={(id) => link.cohorts.detail(id)}
       newLabel={t('newCohort')}
       newButton={<NewCohortDropdown />}
-      entityLabel="cohort"
+      entityLabel={t('cohortEntity')}
       columns={extraColumns}
       data={cohorts}
       isLoading={isLoading}

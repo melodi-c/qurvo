@@ -61,7 +61,7 @@ export function CrudListPage<T extends CrudListRow>({
     if (!deleteTarget) return;
     try {
       await onDelete(deleteTarget.id);
-      toast.success(t('deleteSuccess', { entity: entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1) }));
+      toast.success(t('deleteSuccess', { entity: entityLabel }));
     } catch {
       toast.error(t('deleteError', { entity: entityLabel }));
     }

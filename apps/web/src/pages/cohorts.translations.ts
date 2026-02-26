@@ -12,6 +12,7 @@ export default createTranslations({
     conditions: 'Conditions',
     noConditions: 'No conditions',
     created: 'Created',
+    cohortEntity: 'Cohort',
   },
   ru: {
     title: 'Когорты',
@@ -24,5 +25,6 @@ export default createTranslations({
     conditions: 'Условия',
     noConditions: 'Нет условий',
     created: 'Создана',
+    cohortEntity: 'Когорта',
   },
 });
