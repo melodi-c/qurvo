@@ -21,7 +21,7 @@ const DashboardPage = lazy(() => import('@/pages/dashboard'));
 const DashboardsPage = lazy(() => import('@/pages/dashboards/index'));
 const DashboardBuilderPage = lazy(() => import('@/pages/dashboards/[id]'));
 const ProjectsPage = lazy(() => import('@/pages/projects'));
-const ApiKeysPage = lazy(() => import('@/pages/api-keys'));
+const ProjectTokenPage = lazy(() => import('@/pages/project-token'));
 const SettingsPage = lazy(() => import('@/pages/settings/index'));
 const ProfilePage = lazy(() => import('@/pages/profile/index'));
 const EventsPage = lazy(() => import('@/pages/events'));
@@ -119,7 +119,7 @@ function AppRoutes() {
         <Route path={routes.webAnalytics.pattern} element={<WebAnalyticsPage />} />
         <Route path={routes.dashboards.list.pattern} element={<DashboardsPage />} />
         <Route path={routes.dashboards.detail.pattern} element={<DashboardBuilderPage />} />
-        <Route path={routes.keys.pattern} element={<ApiKeysPage />} />
+        <Route path={routes.keys.pattern} element={<ProjectTokenPage />} />
         <Route path={routes.settings.pattern} element={<SettingsPage />} />
 
         <Route path={routes.insights.list.pattern} element={<InsightsPage />} />
