@@ -102,6 +102,11 @@ pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts
 ```
 Если важные интеграционные тесты отсутствуют -- напиши их.
 
+После прогона тестов (успешного или нет) всегда выполняй cleanup orphaned testcontainers:
+```bash
+pnpm test:cleanup
+```
+
 ### 4.2 Миграции
 
 **КРИТИЧНО — защита от дублей**: перед генерацией миграции сверь последний номер в worktree с локальным main:
@@ -196,6 +201,7 @@ git merge "$BASE_BRANCH"
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
 pnpm --filter @qurvo/<app> exec vitest run
+pnpm test:cleanup
 # Для каждого app из AFFECTED_APPS:
 pnpm --filter @qurvo/<app> build
 ```
