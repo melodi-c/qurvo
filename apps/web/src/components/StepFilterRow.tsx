@@ -78,13 +78,17 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames, prope
             ))}
           </SelectContent>
         </Select>
-        {hasValue && (
+        {hasValue ? (
           <Input
             value={filter.value ?? ''}
             onChange={(e) => onChange({ ...filter, value: e.target.value })}
             placeholder={t('valuePlaceholder')}
             className="h-8 min-w-0 flex-1 px-2 text-xs shadow-none"
           />
+        ) : (
+          <span className="text-xs text-muted-foreground/70 italic">
+            {filter.operator === 'is_set' ? t('isSetHint') : t('isNotSetHint')}
+          </span>
         )}
       </div>
     </div>

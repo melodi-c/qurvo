@@ -7,6 +7,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TargetEventQueryPanel.translations';
@@ -39,7 +40,10 @@ export function TargetEventQueryPanel<T extends BaseTargetEventConfig>({
 
   const granularitySelect = (
     <div className="space-y-1">
-      <span className="text-xs text-muted-foreground">{t('granularity')}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-muted-foreground">{t('granularity')}</span>
+        <InfoTooltip content={t('granularityTooltip')} />
+      </div>
       <Select
         value={config.granularity}
         onValueChange={(v) => onChange({ ...config, granularity: v as T['granularity'] })}
