@@ -152,12 +152,12 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg flex flex-col max-h-[90dvh]">
         <DialogHeader>
           <DialogTitle>{isEdit ? t('editJob') : t('createJob')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto min-h-0">
           <div className="space-y-1.5">
             <Label>{t('fieldName')}</Label>
             <Input

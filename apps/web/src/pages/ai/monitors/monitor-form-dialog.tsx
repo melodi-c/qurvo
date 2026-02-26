@@ -152,12 +152,12 @@ export function MonitorFormDialog({ open, onOpenChange, projectId, monitor }: Mo
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent>
+      <DialogContent className="flex flex-col max-h-[90dvh]">
         <DialogHeader>
           <DialogTitle>{isEdit ? t('editMonitor') : t('createMonitor')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto min-h-0">
           <div className="space-y-1.5">
             <Label>{t('fieldEventName')}</Label>
             <EventNameCombobox

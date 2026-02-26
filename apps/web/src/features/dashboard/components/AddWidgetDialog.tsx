@@ -46,12 +46,12 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md flex flex-col max-h-[90dvh]">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
 
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('searchPlaceholder')}
@@ -61,7 +61,7 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
           />
         </div>
 
-        <div className="max-h-[300px] overflow-y-auto -mx-1 px-1 space-y-1">
+        <div className="min-h-0 overflow-y-auto -mx-1 px-1 space-y-1">
           {isLoading && (
             <div className="space-y-2 py-2">
               {[1, 2, 3].map((i) => (
