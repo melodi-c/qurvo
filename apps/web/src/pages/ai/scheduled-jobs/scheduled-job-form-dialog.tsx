@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
+import { ChannelConfigSection, buildChannelConfig, isChannelConfigFilled, validateChannelConfig } from '@/components/ui/channel-config-section';
+import type { ChannelConfigFields } from '@/components/ui/channel-config-section';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCreateScheduledJob, useUpdateScheduledJob } from '@/features/ai-scheduled-jobs/use-scheduled-jobs';
 import type { AiScheduledJob } from '@/api/generated/Api';
@@ -89,43 +91,27 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
     onOpenChange(next);
   }, [job, onOpenChange]);
 
+  const channelFields: ChannelConfigFields = {
+    channel_type: form.channel_type,
+    channel_config_value: form.channel_config_value,
+    channel_config_extra: form.channel_config_extra,
+  };
+
   const validate = useCallback((): boolean => {
-    const next: typeof errors = {};
+    const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = t('validationRequired');
     if (!form.prompt.trim()) next.prompt = t('validationRequired');
-    if (!form.channel_config_value.trim()) next.channel_config_value = t('validationRequired');
-    if (form.channel_type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.channel_config_value)) {
-      next.channel_config_value = t('validationInvalidEmail');
-    }
-    if (form.channel_type === 'slack') {
-      try { new URL(form.channel_config_value); } catch {
-        next.channel_config_value = t('validationInvalidUrl');
-      }
-    }
-    if (form.channel_type === 'telegram' && !form.channel_config_extra.trim()) {
-      next.channel_config_extra = t('validationRequired');
-    }
+    validateChannelConfig(channelFields, next, t);
     setErrors(next);
     return Object.keys(next).length === 0;
-  }, [form, t]);
-
-  const buildChannelConfig = useCallback((): Record<string, unknown> => {
-    if (form.channel_type === 'slack') return { webhook_url: form.channel_config_value.trim() };
-    if (form.channel_type === 'telegram') {
-      return { chat_id: form.channel_config_value.trim(), bot_token: form.channel_config_extra.trim() };
-    }
-    return { email: form.channel_config_value.trim() };
-  }, [form.channel_type, form.channel_config_value, form.channel_config_extra]);
-
-  const isChannelConfigFilled = form.channel_config_value.trim().length > 0 &&
-    (form.channel_type !== 'telegram' || form.channel_config_extra.trim().length > 0);
+  }, [form, channelFields, t]);
 
   const handleTest = useCallback(() => {
     testMutation.mutate({
       channel_type: form.channel_type as TestNotificationDtoChannelTypeEnum,
-      channel_config: buildChannelConfig(),
+      channel_config: buildChannelConfig(channelFields),
     });
-  }, [testMutation, form.channel_type, buildChannelConfig]);
+  }, [testMutation, form.channel_type, channelFields]);
 
   const handleSubmit = useCallback(async () => {
     if (!validate()) return;
@@ -135,7 +121,7 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
       prompt: form.prompt.trim(),
       schedule: form.schedule,
       channel_type: form.channel_type,
-      channel_config: buildChannelConfig(),
+      channel_config: buildChannelConfig(channelFields),
     };
 
     try {
@@ -149,7 +135,7 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
     } catch {
       // error handled by mutation
     }
-  }, [validate, form, isEdit, job, createMutation, updateMutation, t, handleOpen, buildChannelConfig]);
+  }, [validate, form, channelFields, isEdit, job, createMutation, updateMutation, t, handleOpen]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -200,65 +186,19 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>{t('fieldChannelType')}</Label>
-            <Select
-              value={form.channel_type}
-              onValueChange={(v) => setForm((s) => ({ ...s, channel_type: v as 'slack' | 'email' | 'telegram', channel_config_value: '', channel_config_extra: '' }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="slack">{t('channelSlack')}</SelectItem>
-                <SelectItem value="email">{t('channelEmail')}</SelectItem>
-                <SelectItem value="telegram">{t('channelTelegram')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              {form.channel_type === 'slack'
-                ? t('fieldSlackWebhook')
-                : form.channel_type === 'telegram'
-                  ? t('fieldTelegramChatId')
-                  : t('fieldEmail')}
-            </Label>
-            <Input
-              type={form.channel_type === 'email' ? 'email' : 'text'}
-              placeholder={
-                form.channel_type === 'slack'
-                  ? t('slackWebhookPlaceholder')
-                  : form.channel_type === 'telegram'
-                    ? '-1001234567890'
-                    : t('emailReportPlaceholder')
-              }
-              value={form.channel_config_value}
-              onChange={(e) => setForm((s) => ({ ...s, channel_config_value: e.target.value }))}
-            />
-            {errors.channel_config_value && <p className="text-xs text-destructive">{errors.channel_config_value}</p>}
-          </div>
-
-          {form.channel_type === 'telegram' && (
-            <div className="space-y-1.5">
-              <Label>{t('fieldTelegramBotToken')}</Label>
-              <Input
-                type="text"
-                placeholder="123456789:ABCdefGhIjKlMnOpQrStUvWxYz"
-                value={form.channel_config_extra}
-                onChange={(e) => setForm((s) => ({ ...s, channel_config_extra: e.target.value }))}
-              />
-              {errors.channel_config_extra && <p className="text-xs text-destructive">{errors.channel_config_extra}</p>}
-            </div>
-          )}
+          <ChannelConfigSection
+            values={channelFields}
+            errors={errors}
+            emailPlaceholder={t('emailReportPlaceholder')}
+            onChange={(patch) => setForm((s) => ({ ...s, ...patch }))}
+          />
         </div>
 
         <DialogFooter>
           <Button
             variant="outline"
             onClick={handleTest}
-            disabled={isPending || testMutation.isPending || !isChannelConfigFilled}
+            disabled={isPending || testMutation.isPending || !isChannelConfigFilled(channelFields)}
           >
             {t('sendTest')}
           </Button>

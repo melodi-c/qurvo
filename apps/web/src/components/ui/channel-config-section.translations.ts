@@ -1,0 +1,36 @@
+import { createTranslations } from '@/i18n/types';
+
+export default createTranslations({
+  en: {
+    fieldChannelType: 'Channel',
+    channelSlack: 'Slack',
+    channelEmail: 'Email',
+    channelTelegram: 'Telegram',
+    fieldSlackWebhook: 'Slack webhook URL',
+    fieldTelegramChatId: 'Telegram Chat ID',
+    fieldEmail: 'Email address',
+    fieldTelegramBotToken: 'Telegram Bot Token',
+    slackWebhookPlaceholder: 'https://hooks.slack.com/services/...',
+    telegramChatIdPlaceholder: '-1001234567890',
+    telegramBotTokenPlaceholder: '123456789:ABCdefGhIjKlMnOpQrStUvWxYz',
+    validationRequired: 'This field is required',
+    validationInvalidEmail: 'Enter a valid email address',
+    validationInvalidUrl: 'Enter a valid URL',
+  },
+  ru: {
+    fieldChannelType: 'Канал',
+    channelSlack: 'Slack',
+    channelEmail: 'Email',
+    channelTelegram: 'Telegram',
+    fieldSlackWebhook: 'Slack webhook URL',
+    fieldTelegramChatId: 'ID чата Telegram',
+    fieldEmail: 'Email-адрес',
+    fieldTelegramBotToken: 'Токен Telegram-бота',
+    slackWebhookPlaceholder: 'https://hooks.slack.com/services/...',
+    telegramChatIdPlaceholder: '-1001234567890',
+    telegramBotTokenPlaceholder: '123456789:ABCdefGhIjKlMnOpQrStUvWxYz',
+    validationRequired: 'Это поле обязательно',
+    validationInvalidEmail: 'Введите корректный email-адрес',
+    validationInvalidUrl: 'Введите корректный URL',
+  },
+});
