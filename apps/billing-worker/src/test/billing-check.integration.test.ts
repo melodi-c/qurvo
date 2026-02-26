@@ -1,20 +1,26 @@
 import 'reflect-metadata';
 import { randomUUID, randomBytes } from 'crypto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { createTestProject } from '@qurvo/testing';
+import { createTestProject, type ContainerContext } from '@qurvo/testing';
 import { projects, plans } from '@qurvo/db';
 import { getTestContext } from './context';
+import type { BillingCheckService } from '../billing/billing-check.service';
 import { BILLING_QUOTA_LIMITED_KEY, billingCounterKey } from '../constants';
 
+let ctx: ContainerContext;
+let billingService: BillingCheckService;
+
+beforeAll(async () => {
+  ({ ctx, billingService } = await getTestContext());
+});
+
 beforeEach(async () => {
-  const { ctx } = await getTestContext();
   // Clear the quota_limited set before each test
   await ctx.redis.del(BILLING_QUOTA_LIMITED_KEY);
 });
 
 async function createPlanWithLimit(limit: number): Promise<string> {
-  const { ctx } = await getTestContext();
   const planId = randomUUID();
   await ctx.db.insert(plans).values({
     id: planId,
@@ -27,13 +33,11 @@ async function createPlanWithLimit(limit: number): Promise<string> {
 }
 
 async function assignPlan(projectId: string, planId: string): Promise<void> {
-  const { ctx } = await getTestContext();
   await ctx.db.update(projects).set({ plan_id: planId } as any).where(eq(projects.id, projectId));
 }
 
 describe('BillingCheckService', () => {
   it('adds over-limit project to quota_limited set', async () => {
-    const { ctx, billingService } = await getTestContext();
     const planId = await createPlanWithLimit(100);
     const tp = await createTestProject(ctx.db);
     await assignPlan(tp.projectId, planId);
@@ -48,7 +52,6 @@ describe('BillingCheckService', () => {
   });
 
   it('does not add under-limit project to quota_limited set', async () => {
-    const { ctx, billingService } = await getTestContext();
     const planId = await createPlanWithLimit(1000);
     const tp = await createTestProject(ctx.db);
     await assignPlan(tp.projectId, planId);
@@ -63,7 +66,6 @@ describe('BillingCheckService', () => {
   });
 
   it('removes project from set when counter drops below limit', async () => {
-    const { ctx, billingService } = await getTestContext();
     const planId = await createPlanWithLimit(100);
     const tp = await createTestProject(ctx.db);
     await assignPlan(tp.projectId, planId);
@@ -80,7 +82,6 @@ describe('BillingCheckService', () => {
   });
 
   it('removes stale entries from set on cycle', async () => {
-    const { ctx, billingService } = await getTestContext();
     // Pre-seed the set with a fake project ID that doesn't exist in DB
     const staleId = randomUUID();
     await ctx.redis.sadd(BILLING_QUOTA_LIMITED_KEY, staleId);
@@ -93,7 +94,6 @@ describe('BillingCheckService', () => {
   });
 
   it('handles multiple projects — only over-limit ones are in the set', async () => {
-    const { ctx, billingService } = await getTestContext();
     const planId = await createPlanWithLimit(100);
 
     const over = await createTestProject(ctx.db);
@@ -116,7 +116,6 @@ describe('BillingCheckService', () => {
   });
 
   it('sets TTL on the quota_limited key', async () => {
-    const { ctx, billingService } = await getTestContext();
     const planId = await createPlanWithLimit(100);
     const tp = await createTestProject(ctx.db);
     await assignPlan(tp.projectId, planId);
@@ -130,7 +129,6 @@ describe('BillingCheckService', () => {
   });
 
   it('skips projects without a counter (treats as 0 events)', async () => {
-    const { ctx, billingService } = await getTestContext();
     const planId = await createPlanWithLimit(100);
     const tp = await createTestProject(ctx.db);
     await assignPlan(tp.projectId, planId);
