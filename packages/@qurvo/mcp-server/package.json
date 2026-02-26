@@ -1,0 +1,28 @@
+{
+  "name": "@qurvo/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing Qurvo analytics tools for Claude Code, Cursor, and other MCP-compatible clients",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "bin": {
+    "@qurvo/mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@qurvo/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
