@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { createHash } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -10,6 +11,8 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
+import { projects } from '@qurvo/db';
+import { eq } from 'drizzle-orm';
 import { AppModule } from '../../app.module';
 import {
   REDIS_STREAM_EVENTS,
@@ -630,5 +633,70 @@ describe('Rate limiting', () => {
     const key = `${RATE_LIMIT_KEY_PREFIX}:${tp.projectId}:${bucket}`;
     const counter = await ctx.redis.get(key);
     expect(parseInt(counter!, 10)).toBe(2);
+  });
+});
+
+describe('Legacy SDK hash-based auth (migration 0037 backward compatibility)', () => {
+  // Simulates an old SDK that sends rawKey (32-char base64url).
+  // Migration 0037 stores sha256(rawKey) as projects.token, so the guard
+  // must hash the incoming token and perform a second DB lookup when the
+  // direct match fails.
+
+  it('authenticates old SDK rawKey when projects.token stores sha256(rawKey)', async () => {
+    // Simulate a project that was migrated: its token is sha256(rawKey)
+    const rawKey = 'legacyrawkey1234567890abcdefghij'; // 32-char raw key
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+
+    const { projectId } = await createTestProject(ctx.db);
+    // Override the token to be the hash (as migration 0037 would have set it)
+    await ctx.db.update(projects).set({ token: keyHash }).where(eq(projects.id, projectId));
+
+    // Old SDK sends rawKey — guard must hash it and find the project
+    const res = await postBatch(app, rawKey, {
+      events: [{ event: 'legacy_sdk_event', distinct_id: 'legacy-user', timestamp: new Date().toISOString() }],
+    });
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ ok: true, count: 1, dropped: 0 });
+  });
+
+  it('caches hash-lookup result so subsequent legacy SDK requests hit Redis cache', async () => {
+    const rawKey = 'anotherlegacykey987654321zyxwvut'; // 32-char raw key
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+
+    const { projectId } = await createTestProject(ctx.db);
+    await ctx.db.update(projects).set({ token: keyHash }).where(eq(projects.id, projectId));
+
+    // Clear any existing cache entries
+    await ctx.redis.del(`project_token:${rawKey}`);
+    await ctx.redis.del(`project_token:${keyHash}`);
+
+    // First request — triggers DB hash fallback, populates hash cache
+    const res1 = await postBatch(app, rawKey, {
+      events: [{ event: 'cache_test_1', distinct_id: 'cache-user', timestamp: new Date().toISOString() }],
+    });
+    expect(res1.status).toBe(202);
+
+    // Verify cache was populated under the hash key
+    const cached = await ctx.redis.get(`project_token:${keyHash}`);
+    expect(cached).not.toBeNull();
+    const parsed = JSON.parse(cached!);
+    expect(parsed.project_id).toBe(projectId);
+
+    // Second request — should use cache (hash cache hit)
+    const res2 = await postBatch(app, rawKey, {
+      events: [{ event: 'cache_test_2', distinct_id: 'cache-user', timestamp: new Date().toISOString() }],
+    });
+    expect(res2.status).toBe(202);
+  });
+
+  it('returns 401 for a rawKey whose sha256 does not match any project token', async () => {
+    const unknownRawKey = 'unknownrawkey000000000000000000x';
+
+    const res = await postBatch(app, unknownRawKey, {
+      events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
+    });
+
+    expect(res.status).toBe(401);
   });
 });

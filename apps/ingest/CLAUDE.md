@@ -66,7 +66,7 @@ SDK POST → ApiKeyGuard → RateLimitGuard → BillingGuard → Per-event Zod v
 UA parsing is deferred to the processor — ingest stores raw `user_agent` string in the stream payload. SDK context fields (browser, os, device_type) are passed through as-is if present.
 
 ### Guard Chain
-- **`ApiKeyGuard`** — validates token format (printable ASCII, ≤128 chars) before any IO, then authenticates by looking up `projects.token` directly (300s Redis cache key `project_token:<token>`, DB fallback). Sets `request.projectId` and initializes `request.quotaLimited = false`. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
+- **`ApiKeyGuard`** — validates token format (printable ASCII, ≤128 chars) before any IO, then authenticates by looking up `projects.token` directly (300s Redis cache key `project_token:<token>`, DB fallback). If the direct lookup misses, falls back to a sha256 hash lookup (`project_token:<sha256(token)>` cache, then DB) to support legacy SDKs that send rawKey (migration 0037 stores sha256(rawKey) as `projects.token`). Sets `request.projectId` and initializes `request.quotaLimited = false`. Redis cache read errors fall back to DB-only auth; cache write errors are fire-and-forget.
 - **`RateLimitGuard`** — per-project sliding window rate limit. 60s window split into 6x10s Redis buckets via `rateLimitWindowKeys()`, `MGET` to sum. Returns 429 `{ retry_after }` if >= 100K events/min. Guard only reads; counter incremented fire-and-forget by `IngestService` via `rateLimitBucketKey()`. Applied to both `/v1/batch` and `/v1/import`. **Fails open** on Redis errors (allows request through).
 - **`BillingGuard`** — checks `SISMEMBER billing:quota_limited {projectId}` (Redis Set populated by `@qurvo/billing-worker`), sets `request.quotaLimited = true` if member (returns 200 with `quota_limited: true` to prevent SDK retries). Only applied to `/v1/batch`. **Fails open** on Redis errors.
 
@@ -147,7 +147,8 @@ Billing counters use `EXPIREAT` with an absolute timestamp (end-of-month + 5 day
 - Batch: 202 + multi-event write, 400 empty array, gzip batch, invalid gzip, 401 no key, per-event validation (partial success), all-invalid batch → 400
 - Import: 202 + multi-event write, event_id preservation, no billing counter increment, 400 missing timestamp, batch_id prefix
 - Health: 200 status ok
-- API key auth: api_key in body, 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache), 401 revoked key (Redis cache)
+- API key auth: api_key in body, 401 non-existent key, 401 expired key (DB), 401 revoked key, 401 expired key (Redis cache), 401 revoked key (Redis cache), Redis cache hit
+- Legacy SDK hash-based auth (migration 0037 backward compat): sha256 fallback authenticates old rawKey, caches hash lookup, 401 for unknown rawKey
 - Billing guard: 200 + quota_limited when in set, 204 beacon when quota limited, 202 when not in set, billing counter increment
 - Beacon: 204 No Content with ?beacon=1
 - Gzip auto-detect: compressed body without Content-Encoding header
