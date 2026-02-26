@@ -83,16 +83,17 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {compact && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 px-1">
-          {statuses.map((s) => (
-            <div key={s.key} className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-              <span className="text-[10px] text-muted-foreground">{s.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className={compact ? 'flex flex-wrap gap-x-3 gap-y-0.5 pt-1.5 px-1' : 'flex flex-wrap gap-x-4 gap-y-1 pt-3 px-2'}>
+        {statuses.map((s) => (
+          <div key={s.key} className="flex items-center gap-1.5">
+            <span
+              className={compact ? 'inline-block h-2 w-2 rounded-full shrink-0' : 'inline-block h-3 w-3 rounded-full shrink-0'}
+              style={{ backgroundColor: s.color }}
+            />
+            <span className={compact ? 'text-[10px] text-muted-foreground' : 'text-xs text-muted-foreground'}>{s.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
