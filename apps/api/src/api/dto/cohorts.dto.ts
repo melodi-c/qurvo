@@ -119,7 +119,7 @@ export class CohortSizeHistoryQueryDto {
   @IsOptional()
   @Type(() => Number)
   @ApiPropertyOptional({ description: 'Number of days of history (default 30)', default: 30 })
-  days?: number;
+  days?: number = 30;
 }
 
 export class CohortHistoryPointDto {

@@ -7,6 +7,7 @@ export const LOGIN_WINDOW_SECONDS = 60;
 
 export const SESSION_CACHE_TTL_SECONDS = 60;
 export const SESSION_CACHE_KEY_PREFIX = 'session:';
+export const PROJECT_TOKEN_CACHE_KEY_PREFIX = 'project_token:';
 export const MAX_ACTIVE_SESSIONS_PER_USER = 10;
 
 export const VERIFICATION_CODE_TTL_SECONDS = 10 * 60;

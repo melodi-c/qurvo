@@ -15,6 +15,6 @@ export class IngestionWarningsController {
   async getIngestionWarnings(
     @Query() query: IngestionWarningsQueryDto,
   ): Promise<IngestionWarningDto[]> {
-    return this.ingestionWarningsService.getWarnings(query.project_id, query.limit ?? 50) as any;
+    return this.ingestionWarningsService.getWarnings(query.project_id, query.limit!) as any;
   }
 }

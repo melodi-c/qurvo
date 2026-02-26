@@ -7,13 +7,9 @@ import {
   PropertyDefinitionsListResponseDto,
   UpsertPropertyDefinitionDto,
   UpsertPropertyDefinitionResponseDto,
+  PROPERTY_TYPE,
 } from '../dto/property-definitions.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
-
-enum PropertyType {
-  event = 'event',
-  person = 'person',
-}
 
 @ApiTags('Property Definitions')
 @ApiBearerAuth()
@@ -34,7 +30,7 @@ export class PropertyDefinitionsController {
   @Patch(':propertyType/:propertyName')
   async upsert(
     @Param('projectId') projectId: string,
-    @Param('propertyType', new ParseEnumPipe(PropertyType)) propertyType: 'event' | 'person',
+    @Param('propertyType', new ParseEnumPipe(PROPERTY_TYPE)) propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
     @Body() body: UpsertPropertyDefinitionDto,
   ): Promise<UpsertPropertyDefinitionResponseDto> {
@@ -50,7 +46,7 @@ export class PropertyDefinitionsController {
   @Delete(':propertyType/:propertyName')
   async remove(
     @Param('projectId') projectId: string,
-    @Param('propertyType', new ParseEnumPipe(PropertyType)) propertyType: 'event' | 'person',
+    @Param('propertyType', new ParseEnumPipe(PROPERTY_TYPE)) propertyType: 'event' | 'person',
     @Param('propertyName') propertyName: string,
   ): Promise<void> {
     await this.propertyDefinitionsService.delete(projectId, propertyName, propertyType);

@@ -73,7 +73,7 @@ export class CohortsController {
     @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Query() query: CohortSizeHistoryQueryDto,
   ): Promise<CohortHistoryPointDto[]> {
-    return this.cohortsService.getSizeHistory(projectId, cohortId, query.days ?? 30) as any;
+    return this.cohortsService.getSizeHistory(projectId, cohortId, query.days!) as any;
   }
 
   @Get(':cohortId/count')
