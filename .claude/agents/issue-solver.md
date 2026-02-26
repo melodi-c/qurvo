@@ -255,8 +255,39 @@ cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-node publish --access public --n
 ```
 
 ### 4.11 Закрыть issue и очистить worktree
+
+Перед закрытием составь краткий итоговый комментарий на основе того, что реально было сделано:
+
+```
+## Выполнено
+
+- <конкретное изменение 1 с указанием файла/модуля>
+- <конкретное изменение 2>
+- ...
+
+## Коммиты
+<список коммитов из git log --oneline fix/issue-<ISSUE_NUMBER> ^<BASE_BRANCH>>
+
+Смерджено в `<BASE_BRANCH>`.
+```
+
 ```bash
-gh issue close <ISSUE_NUMBER> --comment "Реализовано и смерджено в $BASE_BRANCH."
+# Получи список коммитов для комментария
+cd "$WORKTREE_PATH" && git log --oneline "fix/issue-<ISSUE_NUMBER>" "^$BASE_BRANCH"
+
+# Закрой issue с содержательным комментарием (подставь реальный текст выше)
+gh issue close <ISSUE_NUMBER> --comment "$(cat <<'COMMENT'
+## Выполнено
+
+- ...
+
+## Коммиты
+...
+
+Смерджено в `<BASE_BRANCH>`.
+COMMENT
+)"
+
 git worktree remove "$WORKTREE_PATH"
 git branch -d "fix/issue-<ISSUE_NUMBER>"
 ```
