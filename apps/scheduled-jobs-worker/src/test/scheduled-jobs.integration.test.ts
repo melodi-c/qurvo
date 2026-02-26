@@ -44,7 +44,7 @@ async function createJob(
       prompt: 'What is the current state of metrics?',
       schedule,
       channel_type: 'slack',
-      channel_config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/test' }),
+      channel_config: { webhook_url: 'https://hooks.slack.com/test' },
       is_active: true,
       last_run_at: lastRunAt,
     } as InsertAiScheduledJob)
@@ -118,7 +118,7 @@ describe('ScheduledJobsService', () => {
           prompt: 'This job is inactive',
           schedule: 'daily',
           channel_type: 'slack',
-          channel_config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/test' }),
+          channel_config: { webhook_url: 'https://hooks.slack.com/test' },
           is_active: false,
           last_run_at: null,
         } as InsertAiScheduledJob)

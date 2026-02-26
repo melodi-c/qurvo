@@ -46,10 +46,10 @@ export class AiScheduledJobsService {
         prompt: input.prompt,
         schedule: input.schedule,
         channel_type: input.channel_type,
-        channel_config: JSON.stringify(input.channel_config),
+        channel_config: input.channel_config,
       })
       .returning();
-    return this.deserialize(rows[0]);
+    return rows[0];
   }
 
   async update(projectId: string, jobId: string, input: UpdateScheduledJobInput) {
@@ -58,7 +58,7 @@ export class AiScheduledJobsService {
     if (input.prompt !== undefined) updateData['prompt'] = input.prompt;
     if (input.schedule !== undefined) updateData['schedule'] = input.schedule;
     if (input.channel_type !== undefined) updateData['channel_type'] = input.channel_type;
-    if (input.channel_config !== undefined) updateData['channel_config'] = JSON.stringify(input.channel_config);
+    if (input.channel_config !== undefined) updateData['channel_config'] = input.channel_config;
     if (input.is_active !== undefined) updateData['is_active'] = input.is_active;
 
     const rows = await this.db
@@ -68,7 +68,7 @@ export class AiScheduledJobsService {
       .returning();
 
     if (rows.length === 0) throw new ScheduledJobNotFoundException();
-    return this.deserialize(rows[0]);
+    return rows[0];
   }
 
   async remove(projectId: string, jobId: string) {
@@ -78,15 +78,5 @@ export class AiScheduledJobsService {
       .returning();
 
     if (rows.length === 0) throw new ScheduledJobNotFoundException();
-  }
-
-  private deserialize(job: typeof aiScheduledJobs.$inferSelect) {
-    let channel_config: Record<string, unknown> = {};
-    try {
-      channel_config = JSON.parse(job.channel_config) as Record<string, unknown>;
-    } catch {
-      // fallback to empty object
-    }
-    return { ...job, channel_config };
   }
 }

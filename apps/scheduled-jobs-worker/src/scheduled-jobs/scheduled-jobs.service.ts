@@ -98,12 +98,7 @@ export class ScheduledJobsService extends PeriodicWorkerMixin {
 
     const resultText = response.choices[0]?.message?.content ?? '(no response)';
 
-    let channelConfig: Record<string, unknown> = {};
-    try {
-      channelConfig = JSON.parse(job.channel_config) as Record<string, unknown>;
-    } catch {
-      this.logger.warn({ jobId: job.id }, 'Failed to parse channel_config JSON');
-    }
+    const channelConfig = (job.channel_config ?? {}) as Record<string, unknown>;
 
     await this.notificationService.sendScheduledJobResult(
       job.name,

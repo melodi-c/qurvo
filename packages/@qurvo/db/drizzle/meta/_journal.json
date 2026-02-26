@@ -274,6 +274,13 @@
       "when": 1775100000000,
       "tag": "0039_add_share_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1775200000000,
+      "tag": "0040_scheduled_jobs_channel_config_jsonb",
+      "breakpoints": true
     }
   ]
 }

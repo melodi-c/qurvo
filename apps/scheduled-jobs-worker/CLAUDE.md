@@ -65,7 +65,7 @@ Monthly scheduling uses `Date.setMonth(+1)`, not a fixed 30-day offset. JS overf
 | `email`        | SMTP via `EmailChannelConfig`    |
 | `telegram`     | Bot API POST via `TelegramChannelConfig` (`chat_id` + `bot_token`) |
 
-`channel_config` is stored as a JSON string in `ai_scheduled_jobs.channel_config` and parsed at runtime. A parse failure is logged as a warning; the job still attempts notification with an empty config.
+`channel_config` is stored as a `jsonb` column in `ai_scheduled_jobs.channel_config` (same as `ai_monitors`). Drizzle ORM returns it already as `Record<string, unknown>` — no manual `JSON.parse` needed at runtime.
 
 ## Unit Tests
 

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
 
@@ -14,7 +14,7 @@ export const aiScheduledJobs = pgTable('ai_scheduled_jobs', {
   prompt: text('prompt').notNull(),
   schedule: varchar('schedule', { length: 20 }).notNull(), // 'daily' | 'weekly' | 'monthly'
   channel_type: varchar('channel_type', { length: 20 }).notNull(), // 'slack' | 'email'
-  channel_config: text('channel_config').notNull(), // JSON stored as text
+  channel_config: jsonb('channel_config').notNull().$type<Record<string, unknown>>(), // JSONB (matches ai_monitors)
   is_active: boolean('is_active').notNull().default(true),
   last_run_at: timestamp('last_run_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
