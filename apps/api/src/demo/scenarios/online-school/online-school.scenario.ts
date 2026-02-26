@@ -153,11 +153,26 @@ export class OnlineSchoolScenario extends BaseScenario {
       });
     };
 
+    // Track latest user properties per student (updated as plan may change)
+    const studentLatestProps = new Map<string, Record<string, unknown>>();
+    const updateStudentProps = (student: Student) => {
+      studentLatestProps.set(student.email, {
+        name: student.name,
+        email: student.email,
+        country: student.country,
+        plan: student.plan,
+        age_group: student.age_group,
+        signup_date: student.signup_date.toISOString(),
+      });
+    };
+
     // Track enrollment per student for funnel
     const enrolledCourses = new Map<string, Course[]>();
 
     for (const student of students) {
       enrolledCourses.set(student.email, []);
+      // Record initial person properties
+      updateStudentProps(student);
 
       const signupTs = student.signup_date;
       const source = pick(SOURCES);
@@ -293,6 +308,8 @@ export class OnlineSchoolScenario extends BaseScenario {
         });
         // Update plan in student object so future events reflect upgrade
         student.plan = 'pro';
+        // Update person properties after plan change
+        updateStudentProps(student);
       }
     }
 
@@ -306,7 +323,18 @@ export class OnlineSchoolScenario extends BaseScenario {
       propertyName: name,
     }));
 
-    return { events, definitions, propertyDefinitions };
+    // Build persons and personDistinctIds from students
+    const persons = students.map((student) => ({
+      id: this.makePersonId(projectId, student.email),
+      properties: studentLatestProps.get(student.email) ?? {},
+    }));
+
+    const personDistinctIds = students.map((student) => ({
+      personId: this.makePersonId(projectId, student.email),
+      distinctId: student.email,
+    }));
+
+    return { events, definitions, propertyDefinitions, persons, personDistinctIds };
   }
 
   private buildStudents(now: Date): Student[] {
