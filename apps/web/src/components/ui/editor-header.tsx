@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight, Save, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './editor-header.translations';
 
 interface EditorHeaderProps {
   backPath: string;
@@ -31,6 +33,7 @@ export function EditorHeader({
   isValid,
   saveError,
 }: EditorHeaderProps) {
+  const { t } = useLocalTranslation(translations);
   const hasDescriptionField = onDescriptionChange !== undefined;
 
   return (
@@ -60,11 +63,11 @@ export function EditorHeader({
             </div>
           )}
           <Button variant="ghost" size="sm" asChild className="text-muted-foreground" disabled={isSaving}>
-            <Link to={backPath}>Discard</Link>
+            <Link to={backPath}>{t('discard')}</Link>
           </Button>
           <Button size="sm" onClick={onSave} disabled={!isValid || isSaving}>
             <Save className="h-3.5 w-3.5 mr-1.5" />
-            {isSaving ? 'Saving\u2026' : 'Save'}
+            {isSaving ? t('saving') : t('save')}
           </Button>
         </div>
       </div>
@@ -74,7 +77,7 @@ export function EditorHeader({
           <textarea
             value={description ?? ''}
             onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder={descriptionPlaceholder ?? 'Add description...'}
+            placeholder={descriptionPlaceholder ?? t('addDescription')}
             rows={1}
             maxLength={1000}
             className="w-full resize-none bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/30 leading-relaxed"
