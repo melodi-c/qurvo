@@ -6,6 +6,7 @@ import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr } from '../../utils/property-filter';
+import { type Metric, computeMetricValue } from './metric.utils';
 
 const argsSchema = z.object({
   event_name: z.string().describe('The event to analyze (e.g. "purchase", "signup")'),
@@ -33,8 +34,6 @@ const tool = defineTool({
   schema: argsSchema,
   visualizationType: 'root_cause_chart',
 });
-
-type Metric = 'unique_users' | 'total_events' | 'events_per_user';
 
 interface SegmentMetrics {
   baseline_value: number;
@@ -64,13 +63,6 @@ interface RawSegmentRow {
   total_baseline_uniq: string;
   total_current_raw: string;
   total_current_uniq: string;
-}
-
-function computeMetricValue(metric: Metric, raw: number, uniq: number): number {
-  if (metric === 'unique_users') return uniq;
-  if (metric === 'total_events') return raw;
-  // events_per_user
-  return uniq > 0 ? Math.round((raw / uniq) * 100) / 100 : 0;
 }
 
 function computeSegmentMetrics(

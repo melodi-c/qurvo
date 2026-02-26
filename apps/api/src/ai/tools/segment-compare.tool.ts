@@ -7,6 +7,7 @@ import type { AiTool } from './ai-tool.interface';
 import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { PropertyFilter } from '../../utils/property-filter';
+import { type Metric, computeMetricValue } from './metric.utils';
 
 const argsSchema = z.object({
   event_name: z.string().describe('Name of the event to analyze (e.g. "purchase", "signup")'),
@@ -38,18 +39,9 @@ const tool = defineTool({
   visualizationType: 'segment_compare_chart',
 });
 
-type Metric = 'unique_users' | 'total_events' | 'events_per_user';
-
 interface RawRow {
   raw_count: string;
   uniq_count: string;
-}
-
-function computeMetric(metric: Metric, raw: number, uniq: number): number {
-  if (metric === 'unique_users') return uniq;
-  if (metric === 'total_events') return raw;
-  // events_per_user
-  return uniq > 0 ? Math.round((raw / uniq) * 100) / 100 : 0;
 }
 
 async function querySegment(
@@ -120,8 +112,8 @@ export class SegmentCompareTool implements AiTool {
       querySegment(this.ch, projectId, eventName, dateFrom, dateTo, segmentBFilters as PropertyFilter[], 'seg_b'),
     ]);
 
-    const valueA = computeMetric(metric, segmentA.raw, segmentA.uniq);
-    const valueB = computeMetric(metric, segmentB.raw, segmentB.uniq);
+    const valueA = computeMetricValue(metric, segmentA.raw, segmentA.uniq);
+    const valueB = computeMetricValue(metric, segmentB.raw, segmentB.uniq);
 
     const absoluteDiff = valueB - valueA;
     const relativeDiff = valueA === 0
