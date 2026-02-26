@@ -1274,6 +1274,46 @@ export interface UpdateScheduledJob {
   is_active?: boolean;
 }
 
+export interface Annotation {
+  description?: string | null;
+  color?: string | null;
+  id: string;
+  project_id: string;
+  created_by: string;
+  date: string;
+  label: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface CreateAnnotation {
+  date: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  label: string;
+  /** @maxLength 1000 */
+  description?: string;
+  /** @maxLength 20 */
+  color?: string;
+}
+
+export interface UpdateAnnotation {
+  date?: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  label?: string;
+  /** @maxLength 1000 */
+  description?: string;
+  /** @maxLength 20 */
+  color?: string;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -2305,6 +2345,26 @@ export interface AiScheduledJobsControllerUpdateParams {
 export interface AiScheduledJobsControllerRemoveParams {
   projectId: string;
   jobId: string;
+}
+
+export interface AnnotationsControllerListParams {
+  date_from?: string;
+  date_to?: string;
+  projectId: string;
+}
+
+export interface AnnotationsControllerCreateParams {
+  projectId: string;
+}
+
+export interface AnnotationsControllerUpdateParams {
+  projectId: string;
+  id: string;
+}
+
+export interface AnnotationsControllerRemoveParams {
+  projectId: string;
+  id: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4575,6 +4635,92 @@ export class Api<
     ) =>
       this.request<void, any>({
         path: `/api/projects/${projectId}/ai/scheduled-jobs/${jobId}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Annotations
+     * @name AnnotationsControllerList
+     * @request GET:/api/projects/{projectId}/annotations
+     * @secure
+     */
+    annotationsControllerList: (
+      { projectId, ...query }: AnnotationsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Annotation[], any>({
+        path: `/api/projects/${projectId}/annotations`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Annotations
+     * @name AnnotationsControllerCreate
+     * @request POST:/api/projects/{projectId}/annotations
+     * @secure
+     */
+    annotationsControllerCreate: (
+      { projectId, ...query }: AnnotationsControllerCreateParams,
+      data: CreateAnnotation,
+      params: RequestParams = {},
+    ) =>
+      this.request<Annotation, any>({
+        path: `/api/projects/${projectId}/annotations`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Annotations
+     * @name AnnotationsControllerUpdate
+     * @request PUT:/api/projects/{projectId}/annotations/{id}
+     * @secure
+     */
+    annotationsControllerUpdate: (
+      { projectId, id, ...query }: AnnotationsControllerUpdateParams,
+      data: UpdateAnnotation,
+      params: RequestParams = {},
+    ) =>
+      this.request<Annotation, any>({
+        path: `/api/projects/${projectId}/annotations/${id}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Annotations
+     * @name AnnotationsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/annotations/{id}
+     * @secure
+     */
+    annotationsControllerRemove: (
+      { projectId, id, ...query }: AnnotationsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/annotations/${id}`,
         method: "DELETE",
         secure: true,
         ...params,
