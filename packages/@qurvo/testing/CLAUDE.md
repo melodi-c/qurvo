@@ -18,6 +18,8 @@ import {
 
 ```
 globalSetup (main process)
+  └─ acquireFileLock('/tmp/qurvo-integration-tests.lock', 1800s)
+       — serialises parallel vitest processes (agents running tests concurrently)
   └─ startGlobalContainers() → 3 containers (PG, Redis, CH)
   └─ writes coordinates to process.env.TEST_*
        ↓
@@ -27,6 +29,19 @@ vitest forks (maxForks: 4)
        ├─ CH:    CREATE DATABASE qurvo_worker_N + SQL migrations
        └─ Redis: SELECT N (db = VITEST_POOL_ID) + FLUSHDB
 ```
+
+### File lock in createGlobalSetup()
+
+`createGlobalSetup()` acquires `/tmp/qurvo-integration-tests.lock` before starting containers and releases it in `teardown()` (and in SIGINT/SIGTERM handlers). This prevents multiple parallel vitest processes — e.g. parallel issue-solver agents — from starting competing Docker containers simultaneously.
+
+Lock algorithm:
+- Tries `fs.writeFileSync(lockFile, pid, { flag: 'wx' })` — atomic exclusive create.
+- If the lock file already exists, reads the PID stored in it.
+- If that PID is dead (stale lock), removes the file and retries immediately.
+- If the PID is alive, waits 500 ms and retries.
+- Timeout: 30 minutes (1 800 000 ms). Throws if exceeded.
+
+The `scripts/run-integration-tests.sh` is now a thin wrapper that simply calls vitest directly — no `flock` needed.
 
 Each fork gets isolated PG database, CH database, and Redis database. One set of containers per app run, not per fork.
 
@@ -105,7 +120,8 @@ src/
 ## Key Patterns
 
 - **No build step**: `"main": "src/index.ts"` — vitest resolves TypeScript directly
-- **Shared containers**: `createGlobalSetup()` starts 3 containers once in the main process; forks inherit coordinates via `process.env.TEST_*`
+- **Shared containers**: `createGlobalSetup()` acquires a file lock, then starts 3 containers once in the main process; forks inherit coordinates via `process.env.TEST_*`
+- **File lock**: `createGlobalSetup()` holds `/tmp/qurvo-integration-tests.lock` for the entire duration of the test run to prevent container conflicts with concurrent vitest processes
 - **Per-worker isolation**: each fork creates `qurvo_worker_N` databases (PG + CH) and uses Redis DB N
 - **maxForks: 4**: up to 4 parallel forks per app. Redis has 16 DBs (0-15), so max 15 workers
 - **Recent timestamps required**: ClickHouse `events` table has `TTL 365 DAY`. Always use relative dates (`daysAgo`, `ts`, `msAgo`), never hardcoded past dates
