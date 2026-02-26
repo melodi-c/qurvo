@@ -5,6 +5,7 @@ import { type QueueEvents } from 'bullmq';
 import { type ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database } from '@qurvo/db';
 import { REDIS, CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
+import { shutdownClickHouse, shutdownDb, shutdownRedis } from '@qurvo/worker-core';
 import { COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortMembershipService } from './cohort-membership.service';
 
@@ -28,14 +29,8 @@ export class ShutdownService implements OnApplicationShutdown {
     await this.queueEvents
       .close()
       .catch((err) => this.logger.warn({ err }, 'QueueEvents close failed'));
-    await this.ch.close().catch((err) =>
-      this.logger.warn({ err }, 'ClickHouse close failed'),
-    );
-    await this.db.$pool.end().catch((err) =>
-      this.logger.warn({ err }, 'PostgreSQL pool close failed'),
-    );
-    await this.redis.quit().catch((err) =>
-      this.logger.warn({ err }, 'Redis quit failed'),
-    );
+    await shutdownClickHouse(this.ch, this.logger);
+    await shutdownDb(this.db, this.logger);
+    await shutdownRedis(this.redis, this.logger);
   }
 }
