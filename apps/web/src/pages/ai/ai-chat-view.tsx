@@ -36,9 +36,10 @@ export function AiChatView({ chatId, projectId }: { chatId: string | null; proje
     loadMoreMessages,
     startNewConversation,
     stopStreaming,
+    setIsShared,
   } = useAiChat(projectId);
 
-  const toggleSharedMutation = useToggleSharedConversation(projectId);
+  const toggleSharedMutation = useToggleSharedConversation(projectId, setIsShared);
 
   // Load existing conversation on mount
   const loadedRef = useRef(false);
