@@ -51,6 +51,30 @@ export interface SegmentCompareResult {
   };
 }
 
+export interface HistogramBucket {
+  label: string;
+  from_seconds: number;
+  to_seconds: number;
+  count: number;
+}
+
+export interface TimeBetweenEventsResult {
+  event_a: string;
+  event_b: string;
+  date_from: string;
+  date_to: string;
+  total_users: number;
+  buckets: HistogramBucket[];
+  stats: {
+    mean_seconds: number;
+    median_seconds: number;
+    p75_seconds: number;
+    p90_seconds: number;
+    min_seconds: number;
+    max_seconds: number;
+  };
+}
+
 export type AiToolResultData =
   | { type: 'trend_chart'; data: TrendToolResult }
   | { type: 'funnel_chart'; data: FunnelToolResult }
@@ -58,7 +82,8 @@ export type AiToolResultData =
   | { type: 'lifecycle_chart'; data: LifecycleResult }
   | { type: 'stickiness_chart'; data: StickinessResult }
   | { type: 'paths_chart'; data: PathsToolResult }
-  | { type: 'segment_compare_chart'; data: SegmentCompareResult };
+  | { type: 'segment_compare_chart'; data: SegmentCompareResult }
+  | { type: 'histogram_chart'; data: TimeBetweenEventsResult };
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -136,6 +161,12 @@ function pathsToCsv(data: PathsToolResult): string {
   return buildCsvRows(headers, rows);
 }
 
+function histogramToCsv(data: TimeBetweenEventsResult): string {
+  const headers = ['bucket', 'from_seconds', 'to_seconds', 'count'];
+  const rows = data.buckets.map((b) => [b.label, b.from_seconds, b.to_seconds, b.count]);
+  return buildCsvRows(headers, rows);
+}
+
 function segmentCompareToCsv(data: SegmentCompareResult): string {
   const headers = ['segment', 'value', 'raw_count', 'unique_users'];
   const rows: (string | number)[][] = [
@@ -161,6 +192,8 @@ export function toolResultToCsv(parsed: AiToolResultData): string {
       return pathsToCsv(parsed.data);
     case 'segment_compare_chart':
       return segmentCompareToCsv(parsed.data);
+    case 'histogram_chart':
+      return histogramToCsv(parsed.data);
   }
 }
 
@@ -251,6 +284,12 @@ function pathsToMarkdown(data: PathsToolResult): string {
   return buildMarkdownTable(headers, rows);
 }
 
+function histogramToMarkdown(data: TimeBetweenEventsResult): string {
+  const headers = ['Bucket', 'Users'];
+  const rows = data.buckets.map((b) => [b.label, String(b.count)]);
+  return buildMarkdownTable(headers, rows);
+}
+
 function segmentCompareToMarkdown(data: SegmentCompareResult): string {
   const headers = ['Segment', 'Value', 'Raw Count', 'Unique Users'];
   const rows: string[][] = [
@@ -276,6 +315,8 @@ export function toolResultToMarkdown(parsed: AiToolResultData): string {
       return pathsToMarkdown(parsed.data);
     case 'segment_compare_chart':
       return segmentCompareToMarkdown(parsed.data);
+    case 'histogram_chart':
+      return histogramToMarkdown(parsed.data);
   }
 }
 

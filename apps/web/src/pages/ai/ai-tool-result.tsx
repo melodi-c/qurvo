@@ -25,6 +25,7 @@ import {
   downloadChartAsPng,
   type AiToolResultData,
   type SegmentCompareResult,
+  type TimeBetweenEventsResult,
 } from './ai-tool-result-export';
 import type {
   TrendSeriesResult,
@@ -89,6 +90,16 @@ function isSegmentCompareResult(r: Record<string, unknown>): r is Record<string,
   );
 }
 
+function isHistogramResult(r: Record<string, unknown>): r is Record<string, unknown> & TimeBetweenEventsResult {
+  return (
+    typeof r.event_a === 'string' &&
+    typeof r.event_b === 'string' &&
+    Array.isArray(r.buckets) &&
+    typeof r.stats === 'object' &&
+    r.stats !== null
+  );
+}
+
 function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
   if (!visualizationType || !result || typeof result !== 'object') return null;
   const r = result as Record<string, unknown>;
@@ -108,6 +119,8 @@ function parseToolResult(visualizationType: string | null, result: unknown): AiT
       return isPathsResult(r) ? { type: 'paths_chart', data: r } : null;
     case 'segment_compare_chart':
       return isSegmentCompareResult(r) ? { type: 'segment_compare_chart', data: r as SegmentCompareResult } : null;
+    case 'histogram_chart':
+      return isHistogramResult(r) ? { type: 'histogram_chart', data: r as TimeBetweenEventsResult } : null;
     default:
       return null;
   }
@@ -253,6 +266,76 @@ function SegmentCompareChart({ data }: SegmentCompareChartProps) {
   );
 }
 
+function formatStatDuration(seconds: number): string {
+  if (seconds < 3600) {
+    const mins = Math.round(seconds / 60);
+    return mins <= 1 ? '< 1m' : `${mins}m`;
+  }
+  if (seconds < 86400) {
+    const hours = Math.round(seconds / 3600);
+    return `${hours}h`;
+  }
+  const days = Math.round(seconds / 86400);
+  return `${days}d`;
+}
+
+interface HistogramChartProps {
+  data: TimeBetweenEventsResult;
+}
+
+function HistogramChart({ data }: HistogramChartProps) {
+  const { t } = useLocalTranslation(translations);
+  const { stats, buckets, total_users } = data;
+
+  if (buckets.length === 0 || total_users === 0) {
+    return <p className="text-sm text-muted-foreground">{t('noData')}</p>;
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+        <span><span className="font-medium text-foreground">{t('totalUsers')}:</span> {total_users}</span>
+        <span><span className="font-medium text-foreground">{t('median')}:</span> {formatStatDuration(stats.median_seconds)}</span>
+        <span><span className="font-medium text-foreground">P75:</span> {formatStatDuration(stats.p75_seconds)}</span>
+        <span><span className="font-medium text-foreground">P90:</span> {formatStatDuration(stats.p90_seconds)}</span>
+        <span><span className="font-medium text-foreground">{t('avg')}:</span> {formatStatDuration(stats.mean_seconds)}</span>
+        <span><span className="font-medium text-foreground">{t('min')}:</span> {formatStatDuration(stats.min_seconds)}</span>
+        <span><span className="font-medium text-foreground">{t('max')}:</span> {formatStatDuration(stats.max_seconds)}</span>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart
+          data={buckets}
+          margin={{ top: 4, right: 10, bottom: 24, left: 10 }}
+        >
+          <XAxis
+            dataKey="label"
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            interval="preserveStartEnd"
+            angle={-30}
+            textAnchor="end"
+            height={48}
+          />
+          <YAxis
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={formatCompactNumber}
+            width={44}
+          />
+          <RechartsTooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+            formatter={(value: number) => [value, t('users')]}
+          />
+          <Bar dataKey="count" fill={CHART_COLORS_HEX[0]} radius={[4, 4, 0, 0]} name={t('users')} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 interface AiToolResultProps {
   toolName: string;
   result: unknown;
@@ -372,6 +455,9 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
           )}
           {parsed.type === 'segment_compare_chart' && (
             <SegmentCompareChart data={parsed.data} />
+          )}
+          {parsed.type === 'histogram_chart' && (
+            <HistogramChart data={parsed.data} />
           )}
         </div>
         <div className="flex items-center gap-1 mt-2 pt-2 border-t">
