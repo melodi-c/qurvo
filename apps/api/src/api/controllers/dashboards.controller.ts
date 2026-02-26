@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Put, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardsService } from '../../dashboards/dashboards.service';
+import { ShareTokensService } from '../../share-tokens/share-tokens.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
 import {
@@ -12,6 +13,7 @@ import {
   DashboardWithWidgetsDto,
   WidgetDto,
 } from '../dto/dashboards.dto';
+import { CreateShareTokenDto, ShareTokenDto } from '../dto/share-tokens.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
 @ApiTags('Dashboards')
@@ -19,7 +21,10 @@ import { ProjectMemberGuard } from '../guards/project-member.guard';
 @Controller('api/projects/:projectId/dashboards')
 @UseGuards(ProjectMemberGuard)
 export class DashboardsController {
-  constructor(private readonly dashboardsService: DashboardsService) {}
+  constructor(
+    private readonly dashboardsService: DashboardsService,
+    private readonly shareTokensService: ShareTokensService,
+  ) {}
 
   @Get()
   async list(
@@ -94,5 +99,41 @@ export class DashboardsController {
     @Param('widgetId', ParseUUIDPipe) widgetId: string,
   ): Promise<void> {
     await this.dashboardsService.removeWidget(projectId, dashboardId, widgetId);
+  }
+
+  // ── Share tokens ───────────────────────────────────────────────────────────
+
+  @RequireRole('editor')
+  @Post(':dashboardId/share')
+  async createShareToken(
+    @CurrentUser() user: RequestUser,
+    @Param('projectId') projectId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
+    @Body() body: CreateShareTokenDto,
+  ): Promise<ShareTokenDto> {
+    return this.shareTokensService.create(
+      projectId,
+      user.user_id,
+      'dashboard',
+      dashboardId,
+      body.expires_at ? new Date(body.expires_at) : undefined,
+    ) as any;
+  }
+
+  @Get(':dashboardId/share')
+  async listShareTokens(
+    @Param('projectId') projectId: string,
+    @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
+  ): Promise<ShareTokenDto[]> {
+    return this.shareTokensService.listByResource(projectId, 'dashboard', dashboardId) as any;
+  }
+
+  @RequireRole('editor')
+  @Delete(':dashboardId/share/:tokenId')
+  async revokeShareToken(
+    @Param('projectId') projectId: string,
+    @Param('tokenId', ParseUUIDPipe) tokenId: string,
+  ): Promise<void> {
+    await this.shareTokensService.revoke(projectId, tokenId);
   }
 }
