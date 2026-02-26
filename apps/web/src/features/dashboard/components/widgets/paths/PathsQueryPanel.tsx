@@ -72,7 +72,10 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
             </div>
 
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('startEvent')}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('startEvent')}</span>
+                <InfoTooltip content={t('startEventTooltip')} />
+              </div>
               <EventNameCombobox
                 value={config.start_event ?? ''}
                 onChange={(v) => onChange({ ...config, start_event: v || undefined })}
@@ -81,7 +84,10 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
             </div>
 
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('endEvent')}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{t('endEvent')}</span>
+                <InfoTooltip content={t('endEventTooltip')} />
+              </div>
               <EventNameCombobox
                 value={config.end_event ?? ''}
                 onChange={(v) => onChange({ ...config, end_event: v || undefined })}
@@ -165,6 +171,7 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
             <EditableListSection<PathCleaningRuleConfig>
               icon={Regex}
               label={t('pathCleaning')}
+              tooltip={t('pathCleaningTooltip')}
               items={config.path_cleaning_rules ?? []}
               addLabel={t('addRule')}
               emptyItem={{ regex: '', alias: '' }}
@@ -193,6 +200,7 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
             <EditableListSection<WildcardGroupConfig>
               icon={Settings}
               label={t('wildcardGroups')}
+              tooltip={t('wildcardGroupsTooltip')}
               items={config.wildcard_groups ?? []}
               addLabel={t('addGroup')}
               emptyItem={{ pattern: '', alias: '' }}

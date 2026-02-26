@@ -2,10 +2,12 @@ import type { ElementType, ReactNode } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 
 interface EditableListSectionProps<T> {
   icon: ElementType;
   label: string;
+  tooltip?: string;
   items: T[];
   addLabel: string;
   emptyItem: T;
@@ -16,6 +18,7 @@ interface EditableListSectionProps<T> {
 export function EditableListSection<T>({
   icon,
   label,
+  tooltip,
   items,
   addLabel,
   emptyItem,
@@ -38,7 +41,10 @@ export function EditableListSection<T>({
 
   return (
     <section className="space-y-3">
-      <SectionHeader icon={icon} label={label} />
+      <div className="flex items-center gap-1.5">
+        <SectionHeader icon={icon} label={label} />
+        {tooltip && <InfoTooltip content={tooltip} />}
+      </div>
       <div className="space-y-2">
         {items.map((item, idx) => (
           <div key={idx} className="flex items-center gap-1">
