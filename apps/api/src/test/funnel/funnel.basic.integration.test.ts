@@ -136,6 +136,64 @@ describe('queryFunnel — non-breakdown', () => {
     }
   });
 
+  it('unordered funnel respects conversion window — out-of-window events are not counted', async () => {
+    const projectId = randomUUID();
+    const personIn = randomUUID();
+    const personOut = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personIn: step_a and step_b both within 1-day window
+      buildEvent({
+        project_id: projectId,
+        person_id: personIn,
+        distinct_id: 'user-in',
+        event_name: 'step_a',
+        timestamp: msAgo(3 * DAY_MS),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personIn,
+        distinct_id: 'user-in',
+        event_name: 'step_b',
+        // 12 hours after step_a — within 1-day window
+        timestamp: msAgo(3 * DAY_MS - 12 * 60 * 60 * 1000),
+      }),
+      // personOut: step_a and step_b outside 1-day window (2 days apart)
+      buildEvent({
+        project_id: projectId,
+        person_id: personOut,
+        distinct_id: 'user-out',
+        event_name: 'step_a',
+        timestamp: msAgo(5 * DAY_MS),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personOut,
+        distinct_id: 'user-out',
+        event_name: 'step_b',
+        // 2 days after step_a — outside 1-day window
+        timestamp: msAgo(3 * DAY_MS),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'Step A' },
+        { event_name: 'step_b', label: 'Step B' },
+      ],
+      conversion_window_days: 1,
+      date_from: dateOffset(-7),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(2); // both entered step A
+    expect(r.steps[1].count).toBe(1); // only personIn converted within window
+  });
+
   it('applies step filters correctly', async () => {
     const projectId = randomUUID();
     const person = randomUUID();

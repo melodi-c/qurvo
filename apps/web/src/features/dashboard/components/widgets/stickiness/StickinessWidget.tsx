@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useDashboardStore } from '@/features/dashboard/store';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
 import { StickinessChart } from './StickinessChart';
@@ -14,6 +15,7 @@ interface StickinessWidgetProps {
 
 export function StickinessWidget({ widget }: StickinessWidgetProps) {
   const { t } = useLocalTranslation(translations);
+  const isEditing = useDashboardStore((s) => s.isEditing);
   const config = widget.insight?.config as StickinessWidgetConfig | undefined;
   const hasConfig = !!config;
   const query = useStickinessData(config ?? defaultStickinessConfig(), widget.id);
@@ -31,6 +33,7 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
       query={query}
       isConfigValid={hasConfig && !!config.target_event}
       configureMessage={hasConfig ? t('configureEvent') : t('noInsight')}
+      isEditing={isEditing}
       isEmpty={!result || result.data.length === 0}
       emptyMessage={t('noData')}
       emptyHint={t('adjustDateRange')}

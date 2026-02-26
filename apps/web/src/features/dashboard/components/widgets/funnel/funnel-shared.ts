@@ -1,13 +1,13 @@
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 import { defaultDateRange } from '@/lib/date-utils';
 
-export function defaultFunnelConfig(): FunnelWidgetConfig {
+export function defaultFunnelConfig(step1Label = 'Step 1', step2Label = 'Step 2'): FunnelWidgetConfig {
   const { from, to } = defaultDateRange();
   return {
     type: 'funnel',
     steps: [
-      { event_name: '', label: 'Step 1' },
-      { event_name: '', label: 'Step 2' },
+      { event_name: '', label: step1Label },
+      { event_name: '', label: step2Label },
     ],
     conversion_window_days: 14,
     date_from: from,

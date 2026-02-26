@@ -71,11 +71,9 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
               tickFormatter={compact ? formatCompactNumber : undefined}
             />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-            {!compact && (
-              <Tooltip
-                contentStyle={CHART_TOOLTIP_STYLE}
-              />
-            )}
+            <Tooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+            />
             <Bar dataKey="new" stackId="a" fill={LIFECYCLE_STATUS_COLORS.new} name={t('new')} />
             <Bar dataKey="returning" stackId="a" fill={LIFECYCLE_STATUS_COLORS.returning} name={t('returning')} />
             <Bar dataKey="resurrecting" stackId="a" fill={LIFECYCLE_STATUS_COLORS.resurrecting} name={t('resurrecting')} />

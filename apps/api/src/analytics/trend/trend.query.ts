@@ -304,7 +304,7 @@ async function executeTrendQuery(
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
         AND timestamp <= {to:DateTime64(3)}
-        AND event_name IN ({all_event_names:Array(String)})
+        AND event_name IN ({all_event_names:Array(String)})${cohortClause}
       GROUP BY breakdown_value
       ORDER BY count() DESC
       LIMIT ${MAX_BREAKDOWN_VALUES}

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useDashboardStore } from '@/features/dashboard/store';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
 import { useIsMobile } from '@/hooks/use-is-mobile';
@@ -15,6 +16,7 @@ interface RetentionWidgetProps {
 
 export function RetentionWidget({ widget }: RetentionWidgetProps) {
   const { t } = useLocalTranslation(translations);
+  const isEditing = useDashboardStore((s) => s.isEditing);
   const isMobile = useIsMobile();
   const config = widget.insight?.config as RetentionWidgetConfig | undefined;
   const hasConfig = !!config;
@@ -31,6 +33,7 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
       query={query}
       isConfigValid={hasConfig && !!config.target_event}
       configureMessage={hasConfig ? t('configureEvent') : t('noInsight')}
+      isEditing={isEditing}
       isEmpty={!result || result.cohorts.length === 0}
       emptyMessage={t('noData')}
       emptyHint={t('adjustDateRange')}
