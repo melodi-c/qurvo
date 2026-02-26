@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import type { StickinessResult } from '@/api/generated/Api';
 import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
-import { formatCompactNumber } from '@/lib/formatting';
+import { formatCompactNumber, formatGranularity } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './StickinessChart.translations';
 
@@ -22,15 +22,6 @@ interface StickinessChartProps {
 export function StickinessChart({ result, compact = false }: StickinessChartProps) {
   const { t } = useLocalTranslation(translations);
 
-  const granularityLabels: Record<string, string> = useMemo(
-    () => ({
-      day: t('days'),
-      week: t('weeks'),
-      month: t('months'),
-    }),
-    [t],
-  );
-
   const totalUsers = useMemo(
     () => result.data.reduce((sum, d) => sum + d.user_count, 0),
     [result.data],
@@ -39,12 +30,12 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
   const data = useMemo(
     () =>
       result.data.map((d) => ({
-        label: `${d.period_count} ${granularityLabels[result.granularity] ?? t('periods')}`,
+        label: `${d.period_count} ${formatGranularity(d.period_count, result.granularity)}`,
         period_count: d.period_count,
         user_count: d.user_count,
         pct: totalUsers > 0 ? Math.round((d.user_count / totalUsers) * 1000) / 10 : 0,
       })),
-    [result.data, result.granularity, totalUsers, granularityLabels, t],
+    [result.data, result.granularity, totalUsers],
   );
 
   if (data.length === 0) return null;
@@ -75,7 +66,7 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
           formatter={(value: number, _name: string, entry: { payload?: { pct: number } }) => [
-            `${value} ${usersLabel.toLowerCase()} (${entry.payload?.pct ?? 0}%)`,
+            `${value.toLocaleString()} ${usersLabel.toLowerCase()} (${entry.payload?.pct ?? 0}%)`,
             usersLabel,
           ]}
         />
