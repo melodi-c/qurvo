@@ -37,6 +37,10 @@ git checkout -b "$BRANCH_NAME" 2>/dev/null \
 echo "WORKTREE_PATH: $WORKTREE_PATH"
 echo "REPO_ROOT: $REPO_ROOT"
 echo "BRANCH: $(git rev-parse --abbrev-ref HEAD)"
+
+# Устанавливаем зависимости — в worktree нет node_modules (gitignored).
+# pnpm быстро создаёт симлинки из глобального стора, не скачивает пакеты заново.
+pnpm install --frozen-lockfile
 ```
 
 **Изоляция гарантирована**: все файловые инструменты (Edit, Write, Read, Glob, Grep) работают относительно `$WORKTREE_PATH`. Ты физически не можешь изменить файлы в `$REPO_ROOT` через эти инструменты — они разрешаются в `$WORKTREE_PATH`.
