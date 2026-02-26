@@ -160,7 +160,7 @@ export function InsightEditorLayout({
 
           {isConfigValid && !showSkeleton && !isEmpty && (
             <div className={cn('flex flex-col h-full transition-opacity', isFetching && 'opacity-60')}>
-              <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 border-b border-border/60 px-6 py-4 shrink-0">
                 <div className="flex items-center gap-0 flex-1 min-w-0 flex-wrap">
                   {metricsBar}
                 </div>
@@ -168,7 +168,7 @@ export function InsightEditorLayout({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="ml-4 shrink-0 gap-1.5"
+                    className="sm:ml-4 shrink-0 gap-1.5 self-start sm:self-auto"
                     onClick={onExportCsv}
                   >
                     <Download className="h-3.5 w-3.5" />
