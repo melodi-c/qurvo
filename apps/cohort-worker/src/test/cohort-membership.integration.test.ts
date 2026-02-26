@@ -477,6 +477,62 @@ describe('cohort membership', () => {
     expect(members).not.toContain(personPerformed);
   });
 
+  it('negated cohort-ref — person with plan=pro excluded, person without plan=pro included', async () => {
+    const projectId = testProject.projectId;
+    const personPro = randomUUID();
+    const personOther = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personPro,
+        distinct_id: `coh-neg-pro-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'pro' }),
+        timestamp: ts(1),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personOther,
+        distinct_id: `coh-neg-other-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    // Base cohort: persons with plan=pro
+    const baseCohortId = await createCohort(projectId, testProject.userId, 'Pro Users Negation Base', {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' },
+      ],
+    });
+
+    // Negated cohort: persons NOT in the base cohort (negated: true)
+    const negatedCohortId = await createCohort(projectId, testProject.userId, 'Not Pro Users', {
+      type: 'AND',
+      values: [
+        { type: 'cohort', cohort_id: baseCohortId, negated: true },
+      ],
+    });
+
+    // Single cycle is sufficient: toposort puts base at level 0 and negated at level 1.
+    // Level 0 computes the base cohort first, then level 1 computes the negated cohort
+    // which reads cohort_members populated in level 0.
+    await runCycle();
+
+    const baseMembers = await getCohortMembers(ctx.ch, projectId, baseCohortId);
+    expect(baseMembers).toContain(personPro);
+    expect(baseMembers).not.toContain(personOther);
+
+    const negatedMembers = await getCohortMembers(ctx.ch, projectId, negatedCohortId);
+    // personPro is in base cohort → excluded from negated cohort
+    expect(negatedMembers).not.toContain(personPro);
+    // personOther is NOT in base cohort → included in negated cohort
+    expect(negatedMembers).toContain(personOther);
+  });
+
   it('distributed lock blocks runCycle', async () => {
     await ctx.redis.set(COHORT_LOCK_KEY, 'other-instance', 'EX', 120);
 
