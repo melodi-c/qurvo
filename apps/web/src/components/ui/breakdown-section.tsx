@@ -49,11 +49,13 @@ export function BreakdownSection({
     { key: 'device_type', label: t('presetDeviceType') },
   ], [t]);
 
+  const resolvedTooltip = tooltip ?? t('defaultTooltip');
+
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-1">
         <SectionHeader icon={SlidersHorizontal} label={t('breakdown')} />
-        {tooltip && <InfoTooltip content={tooltip} />}
+        <InfoTooltip content={resolvedTooltip} />
       </div>
 
       {onBreakdownTypeChange && (

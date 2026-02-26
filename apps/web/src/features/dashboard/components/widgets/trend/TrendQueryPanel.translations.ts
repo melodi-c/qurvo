@@ -30,7 +30,7 @@ export default createTranslations({
     formulas: 'Formulas',
     metricTooltip: 'How to aggregate events: total count, unique users, events per user, or a numeric property aggregation (sum / average / min / max).',
     granularityTooltip: 'X-axis step: group data points by hour, day, week, or month.',
-    breakdownTooltip: 'Split the chart into separate lines — one per distinct value of the chosen property.',
+    breakdownTooltip: 'Property breakdown splits the chart into separate lines — one per distinct value of the chosen attribute. Cohort breakdown compares results across cohorts, showing one line per cohort.',
     compareTooltip: 'Overlay the same metric for the equivalent previous period on the same chart.',
   },
   ru: {
@@ -62,7 +62,7 @@ export default createTranslations({
     formulas: 'Формулы',
     metricTooltip: 'Способ агрегации событий: общее количество, уникальные пользователи, событий на пользователя или агрегация числового свойства (сумма / среднее / мин / макс).',
     granularityTooltip: 'Шаг оси X: группировка точек данных по часам, дням, неделям или месяцам.',
-    breakdownTooltip: 'Разбивает график на отдельные линии — по одной для каждого уникального значения выбранного свойства.',
+    breakdownTooltip: 'Разбивка по свойству разделяет результат по значениям атрибута события или пользователя. Разбивка по когорте сравнивает результаты между выбранными когортами — по одной линии на каждую.',
     compareTooltip: 'Накладывает ту же метрику за аналогичный предыдущий период на тот же график.',
   },
 });

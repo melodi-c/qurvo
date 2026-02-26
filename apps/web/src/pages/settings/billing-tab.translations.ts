@@ -11,6 +11,7 @@ export default createTranslations({
     billingPeriod: 'Billing period',
     dataRetention: 'Data retention',
     dataRetentionDays: '{{days}} days',
+    dataRetentionTooltip: 'Events older than this many days are automatically deleted from ClickHouse. Reducing the retention period frees up storage.',
     maxProjects: 'Max projects',
     features: 'Features',
     cohorts: 'Cohorts',
@@ -23,6 +24,7 @@ export default createTranslations({
     aiMessagesLimit: 'AI messages per month',
     aiMessagesUsed: 'AI messages used',
     aiMessagesUnlimited: 'Unlimited',
+    aiMessagesTooltip: 'Each request counts as one AI message: manual queries in the AI chat, scheduled job executions, and automated insight detections.',
   },
   ru: {
     selectProject: 'Выберите проект для просмотра тарифа',
@@ -34,6 +36,7 @@ export default createTranslations({
     billingPeriod: 'Период',
     dataRetention: 'Хранение данных',
     dataRetentionDays: '{{days}} дней',
+    dataRetentionTooltip: 'События старше указанного количества дней автоматически удаляются из ClickHouse. Уменьшение срока хранения освобождает место.',
     maxProjects: 'Макс. проектов',
     features: 'Возможности',
     cohorts: 'Когорты',
@@ -46,5 +49,6 @@ export default createTranslations({
     aiMessagesLimit: 'AI-сообщений в месяц',
     aiMessagesUsed: 'AI-сообщений использовано',
     aiMessagesUnlimited: 'Без ограничений',
+    aiMessagesTooltip: 'Каждый запрос считается одним AI-сообщением: ручные запросы в AI-чате, запуски scheduled jobs и автоматическое обнаружение инсайтов.',
   },
 });

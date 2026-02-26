@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { api } from '@/api/client';
 import { CreditCard, Check, X } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -82,7 +83,7 @@ export function BillingTab({ projectId }: { projectId: string }) {
               </div>
             )}
             {data?.data_retention_days != null && (
-              <DefinitionListRow label={t('dataRetention')}>
+              <DefinitionListRow label={<>{t('dataRetention')}<InfoTooltip content={t('dataRetentionTooltip')} /></>}>
                 {t('dataRetentionDays', { days: data.data_retention_days })}
               </DefinitionListRow>
             )}
@@ -91,7 +92,7 @@ export function BillingTab({ projectId }: { projectId: string }) {
                 {data.max_projects}
               </DefinitionListRow>
             )}
-            <DefinitionListRow label={t('aiMessagesLimit')}>
+            <DefinitionListRow label={<>{t('aiMessagesLimit')}<InfoTooltip content={t('aiMessagesTooltip')} /></>}>
               <span className="font-mono">
                 {(data?.ai_messages_per_month ?? null) !== null && (data?.ai_messages_per_month ?? -1) >= 0
                   ? formatNumber(data!.ai_messages_per_month!)
