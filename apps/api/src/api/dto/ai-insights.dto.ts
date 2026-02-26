@@ -4,7 +4,7 @@ export class AiInsightDto {
   id: string;
   project_id: string;
   @ApiProperty({ enum: ['metric_change', 'new_event', 'retention_anomaly', 'conversion_correlation'] })
-  type: string;
+  type: 'metric_change' | 'new_event' | 'retention_anomaly' | 'conversion_correlation';
   title: string;
   description: string;
   @ApiPropertyOptional()
