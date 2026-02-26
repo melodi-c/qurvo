@@ -246,7 +246,10 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
             {/* Exclusion steps */}
             <section className="space-y-3">
-              <SectionHeader icon={Ban} label={t('exclusions')} />
+              <div className="flex items-center gap-1">
+                <SectionHeader icon={Ban} label={t('exclusions')} />
+                <InfoTooltip content={t('exclusionsTooltip')} />
+              </div>
               <FunnelExclusionBuilder
                 exclusions={config.exclusions ?? []}
                 onChange={(exclusions) => onChange({ ...config, exclusions })}
@@ -258,7 +261,10 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
             {/* Sampling */}
             <section className="space-y-3">
-              <SectionHeader icon={FlaskConical} label={t('sampling')} />
+              <div className="flex items-center gap-1">
+                <SectionHeader icon={FlaskConical} label={t('sampling')} />
+                <InfoTooltip content={t('samplingTooltip')} />
+              </div>
               <PillToggleGroup
                 options={samplingOptions}
                 value={String(config.sampling_factor ?? 1)}
