@@ -1,11 +1,58 @@
 import { describe, it, expect } from 'vitest';
 import {
+  toChTs,
   granularityTruncExpr,
   shiftPeriod,
   shiftDate,
   truncateDate,
   granularityInterval,
 } from '../../utils/clickhouse-helpers';
+
+describe('toChTs', () => {
+  it('returns date string unchanged when only date part is given', () => {
+    expect(toChTs('2024-01-10')).toBe('2024-01-10');
+  });
+
+  it('appends 23:59:59 when date-only and endOfDay=true', () => {
+    expect(toChTs('2024-01-10', true)).toBe('2024-01-10 23:59:59');
+  });
+
+  it('converts UTC ISO datetime with Z suffix', () => {
+    expect(toChTs('2024-01-10T12:00:00Z')).toBe('2024-01-10 12:00:00');
+  });
+
+  it('converts ISO datetime without timezone (treated as UTC)', () => {
+    expect(toChTs('2024-01-10T12:00:00')).toBe('2024-01-10 12:00:00');
+  });
+
+  it('strips milliseconds from ISO datetime with Z', () => {
+    expect(toChTs('2024-01-10T12:00:00.123Z')).toBe('2024-01-10 12:00:00');
+  });
+
+  it('converts ISO datetime with positive timezone offset (+03:00) to UTC', () => {
+    expect(toChTs('2024-01-10T12:00:00+03:00')).toBe('2024-01-10 09:00:00');
+  });
+
+  it('converts ISO datetime with negative timezone offset (-05:00) to UTC', () => {
+    expect(toChTs('2024-01-10T12:00:00-05:00')).toBe('2024-01-10 17:00:00');
+  });
+
+  it('converts ISO datetime with milliseconds and positive timezone offset', () => {
+    expect(toChTs('2024-01-10T12:30:45.999+03:00')).toBe('2024-01-10 09:30:45');
+  });
+
+  it('converts ISO datetime with milliseconds and negative timezone offset', () => {
+    expect(toChTs('2024-01-10T00:00:00.000-05:30')).toBe('2024-01-10 05:30:00');
+  });
+
+  it('handles midnight UTC correctly', () => {
+    expect(toChTs('2024-01-10T00:00:00Z')).toBe('2024-01-10 00:00:00');
+  });
+
+  it('handles date rollover when offset shifts to previous day', () => {
+    expect(toChTs('2024-01-10T01:00:00+03:00')).toBe('2024-01-09 22:00:00');
+  });
+});
 
 describe('granularityTruncExpr', () => {
   it('generates toStartOfHour for hour granularity', () => {

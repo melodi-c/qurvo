@@ -349,10 +349,11 @@ describe('queryRetention — edge cases', () => {
     expect(result.cohorts).toHaveLength(2);
     // average_retention[0] = 100% (all cohort members present at period 0 by definition)
     expect(result.average_retention[0]).toBe(100);
-    // Cohort day-6: size=2 (A+B), period_1: both returned on day-5 → 2/2 = 100%
-    // Cohort day-5: size=3 (A+B+C), period_1: only A returned day-4 → 1/3 ≈ 33.33%
-    // average_retention[1] = (100% + 33.33%) / 2 = 66.67%
-    expect(result.average_retention[1]).toBeCloseTo(66.67, 1);
+    // Weighted average: sum(returned) / sum(cohort_size) * 100
+    // Cohort day-6: size=2 (A+B), period_1: both A and B active on day-5 → returned=2
+    // Cohort day-5: size=3 (A+B+C), period_1: only A returned day-4 → returned=1
+    // average_retention[1] = (2 + 1) / (2 + 3) * 100 = 60%
+    expect(result.average_retention[1]).toBeCloseTo(60, 1);
   });
 });
 

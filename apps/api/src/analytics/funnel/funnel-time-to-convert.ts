@@ -31,6 +31,7 @@ import {
 interface TtcChQueryParams extends FunnelChQueryParams {
   step_names: string[];
   to_step_num: number;
+  window_seconds: number;
 }
 
 export async function queryFunnelTimeToConvert(
@@ -57,6 +58,7 @@ export async function queryFunnelTimeToConvert(
     all_event_names: steps.flatMap((s) => resolveStepEventNames(s)),
     step_names: steps.flatMap((s) => resolveStepEventNames(s)),
     to_step_num: toStep + 1,
+    window_seconds: windowSeconds,
   };
   steps.forEach((s, i) => {
     const names = resolveStepEventNames(s);
@@ -90,10 +92,10 @@ export async function queryFunnelTimeToConvert(
       timings
     FROM (
       SELECT
-        avgIf(duration_seconds, duration_seconds > 0) AS avg_seconds,
-        quantileIf(0.5)(duration_seconds, duration_seconds > 0) AS median_seconds,
-        countIf(duration_seconds > 0) AS sample_size,
-        groupArrayIf(duration_seconds, duration_seconds > 0) AS timings
+        avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
+        quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
+        countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS sample_size,
+        groupArrayIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS timings
       FROM (
         SELECT
           (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
@@ -130,7 +132,7 @@ export async function queryFunnelTimeToConvert(
     return { from_step: fromStep, to_step: toStep, average_seconds: null, median_seconds: null, sample_size: 0, bins: [] };
   }
 
-  const timings = row.timings.filter((t: number) => t > 0 && t <= windowSeconds);
+  const timings = row.timings;
   const avgSeconds = row.avg_seconds != null ? Math.round(Number(row.avg_seconds)) : null;
   const medianSeconds = row.median_seconds != null ? Math.round(Number(row.median_seconds)) : null;
 

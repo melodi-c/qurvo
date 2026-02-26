@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import {
   insertTestEvents,
   buildEvent,
+  DAY_MS,
   dateOffset,
   msAgo,
 } from '@qurvo/testing';
@@ -177,5 +178,66 @@ describe('queryFunnel — inline event combination (OR-logic)', () => {
     const rUn = result as Extract<typeof result, { breakdown: false }>;
     expect(rUn.steps[0].count).toBe(1);
     expect(rUn.steps[1].count).toBe(1);
+  });
+
+  it('OR-logic step with conversion window — out-of-window step not counted', async () => {
+    const projectId = randomUUID();
+    const personIn = randomUUID();
+    const personOut = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personIn: signup variant → purchase within 1-day window
+      buildEvent({
+        project_id: projectId,
+        person_id: personIn,
+        distinct_id: 'in',
+        event_name: 'submit_signup',
+        timestamp: msAgo(3 * DAY_MS),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personIn,
+        distinct_id: 'in',
+        event_name: 'purchase',
+        // 6 hours after signup — within 1-day window
+        timestamp: msAgo(3 * DAY_MS - 6 * 60 * 60 * 1000),
+      }),
+      // personOut: signup variant → purchase but outside 1-day window
+      buildEvent({
+        project_id: projectId,
+        person_id: personOut,
+        distinct_id: 'out',
+        event_name: 'click_signup',
+        timestamp: msAgo(5 * DAY_MS),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personOut,
+        distinct_id: 'out',
+        event_name: 'purchase',
+        // 2 days after signup — outside 1-day window
+        timestamp: msAgo(3 * DAY_MS),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        {
+          event_name: 'click_signup',
+          event_names: ['click_signup', 'submit_signup'],
+          label: 'Any Signup',
+        },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 1,
+      date_from: dateOffset(-7),
+      date_to: dateOffset(1),
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(2); // both entered the OR-step
+    expect(r.steps[1].count).toBe(1); // only personIn converted within window
   });
 });

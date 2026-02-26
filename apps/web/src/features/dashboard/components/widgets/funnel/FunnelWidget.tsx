@@ -20,7 +20,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
 
   const config = widget.insight?.config as FunnelWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useFunnelData(config ?? defaultFunnelConfig(), widget.id);
+  const query = useFunnelData(config ?? defaultFunnelConfig(t('step1Label'), t('step2Label')), widget.id);
   const result = query.data?.data;
 
   const hasValidSteps = hasConfig && config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
