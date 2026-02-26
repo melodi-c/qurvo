@@ -95,6 +95,10 @@ export function buildPropertyFilterConditions(
           parts.push(`${expr} = ''`);
         }
         break;
+      default: {
+        const _exhaustive: never = f.operator;
+        throw new Error(`Unhandled operator: ${_exhaustive}`);
+      }
     }
   }
   return parts;
