@@ -128,7 +128,6 @@ export function WidgetShell<Response>({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-5 w-5"
                       onClick={onExportCsv}
                       aria-label={t('exportCsv')}
                     >
@@ -145,7 +144,6 @@ export function WidgetShell<Response>({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-5 w-5"
                     onClick={() => refresh()}
                     disabled={isFetching}
                     aria-label={t('refresh')}

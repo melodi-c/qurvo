@@ -65,7 +65,7 @@ export function InsightCardHeader({
           <Button
             variant="ghost"
             size="icon"
-            className="drag-cancel h-5 w-5"
+            className="drag-cancel"
             onClick={onToggleDetails}
           >
             {detailsOpen ? (
