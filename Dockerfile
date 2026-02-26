@@ -14,6 +14,9 @@
 # Build landing (nginx + static landing page):
 #   docker build --target landing -t qurvo-landing .
 #
+# Build storybook (nginx + Storybook static site):
+#   docker build --target storybook -t qurvo-storybook .
+#
 # Adding a new app or package? No Dockerfile changes needed.
 # ==============================================================================
 
@@ -136,5 +139,23 @@ FROM nginx:1.27-alpine AS landing
 RUN rm /etc/nginx/conf.d/default.conf
 
 COPY --from=landing-builder /repo/apps/landing/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+# ==============================================================================
+# Stage: storybook-builder — build Storybook static site
+# ==============================================================================
+FROM base AS storybook-builder
+
+RUN pnpm --filter @qurvo/web exec storybook build -o /repo/apps/web/storybook-static
+
+# ==============================================================================
+# Stage: storybook — nginx serving Storybook static
+# ==============================================================================
+FROM nginx:1.27-alpine AS storybook
+
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY --from=storybook-builder /repo/apps/web/storybook-static /usr/share/nginx/html
 
 EXPOSE 80

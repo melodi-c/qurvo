@@ -6,6 +6,7 @@ import { WebFilterBar } from '@/features/web-analytics/components/WebFilterBar';
 import { WebKpiRow } from '@/features/web-analytics/components/WebKpiRow';
 import { WebTimeseriesChart, type MetricKey } from '@/features/web-analytics/components/WebTimeseriesChart';
 import { WebDimensionTile } from '@/features/web-analytics/components/WebDimensionTile';
+import { WorldMapChart } from '@/features/web-analytics/components/WorldMapChart';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './web-analytics.translations';
 
@@ -107,18 +108,25 @@ export default function WebAnalyticsPage() {
           isLoading={devices.isLoading}
           isError={devices.isError}
         />
-        <WebDimensionTile
-          title={t('geography')}
-          tabs={geoTabs}
-          data={{
-            countries: geography.data?.countries,
-            regions: geography.data?.regions,
-            cities: geography.data?.cities,
-          }}
-          isLoading={geography.isLoading}
-          isError={geography.isError}
-        />
       </div>
+
+      <WorldMapChart
+        title={t('geography')}
+        data={geography.data?.countries}
+        isLoading={geography.isLoading}
+      />
+
+      <WebDimensionTile
+        title={t('geography')}
+        tabs={geoTabs}
+        data={{
+          countries: geography.data?.countries,
+          regions: geography.data?.regions,
+          cities: geography.data?.cities,
+        }}
+        isLoading={geography.isLoading}
+        isError={geography.isError}
+      />
     </div>
   );
 }

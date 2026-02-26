@@ -22,7 +22,7 @@ NAMESPACE="default"
 KUBECONFIG_PATH="$HELM_CHART/config.yaml"
 export KUBECONFIG="$KUBECONFIG_PATH"
 
-ALL_APPS=(api ingest processor cohort-worker billing-worker web landing)
+ALL_APPS=(api ingest processor cohort-worker billing-worker web landing storybook)
 PLATFORM="linux/amd64"
 SKIP_BUILD=false
 NO_HOOKS=false
@@ -180,7 +180,7 @@ if [[ "$SKIP_BUILD" == false ]]; then
 
   PIDS=()
   for app in "${BUILD_APPS[@]}"; do
-    if [[ "$app" == "web" || "$app" == "landing" ]]; then
+    if [[ "$app" == "web" || "$app" == "landing" || "$app" == "storybook" ]]; then
       TARGET="$app"
       BUILD_ARG=""
     else
