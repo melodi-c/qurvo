@@ -20,8 +20,6 @@ import {
   Globe,
   Database,
   Sparkles,
-  Bell,
-  Clock,
   FolderOpen,
 } from 'lucide-react';
 
@@ -53,9 +51,7 @@ export function useLayoutData() {
           { path: routes.cohorts.list.pattern, label: t('cohorts'), icon: UsersRound },
           { path: routes.persons.list.pattern, label: t('persons'), icon: Users },
           { path: routes.events.pattern, label: t('events'), icon: List },
-          { path: routes.ai.pattern, label: t('aiAssistant'), icon: Sparkles, exact: true },
-          { path: routes.aiMonitors.pattern, label: t('aiMonitors'), icon: Bell },
-          { path: routes.aiScheduledJobs.pattern, label: t('aiScheduledJobs'), icon: Clock },
+          { path: routes.ai.pattern, label: t('ai'), icon: Sparkles },
         ],
       },
       {
