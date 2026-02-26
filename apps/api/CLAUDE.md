@@ -9,8 +9,9 @@ pnpm --filter @qurvo/api dev          # watch mode
 pnpm --filter @qurvo/api build        # nest build → dist/
 pnpm --filter @qurvo/api start        # node dist/main.js
 
-# Integration tests (requires infra:up)
-pnpm --filter @qurvo/api test:integration
+# Tests (testcontainers — no manual infra needed)
+pnpm --filter @qurvo/api exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/api exec vitest run --config vitest.unit.config.ts
 
 # Swagger
 pnpm swagger:generate                # nest build && generate swagger.json
@@ -184,7 +185,7 @@ Edit controllers → `pnpm swagger:generate` → `pnpm generate-api` → use upd
 
 ## Integration Tests
 
-Tests in `src/test/{module}/`. Run with `vitest.integration.config.ts`.
+Tests in `src/test/{module}/`.
 
 - Use `getTestContext()` from `src/test/context.ts` for PostgreSQL + Redis + ClickHouse — do **not** call `setupContainers()` directly in test files
 - Date helpers (`daysAgo`, `ts`, `msAgo`, `dateOffset`) from `@qurvo/testing`

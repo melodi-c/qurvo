@@ -9,8 +9,9 @@ pnpm --filter @qurvo/ingest dev          # watch mode
 pnpm --filter @qurvo/ingest build        # nest build → dist/
 pnpm --filter @qurvo/ingest start        # node dist/main.js
 
-# Integration tests (requires infra:up)
-pnpm --filter @qurvo/ingest test:integration
+# Tests (testcontainers — no manual infra needed)
+pnpm --filter @qurvo/ingest exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/ingest exec vitest run --config vitest.unit.config.ts
 ```
 
 ## Architecture

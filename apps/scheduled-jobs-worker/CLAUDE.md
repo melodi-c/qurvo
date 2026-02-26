@@ -8,6 +8,10 @@ NestJS background worker. No HTTP server. Periodically evaluates active AI sched
 pnpm --filter @qurvo/scheduled-jobs-worker dev          # watch mode
 pnpm --filter @qurvo/scheduled-jobs-worker build        # nest build → dist/
 pnpm --filter @qurvo/scheduled-jobs-worker start        # node dist/main.js
+
+# Tests (testcontainers — no manual infra needed)
+pnpm --filter @qurvo/scheduled-jobs-worker exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/scheduled-jobs-worker exec vitest run --config vitest.unit.config.ts
 ```
 
 ## Architecture

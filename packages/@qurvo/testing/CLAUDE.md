@@ -41,7 +41,7 @@ Lock algorithm:
 - If the PID is alive, waits 500 ms and retries.
 - Timeout: 30 minutes (1 800 000 ms). Throws if exceeded.
 
-The `scripts/run-integration-tests.sh` is now a thin wrapper that simply calls vitest directly — no `flock` needed.
+No wrapper script — run tests directly via `pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts`.
 
 Each fork gets isolated PG database, CH database, and Redis database. One set of containers per app run, not per fork.
 

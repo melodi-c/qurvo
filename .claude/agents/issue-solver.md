@@ -91,16 +91,16 @@ BASE_BRANCH="main"  # или значение из промпта
 Последовательно выполни ВСЕ шаги. Используй AFFECTED_APPS из входных данных.
 
 ### 4.1 Тесты
-Unit-тесты (без timeout и без pkill):
+Unit-тесты:
 ```bash
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run || true
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.unit.config.ts || true
 ```
 
-Интеграционные тесты — для каждого app из AFFECTED_APPS **последовательно** через flock-семафор:
+Интеграционные тесты — для каждого app из AFFECTED_APPS **последовательно**:
 ```bash
-bash "$REPO_ROOT/scripts/run-integration-tests.sh" <app> || true
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts || true
 ```
-Без pkill. Без `pnpm test:cleanup`. Ryuk прибирает zombie-контейнеры самостоятельно.
+Testcontainers не требуют `infra:up`. Ryuk прибирает контейнеры автоматически.
 
 Если важные интеграционные тесты отсутствуют -- напиши их.
 
@@ -195,8 +195,8 @@ cd "$WORKTREE_PATH" && git merge "$BASE_BRANCH"
 # Если конфликты -- попытайся разрешить самостоятельно
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run || true
-bash "$REPO_ROOT/scripts/run-integration-tests.sh" <app> || true
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.unit.config.ts || true
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts || true
 # Для каждого app из AFFECTED_APPS:
 cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
 ```

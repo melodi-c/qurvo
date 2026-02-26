@@ -8,6 +8,9 @@ NestJS background worker. No HTTP server. Periodically checks billing counters a
 pnpm --filter @qurvo/billing-worker dev          # watch mode
 pnpm --filter @qurvo/billing-worker build        # nest build → dist/
 pnpm --filter @qurvo/billing-worker start        # node dist/main.js
+
+# Integration tests (testcontainers — no manual infra needed)
+pnpm --filter @qurvo/billing-worker exec vitest run --config vitest.integration.config.ts
 ```
 
 ## Architecture

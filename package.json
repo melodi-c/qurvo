@@ -13,9 +13,7 @@
     "infra:up": "docker compose -f docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
     "swagger:generate": "turbo swagger:generate --filter=@qurvo/api",
-    "generate-api": "turbo generate-api --filter=@qurvo/web",
-    "test:integration": "bash scripts/run-integration-tests.sh",
-    "test:cleanup": "docker stop $(docker ps -q --filter 'label=org.testcontainers') 2>/dev/null || true && docker rm $(docker ps -aq --filter 'label=org.testcontainers') 2>/dev/null || true"
+    "generate-api": "turbo generate-api --filter=@qurvo/web"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
