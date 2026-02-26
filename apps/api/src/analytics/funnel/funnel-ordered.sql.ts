@@ -4,6 +4,7 @@ import {
   buildWindowFunnelExpr,
   buildExclusionColumns,
   buildExcludedUsersCTE,
+  buildStepCondition,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -43,14 +44,23 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
     ? ''
     : '\n                AND event_name IN ({all_event_names:Array(String)})';
 
-  // Optional breakdown column
+  // Build full step conditions for step 0 and last step — these handle OR-logic
+  // (event_names with multiple entries) correctly, unlike a bare `event_name = {step_0:String}`.
+  const step0Cond = buildStepCondition(steps[0]!, 0, queryParams);
+  const lastStepCond = buildStepCondition(steps[numSteps - 1]!, numSteps - 1, queryParams);
+
+  // Optional breakdown column.
+  // Use argMinIf (pick by earliest timestamp) to make the result deterministic when
+  // multiple events match the step condition (OR-logic or repeated events).
   const breakdownCol = breakdownExpr
-    ? `,\n              anyIf(${breakdownExpr}, event_name = {step_0:String}) AS breakdown_value`
+    ? `,\n              argMinIf(${breakdownExpr}, timestamp, ${step0Cond}) AS breakdown_value`
     : '';
 
-  // Optional first/last step timestamps for avg_time_to_convert
+  // Optional first/last step timestamps for avg_time_to_convert.
+  // Use full step conditions (not bare event_name =) so OR-logic steps are handled correctly:
+  // a user who satisfies step 0 via any of the OR-events gets a valid first_step_ms.
   const timestampCols = includeTimestampCols
-    ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), event_name = {step_0:String}) AS first_step_ms,\n              maxIf(toUnixTimestamp64Milli(timestamp), event_name = {step_${numSteps - 1}:String}) AS last_step_ms`
+    ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              maxIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
     : '';
 
   // Exclusion columns
