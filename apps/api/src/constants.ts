@@ -18,11 +18,11 @@ export const ANALYTICS_CACHE_TTL_SECONDS = 3600; // 1 hour
 export const PROPERTY_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
 
 export const AI_MAX_TOOL_CALL_ITERATIONS = 10;
-export const AI_CONTEXT_MESSAGE_LIMIT = 200;
+export const AI_CONTEXT_MESSAGE_LIMIT = 60;
 export const AI_RATE_LIMIT_PER_MINUTE = parseInt(process.env.AI_RATE_LIMIT_PER_MINUTE ?? '20', 10);
 export const AI_RATE_LIMIT_PER_HOUR = parseInt(process.env.AI_RATE_LIMIT_PER_HOUR ?? '200', 10);
-export const AI_SUMMARY_THRESHOLD = 40;
-export const AI_SUMMARY_KEEP_RECENT = 20;
+export const AI_SUMMARY_THRESHOLD = 16;
+export const AI_SUMMARY_KEEP_RECENT = 10;
 export const AI_SUMMARIZATION_MODEL = 'gpt-4o-mini';
 export const AI_TOOL_CACHE_TTL_SECONDS = 300; // 5 minutes
 export const AI_RETRY_MAX_ATTEMPTS = 3;
