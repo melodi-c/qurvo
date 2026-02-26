@@ -188,7 +188,7 @@ export function AiChatPanel({
               onKeyDown={handleKeyDown}
               placeholder={t('inputPlaceholder')}
               rows={1}
-              className="flex-1 resize-none bg-input/30 border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
+              className="flex-1 resize-none bg-input/30 border border-input rounded-lg px-3 py-2 text-base lg:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-32"
               style={{ minHeight: '38px' }}
               disabled={isStreaming}
             />
