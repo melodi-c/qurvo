@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useDashboardStore } from '@/features/dashboard/store';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useLifecycleData } from '@/features/dashboard/hooks/use-lifecycle';
 import { LifecycleChart } from './LifecycleChart';
@@ -14,6 +15,7 @@ interface LifecycleWidgetProps {
 
 export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
   const { t } = useLocalTranslation(translations);
+  const isEditing = useDashboardStore((s) => s.isEditing);
   const config = widget.insight?.config as LifecycleWidgetConfig | undefined;
   const hasConfig = !!config;
   const query = useLifecycleData(config ?? defaultLifecycleConfig(), widget.id);
@@ -33,6 +35,7 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
       query={query}
       isConfigValid={hasConfig && !!config.target_event}
       configureMessage={hasConfig ? t('configureEvent') : t('noInsight')}
+      isEditing={isEditing}
       isEmpty={!result || result.data.length === 0}
       emptyMessage={t('noData')}
       emptyHint={t('adjustDateRange')}
