@@ -7,6 +7,7 @@ import type { AiTool } from './ai-tool.interface';
 import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr } from '../../utils/property-filter';
 import { type Metric, computeMetricValue } from './metric.utils';
+import { MAX_METRIC_SEGMENTS } from '../../constants';
 
 const argsSchema = z.object({
   event_name: z.string().describe('The event to analyze (e.g. "purchase", "signup")'),
@@ -169,7 +170,7 @@ async function queryDimension(
     FROM baseline AS b
     FULL OUTER JOIN current_period AS c USING (segment_value)
     ORDER BY abs(coalesce(c.raw_value, 0) - coalesce(b.raw_value, 0)) DESC
-    LIMIT 20
+    LIMIT ${MAX_METRIC_SEGMENTS}
   `;
 
   const res = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });

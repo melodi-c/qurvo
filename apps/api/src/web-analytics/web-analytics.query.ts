@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod } from '../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
+import { MAX_PATH_NODES } from '../constants';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -364,7 +365,7 @@ async function queryTopPagesDimension(
       ${filterConditions}
     GROUP BY name
     ORDER BY pageviews DESC
-    LIMIT 20`;
+    LIMIT ${MAX_PATH_NODES}`;
 
   const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   const rows = await result.json<RawDimensionRow>();

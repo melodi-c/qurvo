@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
+import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr, resolveNumericPropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
@@ -306,7 +307,7 @@ async function executeTrendQuery(
         AND event_name IN ({all_event_names:Array(String)})
       GROUP BY breakdown_value
       ORDER BY count() DESC
-      LIMIT 25
+      LIMIT ${MAX_BREAKDOWN_VALUES}
     )
     SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
     FROM (

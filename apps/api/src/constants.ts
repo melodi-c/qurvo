@@ -39,3 +39,7 @@ export const THROTTLE_SHORT_TTL_MS = 1000;
 export const THROTTLE_SHORT_LIMIT = 20;
 export const THROTTLE_MEDIUM_TTL_MS = 60_000;
 export const THROTTLE_MEDIUM_LIMIT = 300;
+
+export const MAX_BREAKDOWN_VALUES = 25;
+export const MAX_PATH_NODES = 20;
+export const MAX_METRIC_SEGMENTS = 20;

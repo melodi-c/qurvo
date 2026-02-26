@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { toChTs, RESOLVED_PERSON, buildCohortClause } from '../../utils/clickhouse-helpers';
+import { MAX_PATH_NODES } from '../../constants';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ export async function queryPaths(
     GROUP BY path
     HAVING person_count >= {min_persons:UInt32}
     ORDER BY person_count DESC
-    LIMIT 20`;
+    LIMIT ${MAX_PATH_NODES}`;
 
   // Execute both queries in parallel
   const [transitionsResult, topPathsResult] = await Promise.all([
