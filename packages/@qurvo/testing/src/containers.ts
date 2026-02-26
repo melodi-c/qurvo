@@ -53,7 +53,11 @@ export async function teardownContainers(): Promise<void> {
 
   if (process.env.TEST_PG_HOST) {
     const { teardownWorkerContext } = await import('./worker-context');
-    await teardownWorkerContext();
+    try {
+      await teardownWorkerContext();
+    } finally {
+      contextPromise = null;
+    }
   } else {
     const ctx = await contextPromise;
 
@@ -61,29 +65,37 @@ export async function teardownContainers(): Promise<void> {
     // a partial failure does not attempt to stop already-stopped containers.
     contextPromise = null;
 
-    await ctx.ch.close();
-    ctx.redis.disconnect();
-    await ctx.db.$pool.end();
+    const clientResults = await Promise.allSettled([
+      ctx.ch.close(),
+      Promise.resolve(ctx.redis.disconnect()),
+      ctx.db.$pool.end(),
+    ]);
 
-    const results = await Promise.allSettled([
+    const clientErrors = clientResults
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map((r) => r.reason);
+
+    if (clientErrors.length > 0) {
+      console.error('[testing] teardownContainers: failed to close some connections:', clientErrors);
+    }
+
+    const containerResults = await Promise.allSettled([
       ctx.pgContainer != null ? ctx.pgContainer.stop() : Promise.resolve(),
       ctx.redisContainer != null ? ctx.redisContainer.stop() : Promise.resolve(),
       ctx.chContainer != null ? ctx.chContainer.stop() : Promise.resolve(),
     ]);
 
-    const errors = results
+    const containerErrors = containerResults
       .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
       .map((r) => r.reason);
 
-    if (errors.length > 0) {
-      console.error('[testing] teardownContainers: failed to stop some containers:', errors);
-      throw new AggregateError(errors, `Failed to stop ${errors.length} container(s)`);
+    const allErrors = [...clientErrors, ...containerErrors];
+
+    if (allErrors.length > 0) {
+      console.error('[testing] teardownContainers: failed to stop some containers:', containerErrors);
+      throw new AggregateError(allErrors, `Failed to close ${allErrors.length} resource(s)`);
     }
-
-    return;
   }
-
-  contextPromise = null;
 }
 
 async function startContainers(): Promise<ContainerContext> {

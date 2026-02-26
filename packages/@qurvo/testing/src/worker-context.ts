@@ -10,17 +10,34 @@ let contextPromise: Promise<ContainerContext> | null = null;
 
 export async function setupWorkerContext(): Promise<ContainerContext> {
   if (contextPromise) return contextPromise;
-  contextPromise = createWorkerContext();
+  contextPromise = createWorkerContext().catch((err) => {
+    contextPromise = null;
+    throw err;
+  });
   return contextPromise;
 }
 
 export async function teardownWorkerContext(): Promise<void> {
   if (!contextPromise) return;
   const ctx = await contextPromise;
-  await ctx.ch.close();
-  ctx.redis.disconnect();
-  await ctx.db.$pool.end();
-  contextPromise = null;
+  try {
+    const results = await Promise.allSettled([
+      ctx.ch.close(),
+      Promise.resolve(ctx.redis.disconnect()),
+      ctx.db.$pool.end(),
+    ]);
+
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map((r) => r.reason);
+
+    if (errors.length > 0) {
+      console.error('[testing] teardownWorkerContext: failed to close some connections:', errors);
+      throw new AggregateError(errors, `Failed to close ${errors.length} connection(s)`);
+    }
+  } finally {
+    contextPromise = null;
+  }
 }
 
 async function createWorkerContext(): Promise<ContainerContext> {
