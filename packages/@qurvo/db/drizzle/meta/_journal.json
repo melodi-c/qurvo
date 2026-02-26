@@ -229,28 +229,28 @@
     {
       "idx": 33,
       "version": "7",
-      "when": 1772063412683,
+      "when": 1774500000000,
       "tag": "0033_add_demo_fields_to_projects",
       "breakpoints": true
     },
     {
       "idx": 34,
       "version": "7",
-      "when": 1772150000000,
+      "when": 1774600000000,
       "tag": "0034_add_ai_insights",
       "breakpoints": true
     },
     {
       "idx": 35,
       "version": "7",
-      "when": 1772065038914,
+      "when": 1774700000000,
       "tag": "0035_add_ai_monitors",
       "breakpoints": true
     },
     {
       "idx": 36,
       "version": "7",
-      "when": 1772500000000,
+      "when": 1774800000000,
       "tag": "0036_add_ai_scheduled_jobs",
       "breakpoints": true
     }
