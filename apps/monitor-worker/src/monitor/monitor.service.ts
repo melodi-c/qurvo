@@ -7,9 +7,7 @@ import type { AiMonitor, Database } from '@qurvo/db';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { DRIZZLE, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { NotificationService } from './notification.service';
-
-const MONITOR_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const MONITOR_INITIAL_DELAY_MS = 30_000; // 30s
+import { MONITOR_CHECK_INTERVAL_MS, MONITOR_INITIAL_DELAY_MS } from '../constants';
 
 interface BaselineRow {
   baseline_avg: string;
