@@ -72,15 +72,13 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
           width={compact ? 40 : 45}
           tickFormatter={compact ? formatCompactNumber : undefined}
         />
-        {!compact && (
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number, _name: string, entry: { payload?: { pct: number } }) => [
-              `${value} ${usersLabel.toLowerCase()} (${entry.payload?.pct ?? 0}%)`,
-              usersLabel,
-            ]}
-          />
-        )}
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          formatter={(value: number, _name: string, entry: { payload?: { pct: number } }) => [
+            `${value} ${usersLabel.toLowerCase()} (${entry.payload?.pct ?? 0}%)`,
+            usersLabel,
+          ]}
+        />
         <Bar dataKey="user_count" fill={CHART_COLORS_HEX[2]} name={usersLabel} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
