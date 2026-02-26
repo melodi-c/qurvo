@@ -51,7 +51,7 @@ export function EditorHeader({
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder={placeholder}
-            className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/40 min-w-0"
+            className="flex-1 bg-transparent text-base lg:text-sm font-medium outline-none placeholder:text-muted-foreground/40 min-w-0"
           />
         </nav>
 
@@ -80,7 +80,7 @@ export function EditorHeader({
             placeholder={descriptionPlaceholder ?? t('addDescription')}
             rows={1}
             maxLength={1000}
-            className="w-full resize-none bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/30 leading-relaxed"
+            className="w-full resize-none bg-transparent text-base lg:text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/30 leading-relaxed"
             onInput={(e) => {
               const el = e.currentTarget;
               el.style.height = 'auto';
