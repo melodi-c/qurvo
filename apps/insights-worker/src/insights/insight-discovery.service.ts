@@ -201,25 +201,25 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
    * Detect week-1 retention anomalies by comparing this week's day-0 cohort to last week's.
    * Reports events where retention dropped >20% week-over-week.
    * A user is "retained" if they performed the same event again 7+ days after their first occurrence.
+   *
+   * ClickHouse does NOT support correlated subqueries (outer column refs inside subquery WHERE).
+   * We use INNER JOIN between cohort and return-events CTEs to avoid this limitation.
    */
   async detectRetentionAnomalies(projectId: string, projectName: string): Promise<void> {
-    // Current cohort: users who first did event X between 14 and 7 days ago (day-0 window).
-    // They are "retained" if they did the same event 7+ days after their first occurrence
-    // (i.e., within the past 7 days).
+    // Current cohort: users who did event X between 14 and 7 days ago (day-0 window).
+    // They are "retained" if they did the same event within the past 7 days.
     //
-    // Previous cohort: users who first did event X between 21 and 14 days ago.
-    // They are "retained" if they did the same event 7+ days after their first occurrence
-    // (i.e., between 14 and 7 days ago).
+    // Previous cohort: users who did event X between 21 and 14 days ago.
+    // They are "retained" if they did the same event between 14 and 7 days ago.
     //
-    // We use NOT IN instead of LEFT JOIN + IS NULL because ClickHouse returns default values
-    // (not NULL) for unmatched rows on non-Nullable columns.
+    // We INNER JOIN cohort with return-events on both event_name + distinct_id to count
+    // retained users per event without correlated subqueries.
     const query = `
       WITH
         current_cohort AS (
           SELECT
             event_name,
-            distinct_id,
-            min(timestamp) AS first_ts
+            distinct_id
           FROM events
           WHERE
             project_id = {projectId:String}
@@ -227,31 +227,31 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
             AND timestamp < now() - INTERVAL 7 DAY
           GROUP BY event_name, distinct_id
         ),
-        current_retained AS (
+        current_return AS (
           SELECT
-            cc.event_name,
-            count(DISTINCT cc.distinct_id) AS retained_count
-          FROM current_cohort cc
-          WHERE cc.distinct_id IN (
-            SELECT DISTINCT e2.distinct_id
-            FROM events e2
-            WHERE
-              e2.project_id = {projectId:String}
-              AND e2.event_name = cc.event_name
-              AND e2.timestamp >= now() - INTERVAL 7 DAY
-          )
-          GROUP BY cc.event_name
+            event_name,
+            distinct_id
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 7 DAY
+          GROUP BY event_name, distinct_id
         ),
         current_cohort_size AS (
-          SELECT event_name, count(DISTINCT distinct_id) AS cohort_size
+          SELECT event_name, count() AS cohort_size
           FROM current_cohort
           GROUP BY event_name
+        ),
+        current_retained AS (
+          SELECT cc.event_name, count() AS retained_count
+          FROM current_cohort cc
+          INNER JOIN current_return cr ON cc.event_name = cr.event_name AND cc.distinct_id = cr.distinct_id
+          GROUP BY cc.event_name
         ),
         prev_cohort AS (
           SELECT
             event_name,
-            distinct_id,
-            min(timestamp) AS first_ts
+            distinct_id
           FROM events
           WHERE
             project_id = {projectId:String}
@@ -259,26 +259,27 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
             AND timestamp < now() - INTERVAL 14 DAY
           GROUP BY event_name, distinct_id
         ),
-        prev_retained AS (
+        prev_return AS (
           SELECT
-            pc.event_name,
-            count(DISTINCT pc.distinct_id) AS retained_count
-          FROM prev_cohort pc
-          WHERE pc.distinct_id IN (
-            SELECT DISTINCT e3.distinct_id
-            FROM events e3
-            WHERE
-              e3.project_id = {projectId:String}
-              AND e3.event_name = pc.event_name
-              AND e3.timestamp >= now() - INTERVAL 14 DAY
-              AND e3.timestamp < now() - INTERVAL 7 DAY
-          )
-          GROUP BY pc.event_name
+            event_name,
+            distinct_id
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 14 DAY
+            AND timestamp < now() - INTERVAL 7 DAY
+          GROUP BY event_name, distinct_id
         ),
         prev_cohort_size AS (
-          SELECT event_name, count(DISTINCT distinct_id) AS cohort_size
+          SELECT event_name, count() AS cohort_size
           FROM prev_cohort
           GROUP BY event_name
+        ),
+        prev_retained AS (
+          SELECT pc.event_name, count() AS retained_count
+          FROM prev_cohort pc
+          INNER JOIN prev_return pr ON pc.event_name = pr.event_name AND pc.distinct_id = pr.distinct_id
+          GROUP BY pc.event_name
         )
       SELECT
         cs.event_name AS event_name,
