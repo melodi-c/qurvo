@@ -4,7 +4,7 @@ export { insertTestEvents, buildEvent, createTestProject } from './factories';
 export type { TestProject } from './factories';
 export { waitForClickHouseCount, waitForRedisStreamLength } from './wait';
 export type { WaitOptions } from './wait';
-export { DAY_MS, daysAgo, dateOffset, ts, msAgo } from './date-helpers';
+export { DAY_MS, daysAgo, dateOffset, ts, msAgo, mondayOfWeekContaining, firstOfMonthContaining } from './date-helpers';
 export { parseRedisFields } from './redis-utils';
 
 export { createGlobalSetup } from './vitest-global-setup';
