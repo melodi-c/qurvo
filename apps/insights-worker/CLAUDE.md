@@ -63,7 +63,7 @@ Failures for individual projects are caught and logged as warnings — a single 
 
 `detectRetentionAnomalies` uses CTEs to compute week-1 retention for two consecutive cohort windows. Day-0 users are those who first appeared in the given 7-day window; "retained" users are those who returned in the 7-day window that follows 7 days after cohort entry. Uses INNER JOIN between cohort CTE and return-events CTE on `(event_name, distinct_id)` — ClickHouse does NOT support correlated subqueries (referencing outer CTE columns inside a subquery WHERE). The current cohort excludes users already seen in prev_cohort using tuple NOT IN — this prevents prev-retained users (whose return events share the `prev_return`/`current_cohort` time window) from inflating `current_cohort_size`.
 
-`detectConversionCorrelations` first fetches top-5 events by total count, then for each runs a second query computing conditional conversion rates for all intermediate events. Uses sub-select patterns to avoid multi-CTE re-scan issues.
+`detectConversionCorrelations` uses a single query to compute correlations for all top-5 events at once. It uses 6 CTEs: `top_events` (top-5 by count), `conv_users` / `conv_counts` (per-conversion-event distinct users), `inter_users` / `inter_counts` (per-intermediate-event distinct users), `both_users` (INNER JOIN on distinct_id to count co-occurrences), and `total_users_agg` (scalar CROSS JOIN for base rate denominator). The outer SELECT joins these pre-aggregated CTEs and applies `LIMIT 3 BY conversion_event` to return the top-3 correlations per conversion event. This replaces the previous N+1 pattern (1 + 5 queries) with a single round trip to ClickHouse.
 
 ## Important: Do NOT Delete
 

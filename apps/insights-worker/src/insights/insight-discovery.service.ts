@@ -352,128 +352,145 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
    * Detect conversion correlations: for the top-5 events by frequency, find intermediate events
    * that correlate with significantly higher conversion rates (relative lift > 50%).
    * Only reports insights where the intermediate event was seen by >= 30 users.
+   *
+   * Replaces the previous N+1 pattern (1 query for top events + 1 query per top event)
+   * with a single query that computes correlations for all top events at once via
+   * GROUP BY (conversion_event, intermediate_event).
+   *
+   * ClickHouse quirks applied here:
+   *   - CTEs are NOT materialised (inlined like views). Each CTE is referenced only once
+   *     to avoid unnecessary re-scans.
+   *   - LEFT JOIN + IS NOT NULL does NOT work for non-Nullable columns — ClickHouse returns
+   *     default values (e.g. empty string) instead of NULL for unmatched rows.
+   *     We use INNER JOIN on distinct_id between conv_users and inter_users to collect
+   *     co-occurrence counts, then separately aggregate conv_counts and inter_counts.
+   *   - `LIMIT n BY key` returns up to n rows per key, which gives top-3 correlations
+   *     per conversion event in a single pass.
    */
   async detectConversionCorrelations(projectId: string): Promise<void> {
-    // Step 1: find the top-5 conversion events by total count in the last 30 days.
-    const topEventsQuery = `
+    const correlationQuery = `
+      WITH
+        -- Top-5 conversion events by total count in the last 30 days.
+        -- Referenced only in conv_users (one IN sub-select) to avoid re-scan.
+        top_events AS (
+          SELECT event_name
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 30 DAY
+          GROUP BY event_name
+          ORDER BY count() DESC
+          LIMIT 5
+        ),
+        -- One row per (conversion_event, distinct_id) for top-5 events.
+        conv_users AS (
+          SELECT
+            event_name AS conversion_event,
+            distinct_id
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND event_name IN (SELECT event_name FROM top_events)
+            AND timestamp >= now() - INTERVAL 30 DAY
+          GROUP BY event_name, distinct_id
+        ),
+        -- Total converters per conversion event (needed for base_rate denominator).
+        conv_counts AS (
+          SELECT conversion_event, count() AS converters
+          FROM conv_users
+          GROUP BY conversion_event
+        ),
+        -- One row per (intermediate_event, distinct_id) for all events.
+        inter_users AS (
+          SELECT
+            event_name AS intermediate_event,
+            distinct_id
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 30 DAY
+          GROUP BY event_name, distinct_id
+        ),
+        -- Total intermediate users per event (needed for conditional_rate denominator).
+        inter_counts AS (
+          SELECT intermediate_event, count() AS intermediate_users
+          FROM inter_users
+          GROUP BY intermediate_event
+        ),
+        -- Pairs where the same user performed both a conversion event and an intermediate event.
+        -- INNER JOIN correctly excludes users who did only one of the two events.
+        both_users AS (
+          SELECT
+            cu.conversion_event AS conversion_event,
+            iu.intermediate_event AS intermediate_event,
+            count() AS intermediate_and_converted
+          FROM conv_users cu
+          INNER JOIN inter_users iu ON cu.distinct_id = iu.distinct_id
+          WHERE cu.conversion_event != iu.intermediate_event
+          GROUP BY cu.conversion_event, iu.intermediate_event
+        ),
+        -- Total distinct users in the project window (single scalar row for CROSS JOIN).
+        total_users_agg AS (
+          SELECT count(DISTINCT distinct_id) AS total_users
+          FROM events
+          WHERE
+            project_id = {projectId:String}
+            AND timestamp >= now() - INTERVAL 30 DAY
+        )
       SELECT
-        event_name,
-        count() AS total_count
-      FROM events
-      WHERE
-        project_id = {projectId:String}
-        AND timestamp >= now() - INTERVAL 30 DAY
-      GROUP BY event_name
-      ORDER BY total_count DESC
-      LIMIT 5
+        bu.conversion_event AS conversion_event,
+        bu.intermediate_event AS intermediate_event,
+        tu.total_users AS total_users,
+        cc.converters AS converters,
+        bu.intermediate_and_converted AS intermediate_and_converted,
+        ic.intermediate_users AS intermediate_users,
+        cc.converters / nullIf(tu.total_users, 0) AS base_conversion_rate,
+        bu.intermediate_and_converted / nullIf(ic.intermediate_users, 0) AS conditional_conversion_rate,
+        bu.intermediate_and_converted / nullIf(ic.intermediate_users, 0) /
+          nullIf(cc.converters / nullIf(tu.total_users, 0), 0) - 1 AS relative_lift
+      FROM both_users bu
+      INNER JOIN conv_counts cc ON bu.conversion_event = cc.conversion_event
+      INNER JOIN inter_counts ic ON bu.intermediate_event = ic.intermediate_event
+      CROSS JOIN total_users_agg tu
+      HAVING
+        ic.intermediate_users >= {minSample:UInt64}
+        AND relative_lift > {liftThreshold:Float64}
+      ORDER BY bu.conversion_event, relative_lift DESC
+      LIMIT 3 BY bu.conversion_event
     `;
 
-    const topEventsResult = await this.ch.query({
-      query: topEventsQuery,
-      query_params: { projectId },
+    const correlationResult = await this.ch.query({
+      query: correlationQuery,
+      query_params: {
+        projectId,
+        minSample: CONVERSION_CORRELATION_MIN_SAMPLE,
+        liftThreshold: CONVERSION_CORRELATION_LIFT_THRESHOLD,
+      },
       format: 'JSONEachRow',
     });
 
-    const topEvents = await topEventsResult.json<{ event_name: string; total_count: string }>();
+    const rows = await correlationResult.json<ConversionCorrelationRow>();
 
-    if (topEvents.length === 0) {
-      return;
-    }
+    for (const row of rows) {
+      const basePct = Math.round(parseFloat(row.base_conversion_rate) * 100);
+      const conditionalPct = Math.round(parseFloat(row.conditional_conversion_rate) * 100);
+      const liftPct = Math.round(parseFloat(row.relative_lift) * 100);
+      const sampleSize = parseInt(row.intermediate_users, 10);
 
-    // Step 2: for each top event, find intermediate events with high lift.
-    // A user "converted" if they did the conversion event in the last 30 days.
-    // An intermediate event has lift if users who did it converted at a higher rate.
-    // We look at the 30-day window and compare:
-    //   base_rate = converters / all_users_who_did_any_event
-    //   conditional_rate = users_who_did_intermediate_AND_converted / users_who_did_intermediate
-    //
-    //   total_users = distinct users who did ANY event in the project in the last 30 days
-    //   converters = distinct users who did the conversion event
-    //   intermediate_users = distinct users who did the intermediate event (not the conversion event)
-    //   intermediate_and_converted = users who did both intermediate and conversion events
-    for (const topEvent of topEvents) {
-      const correlationQuery = `
-        WITH
-          all_users AS (
-            SELECT DISTINCT distinct_id
-            FROM events
-            WHERE
-              project_id = {projectId:String}
-              AND timestamp >= now() - INTERVAL 30 DAY
-          ),
-          converting_users AS (
-            SELECT DISTINCT distinct_id
-            FROM events
-            WHERE
-              project_id = {projectId:String}
-              AND event_name = {conversionEvent:String}
-              AND timestamp >= now() - INTERVAL 30 DAY
-          ),
-          intermediate_events AS (
-            SELECT
-              event_name,
-              distinct_id
-            FROM events
-            WHERE
-              project_id = {projectId:String}
-              AND event_name != {conversionEvent:String}
-              AND timestamp >= now() - INTERVAL 30 DAY
-            GROUP BY event_name, distinct_id
-          )
-        SELECT
-          {conversionEvent:String} AS conversion_event,
-          ie.event_name AS intermediate_event,
-          (SELECT count() FROM all_users) AS total_users,
-          (SELECT count() FROM converting_users) AS converters,
-          countIf(ie.distinct_id IN (SELECT distinct_id FROM converting_users)) AS intermediate_and_converted,
-          count() AS intermediate_users,
-          (SELECT count() FROM converting_users) / nullIf((SELECT count() FROM all_users), 0) AS base_conversion_rate,
-          countIf(ie.distinct_id IN (SELECT distinct_id FROM converting_users)) / nullIf(count(), 0) AS conditional_conversion_rate,
-          (countIf(ie.distinct_id IN (SELECT distinct_id FROM converting_users)) / nullIf(count(), 0)) /
-            nullIf((SELECT count() FROM converting_users) / nullIf((SELECT count() FROM all_users), 0), 0) - 1 AS relative_lift
-        FROM intermediate_events ie
-        GROUP BY ie.event_name
-        HAVING
-          intermediate_users >= {minSample:UInt64}
-          AND relative_lift > {liftThreshold:Float64}
-        ORDER BY relative_lift DESC
-        LIMIT 3
-      `;
+      const title = `"${row.intermediate_event}" correlates with ${liftPct}% higher "${row.conversion_event}" conversion`;
+      const description = `Users who perform "${row.intermediate_event}" convert on "${row.conversion_event}" at ${conditionalPct}% vs ${basePct}% baseline — a ${liftPct}% relative lift. Sample: ${sampleSize} users performed the intermediate event in the last 30 days.`;
 
-      const correlationResult = await this.ch.query({
-        query: correlationQuery,
-        query_params: {
-          projectId,
-          conversionEvent: topEvent.event_name,
-          minSample: CONVERSION_CORRELATION_MIN_SAMPLE,
-          liftThreshold: CONVERSION_CORRELATION_LIFT_THRESHOLD,
-        },
-        format: 'JSONEachRow',
+      await this.saveInsight(projectId, 'conversion_correlation', title, description, {
+        conversion_event: row.conversion_event,
+        intermediate_event: row.intermediate_event,
+        total_users: parseInt(row.total_users, 10),
+        converters: parseInt(row.converters, 10),
+        intermediate_users: sampleSize,
+        intermediate_and_converted: parseInt(row.intermediate_and_converted, 10),
+        base_conversion_rate: parseFloat(row.base_conversion_rate),
+        conditional_conversion_rate: parseFloat(row.conditional_conversion_rate),
+        relative_lift: parseFloat(row.relative_lift),
       });
-
-      const rows = await correlationResult.json<ConversionCorrelationRow>();
-
-      for (const row of rows) {
-        const basePct = Math.round(parseFloat(row.base_conversion_rate) * 100);
-        const conditionalPct = Math.round(parseFloat(row.conditional_conversion_rate) * 100);
-        const liftPct = Math.round(parseFloat(row.relative_lift) * 100);
-        const sampleSize = parseInt(row.intermediate_users, 10);
-
-        const title = `"${row.intermediate_event}" correlates with ${liftPct}% higher "${row.conversion_event}" conversion`;
-        const description = `Users who perform "${row.intermediate_event}" convert on "${row.conversion_event}" at ${conditionalPct}% vs ${basePct}% baseline — a ${liftPct}% relative lift. Sample: ${sampleSize} users performed the intermediate event in the last 30 days.`;
-
-        await this.saveInsight(projectId, 'conversion_correlation', title, description, {
-          conversion_event: row.conversion_event,
-          intermediate_event: row.intermediate_event,
-          total_users: parseInt(row.total_users, 10),
-          converters: parseInt(row.converters, 10),
-          intermediate_users: sampleSize,
-          intermediate_and_converted: parseInt(row.intermediate_and_converted, 10),
-          base_conversion_rate: parseFloat(row.base_conversion_rate),
-          conditional_conversion_rate: parseFloat(row.conditional_conversion_rate),
-          relative_lift: parseFloat(row.relative_lift),
-        });
-      }
     }
   }
 
