@@ -3,20 +3,26 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import type { ClickHouseClient, IngestionWarning } from '@qurvo/clickhouse';
 import { CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { WARNINGS_BATCH_SIZE, WARNINGS_FLUSH_INTERVAL_MS } from '../constants';
+import { createScheduledLoop } from './schedule-loop';
 
 @Injectable()
 export class WarningsBufferService implements OnApplicationBootstrap {
   private buffer: IngestionWarning[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
-  private stopped = false;
 
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(WarningsBufferService.name) private readonly logger: PinoLogger,
   ) {}
 
+  private readonly loop = createScheduledLoop(
+    () => this.flush(),
+    WARNINGS_FLUSH_INTERVAL_MS,
+    (err) => this.logger.warn({ err }, 'Scheduled warnings flush error'),
+  );
+
   onApplicationBootstrap() {
-    this.scheduleFlush();
+    this.flushTimer = this.loop.start();
   }
 
   addWarning(warning: IngestionWarning): void {
@@ -27,7 +33,7 @@ export class WarningsBufferService implements OnApplicationBootstrap {
   }
 
   async shutdown(): Promise<void> {
-    this.stopped = true;
+    this.loop.stop();
     if (this.flushTimer) clearTimeout(this.flushTimer);
     await this.flush();
   }
@@ -47,14 +53,4 @@ export class WarningsBufferService implements OnApplicationBootstrap {
     }
   }
 
-  private scheduleFlush() {
-    this.flushTimer = setTimeout(async () => {
-      try {
-        await this.flush();
-      } catch (err) {
-        this.logger.warn({ err }, 'Scheduled warnings flush error');
-      }
-      if (!this.stopped) this.scheduleFlush();
-    }, WARNINGS_FLUSH_INTERVAL_MS);
-  }
 }

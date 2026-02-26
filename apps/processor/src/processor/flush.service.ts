@@ -6,6 +6,7 @@ import { REDIS } from '@qurvo/nestjs-infra';
 import { BatchWriter } from './batch-writer';
 import { MetricsService } from './metrics.service';
 import type { BufferedEvent } from './pipeline';
+import { createScheduledLoop } from './schedule-loop';
 import {
   PROCESSOR_BATCH_SIZE,
   PROCESSOR_FLUSH_INTERVAL_MS,
@@ -20,7 +21,6 @@ import {
 export class FlushService implements OnApplicationBootstrap {
   private buffer: BufferedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
-  private stopped = false;
   private flushPromise: Promise<void> | null = null;
 
   constructor(
@@ -30,12 +30,18 @@ export class FlushService implements OnApplicationBootstrap {
     private readonly metrics: MetricsService,
   ) {}
 
+  private readonly loop = createScheduledLoop(
+    () => this.flush(),
+    PROCESSOR_FLUSH_INTERVAL_MS,
+    (err) => this.logger.error({ err }, 'Scheduled flush failed'),
+  );
+
   onApplicationBootstrap() {
-    this.scheduleFlush();
+    this.flushTimer = this.loop.start();
   }
 
   async shutdown() {
-    this.stopped = true;
+    this.loop.stop();
     if (this.flushTimer) clearTimeout(this.flushTimer);
     if (this.flushPromise) await this.flushPromise;
     await this.flush();
@@ -103,14 +109,4 @@ export class FlushService implements OnApplicationBootstrap {
     }
   }
 
-  private scheduleFlush() {
-    this.flushTimer = setTimeout(async () => {
-      try {
-        await this.flush();
-      } catch (err) {
-        this.logger.error({ err }, 'Scheduled flush failed');
-      }
-      if (!this.stopped) this.scheduleFlush();
-    }, PROCESSOR_FLUSH_INTERVAL_MS);
-  }
 }
