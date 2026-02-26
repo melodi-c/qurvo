@@ -27,3 +27,8 @@ export const AI_SUMMARIZATION_MODEL = 'gpt-4o-mini';
 export const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
 
 export const PROJECT_ROLE_LEVELS: Record<string, number> = { owner: 3, editor: 2, viewer: 1 };
+
+export const THROTTLE_SHORT_TTL_MS = 1000;
+export const THROTTLE_SHORT_LIMIT = 20;
+export const THROTTLE_MEDIUM_TTL_MS = 60_000;
+export const THROTTLE_MEDIUM_LIMIT = 300;

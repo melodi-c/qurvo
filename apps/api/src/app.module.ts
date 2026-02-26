@@ -11,6 +11,12 @@ import { EmailModule } from './email/email.module';
 import { AdminModule } from './admin/admin.module';
 import { SessionAuthGuard } from './api/guards/session-auth.guard';
 import { REDIS } from './providers/redis.provider';
+import {
+  THROTTLE_SHORT_TTL_MS,
+  THROTTLE_SHORT_LIMIT,
+  THROTTLE_MEDIUM_TTL_MS,
+  THROTTLE_MEDIUM_LIMIT,
+} from './constants';
 
 @Module({
   imports: [
@@ -29,8 +35,8 @@ import { REDIS } from './providers/redis.provider';
       inject: [REDIS],
       useFactory: (redis: Redis) => ({
         throttlers: [
-          { name: 'short', ttl: 1000, limit: 20 },
-          { name: 'medium', ttl: 60000, limit: 300 },
+          { name: 'short', ttl: THROTTLE_SHORT_TTL_MS, limit: THROTTLE_SHORT_LIMIT },
+          { name: 'medium', ttl: THROTTLE_MEDIUM_TTL_MS, limit: THROTTLE_MEDIUM_LIMIT },
         ],
         storage: new ThrottlerStorageRedisService(redis),
       }),
