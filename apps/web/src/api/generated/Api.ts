@@ -1579,15 +1579,15 @@ export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
 
 export type AiMonitorDtoMetricEnum = "count" | "unique_users";
 
-export type AiMonitorDtoChannelTypeEnum = "slack" | "email";
+export type AiMonitorDtoChannelTypeEnum = "slack" | "email" | "telegram";
 
-export type CreateMonitorDtoChannelTypeEnum = "slack" | "email";
+export type CreateMonitorDtoChannelTypeEnum = "slack" | "email" | "telegram";
 
 export type CreateMonitorDtoMetricEnum = "count" | "unique_users";
 
 export type UpdateMonitorDtoMetricEnum = "count" | "unique_users";
 
-export type UpdateMonitorDtoChannelTypeEnum = "slack" | "email";
+export type UpdateMonitorDtoChannelTypeEnum = "slack" | "email" | "telegram";
 
 export type AiInsightDtoTypeEnum =
   | "metric_change"
@@ -1597,15 +1597,21 @@ export type AiInsightDtoTypeEnum =
 
 export type AiScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
 
-export type AiScheduledJobDtoChannelTypeEnum = "slack" | "email";
+export type AiScheduledJobDtoChannelTypeEnum = "slack" | "email" | "telegram";
 
 export type CreateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
 
-export type CreateScheduledJobDtoChannelTypeEnum = "slack" | "email";
+export type CreateScheduledJobDtoChannelTypeEnum =
+  | "slack"
+  | "email"
+  | "telegram";
 
 export type UpdateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
 
-export type UpdateScheduledJobDtoChannelTypeEnum = "slack" | "email";
+export type UpdateScheduledJobDtoChannelTypeEnum =
+  | "slack"
+  | "email"
+  | "telegram";
 
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
