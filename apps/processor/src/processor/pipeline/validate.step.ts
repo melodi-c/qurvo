@@ -4,9 +4,11 @@ const REQUIRED_FIELDS = ['project_id', 'event_name', 'distinct_id'] as const;
 
 // Garbage distinct_ids that SDKs or broken clients may send — silently drop these events.
 // All values MUST be lowercase — the check uses .toLowerCase() on the input.
+// ВАЖНО: держать в синхронизации с apps/ingest/src/schemas/event.ts (ILLEGAL_DISTINCT_IDS)
 const ILLEGAL_DISTINCT_IDS = new Set([
   'anonymous', 'null', 'undefined', 'none', 'nil',
   '[object object]', 'nan', 'true', 'false', '0',
+  'guest',
 ]);
 
 /** Step 2: Validate and split into valid events + invalid IDs for XACK. */
