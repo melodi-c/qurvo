@@ -33,7 +33,7 @@ let started: StartedContainers | null = null;
 export async function startGlobalContainers(): Promise<ContainerCoords> {
   if (started) return started.coords;
 
-  const [pgContainer, redisContainer, chContainer] = await Promise.all([
+  const results = await Promise.allSettled([
     new PostgreSqlContainer('postgres:17-alpine')
       .withDatabase('postgres')
       .withUsername(PG_USER)
@@ -55,6 +55,27 @@ export async function startGlobalContainers(): Promise<ContainerCoords> {
       .withWaitStrategy(Wait.forHttp('/ping', 8123).forStatusCode(200))
       .start(),
   ]);
+
+  const [pgResult, redisResult, chResult] = results;
+
+  // If any container failed to start, stop all successfully started containers
+  // before re-throwing to avoid resource leaks (important when Ryuk is disabled).
+  const failed = results.filter((r) => r.status === 'rejected');
+  if (failed.length > 0) {
+    const started_containers: StartedTestContainer[] = [];
+    if (pgResult.status === 'fulfilled') started_containers.push(pgResult.value);
+    if (redisResult.status === 'fulfilled') started_containers.push(redisResult.value);
+    if (chResult.status === 'fulfilled') started_containers.push(chResult.value);
+
+    await Promise.allSettled(started_containers.map((c) => c.stop()));
+
+    const errors = failed.map((r) => (r as PromiseRejectedResult).reason);
+    throw new AggregateError(errors, `Failed to start ${failed.length} container(s): ${errors.map(String).join('; ')}`);
+  }
+
+  const pgContainer = (pgResult as PromiseFulfilledResult<StartedPostgreSqlContainer>).value;
+  const redisContainer = (redisResult as PromiseFulfilledResult<StartedTestContainer>).value;
+  const chContainer = (chResult as PromiseFulfilledResult<StartedTestContainer>).value;
 
   const coords: ContainerCoords = {
     pgHost: pgContainer.getHost(),
@@ -78,10 +99,23 @@ export async function startGlobalContainers(): Promise<ContainerCoords> {
 export async function stopGlobalContainers(): Promise<void> {
   if (!started) return;
   const { pgContainer, redisContainer, chContainer } = started;
-  await Promise.all([
+
+  // Reset started first so that a repeated call after a partial failure
+  // does not attempt to stop already-stopped (or failed) containers again.
+  started = null;
+
+  const results = await Promise.allSettled([
     pgContainer.stop(),
     redisContainer.stop(),
     chContainer.stop(),
   ]);
-  started = null;
+
+  const errors = results
+    .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    .map((r) => r.reason);
+
+  if (errors.length > 0) {
+    console.error('[testing] stopGlobalContainers: failed to stop some containers:', errors);
+    throw new AggregateError(errors, `Failed to stop ${errors.length} container(s)`);
+  }
 }

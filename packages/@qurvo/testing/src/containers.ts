@@ -56,14 +56,31 @@ export async function teardownContainers(): Promise<void> {
     await teardownWorkerContext();
   } else {
     const ctx = await contextPromise;
+
+    // Reset contextPromise before stopping so that a repeated call after
+    // a partial failure does not attempt to stop already-stopped containers.
+    contextPromise = null;
+
     await ctx.ch.close();
     ctx.redis.disconnect();
     await ctx.db.$pool.end();
-    await Promise.all([
+
+    const results = await Promise.allSettled([
       ctx.pgContainer.stop(),
       ctx.redisContainer.stop(),
       ctx.chContainer.stop(),
     ]);
+
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map((r) => r.reason);
+
+    if (errors.length > 0) {
+      console.error('[testing] teardownContainers: failed to stop some containers:', errors);
+      throw new AggregateError(errors, `Failed to stop ${errors.length} container(s)`);
+    }
+
+    return;
   }
 
   contextPromise = null;
