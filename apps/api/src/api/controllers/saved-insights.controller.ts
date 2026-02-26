@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
+import { ShareTokensService } from '../../share-tokens/share-tokens.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
 import { CreateInsightDto, UpdateInsightDto, InsightDto, ListInsightsQueryDto } from '../dto/insights.dto';
+import { CreateShareTokenDto, ShareTokenDto } from '../dto/share-tokens.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 import type { InsightConfig } from '@qurvo/db';
 
@@ -12,7 +14,10 @@ import type { InsightConfig } from '@qurvo/db';
 @Controller('api/projects/:projectId/insights')
 @UseGuards(ProjectMemberGuard)
 export class SavedInsightsController {
-  constructor(private readonly insightsService: SavedInsightsService) {}
+  constructor(
+    private readonly insightsService: SavedInsightsService,
+    private readonly shareTokensService: ShareTokensService,
+  ) {}
 
   @Get()
   async list(
@@ -65,5 +70,41 @@ export class SavedInsightsController {
     @Param('insightId', ParseUUIDPipe) insightId: string,
   ): Promise<void> {
     await this.insightsService.remove(projectId, insightId);
+  }
+
+  // ── Share tokens ───────────────────────────────────────────────────────────
+
+  @RequireRole('editor')
+  @Post(':insightId/share')
+  async createShareToken(
+    @CurrentUser() user: RequestUser,
+    @Param('projectId') projectId: string,
+    @Param('insightId', ParseUUIDPipe) insightId: string,
+    @Body() body: CreateShareTokenDto,
+  ): Promise<ShareTokenDto> {
+    return this.shareTokensService.create(
+      projectId,
+      user.user_id,
+      'insight',
+      insightId,
+      body.expires_at ? new Date(body.expires_at) : undefined,
+    ) as any;
+  }
+
+  @Get(':insightId/share')
+  async listShareTokens(
+    @Param('projectId') projectId: string,
+    @Param('insightId', ParseUUIDPipe) insightId: string,
+  ): Promise<ShareTokenDto[]> {
+    return this.shareTokensService.listByResource(projectId, 'insight', insightId) as any;
+  }
+
+  @RequireRole('editor')
+  @Delete(':insightId/share/:tokenId')
+  async revokeShareToken(
+    @Param('projectId') projectId: string,
+    @Param('tokenId', ParseUUIDPipe) tokenId: string,
+  ): Promise<void> {
+    await this.shareTokensService.revoke(projectId, tokenId);
   }
 }
