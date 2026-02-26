@@ -328,3 +328,95 @@ describe('queryLifecycle — cohort filters', () => {
     expect(day2!.returning).toBe(1);
   });
 });
+
+describe('queryLifecycle — new vs resurrecting with deep history', () => {
+  it('classifies as resurrecting (not new) a user active 2+ periods ago who skipped 1 period', async () => {
+    // Regression test for: extended_from lookback was only 1 period, causing users
+    // active 2+ periods ago to be misclassified as 'new' instead of 'resurrecting'.
+    //
+    // Scenario (day granularity, date_from = daysAgo(1)):
+    //   day-2: user fires the event   <- outside the 1-period extended window
+    //   day-1: user is INACTIVE       <- extended_from boundary; user absent from visible range start
+    //   day-0 (today): user fires the event again
+    //
+    // With the old 1-period lookback the query would not see the day-2 event, so
+    // first_bucket = today and the user would be classified as 'new'.
+    // The correct answer is 'resurrecting' (user has prior history from day-2).
+
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Active 2 days ago -- outside extended_from window when date_from = daysAgo(1)
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'u', event_name: 'ev', timestamp: ts(2, 12) }),
+      // Inactive on daysAgo(1) (no event inserted)
+      // Active today
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'u', event_name: 'ev', timestamp: ts(0, 12) }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'ev',
+      granularity: 'day',
+      date_from: daysAgo(1),
+      date_to: daysAgo(0),
+    });
+
+    // Today's bucket: user re-appeared after a 1-day gap -> resurrecting, NOT new
+    const today = result.data.find((d) => d.bucket.startsWith(daysAgo(0)));
+    expect(today).toBeDefined();
+    expect(today!.resurrecting).toBe(1);
+    expect(today!.new).toBe(0);
+  });
+
+  it('classifies as resurrecting a user active many periods ago and inactive for the whole visible range except today', async () => {
+    // User was active 10 days ago and returns today.
+    // date_from = daysAgo(3). extended_from = daysAgo(4).
+    // The user's event at daysAgo(10) is older than extended_from -> prior_active detects it.
+
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'u', event_name: 'ev', timestamp: ts(10, 12) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'u', event_name: 'ev', timestamp: ts(0, 12) }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'ev',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(0),
+    });
+
+    const today = result.data.find((d) => d.bucket.startsWith(daysAgo(0)));
+    expect(today).toBeDefined();
+    expect(today!.resurrecting).toBe(1);
+    expect(today!.new).toBe(0);
+  });
+
+  it('still classifies as new a user whose first event ever is within the visible range', async () => {
+    // User's very first event is today -- must remain 'new'.
+
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'u', event_name: 'ev', timestamp: ts(0, 12) }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'ev',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(0),
+    });
+
+    const today = result.data.find((d) => d.bucket.startsWith(daysAgo(0)));
+    expect(today).toBeDefined();
+    expect(today!.new).toBe(1);
+    expect(today!.resurrecting).toBe(0);
+  });
+});
