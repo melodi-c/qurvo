@@ -47,7 +47,7 @@ export function DemoBanner({ projectId, isDemo }: DemoBannerProps) {
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border-b border-primary/20 text-sm">
+    <div className="flex flex-col gap-2 md:flex-row md:items-center px-4 py-2.5 bg-primary/10 border-b border-primary/20 text-sm">
       <span className="flex-1 text-foreground/80">{t('bannerText')}</span>
       <div className="flex items-center gap-2 shrink-0">
         <Button
@@ -55,16 +55,16 @@ export function DemoBanner({ projectId, isDemo }: DemoBannerProps) {
           variant="default"
           onClick={handleConnectSdk}
         >
-          <Zap className="h-3.5 w-3.5 mr-1.5" />
-          {t('connectSdk')}
+          <Zap className="h-3.5 w-3.5 md:mr-1.5" />
+          <span className="hidden md:inline">{t('connectSdk')}</span>
         </Button>
         <Button
           size="sm"
           variant="ghost"
           onClick={handleResetData}
         >
-          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-          {t('resetData')}
+          <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
+          <span className="hidden md:inline">{t('resetData')}</span>
         </Button>
         <button
           onClick={handleDismiss}
