@@ -50,9 +50,11 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result?.steps ? handleExportCsv : undefined}
     >
-      <div className="h-full overflow-auto">
-        <FunnelChart steps={result!.steps} breakdown={result!.breakdown} aggregateSteps={result!.aggregate_steps} compact conversionRateDisplay={config!.conversion_rate_display ?? 'total'} />
-      </div>
+      {result && (
+        <div className="h-full overflow-auto">
+          <FunnelChart steps={result.steps} breakdown={result.breakdown} aggregateSteps={result.aggregate_steps} compact conversionRateDisplay={config!.conversion_rate_display ?? 'total'} />
+        </div>
+      )}
     </WidgetShell>
   );
 }

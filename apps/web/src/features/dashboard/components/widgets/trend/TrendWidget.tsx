@@ -52,15 +52,17 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result?.series ? handleExportCsv : undefined}
     >
-      <TrendChart
-        series={result!.series}
-        previousSeries={result!.series_previous}
-        chartType={config!.chart_type}
-        granularity={config!.granularity}
-        compact
-        formulas={config!.formulas}
-        annotations={annotations}
-      />
+      {result && (
+        <TrendChart
+          series={result.series}
+          previousSeries={result.series_previous}
+          chartType={config!.chart_type}
+          granularity={config!.granularity}
+          compact
+          formulas={config!.formulas}
+          annotations={annotations}
+        />
+      )}
     </WidgetShell>
   );
 }

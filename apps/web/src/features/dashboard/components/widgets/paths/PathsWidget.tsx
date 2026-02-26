@@ -39,11 +39,13 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result ? handleExportCsv : undefined}
     >
-      <PathsChart
-        transitions={result!.transitions}
-        topPaths={result!.top_paths}
-        compact
-      />
+      {result && (
+        <PathsChart
+          transitions={result.transitions}
+          topPaths={result.top_paths}
+          compact
+        />
+      )}
     </WidgetShell>
   );
 }
