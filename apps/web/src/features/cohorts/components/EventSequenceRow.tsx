@@ -35,9 +35,10 @@ export function EventSequenceRow({ condition, onChange, onRemove, variant }: Eve
 
   const label = variant === 'performed' ? t('eventSequence') : t('notPerformedEventSequence');
   const labelColor = variant === 'performed' ? 'text-amber-400' : 'text-red-400';
+  const tooltip = variant === 'performed' ? t('performedTooltip') : t('notPerformedTooltip');
 
   return (
-    <ConditionRowWrapper label={label} labelColor={labelColor} onRemove={onRemove}>
+    <ConditionRowWrapper label={label} labelColor={labelColor} tooltip={tooltip} onRemove={onRemove}>
       {condition.steps.map((step, idx) => (
         <div key={idx}>
           {idx > 0 && (

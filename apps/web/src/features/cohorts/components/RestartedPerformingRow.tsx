@@ -15,7 +15,7 @@ export function RestartedPerformingRow({ condition, onChange, onRemove }: Restar
   const { t } = useLocalTranslation(translations);
 
   return (
-    <ConditionRowWrapper label={t('restartedPerforming')} labelColor="text-teal-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={t('restartedPerforming')} labelColor="text-teal-400" tooltip={t('tooltip')} onRemove={onRemove}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}

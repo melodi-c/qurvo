@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
@@ -73,6 +74,8 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
               ))}
             </SelectContent>
           </Select>
+
+          <InfoTooltip content={t('aggregationTooltip')} />
 
           {!isCount && (
             <PropertyNameCombobox

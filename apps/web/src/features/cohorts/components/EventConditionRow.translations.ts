@@ -17,6 +17,7 @@ export default createTranslations({
     aggMax: 'Max',
     aggMedian: 'Median',
     propertyPlaceholder: 'property name',
+    aggregationTooltip: 'Aggregation is applied to a numeric event property. "Count" counts the total number of times the event was performed; all other aggregations (Sum, Average, Min, Max, Median, Pxx) operate on the selected numeric property value.',
   },
   ru: {
     performedEvent: 'Выполненное событие',
@@ -34,5 +35,6 @@ export default createTranslations({
     aggMax: 'Макс',
     aggMedian: 'Медиана',
     propertyPlaceholder: 'имя свойства',
+    aggregationTooltip: 'Агрегация применяется к числовому свойству события. «Кол-во» считает общее число выполнений события; остальные агрегации (Сумма, Среднее, Мин, Макс, Медиана, Pxx) работают со значением выбранного числового свойства.',
   },
 });

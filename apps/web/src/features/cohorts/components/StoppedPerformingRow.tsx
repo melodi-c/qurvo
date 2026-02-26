@@ -15,7 +15,7 @@ export function StoppedPerformingRow({ condition, onChange, onRemove }: StoppedP
   const { t } = useLocalTranslation(translations);
 
   return (
-    <ConditionRowWrapper label={t('stoppedPerforming')} labelColor="text-orange-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={t('stoppedPerforming')} labelColor="text-orange-400" tooltip={t('tooltip')} onRemove={onRemove}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}
