@@ -69,6 +69,25 @@ gh issue view <N> --json number,title,body,labels,comments
 
 ---
 
+## Шаг 1.5: Построить топологию sub-issues
+
+Для каждого полученного issue проверь наличие sub-issues через GitHub API:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+# Для каждого NUMBER из списка:
+gh api repos/$REPO/issues/<NUMBER>/sub_issues --jq '[.[] | {number, title, state}]' 2>/dev/null || echo "[]"
+```
+
+На основе ответов построй карту:
+- **Standalone** — нет sub-issues и сам не является sub-issue другого → обычный flow, мержится в `main`
+- **Parent** — имеет sub-issues → нужна feature branch `feature/issue-N`; sub-issues мержатся в неё, затем оркестратор мержит feature branch в `main` и закрывает parent issue
+- **Sub-issue** — является sub-issue другого parent → получает `BASE_BRANCH: feature/issue-<PARENT_NUMBER>` в промпт
+
+Если parent issue есть в списке, но его sub-issues ещё не вошли — автоматически добавь их через API и включи в план выполнения.
+
+---
+
 ## Шаг 2: Анализ пересечений (foreground подагент)
 
 Запусти подагента типа `general-purpose` **в foreground** (НЕ background -- оркестратор ждёт результат).
@@ -142,6 +161,21 @@ gh label create "in-progress" --description "Currently being worked on" --color 
 
 ## Шаг 5: Запуск issue-solver подагентов (background)
 
+### 5.1 Подготовка feature branches для parent issues
+
+Для каждого **parent issue** (у которого есть sub-issues) создай feature branch ДО запуска любых подагентов:
+
+```bash
+FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
+git -C "$REPO_ROOT" checkout -b "$FEATURE_BRANCH" main
+git -C "$REPO_ROOT" push origin "$FEATURE_BRANCH"
+echo "Создана feature branch: $FEATURE_BRANCH"
+```
+
+### 5.2 Порядок выполнения групп
+
+Sub-issues одного parent запускаются РАНЬШЕ остальных групп (они должны быть первой группой в `parallel_groups` для данного parent).
+
 Для каждой группы из `parallel_groups`:
 
 1. **Навесь лейбл `in-progress`** на все issues группы перед запуском:
@@ -154,8 +188,7 @@ gh label create "in-progress" --description "Currently being worked on" --color 
 
 ### Промпт для каждого issue-solver подагента
 
-Передай только конкретные данные — инструкции хранятся в самом агенте:
-
+Для **standalone issues** (BASE_BRANCH = main):
 ```
 Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 
@@ -166,6 +199,43 @@ Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 ```
 
+Для **sub-issues** (добавить BASE_BRANCH):
+```
+Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
+
+{ISSUE_BODY}
+
+{ISSUE_COMMENTS — если есть}
+
+AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
+BASE_BRANCH: feature/issue-{PARENT_NUMBER}
+```
+
+### 5.3 Финализация parent issue
+
+После успешного завершения ВСЕХ sub-issues одного parent — оркестратор сам мержит feature branch в main и закрывает parent issue:
+
+```bash
+FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
+
+# Мерж feature branch в main
+MAIN_BEFORE=$(git -C "$REPO_ROOT" rev-parse main)
+git -C "$REPO_ROOT" checkout main
+git -C "$REPO_ROOT" merge "$FEATURE_BRANCH"
+MAIN_AFTER=$(git -C "$REPO_ROOT" rev-parse main)
+[ "$MAIN_BEFORE" != "$MAIN_AFTER" ] \
+  || { echo "FATAL: мерж feature branch не продвинул main"; exit 1; }
+
+git -C "$REPO_ROOT" push origin main
+
+# Закрыть parent issue и удалить feature branch
+gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализованы и смерджены через $FEATURE_BRANCH в main."
+git -C "$REPO_ROOT" branch -d "$FEATURE_BRANCH"
+git -C "$REPO_ROOT" push origin --delete "$FEATURE_BRANCH"
+```
+
+Parent issue **не передаётся** в issue-solver — он является только трекером sub-issues.
+
 ---
 
 ## Шаг 6: Обработка результатов
@@ -174,14 +244,17 @@ AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 
 - `STATUS: SUCCESS` — выполни следующие проверки:
   1. Сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`
-  2. **Проверь что мерж попал в локальный main** (ветка fix/issue-N должна быть удалена подагентом):
+  2. **Проверь что ветка fix/issue-N удалена** (подагент должен был её удалить после мержа):
      ```bash
      git -C "$REPO_ROOT" branch --list "fix/issue-<NUMBER>"
-     # Если ветка ещё существует — подагент не сделал мерж в local main. Это FAILED.
+     # Если ветка ещё существует — подагент не сделал мерж. Это FAILED.
      ```
-  3. Проверь что локальный main продвинулся:
+  3. Проверь что целевая ветка продвинулась:
      ```bash
+     # Для standalone issues — проверяй main:
      git -C "$REPO_ROOT" log main --oneline -3
+     # Для sub-issues — проверяй feature branch:
+     git -C "$REPO_ROOT" log feature/issue-<PARENT_NUMBER> --oneline -3
      # Убедись что последний коммит относится к данному issue
      ```
   4. Если проверки прошли — добавь в отчёт как успешный. Если нет — считай FAILED.
@@ -219,3 +292,5 @@ AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 5. При перезапуске подагента (после NEEDS_USER_INPUT) -- используй тот же worktree path и branch name. Подагент должен проверить, существует ли worktree, и продолжить работу в нём.
 6. Не запрашивай подтверждение у пользователя перед запуском подагентов, если план ясен. Действуй автономно.
 7. Если пользователь дал всего 1 issue -- пропусти Шаг 2 (анализ пересечений), сразу запусти одного подагента.
+8. Sub-issues НИКОГДА не мержатся напрямую в `main` — только в feature branch своего parent issue.
+9. Parent issue закрывается оркестратором (Шаг 5.3), НЕ подагентом — не передавай parent issue в issue-solver как задачу на реализацию.
