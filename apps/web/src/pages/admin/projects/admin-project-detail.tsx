@@ -3,14 +3,16 @@ import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { apiClient } from '@/api/client';
-import { Users } from 'lucide-react';
+import { Users, Copy, Check } from 'lucide-react';
 import type { AdminProjectMember, AdminPlan } from '@/api/generated/Api';
 import translations from './admin-project-detail.translations';
 
@@ -18,6 +20,7 @@ export default function AdminProjectDetailPage() {
   const { t } = useLocalTranslation(translations);
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
 
   const { data: project, isLoading: isProjectLoading } = useQuery({
     queryKey: ['admin', 'projects', id],
@@ -147,7 +150,12 @@ export default function AdminProjectDetailPage() {
           <CardTitle>{t('projectToken')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <code className="block bg-muted p-3 rounded text-sm break-all">{project.token}</code>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-muted p-3 rounded text-sm break-all">{project.token}</code>
+            <Button size="icon" variant="outline" onClick={() => copy(project.token)}>
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
