@@ -17,6 +17,13 @@ export function createGlobalSetup() {
       process.env.TEST_CH_PORT = String(coords.chPort);
       process.env.TEST_CH_USER = coords.chUser;
       process.env.TEST_CH_PASSWORD = coords.chPassword;
+
+      const shutdown = async () => {
+        await stopGlobalContainers();
+        process.exit(0);
+      };
+      process.once('SIGINT', shutdown);
+      process.once('SIGTERM', shutdown);
     },
 
     async teardown() {
