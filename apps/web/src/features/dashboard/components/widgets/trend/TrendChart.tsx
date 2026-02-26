@@ -9,12 +9,14 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
 } from 'recharts';
 import type {
   TrendSeriesResult,
   TrendFormula,
   ChartType,
   TrendGranularity,
+  Annotation,
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick } from '@/lib/chart-colors';
 import { formatBucket } from '@/lib/formatting';
@@ -35,6 +37,7 @@ interface TrendChartProps {
   granularity?: TrendGranularity;
   compact?: boolean;
   formulas?: TrendFormula[];
+  annotations?: Annotation[];
 }
 
 // ── Shared rendering helpers ──
@@ -75,9 +78,24 @@ function renderFormulaSeries({ visibleFormulaKeys, compact }: SeriesRenderProps)
   ));
 }
 
+// ── Annotation rendering helper ──
+
+function renderAnnotations(annotations: Annotation[] | undefined, compact?: boolean) {
+  if (!annotations?.length) return null;
+  return annotations.map((ann) => (
+    <ReferenceLine
+      key={ann.id}
+      x={ann.date}
+      stroke={ann.color ?? 'hsl(var(--color-muted-foreground))'}
+      strokeDasharray="4 2"
+      label={compact ? undefined : { value: ann.label, position: 'insideTopLeft', fontSize: 11, fill: ann.color ?? 'hsl(var(--color-muted-foreground))' }}
+    />
+  ));
+}
+
 // ── Component ──
 
-export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas }: TrendChartProps) {
+export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations }: TrendChartProps) {
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
@@ -183,6 +201,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               {renderPrevSeries(seriesProps)}
               {renderCurrentSeries(seriesProps)}
               {renderFormulaSeries(seriesProps)}
+              {renderAnnotations(annotations, compact)}
             </ChartComponent>
           </ResponsiveContainer>
         ) : (
@@ -218,6 +237,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}
                 {renderFormulaSeries(seriesProps)}
+                {renderAnnotations(annotations, compact)}
               </LineChart>
             </ResponsiveContainer>
 

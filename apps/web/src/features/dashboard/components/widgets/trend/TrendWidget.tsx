@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
+import { useAnnotations } from '@/features/dashboard/hooks/use-annotations';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
@@ -21,6 +22,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const hasConfig = !!config;
   const query = useTrendData(config ?? defaultTrendConfig(), widget.id);
   const result = query.data?.data;
+  const { data: annotations } = useAnnotations(config?.date_from, config?.date_to);
 
   const hasValidSeries = hasConfig && config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
   const totals = result?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
@@ -57,6 +59,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
         granularity={config!.granularity}
         compact
         formulas={config!.formulas}
+        annotations={annotations}
       />
     </WidgetShell>
   );
