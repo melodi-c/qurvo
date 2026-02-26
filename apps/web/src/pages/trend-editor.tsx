@@ -135,7 +135,7 @@ export default function TrendEditorPage() {
         open={annotationDialogOpen}
         onOpenChange={setAnnotationDialogOpen}
         initialDate={config.date_to ?? undefined}
-        onSave={(data) => createAnnotation.mutateAsync(data)}
+        onSave={async (data) => { await createAnnotation.mutateAsync(data); }}
       />
     </InsightEditorLayout>
   );
