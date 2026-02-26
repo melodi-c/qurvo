@@ -1332,6 +1332,15 @@ export interface UpdateAnnotation {
   color?: string;
 }
 
+export interface TestNotification {
+  channel_type: TestNotificationDtoChannelTypeEnum;
+  channel_config: Record<string, any>;
+}
+
+export interface TestNotificationResponse {
+  ok: boolean;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -1612,6 +1621,8 @@ export type UpdateScheduledJobDtoChannelTypeEnum =
   | "slack"
   | "email"
   | "telegram";
+
+export type TestNotificationDtoChannelTypeEnum = "slack" | "email" | "telegram";
 
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
@@ -2431,6 +2442,10 @@ export interface PublicControllerGetPublicDashboardParams {
 
 export interface PublicControllerGetPublicInsightParams {
   shareToken: string;
+}
+
+export interface NotificationsControllerTestNotificationParams {
+  projectId: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4939,6 +4954,29 @@ export class Api<
         path: `/api/projects/${projectId}/annotations/${id}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name NotificationsControllerTestNotification
+     * @request POST:/api/projects/{projectId}/notifications/test
+     * @secure
+     */
+    notificationsControllerTestNotification: (
+      { projectId, ...query }: NotificationsControllerTestNotificationParams,
+      data: TestNotification,
+      params: RequestParams = {},
+    ) =>
+      this.request<TestNotificationResponse, any>({
+        path: `/api/projects/${projectId}/notifications/test`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
   };

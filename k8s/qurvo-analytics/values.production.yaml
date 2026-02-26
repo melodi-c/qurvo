@@ -46,6 +46,22 @@ processor:
       cpu: "1500m"
       memory: "1Gi"
 
+monitor-worker:
+  replicas: 1
+  env:
+    SMTP_HOST: "smtp.yandex.ru"
+    SMTP_PORT: "465"
+    SMTP_SECURE: "true"
+    SMTP_FROM: "Qurvo <noreply@qurvo.ru>"
+
+scheduled-jobs-worker:
+  replicas: 1
+  env:
+    SMTP_HOST: "smtp.yandex.ru"
+    SMTP_PORT: "465"
+    SMTP_SECURE: "true"
+    SMTP_FROM: "Qurvo <noreply@qurvo.ru>"
+
 web:
   replicas: 2
 

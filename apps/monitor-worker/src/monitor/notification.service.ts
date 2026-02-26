@@ -25,20 +25,8 @@ export class NotificationService extends BaseNotificationService {
     baselineAvg: number,
   ): Promise<void> {
     const message = this.buildMessage(monitor, description, current, baselineAvg);
-    const config = monitor.channel_config as unknown;
-
-    if (monitor.channel_type === 'slack') {
-      await this.sendSlack(config as SlackChannelConfig, message);
-    } else if (monitor.channel_type === 'email') {
-      const emailConfig = config as EmailChannelConfig;
-      const subject = `Qurvo Alert: Anomaly in "${monitor.event_name}"`;
-      await this.sendEmail(emailConfig, subject, message);
-      this.logger.debug({ to: emailConfig.email }, 'Alert email sent');
-    } else if (monitor.channel_type === 'telegram') {
-      await this.sendTelegram(config as TelegramChannelConfig, message);
-    } else {
-      this.logger.warn({ channel_type: monitor.channel_type }, 'Unknown channel type');
-    }
+    const subject = `Qurvo Alert: Anomaly in "${monitor.event_name}"`;
+    await this.dispatch(monitor.channel_type, monitor.channel_config as unknown, message, subject);
   }
 
   private buildMessage(

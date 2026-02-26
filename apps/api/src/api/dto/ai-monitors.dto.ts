@@ -1,5 +1,9 @@
 import { IsString, IsNumber, IsOptional, IsBoolean, IsObject, IsIn, MinLength, MaxLength, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsValidChannelConfig } from './shared/is-valid-channel-config.decorator';
+import { notificationChannelTypeEnum, type NotificationChannelType } from '@qurvo/db';
+
+const CHANNEL_TYPES = notificationChannelTypeEnum.enumValues;
 
 export class CreateMonitorDto {
   @IsString()
@@ -19,11 +23,12 @@ export class CreateMonitorDto {
   threshold_sigma?: number;
 
   @IsString()
-  @IsIn(['slack', 'email', 'telegram'])
-  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
-  channel_type: string;
+  @IsIn(CHANNEL_TYPES)
+  @ApiProperty({ enum: CHANNEL_TYPES })
+  channel_type: NotificationChannelType;
 
   @IsObject()
+  @IsValidChannelConfig()
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;
 }
@@ -47,11 +52,12 @@ export class UpdateMonitorDto {
   threshold_sigma?: number;
 
   @IsString()
-  @IsIn(['slack', 'email', 'telegram'])
+  @IsIn(CHANNEL_TYPES)
   @IsOptional()
-  channel_type?: string;
+  channel_type?: NotificationChannelType;
 
   @IsObject()
+  @IsValidChannelConfig()
   @IsOptional()
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   channel_config?: Record<string, unknown>;
@@ -69,8 +75,8 @@ export class AiMonitorDto {
   @ApiProperty({ enum: ['count', 'unique_users'] })
   metric: string;
 
-  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
-  channel_type: string;
+  @ApiProperty({ enum: CHANNEL_TYPES })
+  channel_type: NotificationChannelType;
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;

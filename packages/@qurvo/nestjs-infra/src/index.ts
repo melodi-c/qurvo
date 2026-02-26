@@ -3,6 +3,9 @@ export { CLICKHOUSE, ClickHouseProvider } from './clickhouse.provider';
 export { DRIZZLE, DrizzleProvider } from './drizzle.provider';
 export {
   BaseNotificationService,
+  isSlackConfig,
+  isEmailConfig,
+  isTelegramConfig,
   type SlackChannelConfig,
   type EmailChannelConfig,
   type TelegramChannelConfig,

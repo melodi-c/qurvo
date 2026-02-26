@@ -1,279 +1,293 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1771421392312,
-      "tag": "0000_previous_power_pack",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1771443681496,
-      "tag": "0001_complex_mongu",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771501396598,
-      "tag": "0002_flashy_selene",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1771530591138,
-      "tag": "0003_warm_mauler",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1771600000000,
-      "tag": "0004_add_insights",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1771700000000,
-      "tag": "0005_drop_widget_name",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1771800000000,
-      "tag": "0006_add_insight_favorite",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1771900000000,
-      "tag": "0007_add_project_invites",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1772000000000,
-      "tag": "0008_add_unit_economics",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1772100000000,
-      "tag": "0009_add_ai_conversations",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1772200000000,
-      "tag": "0010_add_email_verification",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1772300000000,
-      "tag": "0011_add_event_definitions",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1772400000000,
-      "tag": "0012_add_property_definitions",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1772500000000,
-      "tag": "0013_add_user_language",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1772600000000,
-      "tag": "0014_add_plans",
-      "breakpoints": true
-    },
-    {
-      "idx": 15,
-      "version": "7",
-      "when": 1772700000000,
-      "tag": "0015_add_cohort_membership_columns",
-      "breakpoints": true
-    },
-    {
-      "idx": 16,
-      "version": "7",
-      "when": 1772800000000,
-      "tag": "0016_add_property_def_event_name",
-      "breakpoints": true
-    },
-    {
-      "idx": 17,
-      "version": "7",
-      "when": 1772900000000,
-      "tag": "0017_add_widget_content",
-      "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1773000000000,
-      "tag": "0018_add_cohort_is_static",
-      "breakpoints": true
-    },
-    {
-      "idx": 19,
-      "version": "7",
-      "when": 1773100000000,
-      "tag": "0019_add_definition_catalogs",
-      "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1773200000000,
-      "tag": "0020_nullable_value_type",
-      "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1773400000000,
-      "tag": "0022_drop_unit_economics",
-      "breakpoints": true
-    },
-    {
-      "idx": 23,
-      "version": "7",
-      "when": 1773500000000,
-      "tag": "0023_gin_trigram_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 24,
-      "version": "7",
-      "when": 1773600000000,
-      "tag": "0024_add_cohort_error_tracking",
-      "breakpoints": true
-    },
-    {
-      "idx": 25,
-      "version": "7",
-      "when": 1773700000000,
-      "tag": "0025_add_ai_history_summary",
-      "breakpoints": true
-    },
-    {
-      "idx": 26,
-      "version": "7",
-      "when": 1773800000000,
-      "tag": "0026_add_ai_conversation_sharing",
-      "breakpoints": true
-    },
-    {
-      "idx": 27,
-      "version": "7",
-      "when": 1773900000000,
-      "tag": "0027_add_ai_token_tracking",
-      "breakpoints": true
-    },
-    {
-      "idx": 28,
-      "version": "7",
-      "when": 1774000000000,
-      "tag": "0028_add_ai_quota",
-      "breakpoints": true
-    },
-    {
-      "idx": 29,
-      "version": "7",
-      "when": 1774100000000,
-      "tag": "0029_add_ai_summary_failed",
-      "breakpoints": true
-    },
-    {
-      "idx": 30,
-      "version": "7",
-      "when": 1774200000000,
-      "tag": "0030_add_is_staff",
-      "breakpoints": true
-    },
-    {
-      "idx": 31,
-      "version": "7",
-      "when": 1774300000000,
-      "tag": "0031_ai_fts_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 32,
-      "version": "7",
-      "when": 1774400000000,
-      "tag": "0032_ai_message_feedback",
-      "breakpoints": true
-    },
-    {
-      "idx": 33,
-      "version": "7",
-      "when": 1774500000000,
-      "tag": "0033_add_demo_fields_to_projects",
-      "breakpoints": true
-    },
-    {
-      "idx": 34,
-      "version": "7",
-      "when": 1774600000000,
-      "tag": "0034_add_ai_insights",
-      "breakpoints": true
-    },
-    {
-      "idx": 35,
-      "version": "7",
-      "when": 1774700000000,
-      "tag": "0035_add_ai_monitors",
-      "breakpoints": true
-    },
-    {
-      "idx": 36,
-      "version": "7",
-      "when": 1774800000000,
-      "tag": "0036_add_ai_scheduled_jobs",
-      "breakpoints": true
-    },
-    {
-      "idx": 37,
-      "version": "7",
-      "when": 1774900000000,
-      "tag": "0037_add_project_token_drop_api_keys",
-      "breakpoints": true
-    },
-    {
-      "idx": 38,
-      "version": "7",
-      "when": 1775000000000,
-      "tag": "0038_add_annotations",
-      "breakpoints": true
-    },
-    {
-      "idx": 39,
-      "version": "7",
-      "when": 1775100000000,
-      "tag": "0039_add_share_tokens",
-      "breakpoints": true
-    }
-  ]
+    "version": "7",
+    "dialect": "postgresql",
+    "entries": [
+        {
+            "idx": 0,
+            "version": "7",
+            "when": 1771421392312,
+            "tag": "0000_previous_power_pack",
+            "breakpoints": true
+        },
+        {
+            "idx": 1,
+            "version": "7",
+            "when": 1771443681496,
+            "tag": "0001_complex_mongu",
+            "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "7",
+            "when": 1771501396598,
+            "tag": "0002_flashy_selene",
+            "breakpoints": true
+        },
+        {
+            "idx": 3,
+            "version": "7",
+            "when": 1771530591138,
+            "tag": "0003_warm_mauler",
+            "breakpoints": true
+        },
+        {
+            "idx": 4,
+            "version": "7",
+            "when": 1771600000000,
+            "tag": "0004_add_insights",
+            "breakpoints": true
+        },
+        {
+            "idx": 5,
+            "version": "7",
+            "when": 1771700000000,
+            "tag": "0005_drop_widget_name",
+            "breakpoints": true
+        },
+        {
+            "idx": 6,
+            "version": "7",
+            "when": 1771800000000,
+            "tag": "0006_add_insight_favorite",
+            "breakpoints": true
+        },
+        {
+            "idx": 7,
+            "version": "7",
+            "when": 1771900000000,
+            "tag": "0007_add_project_invites",
+            "breakpoints": true
+        },
+        {
+            "idx": 8,
+            "version": "7",
+            "when": 1772000000000,
+            "tag": "0008_add_unit_economics",
+            "breakpoints": true
+        },
+        {
+            "idx": 9,
+            "version": "7",
+            "when": 1772100000000,
+            "tag": "0009_add_ai_conversations",
+            "breakpoints": true
+        },
+        {
+            "idx": 10,
+            "version": "7",
+            "when": 1772200000000,
+            "tag": "0010_add_email_verification",
+            "breakpoints": true
+        },
+        {
+            "idx": 11,
+            "version": "7",
+            "when": 1772300000000,
+            "tag": "0011_add_event_definitions",
+            "breakpoints": true
+        },
+        {
+            "idx": 12,
+            "version": "7",
+            "when": 1772400000000,
+            "tag": "0012_add_property_definitions",
+            "breakpoints": true
+        },
+        {
+            "idx": 13,
+            "version": "7",
+            "when": 1772500000000,
+            "tag": "0013_add_user_language",
+            "breakpoints": true
+        },
+        {
+            "idx": 14,
+            "version": "7",
+            "when": 1772600000000,
+            "tag": "0014_add_plans",
+            "breakpoints": true
+        },
+        {
+            "idx": 15,
+            "version": "7",
+            "when": 1772700000000,
+            "tag": "0015_add_cohort_membership_columns",
+            "breakpoints": true
+        },
+        {
+            "idx": 16,
+            "version": "7",
+            "when": 1772800000000,
+            "tag": "0016_add_property_def_event_name",
+            "breakpoints": true
+        },
+        {
+            "idx": 17,
+            "version": "7",
+            "when": 1772900000000,
+            "tag": "0017_add_widget_content",
+            "breakpoints": true
+        },
+        {
+            "idx": 18,
+            "version": "7",
+            "when": 1773000000000,
+            "tag": "0018_add_cohort_is_static",
+            "breakpoints": true
+        },
+        {
+            "idx": 19,
+            "version": "7",
+            "when": 1773100000000,
+            "tag": "0019_add_definition_catalogs",
+            "breakpoints": true
+        },
+        {
+            "idx": 20,
+            "version": "7",
+            "when": 1773200000000,
+            "tag": "0020_nullable_value_type",
+            "breakpoints": true
+        },
+        {
+            "idx": 22,
+            "version": "7",
+            "when": 1773400000000,
+            "tag": "0022_drop_unit_economics",
+            "breakpoints": true
+        },
+        {
+            "idx": 23,
+            "version": "7",
+            "when": 1773500000000,
+            "tag": "0023_gin_trigram_indexes",
+            "breakpoints": true
+        },
+        {
+            "idx": 24,
+            "version": "7",
+            "when": 1773600000000,
+            "tag": "0024_add_cohort_error_tracking",
+            "breakpoints": true
+        },
+        {
+            "idx": 25,
+            "version": "7",
+            "when": 1773700000000,
+            "tag": "0025_add_ai_history_summary",
+            "breakpoints": true
+        },
+        {
+            "idx": 26,
+            "version": "7",
+            "when": 1773800000000,
+            "tag": "0026_add_ai_conversation_sharing",
+            "breakpoints": true
+        },
+        {
+            "idx": 27,
+            "version": "7",
+            "when": 1773900000000,
+            "tag": "0027_add_ai_token_tracking",
+            "breakpoints": true
+        },
+        {
+            "idx": 28,
+            "version": "7",
+            "when": 1774000000000,
+            "tag": "0028_add_ai_quota",
+            "breakpoints": true
+        },
+        {
+            "idx": 29,
+            "version": "7",
+            "when": 1774100000000,
+            "tag": "0029_add_ai_summary_failed",
+            "breakpoints": true
+        },
+        {
+            "idx": 30,
+            "version": "7",
+            "when": 1774200000000,
+            "tag": "0030_add_is_staff",
+            "breakpoints": true
+        },
+        {
+            "idx": 31,
+            "version": "7",
+            "when": 1774300000000,
+            "tag": "0031_ai_fts_indexes",
+            "breakpoints": true
+        },
+        {
+            "idx": 32,
+            "version": "7",
+            "when": 1774400000000,
+            "tag": "0032_ai_message_feedback",
+            "breakpoints": true
+        },
+        {
+            "idx": 33,
+            "version": "7",
+            "when": 1774500000000,
+            "tag": "0033_add_demo_fields_to_projects",
+            "breakpoints": true
+        },
+        {
+            "idx": 34,
+            "version": "7",
+            "when": 1774600000000,
+            "tag": "0034_add_ai_insights",
+            "breakpoints": true
+        },
+        {
+            "idx": 35,
+            "version": "7",
+            "when": 1774700000000,
+            "tag": "0035_add_ai_monitors",
+            "breakpoints": true
+        },
+        {
+            "idx": 36,
+            "version": "7",
+            "when": 1774800000000,
+            "tag": "0036_add_ai_scheduled_jobs",
+            "breakpoints": true
+        },
+        {
+            "idx": 37,
+            "version": "7",
+            "when": 1774900000000,
+            "tag": "0037_add_project_token_drop_api_keys",
+            "breakpoints": true
+        },
+        {
+            "idx": 38,
+            "version": "7",
+            "when": 1775000000000,
+            "tag": "0038_add_annotations",
+            "breakpoints": true
+        },
+        {
+            "idx": 39,
+            "version": "7",
+            "when": 1775100000000,
+            "tag": "0039_add_share_tokens",
+            "breakpoints": true
+        },
+        {
+            "idx": 40,
+            "version": "7",
+            "when": 1775200000000,
+            "tag": "0040_scheduled_jobs_channel_config_jsonb",
+            "breakpoints": true
+        },
+        {
+            "idx": 41,
+            "version": "7",
+            "when": 1775300000000,
+            "tag": "0041_add_notification_channel_type_enum",
+            "breakpoints": true
+        }
+    ]
 }

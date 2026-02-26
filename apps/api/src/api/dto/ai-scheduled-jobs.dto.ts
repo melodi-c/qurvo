@@ -1,5 +1,9 @@
 import { IsString, IsOptional, IsBoolean, IsObject, IsIn, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsValidChannelConfig } from './shared/is-valid-channel-config.decorator';
+import { notificationChannelTypeEnum, type NotificationChannelType } from '@qurvo/db';
+
+const CHANNEL_TYPES = notificationChannelTypeEnum.enumValues;
 
 export class CreateScheduledJobDto {
   @IsString()
@@ -17,11 +21,12 @@ export class CreateScheduledJobDto {
   schedule: string;
 
   @IsString()
-  @IsIn(['slack', 'email', 'telegram'])
-  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
-  channel_type: string;
+  @IsIn(CHANNEL_TYPES)
+  @ApiProperty({ enum: CHANNEL_TYPES })
+  channel_type: NotificationChannelType;
 
   @IsObject()
+  @IsValidChannelConfig()
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;
 }
@@ -45,12 +50,13 @@ export class UpdateScheduledJobDto {
   schedule?: string;
 
   @IsString()
-  @IsIn(['slack', 'email', 'telegram'])
+  @IsIn(CHANNEL_TYPES)
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['slack', 'email', 'telegram'] })
-  channel_type?: string;
+  @ApiPropertyOptional({ enum: CHANNEL_TYPES })
+  channel_type?: NotificationChannelType;
 
   @IsObject()
+  @IsValidChannelConfig()
   @IsOptional()
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   channel_config?: Record<string, unknown>;
@@ -70,8 +76,8 @@ export class AiScheduledJobDto {
   @ApiProperty({ enum: ['daily', 'weekly', 'monthly'] })
   schedule: string;
 
-  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
-  channel_type: string;
+  @ApiProperty({ enum: CHANNEL_TYPES })
+  channel_type: NotificationChannelType;
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;

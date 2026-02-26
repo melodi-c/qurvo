@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { aiMonitors } from '@qurvo/db';
+import { aiMonitors, type NotificationChannelType } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { MonitorNotFoundException } from './exceptions/monitor-not-found.exception';
 
@@ -9,7 +9,7 @@ export interface CreateMonitorInput {
   event_name: string;
   metric: string;
   threshold_sigma: number;
-  channel_type: string;
+  channel_type: NotificationChannelType;
   channel_config: Record<string, unknown>;
 }
 
@@ -17,7 +17,7 @@ export interface UpdateMonitorInput {
   event_name?: string;
   metric?: string;
   threshold_sigma?: number;
-  channel_type?: string;
+  channel_type?: NotificationChannelType;
   channel_config?: Record<string, unknown>;
   is_active?: boolean;
 }
