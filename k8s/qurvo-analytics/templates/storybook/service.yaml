@@ -1,0 +1,18 @@
+{{- if .Values.storybook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "qurvo.fullname" . }}-storybook
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: storybook
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "qurvo.selectorLabels" (dict "component" "storybook" "root" .) | nindent 4 }}
+{{- end }}
