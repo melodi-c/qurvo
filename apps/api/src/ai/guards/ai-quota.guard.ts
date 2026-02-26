@@ -7,12 +7,7 @@ import { REDIS } from '../../providers/redis.provider';
 import { DRIZZLE } from '../../providers/drizzle.provider';
 import { AiQuotaExceededException } from '../exceptions/ai-quota-exceeded.exception';
 import { aiQuotaCounterKey, planAiLimitCacheKey } from '../../utils/ai-quota-key';
-
-// TTL slightly longer than the billing period to avoid premature expiry
-const QUOTA_KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
-
-// Plan AI limit is stable (changes only on plan upgrade/downgrade) — cache for 5 minutes
-const PLAN_AI_LIMIT_TTL_SECONDS = 5 * 60;
+import { AI_QUOTA_KEY_TTL_SECONDS, AI_PLAN_LIMIT_CACHE_TTL_SECONDS } from '../../constants';
 
 // Sentinel value stored in Redis to represent a null (unlimited) plan limit
 const UNLIMITED_SENTINEL = '-1';
@@ -53,7 +48,7 @@ export class AiQuotaGuard implements CanActivate {
         cacheKey,
         limit === null ? UNLIMITED_SENTINEL : String(limit),
         'EX',
-        PLAN_AI_LIMIT_TTL_SECONDS,
+        AI_PLAN_LIMIT_CACHE_TTL_SECONDS,
       );
     }
 
@@ -66,7 +61,7 @@ export class AiQuotaGuard implements CanActivate {
     const [count] = await this.redis
       .pipeline()
       .incr(key)
-      .expire(key, QUOTA_KEY_TTL_SECONDS)
+      .expire(key, AI_QUOTA_KEY_TTL_SECONDS)
       .exec()
       .then((results) => {
         if (!results) return [0];

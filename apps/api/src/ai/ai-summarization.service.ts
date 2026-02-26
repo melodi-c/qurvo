@@ -1,10 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AiChatService } from './ai-chat.service';
-import { AI_SUMMARIZATION_MODEL, AI_SUMMARY_KEEP_RECENT } from '../constants';
-
-const MAX_ATTEMPTS = 3;
-const BASE_DELAY_MS = 30_000;
+import { AI_SUMMARIZATION_MODEL, AI_SUMMARY_KEEP_RECENT, AI_RETRY_MAX_ATTEMPTS, AI_RETRY_BASE_DELAY_MS } from '../constants';
 
 @Injectable()
 export class AiSummarizationService implements OnModuleDestroy {
@@ -30,11 +27,11 @@ export class AiSummarizationService implements OnModuleDestroy {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(
         { conversationId, attempt, error: message },
-        `Summarization failed (attempt ${attempt}/${MAX_ATTEMPTS})`,
+        `Summarization failed (attempt ${attempt}/${AI_RETRY_MAX_ATTEMPTS})`,
       );
 
-      if (attempt < MAX_ATTEMPTS) {
-        const delayMs = BASE_DELAY_MS * attempt; // 30 s, 60 s
+      if (attempt < AI_RETRY_MAX_ATTEMPTS) {
+        const delayMs = AI_RETRY_BASE_DELAY_MS * attempt; // 30 s, 60 s
         const timer = setTimeout(() => {
           this.activeTimers.delete(timer);
           this.schedule(client, conversationId, attempt + 1);

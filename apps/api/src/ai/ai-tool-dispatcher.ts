@@ -4,8 +4,7 @@ import type Redis from 'ioredis';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { REDIS } from '../providers/redis.provider';
-
-const AI_TOOL_CACHE_TTL_SECONDS = 300;
+import { AI_TOOL_CACHE_TTL_SECONDS } from '../constants';
 
 export interface AccumulatedToolCall {
   id: string;
