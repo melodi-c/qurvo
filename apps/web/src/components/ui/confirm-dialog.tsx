@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './confirm-dialog.translations';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -26,11 +28,14 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   variant = 'destructive',
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useLocalTranslation(translations);
+  const resolvedConfirmLabel = confirmLabel ?? t('confirm');
+  const resolvedCancelLabel = cancelLabel ?? t('cancel');
   const [isPending, setIsPending] = useState(false);
 
   const handleConfirm = useCallback(async () => {
@@ -52,11 +57,11 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            {cancelLabel}
+            {resolvedCancelLabel}
           </Button>
           <Button variant={variant} onClick={handleConfirm} disabled={isPending}>
             {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
