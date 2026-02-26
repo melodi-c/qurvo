@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import type { WebAnalyticsKPIs } from '@/api/generated/Api';
+import {
+  WEB_KPIS_CURRENT,
+  WEB_KPIS_PREVIOUS,
+} from '@/stories/mocks/web-analytics.mock';
 import { WebKpiRow } from './WebKpiRow';
 
 const meta: Meta<typeof WebKpiRow> = {
@@ -14,22 +17,6 @@ const meta: Meta<typeof WebKpiRow> = {
 export default meta;
 type Story = StoryObj<typeof WebKpiRow>;
 
-const currentKpis: WebAnalyticsKPIs = {
-  unique_visitors: 12400,
-  pageviews: 34700,
-  sessions: 18900,
-  avg_duration_seconds: 187,
-  bounce_rate: 42.3,
-};
-
-const previousKpis: WebAnalyticsKPIs = {
-  unique_visitors: 10200,
-  pageviews: 28400,
-  sessions: 15600,
-  avg_duration_seconds: 210,
-  bounce_rate: 50.1,
-};
-
 export const Loading: Story = {
   args: {
     isLoading: true,
@@ -39,8 +26,8 @@ export const Loading: Story = {
 export const WithData: Story = {
   args: {
     isLoading: false,
-    current: currentKpis,
-    previous: previousKpis,
+    current: WEB_KPIS_CURRENT,
+    previous: WEB_KPIS_PREVIOUS,
   },
 };
 

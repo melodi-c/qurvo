@@ -44,9 +44,11 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result ? handleExportCsv : undefined}
     >
-      <div className="h-full overflow-x-auto">
-        <RetentionTable result={result!} compact={isMobile} />
-      </div>
+      {result && (
+        <div className="h-full overflow-x-auto">
+          <RetentionTable result={result} compact={isMobile} />
+        </div>
+      )}
     </WidgetShell>
   );
 }

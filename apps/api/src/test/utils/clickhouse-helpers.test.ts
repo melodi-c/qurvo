@@ -117,6 +117,51 @@ describe('shiftPeriod', () => {
     // previous to should be 2024-01-31 (one day before 2024-02-01)
     expect(result.to).toBe('2024-01-31');
   });
+
+  it('no gap or overlap at week granularity boundary', () => {
+    // Weekly period: Mon 2024-01-08 to Sun 2024-01-14
+    const result = shiftPeriod('2024-01-08', '2024-01-14');
+    // Current period: Jan 8–14 (Mon–Sun), previous should be Jan 1–7 (Mon–Sun)
+    // prevTo = Jan 7 (the day before Jan 8) — stays inside the same week, no extra bucket
+    expect(result.from).toBe('2024-01-01');
+    expect(result.to).toBe('2024-01-07');
+    // Verify no gap: prevTo + 1 day == dateFrom
+    const prevToDate = new Date(`${result.to}T00:00:00Z`);
+    const dateFromDate = new Date('2024-01-08T00:00:00Z');
+    expect(prevToDate.getTime() + 86400000).toBe(dateFromDate.getTime());
+  });
+
+  it('no gap or overlap at month granularity boundary', () => {
+    // Monthly period: 2024-02-01 to 2024-02-29 (leap year, 29 days)
+    const result = shiftPeriod('2024-02-01', '2024-02-29');
+    // Previous 29-day period ends on 2024-01-31 and starts on 2024-01-03
+    expect(result.to).toBe('2024-01-31');
+    expect(result.from).toBe('2024-01-03');
+    // Verify no gap: prevTo + 1 day == dateFrom
+    const prevToDate = new Date(`${result.to}T00:00:00Z`);
+    const dateFromDate = new Date('2024-02-01T00:00:00Z');
+    expect(prevToDate.getTime() + 86400000).toBe(dateFromDate.getTime());
+  });
+
+  it('previous period has same length as current period (no duplicate days)', () => {
+    // 7-day period
+    const result = shiftPeriod('2024-03-04', '2024-03-10');
+    const prevFrom = new Date(`${result.from}T00:00:00Z`);
+    const prevTo = new Date(`${result.to}T00:00:00Z`);
+    const prevDays = Math.round((prevTo.getTime() - prevFrom.getTime()) / 86400000) + 1;
+    expect(prevDays).toBe(7);
+  });
+
+  it('handles week boundary where prevTo is Sunday (not Saturday)', () => {
+    // If dateFrom is a Monday, prevTo must be Sunday (not Saturday)
+    // Week: Mon 2024-01-15 to Sun 2024-01-21
+    const result = shiftPeriod('2024-01-15', '2024-01-21');
+    expect(result.to).toBe('2024-01-14'); // Sunday
+    expect(result.from).toBe('2024-01-08'); // Monday
+    // Sunday 2024-01-14: day=0 via getUTCDay()
+    const prevToDay = new Date(`${result.to}T00:00:00Z`).getUTCDay();
+    expect(prevToDay).toBe(0); // 0 = Sunday
+  });
 });
 
 describe('shiftDate', () => {
