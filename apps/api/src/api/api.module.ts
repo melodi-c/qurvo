@@ -18,6 +18,7 @@ import { BillingModule } from '../billing/billing.module';
 import { IngestionWarningsModule } from '../ingestion-warnings/ingestion-warnings.module';
 import { DemoModule } from '../demo/demo.module';
 import { AiMonitorsModule } from '../ai-monitors/ai-monitors.module';
+import { AiInsightsModule } from '../ai-insights/ai-insights.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { ApiKeysController } from './controllers/api-keys.controller';
@@ -42,6 +43,7 @@ import { BillingController } from './controllers/billing.controller';
 import { IngestionWarningsController } from './controllers/ingestion-warnings.controller';
 import { DemoController } from './controllers/demo.controller';
 import { AiMonitorsController } from './controllers/ai-monitors.controller';
+import { AiInsightsController } from './controllers/ai-insights.controller';
 import { createHttpFilter } from './filters/create-http-filter';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
@@ -83,6 +85,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     IngestionWarningsModule,
     DemoModule,
     AiMonitorsModule,
+    AiInsightsModule,
   ],
   controllers: [
     AuthController,
@@ -111,6 +114,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     IngestionWarningsController,
     DemoController,
     AiMonitorsController,
+    AiInsightsController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: NotFoundFilter },

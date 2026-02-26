@@ -31,3 +31,5 @@ export { propertyDefinitions } from './property-definitions';
 export { eventProperties } from './event-properties';
 export { aiMonitors } from './ai-monitors';
 export type { AiMonitor, InsertAiMonitor } from './ai-monitors';
+export { aiInsights } from './ai-insights';
+export type { AiInsightType } from './ai-insights';

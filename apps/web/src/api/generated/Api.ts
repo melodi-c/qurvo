@@ -1237,6 +1237,17 @@ export interface UpdateMonitor {
   is_active?: boolean;
 }
 
+export interface AiInsight {
+  type: AiInsightDtoTypeEnum;
+  data_json?: object;
+  dismissed_at?: string | null;
+  id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -1491,6 +1502,12 @@ export type CreateMonitorDtoMetricEnum = "count" | "unique_users";
 export type UpdateMonitorDtoMetricEnum = "count" | "unique_users";
 
 export type UpdateMonitorDtoChannelTypeEnum = "slack" | "email";
+
+export type AiInsightDtoTypeEnum =
+  | "metric_change"
+  | "new_event"
+  | "retention_anomaly"
+  | "conversion_correlation";
 
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
@@ -2232,6 +2249,15 @@ export interface AiMonitorsControllerUpdateParams {
 export interface AiMonitorsControllerRemoveParams {
   projectId: string;
   monitorId: string;
+}
+
+export interface AiInsightsControllerListParams {
+  projectId: string;
+}
+
+export interface AiInsightsControllerDismissParams {
+  projectId: string;
+  id: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4404,6 +4430,45 @@ export class Api<
       this.request<void, any>({
         path: `/api/projects/${projectId}/ai/monitors/${monitorId}`,
         method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Insights
+     * @name AiInsightsControllerList
+     * @request GET:/api/projects/{projectId}/ai/insights
+     * @secure
+     */
+    aiInsightsControllerList: (
+      { projectId, ...query }: AiInsightsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiInsight[], any>({
+        path: `/api/projects/${projectId}/ai/insights`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Insights
+     * @name AiInsightsControllerDismiss
+     * @request POST:/api/projects/{projectId}/ai/insights/{id}/dismiss
+     * @secure
+     */
+    aiInsightsControllerDismiss: (
+      { projectId, id, ...query }: AiInsightsControllerDismissParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/ai/insights/${id}/dismiss`,
+        method: "POST",
         secure: true,
         ...params,
       }),

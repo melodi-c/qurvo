@@ -236,8 +236,15 @@
     {
       "idx": 34,
       "version": "7",
+      "when": 1772150000000,
+      "tag": "0034_add_ai_insights",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
       "when": 1772065038914,
-      "tag": "0034_add_ai_monitors",
+      "tag": "0035_add_ai_monitors",
       "breakpoints": true
     }
   ]
