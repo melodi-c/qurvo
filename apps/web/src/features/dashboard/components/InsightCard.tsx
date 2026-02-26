@@ -52,7 +52,7 @@ export function InsightCard({ widget }: InsightCardProps) {
           <InsightCardDetails config={mergedConfig} filterOverrides={filterOverrides} />
         )}
 
-        <div className="flex-1 p-3 min-h-0">
+        <div className="flex-1 p-3 min-h-0 overflow-hidden">
           <InsightCardViz widget={widget} configOverride={mergedConfig} />
         </div>
       </div>
