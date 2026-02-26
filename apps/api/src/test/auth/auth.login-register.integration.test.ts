@@ -160,14 +160,18 @@ describe('AuthService.login', () => {
 
     // Fail a couple of times
     for (let i = 0; i < 2; i++) {
-      await authService.login({ email, password: 'bad' }).catch(() => {});
+      await expect(
+        authService.login({ email, password: 'bad' }),
+      ).rejects.toThrow(InvalidCredentialsException);
     }
 
     // Successful login — should clear the counter
     await authService.login({ email, password: 'realpass' });
 
     // After reset, should be able to fail again without being blocked
-    await authService.login({ email, password: 'bad' }).catch(() => {});
+    await expect(
+      authService.login({ email, password: 'bad' }),
+    ).rejects.toThrow(InvalidCredentialsException);
     const rateLimitKey = `login_attempts:${email}`;
     const attempts = await ctx.redis.get(rateLimitKey);
     expect(parseInt(attempts ?? '0')).toBe(1);

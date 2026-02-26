@@ -191,7 +191,9 @@ describe('VerificationService.verifyByCode', () => {
     await ctx.redis.del(`verify_attempts:${user.id}`);
     await verificationService.sendVerificationCode(user.id, email);
 
-    await verificationService.verifyByCode(user.id, '000000').catch(() => {});
+    await expect(
+      verificationService.verifyByCode(user.id, '000000'),
+    ).rejects.toThrow(InvalidVerificationCodeException);
 
     const attempts = await ctx.redis.get(`verify_attempts:${user.id}`);
     expect(parseInt(attempts ?? '0')).toBe(1);

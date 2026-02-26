@@ -7,6 +7,7 @@ import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { ProjectsService } from '../../projects/projects.service';
 import { DemoSeedService } from '../../demo/demo-seed.service';
+import { InvalidCredentialsException } from '../../auth/exceptions/invalid-credentials.exception';
 import { TooManyRequestsException } from '../../exceptions/too-many-requests.exception';
 import { hashToken } from '../../utils/hash';
 import { SESSION_CACHE_KEY_PREFIX, MAX_ACTIVE_SESSIONS_PER_USER } from '../../constants';
@@ -47,7 +48,9 @@ describe('AuthService.login — rate limiting', () => {
 
     // Exhaust 5 attempts
     for (let i = 0; i < 5; i++) {
-      await authService.login({ email, password: 'wrong' }).catch(() => {});
+      await expect(
+        authService.login({ email, password: 'wrong' }),
+      ).rejects.toThrow(InvalidCredentialsException);
     }
 
     // 6th attempt — should be blocked even with correct password

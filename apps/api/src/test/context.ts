@@ -1,5 +1,7 @@
 import { setupContainers, teardownContainers, type ContainerContext } from '@qurvo/testing';
 
+export type { ContainerContext };
+
 let cached: Promise<ContainerContext> | null = null;
 
 /**
