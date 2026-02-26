@@ -61,7 +61,7 @@ Failures for individual projects are caught and logged as warnings — a single 
 
 `detectNewEvents` uses a `NOT IN` sub-query to exclude events seen in the prior 7 days. This is the correct ClickHouse pattern — do NOT rewrite as a LEFT JOIN + IS NULL check (LEFT JOIN returns default values, not NULL, for unmatched rows on non-Nullable columns).
 
-`detectRetentionAnomalies` uses CTEs to compute week-1 retention for two consecutive cohort windows. Day-0 users are those who first appeared in the given 7-day window; "retained" users are those who returned in the 7-day window that follows 7 days after cohort entry. Uses `NOT IN` sub-queries (not LEFT JOIN + IS NULL) for user set membership checks.
+`detectRetentionAnomalies` uses CTEs to compute week-1 retention for two consecutive cohort windows. Day-0 users are those who first appeared in the given 7-day window; "retained" users are those who returned in the 7-day window that follows 7 days after cohort entry. Uses INNER JOIN between cohort CTE and return-events CTE on `(event_name, distinct_id)` — ClickHouse does NOT support correlated subqueries (referencing outer CTE columns inside a subquery WHERE), so the `NOT IN (SELECT ... WHERE outer_col = ...)` pattern is NOT valid here.
 
 `detectConversionCorrelations` first fetches top-5 events by total count, then for each runs a second query computing conditional conversion rates for all intermediate events. Uses sub-select patterns to avoid multi-CTE re-scan issues.
 
