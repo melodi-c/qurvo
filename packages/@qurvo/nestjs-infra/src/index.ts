@@ -5,6 +5,7 @@ export {
   BaseNotificationService,
   type SlackChannelConfig,
   type EmailChannelConfig,
+  type TelegramChannelConfig,
 } from './notification/notification.service';
 
 // ── Shared stream constants (used by both ingest and processor) ─────────────

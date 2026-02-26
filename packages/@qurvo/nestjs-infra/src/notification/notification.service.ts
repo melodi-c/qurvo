@@ -11,6 +11,11 @@ export interface EmailChannelConfig {
   email: string;
 }
 
+export interface TelegramChannelConfig {
+  chat_id: string;
+  bot_token: string;
+}
+
 @Injectable()
 export abstract class BaseNotificationService implements OnModuleInit {
   protected transporter?: Transporter;
@@ -44,6 +49,18 @@ export abstract class BaseNotificationService implements OnModuleInit {
         { status: response.status },
         'Slack webhook delivery failed',
       );
+    }
+  }
+
+  protected async sendTelegram(config: TelegramChannelConfig, text: string): Promise<void> {
+    const url = `https://api.telegram.org/bot${config.bot_token}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: config.chat_id, text, parse_mode: 'HTML' }),
+    });
+    if (!response.ok) {
+      this.logger.warn({ status: response.status }, 'Telegram notification delivery failed');
     }
   }
 
