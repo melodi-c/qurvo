@@ -89,10 +89,30 @@ export class DlqService implements OnApplicationBootstrap {
 
       const ids = entries.map(([id]) => id);
       const events: Event[] = entries
-        .map(([, fields]) => {
+        .map(([id, fields]) => {
           const obj = parseRedisFields(fields);
           if (!obj.data) return null;
-          return JSON.parse(obj.data) as Event;
+
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(obj.data);
+          } catch (err) {
+            this.logger.warn({ id, err }, 'DLQ entry has invalid JSON — skipping');
+            return null;
+          }
+
+          if (
+            typeof parsed !== 'object' ||
+            parsed === null ||
+            !('project_id' in parsed) ||
+            !('event_name' in parsed) ||
+            !('distinct_id' in parsed)
+          ) {
+            this.logger.warn({ id }, 'DLQ entry missing required fields (project_id, event_name, distinct_id) — skipping');
+            return null;
+          }
+
+          return parsed as Event;
         })
         .filter((e): e is Event => e !== null);
 

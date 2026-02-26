@@ -205,4 +205,65 @@ describe('dead letter queue', () => {
     // Clean up
     await ctx.redis.del(DLQ_CIRCUIT_KEY, DLQ_FAILURES_KEY, 'events:dlq');
   });
+
+  it('corrupted JSON in DLQ entry is skipped with a warn log and does not crash replay', async () => {
+    const dlq = processorApp.get(DlqService);
+    await ctx.redis.del('events:dlq', 'dlq:replay:lock');
+
+    // Push a corrupted entry (invalid JSON) directly without using pushToDlq helper
+    // (which JSON.stringify's the payload)
+    await ctx.redis.xadd('events:dlq', '*', 'data', '{ this is not valid json }');
+
+    // Also push a valid entry so we can verify only the valid one is replayed
+    const validEventId = randomUUID();
+    await pushToDlq(ctx.redis, {
+      event_id: validEventId,
+      project_id: testProject.projectId,
+      event_name: 'dlq_valid_after_corrupt',
+      event_type: 'track',
+      distinct_id: `corrupt-test-${randomUUID()}`,
+      person_id: randomUUID(),
+      timestamp: new Date().toISOString(),
+      properties: '{}',
+      user_properties: '{}',
+      screen_width: 0,
+      screen_height: 0,
+    });
+
+    expect(await getDlqLength(ctx.redis)).toBe(2);
+
+    const warnSpy = vi.spyOn((dlq as any).logger, 'warn');
+
+    await (dlq as any).replayDlq();
+
+    // DLQ fully drained (both entries deleted — corrupt one is skipped, valid one is replayed)
+    expect(await getDlqLength(ctx.redis)).toBe(0);
+
+    // Warn was emitted for the corrupted entry
+    const warnCalls = warnSpy.mock.calls;
+    const corruptWarn = warnCalls.find(
+      (call) => typeof call[1] === 'string' && call[1].includes('invalid JSON'),
+    );
+    expect(corruptWarn).toBeDefined();
+  });
+
+  it('DLQ entry missing required fields is skipped with a warn log', async () => {
+    const dlq = processorApp.get(DlqService);
+    await ctx.redis.del('events:dlq', 'dlq:replay:lock');
+
+    // Push an entry that is valid JSON but missing required fields
+    await ctx.redis.xadd('events:dlq', '*', 'data', JSON.stringify({ event_id: randomUUID() }));
+
+    const warnSpy = vi.spyOn((dlq as any).logger, 'warn');
+
+    await (dlq as any).replayDlq();
+
+    expect(await getDlqLength(ctx.redis)).toBe(0);
+
+    const warnCalls = warnSpy.mock.calls;
+    const missingFieldsWarn = warnCalls.find(
+      (call) => typeof call[1] === 'string' && call[1].includes('missing required fields'),
+    );
+    expect(missingFieldsWarn).toBeDefined();
+  });
 });
