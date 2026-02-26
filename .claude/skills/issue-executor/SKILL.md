@@ -168,7 +168,7 @@ gh label create "blocked" --description "Blocked, needs attention" --color "B602
 
 ```bash
 FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
-git -C "$REPO_ROOT" checkout -b "$FEATURE_BRANCH" main
+git -C "$REPO_ROOT" branch "$FEATURE_BRANCH" main
 git -C "$REPO_ROOT" push origin "$FEATURE_BRANCH"
 echo "Создана feature branch: $FEATURE_BRANCH"
 ```

@@ -209,8 +209,8 @@ pnpm --filter @qurvo/<app> build
 BASE_BEFORE=$(git -C "$REPO_ROOT" rev-parse "$BASE_BRANCH")
 echo "$BASE_BRANCH до мержа: $BASE_BEFORE"
 
-git -C "$REPO_ROOT" checkout "$BASE_BRANCH"
-git -C "$REPO_ROOT" merge fix/issue-<ISSUE_NUMBER>
+# Fast-forward без переключения текущей ветки основного репозитория
+git -C "$REPO_ROOT" fetch . "fix/issue-<ISSUE_NUMBER>:$BASE_BRANCH"
 
 BASE_AFTER=$(git -C "$REPO_ROOT" rev-parse "$BASE_BRANCH")
 echo "$BASE_BRANCH после мержа: $BASE_AFTER"
@@ -223,6 +223,7 @@ git -C "$REPO_ROOT" push origin "$BASE_BRANCH"
 ЗАПРЕЩЕНО:
 - `git push origin HEAD:<ветка>` из worktree
 - `git -C "$WORKTREE_PATH" push ...`
+- `git -C "$REPO_ROOT" checkout` — не переключай ветку основного репозитория
 
 ### 4.10 SDK (только если были правки SDK-пакетов)
 ```bash
