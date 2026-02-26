@@ -221,10 +221,10 @@ export function MonitorFormDialog({ open, onOpenChange, projectId, monitor }: Mo
               type={form.channel_type === 'email' ? 'email' : 'text'}
               placeholder={
                 form.channel_type === 'slack'
-                  ? 'https://hooks.slack.com/services/...'
+                  ? t('slackWebhookPlaceholder')
                   : form.channel_type === 'telegram'
                     ? '-1001234567890'
-                    : 'alerts@example.com'
+                    : t('emailAlertPlaceholder')
               }
               value={form.channel_config_value}
               onChange={(e) => setForm((s) => ({ ...s, channel_config_value: e.target.value }))}

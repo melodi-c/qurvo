@@ -46,6 +46,10 @@ export default createTranslations({
     sendTest: 'Send test',
     testSuccess: 'Test notification sent successfully',
     testError: 'Failed to send test notification',
+    promptPlaceholder: 'e.g. Summarize the top events and user trends from the past week',
+    slackWebhookPlaceholder: 'https://hooks.slack.com/services/...',
+    emailReportPlaceholder: 'reports@example.com',
+    deleteErrorFallback: 'Failed to delete scheduled job',
   },
   ru: {
     title: 'Расписания AI-анализов',
@@ -92,5 +96,9 @@ export default createTranslations({
     sendTest: 'Тест',
     testSuccess: 'Тестовое уведомление отправлено',
     testError: 'Не удалось отправить тестовое уведомление',
+    promptPlaceholder: 'например: Summarize the top events and user trends from the past week',
+    slackWebhookPlaceholder: 'https://hooks.slack.com/services/...',
+    emailReportPlaceholder: 'reports@example.com',
+    deleteErrorFallback: 'Не удалось удалить расписание',
   },
 });

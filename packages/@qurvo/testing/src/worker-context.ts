@@ -23,7 +23,7 @@ export async function teardownWorkerContext(): Promise<void> {
   try {
     const results = await Promise.allSettled([
       ctx.ch.close(),
-      Promise.resolve(ctx.redis.disconnect()),
+      ctx.redis.quit(),
       ctx.db.$pool.end(),
     ]);
 

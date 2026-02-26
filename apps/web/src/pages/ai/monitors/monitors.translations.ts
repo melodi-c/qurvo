@@ -45,6 +45,9 @@ export default createTranslations({
     sendTest: 'Send test',
     testSuccess: 'Test notification sent successfully',
     testError: 'Failed to send test notification',
+    slackWebhookPlaceholder: 'https://hooks.slack.com/services/...',
+    emailAlertPlaceholder: 'alerts@example.com',
+    deleteErrorFallback: 'Failed to delete monitor',
   },
   ru: {
     title: 'Мониторы аномалий',
@@ -90,5 +93,8 @@ export default createTranslations({
     sendTest: 'Тест',
     testSuccess: 'Тестовое уведомление отправлено',
     testError: 'Не удалось отправить тестовое уведомление',
+    slackWebhookPlaceholder: 'https://hooks.slack.com/services/...',
+    emailAlertPlaceholder: 'alerts@example.com',
+    deleteErrorFallback: 'Не удалось удалить монитор',
   },
 });

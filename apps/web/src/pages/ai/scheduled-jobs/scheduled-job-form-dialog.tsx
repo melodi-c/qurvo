@@ -178,7 +178,7 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
               value={form.prompt}
               onChange={(e) => setForm((s) => ({ ...s, prompt: e.target.value }))}
               rows={4}
-              placeholder="e.g. Summarize the top events and user trends from the past week"
+              placeholder={t('promptPlaceholder')}
             />
             {errors.prompt && <p className="text-xs text-destructive">{errors.prompt}</p>}
           </div>
@@ -229,10 +229,10 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
               type={form.channel_type === 'email' ? 'email' : 'text'}
               placeholder={
                 form.channel_type === 'slack'
-                  ? 'https://hooks.slack.com/services/...'
+                  ? t('slackWebhookPlaceholder')
                   : form.channel_type === 'telegram'
                     ? '-1001234567890'
-                    : 'reports@example.com'
+                    : t('emailReportPlaceholder')
               }
               value={form.channel_config_value}
               onChange={(e) => setForm((s) => ({ ...s, channel_config_value: e.target.value }))}

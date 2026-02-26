@@ -14,6 +14,7 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useMonitors, useDeleteMonitor } from '@/features/ai-monitors/use-monitors';
 import type { AiMonitor } from '@/features/ai-monitors/use-monitors';
 import { MonitorFormDialog } from './monitor-form-dialog';
+import { AiTabNav } from '../ai-tab-nav';
 import translations from './monitors.translations';
 import { extractApiErrorMessage } from '@/lib/utils';
 
@@ -32,7 +33,7 @@ export default function MonitorsPage() {
       await deleteMutation.mutateAsync(itemId);
       toast.success(t('deleted'));
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, 'Failed to delete monitor'));
+      toast.error(extractApiErrorMessage(err, t('deleteErrorFallback')));
     }
   }, [itemId, projectId, deleteMutation, t]);
 
@@ -112,6 +113,8 @@ export default function MonitorsPage() {
           {t('newMonitor')}
         </Button>
       </PageHeader>
+
+      <AiTabNav />
 
       {isLoading && <ListSkeleton count={3} />}
 

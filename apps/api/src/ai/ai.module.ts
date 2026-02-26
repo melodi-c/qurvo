@@ -38,6 +38,8 @@ import { MetricChangeTool } from './tools/metric-change.tool';
 import { CreateCohortTool } from './tools/create-cohort.tool';
 import { CreateMonitorTool } from './tools/create-monitor.tool';
 import { CreateDashboardTool } from './tools/create-dashboard.tool';
+import { SegmentCompareTool } from './tools/segment-compare.tool';
+import { TimeBetweenEventsTool } from './tools/time-between-events.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -58,6 +60,8 @@ const TOOL_CLASSES = [
   CreateCohortTool,
   CreateMonitorTool,
   CreateDashboardTool,
+  SegmentCompareTool,
+  TimeBetweenEventsTool,
 ];
 
 @Module({
