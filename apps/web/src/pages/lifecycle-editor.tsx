@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { HeartPulse } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -10,6 +11,7 @@ import { LifecycleQueryPanel } from '@/features/dashboard/components/widgets/lif
 import { defaultLifecycleConfig } from '@/features/dashboard/components/widgets/lifecycle/lifecycle-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './lifecycle-editor.translations';
+import { lifecycleToCsv, downloadCsv } from '@/lib/csv-export';
 import type { LifecycleWidgetConfig } from '@/api/generated/Api';
 
 export default function LifecycleEditorPage() {
@@ -27,6 +29,11 @@ export default function LifecycleEditorPage() {
 
   const { data, isLoading, isFetching } = useLifecycleData(config, previewId);
   const result = data?.data;
+
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(lifecycleToCsv(result), 'lifecycle.csv');
+  }, [result]);
 
   return (
     <InsightEditorLayout
@@ -65,6 +72,7 @@ export default function LifecycleEditorPage() {
           <Metric label={t('dormant')} value={String(Math.abs(result?.totals?.dormant ?? 0))} />
         </>
       }
+      onExportCsv={result ? handleExportCsv : undefined}
     >
       {result && <LifecycleChart result={result} />}
     </InsightEditorLayout>

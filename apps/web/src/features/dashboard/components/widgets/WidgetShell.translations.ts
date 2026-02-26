@@ -9,6 +9,7 @@ export default createTranslations({
     noData: 'No data found',
     fresh: 'fresh',
     refresh: 'Refresh',
+    exportCsv: 'Export CSV',
   },
   ru: {
     configureWidget: 'Настройте этот виджет',
@@ -18,5 +19,6 @@ export default createTranslations({
     noData: 'Данные не найдены',
     fresh: 'свежие',
     refresh: 'Обновить',
+    exportCsv: 'Экспорт CSV',
   },
 });

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, Download } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -52,6 +52,9 @@ interface InsightEditorLayoutProps {
 
   /** Optional class for the chart wrapper div */
   chartClassName?: string;
+
+  /** Optional CSV export callback. When provided, shows an Export CSV button. */
+  onExportCsv?: () => void;
 }
 
 export function InsightEditorLayout({
@@ -82,6 +85,7 @@ export function InsightEditorLayout({
   metricsBar,
   children,
   chartClassName = 'flex-1 overflow-auto p-6',
+  onExportCsv,
 }: InsightEditorLayoutProps): ReactNode {
   const { t } = useLocalTranslation(translations);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -157,7 +161,20 @@ export function InsightEditorLayout({
           {isConfigValid && !showSkeleton && !isEmpty && (
             <div className={cn('flex flex-col h-full transition-opacity', isFetching && 'opacity-60')}>
               <div className="flex items-center gap-0 border-b border-border/60 px-6 py-4 shrink-0">
-                {metricsBar}
+                <div className="flex items-center gap-0 flex-1 min-w-0 flex-wrap">
+                  {metricsBar}
+                </div>
+                {onExportCsv && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-4 shrink-0 gap-1.5"
+                    onClick={onExportCsv}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t('exportCsv')}
+                  </Button>
+                )}
               </div>
               <div className={chartClassName}>
                 <ErrorBoundary>

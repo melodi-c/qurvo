@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useLifecycleData } from '@/features/dashboard/hooks/use-lifecycle';
 import { LifecycleChart } from './LifecycleChart';
 import { defaultLifecycleConfig } from './lifecycle-shared';
+import { lifecycleToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, LifecycleWidgetConfig } from '@/api/generated/Api';
 import translations from './LifecycleWidget.translations';
 
@@ -21,6 +23,11 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
     ? result.totals.new + result.totals.returning + result.totals.resurrecting
     : 0;
 
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(lifecycleToCsv(result), 'lifecycle.csv');
+  }, [result]);
+
   return (
     <WidgetShell
       query={query}
@@ -33,6 +40,7 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
       metricSecondary={<span className="text-xs text-muted-foreground">{t('activeUsers')}</span>}
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
+      onExportCsv={result ? handleExportCsv : undefined}
     >
       <LifecycleChart result={result!} compact />
     </WidgetShell>

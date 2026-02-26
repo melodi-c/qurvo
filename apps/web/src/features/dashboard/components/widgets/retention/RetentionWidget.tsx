@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
 import { RetentionTable } from './RetentionTable';
 import { defaultRetentionConfig } from './retention-shared';
+import { retentionToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, RetentionWidgetConfig } from '@/api/generated/Api';
 import translations from './RetentionWidget.translations';
 
@@ -17,6 +19,11 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
   const query = useRetentionData(config ?? defaultRetentionConfig(), widget.id);
   const result = query.data?.data;
 
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(retentionToCsv(result), 'retention.csv');
+  }, [result]);
+
   return (
     <WidgetShell
       query={query}
@@ -30,6 +37,7 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
       metricSecondary={<span className="text-xs text-muted-foreground">{t('cohorts')}</span>}
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
+      onExportCsv={result ? handleExportCsv : undefined}
     >
       <div className="h-full overflow-auto">
         <RetentionTable result={result!} compact />

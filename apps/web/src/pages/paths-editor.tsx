@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Route } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -10,6 +11,7 @@ import { PathsQueryPanel } from '@/features/dashboard/components/widgets/paths/P
 import { defaultPathsConfig } from '@/features/dashboard/components/widgets/paths/paths-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './paths-editor.translations';
+import { pathsToCsv, downloadCsv } from '@/lib/csv-export';
 import type { PathsWidgetConfig } from '@/api/generated/Api';
 
 export default function PathsEditorPage() {
@@ -28,6 +30,11 @@ export default function PathsEditorPage() {
   const { data, isLoading, isFetching } = usePathsData(config, previewId);
   const result = data?.data;
   const transitions = result?.transitions;
+
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(pathsToCsv(result), 'paths.csv');
+  }, [result]);
 
   const totalUsers = transitions
     ? transitions
@@ -70,6 +77,7 @@ export default function PathsEditorPage() {
           <Metric label={t('topPaths')} value={String(totalPaths)} />
         </>
       }
+      onExportCsv={result ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
     >
       <PathsChart

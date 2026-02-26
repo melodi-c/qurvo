@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,6 +21,7 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useTimeToConvertState } from '@/hooks/use-time-to-convert-state';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './funnel-editor.translations';
+import { funnelToCsv, downloadCsv } from '@/lib/csv-export';
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
 
 type ViewMode = 'conversion' | 'time_to_convert';
@@ -75,6 +76,11 @@ export default function FunnelEditorPage() {
     isFetching: ttcIsFetching,
   } = useFunnelTimeToConvertData(ttcConfig, ttcPreviewId);
   const ttcResult = ttcData?.data;
+
+  const handleExportCsv = useCallback(() => {
+    if (!steps) return;
+    downloadCsv(funnelToCsv(steps), 'funnel.csv');
+  }, [steps]);
 
   const isTimeToConvert = viewMode === 'time_to_convert';
   const activeIsLoading = isTimeToConvert ? ttcIsLoading : isLoading;
@@ -166,6 +172,7 @@ export default function FunnelEditorPage() {
           <PillToggleGroup options={viewModeOptions} value={viewMode} onChange={setViewMode} />
         </>
       }
+      onExportCsv={steps ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
     >
       {isTimeToConvert ? (

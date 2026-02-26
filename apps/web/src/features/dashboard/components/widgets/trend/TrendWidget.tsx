@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
@@ -5,6 +6,7 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
 import { defaultTrendConfig } from './trend-shared';
+import { trendToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, TrendWidgetConfig } from '@/api/generated/Api';
 
 interface TrendWidgetProps {
@@ -24,6 +26,11 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const totals = result?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
   const mainTotal = totals[0] ?? 0;
 
+  const handleExportCsv = useCallback(() => {
+    if (!result?.series) return;
+    downloadCsv(trendToCsv(result.series), 'trend.csv');
+  }, [result]);
+
   return (
     <WidgetShell
       query={query}
@@ -41,6 +48,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
       ) : undefined}
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
+      onExportCsv={result?.series ? handleExportCsv : undefined}
     >
       <TrendChart
         series={result!.series}

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -38,6 +38,8 @@ interface WidgetShellProps<Response> {
   /** Cache info source — response object with cached_at. */
   cachedAt?: string;
   fromCache?: boolean;
+  /** Optional CSV export callback. When provided, shows an Export CSV button next to refresh. */
+  onExportCsv?: () => void;
   /** Content to render (chart/table). */
   children: ReactNode;
 }
@@ -56,6 +58,7 @@ export function WidgetShell<Response>({
   metricSecondary,
   cachedAt,
   fromCache,
+  onExportCsv,
   children,
 }: WidgetShellProps<Response>) {
   const { t } = useLocalTranslation(translations);
@@ -116,6 +119,24 @@ export function WidgetShell<Response>({
                 {fromCache
                   ? formatDistanceToNow(new Date(cachedAt), { addSuffix: true })
                   : t('fresh')}
+              </span>
+            )}
+            {onExportCsv && (
+              <span className="relative -m-2 p-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      onClick={onExportCsv}
+                      aria-label={t('exportCsv')}
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('exportCsv')}</TooltipContent>
+                </Tooltip>
               </span>
             )}
             <span className="relative -m-2 p-2">

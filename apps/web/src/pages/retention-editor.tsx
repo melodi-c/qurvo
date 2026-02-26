@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -11,6 +12,7 @@ import { RetentionQueryPanel } from '@/features/dashboard/components/widgets/ret
 import { defaultRetentionConfig } from '@/features/dashboard/components/widgets/retention/retention-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './retention-editor.translations';
+import { retentionToCsv, downloadCsv } from '@/lib/csv-export';
 import type { RetentionWidgetConfig } from '@/api/generated/Api';
 
 export default function RetentionEditorPage() {
@@ -28,6 +30,11 @@ export default function RetentionEditorPage() {
 
   const { data, isLoading, isFetching } = useRetentionData(config, previewId);
   const result = data?.data;
+
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(retentionToCsv(result), 'retention.csv');
+  }, [result]);
 
   return (
     <InsightEditorLayout
@@ -65,6 +72,7 @@ export default function RetentionEditorPage() {
           />
         </>
       }
+      onExportCsv={result ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 space-y-8"
     >
       {result && <RetentionTable result={result} />}

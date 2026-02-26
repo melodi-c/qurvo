@@ -1,7 +1,9 @@
+import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { usePathsData } from '@/features/dashboard/hooks/use-paths';
 import { PathsChart } from './PathsChart';
 import { defaultPathsConfig } from './paths-shared';
+import { pathsToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, PathsWidgetConfig } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './PathsWidget.translations';
@@ -17,6 +19,11 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
   const query = usePathsData(config ?? defaultPathsConfig(), widget.id);
   const result = query.data?.data;
 
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(pathsToCsv(result), 'paths.csv');
+  }, [result]);
+
   return (
     <WidgetShell
       query={query}
@@ -30,6 +37,7 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
       metricSecondary={<span className="text-xs text-muted-foreground">{t('transitions')}</span>}
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
+      onExportCsv={result ? handleExportCsv : undefined}
     >
       <PathsChart
         transitions={result!.transitions}

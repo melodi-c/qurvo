@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
@@ -6,6 +7,7 @@ import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
 import { defaultFunnelConfig } from './funnel-shared';
 import translations from './FunnelWidget.translations';
+import { funnelToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, FunnelWidgetConfig } from '@/api/generated/Api';
 
 interface FunnelWidgetProps {
@@ -24,6 +26,11 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const hasValidSteps = hasConfig && config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(result);
 
+  const handleExportCsv = useCallback(() => {
+    if (!result?.steps) return;
+    downloadCsv(funnelToCsv(result.steps), 'funnel.csv');
+  }, [result]);
+
   return (
     <WidgetShell
       query={query}
@@ -41,6 +48,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
       }
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
+      onExportCsv={result?.steps ? handleExportCsv : undefined}
     >
       <div className="h-full overflow-auto">
         <FunnelChart steps={result!.steps} breakdown={result!.breakdown} aggregateSteps={result!.aggregate_steps} compact conversionRateDisplay={config!.conversion_rate_display ?? 'total'} />

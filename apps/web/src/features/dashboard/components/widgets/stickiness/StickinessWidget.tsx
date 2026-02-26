@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
 import { StickinessChart } from './StickinessChart';
 import { defaultStickinessConfig } from './stickiness-shared';
+import { stickinessToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, StickinessWidgetConfig } from '@/api/generated/Api';
 import translations from './StickinessWidget.translations';
 
@@ -19,6 +21,11 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
 
   const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
 
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(stickinessToCsv(result), 'stickiness.csv');
+  }, [result]);
+
   return (
     <WidgetShell
       query={query}
@@ -31,6 +38,7 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
       metricSecondary={<span className="text-xs text-muted-foreground">{t('totalUsers')}</span>}
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
+      onExportCsv={result ? handleExportCsv : undefined}
     >
       <StickinessChart result={result!} compact />
     </WidgetShell>

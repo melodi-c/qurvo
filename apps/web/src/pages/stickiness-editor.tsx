@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Layers } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -11,6 +12,7 @@ import { defaultStickinessConfig } from '@/features/dashboard/components/widgets
 import { formatGranularity } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './stickiness-editor.translations';
+import { stickinessToCsv, downloadCsv } from '@/lib/csv-export';
 import type { StickinessWidgetConfig } from '@/api/generated/Api';
 
 export default function StickinessEditorPage() {
@@ -28,6 +30,11 @@ export default function StickinessEditorPage() {
 
   const { data, isLoading, isFetching } = useStickinessData(config, previewId);
   const result = data?.data;
+
+  const handleExportCsv = useCallback(() => {
+    if (!result) return;
+    downloadCsv(stickinessToCsv(result), 'stickiness.csv');
+  }, [result]);
 
   const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
   const modePeriod = result?.data.length
@@ -69,6 +76,7 @@ export default function StickinessEditorPage() {
           <Metric label={t('totalPeriods')} value={String(result?.total_periods ?? 0)} />
         </>
       }
+      onExportCsv={result ? handleExportCsv : undefined}
     >
       {result && <StickinessChart result={result} />}
     </InsightEditorLayout>

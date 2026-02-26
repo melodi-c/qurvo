@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { TrendingUp, BarChart3 } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -11,6 +11,7 @@ import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/T
 import { defaultTrendConfig } from '@/features/dashboard/components/widgets/trend/trend-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './trend-editor.translations';
+import { trendToCsv, downloadCsv } from '@/lib/csv-export';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
 function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
@@ -41,6 +42,11 @@ export default function TrendEditorPage() {
     0,
   ) ?? 0;
   const seriesCount = series?.length ?? 0;
+  const handleExportCsv = useCallback(() => {
+    if (!series) return;
+    downloadCsv(trendToCsv(series), 'trend.csv');
+  }, [series]);
+
   const METRIC_LABELS: Record<string, string> = useMemo(() => ({
     total_events: t('totalEvents'),
     unique_users: t('uniqueUsers'),
@@ -96,6 +102,7 @@ export default function TrendEditorPage() {
           )}
         </>
       }
+      onExportCsv={series ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
     >
       <TrendChart
