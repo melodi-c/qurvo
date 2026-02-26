@@ -226,10 +226,26 @@ export default function CohortEditorPage() {
             {activeTab === 'overview' && (
               <>
                 <div className="border-b px-6 py-6 text-center">
-                  <p className="text-4xl font-bold tabular-nums text-primary">
-                    {memberCount ? memberCount.count.toLocaleString() : '\u2014'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
+                  {previewMutation.isPending ? (
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">{t('calculating')}</span>
+                    </div>
+                  ) : previewMutation.data ? (
+                    <>
+                      <p className="text-4xl font-bold tabular-nums text-primary">
+                        {previewMutation.data.count.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-4xl font-bold tabular-nums text-primary">
+                        {memberCount ? memberCount.count.toLocaleString() : '\u2014'}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
+                    </>
+                  )}
                 </div>
                 <div className="flex-1 p-6 space-y-3">
                   <p className="text-sm font-medium">{t('sizeHistory')}</p>
