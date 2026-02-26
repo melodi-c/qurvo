@@ -4,6 +4,8 @@ import { AiChatService } from './ai-chat.service';
 import { AiFeedbackService } from './ai-feedback.service';
 import { AiContextService } from './ai-context.service';
 import { AiSummarizationService } from './ai-summarization.service';
+import { AiMessageHistoryBuilder } from './ai-message-history';
+import { AiToolDispatcher } from './ai-tool-dispatcher';
 import { AiRateLimitGuard } from './guards/ai-rate-limit.guard';
 import { AiQuotaGuard } from './guards/ai-quota.guard';
 import { AI_CONFIG } from './ai-config.provider';
@@ -67,6 +69,8 @@ const TOOL_CLASSES = [
     AiFeedbackService,
     AiContextService,
     AiSummarizationService,
+    AiMessageHistoryBuilder,
+    AiToolDispatcher,
     AiRateLimitGuard,
     AiQuotaGuard,
     {
