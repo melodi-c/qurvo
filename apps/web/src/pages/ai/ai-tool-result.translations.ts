@@ -14,6 +14,9 @@ export default createTranslations({
     openInsight: 'Open insight',
     openDashboard: 'Open dashboard',
     openLink: 'Open',
+    winner: 'Winner',
+    absoluteDiff: 'Absolute difference',
+    relativeDiff: 'Relative difference',
   },
   ru: {
     copyChart: 'Скопировать график',
@@ -28,5 +31,8 @@ export default createTranslations({
     openInsight: 'Открыть инсайт',
     openDashboard: 'Открыть дашборд',
     openLink: 'Открыть',
+    winner: 'Победитель',
+    absoluteDiff: 'Абсолютная разность',
+    relativeDiff: 'Относительная разность',
   },
 });
