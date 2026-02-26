@@ -7,6 +7,7 @@ import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { CohortSelector } from '@/features/cohorts/components/CohortSelector';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { cn } from '@/lib/utils';
 import translations from './breakdown-section.translations';
 
 interface BreakdownSectionProps {
@@ -37,6 +38,15 @@ export function BreakdownSection({
   const typeOptions = useMemo(() => [
     { label: t('property'), value: 'property' as const },
     { label: t('cohort'), value: 'cohort' as const },
+  ], [t]);
+
+  const geoDevicePresets = useMemo(() => [
+    { key: 'country', label: t('presetCountry') },
+    { key: 'region', label: t('presetRegion') },
+    { key: 'city', label: t('presetCity') },
+    { key: 'browser', label: t('presetBrowser') },
+    { key: 'os', label: t('presetOs') },
+    { key: 'device_type', label: t('presetDeviceType') },
   ], [t]);
 
   return (
@@ -72,6 +82,29 @@ export function BreakdownSection({
               className="h-8 text-sm"
             />
           )}
+
+          {/* Device & Geo presets */}
+          <div className="space-y-1.5">
+            <span className="text-[11px] text-muted-foreground">{t('presetGroupLabel')}</span>
+            <div className="flex flex-wrap gap-1">
+              {geoDevicePresets.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => onChange(value === preset.key ? '' : preset.key)}
+                  className={cn(
+                    'h-6 rounded px-2 text-[11px] font-medium transition-colors',
+                    value === preset.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <p className="text-xs text-muted-foreground">{t('propertyDescription')}</p>
         </>
       ) : (
