@@ -174,6 +174,21 @@ git add <конкретные файлы>
 git commit -m "<осмысленное сообщение>"
 ```
 
+### 4.7.1 Code Review
+
+Запусти подагента `issue-reviewer` в **foreground**:
+
+```
+WORKTREE_PATH: <путь к worktree>
+ISSUE_NUMBER: <номер>
+AFFECTED_APPS: <список>
+BASE_BRANCH: <ветка>
+```
+
+- Если вернул `APPROVE` → переходи к 4.8
+- Если вернул `REQUEST_CHANGES` → исправь все перечисленные проблемы, сделай дополнительный коммит, запусти reviewer повторно
+- Максимум 2 итерации исправлений. Если после 2-й итерации всё ещё `REQUEST_CHANGES` → верни `STATUS: NEEDS_USER_INPUT | Review не пройден после 2 итераций: <список проблем>`
+
 ### 4.8 Финальная проверка с актуальным BASE_BRANCH
 ```bash
 git merge "$BASE_BRANCH"
