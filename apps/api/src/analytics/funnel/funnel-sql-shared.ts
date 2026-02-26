@@ -136,6 +136,15 @@ export function validateExclusions(exclusions: FunnelExclusion[], numSteps: numb
   }
 }
 
+/**
+ * Builds per-user array columns for exclusion checking.
+ *
+ * Uses groupArrayIf to collect timestamps of the from-step, to-step, and exclusion event
+ * per person. These arrays are used by buildExcludedUsersCTE to perform per-window
+ * exclusion checks: a user is excluded only when ALL their valid conversion window attempts
+ * contain an exclusion event. This prevents false positives (exclusion in a different
+ * session) and false negatives (user re-enters the funnel after an exclusion).
+ */
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
   steps: FunnelStep[],
@@ -148,20 +157,57 @@ export function buildExclusionColumns(
     queryParams[`excl_${i}_to_step_name`] = steps[excl.funnel_to_step]!.event_name;
 
     lines.push(
-      `minIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_name:String}) AS excl_${i}_ts`,
-      `maxIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_from_step_name:String}) AS excl_${i}_from_ts`,
-      `minIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_to_step_name:String}) AS excl_${i}_to_ts`,
+      `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_from_step_name:String}) AS excl_${i}_from_arr`,
+      `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_to_step_name:String}) AS excl_${i}_to_arr`,
+      `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_name:String}) AS excl_${i}_arr`,
     );
   }
   return lines;
 }
 
+/**
+ * Builds the excluded_users CTE using per-window exclusion logic.
+ *
+ * A user is placed in excluded_users if, for exclusion i:
+ *  - There exists at least one (from_ts, to_ts) conversion window attempt
+ *    that is "tainted" by an exclusion event (excl_ts in (from_ts, to_ts))
+ *  - AND there does NOT exist any "clean" (from_ts, to_ts) pair without an
+ *    exclusion event in between
+ *
+ * This means a user who re-enters the funnel after an exclusion event (e.g.
+ * step1 → exclusion → step1 → step2) is NOT excluded, because the second
+ * window attempt (step1 → step2) is clean.
+ */
 export function buildExcludedUsersCTE(exclusions: FunnelExclusion[]): string {
-  const conditions = exclusions.map(
-    (_, i) =>
-      `(excl_${i}_ts > 0 AND excl_${i}_from_ts > 0 AND excl_${i}_to_ts > 0 ` +
-      `AND excl_${i}_ts > excl_${i}_from_ts AND excl_${i}_to_ts > excl_${i}_ts)`,
-  );
+  const win = `toInt64({window:UInt64}) * 1000`;
+  const conditions = exclusions.map((_, i) => {
+    // tainted_path: exists (f, t) pair within window with exclusion e in (f, t)
+    const tainted = [
+      `arrayExists(`,
+      `        f -> arrayExists(`,
+      `          t -> t > f AND t <= f + ${win} AND`,
+      `               arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
+      `          excl_${i}_to_arr`,
+      `        ) = 1,`,
+      `        excl_${i}_from_arr`,
+      `      ) = 1`,
+    ].join('\n      ');
+
+    // clean_path: exists (f, t) pair within window with NO exclusion in (f, t)
+    const clean = [
+      `arrayExists(`,
+      `        f -> arrayExists(`,
+      `          t -> t > f AND t <= f + ${win} AND`,
+      `               NOT arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
+      `          excl_${i}_to_arr`,
+      `        ) = 1,`,
+      `        excl_${i}_from_arr`,
+      `      ) = 0`,
+    ].join('\n      ');
+
+    return `(${tainted}\n      AND ${clean})`;
+  });
+
   return `excluded_users AS (
     SELECT person_id
     FROM funnel_per_user

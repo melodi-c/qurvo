@@ -2,6 +2,7 @@ import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
   buildStepCondition,
+  buildExclusionColumns,
   buildExcludedUsersCTE,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
@@ -41,6 +42,14 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
     ? `,\n        argMinIf(${breakdownExpr}, timestamp, ${stepConds[0]}) AS breakdown_value`
     : '';
 
+  // Exclusion array columns for per-window exclusion checking
+  const exclColumns = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps, queryParams)
+    : [];
+  const exclColsSQL = exclColumns.length > 0
+    ? ',\n        ' + exclColumns.join(',\n        ')
+    : '';
+
   const anchorArgs = steps.map((_, i) => `if(t${i}_ms > 0, t${i}_ms, ${sentinel})`).join(', ');
 
   const stepCountParts = steps.map(
@@ -53,10 +62,15 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
 
   const breakdownForward = breakdownExpr ? ',\n        breakdown_value' : '';
 
+  // Forward exclusion array columns from step_times into funnel_per_user
+  const exclColsForward = exclColumns.length > 0
+    ? ',\n        ' + exclColumns.map(col => col.split(' AS ')[1]!).join(',\n        ')
+    : '';
+
   const cte = `step_times AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
-        ${minIfCols}${breakdownCol}
+        ${minIfCols}${breakdownCol}${exclColsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
@@ -71,7 +85,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
         least(${anchorArgs}) AS anchor_ms,
         (${stepCountParts}) AS max_step,
         least(${anchorArgs}) AS first_step_ms,
-        greatest(${greatestArgs}) AS last_step_ms${breakdownForward}
+        greatest(${greatestArgs}) AS last_step_ms${breakdownForward}${exclColsForward}
       FROM step_times
       WHERE least(${anchorArgs}) < ${sentinel}
     )`;
