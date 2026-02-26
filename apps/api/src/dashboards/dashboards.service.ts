@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, exists } from 'drizzle-orm';
 import { dashboards, widgets, insights } from '@qurvo/db';
 import type { WidgetLayout } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
@@ -85,7 +85,12 @@ export class DashboardsService {
     dashboardId: string,
     input: { insight_id?: string; layout: WidgetLayout; content?: string },
   ) {
-    await this.assertDashboardExists(projectId, dashboardId);
+    const [dashboard] = await this.db
+      .select({ id: dashboards.id })
+      .from(dashboards)
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
+      .limit(1);
+    if (!dashboard) throw new DashboardNotFoundException();
 
     const [widget] = await this.db
       .insert(widgets)
@@ -106,12 +111,15 @@ export class DashboardsService {
     widgetId: string,
     input: { insight_id?: string; layout?: WidgetLayout; content?: string },
   ) {
-    await this.assertDashboardExists(projectId, dashboardId);
+    const dashboardSubquery = this.db
+      .select({ id: dashboards.id })
+      .from(dashboards)
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)));
 
     const [updated] = await this.db
       .update(widgets)
       .set({ updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) })
-      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId)))
+      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId), exists(dashboardSubquery)))
       .returning();
     if (!updated) throw new WidgetNotFoundException();
     this.logger.log({ widgetId, dashboardId, projectId }, 'Widget updated');
@@ -119,22 +127,16 @@ export class DashboardsService {
   }
 
   async removeWidget(projectId: string, dashboardId: string, widgetId: string) {
-    await this.assertDashboardExists(projectId, dashboardId);
+    const dashboardSubquery = this.db
+      .select({ id: dashboards.id })
+      .from(dashboards)
+      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)));
 
     const [deleted] = await this.db
       .delete(widgets)
-      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId)))
+      .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId), exists(dashboardSubquery)))
       .returning({ id: widgets.id });
     if (!deleted) throw new WidgetNotFoundException();
     this.logger.log({ widgetId, dashboardId, projectId }, 'Widget removed');
-  }
-
-  private async assertDashboardExists(projectId: string, dashboardId: string) {
-    const [row] = await this.db
-      .select({ id: dashboards.id })
-      .from(dashboards)
-      .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
-      .limit(1);
-    if (!row) throw new DashboardNotFoundException();
   }
 }

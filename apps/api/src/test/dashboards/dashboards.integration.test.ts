@@ -207,6 +207,17 @@ describe('DashboardsService.addWidget', () => {
       service.addWidget(projectId, randomUUID(), { layout: SAMPLE_LAYOUT }),
     ).rejects.toThrow(DashboardNotFoundException);
   });
+
+  it('does not add widget to dashboard belonging to another project', async () => {
+    const { projectId: projectA, userId: userA } = await createTestProject(ctx.db);
+    const { projectId: projectB } = await createTestProject(ctx.db);
+
+    const dashboard = await service.create(userA, projectA, { name: 'Project A Dashboard' });
+
+    await expect(
+      service.addWidget(projectB, dashboard.id, { layout: SAMPLE_LAYOUT }),
+    ).rejects.toThrow(DashboardNotFoundException);
+  });
 });
 
 // ── updateWidget ──────────────────────────────────────────────────────────────
@@ -241,11 +252,27 @@ describe('DashboardsService.updateWidget', () => {
     ).rejects.toThrow(WidgetNotFoundException);
   });
 
-  it('throws DashboardNotFoundException for a non-existent dashboard', async () => {
+  it('throws WidgetNotFoundException when widget or dashboard does not exist', async () => {
     const { projectId } = await createTestProject(ctx.db);
     await expect(
       service.updateWidget(projectId, randomUUID(), randomUUID(), { layout: SAMPLE_LAYOUT }),
-    ).rejects.toThrow(DashboardNotFoundException);
+    ).rejects.toThrow(WidgetNotFoundException);
+  });
+
+  it('does not update widget belonging to another project', async () => {
+    const { projectId: projectA, userId: userA } = await createTestProject(ctx.db);
+    const { projectId: projectB } = await createTestProject(ctx.db);
+
+    const dashboard = await service.create(userA, projectA, { name: 'Project A Dashboard' });
+    const widget = await service.addWidget(projectA, dashboard.id, { layout: SAMPLE_LAYOUT });
+
+    await expect(
+      service.updateWidget(projectB, dashboard.id, widget.id, { layout: { x: 1, y: 1, w: 2, h: 2 } }),
+    ).rejects.toThrow(WidgetNotFoundException);
+
+    // Widget must remain unchanged
+    const found = await service.getById(projectA, dashboard.id);
+    expect(found.widgets[0].layout).toEqual(SAMPLE_LAYOUT);
   });
 });
 
@@ -270,10 +297,26 @@ describe('DashboardsService.removeWidget', () => {
     await expect(service.removeWidget(projectId, dashboard.id, randomUUID())).rejects.toThrow(WidgetNotFoundException);
   });
 
-  it('throws DashboardNotFoundException for a non-existent dashboard', async () => {
+  it('throws WidgetNotFoundException when widget or dashboard does not exist', async () => {
     const { projectId } = await createTestProject(ctx.db);
     await expect(
       service.removeWidget(projectId, randomUUID(), randomUUID()),
-    ).rejects.toThrow(DashboardNotFoundException);
+    ).rejects.toThrow(WidgetNotFoundException);
+  });
+
+  it('does not remove widget belonging to another project', async () => {
+    const { projectId: projectA, userId: userA } = await createTestProject(ctx.db);
+    const { projectId: projectB } = await createTestProject(ctx.db);
+
+    const dashboard = await service.create(userA, projectA, { name: 'Project A Dashboard' });
+    const widget = await service.addWidget(projectA, dashboard.id, { layout: SAMPLE_LAYOUT });
+
+    await expect(
+      service.removeWidget(projectB, dashboard.id, widget.id),
+    ).rejects.toThrow(WidgetNotFoundException);
+
+    // Widget must still exist
+    const found = await service.getById(projectA, dashboard.id);
+    expect(found.widgets.find((w) => w.id === widget.id)).toBeDefined();
   });
 });
