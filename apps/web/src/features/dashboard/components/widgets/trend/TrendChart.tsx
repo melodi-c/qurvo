@@ -212,7 +212,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={completeData}
-                margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                margin={fullMargin}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
                 <XAxis
@@ -247,7 +247,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={incompleteData}
-                  margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+                  margin={fullMargin}
                 >
                   <XAxis dataKey="bucket" hide domain={[data[0]?.bucket, data[data.length - 1]?.bucket]} type="category" allowDuplicatedCategory={false} />
                   <YAxis hide width={48} />
