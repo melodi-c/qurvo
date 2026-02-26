@@ -567,7 +567,7 @@ export class OnlineSchoolScenario extends BaseScenario {
           metric: 'total_events',
           granularity: 'week',
           chart_type: 'bar',
-          breakdown_property: 'category',
+          breakdown_property: 'properties.category',
           breakdown_type: 'property',
           date_from: dateFrom,
           date_to: dateTo,
