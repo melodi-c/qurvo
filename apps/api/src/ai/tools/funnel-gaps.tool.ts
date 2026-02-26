@@ -5,6 +5,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import type { FunnelGapToolOutput } from '@qurvo/ai-types';
 
 const argsSchema = z.object({
   start_event: z.string().describe('The entry event of the funnel (e.g. "signup")'),
@@ -195,12 +196,14 @@ export class FunnelGapsTool implements AiTool {
     items.sort((a, b) => Math.abs(b.relative_lift) - Math.abs(a.relative_lift));
 
     return {
-      start_event: args.start_event,
-      end_event: args.end_event,
-      date_from: args.date_from,
-      date_to: args.date_to,
-      items,
-      total_returned: items.length,
-    };
+      funnel_step_from: args.start_event,
+      funnel_step_to: args.end_event,
+      items: items.map((item) => ({
+        event_name: item.event_name,
+        relative_lift_pct: Math.round(item.relative_lift * 10000) / 100,
+        users_with_event: item.saw_count,
+        users_without_event: item.no_saw_count,
+      })),
+    } satisfies FunnelGapToolOutput;
   });
 }

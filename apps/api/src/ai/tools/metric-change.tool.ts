@@ -8,6 +8,7 @@ import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr } from '../../utils/property-filter';
 import { type Metric, computeMetricValue } from './metric.utils';
 import { MAX_METRIC_SEGMENTS } from '../../constants';
+import type { RootCauseToolOutput } from '@qurvo/ai-types';
 
 const argsSchema = z.object({
   event_name: z.string().describe('The event to analyze (e.g. "purchase", "signup")'),
@@ -39,9 +40,9 @@ const tool = defineTool({
 interface SegmentMetrics {
   baseline_value: number;
   current_value: number;
-  relative_change: number;
+  relative_change_pct: number;
   absolute_change: number;
-  contribution: number;
+  contribution_pct: number;
 }
 
 interface SegmentResult extends SegmentMetrics {
@@ -91,9 +92,9 @@ function computeSegmentMetrics(
   return {
     baseline_value: baselineValue,
     current_value: currentValue,
-    relative_change: Math.round(relativeChange * 10000) / 100, // percentage, 2dp
+    relative_change_pct: Math.round(relativeChange * 10000) / 100, // percentage, 2dp
     absolute_change: absoluteChange,
-    contribution: Math.round(contribution * 10000) / 100, // percentage, 2dp
+    contribution_pct: Math.round(contribution * 10000) / 100, // percentage, 2dp
   };
 }
 
@@ -202,7 +203,7 @@ async function queryDimension(
   });
 
   // Sort by absolute contribution descending (largest movers first)
-  segments.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+  segments.sort((a, b) => Math.abs(b.contribution_pct) - Math.abs(a.contribution_pct));
 
   return { dimension, segments };
 }
@@ -216,7 +217,7 @@ async function queryOverallTotals(
   baselineTo: string,
   currentFrom: string,
   currentTo: string,
-): Promise<{ baseline_value: number; current_value: number; relative_change: number; absolute_change: number }> {
+): Promise<{ baseline_value: number; current_value: number; relative_change_pct: number; absolute_change: number }> {
   const queryParams: Record<string, unknown> = {
     project_id: projectId,
     event_name: eventName,
@@ -254,7 +255,7 @@ async function queryOverallTotals(
       ? currentValue === 0 ? 0 : 100
       : Math.round((absoluteChange / baselineValue) * 10000) / 100;
 
-  return { baseline_value: baselineValue, current_value: currentValue, relative_change: relativeChange, absolute_change: absoluteChange };
+  return { baseline_value: baselineValue, current_value: currentValue, relative_change_pct: relativeChange, absolute_change: absoluteChange };
 }
 
 @Injectable()
@@ -289,7 +290,7 @@ export class MetricChangeTool implements AiTool {
 
     // Build a flat ranked list across all dimensions, sorted by absolute contribution
     const allSegments: SegmentResult[] = dimensionResults.flatMap((d) => d.segments);
-    allSegments.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+    allSegments.sort((a, b) => Math.abs(b.contribution_pct) - Math.abs(a.contribution_pct));
 
     return {
       event_name: eventName,
@@ -298,9 +299,21 @@ export class MetricChangeTool implements AiTool {
         baseline: { from: baselineFrom, to: baselineTo },
         current: { from: currentFrom, to: currentTo },
       },
-      overall,
+      overall: {
+        metric: eventName,
+        absolute_change: overall.absolute_change,
+        relative_change_pct: overall.relative_change_pct,
+      },
       dimensions: dimensionResults,
-      top_segments: allSegments.slice(0, 20),
-    };
+      top_segments: allSegments.slice(0, 20).map((s) => ({
+        dimension: s.dimension,
+        segment_value: s.segment_value,
+        relative_change_pct: s.relative_change_pct,
+        contribution_pct: s.contribution_pct,
+        absolute_change: s.absolute_change,
+        baseline_value: s.baseline_value,
+        current_value: s.current_value,
+      })),
+    } satisfies RootCauseToolOutput;
   });
 }

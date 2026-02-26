@@ -1,0 +1,9 @@
+{
+  "extends": "@qurvo/tsconfig/library.json",
+  "compilerOptions": {
+    "outDir": "dist/cjs",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

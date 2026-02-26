@@ -8,9 +8,15 @@ import type {
   PathTransition,
   TopPath,
 } from '@/api/generated/Api';
+import type {
+  SegmentCompareOutput,
+  HistogramToolOutput,
+  RootCauseToolOutput,
+  FunnelGapToolOutput,
+} from '@qurvo/ai-types';
 
 // ---------------------------------------------------------------------------
-// Types (mirrored from ai-tool-result.tsx to avoid circular imports)
+// Types
 // ---------------------------------------------------------------------------
 
 interface TrendToolResult {
@@ -30,81 +36,14 @@ interface PathsToolResult {
   top_paths?: TopPath[];
 }
 
-export interface SegmentCompareSegment {
-  name: string;
-  value: number;
-  raw_count: number;
-  unique_users: number;
-}
+// Re-export shared types from @qurvo/ai-types for consumers of this module
+export type SegmentCompareResult = SegmentCompareOutput;
+export type TimeBetweenEventsResult = HistogramToolOutput;
+export type RootCauseResult = RootCauseToolOutput;
+export type FunnelGapResult = FunnelGapToolOutput;
 
-export interface SegmentCompareResult {
-  event_name: string;
-  metric: 'unique_users' | 'total_events' | 'events_per_user';
-  date_from: string;
-  date_to: string;
-  segment_a: SegmentCompareSegment;
-  segment_b: SegmentCompareSegment;
-  comparison: {
-    absolute_diff: number;
-    relative_diff_pct: number;
-    winner: string;
-  };
-}
-
-export interface HistogramBucket {
-  label: string;
-  from_seconds: number;
-  to_seconds: number;
-  count: number;
-}
-
-export interface TimeBetweenEventsResult {
-  event_a: string;
-  event_b: string;
-  date_from: string;
-  date_to: string;
-  total_users: number;
-  buckets: HistogramBucket[];
-  stats: {
-    mean_seconds: number;
-    median_seconds: number;
-    p75_seconds: number;
-    p90_seconds: number;
-    min_seconds: number;
-    max_seconds: number;
-  };
-}
-
-export interface RootCauseSegment {
-  dimension: string;
-  segment_value: string;
-  contribution_pct: number;
-  relative_change_pct: number;
-}
-
-export interface RootCauseOverall {
-  metric: string;
-  absolute_change: number;
-  relative_change_pct: number;
-}
-
-export interface RootCauseResult {
-  top_segments: RootCauseSegment[];
-  overall: RootCauseOverall;
-}
-
-export interface FunnelGapItem {
-  event_name: string;
-  relative_lift_pct: number;
-  users_with_event: number;
-  users_without_event: number;
-}
-
-export interface FunnelGapResult {
-  items: FunnelGapItem[];
-  funnel_step_from: string;
-  funnel_step_to: string;
-}
+// Re-export sub-types for component props
+export type { RootCauseSegment, RootCauseOverall, FunnelGapItem } from '@qurvo/ai-types';
 
 export type AiToolResultData =
   | { type: 'trend_chart'; data: TrendToolResult }

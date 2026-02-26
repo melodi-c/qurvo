@@ -35,6 +35,9 @@ importers:
       '@nestjs/throttler':
         specifier: ^6.5.0
         version: 6.5.0(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(reflect-metadata@0.2.2)
+      '@qurvo/ai-types':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/ai-types
       '@qurvo/clickhouse':
         specifier: workspace:*
         version: link:../../packages/@qurvo/clickhouse
@@ -725,6 +728,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@qurvo/ai-types':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/ai-types
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.90.21(react@19.2.4)
@@ -843,6 +849,19 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/@qurvo/ai-types:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@qurvo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
   packages/@qurvo/clickhouse:
     dependencies:

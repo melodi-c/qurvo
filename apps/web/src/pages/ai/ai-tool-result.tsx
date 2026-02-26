@@ -29,6 +29,12 @@ import {
   type RootCauseResult,
   type FunnelGapResult,
 } from './ai-tool-result-export';
+import {
+  rootCauseToolOutputSchema,
+  funnelGapToolOutputSchema,
+  segmentCompareOutputSchema,
+  histogramToolOutputSchema,
+} from '@qurvo/ai-types';
 import type {
   TrendSeriesResult,
   TrendGranularity,
@@ -81,41 +87,24 @@ function isPathsResult(r: Record<string, unknown>): r is Record<string, unknown>
   return Array.isArray(r.transitions);
 }
 
-function isSegmentCompareResult(r: Record<string, unknown>): r is Record<string, unknown> & SegmentCompareResult {
-  return (
-    typeof r.segment_a === 'object' &&
-    r.segment_a !== null &&
-    typeof r.segment_b === 'object' &&
-    r.segment_b !== null &&
-    typeof r.comparison === 'object' &&
-    r.comparison !== null
-  );
+function parseSegmentCompareResult(r: unknown): SegmentCompareResult | null {
+  const result = segmentCompareOutputSchema.safeParse(r);
+  return result.success ? result.data : null;
 }
 
-function isHistogramResult(r: Record<string, unknown>): r is Record<string, unknown> & TimeBetweenEventsResult {
-  return (
-    typeof r.event_a === 'string' &&
-    typeof r.event_b === 'string' &&
-    Array.isArray(r.buckets) &&
-    typeof r.stats === 'object' &&
-    r.stats !== null
-  );
+function parseHistogramResult(r: unknown): TimeBetweenEventsResult | null {
+  const result = histogramToolOutputSchema.safeParse(r);
+  return result.success ? result.data : null;
 }
 
-function isRootCauseResult(r: Record<string, unknown>): r is Record<string, unknown> & RootCauseResult {
-  return (
-    Array.isArray(r.top_segments) &&
-    typeof r.overall === 'object' &&
-    r.overall !== null
-  );
+function parseRootCauseResult(r: unknown): RootCauseResult | null {
+  const result = rootCauseToolOutputSchema.safeParse(r);
+  return result.success ? result.data : null;
 }
 
-function isFunnelGapResult(r: Record<string, unknown>): r is Record<string, unknown> & FunnelGapResult {
-  return (
-    Array.isArray(r.items) &&
-    typeof r.funnel_step_from === 'string' &&
-    typeof r.funnel_step_to === 'string'
-  );
+function parseFunnelGapResult(r: unknown): FunnelGapResult | null {
+  const result = funnelGapToolOutputSchema.safeParse(r);
+  return result.success ? result.data : null;
 }
 
 function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
@@ -123,26 +112,40 @@ function parseToolResult(visualizationType: string | null, result: unknown): AiT
   const r = result as Record<string, unknown>;
 
   switch (visualizationType) {
-    case 'trend_chart':
+    case 'trend_chart': {
       return isTrendResult(r) ? { type: 'trend_chart', data: r } : null;
-    case 'funnel_chart':
+    }
+    case 'funnel_chart': {
       return isFunnelResult(r) ? { type: 'funnel_chart', data: r } : null;
-    case 'retention_chart':
+    }
+    case 'retention_chart': {
       return isRetentionResult(r) ? { type: 'retention_chart', data: r } : null;
-    case 'lifecycle_chart':
+    }
+    case 'lifecycle_chart': {
       return isLifecycleResult(r) ? { type: 'lifecycle_chart', data: r } : null;
-    case 'stickiness_chart':
+    }
+    case 'stickiness_chart': {
       return isStickinessResult(r) ? { type: 'stickiness_chart', data: r } : null;
-    case 'paths_chart':
+    }
+    case 'paths_chart': {
       return isPathsResult(r) ? { type: 'paths_chart', data: r } : null;
-    case 'segment_compare_chart':
-      return isSegmentCompareResult(r) ? { type: 'segment_compare_chart', data: r as SegmentCompareResult } : null;
-    case 'histogram_chart':
-      return isHistogramResult(r) ? { type: 'histogram_chart', data: r as TimeBetweenEventsResult } : null;
-    case 'root_cause_chart':
-      return isRootCauseResult(r) ? { type: 'root_cause_chart', data: r as RootCauseResult } : null;
-    case 'funnel_gap_chart':
-      return isFunnelGapResult(r) ? { type: 'funnel_gap_chart', data: r as FunnelGapResult } : null;
+    }
+    case 'segment_compare_chart': {
+      const parsed = parseSegmentCompareResult(r);
+      return parsed ? { type: 'segment_compare_chart', data: parsed } : null;
+    }
+    case 'histogram_chart': {
+      const parsed = parseHistogramResult(r);
+      return parsed ? { type: 'histogram_chart', data: parsed } : null;
+    }
+    case 'root_cause_chart': {
+      const parsed = parseRootCauseResult(r);
+      return parsed ? { type: 'root_cause_chart', data: parsed } : null;
+    }
+    case 'funnel_gap_chart': {
+      const parsed = parseFunnelGapResult(r);
+      return parsed ? { type: 'funnel_gap_chart', data: parsed } : null;
+    }
     default:
       return null;
   }
