@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { type Database, eventDefinitions, propertyDefinitions } from '@qurvo/db';
+import { type Database, eventDefinitions, propertyDefinitions, persons, personDistinctIds } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { ScenarioRegistry } from './scenarios/scenario.registry';
@@ -27,7 +27,7 @@ export class DemoSeedService {
       );
     }
 
-    const { events, definitions, propertyDefinitions: propDefs } = await scenario.generate(projectId);
+    const { events, definitions, propertyDefinitions: propDefs, persons: personRows, personDistinctIds: distinctIdRows } = await scenario.generate(projectId);
 
     // Insert events directly into ClickHouse (bypassing Redis Stream)
     if (events.length > 0) {
@@ -79,6 +79,43 @@ export class DemoSeedService {
           set: { last_seen_at: sql`excluded.last_seen_at` },
         });
     }
+
+    // Upsert persons in Postgres
+    if (personRows.length > 0) {
+      const now = new Date();
+      await this.db
+        .insert(persons)
+        .values(
+          personRows.map((p) => ({
+            id: p.id,
+            project_id: projectId,
+            properties: p.properties,
+            created_at: now,
+            updated_at: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [persons.id],
+          set: {
+            properties: sql`excluded.properties`,
+            updated_at: sql`excluded.updated_at`,
+          },
+        });
+    }
+
+    // Upsert person distinct IDs in Postgres
+    if (distinctIdRows.length > 0) {
+      await this.db
+        .insert(personDistinctIds)
+        .values(
+          distinctIdRows.map((d) => ({
+            project_id: projectId,
+            person_id: d.personId,
+            distinct_id: d.distinctId,
+          })),
+        )
+        .onConflictDoNothing();
+    }
   }
 
   /**
@@ -102,6 +139,16 @@ export class DemoSeedService {
       .delete(propertyDefinitions)
       .where(eq(propertyDefinitions.project_id, projectId));
 
+    // Delete person distinct IDs before persons (FK constraint)
+    await this.db
+      .delete(personDistinctIds)
+      .where(eq(personDistinctIds.project_id, projectId));
+
+    // Delete persons from Postgres
+    await this.db
+      .delete(persons)
+      .where(eq(persons.project_id, projectId));
+
     this.logger.log(`Cleared demo data for project ${projectId}`);
   }
 
@@ -117,7 +164,7 @@ export class DemoSeedService {
         `Demo scenario '${scenarioName}' not found. Available: ${this.scenarioRegistry.list().join(', ') || 'none'}`,
       );
     }
-    const { events, definitions, propertyDefinitions: propDefs } = await scenario.generate(projectId);
+    const { events, definitions, propertyDefinitions: propDefs, persons: personRows, personDistinctIds: distinctIdRows } = await scenario.generate(projectId);
 
     if (events.length > 0) {
       await this.ch.insert({
@@ -165,6 +212,43 @@ export class DemoSeedService {
           target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
           set: { last_seen_at: sql`excluded.last_seen_at` },
         });
+    }
+
+    // Upsert persons in Postgres
+    if (personRows.length > 0) {
+      const now = new Date();
+      await this.db
+        .insert(persons)
+        .values(
+          personRows.map((p) => ({
+            id: p.id,
+            project_id: projectId,
+            properties: p.properties,
+            created_at: now,
+            updated_at: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [persons.id],
+          set: {
+            properties: sql`excluded.properties`,
+            updated_at: sql`excluded.updated_at`,
+          },
+        });
+    }
+
+    // Upsert person distinct IDs in Postgres
+    if (distinctIdRows.length > 0) {
+      await this.db
+        .insert(personDistinctIds)
+        .values(
+          distinctIdRows.map((d) => ({
+            project_id: projectId,
+            person_id: d.personId,
+            distinct_id: d.distinctId,
+          })),
+        )
+        .onConflictDoNothing();
     }
 
     return { count: events.length };

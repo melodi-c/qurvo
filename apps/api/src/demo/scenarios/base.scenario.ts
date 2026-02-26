@@ -22,6 +22,8 @@ export interface ScenarioOutput {
   events: Event[];
   definitions: EventDefinitionInput[];
   propertyDefinitions: PropertyDefinitionInput[];
+  persons: { id: string; properties: Record<string, unknown> }[];
+  personDistinctIds: { personId: string; distinctId: string }[];
 }
 
 export abstract class BaseScenario {
