@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { languages } from '@/stores/language';
-import { LogOut, User, Languages, Plus, ChevronsUpDown, ShieldCheck } from 'lucide-react';
+import { LogOut, User, Languages, FolderOpen, ChevronsUpDown, ShieldCheck } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,7 @@ interface ProjectSwitcherProps {
   onProjectSwitch: (projectId: string) => void;
   selectProjectLabel: string;
   switchProjectLabel: string;
-  newProjectLabel: string;
+  manageProjectsLabel: string;
   demoBadgeLabel: string;
 }
 
@@ -33,7 +33,7 @@ export function ProjectSwitcher({
   onProjectSwitch,
   selectProjectLabel,
   switchProjectLabel,
-  newProjectLabel,
+  manageProjectsLabel,
   demoBadgeLabel,
 }: ProjectSwitcherProps) {
   const navigate = useNavigate();
@@ -75,8 +75,8 @@ export function ProjectSwitcher({
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate(routes.projects())}>
-          <Plus className="h-3.5 w-3.5 mr-2" />
-          {newProjectLabel}
+          <FolderOpen className="h-3.5 w-3.5 mr-2" />
+          {manageProjectsLabel}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
