@@ -17,7 +17,7 @@ export class CreateScheduledJobDto extends ChannelConfigDto {
   @IsString()
   @IsIn(['daily', 'weekly', 'monthly'])
   @ApiProperty({ enum: ['daily', 'weekly', 'monthly'] })
-  schedule: string;
+  schedule: 'daily' | 'weekly' | 'monthly';
 }
 
 export class UpdateScheduledJobDto {
@@ -36,7 +36,7 @@ export class UpdateScheduledJobDto {
   @IsIn(['daily', 'weekly', 'monthly'])
   @IsOptional()
   @ApiPropertyOptional({ enum: ['daily', 'weekly', 'monthly'] })
-  schedule?: string;
+  schedule?: 'daily' | 'weekly' | 'monthly';
 
   @IsString()
   @IsIn(CHANNEL_TYPES)
@@ -63,7 +63,7 @@ export class AiScheduledJobDto {
   prompt: string;
 
   @ApiProperty({ enum: ['daily', 'weekly', 'monthly'] })
-  schedule: string;
+  schedule: 'daily' | 'weekly' | 'monthly';
 
   @ApiProperty({ enum: CHANNEL_TYPES })
   channel_type: NotificationChannelType;

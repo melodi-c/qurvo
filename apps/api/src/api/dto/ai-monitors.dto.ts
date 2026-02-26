@@ -62,7 +62,7 @@ export class AiMonitorDto {
   event_name: string;
 
   @ApiProperty({ enum: ['count', 'unique_users'] })
-  metric: string;
+  metric: 'count' | 'unique_users';
 
   @ApiProperty({ enum: CHANNEL_TYPES })
   channel_type: NotificationChannelType;

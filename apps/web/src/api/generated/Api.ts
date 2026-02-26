@@ -894,15 +894,17 @@ export interface CreateInvite {
   email: string;
 }
 
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface MyInvite {
   role: MyInviteDtoRoleEnum;
   status: MyInviteDtoStatusEnum;
   id: string;
-  project: {
-    id: string;
-    name: string;
-    slug: string;
-  };
+  project: ProjectSummary;
   invited_by: Inviter;
   /** @format date-time */
   created_at: string;
@@ -1142,6 +1144,19 @@ export interface WebAnalyticsGeographyResponse {
   data: WebAnalyticsGeographyData;
 }
 
+export interface PlanFeatures {
+  /** @example true */
+  cohorts: boolean;
+  /** @example true */
+  lifecycle: boolean;
+  /** @example true */
+  stickiness: boolean;
+  /** @example true */
+  api_export: boolean;
+  /** @example true */
+  ai_insights: boolean;
+}
+
 export interface BillingStatus {
   /** @example "free" */
   plan: string;
@@ -1159,13 +1174,7 @@ export interface BillingStatus {
   ai_messages_per_month?: number | null;
   /** @example 0 */
   ai_messages_used: number;
-  features: {
-    cohorts?: boolean;
-    lifecycle?: boolean;
-    stickiness?: boolean;
-    api_export?: boolean;
-    ai_insights?: boolean;
-  };
+  features: PlanFeatures;
   /** @example "2026-02-01T00:00:00.000Z" */
   period_start: string;
   /** @example "2026-03-01T00:00:00.000Z" */
@@ -1266,9 +1275,9 @@ export interface AiScheduledJob {
 }
 
 export interface CreateScheduledJob {
-  schedule: CreateScheduledJobDtoScheduleEnum;
   channel_type: CreateScheduledJobDtoChannelTypeEnum;
   channel_config: Record<string, any>;
+  schedule: CreateScheduledJobDtoScheduleEnum;
   /**
    * @minLength 1
    * @maxLength 255
@@ -1335,10 +1344,6 @@ export interface UpdateAnnotation {
 export interface TestNotification {
   channel_type: TestNotificationDtoChannelTypeEnum;
   channel_config: Record<string, any>;
-}
-
-export interface TestNotificationResponse {
-  ok: boolean;
 }
 
 export interface AdminStats {
@@ -1420,19 +1425,6 @@ export interface AdminProjectDetail {
 export interface PatchAdminProject {
   /** @format uuid */
   plan_id?: string | null;
-}
-
-export interface PlanFeatures {
-  /** @example true */
-  cohorts: boolean;
-  /** @example true */
-  lifecycle: boolean;
-  /** @example true */
-  stickiness: boolean;
-  /** @example true */
-  api_export: boolean;
-  /** @example true */
-  ai_insights: boolean;
 }
 
 export interface AdminPlan {
@@ -1608,12 +1600,12 @@ export type AiScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
 
 export type AiScheduledJobDtoChannelTypeEnum = "slack" | "email" | "telegram";
 
-export type CreateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
-
 export type CreateScheduledJobDtoChannelTypeEnum =
   | "slack"
   | "email"
   | "telegram";
+
+export type CreateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
 
 export type UpdateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
 
@@ -4970,13 +4962,12 @@ export class Api<
       data: TestNotification,
       params: RequestParams = {},
     ) =>
-      this.request<TestNotificationResponse, any>({
+      this.request<void, any>({
         path: `/api/projects/${projectId}/notifications/test`,
         method: "POST",
         body: data,
         secure: true,
         type: ContentType.Json,
-        format: "json",
         ...params,
       }),
   };
