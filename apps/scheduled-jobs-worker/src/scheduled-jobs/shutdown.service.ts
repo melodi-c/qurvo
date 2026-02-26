@@ -16,7 +16,7 @@ export class ShutdownService implements OnApplicationShutdown {
     await this.scheduledJobsService
       .stop()
       .catch((err) => this.logger.warn({ err }, 'ScheduledJobsService stop failed'));
-    await this.db.$pool.end().catch((err) =>
+    await this.db.$pool.end().catch((err: unknown) =>
       this.logger.warn({ err }, 'PostgreSQL pool close failed'),
     );
   }

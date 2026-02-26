@@ -1,28 +1,20 @@
-import * as crypto from 'crypto';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import OpenAI from 'openai';
 import type {
-  ChatCompletionAssistantMessageParam,
   ChatCompletionMessageParam,
-  ChatCompletionMessageToolCall,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions';
-import type Redis from 'ioredis';
 import { ProjectsService } from '../projects/projects.service';
 import { AiChatService } from './ai-chat.service';
-import { AiContextService } from './ai-context.service';
 import { AiSummarizationService } from './ai-summarization.service';
+import { AiMessageHistoryBuilder } from './ai-message-history';
+import { AiToolDispatcher } from './ai-tool-dispatcher';
+import type { AccumulatedToolCall } from './ai-tool-dispatcher';
 import { AI_CONFIG } from './ai-config.provider';
 import type { AiConfig } from './ai-config.provider';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
-import { buildSystemPrompt } from './system-prompt';
-import { AI_TOOLS } from './tools/ai-tool.interface';
-import type { AiTool } from './tools/ai-tool.interface';
-import { AI_MAX_TOOL_CALL_ITERATIONS, AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT } from '../constants';
-import { REDIS } from '../providers/redis.provider';
-
-const AI_TOOL_CACHE_TTL_SECONDS = 300;
+import { AI_MAX_TOOL_CALL_ITERATIONS, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT } from '../constants';
 
 type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
@@ -31,11 +23,6 @@ type AiStreamChunk =
   | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string }
   | { type: 'error'; message: string }
   | { type: 'done' };
-
-interface AccumulatedToolCall {
-  id: string;
-  function: { name: string; arguments: string };
-}
 
 interface TokenUsage {
   promptTokens: number;
@@ -46,17 +33,6 @@ interface StreamTurnResult {
   assistantContent: string;
   toolCalls: AccumulatedToolCall[];
   usage: TokenUsage | null;
-}
-
-interface DispatchedToolResult {
-  toolCallId: string;
-  toolName: string;
-  result: unknown;
-  visualizationType?: string;
-}
-
-function isAiSafeError(err: unknown): err is Error & { isSafeForAi: true } {
-  return err instanceof Error && 'isSafeForAi' in err && (err as any).isSafeForAi === true;
 }
 
 /** Cost per 1M tokens in USD: { input, output } */
@@ -75,21 +51,18 @@ export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private client: OpenAI | null = null;
   private readonly model: string;
-  private readonly toolMap: Map<string, AiTool>;
   private readonly toolDefinitions: ChatCompletionTool[];
 
   constructor(
     private readonly projectsService: ProjectsService,
     private readonly chatService: AiChatService,
     @Inject(AI_CONFIG) private readonly config: AiConfig,
-    @Inject(AI_TOOLS) tools: AiTool[],
-    private readonly contextService: AiContextService,
-    @Inject(REDIS) private readonly redis: Redis,
+    private readonly messageHistoryBuilder: AiMessageHistoryBuilder,
+    private readonly toolDispatcher: AiToolDispatcher,
     private readonly summarizationService: AiSummarizationService,
   ) {
     this.model = config.model;
-    this.toolMap = new Map(tools.map((t) => [t.name, t]));
-    this.toolDefinitions = tools.map((t) => t.definition());
+    this.toolDefinitions = toolDispatcher.toolDefinitions;
   }
 
   onModuleInit() {
@@ -139,7 +112,7 @@ export class AiService implements OnModuleInit {
 
     try {
       const { messages, seq: initialSeq, shouldSummarize, existingSummary, summaryFailed, totalMessageCount } =
-        await this.buildMessageHistory(conversation, isNew, params, userId);
+        await this.messageHistoryBuilder.build(conversation, isNew, params, userId);
 
       // Run tool-call loop
       const seq = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
@@ -168,113 +141,6 @@ export class AiService implements OnModuleInit {
       await this.chatService.finalizeConversation(conversation.id, derivedTitle).catch((err) => {
         this.logger.warn({ err, conversationId: conversation.id }, 'Failed to finalize conversation on cleanup');
       });
-    }
-  }
-
-  private async buildMessageHistory(
-    conversation: { id: string; history_summary?: string | null; summary_failed?: boolean | null },
-    isNew: boolean,
-    params: { message: string; edit_sequence?: number; project_id: string; language?: string },
-    _userId: string,
-  ): Promise<{
-    messages: ChatCompletionMessageParam[];
-    seq: number;
-    shouldSummarize: boolean;
-    existingSummary: string | null;
-    summaryFailed: boolean;
-    totalMessageCount: number;
-  }> {
-    // Handle edit: truncate history and update the edited message
-    if (params.edit_sequence !== undefined) {
-      await this.chatService.deleteMessagesAfterSequence(conversation.id, params.edit_sequence);
-      await this.chatService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
-    }
-
-    // Build messages
-    const projectContext = await this.contextService.getProjectContext(params.project_id);
-    const today = new Date().toISOString().split('T')[0];
-    const systemContent = buildSystemPrompt(today, projectContext, params.language);
-
-    const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
-
-    // Load history with summarization
-    let totalMessageCount = 0;
-    let existingSummary: string | null = null;
-    let summaryFailed = false;
-    let shouldSummarize = false;
-    if (!isNew) {
-      totalMessageCount = await this.chatService.getMessageCount(conversation.id);
-
-      if (totalMessageCount > AI_SUMMARY_THRESHOLD) {
-        shouldSummarize = true;
-        // Use the already-loaded conversation record to get any cached summary
-        existingSummary = conversation.history_summary ?? null;
-        summaryFailed = conversation.summary_failed ?? false;
-
-        // Inject cached summary as a system message if available
-        if (existingSummary) {
-          messages.push({
-            role: 'system',
-            content: `## Summary of earlier conversation\n\n${existingSummary}`,
-          });
-        }
-
-        // Only load the most recent messages verbatim
-        const { messages: recentHistory } = await this.chatService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
-        this.appendHistoryMessages(messages, recentHistory);
-      } else {
-        // Conversation is short enough — load all messages
-        const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
-        this.appendHistoryMessages(messages, history);
-      }
-    }
-
-    // For an edit, history already includes the updated user message at edit_sequence.
-    // The last message in `messages` is already the edited user message — skip re-adding.
-    let seq: number;
-    if (params.edit_sequence !== undefined) {
-      // seq starts right after the edited message (all later messages were deleted)
-      seq = params.edit_sequence + 1;
-    } else {
-      // Add user message normally
-      messages.push({ role: 'user', content: params.message });
-      seq = await this.chatService.getNextSequence(conversation.id);
-      await this.chatService.saveMessage(conversation.id, seq++, {
-        role: 'user',
-        content: params.message,
-        tool_calls: null,
-        tool_call_id: null,
-        tool_name: null,
-        tool_result: null,
-        visualization_type: null,
-      });
-    }
-
-    return { messages, seq, shouldSummarize, existingSummary, summaryFailed, totalMessageCount };
-  }
-
-  private appendHistoryMessages(
-    messages: ChatCompletionMessageParam[],
-    msgs: Awaited<ReturnType<AiChatService['getMessages']>>['messages'],
-  ): void {
-    for (const msg of msgs) {
-      if (msg.role === 'user') {
-        messages.push({ role: 'user', content: msg.content ?? '' });
-      } else if (msg.role === 'assistant') {
-        const assistantMsg: ChatCompletionAssistantMessageParam = {
-          role: 'assistant',
-          content: msg.content ?? null,
-          ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
-        };
-        messages.push(assistantMsg);
-      } else if (msg.role === 'tool') {
-        if (!msg.tool_call_id) continue;
-        messages.push({
-          role: 'tool',
-          tool_call_id: msg.tool_call_id,
-          content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
-        });
-      }
     }
   }
 
@@ -352,7 +218,7 @@ export class AiService implements OnModuleInit {
       });
 
       // Execute tool calls and append results to messages
-      const results = yield* this.dispatchToolCalls(toolCalls, userId, projectId);
+      const results = yield* this.toolDispatcher.dispatch(toolCalls, userId, projectId);
 
       for (const r of results) {
         messages.push({
@@ -428,85 +294,4 @@ export class AiService implements OnModuleInit {
 
     return { assistantContent, toolCalls, usage };
   }
-
-  private async *dispatchToolCalls(
-    toolCalls: AccumulatedToolCall[],
-    userId: string,
-    projectId: string,
-  ): AsyncGenerator<AiStreamChunk, DispatchedToolResult[]> {
-    const results: DispatchedToolResult[] = [];
-
-    for (const tc of toolCalls) {
-      let parsedArgs: Record<string, unknown> = {};
-      try {
-        parsedArgs = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-      } catch {
-        // args unavailable — yield empty object
-      }
-      yield { type: 'tool_call_start', tool_call_id: tc.id, name: tc.function.name, args: parsedArgs };
-
-      let toolResult: unknown;
-      let vizType: string | undefined;
-      try {
-        const args = parsedArgs;
-        const tool = this.toolMap.get(tc.function.name);
-        if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
-
-        if (tool.cacheable === true) {
-          const cacheKey = this.buildToolCacheKey(tc.function.name, args, projectId);
-          const cached = await this.redis.get(cacheKey);
-          if (cached !== null) {
-            const parsed = JSON.parse(cached) as { result: unknown; visualization_type?: string };
-            toolResult = parsed.result;
-            vizType = parsed.visualization_type;
-            this.logger.debug({ tool: tc.function.name, cacheKey }, 'AI tool cache hit');
-          } else {
-            const res = await tool.run(args, userId, projectId);
-            toolResult = res.result;
-            vizType = res.visualization_type;
-            await this.redis.set(
-              cacheKey,
-              JSON.stringify({ result: toolResult, visualization_type: vizType }),
-              'EX',
-              AI_TOOL_CACHE_TTL_SECONDS,
-            );
-          }
-        } else {
-          const res = await tool.run(args, userId, projectId);
-          toolResult = res.result;
-          vizType = res.visualization_type;
-        }
-      } catch (err) {
-        this.logger.warn({ err, tool: tc.function.name }, `Tool ${tc.function.name} failed`);
-        const safeMessage = isAiSafeError(err)
-          ? err.message
-          : 'The query failed. Please try a different approach.';
-        toolResult = { error: safeMessage };
-      }
-
-      yield {
-        type: 'tool_result',
-        tool_call_id: tc.id,
-        name: tc.function.name,
-        result: toolResult,
-        visualization_type: vizType,
-      };
-
-      results.push({ toolCallId: tc.id, toolName: tc.function.name, result: toolResult, visualizationType: vizType });
-    }
-
-    return results;
-  }
-
-  /**
-   * Builds a stable Redis cache key for an AI tool call.
-   * Uses SHA-256(tool_name + sorted JSON args + project_id) to ensure identical
-   * queries with different key orderings produce the same cache key.
-   */
-  private buildToolCacheKey(toolName: string, args: Record<string, unknown>, projectId: string): string {
-    const sortedArgs = JSON.stringify(args, Object.keys(args).sort());
-    const hash = crypto.createHash('sha256').update(`${toolName}:${sortedArgs}:${projectId}`).digest('hex');
-    return `ai:tool_cache:${hash}`;
-  }
-
 }

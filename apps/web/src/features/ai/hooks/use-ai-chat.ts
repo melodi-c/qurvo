@@ -339,6 +339,10 @@ export function useAiChat(projectId: string) {
     }));
   }, []);
 
+  const setIsShared = useCallback((isShared: boolean) => {
+    setState((prev) => ({ ...prev, isShared }));
+  }, []);
+
   return {
     messages: state.messages,
     conversationId: state.conversationId,
@@ -354,5 +358,6 @@ export function useAiChat(projectId: string) {
     loadMoreMessages,
     startNewConversation,
     stopStreaming,
+    setIsShared,
   };
 }
