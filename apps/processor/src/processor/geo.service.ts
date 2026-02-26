@@ -67,7 +67,7 @@ export class GeoService implements OnModuleInit {
           throw new Error(`HTTP ${res.status} ${res.statusText}`);
         }
         await pipeline(
-          Readable.fromWeb(res.body as any),
+          Readable.fromWeb(res.body as unknown as ReadableStream<Uint8Array>),
           createWriteStream(MMDB_PATH),
         );
         return;

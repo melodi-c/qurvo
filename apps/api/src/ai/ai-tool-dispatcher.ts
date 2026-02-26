@@ -24,7 +24,7 @@ type AiToolDispatchChunk =
   | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string };
 
 function isAiSafeError(err: unknown): err is Error & { isSafeForAi: true } {
-  return err instanceof Error && 'isSafeForAi' in err && (err as any).isSafeForAi === true;
+  return err instanceof Error && 'isSafeForAi' in err && (err as { isSafeForAi: unknown }).isSafeForAi === true;
 }
 
 @Injectable()
