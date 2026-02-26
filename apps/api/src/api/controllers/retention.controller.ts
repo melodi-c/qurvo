@@ -17,6 +17,6 @@ export class RetentionController {
   async getRetention(
     @Query() query: RetentionQueryDto,
   ): Promise<RetentionResponseDto> {
-    return this.retentionService.query(query);
+    return this.retentionService.query(query) as any;
   }
 }

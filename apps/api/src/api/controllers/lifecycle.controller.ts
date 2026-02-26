@@ -17,6 +17,6 @@ export class LifecycleController {
   async getLifecycle(
     @Query() query: LifecycleQueryDto,
   ): Promise<LifecycleResponseDto> {
-    return this.lifecycleService.query(query);
+    return this.lifecycleService.query(query) as any;
   }
 }

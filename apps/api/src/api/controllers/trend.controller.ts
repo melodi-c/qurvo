@@ -17,6 +17,6 @@ export class TrendController {
   async getTrend(
     @Query() query: TrendQueryDto,
   ): Promise<TrendResponseDto> {
-    return this.trendService.query(query);
+    return this.trendService.query(query) as any;
   }
 }

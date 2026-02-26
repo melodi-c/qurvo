@@ -30,7 +30,7 @@ export class DashboardsController {
   async list(
     @Param('projectId') projectId: string,
   ): Promise<DashboardDto[]> {
-    return this.dashboardsService.list(projectId);
+    return this.dashboardsService.list(projectId) as any;
   }
 
   @RequireRole('editor')
@@ -40,7 +40,7 @@ export class DashboardsController {
     @Param('projectId') projectId: string,
     @Body() body: CreateDashboardDto,
   ): Promise<DashboardDto> {
-    return this.dashboardsService.create(user.user_id, projectId, body);
+    return this.dashboardsService.create(user.user_id, projectId, body) as any;
   }
 
   @Get(':dashboardId')
@@ -48,7 +48,7 @@ export class DashboardsController {
     @Param('projectId') projectId: string,
     @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
   ): Promise<DashboardWithWidgetsDto> {
-    return this.dashboardsService.getById(projectId, dashboardId);
+    return this.dashboardsService.getById(projectId, dashboardId) as any;
   }
 
   @RequireRole('editor')
@@ -58,7 +58,7 @@ export class DashboardsController {
     @Param('dashboardId', ParseUUIDPipe) dashboardId: string,
     @Body() body: UpdateDashboardDto,
   ): Promise<DashboardDto> {
-    return this.dashboardsService.update(projectId, dashboardId, body);
+    return this.dashboardsService.update(projectId, dashboardId, body) as any;
   }
 
   @RequireRole('editor')

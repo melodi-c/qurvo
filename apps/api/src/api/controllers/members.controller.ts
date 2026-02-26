@@ -25,7 +25,7 @@ export class MembersController {
   async listMembers(
     @Param('projectId') projectId: string,
   ): Promise<MemberDto[]> {
-    return this.membersService.listMembers(projectId);
+    return this.membersService.listMembers(projectId) as any;
   }
 
   @RequireRole('owner')
@@ -35,7 +35,7 @@ export class MembersController {
     @Param('memberId', ParseUUIDPipe) memberId: string,
     @Body() body: UpdateMemberRoleDto,
   ): Promise<MemberDto> {
-    return this.membersService.updateMemberRole(projectId, memberId, body.role);
+    return this.membersService.updateMemberRole(projectId, memberId, body.role) as any;
   }
 
   @RequireRole('owner')
@@ -62,7 +62,7 @@ export class InvitesController {
   async listInvites(
     @Param('projectId') projectId: string,
   ): Promise<InviteDto[]> {
-    return this.membersService.listInvites(projectId);
+    return this.membersService.listInvites(projectId) as any;
   }
 
   @RequireRole('owner')
@@ -72,7 +72,7 @@ export class InvitesController {
     @Param('projectId') projectId: string,
     @Body() body: CreateInviteDto,
   ): Promise<InviteDto> {
-    return this.membersService.createInvite(user.user_id, projectId, body);
+    return this.membersService.createInvite(user.user_id, projectId, body) as any;
   }
 
   @RequireRole('owner')
@@ -95,7 +95,7 @@ export class MyInvitesController {
 
   @Get()
   async getMyInvites(@CurrentUser() user: RequestUser): Promise<MyInviteDto[]> {
-    return this.membersService.getMyInvites(user.email);
+    return this.membersService.getMyInvites(user.email) as any;
   }
 
   @Post(':inviteId/accept')

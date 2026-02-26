@@ -17,6 +17,6 @@ export class StickinessController {
   async getStickiness(
     @Query() query: StickinessQueryDto,
   ): Promise<StickinessResponseDto> {
-    return this.stickinessService.query(query);
+    return this.stickinessService.query(query) as any;
   }
 }
