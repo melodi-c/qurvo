@@ -28,6 +28,8 @@ export { emailVerificationCodes } from './email-verification-codes';
 export { eventDefinitions } from './event-definitions';
 export { propertyDefinitions } from './property-definitions';
 export { eventProperties } from './event-properties';
+export { notificationChannelTypeEnum } from './enums';
+export type { NotificationChannelType } from './enums';
 export { aiMonitors } from './ai-monitors';
 export type { AiMonitor, InsertAiMonitor } from './ai-monitors';
 export { aiInsights } from './ai-insights';

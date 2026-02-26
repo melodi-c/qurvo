@@ -1,11 +1,14 @@
 import { IsString, IsIn, IsObject } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { notificationChannelTypeEnum, type NotificationChannelType } from '@qurvo/db';
+
+const CHANNEL_TYPES = notificationChannelTypeEnum.enumValues;
 
 export class TestNotificationDto {
   @IsString()
-  @IsIn(['slack', 'email', 'telegram'])
-  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
-  channel_type: string;
+  @IsIn(CHANNEL_TYPES)
+  @ApiProperty({ enum: CHANNEL_TYPES })
+  channel_type: NotificationChannelType;
 
   @IsObject()
   @ApiProperty({ type: 'object', additionalProperties: true })

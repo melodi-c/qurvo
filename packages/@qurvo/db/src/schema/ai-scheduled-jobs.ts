@@ -1,6 +1,7 @@
 import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
+import { notificationChannelTypeEnum } from './enums';
 
 export const aiScheduledJobs = pgTable('ai_scheduled_jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -13,7 +14,7 @@ export const aiScheduledJobs = pgTable('ai_scheduled_jobs', {
   name: varchar('name', { length: 255 }).notNull(),
   prompt: text('prompt').notNull(),
   schedule: varchar('schedule', { length: 20 }).notNull(), // 'daily' | 'weekly' | 'monthly'
-  channel_type: varchar('channel_type', { length: 20 }).notNull(), // 'slack' | 'email'
+  channel_type: notificationChannelTypeEnum('channel_type').notNull(),
   channel_config: jsonb('channel_config').notNull().$type<Record<string, unknown>>(), // JSONB (matches ai_monitors)
   is_active: boolean('is_active').notNull().default(true),
   last_run_at: timestamp('last_run_at', { withTimezone: true }),

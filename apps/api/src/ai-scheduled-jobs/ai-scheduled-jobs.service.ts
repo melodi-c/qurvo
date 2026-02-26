@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { aiScheduledJobs } from '@qurvo/db';
+import { aiScheduledJobs, type NotificationChannelType } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { ScheduledJobNotFoundException } from './exceptions/scheduled-job-not-found.exception';
 
@@ -9,7 +9,7 @@ export interface CreateScheduledJobInput {
   name: string;
   prompt: string;
   schedule: string;
-  channel_type: string;
+  channel_type: NotificationChannelType;
   channel_config: Record<string, unknown>;
 }
 
@@ -17,7 +17,7 @@ export interface UpdateScheduledJobInput {
   name?: string;
   prompt?: string;
   schedule?: string;
-  channel_type?: string;
+  channel_type?: NotificationChannelType;
   channel_config?: Record<string, unknown>;
   is_active?: boolean;
 }
