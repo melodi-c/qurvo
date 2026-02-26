@@ -102,7 +102,16 @@ function buildFunnelSQL(
   const breakdownOrderBy = hasBreakdown ? 'breakdown_value, ' : '';
   const includeTimestampCols = !hasBreakdown;
 
-  // Time columns for avg_time_to_convert (only for non-breakdown)
+  // Time columns for avg_time_to_convert (only for non-breakdown).
+  //
+  // Semantics: avg time from first step completion to last step completion, measured over
+  // users who completed ALL N steps (max_step >= num_steps AND last_step_ms > first_step_ms).
+  // The aggregate value is identical for every step_num in the CROSS JOIN — this is intentional:
+  // each non-last step shows "the average full-funnel conversion time for users who completed
+  // the entire funnel". The last step is set to null by computeStepResults (isLast check).
+  //
+  // For unordered funnels: first_step_ms = earliest step timestamp (anchor),
+  // last_step_ms = latest qualifying step timestamp. Same total-conversion-time semantics apply.
   const avgTimeCols = includeTimestampCols
     ? `,\n          avgIf(
             (last_step_ms - first_step_ms) / 1000.0,

@@ -35,8 +35,10 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
     `minIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS t${i}_ms`,
   ).join(',\n        ');
 
+  // Use argMinIf (pick by earliest timestamp) to make breakdown deterministic when
+  // OR-logic steps match multiple events with potentially different property values.
   const breakdownCol = breakdownExpr
-    ? `,\n        anyIf(${breakdownExpr}, ${stepConds[0]}) AS breakdown_value`
+    ? `,\n        argMinIf(${breakdownExpr}, timestamp, ${stepConds[0]}) AS breakdown_value`
     : '';
 
   const anchorArgs = steps.map((_, i) => `if(t${i}_ms > 0, t${i}_ms, ${sentinel})`).join(', ');
