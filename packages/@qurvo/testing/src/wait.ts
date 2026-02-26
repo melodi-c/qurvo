@@ -51,6 +51,26 @@ export async function waitForRedisStreamLength(
   );
 }
 
+export interface PollOptions {
+  timeout?: number;
+  interval?: number;
+}
+
+export async function pollUntil(
+  condition: () => Promise<boolean>,
+  opts: PollOptions = {},
+): Promise<void> {
+  const { timeout = 2000, interval = 50 } = opts;
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    if (await condition()) return;
+    await sleep(interval);
+  }
+
+  throw new Error(`pollUntil timed out after ${timeout}ms`);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }

@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import {
   createTestProject,
   waitForRedisStreamLength,
+  pollUntil,
 } from '@qurvo/testing';
 import { projects } from '@qurvo/db';
 import { eq } from 'drizzle-orm';
@@ -168,9 +169,9 @@ describe('POST /v1/import', () => {
       ],
     });
 
-    // Wait a bit for any fire-and-forget operations to complete
-    await new Promise((r) => setTimeout(r, 100));
-
+    // Give fire-and-forget operations a brief window to complete, then assert
+    // the counter was NOT incremented (import endpoint must not bill events)
+    await new Promise((r) => setTimeout(r, 200));
     const counterAfter = await ctx.redis.get(counterKey);
     expect(counterAfter).toBe(counterBefore);
   });
@@ -310,8 +311,11 @@ describe('Billing guard', () => {
       ],
     });
 
-    // Wait for fire-and-forget billing increment
-    await new Promise((r) => setTimeout(r, 100));
+    // Poll until the fire-and-forget billing counter is written to Redis
+    await pollUntil(async () => {
+      const val = await ctx.redis.get(counterKey);
+      return val !== null;
+    }, { timeout: 2000, interval: 50 });
 
     const counter = await ctx.redis.get(counterKey);
     expect(parseInt(counter!, 10)).toBe(3);
@@ -598,12 +602,16 @@ describe('Rate limiting', () => {
       ],
     });
 
-    // Wait for fire-and-forget increment
-    await new Promise((r) => setTimeout(r, 100));
-
     const nowSec = Math.floor(Date.now() / 1000);
     const bucket = Math.floor(nowSec / RATE_LIMIT_BUCKET_SECONDS) * RATE_LIMIT_BUCKET_SECONDS;
     const key = `${RATE_LIMIT_KEY_PREFIX}:${tp.projectId}:${bucket}`;
+
+    // Poll until the fire-and-forget rate-limit counter is written to Redis
+    await pollUntil(async () => {
+      const val = await ctx.redis.get(key);
+      return val !== null;
+    }, { timeout: 2000, interval: 50 });
+
     const counter = await ctx.redis.get(key);
     expect(parseInt(counter!, 10)).toBe(2);
   });
