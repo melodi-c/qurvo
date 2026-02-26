@@ -59,7 +59,7 @@ export function InsightCard({ widget }: InsightCardProps) {
 
       {fullscreen && (
         <Dialog open onOpenChange={(open) => !open && setFullscreen(false)}>
-          <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] flex flex-col">
+          <DialogContent className="max-w-[90vw] w-[90vw] h-[85dvh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{widget.insight?.name || t('widget')}</DialogTitle>
             </DialogHeader>
