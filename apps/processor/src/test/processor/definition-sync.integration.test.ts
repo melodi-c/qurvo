@@ -3,7 +3,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import {
-  setupContainers,
   buildEvent,
   createTestProject,
   ts,
@@ -13,6 +12,7 @@ import { eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/d
 import type { Event } from '@qurvo/clickhouse';
 import { DefinitionSyncService } from '../../processor/definition-sync.service';
 import { detectValueType } from '../../processor/value-type';
+import { getTestContext } from '../context';
 
 let ctx: ContainerContext;
 
@@ -38,7 +38,8 @@ async function sync(events: Event[]) {
 }
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  const tc = await getTestContext();
+  ctx = tc.ctx;
 }, 120_000);
 
 // ── event_definitions auto-population ────────────────────────────────────────
