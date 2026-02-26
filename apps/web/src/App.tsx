@@ -11,10 +11,11 @@ import appTranslations from '@/App.translations';
 import Layout from '@/components/layout';
 import AdminLayout from '@/pages/admin/admin-layout';
 
-// Eager: auth pages (needed immediately)
+// Eager: auth pages (needed immediately) + 404 (must render instantly)
 import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
 import VerifyEmailPage from '@/pages/verify-email';
+import NotFoundPage from '@/pages/not-found';
 
 // Lazy: all other pages
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
@@ -146,6 +147,7 @@ function AppRoutes() {
         <Route path={routes.aiScheduledJobs.pattern} element={<AiScheduledJobsPage />} />
         <Route path={routes.dataManagement.list.pattern} element={<EventDefinitionsPage />} />
         <Route path={routes.dataManagement.detail.pattern} element={<EventDefinitionDetailPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
       <Route
         element={
@@ -160,7 +162,9 @@ function AppRoutes() {
         <Route path={routes.admin.projects.list.pattern} element={<AdminProjectsPage />} />
         <Route path={routes.admin.projects.detail.pattern} element={<AdminProjectDetailPage />} />
         <Route path={routes.admin.plans.list.pattern} element={<AdminPlansPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
