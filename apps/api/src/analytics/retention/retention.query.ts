@@ -116,7 +116,10 @@ export async function queryRetention(
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
-  // Build event property filter conditions (applied to both initial and return events)
+  // Build event property filter conditions.
+  // recurring: applied to both initial and return events.
+  // first_time: applied to return events only — initial event search is unfiltered
+  //   so that "first occurrence" means the true first event, not the first matching one.
   const filterParts = buildPropertyFilterConditions(params.filters ?? [], 'ret', queryParams);
   const filterClause = buildFilterClause(filterParts);
 
@@ -133,7 +136,9 @@ export async function queryRetention(
         AND event_name = {target_event:String}${cohortClause}${filterClause}
       GROUP BY person_id, cohort_period`;
   } else {
-    // First-time: only the first ever occurrence of the event
+    // First-time: only the first ever occurrence of the event, ignoring property
+    // filters — filters must NOT affect which occurrence counts as "first".
+    // Filters are applied only to return_events (see below).
     initialCte = `
       SELECT person_id, cohort_period
       FROM (
@@ -141,7 +146,7 @@ export async function queryRetention(
                min(${granExpr}) AS cohort_period
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND event_name = {target_event:String}${cohortClause}${filterClause}
+          AND event_name = {target_event:String}${cohortClause}
         GROUP BY person_id
       )
       WHERE cohort_period >= {from:DateTime64(3)}

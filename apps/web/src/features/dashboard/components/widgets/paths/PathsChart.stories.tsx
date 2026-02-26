@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import type { PathTransition, TopPath } from '@/api/generated/Api';
+import {
+  FEW_TRANSITIONS,
+  FEW_TOP_PATHS,
+  MANY_TRANSITIONS,
+  MANY_TOP_PATHS,
+} from '@/stories/mocks/paths.mock';
 import { PathsChart } from './PathsChart';
 
 const meta: Meta<typeof PathsChart> = {
@@ -13,75 +18,9 @@ const meta: Meta<typeof PathsChart> = {
 export default meta;
 type Story = StoryObj<typeof PathsChart>;
 
-// --- Few-nodes fixture ---
-// 3 steps: Landing → [Product, Blog] → [Sign Up, Contact]
-const fewTransitions: PathTransition[] = [
-  { step: 0, source: '/', target: '/product', person_count: 420 },
-  { step: 0, source: '/', target: '/blog', person_count: 180 },
-  { step: 1, source: '/product', target: '/signup', person_count: 210 },
-  { step: 1, source: '/product', target: '/contact', person_count: 90 },
-  { step: 1, source: '/blog', target: '/signup', person_count: 60 },
-  { step: 1, source: '/blog', target: '/contact', person_count: 40 },
-];
-
-const fewTopPaths: TopPath[] = [
-  { path: ['/', '/product', '/signup'], person_count: 210 },
-  { path: ['/', '/product', '/contact'], person_count: 90 },
-  { path: ['/', '/blog', '/signup'], person_count: 60 },
-  { path: ['/', '/blog', '/contact'], person_count: 40 },
-];
-
-// --- Many-nodes fixture ---
-// 4 steps with many branches to stress the Sankey layout
-const manyTransitions: PathTransition[] = [
-  { step: 0, source: '/', target: '/features', person_count: 800 },
-  { step: 0, source: '/', target: '/pricing', person_count: 600 },
-  { step: 0, source: '/', target: '/blog', person_count: 400 },
-  { step: 0, source: '/', target: '/docs', person_count: 300 },
-  { step: 0, source: '/', target: '/about', person_count: 150 },
-
-  { step: 1, source: '/features', target: '/pricing', person_count: 320 },
-  { step: 1, source: '/features', target: '/signup', person_count: 200 },
-  { step: 1, source: '/features', target: '/docs', person_count: 180 },
-  { step: 1, source: '/features', target: '/contact', person_count: 100 },
-  { step: 1, source: '/pricing', target: '/signup', person_count: 280 },
-  { step: 1, source: '/pricing', target: '/features', person_count: 140 },
-  { step: 1, source: '/pricing', target: '/contact', person_count: 80 },
-  { step: 1, source: '/blog', target: '/features', person_count: 160 },
-  { step: 1, source: '/blog', target: '/pricing', person_count: 120 },
-  { step: 1, source: '/blog', target: '/docs', person_count: 90 },
-  { step: 1, source: '/docs', target: '/signup', person_count: 110 },
-  { step: 1, source: '/docs', target: '/features', person_count: 90 },
-  { step: 1, source: '/about', target: '/contact', person_count: 70 },
-  { step: 1, source: '/about', target: '/signup', person_count: 50 },
-
-  { step: 2, source: '/signup', target: '/onboarding', person_count: 480 },
-  { step: 2, source: '/signup', target: '/dashboard', person_count: 160 },
-  { step: 2, source: '/pricing', target: '/signup', person_count: 200 },
-  { step: 2, source: '/features', target: '/signup', person_count: 140 },
-  { step: 2, source: '/docs', target: '/signup', person_count: 90 },
-  { step: 2, source: '/contact', target: '/', person_count: 110 },
-
-  { step: 3, source: '/onboarding', target: '/dashboard', person_count: 400 },
-  { step: 3, source: '/onboarding', target: '/invite', person_count: 80 },
-  { step: 3, source: '/dashboard', target: '/settings', person_count: 120 },
-  { step: 3, source: '/dashboard', target: '/invite', person_count: 90 },
-  { step: 3, source: '/signup', target: '/onboarding', person_count: 200 },
-];
-
-const manyTopPaths: TopPath[] = [
-  { path: ['/', '/features', '/pricing', '/signup', '/onboarding', '/dashboard'], person_count: 320 },
-  { path: ['/', '/pricing', '/signup', '/onboarding', '/dashboard'], person_count: 280 },
-  { path: ['/', '/features', '/signup', '/onboarding', '/dashboard'], person_count: 200 },
-  { path: ['/', '/docs', '/signup', '/onboarding', '/dashboard'], person_count: 110 },
-  { path: ['/', '/blog', '/features', '/signup', '/onboarding'], person_count: 90 },
-  { path: ['/', '/pricing', '/features', '/signup', '/onboarding'], person_count: 80 },
-  { path: ['/', '/about', '/signup', '/onboarding', '/invite'], person_count: 50 },
-];
-
 export const FewNodes: Story = {
   args: {
-    transitions: fewTransitions,
+    transitions: FEW_TRANSITIONS,
     topPaths: [],
   },
   render: (args) => (
@@ -93,7 +32,7 @@ export const FewNodes: Story = {
 
 export const ManyNodes: Story = {
   args: {
-    transitions: manyTransitions,
+    transitions: MANY_TRANSITIONS,
     topPaths: [],
   },
   render: (args) => (
@@ -105,8 +44,8 @@ export const ManyNodes: Story = {
 
 export const WithTopPathsTable: Story = {
   args: {
-    transitions: fewTransitions,
-    topPaths: fewTopPaths,
+    transitions: FEW_TRANSITIONS,
+    topPaths: FEW_TOP_PATHS,
   },
   render: (args) => (
     <div className="w-full border border-border rounded-lg p-4">
@@ -118,8 +57,8 @@ export const WithTopPathsTable: Story = {
 export const WithTopPathsTableManyNodes: Story = {
   name: 'WithTopPathsTable (many nodes)',
   args: {
-    transitions: manyTransitions,
-    topPaths: manyTopPaths,
+    transitions: MANY_TRANSITIONS,
+    topPaths: MANY_TOP_PATHS,
   },
   render: (args) => (
     <div className="w-full border border-border rounded-lg p-4">
@@ -130,8 +69,8 @@ export const WithTopPathsTableManyNodes: Story = {
 
 export const CompactMode: Story = {
   args: {
-    transitions: fewTransitions,
-    topPaths: fewTopPaths,
+    transitions: FEW_TRANSITIONS,
+    topPaths: FEW_TOP_PATHS,
     compact: true,
   },
   render: (args) => (
