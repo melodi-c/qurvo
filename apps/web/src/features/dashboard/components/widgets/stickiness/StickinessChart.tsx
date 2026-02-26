@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import type { StickinessResult } from '@/api/generated/Api';
 import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
+import { formatCompactNumber } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './StickinessChart.translations';
 
@@ -68,7 +69,8 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
           tick={{ fill: CHART_AXIS_TICK_COLOR, fontSize: compact ? 10 : 12 }}
           axisLine={false}
           tickLine={false}
-          width={compact ? 35 : 45}
+          width={compact ? 40 : 45}
+          tickFormatter={compact ? formatCompactNumber : undefined}
         />
         {!compact && (
           <Tooltip

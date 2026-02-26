@@ -51,7 +51,7 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) => `${v}%`}
-          width={compact ? 35 : 45}
+          width={compact ? 40 : 45}
         />
         {!compact && (
           <Tooltip
