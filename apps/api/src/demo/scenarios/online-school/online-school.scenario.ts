@@ -487,11 +487,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightDauId,
         type: 'trend',
-        name: 'Daily Active Users (DAU)',
-        description: 'Unique users performing any action per day',
+        name: 'Активные пользователи (DAU)',
+        description: 'Уникальные пользователи, выполнявшие любое действие за день',
         config: {
           type: 'trend',
-          series: [{ event_name: '$pageview', label: 'Active Users' }],
+          series: [{ event_name: '$pageview', label: 'Активные пользователи' }],
           metric: 'unique_users',
           granularity: 'day',
           chart_type: 'line',
@@ -504,11 +504,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightNewUsersId,
         type: 'trend',
-        name: 'New Registrations',
-        description: 'New sign-ups over time',
+        name: 'Новые регистрации',
+        description: 'Количество новых регистраций за период',
         config: {
           type: 'trend',
-          series: [{ event_name: 'signed_up', label: 'Sign-ups' }],
+          series: [{ event_name: 'signed_up', label: 'Регистрации' }],
           metric: 'total_events',
           granularity: 'day',
           chart_type: 'bar',
@@ -521,11 +521,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightRevenueId,
         type: 'trend',
-        name: 'Revenue (payment_made)',
-        description: 'Total payment volume per week',
+        name: 'Выручка (payment_made)',
+        description: 'Суммарный объём платежей за неделю',
         config: {
           type: 'trend',
-          series: [{ event_name: 'payment_made', label: 'Revenue' }],
+          series: [{ event_name: 'payment_made', label: 'Выручка' }],
           metric: 'property_sum',
           metric_property: 'amount',
           granularity: 'week',
@@ -539,13 +539,13 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightLessonActivityId,
         type: 'trend',
-        name: 'Lesson Activity',
-        description: 'Lessons started vs completed per week',
+        name: 'Активность по урокам',
+        description: 'Начатые и завершённые уроки за неделю',
         config: {
           type: 'trend',
           series: [
-            { event_name: 'lesson_started', label: 'Lessons Started' },
-            { event_name: 'lesson_completed', label: 'Lessons Completed' },
+            { event_name: 'lesson_started', label: 'Начато уроков' },
+            { event_name: 'lesson_completed', label: 'Завершено уроков' },
           ],
           metric: 'total_events',
           granularity: 'week',
@@ -558,11 +558,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightCourseEnrollmentsId,
         type: 'trend',
-        name: 'Course Enrollments by Category',
-        description: 'Enrollments broken down by course category',
+        name: 'Записи на курсы по категориям',
+        description: 'Количество записей на курсы с разбивкой по категориям',
         config: {
           type: 'trend',
-          series: [{ event_name: 'course_enrolled', label: 'Enrollments' }],
+          series: [{ event_name: 'course_enrolled', label: 'Записи' }],
           metric: 'total_events',
           granularity: 'week',
           chart_type: 'bar',
@@ -576,15 +576,15 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightFunnelId,
         type: 'funnel',
-        name: 'Registration → Payment Funnel',
-        description: 'Conversion from pageview through to payment',
+        name: 'Воронка регистрации и оплаты',
+        description: 'Конверсия от просмотра страницы до оплаты',
         config: {
           type: 'funnel',
           steps: [
-            { event_name: '$pageview', label: 'Page View' },
-            { event_name: 'signed_up', label: 'Signed Up' },
-            { event_name: 'course_enrolled', label: 'Enrolled' },
-            { event_name: 'payment_made', label: 'Payment Made' },
+            { event_name: '$pageview', label: 'Просмотр страницы' },
+            { event_name: 'signed_up', label: 'Регистрация' },
+            { event_name: 'course_enrolled', label: 'Запись на курс' },
+            { event_name: 'payment_made', label: 'Оплата' },
           ],
           conversion_window_days: 14,
           date_from: dateFrom,
@@ -595,8 +595,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightRetentionWeeklyId,
         type: 'retention',
-        name: 'Weekly Retention (signed_up)',
-        description: 'How well we retain users week-over-week after sign-up',
+        name: 'Недельное удержание (signed_up)',
+        description: 'Удержание пользователей неделя за неделей после регистрации',
         config: {
           type: 'retention',
           target_event: 'signed_up',
@@ -611,8 +611,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightLifecycleId,
         type: 'lifecycle',
-        name: 'Lesson Activity Lifecycle',
-        description: 'New, returning, resurrecting and dormant learners based on lesson_started',
+        name: 'Жизненный цикл активности по урокам',
+        description: 'Новые, возвращающиеся, воскресающие и неактивные учащиеся на основе lesson_started',
         config: {
           type: 'lifecycle',
           target_event: 'lesson_started',
@@ -624,8 +624,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightStickinessId,
         type: 'stickiness',
-        name: 'Learning Stickiness',
-        description: 'How many days per week users start lessons',
+        name: 'Вовлечённость в обучение',
+        description: 'Сколько дней в неделю пользователи начинают уроки',
         config: {
           type: 'stickiness',
           target_event: 'lesson_started',
@@ -637,8 +637,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightPathsId,
         type: 'paths',
-        name: 'Paths After Sign-up',
-        description: 'What users do after signing up',
+        name: 'Пути после регистрации',
+        description: 'Что делают пользователи после регистрации',
         config: {
           type: 'paths',
           date_from: dateFrom,
@@ -656,9 +656,9 @@ export class OnlineSchoolScenario extends BaseScenario {
     const dashboardAcquisitionId = randomUUID();
 
     const dashboards: DashboardInput[] = [
-      { id: dashboardOverviewId, name: 'Overview' },
-      { id: dashboardFunnelId, name: 'Funnel Analysis' },
-      { id: dashboardAcquisitionId, name: 'Acquisition' },
+      { id: dashboardOverviewId, name: 'Обзор' },
+      { id: dashboardFunnelId, name: 'Анализ воронок' },
+      { id: dashboardAcquisitionId, name: 'Привлечение' },
     ];
 
     // ── Widgets ───────────────────────────────────────────────────────────────
@@ -686,8 +686,8 @@ export class OnlineSchoolScenario extends BaseScenario {
     const cohorts: CohortInput[] = [
       {
         id: randomUUID(),
-        name: 'Pro Users',
-        description: 'Users on the Pro plan',
+        name: 'Pro-пользователи',
+        description: 'Пользователи на тарифе Pro',
         definition: {
           type: 'AND',
           values: [
@@ -702,8 +702,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       },
       {
         id: randomUUID(),
-        name: 'Completed a Course',
-        description: 'Users who earned at least one certificate',
+        name: 'Завершили курс',
+        description: 'Пользователи, получившие хотя бы один сертификат',
         definition: {
           type: 'AND',
           values: [
@@ -719,8 +719,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       },
       {
         id: randomUUID(),
-        name: 'Signed Up Last 30 Days',
-        description: 'Users who registered in the last 30 days',
+        name: 'Зарегистрировались за 30 дней',
+        description: 'Пользователи, зарегистрировавшиеся за последние 30 дней',
         definition: {
           type: 'AND',
           values: [
@@ -734,8 +734,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       },
       {
         id: randomUUID(),
-        name: 'Paid Users',
-        description: 'Users who made at least one payment',
+        name: 'Платящие пользователи',
+        description: 'Пользователи, совершившие хотя бы один платёж',
         definition: {
           type: 'AND',
           values: [
@@ -751,8 +751,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       },
       {
         id: randomUUID(),
-        name: 'Churned',
-        description: 'Signed up 14+ days ago and haven\'t started a lesson in 7+ days',
+        name: 'Отток',
+        description: 'Зарегистрировались 14+ дней назад и не начинали урок 7+ дней',
         definition: {
           type: 'AND',
           values: [
@@ -779,10 +779,10 @@ export class OnlineSchoolScenario extends BaseScenario {
     const channelReferralId = randomUUID();
 
     const marketingChannels: MarketingChannelInput[] = [
-      { id: channelGoogleId, name: 'Google Ads', channel_type: 'google_ads', color: '#4285F4' },
-      { id: channelFacebookId, name: 'Facebook Ads', channel_type: 'facebook_ads', color: '#1877F2' },
-      { id: channelOrganicId, name: 'Organic', channel_type: 'manual', color: '#34A853' },
-      { id: channelReferralId, name: 'Referral', channel_type: 'manual', color: '#FBBC04' },
+      { id: channelGoogleId, name: 'Google Реклама', channel_type: 'google_ads', color: '#4285F4' },
+      { id: channelFacebookId, name: 'Facebook Реклама', channel_type: 'facebook_ads', color: '#1877F2' },
+      { id: channelOrganicId, name: 'Органика', channel_type: 'manual', color: '#34A853' },
+      { id: channelReferralId, name: 'Реферальный', channel_type: 'manual', color: '#FBBC04' },
     ];
 
     // ── Ad Spend: 60 days of data ─────────────────────────────────────────────
