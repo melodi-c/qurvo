@@ -49,11 +49,11 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
 
   if (data.length === 0) return null;
 
-  const height = compact ? 160 : 300;
   const usersLabel = t('users');
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <div className={compact ? 'h-full' : ''}>
+    <ResponsiveContainer width="100%" height={compact ? '100%' : 300}>
       <BarChart
         data={data}
         margin={compact ? { top: 5, right: 10, bottom: 5, left: 0 } : { top: 10, right: 30, bottom: 10, left: 10 }}
@@ -84,5 +84,6 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
         <Bar dataKey="user_count" fill={CHART_COLORS_HEX[2]} name={usersLabel} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
