@@ -1044,6 +1044,25 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/@qurvo/sdk-tma:
+    dependencies:
+      '@qurvo/sdk-core':
+        specifier: workspace:*
+        version: link:../sdk-core
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.2
+    devDependencies:
+      '@qurvo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/@qurvo/testing:
     dependencies:
       '@qurvo/clickhouse':
