@@ -68,18 +68,19 @@ function assembleResult(
     periods: cohortMap.get(key)!,
   }));
 
-  // Compute average retention %
+  // Compute weighted average retention % (weighted by cohort size)
+  // sum(returned_at_offset) / sum(cohort_size) * 100
   const average_retention: number[] = [];
   for (let offset = 0; offset <= params.periods; offset++) {
-    let totalPct = 0;
-    let count = 0;
+    let totalReturned = 0;
+    let totalSize = 0;
     for (const cohort of cohorts) {
       if (cohort.cohort_size > 0) {
-        totalPct += (cohort.periods[offset] / cohort.cohort_size) * 100;
-        count++;
+        totalReturned += cohort.periods[offset];
+        totalSize += cohort.cohort_size;
       }
     }
-    average_retention.push(count > 0 ? Math.round((totalPct / count) * 100) / 100 : 0);
+    average_retention.push(totalSize > 0 ? Math.round((totalReturned / totalSize) * 100 * 100) / 100 : 0);
   }
 
   return {

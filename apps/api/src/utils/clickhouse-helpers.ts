@@ -2,7 +2,19 @@ import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-q
 
 export function toChTs(iso: string, endOfDay = false): string {
   if (iso.length === 10 && endOfDay) return `${iso} 23:59:59`;
-  return iso.replace('T', ' ').replace('Z', '');
+  if (iso.length === 10) return iso;
+  // If the string has an explicit timezone offset (+HH:MM or -HH:MM) or a Z
+  // suffix we must normalise to UTC so the offset is applied correctly.
+  // Without an explicit timezone the caller is already passing UTC wall-clock
+  // time (e.g. from a date-only picker or a stored UTC string), so we strip
+  // the T separator and any milliseconds directly without date arithmetic.
+  const hasTimezone = iso.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(iso);
+  if (hasTimezone) {
+    const utc = new Date(iso).toISOString(); // → "YYYY-MM-DDTHH:mm:ss.mmmZ"
+    return utc.slice(0, 19).replace('T', ' '); // → "YYYY-MM-DD HH:mm:ss"
+  }
+  // No timezone — treat as UTC wall-clock, strip T and optional milliseconds.
+  return iso.slice(0, 19).replace('T', ' ');
 }
 
 export { RESOLVED_PERSON } from '@qurvo/cohort-query';

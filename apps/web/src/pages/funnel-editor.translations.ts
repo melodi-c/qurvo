@@ -20,6 +20,8 @@ export default createTranslations({
     sampleSize: 'Sample size',
     noData: '\u2014',
     descriptionPlaceholder: 'Add description...',
+    step1Label: 'Step 1',
+    step2Label: 'Step 2',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -40,5 +42,7 @@ export default createTranslations({
     sampleSize: 'Выборка',
     noData: '\u2014',
     descriptionPlaceholder: 'Добавьте описание...',
+    step1Label: 'Шаг 1',
+    step2Label: 'Шаг 2',
   },
 });

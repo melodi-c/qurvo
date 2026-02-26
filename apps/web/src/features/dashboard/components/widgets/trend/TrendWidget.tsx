@@ -20,7 +20,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
 
   const config = widget.insight?.config as TrendWidgetConfig | undefined;
   const hasConfig = !!config;
-  const query = useTrendData(config ?? defaultTrendConfig(), widget.id);
+  const query = useTrendData(config ?? defaultTrendConfig(t('seriesLabel')), widget.id);
   const result = query.data?.data;
   const { data: annotations } = useAnnotations(config?.date_from, config?.date_to);
 
