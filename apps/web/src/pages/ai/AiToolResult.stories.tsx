@@ -1,15 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AiToolResult } from './ai-tool-result';
-import type {
-  RetentionResult as RetentionResultType,
-  LifecycleResult as LifecycleResultType,
-  StickinessResult as StickinessResultType,
-  PathTransition,
-  TopPath,
-  TrendSeriesResult,
-  FunnelStepResult,
-} from '@/api/generated/Api';
+import {
+  TREND_MULTI_SERIES,
+  TREND_SERIES_14D,
+  FIVE_STEPS,
+  RETENTION_WEEK_RESULT_WITH_COHORTS,
+  LIFECYCLE_BASE,
+  STICKINESS_WEEKLY_4,
+  MANY_TRANSITIONS,
+  MANY_TOP_PATHS,
+} from '@/stories/mocks';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
 
@@ -33,48 +34,8 @@ export default meta;
 type Story = StoryObj;
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeDailyBuckets(days: number): string[] {
-  const buckets: string[] = [];
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    buckets.push(d.toISOString().slice(0, 10));
-  }
-  return buckets;
-}
-
-const buckets14 = makeDailyBuckets(14);
-const buckets30 = makeDailyBuckets(30);
-
-// ---------------------------------------------------------------------------
 // Trend result
 // ---------------------------------------------------------------------------
-
-const trendSeries: TrendSeriesResult[] = [
-  {
-    series_idx: 0,
-    label: '$pageview',
-    event_name: '$pageview',
-    data: buckets30.map((bucket, i) => ({
-      bucket,
-      value: 800 + Math.round(Math.sin(i * 0.4) * 200 + i * 5),
-    })),
-  },
-  {
-    series_idx: 1,
-    label: 'signup',
-    event_name: 'signup',
-    data: buckets30.map((bucket, i) => ({
-      bucket,
-      value: 80 + Math.round(Math.sin(i * 0.35) * 20 + i * 0.5),
-    })),
-  },
-];
 
 export const TrendResult: Story = {
   name: 'TrendResult — line chart with 2 series',
@@ -82,7 +43,7 @@ export const TrendResult: Story = {
     <AiToolResult
       toolName="query_trend"
       visualizationType="trend_chart"
-      result={{ series: trendSeries, granularity: 'day' }}
+      result={{ series: TREND_MULTI_SERIES, granularity: 'day' }}
     />
   ),
 };
@@ -93,7 +54,7 @@ export const TrendResultSingleSeries: Story = {
     <AiToolResult
       toolName="query_trend"
       visualizationType="trend_chart"
-      result={{ series: [trendSeries[0]], granularity: 'day' }}
+      result={{ series: TREND_SERIES_14D, granularity: 'day' }}
     />
   ),
 };
@@ -102,56 +63,13 @@ export const TrendResultSingleSeries: Story = {
 // Funnel result
 // ---------------------------------------------------------------------------
 
-const funnelSteps: FunnelStepResult[] = [
-  {
-    step: 1,
-    label: 'Step 1',
-    event_name: '$pageview',
-    count: 10000,
-    conversion_rate: 1.0,
-    drop_off: 0,
-    drop_off_rate: 0,
-    avg_time_to_convert_seconds: null,
-  },
-  {
-    step: 2,
-    label: 'Step 2',
-    event_name: 'signup_started',
-    count: 3200,
-    conversion_rate: 0.32,
-    drop_off: 6800,
-    drop_off_rate: 0.68,
-    avg_time_to_convert_seconds: 45,
-  },
-  {
-    step: 3,
-    label: 'Step 3',
-    event_name: 'signup_completed',
-    count: 1800,
-    conversion_rate: 0.5625,
-    drop_off: 1400,
-    drop_off_rate: 0.4375,
-    avg_time_to_convert_seconds: 120,
-  },
-  {
-    step: 4,
-    label: 'Step 4',
-    event_name: 'onboarding_done',
-    count: 1200,
-    conversion_rate: 0.6667,
-    drop_off: 600,
-    drop_off_rate: 0.3333,
-    avg_time_to_convert_seconds: 300,
-  },
-];
-
 export const FunnelResult: Story = {
-  name: 'FunnelResult — 4-step funnel',
+  name: 'FunnelResult — 5-step funnel',
   render: () => (
     <AiToolResult
       toolName="query_funnel"
       visualizationType="funnel_chart"
-      result={{ steps: funnelSteps }}
+      result={{ steps: FIVE_STEPS }}
     />
   ),
 };
@@ -160,31 +78,13 @@ export const FunnelResult: Story = {
 // Retention result
 // ---------------------------------------------------------------------------
 
-const retentionData: RetentionResultType = {
-  retention_type: 'first_time',
-  granularity: 'week',
-  cohorts: buckets14.slice(0, 6).map((date, i) => ({
-    cohort_date: date,
-    cohort_size: 200 - i * 20,
-    periods: [
-      1.0,
-      0.7 - i * 0.05,
-      0.5 - i * 0.04,
-      0.4 - i * 0.03,
-      0.35 - i * 0.02,
-      0.3 - i * 0.01,
-    ].slice(0, 6 - i).map((v) => Math.max(0, v)),
-  })),
-  average_retention: [1.0, 0.65, 0.48, 0.38, 0.32, 0.28],
-};
-
 export const RetentionResultStory: Story = {
   name: 'RetentionResult — weekly cohorts',
   render: () => (
     <AiToolResult
       toolName="query_retention"
       visualizationType="retention_chart"
-      result={retentionData}
+      result={RETENTION_WEEK_RESULT_WITH_COHORTS}
     />
   ),
 };
@@ -193,25 +93,13 @@ export const RetentionResultStory: Story = {
 // Lifecycle result
 // ---------------------------------------------------------------------------
 
-const lifecycleData: LifecycleResultType = {
-  granularity: 'day',
-  data: buckets14.map((bucket, i) => ({
-    bucket,
-    new: 50 + Math.round(Math.sin(i * 0.5) * 15),
-    returning: 180 + Math.round(Math.cos(i * 0.4) * 30),
-    resurrecting: 20 + Math.round(Math.sin(i * 0.3) * 8),
-    dormant: -(80 + Math.round(Math.cos(i * 0.45) * 20)),
-  })),
-  totals: { new: 720, returning: 2520, resurrecting: 280, dormant: -1120 },
-};
-
 export const LifecycleResultStory: Story = {
   name: 'LifecycleResult — daily breakdown',
   render: () => (
     <AiToolResult
       toolName="query_lifecycle"
       visualizationType="lifecycle_chart"
-      result={lifecycleData}
+      result={LIFECYCLE_BASE}
     />
   ),
 };
@@ -220,24 +108,13 @@ export const LifecycleResultStory: Story = {
 // Stickiness result
 // ---------------------------------------------------------------------------
 
-const stickinessData: StickinessResultType = {
-  granularity: 'week',
-  total_periods: 4,
-  data: [
-    { period_count: 1, user_count: 420 },
-    { period_count: 2, user_count: 280 },
-    { period_count: 3, user_count: 160 },
-    { period_count: 4, user_count: 95 },
-  ],
-};
-
 export const StickinessResultStory: Story = {
   name: 'StickinessResult — weekly stickiness',
   render: () => (
     <AiToolResult
       toolName="query_stickiness"
       visualizationType="stickiness_chart"
-      result={stickinessData}
+      result={STICKINESS_WEEKLY_4}
     />
   ),
 };
@@ -246,30 +123,13 @@ export const StickinessResultStory: Story = {
 // Paths result
 // ---------------------------------------------------------------------------
 
-const pathTransitions: PathTransition[] = [
-  { step: 1, source: '$pageview', target: 'pricing_viewed', person_count: 2400 },
-  { step: 1, source: '$pageview', target: 'signup_started', person_count: 1800 },
-  { step: 1, source: '$pageview', target: 'docs_viewed', person_count: 1200 },
-  { step: 2, source: 'pricing_viewed', target: 'signup_started', person_count: 960 },
-  { step: 2, source: 'pricing_viewed', target: '$pageview', person_count: 480 },
-  { step: 2, source: 'signup_started', target: 'signup_completed', person_count: 1440 },
-  { step: 2, source: 'signup_started', target: '$pageview', person_count: 360 },
-  { step: 3, source: 'signup_started', target: 'onboarding_done', person_count: 1080 },
-  { step: 3, source: 'signup_completed', target: 'onboarding_started', person_count: 1200 },
-];
-
-const topPaths: TopPath[] = [
-  { path: ['$pageview', 'signup_started', 'signup_completed'], person_count: 1440 },
-  { path: ['$pageview', 'pricing_viewed', 'signup_started'], person_count: 960 },
-];
-
 export const PathsResult: Story = {
   name: 'PathsResult — user flow paths',
   render: () => (
     <AiToolResult
       toolName="query_paths"
       visualizationType="paths_chart"
-      result={{ transitions: pathTransitions, top_paths: topPaths }}
+      result={{ transitions: MANY_TRANSITIONS, top_paths: MANY_TOP_PATHS }}
     />
   ),
 };
@@ -526,23 +386,23 @@ export const AllChartTypes: Story = {
     <div className="space-y-6">
       <div>
         <p className="text-xs text-muted-foreground font-mono mb-2">trend_chart</p>
-        <AiToolResult toolName="query_trend" visualizationType="trend_chart" result={{ series: trendSeries, granularity: 'day' }} />
+        <AiToolResult toolName="query_trend" visualizationType="trend_chart" result={{ series: TREND_MULTI_SERIES, granularity: 'day' }} />
       </div>
       <div>
         <p className="text-xs text-muted-foreground font-mono mb-2">funnel_chart</p>
-        <AiToolResult toolName="query_funnel" visualizationType="funnel_chart" result={{ steps: funnelSteps }} />
+        <AiToolResult toolName="query_funnel" visualizationType="funnel_chart" result={{ steps: FIVE_STEPS }} />
       </div>
       <div>
         <p className="text-xs text-muted-foreground font-mono mb-2">retention_chart</p>
-        <AiToolResult toolName="query_retention" visualizationType="retention_chart" result={retentionData} />
+        <AiToolResult toolName="query_retention" visualizationType="retention_chart" result={RETENTION_WEEK_RESULT_WITH_COHORTS} />
       </div>
       <div>
         <p className="text-xs text-muted-foreground font-mono mb-2">lifecycle_chart</p>
-        <AiToolResult toolName="query_lifecycle" visualizationType="lifecycle_chart" result={lifecycleData} />
+        <AiToolResult toolName="query_lifecycle" visualizationType="lifecycle_chart" result={LIFECYCLE_BASE} />
       </div>
       <div>
         <p className="text-xs text-muted-foreground font-mono mb-2">stickiness_chart</p>
-        <AiToolResult toolName="query_stickiness" visualizationType="stickiness_chart" result={stickinessData} />
+        <AiToolResult toolName="query_stickiness" visualizationType="stickiness_chart" result={STICKINESS_WEEKLY_4} />
       </div>
     </div>
   ),
