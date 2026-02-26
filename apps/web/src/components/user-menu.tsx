@@ -157,7 +157,7 @@ export function UserMenu({
               <span className="text-xs text-muted-foreground">{languages[currentLang]}</span>
             </DropdownMenuItem>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start">
+          <DropdownMenuContent side="bottom" align="start">
             {(Object.entries(languages) as [Language, string][]).map(([code, label]) => (
               <DropdownMenuItem
                 key={code}
