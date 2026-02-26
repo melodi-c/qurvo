@@ -56,14 +56,6 @@ export function EventsFilterPanel({
 
       <Separator />
 
-      <DateRangeSection
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onChange={onDateChange}
-      />
-
-      <Separator />
-
       <FilterListSection
         label={t('filters')}
         addLabel={t('addFilter')}
@@ -71,6 +63,14 @@ export function EventsFilterPanel({
         onFiltersChange={onFiltersChange}
         propertyNames={propertyNames}
         propertyDescriptions={propDescriptions}
+      />
+
+      <Separator />
+
+      <DateRangeSection
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onChange={onDateChange}
       />
     </div>
   );
