@@ -1,0 +1,30 @@
+{
+  "name": "@qurvo/sdk-tma",
+  "version": "0.0.1",
+  "description": "Telegram Mini Apps SDK for Qurvo analytics — event tracking, user identification, CloudStorage queue",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prebuild": "node -e \"const p=require('./package.json'); require('fs').writeFileSync('src/version.ts', 'export const SDK_VERSION = \\'' + p.version + '\\';\\n')\"",
+    "build": "tsc && node esbuild.config.mjs",
+    "build:types": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@qurvo/sdk-core": "workspace:*",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@qurvo/tsconfig": "workspace:*",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  }
+}
