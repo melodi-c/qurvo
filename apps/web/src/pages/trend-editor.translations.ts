@@ -20,6 +20,7 @@ export default createTranslations({
     propertyMin: 'Min of property',
     propertyMax: 'Max of property',
     descriptionPlaceholder: 'Add description...',
+    addAnnotation: 'Add annotation',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -40,5 +41,6 @@ export default createTranslations({
     propertyMin: 'Минимум свойства',
     propertyMax: 'Максимум свойства',
     descriptionPlaceholder: 'Добавьте описание...',
+    addAnnotation: 'Добавить аннотацию',
   },
 });

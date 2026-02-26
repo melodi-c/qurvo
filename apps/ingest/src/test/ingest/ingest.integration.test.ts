@@ -1,19 +1,12 @@
 import 'reflect-metadata';
 import { createHash } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
-import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
-  setupContainers,
   createTestProject,
   waitForRedisStreamLength,
-  type ContainerContext,
-  type TestProject,
 } from '@qurvo/testing';
 import { projects } from '@qurvo/db';
 import { eq } from 'drizzle-orm';
-import { AppModule } from '../../app.module';
 import {
   REDIS_STREAM_EVENTS,
   billingCounterKey,
@@ -22,36 +15,16 @@ import {
   RATE_LIMIT_MAX_EVENTS,
   RATE_LIMIT_BUCKET_SECONDS,
 } from '../../constants';
-import { addGzipPreParsing } from '../../hooks/gzip-preparsing';
 import { postBatch, postBatchBeacon, postBatchGzip, postBatchGzipNoHeader, postBatchWithBodyKey, postImport, getBaseUrl, parseRedisFields } from '../helpers';
+import { getTestContext } from '../context';
 
-let ctx: ContainerContext;
-let app: INestApplication;
-let testProject: TestProject;
+let ctx: Awaited<ReturnType<typeof getTestContext>>['ctx'];
+let app: Awaited<ReturnType<typeof getTestContext>>['app'];
+let testProject: Awaited<ReturnType<typeof getTestContext>>['testProject'];
 
 beforeAll(async () => {
-  ctx = await setupContainers();
-
-  process.env.DATABASE_URL = ctx.pgUrl;
-  process.env.REDIS_URL = ctx.redisUrl;
-
-  testProject = await createTestProject(ctx.db);
-
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
-
-  app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter({ bodyLimit: 1048576 }));
-
-  addGzipPreParsing((app as NestFastifyApplication).getHttpAdapter().getInstance());
-
-  await app.init();
-  await app.listen(0);
+  ({ ctx, app, testProject } = await getTestContext());
 }, 120_000);
-
-afterAll(async () => {
-  await app?.close();
-});
 
 describe('POST /v1/batch', () => {
   it('returns 202 and pushes all events to Redis stream', async () => {
