@@ -25,8 +25,8 @@ const argsSchema = z.object({
   order_by: z.enum(['event_count', 'last_seen', 'first_seen']).optional().describe(
     'Sort order for results. Defaults to "event_count" (most active users first).',
   ),
-  limit: z.number().int().min(1).max(100).optional().describe(
-    'Maximum number of persons to return. Default: 20, max: 100.',
+  limit: z.number().int().min(1).max(25).optional().describe(
+    'Maximum number of persons to return. Default: 10, max: 25.',
   ),
 });
 
@@ -38,6 +38,23 @@ const tool = defineTool({
     '"show me users who signed up last week", or "find users with browser=Chrome".',
   schema: argsSchema,
 });
+
+const MAX_STRING_LENGTH = 60;
+
+function truncateStringValue(value: unknown): unknown {
+  if (typeof value === 'string' && value.length > MAX_STRING_LENGTH) {
+    return value.slice(0, MAX_STRING_LENGTH) + '…';
+  }
+  return value;
+}
+
+function truncateUserProperties(props: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(props)) {
+    result[key] = truncateStringValue(val);
+  }
+  return result;
+}
 
 interface PersonRow {
   person_id: string;
@@ -58,7 +75,7 @@ export class QueryPersonsTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, _userId, projectId) => {
-    const limit = Math.min(args.limit ?? 20, 100);
+    const limit = Math.min(args.limit ?? 10, 25);
     const orderBy = args.order_by ?? 'event_count';
 
     const params: Record<string, unknown> = { project_id: projectId, limit };
@@ -106,15 +123,18 @@ export class QueryPersonsTool implements AiTool {
     const res = await this.ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
     const rows = await res.json<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>();
 
-    const persons: PersonRow[] = rows.map((r) => ({
-      person_id: r.person_id,
-      user_properties: typeof r.user_properties === 'string'
+    const persons: PersonRow[] = rows.map((r) => {
+      const rawProps: Record<string, unknown> = typeof r.user_properties === 'string'
         ? (JSON.parse(r.user_properties) as Record<string, unknown>)
-        : (r.user_properties as Record<string, unknown>),
-      event_count: typeof r.event_count === 'string' ? parseInt(r.event_count, 10) : r.event_count,
-      first_seen: r.first_seen,
-      last_seen: r.last_seen,
-    }));
+        : (r.user_properties as Record<string, unknown>);
+      return {
+        person_id: r.person_id,
+        user_properties: truncateUserProperties(rawProps),
+        event_count: typeof r.event_count === 'string' ? parseInt(r.event_count, 10) : r.event_count,
+        first_seen: r.first_seen,
+        last_seen: r.last_seen,
+      };
+    });
 
     return {
       persons,

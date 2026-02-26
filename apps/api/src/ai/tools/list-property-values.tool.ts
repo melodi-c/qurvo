@@ -17,8 +17,8 @@ const argsSchema = z.object({
   event_name: z.string().optional().describe(
     'Optional: scope event property values to a specific event name. Only applies when property_type is "event".',
   ),
-  limit: z.number().int().min(1).max(200).optional().describe(
-    'Maximum number of distinct values to return, sorted by occurrence count descending. Default: 50.',
+  limit: z.number().int().min(1).max(50).optional().describe(
+    'Maximum number of distinct values to return, sorted by occurrence count descending. Default: 20.',
   ),
 });
 
@@ -43,7 +43,16 @@ export class ListPropertyValuesTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, _userId, projectId) => {
-    const limit = args.limit ?? 50;
+    const limit = args.limit ?? 20;
+    const MAX_STRING_LENGTH = 60;
+
+    function truncateValues(values: unknown[]): unknown[] {
+      return values.map((v) =>
+        typeof v === 'string' && v.length > MAX_STRING_LENGTH
+          ? v.slice(0, MAX_STRING_LENGTH) + '…'
+          : v,
+      );
+    }
 
     if (args.property_type === 'event') {
       const values = await this.eventsService.getEventPropertyValues(
@@ -52,14 +61,14 @@ export class ListPropertyValuesTool implements AiTool {
         args.event_name,
         limit,
       );
-      return { property_name: args.property_name, property_type: 'event', values };
+      return { property_name: args.property_name, property_type: 'event', values: truncateValues(values) };
     } else {
       const values = await this.personsService.getPersonPropertyValues(
         projectId,
         args.property_name,
         limit,
       );
-      return { property_name: args.property_name, property_type: 'person', values };
+      return { property_name: args.property_name, property_type: 'person', values: truncateValues(values) };
     }
   });
 }
