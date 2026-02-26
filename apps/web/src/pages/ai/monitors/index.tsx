@@ -58,7 +58,13 @@ export default function MonitorsPage() {
       key: 'channel_type',
       header: t('channel'),
       render: (m) => (
-        <span>{m.channel_type === 'slack' ? t('channelSlack') : t('channelEmail')}</span>
+        <span>
+          {m.channel_type === 'slack'
+            ? t('channelSlack')
+            : m.channel_type === 'telegram'
+              ? t('channelTelegram')
+              : t('channelEmail')}
+        </span>
       ),
     },
     {

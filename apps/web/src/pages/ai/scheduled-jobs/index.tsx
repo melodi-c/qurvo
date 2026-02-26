@@ -67,7 +67,13 @@ export default function ScheduledJobsPage() {
       key: 'channel_type',
       header: t('channel'),
       render: (j) => (
-        <span>{j.channel_type === 'slack' ? t('channelSlack') : t('channelEmail')}</span>
+        <span>
+          {j.channel_type === 'slack'
+            ? t('channelSlack')
+            : j.channel_type === 'telegram'
+              ? t('channelTelegram')
+              : t('channelEmail')}
+        </span>
       ),
     },
     {
