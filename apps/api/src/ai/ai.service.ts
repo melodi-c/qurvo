@@ -22,7 +22,7 @@ type AiStreamChunk =
   | { type: 'tool_call_start'; tool_call_id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string }
   | { type: 'error'; message: string }
-  | { type: 'done' };
+  | { type: 'done'; tokens_input: number; tokens_output: number };
 
 interface TokenUsage {
   promptTokens: number;
@@ -109,7 +109,12 @@ export class AiService implements OnModuleInit {
         await this.messageHistoryBuilder.build(conversation, isNew, params, userId);
 
       // Run tool-call loop
-      const seq = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
+      const { seq, totalInputTokens, totalOutputTokens } = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
+
+      // Persist cumulative token usage for this request
+      if (totalInputTokens > 0 || totalOutputTokens > 0) {
+        await this.chatService.incrementTokenUsage(conversation.id, totalInputTokens, totalOutputTokens);
+      }
 
       // Update summary when history exceeds the threshold.
       // Always refresh on first crossing (no existing summary), or when the
@@ -125,7 +130,7 @@ export class AiService implements OnModuleInit {
         this.summarizationService.schedule(client, conversation.id);
       }
 
-      yield { type: 'done' };
+      yield { type: 'done', tokens_input: totalInputTokens, tokens_output: totalOutputTokens };
     } finally {
       // Finalize conversation: updates title + updated_at.
       // Runs on both normal completion and client disconnect (generator return).
@@ -145,8 +150,10 @@ export class AiService implements OnModuleInit {
     seq: number,
     userId: string,
     projectId: string,
-  ): AsyncGenerator<AiStreamChunk, number> {
+  ): AsyncGenerator<AiStreamChunk, { seq: number; totalInputTokens: number; totalOutputTokens: number }> {
     let exhausted = true;
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
 
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
       const { assistantContent, toolCalls, usage } = yield* this.streamOneTurn(client, messages);
@@ -162,6 +169,8 @@ export class AiService implements OnModuleInit {
         : {};
 
       if (usage) {
+        totalInputTokens += usage.promptTokens;
+        totalOutputTokens += usage.completionTokens;
         this.logger.log({
           conversationId,
           model: this.model,
@@ -241,7 +250,7 @@ export class AiService implements OnModuleInit {
       this.logger.warn({ conversationId }, `Tool-call loop exhausted after ${AI_MAX_TOOL_CALL_ITERATIONS} iterations`);
       yield { type: 'text_delta', content: '\n\n[Analysis was cut short due to reaching the tool call limit. Please try a more specific question.]' };
     }
-    return seq;
+    return { seq, totalInputTokens, totalOutputTokens };
   }
 
   private async *streamOneTurn(

@@ -40,6 +40,8 @@ export class AiConversationDto {
   title: string;
   @ApiProperty()
   is_shared: boolean;
+  tokens_input: number;
+  tokens_output: number;
   created_at: string;
   updated_at: string;
 }
