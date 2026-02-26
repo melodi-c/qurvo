@@ -55,9 +55,15 @@ export class InviteDto {
   responded_at: Date | null;
 }
 
+export class ProjectSummaryDto {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export class MyInviteDto {
   id: string;
-  project: { id: string; name: string; slug: string };
+  project: ProjectSummaryDto;
   invited_by: InviterDto;
   @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
   role: 'owner' | 'editor' | 'viewer';

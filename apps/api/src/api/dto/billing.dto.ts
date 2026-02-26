@@ -1,5 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { PlanFeatures } from '@qurvo/db';
+
+export class PlanFeaturesDto {
+  @ApiProperty({ example: true })
+  cohorts: boolean;
+
+  @ApiProperty({ example: true })
+  lifecycle: boolean;
+
+  @ApiProperty({ example: true })
+  stickiness: boolean;
+
+  @ApiProperty({ example: true })
+  api_export: boolean;
+
+  @ApiProperty({ example: true })
+  ai_insights: boolean;
+}
 
 export class BillingStatusDto {
   @ApiProperty({ example: 'free' })
@@ -26,17 +42,8 @@ export class BillingStatusDto {
   @ApiProperty({ example: 0 })
   ai_messages_used: number;
 
-  @ApiProperty({
-    type: 'object',
-    properties: {
-      cohorts: { type: 'boolean' },
-      lifecycle: { type: 'boolean' },
-      stickiness: { type: 'boolean' },
-      api_export: { type: 'boolean' },
-      ai_insights: { type: 'boolean' },
-    },
-  })
-  features: PlanFeatures;
+  @ApiProperty({ type: PlanFeaturesDto })
+  features: PlanFeaturesDto;
 
   @ApiProperty({ example: '2026-02-01T00:00:00.000Z' })
   period_start: string;
