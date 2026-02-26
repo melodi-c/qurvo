@@ -5,9 +5,10 @@ import {
   BaseNotificationService,
   type SlackChannelConfig,
   type EmailChannelConfig,
+  type TelegramChannelConfig,
 } from '@qurvo/nestjs-infra';
 
-export type { SlackChannelConfig, EmailChannelConfig };
+export type { SlackChannelConfig, EmailChannelConfig, TelegramChannelConfig };
 
 @Injectable()
 export class NotificationService extends BaseNotificationService {
@@ -33,6 +34,8 @@ export class NotificationService extends BaseNotificationService {
       const subject = `Qurvo Alert: Anomaly in "${monitor.event_name}"`;
       await this.sendEmail(emailConfig, subject, message);
       this.logger.debug({ to: emailConfig.email }, 'Alert email sent');
+    } else if (monitor.channel_type === 'telegram') {
+      await this.sendTelegram(config as TelegramChannelConfig, message);
     } else {
       this.logger.warn({ channel_type: monitor.channel_type }, 'Unknown channel type');
     }
