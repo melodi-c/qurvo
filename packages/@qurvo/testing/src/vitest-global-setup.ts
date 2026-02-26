@@ -64,7 +64,7 @@ async function acquireFileLock(lockFile: string, timeoutMs: number): Promise<() 
       const content = fs.readFileSync(lockFile, 'utf8').trim();
       const lockPid = parseInt(content, 10);
 
-      if (!isNaN(lockPid) && !isPidAlive(lockPid)) {
+      if (isNaN(lockPid) || !isPidAlive(lockPid)) {
         // Stale lock — previous process is gone. Remove and retry immediately.
         console.warn(
           `[testing] Stale lock detected (pid=${lockPid} is dead). Removing lock file and retrying.`,
