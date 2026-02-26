@@ -126,6 +126,7 @@ export const routes = {
   },
 
   ai: route('/ai'),
+  aiMonitors: route('/ai/monitors'),
   dataManagement: {
     list: route('/data-management'),
     detail: route(

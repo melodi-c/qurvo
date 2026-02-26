@@ -19,6 +19,7 @@ import {
   Globe,
   Database,
   Sparkles,
+  Bell,
 } from 'lucide-react';
 
 export function useLayoutData() {
@@ -47,6 +48,7 @@ export function useLayoutData() {
           { path: routes.persons.list.pattern, label: t('persons'), icon: Users },
           { path: routes.events.pattern, label: t('events'), icon: List },
           { path: routes.ai.pattern, label: t('aiAssistant'), icon: Sparkles },
+          { path: routes.aiMonitors.pattern, label: t('aiMonitors'), icon: Bell },
         ],
       },
       {

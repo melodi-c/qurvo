@@ -29,3 +29,5 @@ export { emailVerificationCodes } from './email-verification-codes';
 export { eventDefinitions } from './event-definitions';
 export { propertyDefinitions } from './property-definitions';
 export { eventProperties } from './event-properties';
+export { aiMonitors } from './ai-monitors';
+export type { AiMonitor, InsertAiMonitor } from './ai-monitors';

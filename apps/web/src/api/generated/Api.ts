@@ -1189,6 +1189,54 @@ export interface ResetDemoResponse {
   scenario: string;
 }
 
+export interface AiMonitor {
+  metric: AiMonitorDtoMetricEnum;
+  channel_type: AiMonitorDtoChannelTypeEnum;
+  channel_config: Record<string, any>;
+  id: string;
+  project_id: string;
+  event_name: string;
+  threshold_sigma: number;
+  is_active: boolean;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface CreateMonitor {
+  channel_type: CreateMonitorDtoChannelTypeEnum;
+  channel_config: Record<string, any>;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  event_name: string;
+  metric?: CreateMonitorDtoMetricEnum;
+  /**
+   * @min 1
+   * @max 10
+   */
+  threshold_sigma?: number;
+}
+
+export interface UpdateMonitor {
+  channel_config?: Record<string, any>;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  event_name?: string;
+  metric?: UpdateMonitorDtoMetricEnum;
+  /**
+   * @min 1
+   * @max 10
+   */
+  threshold_sigma?: number;
+  channel_type?: UpdateMonitorDtoChannelTypeEnum;
+  is_active?: boolean;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -1431,6 +1479,18 @@ export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
 export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
   | "event"
   | "person";
+
+export type AiMonitorDtoMetricEnum = "count" | "unique_users";
+
+export type AiMonitorDtoChannelTypeEnum = "slack" | "email";
+
+export type CreateMonitorDtoChannelTypeEnum = "slack" | "email";
+
+export type CreateMonitorDtoMetricEnum = "count" | "unique_users";
+
+export type UpdateMonitorDtoMetricEnum = "count" | "unique_users";
+
+export type UpdateMonitorDtoChannelTypeEnum = "slack" | "email";
 
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
@@ -2154,6 +2214,24 @@ export interface IngestionWarningsControllerGetIngestionWarningsParams {
 
 export interface DemoControllerResetParams {
   projectSlug: string;
+}
+
+export interface AiMonitorsControllerListParams {
+  projectId: string;
+}
+
+export interface AiMonitorsControllerCreateParams {
+  projectId: string;
+}
+
+export interface AiMonitorsControllerUpdateParams {
+  projectId: string;
+  monitorId: string;
+}
+
+export interface AiMonitorsControllerRemoveParams {
+  projectId: string;
+  monitorId: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4242,6 +4320,91 @@ export class Api<
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Monitors
+     * @name AiMonitorsControllerList
+     * @request GET:/api/projects/{projectId}/ai/monitors
+     * @secure
+     */
+    aiMonitorsControllerList: (
+      { projectId, ...query }: AiMonitorsControllerListParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiMonitor[], any>({
+        path: `/api/projects/${projectId}/ai/monitors`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Monitors
+     * @name AiMonitorsControllerCreate
+     * @request POST:/api/projects/{projectId}/ai/monitors
+     * @secure
+     */
+    aiMonitorsControllerCreate: (
+      { projectId, ...query }: AiMonitorsControllerCreateParams,
+      data: CreateMonitor,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiMonitor, any>({
+        path: `/api/projects/${projectId}/ai/monitors`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Monitors
+     * @name AiMonitorsControllerUpdate
+     * @request PATCH:/api/projects/{projectId}/ai/monitors/{monitorId}
+     * @secure
+     */
+    aiMonitorsControllerUpdate: (
+      { projectId, monitorId, ...query }: AiMonitorsControllerUpdateParams,
+      data: UpdateMonitor,
+      params: RequestParams = {},
+    ) =>
+      this.request<AiMonitor, any>({
+        path: `/api/projects/${projectId}/ai/monitors/${monitorId}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AI Monitors
+     * @name AiMonitorsControllerRemove
+     * @request DELETE:/api/projects/{projectId}/ai/monitors/{monitorId}
+     * @secure
+     */
+    aiMonitorsControllerRemove: (
+      { projectId, monitorId, ...query }: AiMonitorsControllerRemoveParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/ai/monitors/${monitorId}`,
+        method: "DELETE",
+        secure: true,
         ...params,
       }),
   };
