@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { setupContainers, createTestProject, type ContainerContext } from '@qurvo/testing';
+import { createTestProject } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { persons, personDistinctIds } from '@qurvo/db';
 import { queryPersons, queryPersonsCount } from '../../persons/persons.query';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 /** Insert a person row + optional distinct_ids into PostgreSQL. */

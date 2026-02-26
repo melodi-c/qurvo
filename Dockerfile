@@ -147,7 +147,7 @@ EXPOSE 80
 # ==============================================================================
 FROM base AS storybook-builder
 
-RUN pnpm --filter @qurvo/web exec storybook build -o /repo/apps/web/storybook-static
+RUN pnpm --filter @qurvo/web run build-storybook
 
 # ==============================================================================
 # Stage: storybook — nginx serving Storybook static

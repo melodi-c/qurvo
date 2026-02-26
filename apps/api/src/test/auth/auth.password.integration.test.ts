@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { setupContainers, type ContainerContext } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { AccountService } from '../../auth/account.service';
@@ -35,7 +35,7 @@ function makeAccountService(c: ContainerContext): AccountService {
 }
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 // ---------------------------------------------------------------------------

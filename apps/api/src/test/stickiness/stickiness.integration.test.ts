@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   daysAgo,
   ts,
-  type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { queryStickiness, computeTotalPeriods } from '../../analytics/stickiness/stickiness.query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { materializeCohort } from '../cohorts/helpers';
@@ -15,7 +14,7 @@ import { materializeCohort } from '../cohorts/helpers';
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 describe('queryStickiness — basic histogram', () => {

@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   daysAgo,
   ts,
-  type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
@@ -16,7 +15,7 @@ import { materializeCohort } from '../cohorts/helpers';
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 describe('queryLifecycle — event property filters', () => {

@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   msAgo,
-  type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { countCohortMembers } from '../../cohorts/cohorts.query';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 // ── person_property conditions ──────────────────────────────────────────────

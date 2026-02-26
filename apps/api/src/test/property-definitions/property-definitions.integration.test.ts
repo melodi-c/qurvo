@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { eq, and, desc, asc, ilike, count } from 'drizzle-orm';
-import {
-  setupContainers,
-  createTestProject,
-  type ContainerContext,
-} from '@qurvo/testing';
+import { createTestProject } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { propertyDefinitions } from '@qurvo/db';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 // ── property_definitions upsert (PostgreSQL) ─────────────────────────────────
