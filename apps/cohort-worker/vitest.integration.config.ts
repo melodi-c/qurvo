@@ -14,7 +14,7 @@ export default defineConfig({
     },
     testTimeout: 30_000,
     hookTimeout: 120_000,
-    teardownTimeout: 10_000,
+    teardownTimeout: 30_000,
     reporters: ['verbose'],
   },
   plugins: [

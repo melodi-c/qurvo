@@ -13,6 +13,7 @@ export default defineConfig({
     },
     testTimeout: 60_000,
     hookTimeout: 120_000,
+    teardownTimeout: 30_000,
     reporters: ['verbose'],
   },
 });

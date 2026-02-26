@@ -23,9 +23,9 @@ export interface ContainerContext {
   db: Database;
   redis: Redis;
 
-  pgContainer: StartedPostgreSqlContainer;
-  redisContainer: StartedTestContainer;
-  chContainer: StartedTestContainer;
+  pgContainer: StartedPostgreSqlContainer | null;
+  redisContainer: StartedTestContainer | null;
+  chContainer: StartedTestContainer | null;
 }
 
 let contextPromise: Promise<ContainerContext> | null = null;
@@ -66,9 +66,9 @@ export async function teardownContainers(): Promise<void> {
     await ctx.db.$pool.end();
 
     const results = await Promise.allSettled([
-      ctx.pgContainer.stop(),
-      ctx.redisContainer.stop(),
-      ctx.chContainer.stop(),
+      ctx.pgContainer != null ? ctx.pgContainer.stop() : Promise.resolve(),
+      ctx.redisContainer != null ? ctx.redisContainer.stop() : Promise.resolve(),
+      ctx.chContainer != null ? ctx.chContainer.stop() : Promise.resolve(),
     ]);
 
     const errors = results

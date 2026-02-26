@@ -94,8 +94,8 @@ async function createWorkerContext(): Promise<ContainerContext> {
     ch,
     db,
     redis,
-    pgContainer: null as any,
-    redisContainer: null as any,
-    chContainer: null as any,
+    pgContainer: null,
+    redisContainer: null,
+    chContainer: null,
   };
 }
