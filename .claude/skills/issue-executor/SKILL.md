@@ -113,232 +113,22 @@ gh label create "in-progress" --description "Currently being worked on" --color 
    ```bash
    gh issue edit <NUMBER> --add-label "in-progress"
    ```
-2. Запусти всех подагентов группы **одновременно** как background (`run_in_background: true`)
+2. Запусти всех подагентов группы **одновременно** как background (`run_in_background: true`, `subagent_type: "issue-solver"`)
 3. Дождись завершения ВСЕХ подагентов текущей группы
 4. Только после этого запусти следующую группу
 
 ### Промпт для каждого issue-solver подагента
 
-Для каждого issue подставь конкретные значения в шаблон ниже и запусти подагента типа `general-purpose` с `run_in_background: true`:
+Передай только конкретные данные — инструкции хранятся в самом агенте:
 
 ```
-Ты -- автономный разработчик в monorepo Qurvo. Твоя задача -- полностью реализовать GitHub issue #{ISSUE_NUMBER} и довести до мержа в main.
-
-> **После compact**: если контекст был сжат и инструкции потеряны — немедленно перечитай `.claude/skills/issue-executor/SKILL.md` и продолжи с того шага, на котором остановился.
-
-## Задача
-
 Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 
 {ISSUE_BODY}
 
-{ISSUE_COMMENTS -- если есть}
+{ISSUE_COMMENTS — если есть}
 
-## Шаг 1: Создать worktree из ЛОКАЛЬНОГО main
-
-КРИТИЧНО: Использовать ЛОКАЛЬНЫЙ main, НЕ origin/main. НЕ делать git fetch перед созданием worktree.
-
-```bash
-REPO_ROOT=$(git rev-parse --show-toplevel)
-
-# ПРОВЕРКА: убеждаемся что локальная ветка main существует
-git -C "$REPO_ROOT" show-ref --verify refs/heads/main \
-  || { echo "FATAL: локальная ветка main не найдена"; exit 1; }
-
-# Берём хэш ЛОКАЛЬНОГО main (не origin/main, не HEAD)
-MAIN_HASH=$(git -C "$REPO_ROOT" rev-parse main)
-echo "Worktree создаётся от локального main: $MAIN_HASH"
-
-BRANCH_NAME="fix/issue-{ISSUE_NUMBER}"
-WORKTREE_PATH="$REPO_ROOT/.claude/worktrees/issue-{ISSUE_NUMBER}"
-
-# ПРОВЕРКА пути: ровно .claude (не .claire, не .claud, не claude)
-echo "$WORKTREE_PATH" | grep -qF "/.claude/worktrees/" \
-  || { echo "FATAL: неверный путь worktree '$WORKTREE_PATH' — должен содержать /.claude/worktrees/"; exit 1; }
-
-git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" "$MAIN_HASH"
-
-# ПРОВЕРКА после создания: директория существует по правильному пути
-[ -d "$WORKTREE_PATH" ] \
-  || { echo "FATAL: worktree не создан по пути '$WORKTREE_PATH'"; exit 1; }
-git worktree list | grep -qF "$WORKTREE_PATH" \
-  || { echo "FATAL: '$WORKTREE_PATH' не зарегистрирован в git worktree list"; exit 1; }
-
-cd "$WORKTREE_PATH"
-```
-
-Все дальнейшие действия выполняй ТОЛЬКО внутри worktree.
-
-ЗАПРЕЩЕНО в этом шаге и в любом другом месте:
-- `git rev-parse origin/main` — использовать только `git rev-parse main`
-- `git fetch origin main` — не синхронизировать с remote перед работой
-- `git push origin HEAD:main` — прямой пуш из worktree в origin запрещён
-
-## Шаг 2: Проверить актуальность issue
-
-До начала реализации:
-1. Прочитай описание issue через `gh issue view {ISSUE_NUMBER} --json title,body,comments`
-2. Поищи в кодовой базе релевантные файлы и символы
-3. Проверь последние коммиты: `git log --oneline -20`
-4. Если issue уже решён или устарел -- верни:
-   STATUS: NEEDS_USER_INPUT | Issue #{ISSUE_NUMBER}, похоже, уже решён: <конкретное объяснение с доказательствами из кода/коммитов>
-
-## Шаг 3: Реализация
-
-- Реализуй задачу в worktree
-- НЕ делай деструктивных git-операций (--force, reset --hard, checkout ., clean -f)
-- Следуй CLAUDE.md соответствующего приложения (если есть)
-- Используй абсолютные пути к файлам
-
-## Шаг 4: Definition of Done
-
-Последовательно выполни ВСЕ шаги. Определи какие apps затронуты ({AFFECTED_APPS}) и подставь их имена.
-
-### 4.1 Тесты
-```bash
-pnpm --filter @qurvo/<app> exec vitest run
-pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts
-```
-Если важные интеграционные тесты отсутствуют -- напиши их.
-
-### 4.2 Миграции
-
-**КРИТИЧНО — защита от дублей**: перед генерацией миграции сверь последний номер в worktree с локальным main:
-
-```bash
-# Последний номер миграции в worktree (в котором ты работаешь)
-LAST_IN_WORKTREE=$(ls "$WORKTREE_PATH/packages/@qurvo/db/drizzle/"*.sql 2>/dev/null | grep -oP '\d+(?=_)' | sort -n | tail -1)
-
-# Последний номер в локальном main
-LAST_IN_MAIN=$(ls "$REPO_ROOT/packages/@qurvo/db/drizzle/"*.sql 2>/dev/null | grep -oP '\d+(?=_)' | sort -n | tail -1)
-
-echo "Последняя миграция в worktree: $LAST_IN_WORKTREE, в main: $LAST_IN_MAIN"
-
-if [ "$LAST_IN_MAIN" != "$LAST_IN_WORKTREE" ]; then
-  echo "ВНИМАНИЕ: main продвинулся вперёд — синхронизируй схему Drizzle с main перед генерацией (git merge main)"
-  exit 1
-fi
-```
-
-Если проверка прошла — генерируй:
-- PostgreSQL: `pnpm --filter @qurvo/db db:generate`
-- ClickHouse: `pnpm ch:generate <name>`
-
-### 4.3 TypeScript
-```bash
-pnpm --filter @qurvo/<app> exec tsc --noEmit
-```
-
-### 4.4 Build
-КРИТИЧНО: запускай `pnpm build` из корня worktree — это единственный способ поймать ошибки сборки между пакетами (например, `tsc -b` в web vs `tsc --noEmit`). Per-filter build НЕ достаточен.
-```bash
-cd "$WORKTREE_PATH" && pnpm build
-```
-
-### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
-```bash
-pnpm --filter @qurvo/api build && pnpm swagger:generate && pnpm generate-api
-```
-
-Проверь swagger.json на пустые схемы:
-```bash
-node -e "
-const s = require('./apps/api/docs/swagger.json');
-const schemas = s.components?.schemas || {};
-const bad = Object.entries(schemas).filter(([name, schema]) => {
-  return schema.type === 'object' && !schema.properties && !schema.allOf && !schema.oneOf;
-});
-if (bad.length) { console.log('BAD SCHEMAS:'); bad.forEach(([n]) => console.log(' -', n)); process.exit(1); }
-else console.log('OK');
-"
-```
-
-Проверь Api.ts на плохие типы:
-```bash
-grep -n ': object\b\|Record<string, object>\|: any\b' apps/web/src/api/generated/Api.ts
-```
-
-Если нашлись проблемы -- исправь NestJS DTO/декораторы и перегенерируй.
-
-### 4.6 Обновить CLAUDE.md
-Если добавлены новые паттерны или gotcha -- обнови CLAUDE.md соответствующего приложения.
-
-### 4.7 Коммит
-```bash
-git add <конкретные файлы>
-git commit -m "<осмысленное сообщение>"
-```
-
-### 4.8 Финальная проверка с актуальным main
-```bash
-git merge main
-# Если конфликты -- попытайся разрешить самостоятельно
-# Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
-
-pnpm --filter @qurvo/<app> exec vitest run
-cd "$WORKTREE_PATH" && pnpm build
-```
-
-### 4.9 Мерж в локальный main и push
-
-ВАЖНО: мерж происходит в ЛОКАЛЬНЫЙ main основного репозитория (не push из worktree в origin).
-Все команды выполняются через `-C "$REPO_ROOT"` — не cd, не внутри worktree.
-
-```bash
-# ПРОВЕРКА перед мержем: фиксируем текущий хэш локального main
-MAIN_BEFORE=$(git -C "$REPO_ROOT" rev-parse main)
-echo "local main до мержа: $MAIN_BEFORE"
-
-# Мержим в ЛОКАЛЬНЫЙ main
-git -C "$REPO_ROOT" checkout main
-git -C "$REPO_ROOT" merge fix/issue-{ISSUE_NUMBER}
-
-# ПРОВЕРКА после мержа: хэш должен измениться
-MAIN_AFTER=$(git -C "$REPO_ROOT" rev-parse main)
-echo "local main после мержа: $MAIN_AFTER"
-[ "$MAIN_BEFORE" != "$MAIN_AFTER" ] \
-  || { echo "FATAL: мерж не продвинул локальный main — что-то пошло не так"; exit 1; }
-
-# Только теперь пушим локальный main в origin
-git -C "$REPO_ROOT" push origin main
-```
-
-ЗАПРЕЩЕНО в этом шаге:
-- `git push origin HEAD:main` из worktree — только через `-C "$REPO_ROOT"` после checkout main
-- `git -C "$WORKTREE_PATH" push ...` — push только из основного репо
-
-### 4.10 SDK (только если были правки SDK-пакетов)
-```bash
-pnpm --filter @qurvo/sdk-core publish --access public --no-git-checks
-pnpm --filter @qurvo/sdk-browser publish --access public --no-git-checks
-pnpm --filter @qurvo/sdk-node publish --access public --no-git-checks
-```
-
-### 4.11 Закрыть issue и очистить worktree
-```bash
-gh issue close {ISSUE_NUMBER} --comment "Реализовано и смерджено в main."
-git worktree remove "$WORKTREE_PATH"
-git branch -d "fix/issue-{ISSUE_NUMBER}"
-```
-
-## Обработка ошибок
-
-При ошибках на любом шаге DoD:
-- Попытайся исправить (максимум 3 итерации)
-- НЕ зацикливайся, НЕ делай деструктивных операций
-- Если исправить не удалось:
-  1. `gh issue comment {ISSUE_NUMBER} --body "Не удалось завершить: <причина>. Требует ручного вмешательства."`
-  2. `gh issue edit {ISSUE_NUMBER} --add-label "blocked"` (если лейбл существует, иначе пропусти)
-  3. Очисти worktree: `git worktree remove "$WORKTREE_PATH" --force; git branch -D "fix/issue-{ISSUE_NUMBER}" 2>/dev/null || true`
-  4. Верни: STATUS: FAILED | <конкретная причина с деталями>
-
-## Формат финального ответа
-
-Последняя строка твоего ответа ОБЯЗАТЕЛЬНО должна быть одной из:
-
-STATUS: SUCCESS
-STATUS: NEEDS_USER_INPUT | <причина>
-STATUS: FAILED | <причина>
+AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 ```
 
 ---
@@ -388,8 +178,8 @@ STATUS: FAILED | <причина>
 ## Критические правила
 
 1. Ты -- ТОЛЬКО оркестратор. Не пиши код, не редактируй файлы, не запускай тесты. Только координируй подагентов.
-2. Все issue-solver подагенты запускаются как `run_in_background: true`.
-3. Подагент анализа пересечений (Шаг 2) запускается в foreground -- ты ждёшь его результат.
+2. Все issue-solver подагенты запускаются как `subagent_type: "issue-solver"`, `run_in_background: true`.
+3. Подагент анализа пересечений (Шаг 2) запускается в foreground (`subagent_type: "general-purpose"`) -- ты ждёшь его результат.
 4. Если в группе один issue -- всё равно запусти его как background подагента, не делай сам.
 5. При перезапуске подагента (после NEEDS_USER_INPUT) -- используй тот же worktree path и branch name. Подагент должен проверить, существует ли worktree, и продолжить работу в нём.
 6. Не запрашивай подтверждение у пользователя перед запуском подагентов, если план ясен. Действуй автономно.
