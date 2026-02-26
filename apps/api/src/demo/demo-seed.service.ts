@@ -76,12 +76,13 @@ export class DemoSeedService {
           definitions.map((d) => ({
             project_id: projectId,
             event_name: d.eventName,
+            description: d.description,
             last_seen_at: now,
           })),
         )
         .onConflictDoUpdate({
           target: [eventDefinitions.project_id, eventDefinitions.event_name],
-          set: { last_seen_at: sql`excluded.last_seen_at` },
+          set: { description: sql`excluded.description`, last_seen_at: sql`excluded.last_seen_at` },
         });
     }
 
@@ -95,12 +96,13 @@ export class DemoSeedService {
             project_id: projectId,
             property_name: p.propertyName,
             property_type: 'event' as const,
+            description: p.description,
             last_seen_at: now,
           })),
         )
         .onConflictDoUpdate({
           target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
-          set: { last_seen_at: sql`excluded.last_seen_at` },
+          set: { description: sql`excluded.description`, last_seen_at: sql`excluded.last_seen_at` },
         });
     }
 
@@ -349,12 +351,13 @@ export class DemoSeedService {
           definitions.map((d) => ({
             project_id: projectId,
             event_name: d.eventName,
+            description: d.description,
             last_seen_at: now,
           })),
         )
         .onConflictDoUpdate({
           target: [eventDefinitions.project_id, eventDefinitions.event_name],
-          set: { last_seen_at: sql`excluded.last_seen_at` },
+          set: { description: sql`excluded.description`, last_seen_at: sql`excluded.last_seen_at` },
         });
     }
 
@@ -367,12 +370,13 @@ export class DemoSeedService {
             project_id: projectId,
             property_name: p.propertyName,
             property_type: 'event' as const,
+            description: p.description,
             last_seen_at: now,
           })),
         )
         .onConflictDoUpdate({
           target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
-          set: { last_seen_at: sql`excluded.last_seen_at` },
+          set: { description: sql`excluded.description`, last_seen_at: sql`excluded.last_seen_at` },
         });
     }
 

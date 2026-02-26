@@ -12,13 +12,13 @@ const DNS_NAMESPACE_BYTES = Buffer.from('6ba7b8109dad11d180b400c04fd430c8', 'hex
 
 export interface EventDefinitionInput {
   eventName: string;
-  displayName?: string;
+  description?: string;
 }
 
 export interface PropertyDefinitionInput {
   eventName: string;
   propertyName: string;
-  displayName?: string;
+  description?: string;
 }
 
 export interface DashboardInput {

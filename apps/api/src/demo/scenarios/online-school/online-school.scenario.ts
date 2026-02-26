@@ -138,17 +138,12 @@ export class OnlineSchoolScenario extends BaseScenario {
     // Build 18 students
     const students: Student[] = this.buildStudents(now);
 
-    const eventNames = new Set<string>();
-    const propertyNames = new Set<string>();
-
     const addEvent = (
       student: Student,
       eventName: string,
       timestamp: Date,
       properties: Record<string, string | number | boolean | null>,
     ) => {
-      eventNames.add(eventName);
-      Object.keys(properties).forEach((k) => propertyNames.add(k));
 
       const userProps: Record<string, string | number | boolean | null> = {
         name: student.name,
@@ -334,15 +329,40 @@ export class OnlineSchoolScenario extends BaseScenario {
       }
     }
 
-    // Build definitions
-    const definitions: EventDefinitionInput[] = Array.from(eventNames).map((name) => ({
-      eventName: name,
-    }));
+    // Build definitions with explicit descriptions
+    const definitions: EventDefinitionInput[] = [
+      { eventName: '$pageview', description: 'Просмотр страницы пользователем' },
+      { eventName: 'signed_up', description: 'Регистрация нового пользователя на платформе' },
+      { eventName: 'course_viewed', description: 'Просмотр страницы курса' },
+      { eventName: 'course_enrolled', description: 'Запись пользователя на курс' },
+      { eventName: 'payment_made', description: 'Успешная оплата курса или подписки' },
+      { eventName: 'lesson_started', description: 'Начало просмотра урока' },
+      { eventName: 'lesson_completed', description: 'Завершение урока пользователем' },
+      { eventName: 'quiz_taken', description: 'Прохождение теста после урока' },
+      { eventName: 'certificate_earned', description: 'Получение сертификата об окончании курса' },
+      { eventName: 'subscription_upgraded', description: 'Переход пользователя на более высокий тарифный план' },
+    ];
 
-    const propertyDefinitions: PropertyDefinitionInput[] = Array.from(propertyNames).map((name) => ({
-      eventName: '', // cross-event property
-      propertyName: name,
-    }));
+    const propertyDefinitions: PropertyDefinitionInput[] = [
+      { eventName: '', propertyName: 'source', description: 'Источник привлечения пользователя (google, referral, direct)' },
+      { eventName: '', propertyName: 'plan', description: 'Тарифный план пользователя (free или pro)' },
+      { eventName: '', propertyName: 'page_path', description: 'Путь страницы, которую просмотрел пользователь' },
+      { eventName: '', propertyName: 'page_title', description: 'Заголовок просмотренной страницы' },
+      { eventName: '', propertyName: 'referrer', description: 'URL источника перехода на страницу' },
+      { eventName: '', propertyName: 'course_name', description: 'Название курса' },
+      { eventName: '', propertyName: 'category', description: 'Категория курса (programming, design, languages)' },
+      { eventName: '', propertyName: 'price', description: 'Цена курса в долларах США' },
+      { eventName: '', propertyName: 'amount', description: 'Сумма платежа' },
+      { eventName: '', propertyName: 'currency', description: 'Валюта платежа (например, USD)' },
+      { eventName: '', propertyName: 'lesson_number', description: 'Порядковый номер урока в курсе' },
+      { eventName: '', propertyName: 'lesson_title', description: 'Название урока' },
+      { eventName: '', propertyName: 'duration_seconds', description: 'Длительность просмотра урока в секундах' },
+      { eventName: '', propertyName: 'score', description: 'Результат теста в процентах (0–100)' },
+      { eventName: '', propertyName: 'passed', description: 'Признак успешной сдачи теста (порог — 60 баллов)' },
+      { eventName: '', propertyName: 'completion_time_days', description: 'Количество дней от записи до получения сертификата' },
+      { eventName: '', propertyName: 'from_plan', description: 'Предыдущий тарифный план до апгрейда' },
+      { eventName: '', propertyName: 'to_plan', description: 'Новый тарифный план после апгрейда' },
+    ];
 
     // Build persons and personDistinctIds from students
     const persons = students.map((student) => ({
