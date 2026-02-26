@@ -7,6 +7,7 @@ export default createTranslations({
     fromPrev: 'From prev',
     dropped: 'Dropped',
     avgTime: 'Avg time',
+    noneValue: '(none)',
   },
   ru: {
     users: 'Пользователи',
@@ -14,5 +15,6 @@ export default createTranslations({
     fromPrev: 'От предыдущего',
     dropped: 'Отвалились',
     avgTime: 'Среднее время',
+    noneValue: '(нет значения)',
   },
 });
