@@ -50,9 +50,9 @@ export function SidebarNav({
       {/* Close button -- mobile only */}
       <Button
         variant="ghost"
-        size="icon-xs"
+        size="icon"
         onClick={onClose}
-        className="lg:hidden absolute top-3 right-3 z-10"
+        className="lg:hidden absolute top-2 right-2 z-10"
         aria-label={closeNavLabel}
       >
         <X className="w-4 h-4" />

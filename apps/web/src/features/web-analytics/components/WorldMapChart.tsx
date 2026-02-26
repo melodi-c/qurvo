@@ -57,8 +57,8 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
     return interpolateColor(t);
   }
 
-  function handleMouseEnter(
-    event: React.MouseEvent<SVGPathElement>,
+  function handlePointerEnter(
+    event: React.PointerEvent<SVGPathElement>,
     isoA2: string,
     countryName: string,
   ) {
@@ -71,13 +71,13 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
     });
   }
 
-  function handleMouseMove(event: React.MouseEvent<SVGPathElement>) {
+  function handlePointerMove(event: React.PointerEvent<SVGPathElement>) {
     setTooltip((prev) =>
       prev ? { ...prev, x: event.clientX, y: event.clientY } : prev,
     );
   }
 
-  function handleMouseLeave() {
+  function handlePointerLeave() {
     setTooltip(null);
   }
 
@@ -118,9 +118,9 @@ export function WorldMapChart({ title, data, isLoading }: WorldMapChartProps) {
                           hover: { outline: 'none', fill: visitorMap.has(isoA2.toUpperCase()) ? '#a5b4fc' : '#3f3f46', cursor: visitorMap.has(isoA2.toUpperCase()) ? 'pointer' : 'default' },
                           pressed: { outline: 'none' },
                         }}
-                        onMouseEnter={(e) => handleMouseEnter(e, isoA2, name)}
-                        onMouseMove={handleMouseMove}
-                        onMouseLeave={handleMouseLeave}
+                        onPointerEnter={(e) => handlePointerEnter(e, isoA2, name)}
+                        onPointerMove={handlePointerMove}
+                        onPointerLeave={handlePointerLeave}
                       />
                     );
                   })
