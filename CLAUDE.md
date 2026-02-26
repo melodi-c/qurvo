@@ -117,8 +117,6 @@ Each package has its own `CLAUDE.md` with detailed docs.
 
 Система: `useLocalTranslation(translations)` + `.translations.ts` файл рядом с компонентом. Подробности в `apps/web/CLAUDE.md` → раздел Internationalization.
 
-Нарушения (известные): `editor-header.tsx` ("Save"/"Discard"), `date-picker.tsx` ("Pick a date") — требуют исправления.
-
 ### Integration Tests
 
 ```bash
