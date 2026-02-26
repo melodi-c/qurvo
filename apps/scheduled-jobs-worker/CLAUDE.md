@@ -91,7 +91,7 @@ Both must be set for AI calls. If either is absent, jobs are skipped with a warn
 - Unknown schedule returns false
 
 ```bash
-pnpm --filter @qurvo/scheduled-jobs-worker exec vitest run
+pnpm --filter @qurvo/scheduled-jobs-worker exec vitest run --config vitest.unit.config.ts
 ```
 
 ## Important: Do NOT Delete
