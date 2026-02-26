@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Cell, Referenc
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { StatRow } from '@/components/ui/stat-row';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
 import { RetentionChart } from '@/features/dashboard/components/widgets/retention/RetentionChart';
@@ -220,26 +221,18 @@ function SegmentCompareChart({ data }: SegmentCompareChartProps) {
     ? `+${comparison.relative_diff_pct.toFixed(1)}%`
     : `${comparison.relative_diff_pct.toFixed(1)}%`;
 
+  const diffColorClass = isPositiveDiff ? 'text-emerald-400' : 'text-red-400';
+
   return (
     <div>
-      <div className="mb-3 flex items-start gap-6 text-sm">
-        <div>
-          <div className="text-muted-foreground">{t('winner')}</div>
-          <div className="font-semibold text-foreground">{comparison.winner}</div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">{t('absoluteDiff')}</div>
-          <div className={`font-semibold ${isPositiveDiff ? 'text-emerald-400' : 'text-red-400'}`}>
-            {diffLabel}
-          </div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">{t('relativeDiff')}</div>
-          <div className={`font-semibold ${isPositiveDiff ? 'text-emerald-400' : 'text-red-400'}`}>
-            {diffPctLabel}
-          </div>
-        </div>
-      </div>
+      <StatRow
+        className="mb-3"
+        items={[
+          { label: t('winner'), value: comparison.winner },
+          { label: t('absoluteDiff'), value: diffLabel, valueClassName: diffColorClass },
+          { label: t('relativeDiff'), value: diffPctLabel, valueClassName: diffColorClass },
+        ]}
+      />
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={chartData} barCategoryGap="30%">
           <XAxis
@@ -381,22 +374,25 @@ function RootCauseChart({ data }: RootCauseChartProps) {
   const minHeight = 160;
   const height = Math.max(minHeight, chartData.length * barHeight + 80);
 
+  const overallColorClass = isPositiveOverall ? 'text-emerald-400' : 'text-red-400';
+  const overallSign = isPositiveOverall ? '+' : '';
+
   return (
     <div>
-      <div className="mb-3 flex items-start gap-6 text-sm">
-        <div>
-          <div className="text-muted-foreground">{t('overall')}</div>
-          <div className={`font-semibold ${isPositiveOverall ? 'text-emerald-400' : 'text-red-400'}`}>
-            {isPositiveOverall ? '+' : ''}{overall.relative_change_pct.toFixed(1)}%
-          </div>
-        </div>
-        <div>
-          <div className="text-muted-foreground">{overall.metric}</div>
-          <div className="font-semibold text-foreground">
-            {isPositiveOverall ? '+' : ''}{formatCompactNumber(overall.absolute_change)}
-          </div>
-        </div>
-      </div>
+      <StatRow
+        className="mb-3"
+        items={[
+          {
+            label: t('overall'),
+            value: `${overallSign}${overall.relative_change_pct.toFixed(1)}%`,
+            valueClassName: overallColorClass,
+          },
+          {
+            label: overall.metric,
+            value: `${overallSign}${formatCompactNumber(overall.absolute_change)}`,
+          },
+        ]}
+      />
       <ResponsiveContainer width="100%" height={height}>
         <BarChart
           data={chartData}
