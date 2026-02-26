@@ -17,8 +17,8 @@ export class CreateScheduledJobDto {
   schedule: string;
 
   @IsString()
-  @IsIn(['slack', 'email'])
-  @ApiProperty({ enum: ['slack', 'email'] })
+  @IsIn(['slack', 'email', 'telegram'])
+  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
   channel_type: string;
 
   @IsObject()
@@ -45,9 +45,9 @@ export class UpdateScheduledJobDto {
   schedule?: string;
 
   @IsString()
-  @IsIn(['slack', 'email'])
+  @IsIn(['slack', 'email', 'telegram'])
   @IsOptional()
-  @ApiPropertyOptional({ enum: ['slack', 'email'] })
+  @ApiPropertyOptional({ enum: ['slack', 'email', 'telegram'] })
   channel_type?: string;
 
   @IsObject()
@@ -70,7 +70,7 @@ export class AiScheduledJobDto {
   @ApiProperty({ enum: ['daily', 'weekly', 'monthly'] })
   schedule: string;
 
-  @ApiProperty({ enum: ['slack', 'email'] })
+  @ApiProperty({ enum: ['slack', 'email', 'telegram'] })
   channel_type: string;
 
   @ApiProperty({ type: 'object', additionalProperties: true })
