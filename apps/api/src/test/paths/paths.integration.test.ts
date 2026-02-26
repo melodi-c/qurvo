@@ -1,20 +1,19 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   msAgo,
   dateOffset,
-  type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { queryPaths } from '../../analytics/paths/paths.query';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 describe('queryPaths — basic transitions', () => {

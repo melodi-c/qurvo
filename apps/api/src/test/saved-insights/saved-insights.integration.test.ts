@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { setupContainers, createTestProject, type ContainerContext } from '@qurvo/testing';
+import { createTestProject } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
 import { InsightNotFoundException } from '../../saved-insights/exceptions/insight-not-found.exception';
 
@@ -8,7 +9,7 @@ let ctx: ContainerContext;
 let service: SavedInsightsService;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
   service = new SavedInsightsService(ctx.db as any);
 }, 120_000);
 

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   daysAgo,
   ts,
   type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext } from '../context';
 import {
   queryDevices,
   queryGeography,
@@ -16,7 +16,7 @@ import {
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 // ── queryDevices ───────────────────────────────────────────────────────────────
