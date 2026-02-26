@@ -6,6 +6,8 @@ import { useStickinessData } from '@/features/dashboard/hooks/use-stickiness';
 import { StickinessChart } from './StickinessChart';
 import { defaultStickinessConfig } from './stickiness-shared';
 import { stickinessToCsv, downloadCsv } from '@/lib/csv-export';
+import { formatCompactNumber } from '@/lib/formatting';
+import { pluralize } from '@/i18n/pluralize';
 import type { Widget, StickinessWidgetConfig } from '@/api/generated/Api';
 import translations from './StickinessWidget.translations';
 
@@ -14,7 +16,7 @@ interface StickinessWidgetProps {
 }
 
 export function StickinessWidget({ widget }: StickinessWidgetProps) {
-  const { t } = useLocalTranslation(translations);
+  const { t, lang } = useLocalTranslation(translations);
   const isEditing = useDashboardStore((s) => s.isEditing);
   const config = widget.insight?.config as StickinessWidgetConfig | undefined;
   const hasConfig = !!config;
@@ -22,6 +24,12 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
   const result = query.data?.data;
 
   const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
+
+  const totalUsersLabel = pluralize(
+    totalUsers,
+    { one: t('totalUsersOne'), few: t('totalUsersFew'), many: t('totalUsersMany') },
+    lang,
+  );
 
   const handleExportCsv = useCallback(() => {
     if (!result) return;
@@ -37,13 +45,13 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
       isEmpty={!result || result.data.length === 0}
       emptyMessage={t('noData')}
       emptyHint={t('adjustDateRange')}
-      metric={<span className="text-xl font-bold tabular-nums text-primary">{totalUsers}</span>}
-      metricSecondary={<span className="text-xs text-muted-foreground">{t('totalUsers')}</span>}
+      metric={<span className="text-xl font-bold tabular-nums text-primary">{formatCompactNumber(totalUsers)}</span>}
+      metricSecondary={<span className="text-xs text-muted-foreground">{totalUsersLabel}</span>}
       cachedAt={query.data?.cached_at}
       fromCache={query.data?.from_cache}
       onExportCsv={result ? handleExportCsv : undefined}
     >
-      <StickinessChart result={result!} compact />
+      {result && <StickinessChart result={result} compact />}
     </WidgetShell>
   );
 }

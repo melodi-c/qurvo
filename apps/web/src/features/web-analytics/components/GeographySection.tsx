@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabNav } from '@/components/ui/tab-nav';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { isoNumericToAlpha2 } from '../lib/iso-numeric-to-alpha2';
 import translations from './GeographySection.translations';
@@ -275,10 +276,7 @@ export function GeographySection({
             </div>
             {rows.map((row) => (
               <div key={row.name} className="relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-md bg-primary/5"
-                  style={{ width: `${(row.visitors / maxRowVisitors) * 100}%` }}
-                />
+                <ProgressBar value={row.visitors} max={maxRowVisitors} />
                 <span className="relative min-w-0 flex-1 truncate text-foreground/80">{row.name}</span>
                 <span className="relative w-16 text-right tabular-nums text-foreground/70 sm:w-20">
                   {row.visitors.toLocaleString()}

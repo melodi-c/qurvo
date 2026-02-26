@@ -1,19 +1,11 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { MemoryRouter } from 'react-router-dom';
 import { EditorHeader } from './editor-header';
 
 const meta: Meta<typeof EditorHeader> = {
   title: 'UI/EditorHeader',
   component: EditorHeader,
   tags: ['autodocs'],
-  decorators: [
-    (Story) => (
-      <MemoryRouter>
-        <Story />
-      </MemoryRouter>
-    ),
-  ],
 };
 
 export default meta;
