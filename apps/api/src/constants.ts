@@ -25,6 +25,7 @@ export const AI_SUMMARY_THRESHOLD = 16;
 export const AI_SUMMARY_KEEP_RECENT = 10;
 export const AI_SUMMARIZATION_MODEL = 'gpt-4o-mini';
 export const AI_TOOL_CACHE_TTL_SECONDS = 300; // 5 minutes
+export const AI_TOOL_RESULT_MAX_CHARS = 8000; // ~2000 tokens — prevents giant tool results from bloating context
 export const AI_RETRY_MAX_ATTEMPTS = 3;
 export const AI_RETRY_BASE_DELAY_MS = 30_000; // 30 seconds
 export const AI_RATE_LIMIT_MINUTE_WINDOW_SECONDS = 60;

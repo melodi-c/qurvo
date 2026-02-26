@@ -14,7 +14,7 @@ import { AI_CONFIG } from './ai-config.provider';
 import type { AiConfig } from './ai-config.provider';
 import { AiNotConfiguredException } from './exceptions/ai-not-configured.exception';
 import { ConversationNotFoundException } from './exceptions/conversation-not-found.exception';
-import { AI_MAX_TOOL_CALL_ITERATIONS, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, MODEL_COST_PER_1M } from '../constants';
+import { AI_MAX_TOOL_CALL_ITERATIONS, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, MODEL_COST_PER_1M, AI_TOOL_RESULT_MAX_CHARS } from '../constants';
 
 type AiStreamChunk =
   | { type: 'conversation'; conversation_id: string; title: string }
@@ -215,10 +215,14 @@ export class AiService implements OnModuleInit {
       const results = yield* this.toolDispatcher.dispatch(toolCalls, userId, projectId);
 
       for (const r of results) {
+        const rawContent = JSON.stringify(r.result);
+        const content = rawContent.length > AI_TOOL_RESULT_MAX_CHARS
+          ? rawContent.slice(0, AI_TOOL_RESULT_MAX_CHARS) + '...[truncated]'
+          : rawContent;
         messages.push({
           role: 'tool',
           tool_call_id: r.toolCallId,
-          content: JSON.stringify(r.result),
+          content,
         });
 
         await this.chatService.saveMessage(conversationId, seq++, {

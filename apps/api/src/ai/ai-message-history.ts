@@ -7,7 +7,7 @@ import type {
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
 import { buildSystemPrompt } from './system-prompt';
-import { AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT } from '../constants';
+import { AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_TOOL_RESULT_MAX_CHARS } from '../constants';
 
 @Injectable()
 export class AiMessageHistoryBuilder {
@@ -114,10 +114,14 @@ export class AiMessageHistoryBuilder {
         messages.push(assistantMsg);
       } else if (msg.role === 'tool') {
         if (!msg.tool_call_id) continue;
+        const rawContent = typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result);
+        const content = rawContent.length > AI_TOOL_RESULT_MAX_CHARS
+          ? rawContent.slice(0, AI_TOOL_RESULT_MAX_CHARS) + '...[truncated]'
+          : rawContent;
         messages.push({
           role: 'tool',
           tool_call_id: msg.tool_call_id,
-          content: typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result),
+          content,
         });
       }
     }
