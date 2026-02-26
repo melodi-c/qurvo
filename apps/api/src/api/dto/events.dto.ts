@@ -5,7 +5,6 @@ import {
   IsInt,
   Min,
   Max,
-  IsDateString,
   IsOptional,
   IsUUID,
 } from 'class-validator';
@@ -14,6 +13,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { makeJsonArrayTransform } from './shared/transforms';
 import { IsDateOnly } from './shared/is-date-only.decorator';
+import { IsIsoDatetime } from './shared/is-iso-datetime.decorator';
 
 export class EventsQueryDto {
   @IsUUID()
@@ -95,7 +95,7 @@ export class EventDetailQueryDto {
   @IsUUID()
   project_id: string;
 
-  @IsDateString()
+  @IsIsoDatetime()
   timestamp: string;
 }
 
