@@ -42,6 +42,7 @@ export class AiConversationDto {
   is_shared: boolean;
   tokens_input: number;
   tokens_output: number;
+  tokens_cached: number;
   created_at: string;
   updated_at: string;
 }

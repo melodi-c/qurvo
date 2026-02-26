@@ -163,12 +163,13 @@ export class AiChatService {
       .where(eq(aiConversations.id, conversationId));
   }
 
-  async incrementTokenUsage(conversationId: string, deltaInput: number, deltaOutput: number) {
+  async incrementTokenUsage(conversationId: string, deltaInput: number, deltaOutput: number, deltaCached = 0) {
     await this.db
       .update(aiConversations)
       .set({
         tokens_input: sql`${aiConversations.tokens_input} + ${deltaInput}`,
         tokens_output: sql`${aiConversations.tokens_output} + ${deltaOutput}`,
+        tokens_cached: sql`${aiConversations.tokens_cached} + ${deltaCached}`,
       })
       .where(eq(aiConversations.id, conversationId));
   }

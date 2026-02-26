@@ -12,6 +12,7 @@ export const aiConversations = pgTable('ai_conversations', {
   summary_failed: boolean('summary_failed').notNull().default(false),
   tokens_input: integer('tokens_input').notNull().default(0),
   tokens_output: integer('tokens_output').notNull().default(0),
+  tokens_cached: integer('tokens_cached').notNull().default(0),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

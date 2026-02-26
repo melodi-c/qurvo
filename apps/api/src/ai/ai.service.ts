@@ -22,11 +22,12 @@ type AiStreamChunk =
   | { type: 'tool_call_start'; tool_call_id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; tool_call_id: string; name: string; result: unknown; visualization_type?: string }
   | { type: 'error'; message: string }
-  | { type: 'done'; tokens_input: number; tokens_output: number };
+  | { type: 'done'; tokens_input: number; tokens_output: number; tokens_cached: number };
 
 interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
+  cachedTokens: number;
 }
 
 interface StreamTurnResult {
@@ -109,11 +110,11 @@ export class AiService implements OnModuleInit {
         await this.messageHistoryBuilder.build(conversation, isNew, params, userId);
 
       // Run tool-call loop
-      const { seq, totalInputTokens, totalOutputTokens } = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
+      const { seq, totalInputTokens, totalOutputTokens, totalCachedTokens } = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
 
       // Persist cumulative token usage for this request
       if (totalInputTokens > 0 || totalOutputTokens > 0) {
-        await this.chatService.incrementTokenUsage(conversation.id, totalInputTokens, totalOutputTokens);
+        await this.chatService.incrementTokenUsage(conversation.id, totalInputTokens, totalOutputTokens, totalCachedTokens);
       }
 
       // Update summary when history exceeds the threshold.
@@ -130,7 +131,7 @@ export class AiService implements OnModuleInit {
         this.summarizationService.schedule(client, conversation.id);
       }
 
-      yield { type: 'done', tokens_input: totalInputTokens, tokens_output: totalOutputTokens };
+      yield { type: 'done', tokens_input: totalInputTokens, tokens_output: totalOutputTokens, tokens_cached: totalCachedTokens };
     } finally {
       // Finalize conversation: updates title + updated_at.
       // Runs on both normal completion and client disconnect (generator return).
@@ -150,10 +151,11 @@ export class AiService implements OnModuleInit {
     seq: number,
     userId: string,
     projectId: string,
-  ): AsyncGenerator<AiStreamChunk, { seq: number; totalInputTokens: number; totalOutputTokens: number }> {
+  ): AsyncGenerator<AiStreamChunk, { seq: number; totalInputTokens: number; totalOutputTokens: number; totalCachedTokens: number }> {
     let exhausted = true;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
+    let totalCachedTokens = 0;
 
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
       const { assistantContent, toolCalls, usage } = yield* this.streamOneTurn(client, messages);
@@ -171,11 +173,13 @@ export class AiService implements OnModuleInit {
       if (usage) {
         totalInputTokens += usage.promptTokens;
         totalOutputTokens += usage.completionTokens;
+        totalCachedTokens += usage.cachedTokens;
         this.logger.log({
           conversationId,
           model: this.model,
           prompt_tokens: usage.promptTokens,
           completion_tokens: usage.completionTokens,
+          cached_tokens: usage.cachedTokens,
           total_tokens: usage.promptTokens + usage.completionTokens,
           estimated_cost_usd: costFields.estimated_cost_usd,
         }, 'AI token usage');
@@ -250,7 +254,7 @@ export class AiService implements OnModuleInit {
       this.logger.warn({ conversationId }, `Tool-call loop exhausted after ${AI_MAX_TOOL_CALL_ITERATIONS} iterations`);
       yield { type: 'text_delta', content: '\n\n[Analysis was cut short due to reaching the tool call limit. Please try a more specific question.]' };
     }
-    return { seq, totalInputTokens, totalOutputTokens };
+    return { seq, totalInputTokens, totalOutputTokens, totalCachedTokens };
   }
 
   private async *streamOneTurn(
@@ -274,6 +278,7 @@ export class AiService implements OnModuleInit {
         usage = {
           promptTokens: chunk.usage.prompt_tokens,
           completionTokens: chunk.usage.completion_tokens,
+          cachedTokens: chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
         };
       }
 

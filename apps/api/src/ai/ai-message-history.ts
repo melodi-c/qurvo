@@ -6,7 +6,7 @@ import type {
 } from 'openai/resources/chat/completions';
 import { AiChatService } from './ai-chat.service';
 import { AiContextService } from './ai-context.service';
-import { buildSystemPrompt } from './system-prompt';
+import { STATIC_SYSTEM_PROMPT, buildContextMessage } from './system-prompt';
 import { AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_TOOL_RESULT_MAX_CHARS } from '../constants';
 
 @Injectable()
@@ -35,12 +35,18 @@ export class AiMessageHistoryBuilder {
       await this.chatService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
     }
 
-    // Build messages
+    // Build messages — static system prompt first (maximises OpenAI prefix-cache hits),
+    // followed by dynamic context injected as a system message, then conversation history.
     const projectContext = await this.contextService.getProjectContext(params.project_id);
     const today = new Date().toISOString().split('T')[0];
-    const systemContent = buildSystemPrompt(today, projectContext, params.language);
 
-    const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }];
+    const messages: ChatCompletionMessageParam[] = [
+      // 1. Static instructions — never changes, cached by OpenAI after first request.
+      { role: 'system', content: STATIC_SYSTEM_PROMPT },
+      // 2. Dynamic context (date, language, project data) — injected as a separate system
+      //    message so the static prefix above remains cacheable across all requests.
+      { role: 'system', content: buildContextMessage(today, projectContext, params.language) },
+    ];
 
     // Load history with summarization
     let totalMessageCount = 0;

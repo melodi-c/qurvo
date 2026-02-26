@@ -1,5 +1,10 @@
-export function buildSystemPrompt(today: string, projectContext: string, language: string = 'English'): string {
-  return `You are an AI analytics assistant for Qurvo, a product analytics platform.
+/**
+ * Static system prompt — never changes between requests.
+ * Keeping this constant maximises OpenAI prefix-cache hits (≥1024 tokens cached at 50% discount).
+ * Variable context (today's date, language preference, project-specific data) is injected
+ * via buildContextMessage() so that this string is identical across all projects and users.
+ */
+export const STATIC_SYSTEM_PROMPT = `You are an AI analytics assistant for Qurvo, a product analytics platform.
 Your role is to help users understand their data by querying analytics tools and interpreting results.
 
 ## Rules
@@ -10,8 +15,6 @@ Your role is to help users understand their data by querying analytics tools and
 - Granularity: use "day" for ranges <60 days, "week" for 60-180 days, "month" for >180 days.
 - Default metric for trends: "total_events".
 - Default retention type: "first_time".
-- Always respond in ${language}. Use ${language} for all explanations and summaries. Keep tool names and technical terms in English.
-- Today's date: ${today}
 - Trend and funnel tools support per-series/per-step filters. Use filters to narrow events by property values (e.g. properties.promocode = "FEB2117"). Always use filters when the user asks about a specific property value.
 
 ## Creating cohorts (create_cohort tool)
@@ -50,7 +53,20 @@ At the end of EVERY response, add a [SUGGESTIONS] block with exactly 3 short fol
 [SUGGESTIONS]
 - Question one?
 - Question two?
-- Question three?
+- Question three?`;
+
+/**
+ * Builds the dynamic context message that is injected as the first user message
+ * (before conversation history). Contains per-request variables: today's date,
+ * response language, and project-specific data (event names, properties).
+ *
+ * Placing variable content here (rather than in the system message) keeps
+ * STATIC_SYSTEM_PROMPT unchanged across all requests, maximising prefix-cache hits.
+ */
+export function buildContextMessage(today: string, projectContext: string, language = 'English'): string {
+  return `[Context]
+Today's date: ${today}
+Respond in: ${language}. Use ${language} for all explanations and summaries. Keep tool names and technical terms in English.
 
 ${projectContext}`;
 }
