@@ -23,9 +23,9 @@ export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false,
     const base = totals.get(nums[0]) ?? 0;
     return nums.map((sn, i) => {
       const total = totals.get(sn) ?? 0;
-      const prev = i > 0 ? (totals.get(nums[i - 1]) ?? total) : total;
-      const isFirst = i === 0;
-      const dropOff = isFirst ? 0 : prev - total;
+      const isLast = i === nums.length - 1;
+      const next = isLast ? 0 : (totals.get(nums[i + 1]) ?? 0);
+      const dropOff = isLast ? 0 : total - next;
       return {
         step: sn,
         label: steps.find((s) => s.step === sn)?.label ?? '',
@@ -33,7 +33,7 @@ export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false,
         count: total,
         conversion_rate: base > 0 ? Math.round((total / base) * 1000) / 10 : 0,
         drop_off: dropOff,
-        drop_off_rate: prev > 0 && !isFirst ? Math.round((dropOff / prev) * 1000) / 10 : 0,
+        drop_off_rate: !isLast && total > 0 ? Math.round((dropOff / total) * 1000) / 10 : 0,
         avg_time_to_convert_seconds: null,
       };
     });
