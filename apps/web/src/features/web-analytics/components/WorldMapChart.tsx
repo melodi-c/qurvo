@@ -198,7 +198,7 @@ export function WorldMapChart({
                   background: 'linear-gradient(to right, #27272a, #818cf8)',
                 }}
               />
-              <span className="text-[10px] text-muted-foreground">max</span>
+              <span className="text-[10px] text-muted-foreground">{t('legendMax')}</span>
             </div>
 
             {tooltip && (

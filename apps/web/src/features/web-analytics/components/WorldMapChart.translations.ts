@@ -5,12 +5,14 @@ export default createTranslations({
     noData: 'No geographic data available',
     visitors: 'visitors',
     pageviews: 'pageviews',
+    legendMax: 'max',
     loadError: 'Failed to load map data',
   },
   ru: {
     noData: 'Нет данных по географии',
     visitors: 'посетителей',
     pageviews: 'просмотров',
+    legendMax: 'макс',
     loadError: 'Не удалось загрузить данные карты',
   },
 });
