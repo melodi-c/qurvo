@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsBoolean, IsObject, IsIn, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsValidChannelConfig } from './shared/is-valid-channel-config.decorator';
 
 export class CreateScheduledJobDto {
   @IsString()
@@ -22,6 +23,7 @@ export class CreateScheduledJobDto {
   channel_type: string;
 
   @IsObject()
+  @IsValidChannelConfig()
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;
 }
@@ -51,6 +53,7 @@ export class UpdateScheduledJobDto {
   channel_type?: string;
 
   @IsObject()
+  @IsValidChannelConfig()
   @IsOptional()
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   channel_config?: Record<string, unknown>;

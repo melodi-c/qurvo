@@ -1,5 +1,6 @@
 import { IsString, IsNumber, IsOptional, IsBoolean, IsObject, IsIn, MinLength, MaxLength, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsValidChannelConfig } from './shared/is-valid-channel-config.decorator';
 
 export class CreateMonitorDto {
   @IsString()
@@ -24,6 +25,7 @@ export class CreateMonitorDto {
   channel_type: string;
 
   @IsObject()
+  @IsValidChannelConfig()
   @ApiProperty({ type: 'object', additionalProperties: true })
   channel_config: Record<string, unknown>;
 }
@@ -52,6 +54,7 @@ export class UpdateMonitorDto {
   channel_type?: string;
 
   @IsObject()
+  @IsValidChannelConfig()
   @IsOptional()
   @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   channel_config?: Record<string, unknown>;
