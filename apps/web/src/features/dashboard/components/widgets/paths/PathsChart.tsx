@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Sankey, Tooltip, Layer, Rectangle } from 'recharts';
 import type { PathTransition, TopPath } from '@/api/generated/Api';
-import { useElementWidth } from '@/hooks/use-element-width';
+import { useElementSize } from '@/hooks/use-element-size';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { CHART_COLORS_HEX } from '@/lib/chart-colors';
 import translations from './PathsChart.translations';
@@ -136,7 +136,7 @@ const MIN_SANKEY_WIDTH = 600;
 export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) {
   const { t } = useLocalTranslation(translations);
   const sankeyData = useMemo(() => toSankeyData(transitions), [transitions]);
-  const { ref: containerRef, width: containerWidth } = useElementWidth();
+  const { ref: containerRef, width: containerWidth, height: containerHeight } = useElementSize();
 
   if (sankeyData.nodes.length === 0 || sankeyData.links.length === 0) {
     return (
@@ -150,7 +150,7 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
   const maxStep = transitions.reduce((m, t) => Math.max(m, t.step), 0);
   const stepCount = maxStep + 1; // +1 for the target column
   const minWidth = Math.max(stepCount * MIN_WIDTH_PER_STEP, MIN_SANKEY_WIDTH);
-  const chartHeight = compact ? 250 : 400;
+  const chartHeight = compact ? Math.max(containerHeight ?? 250, 250) : 400;
   const chartWidth = Math.max(containerWidth || MIN_SANKEY_WIDTH, minWidth);
 
   return (
