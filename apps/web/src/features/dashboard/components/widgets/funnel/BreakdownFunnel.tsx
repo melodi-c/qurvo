@@ -3,6 +3,8 @@ import { YAxis, GridLines, Bar } from './FunnelBar';
 import { BarTooltip } from './FunnelTooltip';
 import { StepLegend } from './FunnelStepLegend';
 import { SERIES_COLORS, BAR_AREA_H_FULL, BAR_AREA_H_COMPACT, barWidthPx } from './funnel-chart-utils';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './FunnelChart.translations';
 import type { FunnelStepResult } from '@/api/generated/Api';
 
 export function BreakdownFunnel({
@@ -16,8 +18,11 @@ export function BreakdownFunnel({
   compact: boolean;
   relative: boolean;
 }) {
+  const { t } = useLocalTranslation(translations);
   const [hovered, setHovered] = useState<{ si: number; gi: number } | null>(null);
   const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
+
+  const noneLabel = t('noneValue');
 
   const { stepMap, stepNums, step1Map, groups, groupConvs, bw } = useMemo(() => {
     // Build: step_num → breakdown_value → FunnelStepResult
@@ -25,7 +30,7 @@ export function BreakdownFunnel({
     const insertOrder: string[] = [];
 
     for (const s of steps) {
-      const bv = s.breakdown_value ?? '(none)';
+      const bv = s.breakdown_value ?? noneLabel;
       if (!sm.has(s.step)) sm.set(s.step, new Map());
       sm.get(s.step)!.set(bv, s);
       if (!insertOrder.includes(bv)) insertOrder.push(bv);
@@ -57,7 +62,7 @@ export function BreakdownFunnel({
     const bw = barWidthPx(grps.length, compact);
 
     return { stepMap: sm, stepNums: sNums, step1Map: s1Map, groups: grps, groupConvs: gConvs, bw };
-  }, [steps, compact]);
+  }, [steps, compact, noneLabel]);
 
   return (
     <div className="flex flex-col gap-0 select-none h-full">
