@@ -1,5 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
+import { GenericContainer, type StartedTestContainer, Wait, getContainerRuntimeClient } from 'testcontainers';
 
 const PG_USER = 'qurvo';
 const PG_PASSWORD = 'qurvo_secret';
@@ -30,8 +30,35 @@ interface StartedContainers {
 
 let started: StartedContainers | null = null;
 
+/**
+ * Returns true if ALL three containers are still in the Running state.
+ * Used as a guard in startGlobalContainers() to detect when a container
+ * has crashed after the initial startup (stale `started` singleton).
+ */
+async function allContainersRunning(s: StartedContainers): Promise<boolean> {
+  try {
+    const client = await getContainerRuntimeClient();
+    const ids = [s.pgContainer.getId(), s.redisContainer.getId(), s.chContainer.getId()];
+    const inspections = await Promise.all(
+      ids.map((id) => client.container.inspect(client.container.getById(id))),
+    );
+    return inspections.every((info) => info.State.Running === true);
+  } catch {
+    // If inspection itself fails (e.g. Docker daemon unreachable), treat as not running.
+    return false;
+  }
+}
+
 export async function startGlobalContainers(): Promise<ContainerCoords> {
-  if (started) return started.coords;
+  if (started) {
+    // Guard: if a container has crashed since the last successful start,
+    // invalidate the singleton so we attempt a fresh start below.
+    const healthy = await allContainersRunning(started);
+    if (healthy) return started.coords;
+
+    console.warn('[testing] startGlobalContainers: one or more containers are no longer running — invalidating singleton and restarting');
+    started = null;
+  }
 
   const results = await Promise.allSettled([
     new PostgreSqlContainer('postgres:17-alpine')

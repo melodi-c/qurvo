@@ -1,6 +1,8 @@
 import 'reflect-metadata';
-import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
+import { Test, type TestingModule } from '@nestjs/testing';
+import Redis from 'ioredis';
+import type { Database } from '@qurvo/db';
+import { REDIS, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
   setupContainers,
   teardownContainers,
@@ -11,7 +13,7 @@ import { BillingCheckService } from '../billing/billing-check.service';
 
 interface TestContext {
   ctx: ContainerContext;
-  app: INestApplication;
+  moduleRef: TestingModule;
   billingService: BillingCheckService;
 }
 
@@ -20,8 +22,13 @@ let cached: Promise<TestContext> | null = null;
 /**
  * Lazy singleton: boots containers + NestJS module once per test run.
  * Safe to call from every test file — only the first call does the actual work.
- * Note: app.init() is intentionally NOT called — we don't want the scheduled
- * cycle to start. Tests invoke billingService.runCycle() manually.
+ *
+ * We intentionally avoid createNestApplication() + app.close() here because
+ * NestJS does not guarantee that OnApplicationShutdown hooks fire when
+ * app.close() is called without a preceding app.init(). Instead we compile
+ * the module, grab services directly, and close connections explicitly in
+ * closeTestContext(). This also prevents the PeriodicWorkerMixin timers
+ * (BillingCheckService, AiQuotaResetService) from starting automatically.
  */
 export function getTestContext(): Promise<TestContext> {
   if (cached) return cached;
@@ -39,24 +46,27 @@ async function bootstrap(): Promise<TestContext> {
     imports: [AppModule],
   }).compile();
 
-  const app = moduleRef.createNestApplication();
-  // Don't call app.init() — we don't want the scheduled cycle to start.
-  // Instead, get the service and call runCycle() manually.
   const billingService = moduleRef.get(BillingCheckService);
 
-  return { ctx, app, billingService };
+  return { ctx, moduleRef, billingService };
 }
 
 /**
- * Shuts down the shared NestJS app and closes all test connections.
+ * Closes open connections and tears down containers.
+ * We close Redis and the PG pool directly via moduleRef.get() because
+ * OnApplicationShutdown hooks are not invoked without app.init().
  * Called once at the very end (setupFiles afterAll teardown).
  */
 export async function closeTestContext(): Promise<void> {
   if (!cached) return;
-  const { app } = await cached;
+  const { moduleRef } = await cached;
   cached = null;
   try {
-    await app.close();
+    const redis = moduleRef.get<Redis>(REDIS);
+    const db = moduleRef.get<Database>(DRIZZLE);
+    await redis.quit().catch(() => undefined);
+    await db.$pool.end().catch(() => undefined);
+    await moduleRef.close();
   } finally {
     await teardownContainers();
   }

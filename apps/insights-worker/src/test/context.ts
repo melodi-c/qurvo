@@ -32,6 +32,9 @@ async function bootstrap(): Promise<TestContext> {
   process.env.CLICKHOUSE_DB = ctx.clickhouseDb;
   process.env.CLICKHOUSE_USER = ctx.clickhouseUser;
   process.env.CLICKHOUSE_PASSWORD = ctx.clickhousePassword;
+  // REDIS_URL is intentionally not set: InsightsModule uses only DrizzleProvider +
+  // ClickHouseProvider (no RedisProvider), and main.ts requires only DATABASE_URL +
+  // CLICKHOUSE_URL in requiredEnv validation. Redis is not used by this worker.
 
   const testProject = await createTestProject(ctx.db);
 
