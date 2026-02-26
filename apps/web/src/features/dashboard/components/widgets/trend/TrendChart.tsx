@@ -23,6 +23,8 @@ import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './TrendChart.translations';
 
 const COLORS = CHART_COLORS_HSL;
 const COMPARE_COLORS = CHART_COMPARE_COLORS_HSL;
@@ -49,14 +51,15 @@ interface SeriesRenderProps {
   allSeriesKeys: string[];
   chartType: ChartType;
   compact?: boolean;
+  prevLabel: string;
 }
 
-function renderPrevSeries({ visiblePrevKeys, allSeriesKeys, chartType }: SeriesRenderProps) {
+function renderPrevSeries({ visiblePrevKeys, allSeriesKeys, chartType, prevLabel }: SeriesRenderProps) {
   return visiblePrevKeys.map((key, i) =>
     chartType === 'bar' ? (
-      <Bar key={key} dataKey={key} fill={COMPARE_COLORS[i % COMPARE_COLORS.length]} opacity={0.4} name={`${allSeriesKeys[i] ?? key} (prev)`} />
+      <Bar key={key} dataKey={key} fill={COMPARE_COLORS[i % COMPARE_COLORS.length]} opacity={0.4} name={`${allSeriesKeys[i] ?? key} (${prevLabel})`} />
     ) : (
-      <Line key={key} dataKey={key} stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]} strokeDasharray="5 5" strokeWidth={1.5} dot={false} name={`${allSeriesKeys[i] ?? key} (prev)`} />
+      <Line key={key} dataKey={key} stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]} strokeDasharray="5 5" strokeWidth={1.5} dot={false} name={`${allSeriesKeys[i] ?? key} (${prevLabel})`} />
     ),
   );
 }
@@ -96,6 +99,7 @@ function renderAnnotations(annotations: Annotation[] | undefined, compact?: bool
 // ── Component ──
 
 export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations }: TrendChartProps) {
+  const { t } = useLocalTranslation(translations);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
@@ -164,6 +168,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
     allSeriesKeys,
     chartType,
     compact,
+    prevLabel: t('prev'),
   };
 
   const tickStyle = chartAxisTick(compact);

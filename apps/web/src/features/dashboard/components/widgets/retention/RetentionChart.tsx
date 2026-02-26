@@ -22,13 +22,23 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
   const { t } = useLocalTranslation(translations);
   const { average_retention, granularity } = result;
 
+  const periodPrefix = useMemo(
+    () =>
+      granularity === 'day'
+        ? t('dayPrefix')
+        : granularity === 'week'
+          ? t('weekPrefix')
+          : t('monthPrefix'),
+    [granularity, t],
+  );
+
   const data = useMemo(
     () =>
       average_retention.map((pct, i) => ({
-        period: `${granularity === 'day' ? 'D' : granularity === 'week' ? 'W' : 'M'}${i}`,
+        period: `${periodPrefix}${i}`,
         retention: Math.round(pct * 100) / 100,
       })),
-    [average_retention, granularity],
+    [average_retention, periodPrefix],
   );
 
   if (data.length === 0) return null;
