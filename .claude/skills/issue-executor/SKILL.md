@@ -73,7 +73,25 @@ gh issue view <N> --json number,title,body,labels,comments
 
 ---
 
-## Шаг 3: Подготовка лейбла in-progress
+## Шаг 3: Санитарные проверки окружения
+
+Перед запуском любых подагентов выполни:
+
+```bash
+# Проверка 1: нет мусорных директорий-опечаток рядом с .claude
+for bad_dir in .claire .claud .cloude claude; do
+  [ ! -d "$REPO_ROOT/$bad_dir" ] \
+    || echo "ВНИМАНИЕ: найдена подозрительная директория $REPO_ROOT/$bad_dir — удали её вручную"
+done
+
+# Проверка 2: рабочая директория для worktree существует и называется правильно
+[ -d "$REPO_ROOT/.claude/worktrees" ] || mkdir -p "$REPO_ROOT/.claude/worktrees"
+echo "Worktree dir: $REPO_ROOT/.claude/worktrees"
+```
+
+---
+
+## Шаг 4: Подготовка лейбла in-progress
 
 Перед запуском первой группы убедись что лейбл существует:
 
@@ -83,7 +101,7 @@ gh label create "in-progress" --description "Currently being worked on" --color 
 
 ---
 
-## Шаг 4: Запуск issue-solver подагентов (background)
+## Шаг 5: Запуск issue-solver подагентов (background)
 
 Для каждой группы из `parallel_groups`:
 
@@ -112,19 +130,43 @@ Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 
 ## Шаг 1: Создать worktree из ЛОКАЛЬНОГО main
 
-КРИТИЧНО: Использовать ЛОКАЛЬНЫЙ main, НЕ origin/main.
+КРИТИЧНО: Использовать ЛОКАЛЬНЫЙ main, НЕ origin/main. НЕ делать git fetch перед созданием worktree.
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
-MAIN_HASH=$(git rev-parse main)
+
+# ПРОВЕРКА: убеждаемся что локальная ветка main существует
+git -C "$REPO_ROOT" show-ref --verify refs/heads/main \
+  || { echo "FATAL: локальная ветка main не найдена"; exit 1; }
+
+# Берём хэш ЛОКАЛЬНОГО main (не origin/main, не HEAD)
+MAIN_HASH=$(git -C "$REPO_ROOT" rev-parse main)
+echo "Worktree создаётся от локального main: $MAIN_HASH"
+
 BRANCH_NAME="fix/issue-{ISSUE_NUMBER}"
 WORKTREE_PATH="$REPO_ROOT/.claude/worktrees/issue-{ISSUE_NUMBER}"
 
+# ПРОВЕРКА пути: ровно .claude (не .claire, не .claud, не claude)
+echo "$WORKTREE_PATH" | grep -qF "/.claude/worktrees/" \
+  || { echo "FATAL: неверный путь worktree '$WORKTREE_PATH' — должен содержать /.claude/worktrees/"; exit 1; }
+
 git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" "$MAIN_HASH"
+
+# ПРОВЕРКА после создания: директория существует по правильному пути
+[ -d "$WORKTREE_PATH" ] \
+  || { echo "FATAL: worktree не создан по пути '$WORKTREE_PATH'"; exit 1; }
+git worktree list | grep -qF "$WORKTREE_PATH" \
+  || { echo "FATAL: '$WORKTREE_PATH' не зарегистрирован в git worktree list"; exit 1; }
+
 cd "$WORKTREE_PATH"
 ```
 
 Все дальнейшие действия выполняй ТОЛЬКО внутри worktree.
+
+ЗАПРЕЩЕНО в этом шаге и в любом другом месте:
+- `git rev-parse origin/main` — использовать только `git rev-parse main`
+- `git fetch origin main` — не синхронизировать с remote перед работой
+- `git push origin HEAD:main` — прямой пуш из worktree в origin запрещён
 
 ## Шаг 2: Проверить актуальность issue
 
@@ -212,17 +254,33 @@ pnpm --filter @qurvo/<app> exec vitest run
 cd "$WORKTREE_PATH" && pnpm build
 ```
 
-### 4.9 Мерж в main и push
+### 4.9 Мерж в локальный main и push
 
-ВАЖНО: эти команды выполняются в ОСНОВНОМ репозитории (не в worktree).
-Поскольку REPO_ROOT ты сохранил в начале — используй его как абсолютный путь.
+ВАЖНО: мерж происходит в ЛОКАЛЬНЫЙ main основного репозитория (не push из worktree в origin).
+Все команды выполняются через `-C "$REPO_ROOT"` — не cd, не внутри worktree.
 
 ```bash
-# Работаем с основным репозиторием через -C флаг (не cd)
+# ПРОВЕРКА перед мержем: фиксируем текущий хэш локального main
+MAIN_BEFORE=$(git -C "$REPO_ROOT" rev-parse main)
+echo "local main до мержа: $MAIN_BEFORE"
+
+# Мержим в ЛОКАЛЬНЫЙ main
 git -C "$REPO_ROOT" checkout main
 git -C "$REPO_ROOT" merge fix/issue-{ISSUE_NUMBER}
+
+# ПРОВЕРКА после мержа: хэш должен измениться
+MAIN_AFTER=$(git -C "$REPO_ROOT" rev-parse main)
+echo "local main после мержа: $MAIN_AFTER"
+[ "$MAIN_BEFORE" != "$MAIN_AFTER" ] \
+  || { echo "FATAL: мерж не продвинул локальный main — что-то пошло не так"; exit 1; }
+
+# Только теперь пушим локальный main в origin
 git -C "$REPO_ROOT" push origin main
 ```
+
+ЗАПРЕЩЕНО в этом шаге:
+- `git push origin HEAD:main` из worktree — только через `-C "$REPO_ROOT"` после checkout main
+- `git -C "$WORKTREE_PATH" push ...` — push только из основного репо
 
 ### 4.10 SDK (только если были правки SDK-пакетов)
 ```bash
@@ -260,11 +318,23 @@ STATUS: FAILED | <причина>
 
 ---
 
-## Шаг 5: Обработка результатов
+## Шаг 6: Обработка результатов
 
 После завершения каждого background подагента, прочитай его результат и найди строку `STATUS:`.
 
-- `STATUS: SUCCESS` — сними лейбл `in-progress` (он снимается автоматически при закрытии issue, но на всякий случай): `gh issue edit <NUMBER> --remove-label "in-progress"`. Добавь в отчёт как успешный.
+- `STATUS: SUCCESS` — выполни следующие проверки:
+  1. Сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`
+  2. **Проверь что мерж попал в локальный main** (ветка fix/issue-N должна быть удалена подагентом):
+     ```bash
+     git -C "$REPO_ROOT" branch --list "fix/issue-<NUMBER>"
+     # Если ветка ещё существует — подагент не сделал мерж в local main. Это FAILED.
+     ```
+  3. Проверь что локальный main продвинулся:
+     ```bash
+     git -C "$REPO_ROOT" log main --oneline -3
+     # Убедись что последний коммит относится к данному issue
+     ```
+  4. Если проверки прошли — добавь в отчёт как успешный. Если нет — считай FAILED.
 - `STATUS: NEEDS_USER_INPUT | <причина>` — оставь лейбл `in-progress` пока ждёшь ответа. Немедленно сообщи пользователю, передай причину. После ответа пользователя -- перезапусти подагента с дополненным промптом (добавь уточнение пользователя в секцию "Задача").
 - `STATUS: FAILED | <причина>` — сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`. Добавь в отчёт как failed.
 
@@ -272,7 +342,7 @@ STATUS: FAILED | <причина>
 
 ---
 
-## Шаг 6: Итоговый отчёт
+## Шаг 7: Итоговый отчёт
 
 После завершения ВСЕХ групп и всех подагентов, выведи сводку:
 
