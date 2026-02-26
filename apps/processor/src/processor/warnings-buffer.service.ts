@@ -2,9 +2,7 @@ import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import type { ClickHouseClient, IngestionWarning } from '@qurvo/clickhouse';
 import { CLICKHOUSE } from '@qurvo/nestjs-infra';
-
-const WARNINGS_BATCH_SIZE = 100;
-const WARNINGS_FLUSH_INTERVAL_MS = 10_000;
+import { WARNINGS_BATCH_SIZE, WARNINGS_FLUSH_INTERVAL_MS } from '../constants';
 
 @Injectable()
 export class WarningsBufferService implements OnApplicationBootstrap {

@@ -7,15 +7,8 @@ import { DRIZZLE, REDIS } from '@qurvo/nestjs-infra';
 import { parseUserProperties } from './person-utils';
 import { withRetry } from './retry';
 import { HourlyCache } from './hourly-cache';
-import { RETRY_POSTGRES } from '../constants';
+import { RETRY_POSTGRES, FAILED_MERGES_KEY, FAILED_MERGES_MAXLEN, FAILED_MERGES_REPLAY_BATCH } from '../constants';
 import { floorToHourMs } from './time-utils';
-
-/** Redis key for persisted failed merges. */
-const FAILED_MERGES_KEY = 'processor:failed_merges';
-/** Max number of failed merges to keep in Redis. */
-const FAILED_MERGES_MAXLEN = 1000;
-/** How many failed merges to retry per flush cycle. */
-const FAILED_MERGES_REPLAY_BATCH = 10;
 
 interface PendingPerson {
   projectId: string;

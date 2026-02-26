@@ -4,17 +4,19 @@ import { open, Reader, CountryResponse } from 'maxmind';
 import { createWriteStream, existsSync, statSync } from 'fs';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
+import {
+  GEO_DOWNLOAD_MAX_ATTEMPTS,
+  GEO_DOWNLOAD_TIMEOUT_MS,
+  GEO_DOWNLOAD_RETRY_DELAY_MS,
+  MMDB_MAX_AGE_MS,
+} from '../constants';
+import { ONE_DAY_MS } from './time-utils';
 
 const DEFAULT_MMDB_URL =
   'https://cf92270d-b971-4f1a-9fc8-1cde9031d973.selstorage.ru/data/GeoLite2-Country.mmdb';
 const MMDB_PATH = '/tmp/GeoLite2-Country.mmdb';
 
 const LOOPBACK = new Set(['::1', '127.0.0.1', '::ffff:127.0.0.1']);
-const DOWNLOAD_MAX_ATTEMPTS = 3;
-const DOWNLOAD_TIMEOUT_MS = 10_000;
-const DOWNLOAD_RETRY_DELAY_MS = 2_000;
-/** Re-download MMDB if cached file is older than 30 days. */
-const MMDB_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class GeoService implements OnModuleInit {
@@ -30,7 +32,7 @@ export class GeoService implements OnModuleInit {
       if (existsSync(MMDB_PATH)) {
         const stats = statSync(MMDB_PATH);
         const ageMs = Date.now() - stats.mtimeMs;
-        const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+        const ageDays = Math.floor(ageMs / ONE_DAY_MS);
 
         if (ageMs < MMDB_MAX_AGE_MS) {
           this.reader = await open<CountryResponse>(MMDB_PATH);
@@ -59,10 +61,10 @@ export class GeoService implements OnModuleInit {
   }
 
   private async downloadWithRetry(url: string): Promise<void> {
-    for (let attempt = 1; attempt <= DOWNLOAD_MAX_ATTEMPTS; attempt++) {
+    for (let attempt = 1; attempt <= GEO_DOWNLOAD_MAX_ATTEMPTS; attempt++) {
       try {
         this.logger.info({ url, attempt }, 'Downloading GeoLite2-Country MMDB');
-        const res = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(GEO_DOWNLOAD_TIMEOUT_MS) });
         if (!res.ok || !res.body) {
           throw new Error(`HTTP ${res.status} ${res.statusText}`);
         }
@@ -72,9 +74,9 @@ export class GeoService implements OnModuleInit {
         );
         return;
       } catch (err) {
-        if (attempt >= DOWNLOAD_MAX_ATTEMPTS) throw err;
+        if (attempt >= GEO_DOWNLOAD_MAX_ATTEMPTS) throw err;
         this.logger.warn({ err, attempt }, 'MMDB download failed, retrying');
-        await new Promise((r) => setTimeout(r, DOWNLOAD_RETRY_DELAY_MS * attempt));
+        await new Promise((r) => setTimeout(r, GEO_DOWNLOAD_RETRY_DELAY_MS * attempt));
       }
     }
   }

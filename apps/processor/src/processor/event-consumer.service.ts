@@ -13,6 +13,10 @@ import {
   HEARTBEAT_PATH,
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_LOOP_STALE_MS,
+  MAX_CONSECUTIVE_ERRORS,
+  XREAD_COUNT,
+  XREAD_BLOCK_MS,
+  ERROR_RETRY_DELAY_MS,
 } from '../constants';
 import { FlushService } from './flush.service';
 import { PersonResolverService } from './person-resolver.service';
@@ -27,8 +31,6 @@ import {
   resolveAndBuildEvents,
 } from './pipeline';
 import type { PipelineContext } from './pipeline/types';
-
-const MAX_CONSECUTIVE_ERRORS = 100;
 
 @Injectable()
 export class EventConsumerService implements OnApplicationBootstrap {
@@ -109,8 +111,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         const results = await this.redis.xreadgroup(
           'GROUP', REDIS_CONSUMER_GROUP, this.consumerName,
-          'COUNT', '100',
-          'BLOCK', '2000',
+          'COUNT', String(XREAD_COUNT),
+          'BLOCK', String(XREAD_BLOCK_MS),
           'STREAMS', REDIS_STREAM_EVENTS, '>',
         ) as [string, [string, string[]][]][] | null;
 
@@ -133,7 +135,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           process.exit(1);
         }
 
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, ERROR_RETRY_DELAY_MS));
       }
     }
   }
@@ -161,7 +163,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           this.consumerName,
           PENDING_IDLE_MS,
           cursor,
-          'COUNT', '100',
+          'COUNT', String(XREAD_COUNT),
         ) as [string, [string, string[]][], string[]];
 
         if (!result || !result[1] || result[1].length === 0) break;

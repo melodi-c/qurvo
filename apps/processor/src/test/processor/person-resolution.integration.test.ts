@@ -12,6 +12,7 @@ import {
   pollUntil,
 } from '../helpers';
 import { PersonBatchStore } from '../../processor/person-batch-store';
+import { FAILED_MERGES_KEY } from '../../constants';
 
 let ctx: ContainerContext;
 let processorApp: INestApplicationContext;
@@ -283,7 +284,6 @@ describe('person resolution', () => {
 describe('PersonBatchStore: failed merge persistence and replay', () => {
   it('failed mergePersons is persisted to Redis and replayed on next flush', async () => {
     const personBatchStore = processorApp.get(PersonBatchStore);
-    const FAILED_MERGES_KEY = 'processor:failed_merges';
 
     const fromPersonId = randomUUID();
     const intoPersonId = randomUUID();
