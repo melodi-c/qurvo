@@ -1,4 +1,5 @@
 import { IsEmail, IsString, IsOptional, IsIn, MinLength, MaxLength, Matches, Length } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
   @IsEmail()
@@ -41,7 +42,8 @@ export class UserDto {
   id: string;
   email: string;
   display_name: string;
-  language: string;
+  @ApiProperty({ enum: ['ru', 'en'] })
+  language: 'ru' | 'en';
   email_verified: boolean;
 }
 
@@ -55,7 +57,8 @@ export class SessionUserDto {
   user_id: string;
   email: string;
   display_name: string;
-  language: string;
+  @ApiProperty({ enum: ['ru', 'en'] })
+  language: 'ru' | 'en';
   email_verified: boolean;
 }
 
@@ -74,10 +77,11 @@ export class UpdateProfileDto {
   @MaxLength(100)
   display_name?: string;
 
+  @ApiProperty({ enum: ['ru', 'en'], required: false })
   @IsString()
   @IsOptional()
   @IsIn(['ru', 'en'])
-  language?: string;
+  language?: 'ru' | 'en';
 }
 
 export class ChangePasswordDto {

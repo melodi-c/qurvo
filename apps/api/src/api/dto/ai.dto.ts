@@ -57,7 +57,33 @@ export class AiMessageDto {
   @ApiPropertyOptional() tool_call_id: string | null;
   @ApiPropertyOptional() tool_name: string | null;
   @ApiPropertyOptional() tool_result: unknown;
-  @ApiPropertyOptional() visualization_type: string | null;
+  @ApiPropertyOptional({
+    enum: [
+      'trend_chart',
+      'funnel_chart',
+      'funnel_gap_chart',
+      'retention_chart',
+      'lifecycle_chart',
+      'stickiness_chart',
+      'paths_chart',
+      'root_cause_chart',
+      'segment_compare_chart',
+      'histogram_chart',
+    ],
+    nullable: true,
+  })
+  visualization_type:
+    | 'trend_chart'
+    | 'funnel_chart'
+    | 'funnel_gap_chart'
+    | 'retention_chart'
+    | 'lifecycle_chart'
+    | 'stickiness_chart'
+    | 'paths_chart'
+    | 'root_cause_chart'
+    | 'segment_compare_chart'
+    | 'histogram_chart'
+    | null;
   sequence: number;
   created_at: string;
 }

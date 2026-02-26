@@ -54,10 +54,10 @@ export interface Register {
 }
 
 export interface User {
+  language: UserDtoLanguageEnum;
   id: string;
   email: string;
   display_name: string;
-  language: string;
   email_verified: boolean;
 }
 
@@ -77,11 +77,11 @@ export interface Login {
 }
 
 export interface SessionUser {
+  language: SessionUserDtoLanguageEnum;
   session_id: string;
   user_id: string;
   email: string;
   display_name: string;
-  language: string;
   email_verified: boolean;
 }
 
@@ -107,12 +107,12 @@ export interface ResendVerificationResponse {
 }
 
 export interface UpdateProfile {
+  language?: UpdateProfileDtoLanguageEnum;
   /**
    * @minLength 1
    * @maxLength 100
    */
   display_name?: string;
-  language?: UpdateProfileDtoLanguageEnum;
 }
 
 export interface ProfileResponse {
@@ -943,7 +943,7 @@ export interface AiMessage {
   tool_call_id?: string | null;
   tool_name?: string | null;
   tool_result?: object;
-  visualization_type?: string | null;
+  visualization_type?: AiMessageDtoVisualizationTypeEnum;
   id: string;
   sequence: number;
   created_at: string;
@@ -1489,6 +1489,10 @@ export interface PatchAdminPlan {
   is_public?: boolean;
 }
 
+export type UserDtoLanguageEnum = "ru" | "en";
+
+export type SessionUserDtoLanguageEnum = "ru" | "en";
+
 export type UpdateProfileDtoLanguageEnum = "ru" | "en";
 
 export type ProjectWithRoleDtoRoleEnum = "owner" | "editor" | "viewer";
@@ -1567,6 +1571,18 @@ export type MyInviteDtoStatusEnum =
   | "cancelled";
 
 export type AiMessageDtoRoleEnum = "user" | "assistant" | "tool";
+
+export type AiMessageDtoVisualizationTypeEnum =
+  | "trend_chart"
+  | "funnel_chart"
+  | "funnel_gap_chart"
+  | "retention_chart"
+  | "lifecycle_chart"
+  | "stickiness_chart"
+  | "paths_chart"
+  | "root_cause_chart"
+  | "segment_compare_chart"
+  | "histogram_chart";
 
 export type AiMessageFeedbackDtoRatingEnum = "positive" | "negative";
 
