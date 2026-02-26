@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval, buildFilterClause } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ export async function queryLifecycle(
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   const eventFilterParts = buildPropertyFilterConditions(params.event_filters ?? [], 'lc', queryParams);
-  const eventFilterClause = eventFilterParts.length > 0 ? '\n          AND ' + eventFilterParts.join('\n          AND ') : '';
+  const eventFilterClause = buildFilterClause(eventFilterParts);
 
   const sql = `
     WITH

@@ -92,6 +92,14 @@ export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'
 }
 
 /**
+ * Builds a SQL filter clause from an array of conditions.
+ * Returns ' AND cond1 AND cond2 ...' when conditions are present, or '' when empty.
+ */
+export function buildFilterClause(conditions: string[]): string {
+  return conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
+}
+
+/**
  * Returns a ClickHouse INTERVAL expression for a given granularity.
  */
 export function granularityInterval(granularity: 'day' | 'week' | 'month'): string {

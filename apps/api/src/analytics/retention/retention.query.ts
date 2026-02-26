@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate, buildFilterClause } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export async function queryRetention(
 
   // Build event property filter conditions (applied to both initial and return events)
   const filterParts = buildPropertyFilterConditions(params.filters ?? [], 'ret', queryParams);
-  const filterClause = filterParts.length ? ' AND ' + filterParts.join(' AND ') : '';
+  const filterClause = buildFilterClause(filterParts);
 
   let initialCte: string;
 

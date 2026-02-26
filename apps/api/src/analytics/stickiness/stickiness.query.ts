@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, buildFilterClause } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -75,9 +75,7 @@ export async function queryStickiness(
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
   const eventFilterConditions = buildPropertyFilterConditions(params.event_filters ?? [], 'ef', queryParams);
-  const eventFilterClause = eventFilterConditions.length > 0
-    ? ' AND ' + eventFilterConditions.join(' AND ')
-    : '';
+  const eventFilterClause = buildFilterClause(eventFilterConditions);
 
   const sql = `
     WITH person_active_periods AS (
