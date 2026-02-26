@@ -52,8 +52,13 @@ export class DlqService implements OnApplicationBootstrap {
   private scheduleReplay() {
     this.dlqTimer = setTimeout(async () => {
       this.replayPromise = this.replayDlq();
-      await this.replayPromise;
-      this.replayPromise = null;
+      try {
+        await this.replayPromise;
+      } catch (err) {
+        this.logger.error({ err }, 'DLQ replay threw unexpectedly');
+      } finally {
+        this.replayPromise = null;
+      }
       if (!this.stopped) this.scheduleReplay();
     }, DLQ_REPLAY_INTERVAL_MS);
   }
@@ -111,15 +116,19 @@ export class DlqService implements OnApplicationBootstrap {
 
       this.logger.info({ replayed: events.length }, 'Replayed events from DLQ');
     } catch (err) {
-      const failures = await this.redis.incr(DLQ_FAILURES_KEY);
-      // TTL = 2× reset period so counter auto-expires if replays stop failing
-      await this.redis.pexpire(DLQ_FAILURES_KEY, DLQ_CIRCUIT_BREAKER_RESET_MS * 2);
-      if (failures >= DLQ_CIRCUIT_BREAKER_THRESHOLD) {
-        await this.redis.set(DLQ_CIRCUIT_KEY, '1', 'PX', DLQ_CIRCUIT_BREAKER_RESET_MS);
-        await this.redis.del(DLQ_FAILURES_KEY);
-        this.logger.warn({ failures }, 'DLQ circuit breaker opened');
+      this.logger.error({ err }, 'DLQ replay failed');
+      try {
+        const failures = await this.redis.incr(DLQ_FAILURES_KEY);
+        // TTL = 2× reset period so counter auto-expires if replays stop failing
+        await this.redis.pexpire(DLQ_FAILURES_KEY, DLQ_CIRCUIT_BREAKER_RESET_MS * 2);
+        if (failures >= DLQ_CIRCUIT_BREAKER_THRESHOLD) {
+          await this.redis.set(DLQ_CIRCUIT_KEY, '1', 'PX', DLQ_CIRCUIT_BREAKER_RESET_MS);
+          await this.redis.del(DLQ_FAILURES_KEY);
+          this.logger.warn({ failures }, 'DLQ circuit breaker opened');
+        }
+      } catch (cbErr) {
+        this.logger.warn({ err: cbErr }, 'DLQ circuit breaker update failed — Redis unavailable');
       }
-      this.logger.error({ err, failures }, 'DLQ replay failed');
     } finally {
       await this.lock.release().catch((err) => this.logger.warn({ err }, 'DLQ lock release failed'));
     }
