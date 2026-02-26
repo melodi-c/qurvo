@@ -195,6 +195,65 @@ describe('MonitorService', () => {
     }
   });
 
+  it('unique_users: sends notification when unique user count spikes', async () => {
+    const tp = await createTestProject(ctx.db);
+    const eventName = `unique_users_spike_${randomUUID().slice(0, 8)}`;
+
+    // Baseline: 10 unique users/day for days 2-28 (each event has a distinct person_id)
+    for (let day = 2; day <= 28; day++) {
+      await insertBaselineEvents(tp.projectId, eventName, 10, day);
+    }
+
+    // Today: 100 unique users → z-score will be far above threshold
+    await insertTodayEvents(tp.projectId, eventName, 100);
+
+    const monitorId = await createMonitor(tp.projectId, eventName, 2.0, 'unique_users');
+
+    let callsForThisMonitor = 0;
+    const sendSpy = vi.spyOn(notificationSvc, 'send').mockImplementation(async (monitor) => {
+      if (monitor.project_id === tp.projectId) {
+        callsForThisMonitor++;
+      }
+    });
+    try {
+      await svc.runCycle();
+      expect(callsForThisMonitor).toBeGreaterThanOrEqual(1);
+    } finally {
+      sendSpy.mockRestore();
+      await deactivateMonitor(monitorId);
+    }
+  });
+
+  it('unique_users: does not send notification when unique user count is stable', async () => {
+    const tp = await createTestProject(ctx.db);
+    const eventName = `unique_users_stable_${randomUUID().slice(0, 8)}`;
+
+    // Baseline: 10 unique users/day for days 2-28
+    for (let day = 2; day <= 28; day++) {
+      await insertBaselineEvents(tp.projectId, eventName, 10, day);
+    }
+
+    // Today: same 10 unique users → no deviation from baseline
+    await insertTodayEvents(tp.projectId, eventName, 10);
+
+    // High threshold so it won't trigger even with minor noise
+    const monitorId = await createMonitor(tp.projectId, eventName, 100.0, 'unique_users');
+
+    let callsForThisMonitor = 0;
+    const sendSpy = vi.spyOn(notificationSvc, 'send').mockImplementation(async (monitor) => {
+      if (monitor.project_id === tp.projectId) {
+        callsForThisMonitor++;
+      }
+    });
+    try {
+      await svc.runCycle();
+      expect(callsForThisMonitor).toBe(0);
+    } finally {
+      sendSpy.mockRestore();
+      await deactivateMonitor(monitorId);
+    }
+  });
+
   it('does not check inactive monitors', async () => {
     const tp = await createTestProject(ctx.db);
     const eventName = `inactive_monitor_${randomUUID().slice(0, 8)}`;

@@ -69,6 +69,24 @@ describe('topologicalSortCohorts', () => {
     expect(sorted).toEqual([]);
     expect(cyclic.sort()).toEqual(['A', 'B']);
   });
+
+  it('mixed graph: valid chain A→B and cycle C↔D → sorted=[A,B], cyclic=[C,D]', () => {
+    // A depends on B (valid chain), C and D form a mutual cycle
+    const cohorts = [
+      makeCohort('A', ['B']),
+      makeCohort('B'),
+      makeCohort('C', ['D']),
+      makeCohort('D', ['C']),
+    ];
+    const { sorted, cyclic } = topologicalSortCohorts(cohorts);
+    // Valid cohorts must be present in sorted, in dependency order (B before A)
+    expect(sorted.map((c) => c.id).sort()).toEqual(['A', 'B']);
+    expect(sorted.map((c) => c.id).indexOf('B')).toBeLessThan(
+      sorted.map((c) => c.id).indexOf('A'),
+    );
+    // Cyclic cohorts must be isolated
+    expect(cyclic.sort()).toEqual(['C', 'D']);
+  });
 });
 
 describe('groupCohortsByLevel', () => {

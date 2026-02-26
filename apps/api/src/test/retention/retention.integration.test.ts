@@ -5,6 +5,8 @@ import {
   buildEvent,
   daysAgo,
   ts,
+  mondayOfWeekContaining,
+  firstOfMonthContaining,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
@@ -15,36 +17,6 @@ let ctx: ContainerContext;
 beforeAll(async () => {
   ctx = await getTestContext();
 }, 120_000);
-
-// ── Inline date helpers ──────────────────────────────────────────────────────
-
-/**
- * Returns an ISO timestamp for the Monday (noon UTC) of the ISO week
- * that contains the date N days ago.
- * This ensures events are placed at the start of their week bucket, so they
- * are always captured by the retention query's truncated date window.
- */
-function mondayOfWeekContaining(daysBack: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - daysBack);
-  d.setUTCHours(12, 0, 0, 0);
-  const day = d.getUTCDay();
-  const diff = day === 0 ? 6 : day - 1; // ISO Monday = 1, Sunday = 0
-  d.setUTCDate(d.getUTCDate() - diff);
-  return d.toISOString();
-}
-
-/**
- * Returns an ISO timestamp for the 1st of the month (noon UTC) that contains
- * the date N days ago.
- * This ensures events are placed at the start of their month bucket, so they
- * are always captured by the retention query's truncated date window.
- */
-function firstOfMonthContaining(daysBack: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - daysBack);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 12, 0, 0, 0)).toISOString();
-}
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 

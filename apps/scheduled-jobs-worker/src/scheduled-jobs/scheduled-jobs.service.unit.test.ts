@@ -1,26 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { AiScheduledJob } from '@qurvo/db';
-
-/**
- * Standalone copy of isDue logic extracted for pure unit testing.
- * This mirrors the implementation in scheduled-jobs.service.ts exactly.
- */
-function isDue(job: Pick<AiScheduledJob, 'last_run_at' | 'schedule'>, now: Date): boolean {
-  if (!job.last_run_at) return true;
-  const last = job.last_run_at;
-  if (job.schedule === 'daily') {
-    return now.getTime() - last.getTime() >= 24 * 60 * 60 * 1000;
-  }
-  if (job.schedule === 'weekly') {
-    return now.getTime() - last.getTime() >= 7 * 24 * 60 * 60 * 1000;
-  }
-  if (job.schedule === 'monthly') {
-    const nextRun = new Date(last);
-    nextRun.setMonth(nextRun.getMonth() + 1);
-    return now >= nextRun;
-  }
-  return false;
-}
+import { isDue } from './scheduled-jobs.service';
 
 function makeJob(schedule: string, last_run_at: Date | null): Pick<AiScheduledJob, 'last_run_at' | 'schedule'> {
   return { schedule, last_run_at };

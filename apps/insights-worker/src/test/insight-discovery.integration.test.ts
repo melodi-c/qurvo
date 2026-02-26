@@ -100,6 +100,32 @@ describe('InsightDiscoveryService', () => {
       expect(insights[0].title).toMatch(/increased/);
     });
 
+    it('saves an ai_insight when event count drops > 20% from 7d baseline (metric decrease)', async () => {
+      const tp = await createTestProject(ctx.db);
+      const eventName = `drop_event_${randomUUID().slice(0, 8)}`;
+
+      // Baseline: 50 events/day for days 2-7 → avg_daily_count ≈ 50
+      await insertBaselineEvents(tp.projectId, eventName, 50);
+
+      // Recent 24h: 5 events → pct_change = (5 - 50) / 50 = -0.9 (-90% drop)
+      await insertRecentEvents(tp.projectId, eventName, 5);
+
+      await svc.detectMetricChanges(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      expect(insights).toHaveLength(1);
+      expect(insights[0].type).toBe('metric_change');
+      expect(insights[0].title).toContain(eventName);
+      expect(insights[0].title).toMatch(/decreased/);
+
+      const data = insights[0].data_json as { pct_change: number };
+      expect(data.pct_change).toBeLessThan(0);
+    });
+
     it('does not save an insight when pct_change is below threshold', async () => {
       const tp = await createTestProject(ctx.db);
       const eventName = `stable_event_${randomUUID().slice(0, 8)}`;
