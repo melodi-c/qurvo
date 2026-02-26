@@ -25,7 +25,7 @@ function makeAuthService(c: ContainerContext): AuthService {
     c.redis as any,
     mockEmailProvider,
   );
-  const projectsService = new ProjectsService(c.db as any);
+  const projectsService = new ProjectsService(c.db as any, c.redis as any);
   const demoSeedService = { seed: async () => {} } as unknown as DemoSeedService;
   return new AuthService(c.db as any, c.redis as any, verificationService, projectsService, demoSeedService);
 }

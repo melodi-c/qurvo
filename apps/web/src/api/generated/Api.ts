@@ -175,6 +175,19 @@ export interface UpdateProject {
   name?: string;
 }
 
+export interface RotateTokenResponse {
+  id: string;
+  name: string;
+  slug: string;
+  token: string;
+  plan: string | null;
+  is_demo: boolean;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
 export interface FunnelExclusion {
   event_name: string;
   /** @min 0 */
@@ -1550,6 +1563,10 @@ export interface ProjectsControllerRemoveParams {
   id: string;
 }
 
+export interface ProjectsControllerRotateTokenParams {
+  id: string;
+}
+
 export interface FunnelControllerGetFunnelParams {
   cohort_ids?: string[];
   /** @min 1 */
@@ -2778,6 +2795,26 @@ export class Api<
     projectsControllerCreateDemo: (params: RequestParams = {}) =>
       this.request<Project, any>({
         path: `/api/projects/demo`,
+        method: "POST",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Projects
+     * @name ProjectsControllerRotateToken
+     * @request POST:/api/projects/{id}/rotate-token
+     * @secure
+     */
+    projectsControllerRotateToken: (
+      { id, ...query }: ProjectsControllerRotateTokenParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<RotateTokenResponse, any>({
+        path: `/api/projects/${id}/rotate-token`,
         method: "POST",
         secure: true,
         format: "json",

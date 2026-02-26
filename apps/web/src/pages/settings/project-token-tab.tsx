@@ -1,16 +1,21 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, RefreshCw } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
+import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './project-token-tab.translations';
 
 export function ProjectTokenTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
+  const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
@@ -18,9 +23,22 @@ export function ProjectTokenTab({ projectId }: { projectId: string }) {
     enabled: !!projectId,
   });
 
+  const rotateMutation = useMutation({
+    mutationFn: () => api.projectsControllerRotateToken({ id: projectId }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      toast.success(t('regenerateSuccess'));
+    },
+    onError: (err) => {
+      toast.error(extractApiErrorMessage(err, t('regenerateFailed')));
+    },
+  });
+
   if (isLoading) return <ListSkeleton count={1} height="h-20" />;
 
   const token = project?.token;
+  const role = project?.role;
+  const canRotate = role === 'owner' || role === 'editor';
 
   const handleCopy = (value: string) => {
     copy(value);
@@ -40,6 +58,19 @@ export function ProjectTokenTab({ projectId }: { projectId: string }) {
             <code className="flex-1 bg-muted p-3 rounded text-sm break-all font-mono">{token}</code>
             <Button size="icon" variant="outline" onClick={() => handleCopy(token)}>
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+        )}
+
+        {canRotate && (
+          <div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowConfirm(true)}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t('regenerateToken')}
             </Button>
           </div>
         )}
@@ -79,6 +110,16 @@ const qurvo = new Qurvo({
           </pre>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        title={t('regenerateToken')}
+        description={t('regenerateWarning')}
+        confirmLabel={t('regenerateConfirm')}
+        variant="destructive"
+        onConfirm={async () => { await rotateMutation.mutateAsync(); }}
+      />
     </div>
   );
 }

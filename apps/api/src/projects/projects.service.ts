@@ -3,7 +3,9 @@ import { eq, and, ne } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { projects, projectMembers, plans } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
+import { REDIS } from '../providers/redis.provider';
 import type { Database } from '@qurvo/db';
+import type Redis from 'ioredis';
 import { ProjectNotFoundException } from './exceptions/project-not-found.exception';
 import { InsufficientPermissionsException } from '../exceptions/insufficient-permissions.exception';
 import { ProjectNameConflictException } from './exceptions/project-name-conflict.exception';
@@ -28,7 +30,10 @@ const PROJECT_COLUMNS = {
 export class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
 
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    @Inject(REDIS) private readonly redis: Redis,
+  ) {}
 
   async list(userId: string) {
     return this.db
@@ -128,6 +133,36 @@ export class ProjectsService {
 
     await this.db.delete(projects).where(eq(projects.id, projectId));
     this.logger.log({ projectId, userId }, 'Project deleted');
+  }
+
+  async rotateToken(userId: string, projectId: string) {
+    const membership = await this.getMembership(userId, projectId);
+    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+
+    const [current] = await this.db
+      .select({ token: projects.token })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+
+    if (!current) throw new ProjectNotFoundException();
+
+    const oldToken = current.token;
+    const newToken = crypto.randomBytes(24).toString('base64url');
+
+    const [updated] = await this.db
+      .update(projects)
+      .set({ token: newToken, updated_at: new Date() })
+      .where(eq(projects.id, projectId))
+      .returning();
+
+    // Invalidate ingest Redis cache for the old token so it can no longer authenticate
+    this.redis
+      .del(`project_token:${oldToken}`)
+      .catch((err: unknown) => this.logger.error({ err }, 'Failed to invalidate old project token cache'));
+
+    this.logger.log({ projectId, userId }, 'Project token rotated');
+    return updated;
   }
 
   async getMembership(userId: string, projectId: string) {

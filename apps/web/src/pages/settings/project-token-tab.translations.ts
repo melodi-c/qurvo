@@ -13,6 +13,11 @@ export default createTranslations({
     initDescription: 'Import and initialise the SDK with your project token:',
     trackStep: 'Track events',
     trackDescription: 'Call track() to send custom events:',
+    regenerateToken: 'Regenerate Token',
+    regenerateWarning: 'All existing SDK integrations using the current token will stop working immediately. You will need to update the token in all your SDK configurations.',
+    regenerateConfirm: 'Yes, regenerate token',
+    regenerateSuccess: 'Token regenerated successfully',
+    regenerateFailed: 'Failed to regenerate token',
   },
   ru: {
     tokenLabel: 'Токен проекта',
@@ -26,5 +31,10 @@ export default createTranslations({
     initDescription: 'Импортируйте и инициализируйте SDK с токеном проекта:',
     trackStep: 'Отслеживание событий',
     trackDescription: 'Вызывайте track() для отправки пользовательских событий:',
+    regenerateToken: 'Перегенерировать токен',
+    regenerateWarning: 'Все существующие SDK-интеграции, использующие текущий токен, немедленно перестанут работать. Вам нужно будет обновить токен во всех конфигурациях SDK.',
+    regenerateConfirm: 'Да, перегенерировать токен',
+    regenerateSuccess: 'Токен успешно перегенерирован',
+    regenerateFailed: 'Не удалось перегенерировать токен',
   },
 });

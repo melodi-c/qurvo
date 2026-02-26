@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from '../../projects/projects.service';
 import { DemoSeedService } from '../../demo/demo-seed.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
-import { CreateProjectDto, UpdateProjectDto, ProjectDto, ProjectWithRoleDto } from '../dto/projects.dto';
+import { CreateProjectDto, UpdateProjectDto, ProjectDto, ProjectWithRoleDto, RotateTokenResponseDto } from '../dto/projects.dto';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
@@ -48,6 +48,12 @@ export class ProjectsController {
   @Put(':id')
   async update(@CurrentUser() user: RequestUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateProjectDto): Promise<ProjectDto> {
     return this.projectsService.update(user.user_id, id, body) as any;
+  }
+
+  @Post(':id/rotate-token')
+  @HttpCode(HttpStatus.OK)
+  async rotateToken(@CurrentUser() user: RequestUser, @Param('id', ParseUUIDPipe) id: string): Promise<RotateTokenResponseDto> {
+    return this.projectsService.rotateToken(user.user_id, id) as any;
   }
 
   @Delete(':id')
