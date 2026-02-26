@@ -9,6 +9,7 @@ import { hasActiveOverrides } from '../lib/filter-overrides';
 import { todayIso, daysAgoIso } from '@/lib/date-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './DashboardFilterBar.translations';
+import { formatDate } from '@/lib/formatting';
 
 export function DashboardFilterBar() {
   const isEditing = useDashboardStore((s) => s.isEditing);
@@ -27,8 +28,8 @@ export function DashboardFilterBar() {
   if (!isEditing && hasOverrides) {
     const parts: string[] = [];
     if (hasDateOverride) {
-      const from = filterOverrides.dateFrom ? new Date(filterOverrides.dateFrom).toLocaleDateString() : '';
-      const to = filterOverrides.dateTo ? new Date(filterOverrides.dateTo).toLocaleDateString() : '';
+      const from = filterOverrides.dateFrom ? formatDate(filterOverrides.dateFrom) : '';
+      const to = filterOverrides.dateTo ? formatDate(filterOverrides.dateTo) : '';
       parts.push(`${from} — ${to}`);
     }
     if (hasPropertyOverrides) {

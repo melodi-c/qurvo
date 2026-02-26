@@ -12,6 +12,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useEventDefinitions } from '@/hooks/use-event-definitions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './event-definitions.translations';
+import { formatDate } from '@/lib/formatting';
 import type { EventDefinition } from '@/api/generated/Api';
 
 export default function EventDefinitionsPage() {
@@ -48,7 +49,7 @@ export default function EventDefinitionsPage() {
       hideOnMobile: true,
       render: (row) => (
         <span className="text-sm text-muted-foreground tabular-nums">
-          {row.last_seen_at ? new Date(row.last_seen_at).toLocaleDateString() : '—'}
+          {row.last_seen_at ? formatDate(row.last_seen_at) : '—'}
         </span>
       ),
     },

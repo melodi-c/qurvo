@@ -10,6 +10,7 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { Users, Mail, Trash2 } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './members-tab.translations';
+import { formatDate } from '@/lib/formatting';
 import { useMembers } from '@/features/settings/hooks/use-members';
 import { InviteForm } from './invite-form';
 
@@ -122,7 +123,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                   key={invite.id}
                   avatar={<Mail className="h-4 w-4 text-muted-foreground" />}
                   name={invite.email}
-                  subtitle={<><span className="capitalize">{invite.role}</span> &middot; {t('invited')} {new Date(invite.created_at).toLocaleDateString()}</>}
+                  subtitle={<><span className="capitalize">{invite.role}</span> &middot; {t('invited')} {formatDate(invite.created_at)}</>}
                   actions={
                     isOwner ? (
                       <Button

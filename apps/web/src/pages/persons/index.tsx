@@ -13,6 +13,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { isValidFilter } from '@/lib/filter-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './index.translations';
+import { formatDate } from '@/lib/formatting';
 import { PersonsFilterPanel } from './PersonsFilterPanel';
 import { usePersonsFilters } from './use-persons-filters';
 
@@ -84,13 +85,13 @@ export default function PersonsPage() {
       header: t('firstSeen'),
       className: 'text-muted-foreground',
       hideOnMobile: true,
-      render: (row) => new Date(row.createdAt).toLocaleDateString(),
+      render: (row) => formatDate(row.createdAt),
     },
     {
       key: 'lastSeen',
       header: t('lastSeen'),
       className: 'text-muted-foreground',
-      render: (row) => new Date(row.updatedAt).toLocaleDateString(),
+      render: (row) => formatDate(row.updatedAt),
     },
   ], [t]);
 

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './public-insight.translations';
+import { formatDate } from '@/lib/formatting';
 import type { InsightType } from '@/api/generated/Api';
 
 export default function PublicInsightPage() {
@@ -82,7 +83,7 @@ export default function PublicInsightPage() {
                 <span>
                   {t('type')}: <span className="text-foreground">{typeLabel}</span>
                 </span>
-                <span>{t('updated')}: {new Date(insight.updated_at).toLocaleDateString()}</span>
+                <span>{t('updated')}: {formatDate(insight.updated_at)}</span>
               </div>
             </div>
 

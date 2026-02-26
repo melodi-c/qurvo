@@ -6,6 +6,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { NewCohortDropdown } from '@/features/cohorts/components/NewCohortDropdown';
 import translations from './cohorts.translations';
+import { formatDate } from '@/lib/formatting';
 import { isGroup, type CohortCondition, type CohortConditionGroup } from '@/features/cohorts/types';
 import type { Column } from '@/components/ui/data-table';
 import type { Cohort } from '@/api/generated/Api';
@@ -40,7 +41,7 @@ export default function CohortsPage() {
       header: t('created'),
       render: (row) => (
         <span className="text-xs text-muted-foreground">
-          {new Date(row.created_at).toLocaleDateString()}
+          {formatDate(row.created_at)}
         </span>
       ),
     },

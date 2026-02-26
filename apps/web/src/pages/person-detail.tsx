@@ -11,6 +11,7 @@ import { getPersonDisplayName } from '@/lib/person';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { usePersonDetail } from '@/hooks/use-person-detail';
 import translations from './person-detail.translations';
+import { formatDate } from '@/lib/formatting';
 
 export default function PersonDetailPage() {
   const { t } = useLocalTranslation(translations);
@@ -67,13 +68,13 @@ export default function PersonDetailPage() {
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">{t('firstSeen')}</dt>
                     <dd>
-                      {person ? new Date(person.created_at).toLocaleDateString() : '\u2014'}
+                      {person ? formatDate(person.created_at) : '\u2014'}
                     </dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">{t('lastSeen')}</dt>
                     <dd>
-                      {person ? new Date(person.updated_at).toLocaleDateString() : '\u2014'}
+                      {person ? formatDate(person.updated_at) : '\u2014'}
                     </dd>
                   </div>
                 </dl>

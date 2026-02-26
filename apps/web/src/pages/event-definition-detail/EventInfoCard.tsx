@@ -14,6 +14,7 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './translations';
+import { formatDate } from '@/lib/formatting';
 
 interface EventInfoCardProps {
   eventName: string;
@@ -117,7 +118,7 @@ export function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
               </Label>
             </div>
             <span className="text-sm text-muted-foreground">
-              {t('lastSeen')} <span className="tabular-nums font-medium text-foreground">{eventDef.last_seen_at ? new Date(eventDef.last_seen_at).toLocaleDateString() : '\u2014'}</span>
+              {t('lastSeen')} <span className="tabular-nums font-medium text-foreground">{eventDef.last_seen_at ? formatDate(eventDef.last_seen_at) : '\u2014'}</span>
             </span>
           </div>
 

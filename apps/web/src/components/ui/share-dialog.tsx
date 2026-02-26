@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './share-dialog.translations';
+import { formatDate } from '@/lib/formatting';
 import type { ShareToken } from '@/api/generated/Api';
 import { routes } from '@/lib/routes';
 
@@ -85,9 +86,9 @@ function ShareTokenRow({
         </Button>
       </div>
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-        <span>{t('createdAt', { date: new Date(token.created_at).toLocaleDateString() })}</span>
+        <span>{t('createdAt', { date: formatDate(token.created_at) })}</span>
         {token.expires_at ? (
-          <span>{t('expiresAt', { date: new Date(token.expires_at).toLocaleDateString() })}</span>
+          <span>{t('expiresAt', { date: formatDate(token.expires_at) })}</span>
         ) : (
           <span>{t('neverExpires')}</span>
         )}

@@ -15,6 +15,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation, useSearchConversations } from '@/features/ai/hooks/use-ai-conversations';
 import { AiTabNav } from './ai-tab-nav';
 import translations from './index.translations';
+import { formatDate } from '@/lib/formatting';
 
 type AiTab = 'mine' | 'shared';
 
@@ -214,7 +215,7 @@ export function AiListView({ projectId }: { projectId: string }) {
                         key={conv.id}
                         icon={conv.is_shared ? Users : MessageSquare}
                         title={conv.title}
-                        subtitle={new Date(conv.updated_at).toLocaleDateString()}
+                        subtitle={formatDate(conv.updated_at)}
                         onClick={() => navigate(conv.id)}
                         onRename={() => startEdit(conv.id, conv.title)}
                         onDelete={() => requestDelete(conv.id, conv.title)}
@@ -245,7 +246,7 @@ export function AiListView({ projectId }: { projectId: string }) {
                       key={conv.id}
                       icon={Users}
                       title={conv.title}
-                      subtitle={new Date(conv.updated_at).toLocaleDateString()}
+                      subtitle={formatDate(conv.updated_at)}
                       onClick={() => navigate(conv.id)}
                     />
                   ))}

@@ -13,6 +13,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightsTable.translations';
+import { formatDate } from '@/lib/formatting';
 import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetConfig, LifecycleWidgetConfig, StickinessWidgetConfig } from '@/api/generated/Api';
 
 function getTypeSubtitle(insight: Insight): string {
@@ -127,7 +128,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
       hideOnMobile: true,
       render: (row) => (
         <span className="text-xs text-muted-foreground">
-          {new Date(row.updated_at).toLocaleDateString()}
+          {formatDate(row.updated_at)}
         </span>
       ),
     },

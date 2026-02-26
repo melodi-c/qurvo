@@ -15,6 +15,7 @@ import type { AdminUserProject } from '@/api/generated/Api';
 import { toast } from 'sonner';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './admin-user-detail.translations';
+import { formatDate } from '@/lib/formatting';
 
 export default function AdminUserDetailPage() {
   const { t } = useLocalTranslation(translations);
@@ -102,7 +103,7 @@ export default function AdminUserDetailPage() {
             </div>
             <div>
               <p className="text-muted-foreground mb-1">{t('createdAt')}</p>
-              <p className="font-medium">{new Date(user.created_at).toLocaleDateString()}</p>
+              <p className="font-medium">{formatDate(user.created_at)}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">{t('isStaff')}</p>

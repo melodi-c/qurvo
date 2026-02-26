@@ -16,6 +16,7 @@ import { routes } from '@/lib/routes';
 import { toast } from 'sonner';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './admin-users-page.translations';
+import { formatDate } from '@/lib/formatting';
 
 export default function AdminUsersPage() {
   const { t } = useLocalTranslation(translations);
@@ -86,7 +87,7 @@ export default function AdminUsersPage() {
       hideOnMobile: true,
       render: (row) => (
         <span className="text-muted-foreground text-sm">
-          {new Date(row.created_at).toLocaleDateString()}
+          {formatDate(row.created_at)}
         </span>
       ),
     },

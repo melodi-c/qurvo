@@ -11,6 +11,7 @@ import { apiClient } from '@/api/client';
 import { routes } from '@/lib/routes';
 import type { AdminProjectListItem } from '@/api/generated/Api';
 import translations from './admin-projects-page.translations';
+import { formatDate } from '@/lib/formatting';
 
 export default function AdminProjectsPage() {
   const { t } = useLocalTranslation(translations);
@@ -54,7 +55,7 @@ export default function AdminProjectsPage() {
       header: t('createdAt'),
       render: (row) => (
         <span className="text-muted-foreground">
-          {new Date(row.created_at).toLocaleDateString()}
+          {formatDate(row.created_at)}
         </span>
       ),
       hideOnMobile: true,

@@ -7,6 +7,11 @@ function getLocale(): string {
   return useLanguageStore.getState().language;
 }
 
+/** Format an ISO date/timestamp string using the current locale. */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(getLocale());
+}
+
 /** Format an ISO timestamp into a relative time string (e.g. "5m ago"). */
 export function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();

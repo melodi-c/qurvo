@@ -10,6 +10,7 @@ import { CreditCard, Check, X } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './billing-tab.translations';
+import { formatDate } from '@/lib/formatting';
 
 function formatNumber(n: number): string {
   return new Intl.NumberFormat().format(n);
@@ -35,8 +36,8 @@ export function BillingTab({ projectId }: { projectId: string }) {
     ? Math.min(100, Math.round((data.events_this_month / data.events_limit) * 100))
     : null;
 
-  const periodStart = data ? new Date(data.period_start).toLocaleDateString() : '';
-  const periodEnd = data ? new Date(data.period_end).toLocaleDateString() : '';
+  const periodStart = data ? formatDate(data.period_start) : '';
+  const periodEnd = data ? formatDate(data.period_end) : '';
 
   const features = data?.features as Record<string, boolean> | undefined;
   const featureLabels: Record<string, string> = {

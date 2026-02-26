@@ -5,6 +5,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useAiInsights, useDismissInsight, type AiInsight } from '@/features/ai/hooks/use-ai-insights';
 import translations from './ai-insights-section.translations';
+import { formatDate } from '@/lib/formatting';
 
 const INSIGHT_ICONS: Record<AiInsight['type'], typeof TrendingUp> = {
   metric_change: TrendingUp,
@@ -44,7 +45,7 @@ function InsightCard({ insight, dismissTitle, onDismiss }: InsightCardProps) {
       <CardContent>
         <CardDescription>{insight.description}</CardDescription>
         <p className="text-xs text-muted-foreground mt-2">
-          {new Date(insight.created_at).toLocaleDateString()}
+          {formatDate(insight.created_at)}
         </p>
       </CardContent>
     </Card>
