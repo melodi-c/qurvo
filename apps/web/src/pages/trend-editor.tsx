@@ -1,14 +1,17 @@
-import { useMemo, useCallback } from 'react';
-import { TrendingUp, BarChart3 } from 'lucide-react';
+import { useMemo, useCallback, useState } from 'react';
+import { TrendingUp, BarChart3, Plus } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
 import { EditorSkeleton } from '@/components/ui/editor-skeleton';
+import { Button } from '@/components/ui/button';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useTrendData, cleanSeries } from '@/features/dashboard/hooks/use-trend';
+import { useAnnotations, useCreateAnnotation } from '@/features/dashboard/hooks/use-annotations';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
 import { defaultTrendConfig } from '@/features/dashboard/components/widgets/trend/trend-shared';
+import { AnnotationDialog } from '@/components/ui/annotation-dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './trend-editor.translations';
 import { trendToCsv, downloadCsv } from '@/lib/csv-export';
@@ -36,6 +39,10 @@ export default function TrendEditorPage() {
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
   const result = data?.data;
   const series = result?.series;
+
+  const { data: annotations } = useAnnotations(config.date_from, config.date_to);
+  const createAnnotation = useCreateAnnotation();
+  const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false);
 
   const totalValue = series?.reduce(
     (acc, s) => acc + s.data.reduce((sum, dp) => sum + dp.value, 0),
@@ -100,6 +107,17 @@ export default function TrendEditorPage() {
               />
             </>
           )}
+          <div className="ml-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+              onClick={() => setAnnotationDialogOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              {t('addAnnotation')}
+            </Button>
+          </div>
         </>
       }
       onExportCsv={series ? handleExportCsv : undefined}
@@ -111,6 +129,13 @@ export default function TrendEditorPage() {
         chartType={config.chart_type}
         granularity={config.granularity}
         formulas={config.formulas}
+        annotations={annotations}
+      />
+      <AnnotationDialog
+        open={annotationDialogOpen}
+        onOpenChange={setAnnotationDialogOpen}
+        initialDate={config.date_to ?? undefined}
+        onSave={(data) => createAnnotation.mutateAsync(data)}
       />
     </InsightEditorLayout>
   );
