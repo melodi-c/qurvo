@@ -1,5 +1,6 @@
 import { IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { ProjectRole } from '../../constants';
 
 export class CreateProjectDto {
   @IsString()
@@ -29,16 +30,7 @@ export class ProjectDto {
 
 export class ProjectWithRoleDto extends ProjectDto {
   @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
-  role: 'owner' | 'editor' | 'viewer';
+  role: ProjectRole;
 }
 
-export class RotateTokenResponseDto {
-  id: string;
-  name: string;
-  slug: string;
-  token: string;
-  plan: string | null;
-  is_demo: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
+export class RotateTokenResponseDto extends ProjectDto {}

@@ -33,6 +33,7 @@ export const AI_QUOTA_KEY_TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days — slight
 export const AI_PLAN_LIMIT_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes — plan changes only on upgrade/downgrade
 export const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
 
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
 export const PROJECT_ROLE_LEVELS: Record<string, number> = { owner: 3, editor: 2, viewer: 1 };
 
 export const THROTTLE_SHORT_TTL_MS = 1000;

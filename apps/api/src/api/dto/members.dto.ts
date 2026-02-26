@@ -1,5 +1,6 @@
 import { IsEmail, IsIn, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { ProjectRole } from '../../constants';
 
 // ── Input DTOs ────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export class MemberDto {
   project_id: string;
   user: MemberUserDto;
   @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
-  role: 'owner' | 'editor' | 'viewer';
+  role: ProjectRole;
   created_at: Date;
 }
 
@@ -48,7 +49,7 @@ export class InviteDto {
   invited_by: InviterDto;
   email: string;
   @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
-  role: 'owner' | 'editor' | 'viewer';
+  role: ProjectRole;
   @ApiProperty({ enum: ['pending', 'accepted', 'declined', 'cancelled'] })
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: Date;
@@ -66,7 +67,7 @@ export class MyInviteDto {
   project: ProjectSummaryDto;
   invited_by: InviterDto;
   @ApiProperty({ enum: ['owner', 'editor', 'viewer'] })
-  role: 'owner' | 'editor' | 'viewer';
+  role: ProjectRole;
   @ApiProperty({ enum: ['pending', 'accepted', 'declined', 'cancelled'] })
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: Date;

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MembersService } from '../../members/members.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
@@ -29,7 +29,7 @@ export class MembersController {
   }
 
   @RequireRole('owner')
-  @Put(':memberId/role')
+  @Patch(':memberId/role')
   async updateRole(
     @Param('projectId') projectId: string,
     @Param('memberId', ParseUUIDPipe) memberId: string,

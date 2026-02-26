@@ -4020,7 +4020,7 @@ export class Api<
      *
      * @tags Members
      * @name MembersControllerUpdateRole
-     * @request PUT:/api/projects/{projectId}/members/{memberId}/role
+     * @request PATCH:/api/projects/{projectId}/members/{memberId}/role
      * @secure
      */
     membersControllerUpdateRole: (
@@ -4030,7 +4030,7 @@ export class Api<
     ) =>
       this.request<Member, any>({
         path: `/api/projects/${projectId}/members/${memberId}/role`,
-        method: "PUT",
+        method: "PATCH",
         body: data,
         secure: true,
         type: ContentType.Json,

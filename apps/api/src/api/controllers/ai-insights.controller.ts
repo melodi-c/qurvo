@@ -13,14 +13,14 @@ export class AiInsightsController {
 
   @Get()
   @ApiOkResponse({ type: [AiInsightDto] })
-  async list(@Param('projectId', ParseUUIDPipe) projectId: string): Promise<AiInsightDto[]> {
+  async list(@Param('projectId') projectId: string): Promise<AiInsightDto[]> {
     return this.aiInsightsService.listInsights(projectId) as any;
   }
 
   @Post(':id/dismiss')
   @HttpCode(HttpStatus.NO_CONTENT)
   async dismiss(
-    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('projectId') projectId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.aiInsightsService.dismissInsight(projectId, id);
