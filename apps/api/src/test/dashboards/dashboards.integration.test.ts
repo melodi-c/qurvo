@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { setupContainers, createTestProject, type ContainerContext } from '@qurvo/testing';
+import { createTestProject } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { DashboardsService } from '../../dashboards/dashboards.service';
 import { SavedInsightsService } from '../../saved-insights/saved-insights.service';
 import { DashboardNotFoundException } from '../../dashboards/exceptions/dashboard-not-found.exception';
@@ -11,7 +12,7 @@ let service: DashboardsService;
 let insightsService: SavedInsightsService;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
   service = new DashboardsService(ctx.db as any);
   insightsService = new SavedInsightsService(ctx.db as any);
 }, 120_000);

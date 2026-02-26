@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { setupContainers, createTestProject, type ContainerContext } from '@qurvo/testing';
+import { createTestProject } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { users, projectMembers } from '@qurvo/db';
 import { MembersService } from '../../members/members.service';
 import { InviteConflictException } from '../../members/exceptions/invite-conflict.exception';
@@ -15,7 +16,7 @@ let ctx: ContainerContext;
 let service: MembersService;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
   service = new MembersService(ctx.db as any);
 }, 120_000);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { setupContainers, type ContainerContext } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { eq } from 'drizzle-orm';
 import { users, sessions } from '@qurvo/db';
 import { AuthService } from '../../auth/auth.service';
@@ -31,7 +31,7 @@ function makeAuthService(c: ContainerContext): AuthService {
 }
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 // ---------------------------------------------------------------------------

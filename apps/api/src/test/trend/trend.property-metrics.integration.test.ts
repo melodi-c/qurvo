@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   daysAgo,
@@ -10,6 +9,7 @@ import {
   dateOffset,
   type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext } from '../context';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { queryTrend } from '../../analytics/trend/trend.query';
 import { sumSeriesValues } from '../helpers';
@@ -18,7 +18,7 @@ import { materializeCohort } from '../cohorts/helpers';
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 describe('queryTrend — with series filters', () => {

@@ -1,20 +1,19 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import {
-  setupContainers,
   insertTestEvents,
   buildEvent,
   daysAgo,
   ts,
-  type ContainerContext,
 } from '@qurvo/testing';
+import { getTestContext, type ContainerContext } from '../context';
 import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
 import { truncateDate } from '../../utils/clickhouse-helpers';
 
 let ctx: ContainerContext;
 
 beforeAll(async () => {
-  ctx = await setupContainers();
+  ctx = await getTestContext();
 }, 120_000);
 
 describe('queryLifecycle — basic classification', () => {
