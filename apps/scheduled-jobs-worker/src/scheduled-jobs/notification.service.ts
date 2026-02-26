@@ -4,9 +4,10 @@ import {
   BaseNotificationService,
   type SlackChannelConfig,
   type EmailChannelConfig,
+  type TelegramChannelConfig,
 } from '@qurvo/nestjs-infra';
 
-export type { SlackChannelConfig, EmailChannelConfig };
+export type { SlackChannelConfig, EmailChannelConfig, TelegramChannelConfig };
 
 @Injectable()
 export class NotificationService extends BaseNotificationService {
@@ -34,6 +35,8 @@ export class NotificationService extends BaseNotificationService {
       const subject = `Qurvo Scheduled Analysis: "${jobName}"`;
       await this.sendEmail(emailConfig, subject, message);
       this.logger.debug({ to: emailConfig.email }, 'Scheduled job result email sent');
+    } else if (channelType === 'telegram') {
+      await this.sendTelegram(config as TelegramChannelConfig, message);
     } else {
       this.logger.warn({ channel_type: channelType }, 'Unknown channel type');
     }

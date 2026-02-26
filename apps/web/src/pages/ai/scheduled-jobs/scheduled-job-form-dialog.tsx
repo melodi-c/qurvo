@@ -15,8 +15,9 @@ interface JobFormState {
   name: string;
   prompt: string;
   schedule: 'daily' | 'weekly' | 'monthly';
-  channel_type: 'slack' | 'email';
+  channel_type: 'slack' | 'email' | 'telegram';
   channel_config_value: string;
+  channel_config_extra: string;
   is_active: boolean;
 }
 
@@ -30,12 +31,19 @@ interface ScheduledJobFormDialogProps {
 function getInitialState(job?: AiScheduledJob): JobFormState {
   if (job) {
     const config = job.channel_config as Record<string, string>;
+    const channelType = job.channel_type as 'slack' | 'email' | 'telegram';
     return {
       name: job.name,
       prompt: job.prompt,
       schedule: job.schedule,
-      channel_type: job.channel_type,
-      channel_config_value: job.channel_type === 'slack' ? (config.webhook_url ?? '') : (config.email ?? ''),
+      channel_type: channelType,
+      channel_config_value:
+        channelType === 'slack'
+          ? (config.webhook_url ?? '')
+          : channelType === 'telegram'
+            ? (config.chat_id ?? '')
+            : (config.email ?? ''),
+      channel_config_extra: channelType === 'telegram' ? (config.bot_token ?? '') : '',
       is_active: job.is_active,
     };
   }
@@ -45,6 +53,7 @@ function getInitialState(job?: AiScheduledJob): JobFormState {
     schedule: 'daily',
     channel_type: 'slack',
     channel_config_value: '',
+    channel_config_extra: '',
     is_active: true,
   };
 }
@@ -82,6 +91,9 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
         next.channel_config_value = t('validationInvalidUrl');
       }
     }
+    if (form.channel_type === 'telegram' && !form.channel_config_extra.trim()) {
+      next.channel_config_extra = t('validationRequired');
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }, [form, t]);
@@ -92,7 +104,9 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
     const channelConfig =
       form.channel_type === 'slack'
         ? { webhook_url: form.channel_config_value.trim() }
-        : { email: form.channel_config_value.trim() };
+        : form.channel_type === 'telegram'
+          ? { chat_id: form.channel_config_value.trim(), bot_token: form.channel_config_extra.trim() }
+          : { email: form.channel_config_value.trim() };
 
     const payload = {
       name: form.name.trim(),
@@ -165,7 +179,7 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
             <Label>{t('fieldChannelType')}</Label>
             <Select
               value={form.channel_type}
-              onValueChange={(v) => setForm((s) => ({ ...s, channel_type: v as 'slack' | 'email', channel_config_value: '' }))}
+              onValueChange={(v) => setForm((s) => ({ ...s, channel_type: v as 'slack' | 'email' | 'telegram', channel_config_value: '', channel_config_extra: '' }))}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -173,20 +187,46 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
               <SelectContent>
                 <SelectItem value="slack">{t('channelSlack')}</SelectItem>
                 <SelectItem value="email">{t('channelEmail')}</SelectItem>
+                <SelectItem value="telegram">{t('channelTelegram')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5">
-            <Label>{form.channel_type === 'slack' ? t('fieldSlackWebhook') : t('fieldEmail')}</Label>
+            <Label>
+              {form.channel_type === 'slack'
+                ? t('fieldSlackWebhook')
+                : form.channel_type === 'telegram'
+                  ? t('fieldTelegramChatId')
+                  : t('fieldEmail')}
+            </Label>
             <Input
-              type={form.channel_type === 'email' ? 'email' : 'url'}
-              placeholder={form.channel_type === 'slack' ? 'https://hooks.slack.com/services/...' : 'reports@example.com'}
+              type={form.channel_type === 'email' ? 'email' : 'text'}
+              placeholder={
+                form.channel_type === 'slack'
+                  ? 'https://hooks.slack.com/services/...'
+                  : form.channel_type === 'telegram'
+                    ? '-1001234567890'
+                    : 'reports@example.com'
+              }
               value={form.channel_config_value}
               onChange={(e) => setForm((s) => ({ ...s, channel_config_value: e.target.value }))}
             />
             {errors.channel_config_value && <p className="text-xs text-destructive">{errors.channel_config_value}</p>}
           </div>
+
+          {form.channel_type === 'telegram' && (
+            <div className="space-y-1.5">
+              <Label>{t('fieldTelegramBotToken')}</Label>
+              <Input
+                type="text"
+                placeholder="123456789:ABCdefGhIjKlMnOpQrStUvWxYz"
+                value={form.channel_config_extra}
+                onChange={(e) => setForm((s) => ({ ...s, channel_config_extra: e.target.value }))}
+              />
+              {errors.channel_config_extra && <p className="text-xs text-destructive">{errors.channel_config_extra}</p>}
+            </div>
+          )}
         </div>
 
         <DialogFooter>

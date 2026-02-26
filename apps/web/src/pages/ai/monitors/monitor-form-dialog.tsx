@@ -16,8 +16,9 @@ interface MonitorFormState {
   event_name: string;
   metric: 'count' | 'unique_users';
   threshold_sigma: string;
-  channel_type: 'slack' | 'email';
+  channel_type: 'slack' | 'email' | 'telegram';
   channel_config_value: string;
+  channel_config_extra: string;
   is_active: boolean;
 }
 
@@ -31,12 +32,19 @@ interface MonitorFormDialogProps {
 function getInitialState(monitor?: AiMonitor): MonitorFormState {
   if (monitor) {
     const config = monitor.channel_config as Record<string, string>;
+    const channelType = monitor.channel_type as 'slack' | 'email' | 'telegram';
     return {
       event_name: monitor.event_name,
       metric: monitor.metric as 'count' | 'unique_users',
       threshold_sigma: String(monitor.threshold_sigma),
-      channel_type: monitor.channel_type as 'slack' | 'email',
-      channel_config_value: monitor.channel_type === 'slack' ? (config.webhook_url ?? '') : (config.email ?? ''),
+      channel_type: channelType,
+      channel_config_value:
+        channelType === 'slack'
+          ? (config.webhook_url ?? '')
+          : channelType === 'telegram'
+            ? (config.chat_id ?? '')
+            : (config.email ?? ''),
+      channel_config_extra: channelType === 'telegram' ? (config.bot_token ?? '') : '',
       is_active: monitor.is_active,
     };
   }
@@ -46,6 +54,7 @@ function getInitialState(monitor?: AiMonitor): MonitorFormState {
     threshold_sigma: '2',
     channel_type: 'slack',
     channel_config_value: '',
+    channel_config_extra: '',
     is_active: true,
   };
 }
@@ -82,6 +91,9 @@ export function MonitorFormDialog({ open, onOpenChange, projectId, monitor }: Mo
         next.channel_config_value = t('validationInvalidUrl');
       }
     }
+    if (form.channel_type === 'telegram' && !form.channel_config_extra.trim()) {
+      next.channel_config_extra = t('validationRequired');
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }, [form, t]);
@@ -92,7 +104,9 @@ export function MonitorFormDialog({ open, onOpenChange, projectId, monitor }: Mo
     const channelConfig =
       form.channel_type === 'slack'
         ? { webhook_url: form.channel_config_value.trim() }
-        : { email: form.channel_config_value.trim() };
+        : form.channel_type === 'telegram'
+          ? { chat_id: form.channel_config_value.trim(), bot_token: form.channel_config_extra.trim() }
+          : { email: form.channel_config_value.trim() };
 
     const payload = {
       event_name: form.event_name.trim(),
@@ -162,27 +176,53 @@ export function MonitorFormDialog({ open, onOpenChange, projectId, monitor }: Mo
 
           <div className="space-y-1.5">
             <Label>{t('fieldChannelType')}</Label>
-            <Select value={form.channel_type} onValueChange={(v) => setForm((s) => ({ ...s, channel_type: v as 'slack' | 'email', channel_config_value: '' }))}>
+            <Select value={form.channel_type} onValueChange={(v) => setForm((s) => ({ ...s, channel_type: v as 'slack' | 'email' | 'telegram', channel_config_value: '', channel_config_extra: '' }))}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="slack">{t('channelSlack')}</SelectItem>
                 <SelectItem value="email">{t('channelEmail')}</SelectItem>
+                <SelectItem value="telegram">{t('channelTelegram')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5">
-            <Label>{form.channel_type === 'slack' ? t('fieldSlackWebhook') : t('fieldEmail')}</Label>
+            <Label>
+              {form.channel_type === 'slack'
+                ? t('fieldSlackWebhook')
+                : form.channel_type === 'telegram'
+                  ? t('fieldTelegramChatId')
+                  : t('fieldEmail')}
+            </Label>
             <Input
-              type={form.channel_type === 'email' ? 'email' : 'url'}
-              placeholder={form.channel_type === 'slack' ? 'https://hooks.slack.com/services/...' : 'alerts@example.com'}
+              type={form.channel_type === 'email' ? 'email' : 'text'}
+              placeholder={
+                form.channel_type === 'slack'
+                  ? 'https://hooks.slack.com/services/...'
+                  : form.channel_type === 'telegram'
+                    ? '-1001234567890'
+                    : 'alerts@example.com'
+              }
               value={form.channel_config_value}
               onChange={(e) => setForm((s) => ({ ...s, channel_config_value: e.target.value }))}
             />
             {errors.channel_config_value && <p className="text-xs text-destructive">{errors.channel_config_value}</p>}
           </div>
+
+          {form.channel_type === 'telegram' && (
+            <div className="space-y-1.5">
+              <Label>{t('fieldTelegramBotToken')}</Label>
+              <Input
+                type="text"
+                placeholder="123456789:ABCdefGhIjKlMnOpQrStUvWxYz"
+                value={form.channel_config_extra}
+                onChange={(e) => setForm((s) => ({ ...s, channel_config_extra: e.target.value }))}
+              />
+              {errors.channel_config_extra && <p className="text-xs text-destructive">{errors.channel_config_extra}</p>}
+            </div>
+          )}
         </div>
 
         <DialogFooter>

@@ -63,6 +63,7 @@ Monthly scheduling uses `Date.setMonth(+1)`, not a fixed 30-day offset. JS overf
 |----------------|----------------------------------|
 | `slack`        | Webhook POST via `SlackChannelConfig` |
 | `email`        | SMTP via `EmailChannelConfig`    |
+| `telegram`     | Bot API POST via `TelegramChannelConfig` (`chat_id` + `bot_token`) |
 
 `channel_config` is stored as a JSON string in `ai_scheduled_jobs.channel_config` and parsed at runtime. A parse failure is logged as a warning; the job still attempts notification with an empty config.
 
