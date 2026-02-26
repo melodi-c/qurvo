@@ -1,6 +1,6 @@
 {
   "name": "@qurvo/sdk-tma",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Telegram Mini Apps SDK for Qurvo analytics — event tracking, user identification, CloudStorage queue",
   "license": "MIT",
   "main": "dist/index.js",
