@@ -33,10 +33,9 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
 
   if (data.length === 0) return null;
 
-  const height = compact ? 160 : 300;
-
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <div className={compact ? 'h-full' : ''}>
+    <ResponsiveContainer width="100%" height={compact ? '100%' : 300}>
       <LineChart data={data} margin={compact ? { top: 5, right: 10, bottom: 5, left: 0 } : { top: 10, right: 30, bottom: 10, left: 10 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} opacity={0.5} />
         <XAxis
@@ -69,5 +68,6 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
         />
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }
