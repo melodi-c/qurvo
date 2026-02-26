@@ -6,7 +6,7 @@ import { WebFilterBar } from '@/features/web-analytics/components/WebFilterBar';
 import { WebKpiRow } from '@/features/web-analytics/components/WebKpiRow';
 import { WebTimeseriesChart, type MetricKey } from '@/features/web-analytics/components/WebTimeseriesChart';
 import { WebDimensionTile } from '@/features/web-analytics/components/WebDimensionTile';
-import { WorldMapChart } from '@/features/web-analytics/components/WorldMapChart';
+import { GeographySection } from '@/features/web-analytics/components/GeographySection';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './web-analytics.translations';
 
@@ -38,12 +38,6 @@ export default function WebAnalyticsPage() {
     { id: 'device_types', label: t('deviceType') },
     { id: 'browsers', label: t('browser') },
     { id: 'oses', label: t('os') },
-  ] as const, [t]);
-
-  const geoTabs = useMemo(() => [
-    { id: 'countries', label: t('countries') },
-    { id: 'regions', label: t('regions') },
-    { id: 'cities', label: t('cities') },
   ] as const, [t]);
 
   return (
@@ -110,20 +104,10 @@ export default function WebAnalyticsPage() {
         />
       </div>
 
-      <WorldMapChart
-        title={t('geography')}
-        data={geography.data?.countries}
-        isLoading={geography.isLoading}
-      />
-
-      <WebDimensionTile
-        title={t('geography')}
-        tabs={geoTabs}
-        data={{
-          countries: geography.data?.countries,
-          regions: geography.data?.regions,
-          cities: geography.data?.cities,
-        }}
+      <GeographySection
+        countries={geography.data?.countries}
+        regions={geography.data?.regions}
+        cities={geography.data?.cities}
         isLoading={geography.isLoading}
         isError={geography.isError}
       />
