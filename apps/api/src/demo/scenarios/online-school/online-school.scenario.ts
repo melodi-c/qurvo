@@ -21,6 +21,9 @@ interface Student {
   plan: 'free' | 'pro';
   age_group: '18-24' | '25-34' | '35-44';
   signup_date: Date;
+  device_type: string;
+  browser: string;
+  os: string;
 }
 
 interface Course {
@@ -73,6 +76,10 @@ const COURSES: Course[] = [
     ],
   },
 ];
+
+const DEVICE_TYPES = ['desktop', 'mobile', 'tablet'];
+const BROWSERS = ['Chrome', 'Firefox', 'Safari', 'Edge'];
+const OSES = ['Windows', 'macOS', 'Linux', 'iOS', 'Android'];
 
 const SOURCES = ['google', 'referral', 'direct'];
 const PAGE_PATHS = [
@@ -174,6 +181,100 @@ export class OnlineSchoolScenario extends BaseScenario {
       });
     };
 
+    // Session state tracker per student: {sessionId, lastPageviewTs}
+    const studentSessions = new Map<string, { sessionId: string; lastTs: number }>();
+    const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 minutes
+
+    /**
+     * Adds a $pageview event with proper top-level ClickHouse columns
+     * (session_id, page_path, page_title, referrer, url, device_type, browser, os, country).
+     * Also adds a $pageleave event after a simulated dwell time (30–300s) to
+     * populate session duration and bounce-rate calculations.
+     */
+    const addPageviewEvent = (
+      student: Student,
+      page: { path: string; title: string },
+      referrer: string,
+      timestamp: Date,
+    ) => {
+      eventNames.add('$pageview');
+      eventNames.add('$pageleave');
+
+      const userProps: Record<string, string | number | boolean | null> = {
+        name: student.name,
+        email: student.email,
+        country: student.country,
+        plan: student.plan,
+        age_group: student.age_group,
+        signup_date: student.signup_date.toISOString(),
+      };
+
+      // Resolve or create session based on 30-minute idle window
+      const tsMs = timestamp.getTime();
+      const existing = studentSessions.get(student.email);
+      let sessionId: string;
+      if (!existing || tsMs - existing.lastTs > SESSION_IDLE_MS) {
+        sessionId = randomUUID();
+      } else {
+        sessionId = existing.sessionId;
+      }
+      studentSessions.set(student.email, { sessionId, lastTs: tsMs });
+
+      const url = `https://learnflow.example.com${page.path}`;
+
+      events.push({
+        event_id: randomUUID(),
+        project_id: projectId,
+        person_id: this.makePersonId(projectId, student.email),
+        distinct_id: student.email,
+        event_name: '$pageview',
+        event_type: 'custom',
+        session_id: sessionId,
+        page_path: page.path,
+        page_title: page.title,
+        referrer,
+        url,
+        device_type: student.device_type,
+        browser: student.browser,
+        os: student.os,
+        country: student.country,
+        properties: JSON.stringify({}),
+        user_properties: JSON.stringify(userProps),
+        timestamp: timestamp.toISOString(),
+        sdk_name: 'demo',
+        sdk_version: '1.0.0',
+      });
+
+      // $pageleave after 30–300 seconds dwell time
+      const dwellSeconds = 30 + Math.floor(Math.random() * 270);
+      const leaveTs = new Date(tsMs + dwellSeconds * 1000);
+      // Update last session timestamp to reflect the pageleave time
+      studentSessions.set(student.email, { sessionId, lastTs: leaveTs.getTime() });
+
+      events.push({
+        event_id: randomUUID(),
+        project_id: projectId,
+        person_id: this.makePersonId(projectId, student.email),
+        distinct_id: student.email,
+        event_name: '$pageleave',
+        event_type: 'custom',
+        session_id: sessionId,
+        page_path: page.path,
+        page_title: page.title,
+        referrer,
+        url,
+        device_type: student.device_type,
+        browser: student.browser,
+        os: student.os,
+        country: student.country,
+        properties: JSON.stringify({}),
+        user_properties: JSON.stringify(userProps),
+        timestamp: leaveTs.toISOString(),
+        sdk_name: 'demo',
+        sdk_version: '1.0.0',
+      });
+    };
+
     // Track latest user properties per student (updated as plan may change)
     const studentLatestProps = new Map<string, Record<string, unknown>>();
     const updateStudentProps = (student: Student) => {
@@ -209,11 +310,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       for (let i = 0; i < preSignupPageviews; i++) {
         const page = pick(PAGE_PATHS);
         const ts = new Date(signupTs.getTime() - (preSignupPageviews - i) * 30 * 60 * 1000);
-        addEvent(student, '$pageview', ts, {
-          page_path: page.path,
-          page_title: page.title,
-          referrer: pick(REFERRERS),
-        });
+        addPageviewEvent(student, page, pick(REFERRERS), ts);
       }
 
       // Post-signup pageviews spread over 60 days
@@ -222,11 +319,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       for (const d of postDates) {
         if (d <= signupTs) continue;
         const page = pick(PAGE_PATHS);
-        addEvent(student, '$pageview', this.jitter(d, 2), {
-          page_path: page.path,
-          page_title: page.title,
-          referrer: pick(REFERRERS),
-        });
+        addPageviewEvent(student, page, pick(REFERRERS), this.jitter(d, 2));
       }
 
       // ~85% of signed_up → course_viewed
@@ -774,8 +867,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       // Spread signups over 60 days
       const daysAgo = 5 + Math.floor((i / 18) * 55) + Math.floor(Math.random() * 5);
       const signup_date = new Date(now.getTime() - daysAgo * dayMs);
+      const device_type = DEVICE_TYPES[i % DEVICE_TYPES.length];
+      const browser = BROWSERS[i % BROWSERS.length];
+      const os = OSES[i % OSES.length];
 
-      return { email, name: `${firstName} ${lastName}`, country, plan, age_group, signup_date };
+      return { email, name: `${firstName} ${lastName}`, country, plan, age_group, signup_date, device_type, browser, os };
     });
   }
 }
