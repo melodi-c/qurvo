@@ -35,6 +35,7 @@ import { SaveToDashboardTool } from './tools/save-to-dashboard.tool';
 import { FunnelGapsTool } from './tools/funnel-gaps.tool';
 import { MetricChangeTool } from './tools/metric-change.tool';
 import { SegmentCompareTool } from './tools/segment-compare.tool';
+import { TimeBetweenEventsTool } from './tools/time-between-events.tool';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -53,6 +54,7 @@ const TOOL_CLASSES = [
   FunnelGapsTool,
   MetricChangeTool,
   SegmentCompareTool,
+  TimeBetweenEventsTool,
 ];
 
 @Module({
