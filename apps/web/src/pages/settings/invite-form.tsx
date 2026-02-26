@@ -54,7 +54,7 @@ export function InviteForm({ inviteMutation }: InviteFormProps) {
             <Input
               id="invite-email"
               type="email"
-              placeholder="user@example.com"
+              placeholder={t('emailPlaceholder')}
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               autoFocus

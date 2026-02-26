@@ -18,6 +18,7 @@ export default createTranslations({
     invalidLink: 'The link is invalid or expired. Request a new code.',
     verificationError: 'Verification error',
     resendFailed: 'Failed to send code',
+    codePlaceholder: '123456',
   },
   ru: {
     verifyingTitle: 'Подтверждаем email...',
@@ -36,5 +37,6 @@ export default createTranslations({
     invalidLink: 'Ссылка недействительна или устарела. Запросите новый код.',
     verificationError: 'Ошибка верификации',
     resendFailed: 'Не удалось отправить код',
+    codePlaceholder: '123456',
   },
 });
