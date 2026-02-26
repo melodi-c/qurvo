@@ -90,7 +90,7 @@ export class AiController {
     @CurrentUser() user: RequestUser,
     @Query() query: AiConversationSearchQueryDto,
   ): Promise<AiConversationSearchResultDto[]> {
-    return this.chatService.searchConversations(user.user_id, query.project_id, query.q) as any;
+    return this.chatService.searchConversations(user.user_id, query.project_id, query.q, user.language) as any;
   }
 
   @Get('conversations/:id')

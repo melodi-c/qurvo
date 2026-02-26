@@ -211,17 +211,19 @@ export class AiChatService {
     userId: string,
     projectId: string,
     query: string,
+    language = 'ru',
     limit = 20,
   ): Promise<ConversationSearchResult[]> {
+    const ftsConfig = language === 'en' ? 'english' : language === 'ru' ? 'russian' : 'simple';
     // Use websearch_to_tsquery for robust query parsing (handles phrases, +/- operators, etc.)
     const result = await this.db.execute(sql`
       SELECT DISTINCT ON (c.id)
         c.id,
         c.title,
         ts_headline(
-          'russian',
+          ${ftsConfig},
           coalesce(m.content, ''),
-          websearch_to_tsquery('russian', ${query}),
+          websearch_to_tsquery(${ftsConfig}, ${query}),
           'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15, ShortWord=3, HighlightAll=false, MaxFragments=2, FragmentDelimiter='' … '''
         ) AS snippet,
         m.created_at AS matched_at
@@ -232,8 +234,8 @@ export class AiChatService {
         AND c.project_id = ${projectId}
         AND m.content IS NOT NULL
         AND (
-          to_tsvector('russian', coalesce(c.title, '')) @@ websearch_to_tsquery('russian', ${query})
-          OR to_tsvector('russian', coalesce(m.content, '')) @@ websearch_to_tsquery('russian', ${query})
+          to_tsvector(${ftsConfig}, coalesce(c.title, '')) @@ websearch_to_tsquery(${ftsConfig}, ${query})
+          OR to_tsvector(${ftsConfig}, coalesce(m.content, '')) @@ websearch_to_tsquery(${ftsConfig}, ${query})
         )
       ORDER BY c.id, m.created_at DESC
       LIMIT ${limit}
