@@ -8,6 +8,23 @@ import { DRIZZLE } from '@qurvo/nestjs-infra';
 import OpenAI from 'openai';
 import { NotificationService } from './notification.service';
 
+export function isDue(job: Pick<AiScheduledJob, 'last_run_at' | 'schedule'>, now: Date): boolean {
+  if (!job.last_run_at) return true; // Never ran before
+  const last = job.last_run_at;
+  if (job.schedule === 'daily') {
+    return now.getTime() - last.getTime() >= 24 * 60 * 60 * 1000;
+  }
+  if (job.schedule === 'weekly') {
+    return now.getTime() - last.getTime() >= 7 * 24 * 60 * 60 * 1000;
+  }
+  if (job.schedule === 'monthly') {
+    const nextRun = new Date(last);
+    nextRun.setMonth(nextRun.getMonth() + 1);
+    return now >= nextRun;
+  }
+  return false;
+}
+
 const SCHEDULED_JOBS_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const SCHEDULED_JOBS_INITIAL_DELAY_MS = 60_000; // 60s
 
@@ -57,20 +74,7 @@ export class ScheduledJobsService extends PeriodicWorkerMixin {
   }
 
   isDue(job: AiScheduledJob, now: Date): boolean {
-    if (!job.last_run_at) return true; // Never ran before
-    const last = job.last_run_at;
-    if (job.schedule === 'daily') {
-      return now.getTime() - last.getTime() >= 24 * 60 * 60 * 1000;
-    }
-    if (job.schedule === 'weekly') {
-      return now.getTime() - last.getTime() >= 7 * 24 * 60 * 60 * 1000;
-    }
-    if (job.schedule === 'monthly') {
-      const nextRun = new Date(last);
-      nextRun.setMonth(nextRun.getMonth() + 1);
-      return now >= nextRun;
-    }
-    return false;
+    return isDue(job, now);
   }
 
   private async runJob(job: AiScheduledJob): Promise<void> {
