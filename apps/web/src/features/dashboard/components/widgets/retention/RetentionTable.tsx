@@ -53,11 +53,12 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
   if (cohorts.length === 0) return null;
 
   return (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="sticky left-0 bg-background z-20 min-w-[100px]">{t('cohort')}</TableHead>
-          <TableHead className="text-right min-w-[60px]">{t('users')}</TableHead>
+          <TableHead className="sticky left-[100px] bg-background z-20 text-right min-w-[60px]">{t('users')}</TableHead>
           {periodHeaders.map((h) => (
             <TableHead key={h} className="text-center min-w-[70px] text-xs">{h}</TableHead>
           ))}
@@ -69,7 +70,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
           <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground">
             {t('average')}
           </TableCell>
-          <TableCell />
+          <TableCell className="sticky left-[100px] bg-background z-10" />
           {average_retention.slice(0, maxPeriods).map((pct, i) => (
             <TableCell
               key={i}
@@ -89,7 +90,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
               <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
                 {formatDate(cohort.cohort_date, granularity)}
               </TableCell>
-              <TableCell className="text-right text-xs tabular-nums">
+              <TableCell className="sticky left-[100px] bg-background z-10 text-right text-xs tabular-nums">
                 {cohort.cohort_size.toLocaleString()}
               </TableCell>
               {periods.map((count, i) => {
@@ -120,5 +121,6 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { RetentionTable } from './RetentionTable';
 import { defaultRetentionConfig } from './retention-shared';
 import { retentionToCsv, downloadCsv } from '@/lib/csv-export';
@@ -14,6 +15,7 @@ interface RetentionWidgetProps {
 
 export function RetentionWidget({ widget }: RetentionWidgetProps) {
   const { t } = useLocalTranslation(translations);
+  const isMobile = useIsMobile();
   const config = widget.insight?.config as RetentionWidgetConfig | undefined;
   const hasConfig = !!config;
   const query = useRetentionData(config ?? defaultRetentionConfig(), widget.id);
@@ -39,8 +41,8 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
       fromCache={query.data?.from_cache}
       onExportCsv={result ? handleExportCsv : undefined}
     >
-      <div className="h-full overflow-auto">
-        <RetentionTable result={result!} compact />
+      <div className="h-full overflow-x-auto">
+        <RetentionTable result={result!} compact={isMobile} />
       </div>
     </WidgetShell>
   );
