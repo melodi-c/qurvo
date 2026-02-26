@@ -193,12 +193,10 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 width={compact ? 40 : 48}
                 tickFormatter={compact ? formatCompactNumber : undefined}
               />
-              {!compact && (
-                <Tooltip
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
-                />
-              )}
+              <Tooltip
+                contentStyle={CHART_TOOLTIP_STYLE}
+                labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
+              />
               {renderPrevSeries(seriesProps)}
               {renderCurrentSeries(seriesProps)}
               {renderFormulaSeries(seriesProps)}
