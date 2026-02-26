@@ -26,6 +26,8 @@ import {
   type AiToolResultData,
   type SegmentCompareResult,
   type TimeBetweenEventsResult,
+  type RootCauseResult,
+  type FunnelGapResult,
 } from './ai-tool-result-export';
 import type {
   TrendSeriesResult,
@@ -100,6 +102,22 @@ function isHistogramResult(r: Record<string, unknown>): r is Record<string, unkn
   );
 }
 
+function isRootCauseResult(r: Record<string, unknown>): r is Record<string, unknown> & RootCauseResult {
+  return (
+    Array.isArray(r.top_segments) &&
+    typeof r.overall === 'object' &&
+    r.overall !== null
+  );
+}
+
+function isFunnelGapResult(r: Record<string, unknown>): r is Record<string, unknown> & FunnelGapResult {
+  return (
+    Array.isArray(r.items) &&
+    typeof r.funnel_step_from === 'string' &&
+    typeof r.funnel_step_to === 'string'
+  );
+}
+
 function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
   if (!visualizationType || !result || typeof result !== 'object') return null;
   const r = result as Record<string, unknown>;
@@ -121,6 +139,10 @@ function parseToolResult(visualizationType: string | null, result: unknown): AiT
       return isSegmentCompareResult(r) ? { type: 'segment_compare_chart', data: r as SegmentCompareResult } : null;
     case 'histogram_chart':
       return isHistogramResult(r) ? { type: 'histogram_chart', data: r as TimeBetweenEventsResult } : null;
+    case 'root_cause_chart':
+      return isRootCauseResult(r) ? { type: 'root_cause_chart', data: r as RootCauseResult } : null;
+    case 'funnel_gap_chart':
+      return isFunnelGapResult(r) ? { type: 'funnel_gap_chart', data: r as FunnelGapResult } : null;
     default:
       return null;
   }
@@ -336,6 +358,154 @@ function HistogramChart({ data }: HistogramChartProps) {
   );
 }
 
+interface RootCauseChartProps {
+  data: RootCauseResult;
+}
+
+function RootCauseChart({ data }: RootCauseChartProps) {
+  const { t } = useLocalTranslation(translations);
+  const { top_segments, overall } = data;
+
+  const isPositiveOverall = overall.relative_change_pct >= 0;
+
+  const chartData = top_segments.map((s) => ({
+    name: `${s.dimension}: ${s.segment_value}`,
+    contribution: s.contribution_pct,
+    relativeChange: s.relative_change_pct,
+  }));
+
+  const barHeight = 28;
+  const minHeight = 160;
+  const height = Math.max(minHeight, chartData.length * barHeight + 80);
+
+  return (
+    <div>
+      <div className="mb-3 flex items-start gap-6 text-sm">
+        <div>
+          <div className="text-muted-foreground">{t('overall')}</div>
+          <div className={`font-semibold ${isPositiveOverall ? 'text-emerald-400' : 'text-red-400'}`}>
+            {isPositiveOverall ? '+' : ''}{overall.relative_change_pct.toFixed(1)}%
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">{overall.metric}</div>
+          <div className="font-semibold text-foreground">
+            {isPositiveOverall ? '+' : ''}{formatCompactNumber(overall.absolute_change)}
+          </div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ top: 4, right: 48, bottom: 4, left: 8 }}
+          barCategoryGap="30%"
+        >
+          <XAxis
+            type="number"
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) => `${v.toFixed(0)}%`}
+          />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            width={160}
+          />
+          <RechartsTooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+            formatter={(value: number, name: string) => [
+              `${value.toFixed(1)}%`,
+              name === 'contribution' ? t('contribution') : t('relativeChange'),
+            ]}
+          />
+          <ReferenceLine x={0} stroke={CHART_GRID_COLOR} />
+          <Bar dataKey="contribution" name={t('contribution')} radius={[0, 4, 4, 0]}>
+            {chartData.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={entry.contribution >= 0 ? '#10b981' : '#ef4444'}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+interface FunnelGapChartProps {
+  data: FunnelGapResult;
+}
+
+function FunnelGapChart({ data }: FunnelGapChartProps) {
+  const { t } = useLocalTranslation(translations);
+  const { items, funnel_step_from, funnel_step_to } = data;
+
+  const chartData = items.map((item) => ({
+    name: item.event_name,
+    lift: item.relative_lift_pct,
+  }));
+
+  const barHeight = 28;
+  const minHeight = 160;
+  const height = Math.max(minHeight, chartData.length * barHeight + 80);
+
+  return (
+    <div>
+      <div className="mb-3 text-sm text-muted-foreground">
+        {funnel_step_from} → {funnel_step_to}
+      </div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ top: 4, right: 48, bottom: 4, left: 8 }}
+          barCategoryGap="30%"
+        >
+          <XAxis
+            type="number"
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) => `${v.toFixed(0)}%`}
+          />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            width={160}
+          />
+          <RechartsTooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+            formatter={(value: number) => [
+              `${value.toFixed(1)}%`,
+              t('relativeLift'),
+            ]}
+          />
+          <ReferenceLine x={0} stroke={CHART_GRID_COLOR} />
+          <Bar dataKey="lift" name={t('relativeLift')} radius={[0, 4, 4, 0]}>
+            {chartData.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={entry.lift >= 0 ? '#10b981' : '#ef4444'}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 interface AiToolResultProps {
   toolName: string;
   result: unknown;
@@ -458,6 +628,12 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
           )}
           {parsed.type === 'histogram_chart' && (
             <HistogramChart data={parsed.data} />
+          )}
+          {parsed.type === 'root_cause_chart' && (
+            <RootCauseChart data={parsed.data} />
+          )}
+          {parsed.type === 'funnel_gap_chart' && (
+            <FunnelGapChart data={parsed.data} />
           )}
         </div>
         <div className="flex items-center gap-1 mt-2 pt-2 border-t">

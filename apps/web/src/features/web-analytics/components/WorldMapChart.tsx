@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { isoNumericToAlpha2 } from '../lib/iso-numeric-to-alpha2';
 import translations from './WorldMapChart.translations';
 
 const GEO_URL =
@@ -152,8 +153,7 @@ export function WorldMapChart({
               <Geographies geography={GEO_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const isoA2: string =
-                      geo.properties?.iso_a2 ?? geo.properties?.ISO_A2 ?? '';
+                    const isoA2: string = isoNumericToAlpha2(String(geo.id ?? ''));
                     const name: string =
                       geo.properties?.name ?? geo.properties?.NAME ?? '';
                     const fill = getFillColor(isoA2);

@@ -75,6 +75,37 @@ export interface TimeBetweenEventsResult {
   };
 }
 
+export interface RootCauseSegment {
+  dimension: string;
+  segment_value: string;
+  contribution_pct: number;
+  relative_change_pct: number;
+}
+
+export interface RootCauseOverall {
+  metric: string;
+  absolute_change: number;
+  relative_change_pct: number;
+}
+
+export interface RootCauseResult {
+  top_segments: RootCauseSegment[];
+  overall: RootCauseOverall;
+}
+
+export interface FunnelGapItem {
+  event_name: string;
+  relative_lift_pct: number;
+  users_with_event: number;
+  users_without_event: number;
+}
+
+export interface FunnelGapResult {
+  items: FunnelGapItem[];
+  funnel_step_from: string;
+  funnel_step_to: string;
+}
+
 export type AiToolResultData =
   | { type: 'trend_chart'; data: TrendToolResult }
   | { type: 'funnel_chart'; data: FunnelToolResult }
@@ -83,7 +114,9 @@ export type AiToolResultData =
   | { type: 'stickiness_chart'; data: StickinessResult }
   | { type: 'paths_chart'; data: PathsToolResult }
   | { type: 'segment_compare_chart'; data: SegmentCompareResult }
-  | { type: 'histogram_chart'; data: TimeBetweenEventsResult };
+  | { type: 'histogram_chart'; data: TimeBetweenEventsResult }
+  | { type: 'root_cause_chart'; data: RootCauseResult }
+  | { type: 'funnel_gap_chart'; data: FunnelGapResult };
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -167,6 +200,28 @@ function histogramToCsv(data: TimeBetweenEventsResult): string {
   return buildCsvRows(headers, rows);
 }
 
+function rootCauseToCsv(data: RootCauseResult): string {
+  const headers = ['dimension', 'segment_value', 'contribution_pct', 'relative_change_pct'];
+  const rows = data.top_segments.map((s) => [
+    s.dimension,
+    s.segment_value,
+    s.contribution_pct.toFixed(2) + '%',
+    s.relative_change_pct.toFixed(2) + '%',
+  ]);
+  return buildCsvRows(headers, rows);
+}
+
+function funnelGapToCsv(data: FunnelGapResult): string {
+  const headers = ['event_name', 'relative_lift_pct', 'users_with_event', 'users_without_event'];
+  const rows = data.items.map((item) => [
+    item.event_name,
+    item.relative_lift_pct.toFixed(2) + '%',
+    item.users_with_event,
+    item.users_without_event,
+  ]);
+  return buildCsvRows(headers, rows);
+}
+
 function segmentCompareToCsv(data: SegmentCompareResult): string {
   const headers = ['segment', 'value', 'raw_count', 'unique_users'];
   const rows: (string | number)[][] = [
@@ -194,6 +249,10 @@ export function toolResultToCsv(parsed: AiToolResultData): string {
       return segmentCompareToCsv(parsed.data);
     case 'histogram_chart':
       return histogramToCsv(parsed.data);
+    case 'root_cause_chart':
+      return rootCauseToCsv(parsed.data);
+    case 'funnel_gap_chart':
+      return funnelGapToCsv(parsed.data);
   }
 }
 
@@ -290,6 +349,28 @@ function histogramToMarkdown(data: TimeBetweenEventsResult): string {
   return buildMarkdownTable(headers, rows);
 }
 
+function rootCauseToMarkdown(data: RootCauseResult): string {
+  const headers = ['Dimension', 'Segment', 'Contribution', 'Relative change'];
+  const rows = data.top_segments.map((s) => [
+    s.dimension,
+    s.segment_value,
+    s.contribution_pct.toFixed(2) + '%',
+    s.relative_change_pct.toFixed(2) + '%',
+  ]);
+  return buildMarkdownTable(headers, rows);
+}
+
+function funnelGapToMarkdown(data: FunnelGapResult): string {
+  const headers = ['Event', 'Relative lift', 'Users with event', 'Users without event'];
+  const rows = data.items.map((item) => [
+    item.event_name,
+    item.relative_lift_pct.toFixed(2) + '%',
+    String(item.users_with_event),
+    String(item.users_without_event),
+  ]);
+  return buildMarkdownTable(headers, rows);
+}
+
 function segmentCompareToMarkdown(data: SegmentCompareResult): string {
   const headers = ['Segment', 'Value', 'Raw Count', 'Unique Users'];
   const rows: string[][] = [
@@ -317,6 +398,10 @@ export function toolResultToMarkdown(parsed: AiToolResultData): string {
       return segmentCompareToMarkdown(parsed.data);
     case 'histogram_chart':
       return histogramToMarkdown(parsed.data);
+    case 'root_cause_chart':
+      return rootCauseToMarkdown(parsed.data);
+    case 'funnel_gap_chart':
+      return funnelGapToMarkdown(parsed.data);
   }
 }
 
