@@ -12,6 +12,7 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
+    "hot-shots": "^14.0.0",
     "nestjs-pino": "^4.6.0"
   },
   "devDependencies": {

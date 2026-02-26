@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS, BILLING_QUOTA_LIMITED_KEY } from '../constants';
-import { MetricsService } from '../metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 
 @Injectable()
 export class BillingGuard implements CanActivate {
@@ -26,7 +26,7 @@ export class BillingGuard implements CanActivate {
 
     if (isMember) {
       this.logger.warn({ projectId }, 'Event limit exceeded');
-      this.metrics.quotaLimited.inc();
+      this.metrics.increment('ingest.quota_limited_total');
       request.quotaLimited = true;
     }
 

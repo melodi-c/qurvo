@@ -23,7 +23,7 @@ import { PersonResolverService } from './person-resolver.service';
 import { PersonBatchStore } from './person-batch-store';
 import { GeoService } from './geo.service';
 import { WarningsBufferService } from './warnings-buffer.service';
-import { MetricsService } from './metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 import {
   parseMessages,
   validateMessages,
@@ -123,11 +123,11 @@ export class EventConsumerService implements OnApplicationBootstrap {
         await this.processMessages(results.flatMap(([, msgs]) => msgs));
         // Fix: only reset after successful processMessages, not on empty XREADGROUP
         consecutiveErrors = 0;
-        this.metrics.consecutiveErrors.set(0);
+        this.metrics.gauge('processor.consecutive_errors', 0);
       } catch (err) {
         this.heartbeat.touch();
         consecutiveErrors++;
-        this.metrics.consecutiveErrors.set(consecutiveErrors);
+        this.metrics.gauge('processor.consecutive_errors', consecutiveErrors);
         this.logger.error({ err, consecutiveErrors }, 'Error processing messages');
 
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
@@ -145,7 +145,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
       // Sample PEL size for observability
       const pendingInfo = await this.redis.xpending(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP) as [number, ...unknown[]] | null;
       if (pendingInfo && typeof pendingInfo[0] === 'number') {
-        this.metrics.pelSize.set(pendingInfo[0]);
+        this.metrics.gauge('processor.pel_size', pendingInfo[0]);
       }
     } catch {
       // Non-critical — don't let PEL sampling fail the claim cycle

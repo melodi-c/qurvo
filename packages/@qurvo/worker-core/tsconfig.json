@@ -1,8 +1,10 @@
 {
-  "extends": "@qurvo/tsconfig/library.json",
+  "extends": "@qurvo/tsconfig/nestjs.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
     "types": ["node"]
   },
   "include": ["src"]

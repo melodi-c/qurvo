@@ -8,7 +8,7 @@ import { REDIS, DRIZZLE } from './constants';
 import { env } from './env';
 import { IngestController } from './ingest/ingest.controller';
 import { IngestService } from './ingest/ingest.service';
-import { MetricsService } from './metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 import { ZodExceptionFilter } from './filters/zod-exception.filter';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { BillingGuard } from './guards/billing.guard';

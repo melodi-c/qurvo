@@ -17,7 +17,7 @@ import {
 import { DistributedLock } from '@qurvo/distributed-lock';
 import { PersonBatchStore } from './person-batch-store';
 import { BatchWriter } from './batch-writer';
-import { MetricsService } from './metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 
 @Injectable()
 export class DlqService implements OnApplicationBootstrap {
@@ -72,7 +72,7 @@ export class DlqService implements OnApplicationBootstrap {
     // Sample DLQ size for observability (best-effort, non-critical)
     try {
       const dlqLen = await this.redis.xlen(REDIS_STREAM_DLQ);
-      this.metrics.dlqSize.set(dlqLen);
+      this.metrics.gauge('processor.dlq_size', dlqLen);
     } catch {
       // Non-critical
     }

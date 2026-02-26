@@ -10,7 +10,7 @@ import { DefinitionSyncService } from './definition-sync.service';
 import { BatchWriter } from './batch-writer';
 import { ShutdownService } from './shutdown.service';
 import { WarningsBufferService } from './warnings-buffer.service';
-import { MetricsService } from './metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 
 @Module({
   providers: [

@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, HttpException, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS, RATE_LIMIT_MAX_EVENTS, RATE_LIMIT_BUCKET_SECONDS, rateLimitWindowKeys } from '../constants';
-import { MetricsService } from '../metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -29,7 +29,7 @@ export class RateLimitGuard implements CanActivate {
     const total = values.reduce((sum, v) => sum + (v !== null ? parseInt(v, 10) : 0), 0);
 
     if (total >= RATE_LIMIT_MAX_EVENTS) {
-      this.metrics.rateLimited.inc();
+      this.metrics.increment('ingest.rate_limited_total');
       throw new HttpException(
         { statusCode: 429, message: 'Rate limit exceeded', retry_after: RATE_LIMIT_BUCKET_SECONDS },
         429,

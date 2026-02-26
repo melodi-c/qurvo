@@ -15,6 +15,7 @@
     "@nestjs/platform-fastify": "^11.0.0",
     "@qurvo/db": "workspace:*",
     "@qurvo/nestjs-infra": "workspace:*",
+    "@qurvo/worker-core": "workspace:*",
     "dd-trace": "^5.0.0",
     "hot-shots": "^14.0.0",
     "dotenv": "^16.4.0",

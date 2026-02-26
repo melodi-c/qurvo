@@ -4,7 +4,7 @@ import Redis from 'ioredis';
 import type { Event } from '@qurvo/clickhouse';
 import { REDIS } from '@qurvo/nestjs-infra';
 import { BatchWriter } from './batch-writer';
-import { MetricsService } from './metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 import type { BufferedEvent } from './pipeline';
 import { createScheduledLoop } from './schedule-loop';
 import {
@@ -49,7 +49,7 @@ export class FlushService implements OnApplicationBootstrap {
 
   addToBuffer(events: BufferedEvent[]) {
     this.buffer.push(...events);
-    this.metrics.bufferSize.set(this.buffer.length);
+    this.metrics.gauge('processor.buffer_size', this.buffer.length);
   }
 
   isBufferFull(): boolean {
@@ -72,7 +72,7 @@ export class FlushService implements OnApplicationBootstrap {
 
   private async _doFlush(): Promise<void> {
     const batch = this.buffer.splice(0);
-    this.metrics.bufferSize.set(0);
+    this.metrics.gauge('processor.buffer_size', 0);
     const events = batch.map((b) => b.event);
     const messageIds = batch.map((b) => b.messageId);
 

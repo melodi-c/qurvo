@@ -5,7 +5,7 @@ import { CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { withRetry } from './retry';
 import { PersonBatchStore } from './person-batch-store';
 import { DefinitionSyncService } from './definition-sync.service';
-import { MetricsService } from './metrics.service';
+import { MetricsService } from '@qurvo/worker-core';
 import { RETRY_CLICKHOUSE } from '../constants';
 
 /**
@@ -29,11 +29,11 @@ export class BatchWriter {
    * 3. Sync definitions (non-critical — errors are logged and swallowed)
    */
   async write(events: Event[]): Promise<void> {
-    this.metrics.personBatchQueueSize.set(this.personBatchStore.getPendingCount());
+    this.metrics.gauge('processor.person_batch_queue_size', this.personBatchStore.getPendingCount());
     await this.personBatchStore.flush();
-    this.metrics.personBatchQueueSize.set(this.personBatchStore.getPendingCount());
+    this.metrics.gauge('processor.person_batch_queue_size', this.personBatchStore.getPendingCount());
 
-    const stopTimer = this.metrics.flushDuration.startTimer();
+    const stopTimer = this.metrics.startTimer('processor.batch_flush_duration_ms');
     try {
       await withRetry(
         () => this.ch.insert({
@@ -46,10 +46,10 @@ export class BatchWriter {
         RETRY_CLICKHOUSE,
       );
       stopTimer();
-      this.metrics.eventsProcessed.inc(events.length);
+      this.metrics.increment('processor.events_processed_total', events.length);
     } catch (err) {
       stopTimer();
-      this.metrics.eventsFailed.inc({ reason: 'clickhouse_insert' }, events.length);
+      this.metrics.increment('processor.events_failed_total', events.length, { reason: 'clickhouse_insert' });
       throw err;
     }
 
