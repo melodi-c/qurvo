@@ -93,7 +93,7 @@ export function DemoBanner({ projectId, projectSlug, isDemo }: DemoBannerProps) 
           <button
             onClick={handleDismiss}
             className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-            aria-label="Dismiss"
+            aria-label={t('dismiss')}
           >
             <X className="h-3.5 w-3.5" />
           </button>

@@ -11,6 +11,7 @@ export default createTranslations({
     resetConfirmTitle: 'Reset demo data?',
     resetConfirmDescription:
       'This will delete all current demo data and regenerate it from scratch. This action cannot be undone.',
+    dismiss: 'Dismiss',
   },
   ru: {
     bannerText: 'Это демо-данные. Подключи SDK чтобы увидеть свою реальную аналитику.',
@@ -22,5 +23,6 @@ export default createTranslations({
     resetConfirmTitle: 'Сбросить демо-данные?',
     resetConfirmDescription:
       'Все текущие демо-данные будут удалены и сгенерированы заново. Это действие нельзя отменить.',
+    dismiss: 'Закрыть',
   },
 });

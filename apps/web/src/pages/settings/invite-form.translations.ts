@@ -10,6 +10,7 @@ export default createTranslations({
     sendInvite: 'Send Invite',
     sending: 'Sending...',
     cancel: 'Cancel',
+    emailPlaceholder: 'user@example.com',
   },
   ru: {
     inviteMember: 'Пригласить участника',
@@ -20,5 +21,6 @@ export default createTranslations({
     sendInvite: 'Отправить приглашение',
     sending: 'Отправка...',
     cancel: 'Отмена',
+    emailPlaceholder: 'user@example.com',
   },
 });

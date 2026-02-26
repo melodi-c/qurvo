@@ -152,7 +152,7 @@ export default function VerifyEmailPage() {
                 id="code"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
+                placeholder={t('codePlaceholder')}
                 maxLength={6}
                 autoComplete="one-time-code"
                 inputMode="numeric"
