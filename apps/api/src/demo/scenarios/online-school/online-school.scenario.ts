@@ -1,7 +1,18 @@
 import { randomUUID } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import type { Event } from '@qurvo/clickhouse';
-import { BaseScenario, type ScenarioOutput, type EventDefinitionInput, type PropertyDefinitionInput } from '../base.scenario';
+import {
+  BaseScenario,
+  type ScenarioOutput,
+  type EventDefinitionInput,
+  type PropertyDefinitionInput,
+  type DashboardInput,
+  type InsightInput,
+  type WidgetInput,
+  type CohortInput,
+  type MarketingChannelInput,
+  type AdSpendInput,
+} from '../base.scenario';
 
 interface Student {
   email: string;
@@ -101,6 +112,16 @@ function pickWeighted<T>(items: T[], weights: number[]): T {
 
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function daysAgoDate(days: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
 }
 
 @Injectable()
@@ -334,7 +355,395 @@ export class OnlineSchoolScenario extends BaseScenario {
       distinctId: student.email,
     }));
 
-    return { events, definitions, propertyDefinitions, persons, personDistinctIds };
+    // Date range for insights configs: last 60 days
+    const dateFrom = formatDate(daysAgoDate(60));
+    const dateTo = formatDate(now);
+
+    // ── Insights ──────────────────────────────────────────────────────────────
+
+    const insightDauId = randomUUID();
+    const insightNewUsersId = randomUUID();
+    const insightRevenueId = randomUUID();
+    const insightLessonActivityId = randomUUID();
+    const insightFunnelId = randomUUID();
+    const insightRetentionWeeklyId = randomUUID();
+    const insightLifecycleId = randomUUID();
+    const insightStickinessId = randomUUID();
+    const insightPathsId = randomUUID();
+    const insightCourseEnrollmentsId = randomUUID();
+
+    const insights: InsightInput[] = [
+      {
+        id: insightDauId,
+        type: 'trend',
+        name: 'Daily Active Users (DAU)',
+        description: 'Unique users performing any action per day',
+        config: {
+          type: 'trend',
+          series: [{ event_name: '$pageview', label: 'Active Users' }],
+          metric: 'unique_users',
+          granularity: 'day',
+          chart_type: 'line',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+        is_favorite: true,
+      },
+      {
+        id: insightNewUsersId,
+        type: 'trend',
+        name: 'New Registrations',
+        description: 'New sign-ups over time',
+        config: {
+          type: 'trend',
+          series: [{ event_name: 'signed_up', label: 'Sign-ups' }],
+          metric: 'total_events',
+          granularity: 'day',
+          chart_type: 'bar',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+        is_favorite: true,
+      },
+      {
+        id: insightRevenueId,
+        type: 'trend',
+        name: 'Revenue (payment_made)',
+        description: 'Total payment volume per week',
+        config: {
+          type: 'trend',
+          series: [{ event_name: 'payment_made', label: 'Revenue' }],
+          metric: 'property_sum',
+          metric_property: 'amount',
+          granularity: 'week',
+          chart_type: 'bar',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+        is_favorite: true,
+      },
+      {
+        id: insightLessonActivityId,
+        type: 'trend',
+        name: 'Lesson Activity',
+        description: 'Lessons started vs completed per week',
+        config: {
+          type: 'trend',
+          series: [
+            { event_name: 'lesson_started', label: 'Lessons Started' },
+            { event_name: 'lesson_completed', label: 'Lessons Completed' },
+          ],
+          metric: 'total_events',
+          granularity: 'week',
+          chart_type: 'line',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+      },
+      {
+        id: insightCourseEnrollmentsId,
+        type: 'trend',
+        name: 'Course Enrollments by Category',
+        description: 'Enrollments broken down by course category',
+        config: {
+          type: 'trend',
+          series: [{ event_name: 'course_enrolled', label: 'Enrollments' }],
+          metric: 'total_events',
+          granularity: 'week',
+          chart_type: 'bar',
+          breakdown_property: 'category',
+          breakdown_type: 'property',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+      },
+      {
+        id: insightFunnelId,
+        type: 'funnel',
+        name: 'Registration → Payment Funnel',
+        description: 'Conversion from pageview through to payment',
+        config: {
+          type: 'funnel',
+          steps: [
+            { event_name: '$pageview', label: 'Page View' },
+            { event_name: 'signed_up', label: 'Signed Up' },
+            { event_name: 'course_enrolled', label: 'Enrolled' },
+            { event_name: 'payment_made', label: 'Payment Made' },
+          ],
+          conversion_window_days: 14,
+          date_from: dateFrom,
+          date_to: dateTo,
+        },
+        is_favorite: true,
+      },
+      {
+        id: insightRetentionWeeklyId,
+        type: 'retention',
+        name: 'Weekly Retention (signed_up)',
+        description: 'How well we retain users week-over-week after sign-up',
+        config: {
+          type: 'retention',
+          target_event: 'signed_up',
+          retention_type: 'first_time',
+          granularity: 'week',
+          periods: 8,
+          date_from: dateFrom,
+          date_to: dateTo,
+        },
+        is_favorite: true,
+      },
+      {
+        id: insightLifecycleId,
+        type: 'lifecycle',
+        name: 'Lesson Activity Lifecycle',
+        description: 'New, returning, resurrecting and dormant learners based on lesson_started',
+        config: {
+          type: 'lifecycle',
+          target_event: 'lesson_started',
+          granularity: 'week',
+          date_from: dateFrom,
+          date_to: dateTo,
+        },
+      },
+      {
+        id: insightStickinessId,
+        type: 'stickiness',
+        name: 'Learning Stickiness',
+        description: 'How many days per week users start lessons',
+        config: {
+          type: 'stickiness',
+          target_event: 'lesson_started',
+          granularity: 'week',
+          date_from: dateFrom,
+          date_to: dateTo,
+        },
+      },
+      {
+        id: insightPathsId,
+        type: 'paths',
+        name: 'Paths After Sign-up',
+        description: 'What users do after signing up',
+        config: {
+          type: 'paths',
+          date_from: dateFrom,
+          date_to: dateTo,
+          step_limit: 5,
+          start_event: 'signed_up',
+        },
+      },
+    ];
+
+    // ── Dashboards ────────────────────────────────────────────────────────────
+
+    const dashboardOverviewId = randomUUID();
+    const dashboardFunnelId = randomUUID();
+    const dashboardAcquisitionId = randomUUID();
+
+    const dashboards: DashboardInput[] = [
+      { id: dashboardOverviewId, name: 'Overview' },
+      { id: dashboardFunnelId, name: 'Funnel Analysis' },
+      { id: dashboardAcquisitionId, name: 'Acquisition' },
+    ];
+
+    // ── Widgets ───────────────────────────────────────────────────────────────
+
+    const widgets: WidgetInput[] = [
+      // Overview dashboard
+      { dashboardId: dashboardOverviewId, insightId: insightDauId, layout: { x: 0, y: 0, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightNewUsersId, layout: { x: 6, y: 0, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightRevenueId, layout: { x: 0, y: 4, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightLessonActivityId, layout: { x: 6, y: 4, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightRetentionWeeklyId, layout: { x: 0, y: 8, w: 12, h: 5 } },
+      // Funnel Analysis dashboard
+      { dashboardId: dashboardFunnelId, insightId: insightFunnelId, layout: { x: 0, y: 0, w: 12, h: 5 } },
+      { dashboardId: dashboardFunnelId, insightId: insightLifecycleId, layout: { x: 0, y: 5, w: 6, h: 4 } },
+      { dashboardId: dashboardFunnelId, insightId: insightStickinessId, layout: { x: 6, y: 5, w: 6, h: 4 } },
+      { dashboardId: dashboardFunnelId, insightId: insightPathsId, layout: { x: 0, y: 9, w: 12, h: 5 } },
+      // Acquisition dashboard
+      { dashboardId: dashboardAcquisitionId, insightId: insightNewUsersId, layout: { x: 0, y: 0, w: 6, h: 4 } },
+      { dashboardId: dashboardAcquisitionId, insightId: insightCourseEnrollmentsId, layout: { x: 6, y: 0, w: 6, h: 4 } },
+      { dashboardId: dashboardAcquisitionId, insightId: insightRevenueId, layout: { x: 0, y: 4, w: 12, h: 4 } },
+    ];
+
+    // ── Cohorts ───────────────────────────────────────────────────────────────
+
+    const cohorts: CohortInput[] = [
+      {
+        id: randomUUID(),
+        name: 'Pro Users',
+        description: 'Users on the Pro plan',
+        definition: {
+          type: 'AND',
+          values: [
+            {
+              type: 'person_property',
+              property: 'plan',
+              operator: 'eq',
+              value: 'pro',
+            },
+          ],
+        },
+      },
+      {
+        id: randomUUID(),
+        name: 'Completed a Course',
+        description: 'Users who earned at least one certificate',
+        definition: {
+          type: 'AND',
+          values: [
+            {
+              type: 'event',
+              event_name: 'certificate_earned',
+              count_operator: 'gte',
+              count: 1,
+              time_window_days: 90,
+            },
+          ],
+        },
+      },
+      {
+        id: randomUUID(),
+        name: 'Signed Up Last 30 Days',
+        description: 'Users who registered in the last 30 days',
+        definition: {
+          type: 'AND',
+          values: [
+            {
+              type: 'first_time_event',
+              event_name: 'signed_up',
+              time_window_days: 30,
+            },
+          ],
+        },
+      },
+      {
+        id: randomUUID(),
+        name: 'Paid Users',
+        description: 'Users who made at least one payment',
+        definition: {
+          type: 'AND',
+          values: [
+            {
+              type: 'event',
+              event_name: 'payment_made',
+              count_operator: 'gte',
+              count: 1,
+              time_window_days: 90,
+            },
+          ],
+        },
+      },
+      {
+        id: randomUUID(),
+        name: 'Churned',
+        description: 'Signed up 14+ days ago and haven\'t started a lesson in 7+ days',
+        definition: {
+          type: 'AND',
+          values: [
+            {
+              type: 'first_time_event',
+              event_name: 'signed_up',
+              time_window_days: 14,
+            },
+            {
+              type: 'not_performed_event',
+              event_name: 'lesson_started',
+              time_window_days: 7,
+            },
+          ],
+        },
+      },
+    ];
+
+    // ── Marketing Channels ────────────────────────────────────────────────────
+
+    const channelGoogleId = randomUUID();
+    const channelFacebookId = randomUUID();
+    const channelOrganicId = randomUUID();
+    const channelReferralId = randomUUID();
+
+    const marketingChannels: MarketingChannelInput[] = [
+      { id: channelGoogleId, name: 'Google Ads', channel_type: 'google_ads', color: '#4285F4' },
+      { id: channelFacebookId, name: 'Facebook Ads', channel_type: 'facebook_ads', color: '#1877F2' },
+      { id: channelOrganicId, name: 'Organic', channel_type: 'manual', color: '#34A853' },
+      { id: channelReferralId, name: 'Referral', channel_type: 'manual', color: '#FBBC04' },
+    ];
+
+    // ── Ad Spend: 60 days of data ─────────────────────────────────────────────
+
+    const adSpend: AdSpendInput[] = [];
+
+    // Realistic daily spend ranges per channel
+    const channelSpendConfig = [
+      {
+        channelId: channelGoogleId,
+        baseAmount: 120,
+        variance: 40,
+        weekendMultiplier: 0.7,
+      },
+      {
+        channelId: channelFacebookId,
+        baseAmount: 85,
+        variance: 25,
+        weekendMultiplier: 0.8,
+      },
+      {
+        channelId: channelOrganicId,
+        baseAmount: 0,
+        variance: 0,
+        weekendMultiplier: 1,
+      },
+      {
+        channelId: channelReferralId,
+        baseAmount: 20,
+        variance: 15,
+        weekendMultiplier: 1,
+      },
+    ];
+
+    for (let dayOffset = 59; dayOffset >= 0; dayOffset--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - dayOffset);
+      const spendDate = formatDate(d);
+      const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      for (const cfg of channelSpendConfig) {
+        if (cfg.baseAmount === 0) continue; // Organic has no paid spend
+
+        const multiplier = isWeekend ? cfg.weekendMultiplier : 1;
+        const jitterAmount = (Math.random() - 0.5) * 2 * cfg.variance;
+        const amount = Math.max(0, cfg.baseAmount * multiplier + jitterAmount);
+
+        if (amount > 0) {
+          adSpend.push({
+            channelId: cfg.channelId,
+            spend_date: spendDate,
+            amount: amount.toFixed(2),
+            currency: 'USD',
+          });
+        }
+      }
+    }
+
+    return {
+      events,
+      definitions,
+      propertyDefinitions,
+      persons,
+      personDistinctIds,
+      dashboards,
+      insights,
+      widgets,
+      cohorts,
+      marketingChannels,
+      adSpend,
+    };
   }
 
   private buildStudents(now: Date): Student[] {

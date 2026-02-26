@@ -38,7 +38,7 @@ export class ProjectsController {
     });
 
     // Fire-and-forget seeding — do not await, return the project immediately
-    this.demoSeedService.seed(project.id, 'online_school').catch(() => {
+    this.demoSeedService.seed(project.id, 'online_school', user.user_id).catch(() => {
       // Seeding is best-effort; errors are logged inside DemoSeedService
     });
 

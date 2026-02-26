@@ -75,7 +75,7 @@ export class AuthService {
         demo_scenario: 'online_school',
       });
 
-      this.demoSeedService.seed(demoProject.id, 'online_school').catch((err) => {
+      this.demoSeedService.seed(demoProject.id, 'online_school', user.id).catch((err) => {
         this.logger.error({ userId: user.id, projectId: demoProject.id, err }, 'Demo seeding failed');
       });
     } catch (err) {

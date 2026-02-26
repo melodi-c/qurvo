@@ -28,7 +28,7 @@ export class DemoController {
     }
 
     const scenario = dto.scenario ?? project.demo_scenario ?? 'online_school';
-    const { count } = await this.demoSeedService.reset(project.id, scenario);
+    const { count } = await this.demoSeedService.reset(project.id, scenario, user.user_id);
 
     return { seeded_events: count, scenario };
   }

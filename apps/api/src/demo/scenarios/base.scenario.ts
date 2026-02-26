@@ -1,5 +1,8 @@
 import { createHash } from 'crypto';
 import type { Event } from '@qurvo/clickhouse';
+import type { CohortConditionGroup } from '@qurvo/db';
+import type { InsightType, InsightConfig } from '@qurvo/db';
+import type { WidgetLayout } from '@qurvo/db';
 
 /**
  * DNS namespace UUID bytes for UUIDv5 person ID generation.
@@ -18,12 +21,59 @@ export interface PropertyDefinitionInput {
   displayName?: string;
 }
 
+export interface DashboardInput {
+  id: string;
+  name: string;
+}
+
+export interface InsightInput {
+  id: string;
+  type: InsightType;
+  name: string;
+  description?: string;
+  config: InsightConfig;
+  is_favorite?: boolean;
+}
+
+export interface WidgetInput {
+  dashboardId: string;
+  insightId: string;
+  layout: WidgetLayout;
+}
+
+export interface CohortInput {
+  id: string;
+  name: string;
+  description?: string;
+  definition: CohortConditionGroup;
+}
+
+export interface MarketingChannelInput {
+  id: string;
+  name: string;
+  channel_type: 'manual' | 'google_ads' | 'facebook_ads' | 'tiktok_ads' | 'custom_api';
+  color?: string;
+}
+
+export interface AdSpendInput {
+  channelId: string;
+  spend_date: string; // YYYY-MM-DD
+  amount: string; // numeric as string
+  currency?: string;
+}
+
 export interface ScenarioOutput {
   events: Event[];
   definitions: EventDefinitionInput[];
   propertyDefinitions: PropertyDefinitionInput[];
   persons: { id: string; properties: Record<string, unknown> }[];
   personDistinctIds: { personId: string; distinctId: string }[];
+  dashboards: DashboardInput[];
+  insights: InsightInput[];
+  widgets: WidgetInput[];
+  cohorts: CohortInput[];
+  marketingChannels: MarketingChannelInput[];
+  adSpend: AdSpendInput[];
 }
 
 export abstract class BaseScenario {
