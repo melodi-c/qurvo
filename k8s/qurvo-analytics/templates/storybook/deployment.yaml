@@ -1,0 +1,65 @@
+{{- if .Values.storybook.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "qurvo.fullname" . }}-storybook
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: storybook
+spec:
+  replicas: {{ .Values.storybook.replicas }}
+  selector:
+    matchLabels:
+      {{- include "qurvo.selectorLabels" (dict "component" "storybook" "root" .) | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "qurvo.selectorLabels" (dict "component" "storybook" "root" .) | nindent 8 }}
+      annotations:
+        checksum/nginx: {{ include (print $.Template.BasePath "/storybook/configmap-nginx.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: storybook
+          image: {{ include "qurvo.image" (dict "svc" .Values.storybook "root" .) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+          startupProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            periodSeconds: 3
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.storybook.resources | nindent 12 }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "qurvo.fullname" . }}-storybook-nginx-config
+{{- end }}

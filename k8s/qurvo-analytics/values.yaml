@@ -22,6 +22,7 @@ domain:
   app: "app.qurvo.ru"
   ingest: "ingest.qurvo.ru"
   landing: "qurvo.ru"
+  storybook: "storybook.app.qurvo.ru"
 
 tls:
   enabled: true
@@ -192,6 +193,25 @@ migrations:
     enabled: true
   ch:
     enabled: true
+
+# ==============================================================================
+# Storybook
+# ==============================================================================
+storybook:
+  enabled: false
+  image:
+    repository: "storybook"
+    tag: ""
+  replicas: 1
+  resources:
+    requests:
+      cpu: "20m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+  basicAuth:
+    htpasswd: ""
 
 # ==============================================================================
 # ClickHouse (non-secret config)

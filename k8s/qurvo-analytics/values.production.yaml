@@ -51,3 +51,6 @@ web:
 
 landing:
   replicas: 2
+
+storybook:
+  enabled: true

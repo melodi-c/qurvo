@@ -1,0 +1,37 @@
+{{- if .Values.storybook.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "qurvo.fullname" . }}-storybook
+  labels:
+    {{- include "qurvo.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.tls.clusterIssuer | quote }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ include "qurvo.fullname" . }}-storybook-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Storybook — Authentication Required"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.domain.storybook }}
+      secretName: {{ include "qurvo.fullname" . }}-storybook-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.domain.storybook }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "qurvo.fullname" . }}-storybook
+                port:
+                  name: http
+{{- end }}
