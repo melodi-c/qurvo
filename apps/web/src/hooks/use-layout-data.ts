@@ -21,6 +21,7 @@ import {
   Sparkles,
   Bell,
   Clock,
+  FolderOpen,
 } from 'lucide-react';
 
 export function useLayoutData() {
@@ -55,6 +56,7 @@ export function useLayoutData() {
       {
         title: t('configure'),
         items: [
+          { path: routes.projects.pattern, label: t('projects'), icon: FolderOpen, exact: true },
           { path: routes.dataManagement.list.pattern, label: t('dataManagement'), icon: Database },
           { path: routes.settings.pattern, label: t('settings'), icon: Settings },
         ],
