@@ -15,6 +15,10 @@ export function granularityTruncExpr(granularity: Granularity, col: string): str
     case 'day':   return `toStartOfDay(${col})`;
     case 'week':  return `toDateTime(toStartOfWeek(${col}, 1))`;
     case 'month': return `toDateTime(toStartOfMonth(${col}))`;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
   }
 }
 
@@ -54,6 +58,10 @@ export function shiftDate(date: string, periods: number, granularity: 'day' | 'w
     case 'month':
       d.setUTCMonth(d.getUTCMonth() + periods);
       break;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
   }
   return d.toISOString().slice(0, 10);
 }
@@ -75,6 +83,10 @@ export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'
     case 'month':
       d.setUTCDate(1);
       break;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
   }
   return d.toISOString().slice(0, 10);
 }
@@ -87,5 +99,9 @@ export function granularityInterval(granularity: 'day' | 'week' | 'month'): stri
     case 'day': return `INTERVAL 1 DAY`;
     case 'week': return `INTERVAL 7 DAY`;
     case 'month': return `INTERVAL 1 MONTH`;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
   }
 }
