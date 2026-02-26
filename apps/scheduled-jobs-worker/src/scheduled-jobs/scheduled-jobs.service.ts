@@ -58,10 +58,18 @@ export class ScheduledJobsService extends PeriodicWorkerMixin {
 
   isDue(job: AiScheduledJob, now: Date): boolean {
     if (!job.last_run_at) return true; // Never ran before
-    const diff = now.getTime() - job.last_run_at.getTime();
-    if (job.schedule === 'daily') return diff >= 24 * 60 * 60 * 1000;
-    if (job.schedule === 'weekly') return diff >= 7 * 24 * 60 * 60 * 1000;
-    if (job.schedule === 'monthly') return diff >= 30 * 24 * 60 * 60 * 1000;
+    const last = job.last_run_at;
+    if (job.schedule === 'daily') {
+      return now.getTime() - last.getTime() >= 24 * 60 * 60 * 1000;
+    }
+    if (job.schedule === 'weekly') {
+      return now.getTime() - last.getTime() >= 7 * 24 * 60 * 60 * 1000;
+    }
+    if (job.schedule === 'monthly') {
+      const nextRun = new Date(last);
+      nextRun.setMonth(nextRun.getMonth() + 1);
+      return now >= nextRun;
+    }
     return false;
   }
 
