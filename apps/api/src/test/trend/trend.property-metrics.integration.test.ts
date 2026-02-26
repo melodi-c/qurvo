@@ -59,8 +59,8 @@ describe('queryTrend — with series filters', () => {
 
     expect(result.compare).toBe(false);
     expect(result.breakdown).toBe(false);
-    const r5 = result as Extract<typeof result, { compare: false; breakdown: false }>;
-    expect(sumSeriesValues(r5.series[0].data)).toBe(1);
+    const filteredResult = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(filteredResult.series[0].data)).toBe(1);
   });
 });
 
@@ -99,8 +99,8 @@ describe('queryTrend — property aggregation', () => {
 
     expect(result.compare).toBe(false);
     expect(result.breakdown).toBe(false);
-    const r6 = result as Extract<typeof result, { compare: false; breakdown: false }>;
-    expect(sumSeriesValues(r6.series[0].data)).toBe(350);
+    const sumResult = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(sumResult.series[0].data)).toBe(350);
   });
 
   it('averages property values (property_avg)', async () => {
@@ -137,8 +137,8 @@ describe('queryTrend — property aggregation', () => {
 
     expect(result.compare).toBe(false);
     expect(result.breakdown).toBe(false);
-    const r7 = result as Extract<typeof result, { compare: false; breakdown: false }>;
-    expect(sumSeriesValues(r7.series[0].data)).toBe(20);
+    const avgResult = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(avgResult.series[0].data)).toBe(20);
   });
 
   it('finds min and max property values (property_min / property_max)', async () => {
@@ -236,9 +236,9 @@ describe('queryTrend — property aggregation', () => {
 
     expect(result.compare).toBe(false);
     expect(result.breakdown).toBe(false);
-    const r8 = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    const nonNumericSumResult = result as Extract<typeof result, { compare: false; breakdown: false }>;
     // "abc" → toFloat64OrZero → 0, 100 → 100, sum = 100
-    expect(sumSeriesValues(r8.series[0].data)).toBe(100);
+    expect(sumSeriesValues(nonNumericSumResult.series[0].data)).toBe(100);
   });
 });
 
