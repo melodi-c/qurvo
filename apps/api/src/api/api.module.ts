@@ -39,6 +39,7 @@ import { PropertyDefinitionsController } from './controllers/property-definition
 import { WebAnalyticsController } from './controllers/web-analytics.controller';
 import { BillingController } from './controllers/billing.controller';
 import { IngestionWarningsController } from './controllers/ingestion-warnings.controller';
+import { DemoController } from './controllers/demo.controller';
 import { createHttpFilter } from './filters/create-http-filter';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
@@ -105,6 +106,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     WebAnalyticsController,
     BillingController,
     IngestionWarningsController,
+    DemoController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: NotFoundFilter },

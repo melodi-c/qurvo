@@ -1180,6 +1180,15 @@ export interface IngestionWarning {
   timestamp: string;
 }
 
+export interface ResetDemo {
+  scenario?: string;
+}
+
+export interface ResetDemoResponse {
+  seeded_events: number;
+  scenario: string;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -2141,6 +2150,10 @@ export interface IngestionWarningsControllerGetIngestionWarningsParams {
   limit?: number;
   /** @format uuid */
   project_id: string;
+}
+
+export interface DemoControllerResetParams {
+  projectSlug: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4205,6 +4218,29 @@ export class Api<
         method: "GET",
         query: query,
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Demo
+     * @name DemoControllerReset
+     * @request POST:/api/projects/{projectSlug}/demo/reset
+     * @secure
+     */
+    demoControllerReset: (
+      { projectSlug, ...query }: DemoControllerResetParams,
+      data: ResetDemo,
+      params: RequestParams = {},
+    ) =>
+      this.request<ResetDemoResponse, any>({
+        path: `/api/projects/${projectSlug}/demo/reset`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
