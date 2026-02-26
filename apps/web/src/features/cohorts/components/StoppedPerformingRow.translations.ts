@@ -7,6 +7,7 @@ export default createTranslations({
     didInLast: 'did in last',
     butNotInLast: 'but not in last',
     days: 'days',
+    tooltip: 'The user performed the event during the historical window but has not performed it in the more recent window. Use this to find users who have churned or disengaged.',
   },
   ru: {
     stoppedPerforming: 'Перестал выполнять',
@@ -14,5 +15,6 @@ export default createTranslations({
     didInLast: 'выполнял за',
     butNotInLast: 'но не за последние',
     days: 'дн.',
+    tooltip: 'Пользователь выполнял событие в историческом периоде, но не выполнял его в более свежем окне. Используйте это условие для поиска пользователей, которые перестали взаимодействовать с продуктом.',
   },
 });

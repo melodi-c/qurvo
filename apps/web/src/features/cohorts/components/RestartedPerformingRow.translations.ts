@@ -8,6 +8,7 @@ export default createTranslations({
     gapWindow: 'then paused for',
     recentWindow: 'and resumed in last',
     days: 'days',
+    tooltip: 'The user performed the event earlier, then stopped for the gap period, and then resumed performing it in the recent window. Use this to identify re-engaged or reactivated users.',
   },
   ru: {
     restartedPerforming: 'Возобновил',
@@ -16,5 +17,6 @@ export default createTranslations({
     gapWindow: 'затем пауза',
     recentWindow: 'и возобновил за',
     days: 'дн.',
+    tooltip: 'Пользователь выполнял событие ранее, затем перестал на период паузы, а затем снова начал выполнять его в недавнем окне. Используйте это условие для поиска вернувшихся пользователей.',
   },
 });

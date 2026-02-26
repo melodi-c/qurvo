@@ -12,6 +12,7 @@ export default createTranslations({
     month: 'Month',
     inLast: 'in last',
     days: 'days',
+    tooltip: 'The user regularly performed the event in at least the specified number of periods (days, weeks, or months) out of the total periods within the time window.',
   },
   ru: {
     performedRegularly: 'Регулярное событие',
@@ -24,5 +25,6 @@ export default createTranslations({
     month: 'Месяц',
     inLast: 'за последние',
     days: 'дн.',
+    tooltip: 'Пользователь регулярно выполнял событие как минимум в указанное количество периодов (дней, недель или месяцев) из общего числа периодов в заданном окне.',
   },
 });

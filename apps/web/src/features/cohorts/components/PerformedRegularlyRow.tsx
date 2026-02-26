@@ -24,7 +24,7 @@ export function PerformedRegularlyRow({ condition, onChange, onRemove }: Perform
   ] as const, [t]);
 
   return (
-    <ConditionRowWrapper label={t('performedRegularly')} labelColor="text-indigo-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={t('performedRegularly')} labelColor="text-indigo-400" tooltip={t('tooltip')} onRemove={onRemove}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}
