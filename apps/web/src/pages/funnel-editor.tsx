@@ -36,7 +36,7 @@ export default function FunnelEditorPage() {
   const editor = useInsightEditor<FunnelWidgetConfig>({
     type: 'funnel',
     defaultName: t('defaultName'),
-    defaultConfig: defaultFunnelConfig,
+    defaultConfig: () => defaultFunnelConfig(t('step1Label'), t('step2Label')),
     cleanConfig: cleanFunnelConfig,
     isConfigValid: (cfg) =>
       cfg.steps.length >= 2 && cfg.steps.every((s) => s.event_name.trim() !== ''),
