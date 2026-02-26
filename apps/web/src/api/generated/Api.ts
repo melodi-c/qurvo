@@ -665,6 +665,24 @@ export interface UpdateWidget {
   layout?: WidgetLayout;
 }
 
+export interface CreateShareToken {
+  /** ISO 8601 datetime when the token expires. If omitted, token never expires. */
+  expires_at?: string;
+}
+
+export interface ShareToken {
+  resource_type: ShareTokenDtoResourceTypeEnum;
+  /** @format date-time */
+  expires_at?: string | null;
+  id: string;
+  token: string;
+  resource_id: string;
+  project_id: string;
+  created_by: string;
+  /** @format date-time */
+  created_at: string;
+}
+
 export interface Person {
   properties: Record<string, any>;
   distinct_ids: string[];
@@ -1521,6 +1539,8 @@ export type StickinessWidgetConfigDtoTypeEnum = "stickiness";
 
 export type PathsWidgetConfigDtoTypeEnum = "paths";
 
+export type ShareTokenDtoResourceTypeEnum = "dashboard" | "insight";
+
 export type CohortConditionGroupDtoTypeEnum = "AND" | "OR";
 
 export type MemberDtoRoleEnum = "owner" | "editor" | "viewer";
@@ -1888,6 +1908,22 @@ export interface DashboardsControllerRemoveWidgetParams {
   widgetId: string;
 }
 
+export interface DashboardsControllerCreateShareTokenParams {
+  projectId: string;
+  dashboardId: string;
+}
+
+export interface DashboardsControllerListShareTokensParams {
+  projectId: string;
+  dashboardId: string;
+}
+
+export interface DashboardsControllerRevokeShareTokenParams {
+  projectId: string;
+  tokenId: string;
+  dashboardId: string;
+}
+
 export interface PersonsControllerGetPersonsParams {
   search?: string;
   filters?: StepFilter[];
@@ -2039,6 +2075,22 @@ export interface SavedInsightsControllerUpdateParams {
 
 export interface SavedInsightsControllerRemoveParams {
   projectId: string;
+  insightId: string;
+}
+
+export interface SavedInsightsControllerCreateShareTokenParams {
+  projectId: string;
+  insightId: string;
+}
+
+export interface SavedInsightsControllerListShareTokensParams {
+  projectId: string;
+  insightId: string;
+}
+
+export interface SavedInsightsControllerRevokeShareTokenParams {
+  projectId: string;
+  tokenId: string;
   insightId: string;
 }
 
@@ -2365,6 +2417,14 @@ export interface AnnotationsControllerUpdateParams {
 export interface AnnotationsControllerRemoveParams {
   projectId: string;
   id: string;
+}
+
+export interface PublicControllerGetPublicDashboardParams {
+  shareToken: string;
+}
+
+export interface PublicControllerGetPublicInsightParams {
+  shareToken: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -3295,6 +3355,81 @@ export class Api<
     /**
      * No description
      *
+     * @tags Dashboards
+     * @name DashboardsControllerCreateShareToken
+     * @request POST:/api/projects/{projectId}/dashboards/{dashboardId}/share
+     * @secure
+     */
+    dashboardsControllerCreateShareToken: (
+      {
+        projectId,
+        dashboardId,
+        ...query
+      }: DashboardsControllerCreateShareTokenParams,
+      data: CreateShareToken,
+      params: RequestParams = {},
+    ) =>
+      this.request<ShareToken, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}/share`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerListShareTokens
+     * @request GET:/api/projects/{projectId}/dashboards/{dashboardId}/share
+     * @secure
+     */
+    dashboardsControllerListShareTokens: (
+      {
+        projectId,
+        dashboardId,
+        ...query
+      }: DashboardsControllerListShareTokensParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<ShareToken[], any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}/share`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Dashboards
+     * @name DashboardsControllerRevokeShareToken
+     * @request DELETE:/api/projects/{projectId}/dashboards/{dashboardId}/share/{tokenId}
+     * @secure
+     */
+    dashboardsControllerRevokeShareToken: (
+      {
+        projectId,
+        tokenId,
+        dashboardId,
+        ...query
+      }: DashboardsControllerRevokeShareTokenParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/dashboards/${dashboardId}/share/${tokenId}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
      * @tags Persons
      * @name PersonsControllerGetPersons
      * @request GET:/api/persons
@@ -3767,6 +3902,81 @@ export class Api<
     ) =>
       this.request<void, any>({
         path: `/api/projects/${projectId}/insights/${insightId}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name SavedInsightsControllerCreateShareToken
+     * @request POST:/api/projects/{projectId}/insights/{insightId}/share
+     * @secure
+     */
+    savedInsightsControllerCreateShareToken: (
+      {
+        projectId,
+        insightId,
+        ...query
+      }: SavedInsightsControllerCreateShareTokenParams,
+      data: CreateShareToken,
+      params: RequestParams = {},
+    ) =>
+      this.request<ShareToken, any>({
+        path: `/api/projects/${projectId}/insights/${insightId}/share`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name SavedInsightsControllerListShareTokens
+     * @request GET:/api/projects/{projectId}/insights/{insightId}/share
+     * @secure
+     */
+    savedInsightsControllerListShareTokens: (
+      {
+        projectId,
+        insightId,
+        ...query
+      }: SavedInsightsControllerListShareTokensParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<ShareToken[], any>({
+        path: `/api/projects/${projectId}/insights/${insightId}/share`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name SavedInsightsControllerRevokeShareToken
+     * @request DELETE:/api/projects/{projectId}/insights/{insightId}/share/{tokenId}
+     * @secure
+     */
+    savedInsightsControllerRevokeShareToken: (
+      {
+        projectId,
+        tokenId,
+        insightId,
+        ...query
+      }: SavedInsightsControllerRevokeShareTokenParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, any>({
+        path: `/api/projects/${projectId}/insights/${insightId}/share/${tokenId}`,
         method: "DELETE",
         secure: true,
         ...params,
@@ -4723,6 +4933,43 @@ export class Api<
         path: `/api/projects/${projectId}/annotations/${id}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+  };
+  public = {
+    /**
+     * No description
+     *
+     * @tags Public
+     * @name PublicControllerGetPublicDashboard
+     * @request GET:/public/dashboards/{shareToken}
+     */
+    publicControllerGetPublicDashboard: (
+      { shareToken, ...query }: PublicControllerGetPublicDashboardParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<DashboardWithWidgets, any>({
+        path: `/public/dashboards/${shareToken}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Public
+     * @name PublicControllerGetPublicInsight
+     * @request GET:/public/insights/{shareToken}
+     */
+    publicControllerGetPublicInsight: (
+      { shareToken, ...query }: PublicControllerGetPublicInsightParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Insight, any>({
+        path: `/public/insights/${shareToken}`,
+        method: "GET",
+        format: "json",
         ...params,
       }),
   };

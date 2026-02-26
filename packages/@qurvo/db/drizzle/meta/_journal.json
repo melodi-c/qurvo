@@ -267,6 +267,13 @@
       "when": 1775000000000,
       "tag": "0038_add_annotations",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1775100000000,
+      "tag": "0039_add_share_tokens",
+      "breakpoints": true
     }
   ]
 }

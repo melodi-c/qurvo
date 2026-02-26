@@ -20,6 +20,7 @@ import { AiMonitorsModule } from '../ai-monitors/ai-monitors.module';
 import { AiInsightsModule } from '../ai-insights/ai-insights.module';
 import { AiScheduledJobsModule } from '../ai-scheduled-jobs/ai-scheduled-jobs.module';
 import { AnnotationsModule } from '../annotations/annotations.module';
+import { ShareTokensModule } from '../share-tokens/share-tokens.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { FunnelController } from './controllers/funnel.controller';
@@ -46,6 +47,7 @@ import { AiMonitorsController } from './controllers/ai-monitors.controller';
 import { AiInsightsController } from './controllers/ai-insights.controller';
 import { AiScheduledJobsController } from './controllers/ai-scheduled-jobs.controller';
 import { AnnotationsController } from './controllers/annotations.controller';
+import { PublicController } from './controllers/public.controller';
 import { createHttpFilter } from './filters/create-http-filter';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
@@ -89,6 +91,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     AiInsightsModule,
     AiScheduledJobsModule,
     AnnotationsModule,
+    ShareTokensModule,
   ],
   controllers: [
     AuthController,
@@ -119,6 +122,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     AiInsightsController,
     AiScheduledJobsController,
     AnnotationsController,
+    PublicController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: NotFoundFilter },
