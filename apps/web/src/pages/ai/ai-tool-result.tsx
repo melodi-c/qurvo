@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Image, Download, ClipboardList, ExternalLink } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Cell, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -11,6 +12,8 @@ import { RetentionChart } from '@/features/dashboard/components/widgets/retentio
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
+import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_GRID_COLOR, chartAxisTick } from '@/lib/chart-colors';
+import { formatCompactNumber } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectId } from '@/hooks/use-project-id';
 import translations from './ai-tool-result.translations';
@@ -21,6 +24,7 @@ import {
   captureChartAsBlob,
   downloadChartAsPng,
   type AiToolResultData,
+  type SegmentCompareResult,
 } from './ai-tool-result-export';
 import type {
   TrendSeriesResult,
@@ -74,6 +78,17 @@ function isPathsResult(r: Record<string, unknown>): r is Record<string, unknown>
   return Array.isArray(r.transitions);
 }
 
+function isSegmentCompareResult(r: Record<string, unknown>): r is Record<string, unknown> & SegmentCompareResult {
+  return (
+    typeof r.segment_a === 'object' &&
+    r.segment_a !== null &&
+    typeof r.segment_b === 'object' &&
+    r.segment_b !== null &&
+    typeof r.comparison === 'object' &&
+    r.comparison !== null
+  );
+}
+
 function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
   if (!visualizationType || !result || typeof result !== 'object') return null;
   const r = result as Record<string, unknown>;
@@ -91,6 +106,8 @@ function parseToolResult(visualizationType: string | null, result: unknown): AiT
       return isStickinessResult(r) ? { type: 'stickiness_chart', data: r } : null;
     case 'paths_chart':
       return isPathsResult(r) ? { type: 'paths_chart', data: r } : null;
+    case 'segment_compare_chart':
+      return isSegmentCompareResult(r) ? { type: 'segment_compare_chart', data: r as SegmentCompareResult } : null;
     default:
       return null;
   }
@@ -144,6 +161,98 @@ function getLinkLabel(toolName: string, result: LinkToolResult, t: (key: any) =>
   return t('openLink');
 }
 
+interface SegmentCompareChartProps {
+  data: SegmentCompareResult;
+}
+
+function SegmentCompareChart({ data }: SegmentCompareChartProps) {
+  const { t } = useLocalTranslation(translations);
+  const { segment_a, segment_b, comparison } = data;
+
+  const chartData = [
+    { name: segment_a.name, value: segment_a.value, colorIndex: 0 },
+    { name: segment_b.name, value: segment_b.value, colorIndex: 1 },
+  ];
+
+  const isPositiveDiff = comparison.absolute_diff >= 0;
+  const diffLabel = isPositiveDiff
+    ? `+${formatCompactNumber(comparison.absolute_diff)}`
+    : formatCompactNumber(comparison.absolute_diff);
+  const diffPctLabel = isPositiveDiff
+    ? `+${comparison.relative_diff_pct.toFixed(1)}%`
+    : `${comparison.relative_diff_pct.toFixed(1)}%`;
+
+  return (
+    <div>
+      <div className="mb-3 flex items-start gap-6 text-sm">
+        <div>
+          <div className="text-muted-foreground">{t('winner')}</div>
+          <div className="font-semibold text-foreground">{comparison.winner}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">{t('absoluteDiff')}</div>
+          <div className={`font-semibold ${isPositiveDiff ? 'text-emerald-400' : 'text-red-400'}`}>
+            {diffLabel}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">{t('relativeDiff')}</div>
+          <div className={`font-semibold ${isPositiveDiff ? 'text-emerald-400' : 'text-red-400'}`}>
+            {diffPctLabel}
+          </div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={chartData} barCategoryGap="30%">
+          <XAxis
+            dataKey="name"
+            tick={chartAxisTick()}
+            axisLine={{ stroke: CHART_GRID_COLOR }}
+            tickLine={false}
+          />
+          <YAxis
+            tick={chartAxisTick()}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={formatCompactNumber}
+            width={48}
+          />
+          <RechartsTooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+            formatter={(value: number) => [formatCompactNumber(value), data.metric]}
+          />
+          <ReferenceLine y={0} stroke={CHART_GRID_COLOR} />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+            {chartData.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={CHART_COLORS_HEX[entry.colorIndex] ?? CHART_COLORS_HEX[0]}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: CHART_COLORS_HEX[0] }}
+          />
+          <span>{segment_a.name}: {formatCompactNumber(segment_a.value)}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: CHART_COLORS_HEX[1] }}
+          />
+          <span>{segment_b.name}: {formatCompactNumber(segment_b.value)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface AiToolResultProps {
   toolName: string;
   result: unknown;
@@ -152,7 +261,7 @@ interface AiToolResultProps {
 
 export function AiToolResult({ result, visualizationType, toolName }: AiToolResultProps) {
   const { t } = useLocalTranslation(translations);
-  const projectId = useProjectId();
+  useProjectId();
   const chartRef = useRef<HTMLDivElement>(null);
   const [isCopyingChart, setIsCopyingChart] = useState(false);
 
@@ -260,6 +369,9 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
               transitions={parsed.data.transitions}
               topPaths={parsed.data.top_paths ?? []}
             />
+          )}
+          {parsed.type === 'segment_compare_chart' && (
+            <SegmentCompareChart data={parsed.data} />
           )}
         </div>
         <div className="flex items-center gap-1 mt-2 pt-2 border-t">

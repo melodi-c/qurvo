@@ -30,13 +30,35 @@ interface PathsToolResult {
   top_paths?: TopPath[];
 }
 
+export interface SegmentCompareSegment {
+  name: string;
+  value: number;
+  raw_count: number;
+  unique_users: number;
+}
+
+export interface SegmentCompareResult {
+  event_name: string;
+  metric: 'unique_users' | 'total_events' | 'events_per_user';
+  date_from: string;
+  date_to: string;
+  segment_a: SegmentCompareSegment;
+  segment_b: SegmentCompareSegment;
+  comparison: {
+    absolute_diff: number;
+    relative_diff_pct: number;
+    winner: string;
+  };
+}
+
 export type AiToolResultData =
   | { type: 'trend_chart'; data: TrendToolResult }
   | { type: 'funnel_chart'; data: FunnelToolResult }
   | { type: 'retention_chart'; data: RetentionResult }
   | { type: 'lifecycle_chart'; data: LifecycleResult }
   | { type: 'stickiness_chart'; data: StickinessResult }
-  | { type: 'paths_chart'; data: PathsToolResult };
+  | { type: 'paths_chart'; data: PathsToolResult }
+  | { type: 'segment_compare_chart'; data: SegmentCompareResult };
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -114,6 +136,15 @@ function pathsToCsv(data: PathsToolResult): string {
   return buildCsvRows(headers, rows);
 }
 
+function segmentCompareToCsv(data: SegmentCompareResult): string {
+  const headers = ['segment', 'value', 'raw_count', 'unique_users'];
+  const rows: (string | number)[][] = [
+    [data.segment_a.name, data.segment_a.value, data.segment_a.raw_count, data.segment_a.unique_users],
+    [data.segment_b.name, data.segment_b.value, data.segment_b.raw_count, data.segment_b.unique_users],
+  ];
+  return buildCsvRows(headers, rows);
+}
+
 export function toolResultToCsv(parsed: AiToolResultData): string {
   switch (parsed.type) {
     case 'trend_chart':
@@ -128,6 +159,8 @@ export function toolResultToCsv(parsed: AiToolResultData): string {
       return stickinessToCsv(parsed.data);
     case 'paths_chart':
       return pathsToCsv(parsed.data);
+    case 'segment_compare_chart':
+      return segmentCompareToCsv(parsed.data);
   }
 }
 
@@ -218,6 +251,15 @@ function pathsToMarkdown(data: PathsToolResult): string {
   return buildMarkdownTable(headers, rows);
 }
 
+function segmentCompareToMarkdown(data: SegmentCompareResult): string {
+  const headers = ['Segment', 'Value', 'Raw Count', 'Unique Users'];
+  const rows: string[][] = [
+    [data.segment_a.name, String(data.segment_a.value), String(data.segment_a.raw_count), String(data.segment_a.unique_users)],
+    [data.segment_b.name, String(data.segment_b.value), String(data.segment_b.raw_count), String(data.segment_b.unique_users)],
+  ];
+  return buildMarkdownTable(headers, rows);
+}
+
 export function toolResultToMarkdown(parsed: AiToolResultData): string {
   switch (parsed.type) {
     case 'trend_chart':
@@ -232,6 +274,8 @@ export function toolResultToMarkdown(parsed: AiToolResultData): string {
       return stickinessToMarkdown(parsed.data);
     case 'paths_chart':
       return pathsToMarkdown(parsed.data);
+    case 'segment_compare_chart':
+      return segmentCompareToMarkdown(parsed.data);
   }
 }
 
