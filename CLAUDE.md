@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Восстановление после compact
+
+Если контекст диалога был сжат (compact) и до сжатия выполнялся скилл `issue-executor` —
+немедленно перечитай инструкции скилла через Read tool: `.claude/skills/issue-executor`
+После прочтения продолжи с того шага, на котором остановился.
+
 ## Commands
 
 ```bash
