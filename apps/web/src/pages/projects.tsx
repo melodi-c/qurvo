@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -21,7 +21,6 @@ export default function ProjectsPage() {
   const [name, setName] = useState('');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
   const { t } = useLocalTranslation(translations);
 
   const { data: projects, isLoading, isError, refetch } = useQuery({
@@ -36,7 +35,7 @@ export default function ProjectsPage() {
     onSuccess: async (newProject) => {
       if (isFirstProject) {
         await queryClient.invalidateQueries({ queryKey: ['projects'] });
-        navigate(`${routes.dashboards.list()}?project=${newProject.id}`);
+        navigate(routes.dashboards.list(newProject.id));
         return;
       }
       queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -50,7 +49,7 @@ export default function ProjectsPage() {
     onSuccess: async (demoProject) => {
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(t('demoCreated'));
-      navigate(`${routes.dashboards.list()}?project=${demoProject.id}`);
+      navigate(routes.dashboards.list(demoProject.id));
     },
     onError: () => toast.error(t('demoFailed')),
   });
@@ -175,7 +174,7 @@ export default function ProjectsPage() {
             <Card
               key={project.id}
               className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => { setSearchParams({ project: project.id }); navigate(`${routes.home()}?project=${project.id}`); }}
+              onClick={() => navigate(routes.dashboards.list(project.id))}
             >
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -184,7 +183,7 @@ export default function ProjectsPage() {
                     <CardTitle className="text-base">{project.name}</CardTitle>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`${routes.keys()}?project=${project.id}`); }}>
+                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(routes.keys(project.id)); }}>
                       {t('keys')}
                     </Button>
                     <Button

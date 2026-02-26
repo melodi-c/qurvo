@@ -39,7 +39,7 @@ export function DemoBanner({ projectId, isDemo }: DemoBannerProps) {
   }
 
   function handleConnectSdk() {
-    navigate(`${routes.keys()}?project=${projectId}`);
+    navigate(routes.keys(projectId));
   }
 
   function handleResetData() {

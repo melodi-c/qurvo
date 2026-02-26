@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useAuthStore } from '@/stores/auth';
@@ -26,7 +26,6 @@ import {
 export function useLayoutData() {
   const { t } = useLocalTranslation(translations);
   const location = useLocation();
-  const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const logout = useAuthStore((s) => s.logout);
@@ -82,16 +81,22 @@ export function useLayoutData() {
   const projectsLoaded = projects !== undefined;
 
   function isActive(path: string, exact?: boolean): boolean {
-    if (exact) return location.pathname === path;
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    // Resolve :projectId pattern to the actual project ID so patterns match current URL
+    const resolvedPath = currentProject ? path.replace(':projectId', currentProject) : path;
+    if (exact) return location.pathname === resolvedPath;
+    return location.pathname === resolvedPath || location.pathname.startsWith(resolvedPath + '/');
   }
 
   function navLink(path: string): string {
-    return `${path}${currentProject ? `?project=${currentProject}` : ''}`;
+    if (!currentProject) return path;
+    // Replace the :projectId pattern segment with the actual projectId
+    return path.replace(':projectId', currentProject);
   }
 
   const userInitial = user?.display_name?.slice(0, 1).toUpperCase() ?? '?';
-  const logoHref = hasProjects ? navLink(routes.dashboards.list.pattern) : routes.projects();
+  const logoHref = hasProjects
+    ? `/projects/${currentProject}/dashboards`
+    : routes.projects();
 
   const shouldRedirectToProjects =
     projectsLoaded &&
@@ -102,7 +107,6 @@ export function useLayoutData() {
   return {
     t,
     location,
-    setSearchParams,
     navigate,
     logout,
     user,

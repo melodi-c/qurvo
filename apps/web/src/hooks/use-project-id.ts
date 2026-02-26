@@ -1,6 +1,6 @@
-import { useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 export function useProjectId(): string {
-  const [searchParams] = useSearchParams();
-  return searchParams.get('project') || '';
+  const { projectId } = useParams<{ projectId: string }>();
+  return projectId ?? '';
 }

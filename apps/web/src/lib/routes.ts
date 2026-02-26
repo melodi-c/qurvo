@@ -41,98 +41,174 @@ export const routes = {
 
   home: route('/'),
   projects: route('/projects'),
-  keys: route('/keys'),
-  settings: route('/settings'),
   invites: route('/invites'),
   profile: route('/profile', (params?: { tab?: string }) => {
     if (params?.tab) return `/profile?tab=${params.tab}`;
     return '/profile';
   }),
 
-  webAnalytics: route('/web-analytics'),
+  // Project-scoped routes — all require projectId as first argument
+  keys: route(
+    '/projects/:projectId/keys',
+    (projectId: string) => `/projects/${projectId}/keys`,
+  ),
+  settings: route(
+    '/projects/:projectId/settings',
+    (projectId: string) => `/projects/${projectId}/settings`,
+  ),
+
+  webAnalytics: route(
+    '/projects/:projectId/web-analytics',
+    (projectId: string) => `/projects/${projectId}/web-analytics`,
+  ),
 
   dashboards: {
-    list: route('/dashboards'),
-    detail: route('/dashboards/:id', (id: string) => `/dashboards/${id}`),
+    list: route(
+      '/projects/:projectId/dashboards',
+      (projectId: string) => `/projects/${projectId}/dashboards`,
+    ),
+    detail: route(
+      '/projects/:projectId/dashboards/:id',
+      (projectId: string, id: string) => `/projects/${projectId}/dashboards/${id}`,
+    ),
   },
 
   insights: {
-    list: route('/insights'),
+    list: route(
+      '/projects/:projectId/insights',
+      (projectId: string) => `/projects/${projectId}/insights`,
+    ),
     trends: {
-      new: route('/insights/trends/new'),
+      new: route(
+        '/projects/:projectId/insights/trends/new',
+        (projectId: string) => `/projects/${projectId}/insights/trends/new`,
+      ),
       detail: route(
-        '/insights/trends/:insightId',
-        (insightId: string) => `/insights/trends/${insightId}`,
+        '/projects/:projectId/insights/trends/:insightId',
+        (projectId: string, insightId: string) =>
+          `/projects/${projectId}/insights/trends/${insightId}`,
       ),
     },
     funnels: {
-      new: route('/insights/funnels/new'),
+      new: route(
+        '/projects/:projectId/insights/funnels/new',
+        (projectId: string) => `/projects/${projectId}/insights/funnels/new`,
+      ),
       detail: route(
-        '/insights/funnels/:insightId',
-        (insightId: string) => `/insights/funnels/${insightId}`,
+        '/projects/:projectId/insights/funnels/:insightId',
+        (projectId: string, insightId: string) =>
+          `/projects/${projectId}/insights/funnels/${insightId}`,
       ),
     },
     retentions: {
-      new: route('/insights/retentions/new'),
+      new: route(
+        '/projects/:projectId/insights/retentions/new',
+        (projectId: string) => `/projects/${projectId}/insights/retentions/new`,
+      ),
       detail: route(
-        '/insights/retentions/:insightId',
-        (insightId: string) => `/insights/retentions/${insightId}`,
+        '/projects/:projectId/insights/retentions/:insightId',
+        (projectId: string, insightId: string) =>
+          `/projects/${projectId}/insights/retentions/${insightId}`,
       ),
     },
     lifecycles: {
-      new: route('/insights/lifecycles/new'),
+      new: route(
+        '/projects/:projectId/insights/lifecycles/new',
+        (projectId: string) => `/projects/${projectId}/insights/lifecycles/new`,
+      ),
       detail: route(
-        '/insights/lifecycles/:insightId',
-        (insightId: string) => `/insights/lifecycles/${insightId}`,
+        '/projects/:projectId/insights/lifecycles/:insightId',
+        (projectId: string, insightId: string) =>
+          `/projects/${projectId}/insights/lifecycles/${insightId}`,
       ),
     },
     stickiness: {
-      new: route('/insights/stickiness/new'),
+      new: route(
+        '/projects/:projectId/insights/stickiness/new',
+        (projectId: string) => `/projects/${projectId}/insights/stickiness/new`,
+      ),
       detail: route(
-        '/insights/stickiness/:insightId',
-        (insightId: string) => `/insights/stickiness/${insightId}`,
+        '/projects/:projectId/insights/stickiness/:insightId',
+        (projectId: string, insightId: string) =>
+          `/projects/${projectId}/insights/stickiness/${insightId}`,
       ),
     },
     paths: {
-      new: route('/insights/paths/new'),
+      new: route(
+        '/projects/:projectId/insights/paths/new',
+        (projectId: string) => `/projects/${projectId}/insights/paths/new`,
+      ),
       detail: route(
-        '/insights/paths/:insightId',
-        (insightId: string) => `/insights/paths/${insightId}`,
+        '/projects/:projectId/insights/paths/:insightId',
+        (projectId: string, insightId: string) =>
+          `/projects/${projectId}/insights/paths/${insightId}`,
       ),
     },
 
     newByType: route(
-      '/insights/:type/new',
-      (type: InsightType) => `/insights/${INSIGHT_TYPE_SLUGS[type]}/new`,
+      '/projects/:projectId/insights/:type/new',
+      (projectId: string, type: InsightType) =>
+        `/projects/${projectId}/insights/${INSIGHT_TYPE_SLUGS[type]}/new`,
     ),
     detailByType: route(
-      '/insights/:type/:insightId',
-      (type: InsightType, insightId: string) =>
-        `/insights/${INSIGHT_TYPE_SLUGS[type]}/${insightId}`,
+      '/projects/:projectId/insights/:type/:insightId',
+      (projectId: string, type: InsightType, insightId: string) =>
+        `/projects/${projectId}/insights/${INSIGHT_TYPE_SLUGS[type]}/${insightId}`,
     ),
   },
 
   cohorts: {
-    list: route('/cohorts'),
-    new: route('/cohorts/new'),
-    detail: route('/cohorts/:cohortId', (cohortId: string) => `/cohorts/${cohortId}`),
+    list: route(
+      '/projects/:projectId/cohorts',
+      (projectId: string) => `/projects/${projectId}/cohorts`,
+    ),
+    new: route(
+      '/projects/:projectId/cohorts/new',
+      (projectId: string) => `/projects/${projectId}/cohorts/new`,
+    ),
+    detail: route(
+      '/projects/:projectId/cohorts/:cohortId',
+      (projectId: string, cohortId: string) => `/projects/${projectId}/cohorts/${cohortId}`,
+    ),
   },
 
-  events: route('/events'),
+  events: route(
+    '/projects/:projectId/events',
+    (projectId: string) => `/projects/${projectId}/events`,
+  ),
 
   persons: {
-    list: route('/persons'),
-    detail: route('/persons/:personId', (personId: string) => `/persons/${personId}`),
+    list: route(
+      '/projects/:projectId/persons',
+      (projectId: string) => `/projects/${projectId}/persons`,
+    ),
+    detail: route(
+      '/projects/:projectId/persons/:personId',
+      (projectId: string, personId: string) => `/projects/${projectId}/persons/${personId}`,
+    ),
   },
 
-  ai: route('/ai'),
-  aiMonitors: route('/ai/monitors'),
-  aiScheduledJobs: route('/ai/scheduled-jobs'),
+  ai: route(
+    '/projects/:projectId/ai',
+    (projectId: string) => `/projects/${projectId}/ai`,
+  ),
+  aiMonitors: route(
+    '/projects/:projectId/ai/monitors',
+    (projectId: string) => `/projects/${projectId}/ai/monitors`,
+  ),
+  aiScheduledJobs: route(
+    '/projects/:projectId/ai/scheduled-jobs',
+    (projectId: string) => `/projects/${projectId}/ai/scheduled-jobs`,
+  ),
   dataManagement: {
-    list: route('/data-management'),
+    list: route(
+      '/projects/:projectId/data-management',
+      (projectId: string) => `/projects/${projectId}/data-management`,
+    ),
     detail: route(
-      '/data-management/:eventName',
-      (eventName: string) => `/data-management/${encodeURIComponent(eventName)}`,
+      '/projects/:projectId/data-management/:eventName',
+      (projectId: string, eventName: string) =>
+        `/projects/${projectId}/data-management/${encodeURIComponent(eventName)}`,
     ),
   },
 
