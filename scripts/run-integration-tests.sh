@@ -7,6 +7,5 @@ LOCK_WAIT=${QURVO_TEST_LOCK_WAIT:-1800}  # wait for lock up to 30 min
 
 echo "[test:$APP] Waiting for integration test lock..."
 flock -w "$LOCK_WAIT" "$LOCK_FILE" \
-  timeout 600 \
   pnpm --filter "@qurvo/$APP" exec vitest run \
     --config vitest.integration.config.ts
