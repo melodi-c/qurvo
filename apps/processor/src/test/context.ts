@@ -43,8 +43,8 @@ async function bootstrap(): Promise<TestContext> {
 
   try {
     await ctx.redis.xgroup('CREATE', REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, '0', 'MKSTREAM');
-  } catch (err: any) {
-    if (!err.message?.includes('BUSYGROUP')) throw err;
+  } catch (err: unknown) {
+    if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) throw err;
   }
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });

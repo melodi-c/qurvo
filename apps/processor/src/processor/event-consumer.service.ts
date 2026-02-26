@@ -87,8 +87,8 @@ export class EventConsumerService implements OnApplicationBootstrap {
     try {
       await this.redis.xgroup('CREATE', REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, '0', 'MKSTREAM');
       this.logger.info('Consumer group created');
-    } catch (err: any) {
-      if (!err.message?.includes('BUSYGROUP')) throw err;
+    } catch (err: unknown) {
+      if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) throw err;
     }
   }
 
