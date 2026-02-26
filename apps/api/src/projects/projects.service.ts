@@ -6,10 +6,10 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { Database } from '@qurvo/db';
 import type Redis from 'ioredis';
+import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { ProjectNotFoundException } from './exceptions/project-not-found.exception';
 import { InsufficientPermissionsException } from '../exceptions/insufficient-permissions.exception';
 import { ProjectNameConflictException } from './exceptions/project-name-conflict.exception';
-import { PROJECT_TOKEN_CACHE_KEY_PREFIX } from '../constants';
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -159,7 +159,7 @@ export class ProjectsService {
 
     // Invalidate ingest Redis cache for the old token so it can no longer authenticate
     this.redis
-      .del(`${PROJECT_TOKEN_CACHE_KEY_PREFIX}${oldToken}`)
+      .del(REDIS_KEY.projectToken(oldToken))
       .catch((err: unknown) => this.logger.error({ err }, 'Failed to invalidate old project token cache'));
 
     this.logger.log({ projectId, userId }, 'Project token rotated');

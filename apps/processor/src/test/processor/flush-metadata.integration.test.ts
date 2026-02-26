@@ -9,6 +9,7 @@ import {
   waitForEventByBatchId,
   flushBuffer,
 } from '../helpers';
+import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { REDIS_CONSUMER_GROUP } from '../../constants';
 import { FlushService } from '../../processor/flush.service';
 import { PersonBatchStore } from '../../processor/person-batch-store';
@@ -66,7 +67,7 @@ describe('flush and metadata cache invalidation', () => {
 
   it('new event_name invalidates event_names cache', async () => {
     const projectId = testProject.projectId;
-    const cacheKey = `event_names:${projectId}`;
+    const cacheKey = REDIS_KEY.eventNames(projectId);
     const newEventName = `brand_new_event_${randomUUID()}`;
     const batchId = randomUUID();
 
@@ -98,7 +99,7 @@ describe('flush and metadata cache invalidation', () => {
   it('repeat event_name — no invalidation', async () => {
     const projectId = testProject.projectId;
     const knownEventName = `known_event_${randomUUID()}`;
-    const cacheKey = `event_names:${projectId}`;
+    const cacheKey = REDIS_KEY.eventNames(projectId);
 
     // 1. Send first event — new event name WILL trigger cache invalidation
     const batchId1 = randomUUID();
@@ -146,7 +147,7 @@ describe('flush and metadata cache invalidation', () => {
 
   it('new property keys invalidate event_property_names cache', async () => {
     const projectId = testProject.projectId;
-    const cacheKey = `event_property_names:${projectId}`;
+    const cacheKey = REDIS_KEY.eventPropertyNames(projectId);
     const newPropKey = `revenue_${randomUUID().slice(0, 8)}`;
     const batchId = randomUUID();
 

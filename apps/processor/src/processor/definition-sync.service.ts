@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import Redis from 'ioredis';
 import type { Event } from '@qurvo/clickhouse';
 import { type Database, eventDefinitions, propertyDefinitions, eventProperties } from '@qurvo/db';
-import { DRIZZLE, REDIS } from '@qurvo/nestjs-infra';
+import { DRIZZLE, REDIS, REDIS_KEY } from '@qurvo/nestjs-infra';
 import { RETRY_DEFINITIONS } from '../constants';
 import { withRetry } from './retry';
 import { HourlyCache } from './hourly-cache';
@@ -280,10 +280,10 @@ export class DefinitionSyncService {
 
     const keysToDelete: string[] = [];
     for (const pid of projectsWithNewEvents) {
-      keysToDelete.push(`event_names:${pid}`);
+      keysToDelete.push(REDIS_KEY.eventNames(pid));
     }
     for (const pid of projectsWithNewProps) {
-      keysToDelete.push(`event_property_names:${pid}`);
+      keysToDelete.push(REDIS_KEY.eventPropertyNames(pid));
     }
 
     if (keysToDelete.length > 0) {

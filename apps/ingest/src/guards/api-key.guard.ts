@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import Redis from 'ioredis';
 import { projects } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
+import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, API_KEY_MAX_LENGTH } from '../constants';
 
 function isValidTokenFormat(token: string): boolean {
@@ -43,7 +44,7 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('Invalid API key format');
     }
 
-    const cacheKey = `project_token:${token}`;
+    const cacheKey = REDIS_KEY.projectToken(token);
 
     let cached: string | null = null;
     try {
@@ -77,7 +78,7 @@ export class ApiKeyGuard implements CanActivate {
     if (result.length === 0) {
       this.logger.debug('Direct token lookup missed, trying sha256 hash fallback (legacy SDK support)');
       const tokenHash = createHash('sha256').update(token).digest('hex');
-      const hashCacheKey = `project_token:${tokenHash}`;
+      const hashCacheKey = REDIS_KEY.projectToken(tokenHash);
 
       let hashCached: string | null = null;
       try {

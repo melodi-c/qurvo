@@ -4,6 +4,7 @@ import type Redis from 'ioredis';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
+import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
@@ -33,7 +34,7 @@ export class EventsService {
   }
 
   async getEventNames(projectId: string): Promise<string[]> {
-    const cacheKey = `event_names:${projectId}`;
+    const cacheKey = REDIS_KEY.eventNames(projectId);
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached) as string[];
 

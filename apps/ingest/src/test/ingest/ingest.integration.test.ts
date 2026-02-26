@@ -16,6 +16,7 @@ import {
   RATE_LIMIT_MAX_EVENTS,
   RATE_LIMIT_BUCKET_SECONDS,
 } from '../../constants';
+import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { postBatch, postBatchBeacon, postBatchGzip, postBatchGzipNoHeader, postBatchWithBodyKey, postImport, getBaseUrl, parseRedisFields } from '../helpers';
 import { getTestContext } from '../context';
 
@@ -235,7 +236,7 @@ describe('API key auth', () => {
   it('returns 401 for a non-existent token (cache miss path)', async () => {
     // Clear any cached entry first
     const fakeToken = 'fake_token_that_does_not_exist_in_db';
-    await ctx.redis.del(`project_token:${fakeToken}`);
+    await ctx.redis.del(REDIS_KEY.projectToken(fakeToken));
 
     const res = await postBatch(app, fakeToken, {
       events: [{ event: 'test', distinct_id: 'u1', timestamp: new Date().toISOString() }],
@@ -253,7 +254,7 @@ describe('API key auth', () => {
     expect(res1.status).toBe(202);
 
     // Verify cache was populated
-    const cached = await ctx.redis.get(`project_token:${tp.apiKey}`);
+    const cached = await ctx.redis.get(REDIS_KEY.projectToken(tp.apiKey));
     expect(cached).not.toBeNull();
     const parsed = JSON.parse(cached!);
     expect(parsed.project_id).toBe(tp.projectId);
@@ -649,8 +650,8 @@ describe('Legacy SDK hash-based auth (migration 0037 backward compatibility)', (
     await ctx.db.update(projects).set({ token: keyHash }).where(eq(projects.id, projectId));
 
     // Clear any existing cache entries
-    await ctx.redis.del(`project_token:${rawKey}`);
-    await ctx.redis.del(`project_token:${keyHash}`);
+    await ctx.redis.del(REDIS_KEY.projectToken(rawKey));
+    await ctx.redis.del(REDIS_KEY.projectToken(keyHash));
 
     // First request — triggers DB hash fallback, populates hash cache
     const res1 = await postBatch(app, rawKey, {
@@ -659,7 +660,7 @@ describe('Legacy SDK hash-based auth (migration 0037 backward compatibility)', (
     expect(res1.status).toBe(202);
 
     // Verify cache was populated under the hash key
-    const cached = await ctx.redis.get(`project_token:${keyHash}`);
+    const cached = await ctx.redis.get(REDIS_KEY.projectToken(keyHash));
     expect(cached).not.toBeNull();
     const parsed = JSON.parse(cached!);
     expect(parsed.project_id).toBe(projectId);
