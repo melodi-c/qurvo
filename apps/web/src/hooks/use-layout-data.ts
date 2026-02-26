@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useAuthStore } from '@/stores/auth';
 import { useLanguageStore } from '@/stores/language';
+import { useProjectStore } from '@/stores/project';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { api } from '@/api/client';
@@ -36,6 +37,10 @@ export function useLayoutData() {
   const changeLanguage = useLanguageStore((s) => s.changeLanguage);
 
   const currentProject = useProjectId();
+  const lastProjectId = useProjectStore((s) => s.lastProjectId);
+
+  // The effective project ID: URL param when available, localStorage fallback otherwise
+  const effectiveProjectId = currentProject || lastProjectId;
 
   const sidebarSections = useMemo(
     () => [
@@ -84,22 +89,29 @@ export function useLayoutData() {
   const projectsLoaded = projects !== undefined;
 
   function isActive(path: string, exact?: boolean): boolean {
-    // Resolve :projectId pattern to the actual project ID so patterns match current URL
-    const resolvedPath = currentProject ? path.replace(':projectId', currentProject) : path;
+    // Resolve :projectId pattern to the actual project ID so patterns match current URL.
+    // Use effectiveProjectId (URL param or localStorage fallback) so active state is preserved
+    // on project-less pages like /profile and /projects.
+    const resolvedPath = effectiveProjectId
+      ? path.replace(':projectId', effectiveProjectId)
+      : path;
     if (exact) return location.pathname === resolvedPath;
     return location.pathname === resolvedPath || location.pathname.startsWith(resolvedPath + '/');
   }
 
   function navLink(path: string): string {
-    if (!currentProject) return path;
-    // Replace the :projectId pattern segment with the actual projectId
-    return path.replace(':projectId', currentProject);
+    if (!path.includes(':projectId')) return path;
+    // Use effectiveProjectId as fallback so sidebar links work on project-less pages.
+    // If no project is known at all, fall back to the projects list.
+    if (!effectiveProjectId) return routes.projects();
+    return path.replace(':projectId', effectiveProjectId);
   }
 
   const userInitial = user?.display_name?.slice(0, 1).toUpperCase() ?? '?';
-  const logoHref = hasProjects
-    ? `/projects/${currentProject}/dashboards`
-    : routes.projects();
+  const logoHref =
+    hasProjects && effectiveProjectId
+      ? `/projects/${effectiveProjectId}/dashboards`
+      : routes.projects();
 
   const shouldRedirectToProjects =
     projectsLoaded &&

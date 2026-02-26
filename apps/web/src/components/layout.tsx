@@ -6,6 +6,7 @@ import { LayoutTopbar } from '@/components/layout-topbar';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { ProjectSwitcher, UserMenu } from '@/components/user-menu';
 import { DemoBanner } from '@/components/DemoBanner';
+import { useProjectStore } from '@/stores/project';
 import { routes } from '@/lib/routes';
 
 function PageLoadingFallback() {
@@ -39,6 +40,15 @@ export default function Layout() {
     userInitial,
     logoHref,
   } = useLayoutData();
+
+  const setLastProjectId = useProjectStore((s) => s.setLastProjectId);
+
+  // Persist the last visited project ID so sidebar links work on project-less pages
+  useEffect(() => {
+    if (currentProject) {
+      setLastProjectId(currentProject);
+    }
+  }, [currentProject, setLastProjectId]);
 
   useEffect(() => {
     if (sidebar.isOpen) {
