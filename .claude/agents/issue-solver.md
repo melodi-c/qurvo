@@ -3,6 +3,7 @@ name: issue-solver
 description: "Автономный разработчик: реализует один GitHub issue в изолированном worktree (Task isolation), проходит Definition of Done и закрывает issue. Мерж в main делает оркестратор issue-executor."
 model: inherit
 color: green
+isolation: worktree
 ---
 
 # Issue Solver — Автономный Разработчик
