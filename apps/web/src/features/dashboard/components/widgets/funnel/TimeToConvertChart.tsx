@@ -11,6 +11,7 @@ import {
 import { BarChart3 } from 'lucide-react';
 import type { TimeToConvertBin } from '@/api/generated/Api';
 import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
+import { formatSeconds } from '@/lib/formatting';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TimeToConvertChart.translations';
@@ -19,21 +20,13 @@ interface TimeToConvertChartProps {
   bins: TimeToConvertBin[];
 }
 
-/** Format a seconds value into a human-readable label (e.g. "30s", "5m", "2h", "3d"). */
-function formatBinBound(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1).replace(/\.0$/, '')}h`;
-  return `${(seconds / 86400).toFixed(1).replace(/\.0$/, '')}d`;
-}
-
 export function TimeToConvertChart({ bins }: TimeToConvertChartProps) {
   const { t } = useLocalTranslation(translations);
 
   const data = useMemo(
     () =>
       bins.map((bin) => ({
-        label: `${formatBinBound(bin.from_seconds)}\u2013${formatBinBound(bin.to_seconds)}`,
+        label: `${formatSeconds(bin.from_seconds) ?? ''}\u2013${formatSeconds(bin.to_seconds) ?? ''}`,
         count: bin.count,
       })),
     [bins],
