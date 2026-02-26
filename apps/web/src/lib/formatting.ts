@@ -71,6 +71,13 @@ export function formatGranularity(count: number, granularity: string): string {
   return pluralize(count, f, lang);
 }
 
+/** Format a number compactly for chart axes (e.g. 1234 → "1.2K", 4500000 → "4.5M"). */
+export function formatCompactNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return String(n);
+}
+
 /** Get ISO week number. */
 function getISOWeek(d: Date): number {
   const date = new Date(d.getTime());

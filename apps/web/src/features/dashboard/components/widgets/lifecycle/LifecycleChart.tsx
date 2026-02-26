@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { LifecycleResult } from '@/api/generated/Api';
 import { CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
+import { formatCompactNumber } from '@/lib/formatting';
 import { LIFECYCLE_STATUS_COLORS } from './lifecycle-shared';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './LifecycleChart.translations';
@@ -66,7 +67,8 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
               tick={{ fill: CHART_AXIS_TICK_COLOR, fontSize: compact ? 10 : 12 }}
               axisLine={false}
               tickLine={false}
-              width={compact ? 35 : 45}
+              width={compact ? 40 : 45}
+              tickFormatter={compact ? formatCompactNumber : undefined}
             />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
             {!compact && (

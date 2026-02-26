@@ -19,7 +19,7 @@ import type {
   Annotation,
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick } from '@/lib/chart-colors';
-import { formatBucket } from '@/lib/formatting';
+import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
@@ -168,7 +168,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
 
   const tickStyle = chartAxisTick(compact);
   const fullMargin = compact
-    ? { top: 4, right: 8, left: -16, bottom: 0 }
+    ? { top: 4, right: 8, left: 0, bottom: 0 }
     : { top: 8, right: 24, left: 0, bottom: 0 };
 
   return (
@@ -190,7 +190,8 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 tick={tickStyle}
                 tickLine={false}
                 axisLine={false}
-                width={compact ? 32 : 48}
+                width={compact ? 40 : 48}
+                tickFormatter={compact ? formatCompactNumber : undefined}
               />
               {!compact && (
                 <Tooltip
