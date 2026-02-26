@@ -75,6 +75,96 @@ async function insertBaselineEvents(
   await insertTestEvents(ctx.ch, events);
 }
 
+/**
+ * Insert events for a cohort of users in the "current week" day-0 window (14-7 days ago).
+ * Returns the list of person_ids used.
+ */
+async function insertCurrentCohortEvents(
+  projectId: string,
+  eventName: string,
+  count: number,
+): Promise<string[]> {
+  const now = Date.now();
+  const personIds = Array.from({ length: count }, () => randomUUID());
+  const events = personIds.map((personId, i) =>
+    buildEvent({
+      project_id: projectId,
+      person_id: personId,
+      event_name: eventName,
+      // Spread across 14-7 days ago window
+      timestamp: new Date(now - 14 * 24 * 60 * 60 * 1000 + i * 60_000).toISOString(),
+    }),
+  );
+  await insertTestEvents(ctx.ch, events);
+  return personIds;
+}
+
+/**
+ * Insert events for a cohort of users in the "previous week" day-0 window (21-14 days ago).
+ * Returns the list of person_ids used.
+ */
+async function insertPrevCohortEvents(
+  projectId: string,
+  eventName: string,
+  count: number,
+): Promise<string[]> {
+  const now = Date.now();
+  const personIds = Array.from({ length: count }, () => randomUUID());
+  const events = personIds.map((personId, i) =>
+    buildEvent({
+      project_id: projectId,
+      person_id: personId,
+      event_name: eventName,
+      // Spread across 21-14 days ago window
+      timestamp: new Date(now - 21 * 24 * 60 * 60 * 1000 + i * 60_000).toISOString(),
+    }),
+  );
+  await insertTestEvents(ctx.ch, events);
+  return personIds;
+}
+
+/**
+ * Insert retention events: person_ids return within the "last 7 days" window.
+ */
+async function insertRetentionEvents(
+  projectId: string,
+  eventName: string,
+  personIds: string[],
+): Promise<void> {
+  const now = Date.now();
+  const events = personIds.map((personId, i) =>
+    buildEvent({
+      project_id: projectId,
+      person_id: personId,
+      event_name: eventName,
+      // Spread across last 6 days
+      timestamp: new Date(now - 6 * 24 * 60 * 60 * 1000 + i * 60_000).toISOString(),
+    }),
+  );
+  await insertTestEvents(ctx.ch, events);
+}
+
+/**
+ * Insert retention events for previous cohort: person_ids return within 14-7 days ago window.
+ */
+async function insertPrevRetentionEvents(
+  projectId: string,
+  eventName: string,
+  personIds: string[],
+): Promise<void> {
+  const now = Date.now();
+  const events = personIds.map((personId, i) =>
+    buildEvent({
+      project_id: projectId,
+      person_id: personId,
+      event_name: eventName,
+      // Spread across 13-8 days ago window (within 14-7 days ago range)
+      timestamp: new Date(now - 13 * 24 * 60 * 60 * 1000 + i * 60_000).toISOString(),
+    }),
+  );
+  await insertTestEvents(ctx.ch, events);
+}
+
 describe('InsightDiscoveryService', () => {
   describe('detectMetricChanges', () => {
     it('saves an ai_insight when event count deviates > 20% from 7d baseline', async () => {
@@ -207,6 +297,306 @@ describe('InsightDiscoveryService', () => {
         .where(eq(aiInsights.project_id, tp.projectId));
 
       // Event was seen in prior 7 days, so not "new"
+      expect(insights).toHaveLength(0);
+    });
+  });
+
+  describe('detectRetentionAnomalies', () => {
+    it('saves a retention_anomaly insight when week-1 retention drops >20 pp week-over-week', async () => {
+      const tp = await createTestProject(ctx.db);
+      const eventName = `retention_drop_${randomUUID().slice(0, 8)}`;
+
+      // Previous cohort: 20 users, 18 retained (90% retention)
+      const prevCohortIds = await insertPrevCohortEvents(tp.projectId, eventName, 20);
+      await insertPrevRetentionEvents(tp.projectId, eventName, prevCohortIds.slice(0, 18));
+
+      // Current cohort: 20 users, 10 retained (50% retention)
+      // Drop: 90% - 50% = 40pp > 20pp threshold
+      const currentCohortIds = await insertCurrentCohortEvents(tp.projectId, eventName, 20);
+      await insertRetentionEvents(tp.projectId, eventName, currentCohortIds.slice(0, 10));
+
+      await svc.detectRetentionAnomalies(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      expect(insights).toHaveLength(1);
+      expect(insights[0].type).toBe('retention_anomaly');
+      expect(insights[0].title).toContain(eventName);
+      expect(insights[0].title).toMatch(/Retention drop/);
+
+      const data = insights[0].data_json as {
+        retention_drop: number;
+        current_retention_rate: number;
+        prev_retention_rate: number;
+      };
+      expect(data.retention_drop).toBeGreaterThan(0.20);
+      expect(data.prev_retention_rate).toBeGreaterThan(data.current_retention_rate);
+    });
+
+    it('does not save an insight when retention drop is below threshold', async () => {
+      const tp = await createTestProject(ctx.db);
+      const eventName = `stable_retention_${randomUUID().slice(0, 8)}`;
+
+      // Previous cohort: 20 users, 16 retained (80% retention)
+      const prevCohortIds = await insertPrevCohortEvents(tp.projectId, eventName, 20);
+      await insertPrevRetentionEvents(tp.projectId, eventName, prevCohortIds.slice(0, 16));
+
+      // Current cohort: 20 users, 14 retained (70% retention)
+      // Drop: 80% - 70% = 10pp < 20pp threshold
+      const currentCohortIds = await insertCurrentCohortEvents(tp.projectId, eventName, 20);
+      await insertRetentionEvents(tp.projectId, eventName, currentCohortIds.slice(0, 14));
+
+      await svc.detectRetentionAnomalies(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      expect(insights).toHaveLength(0);
+    });
+
+    it('does not save an insight when cohort size is too small (<10)', async () => {
+      const tp = await createTestProject(ctx.db);
+      const eventName = `small_cohort_${randomUUID().slice(0, 8)}`;
+
+      // Previous cohort: only 5 users (below minimum cohort size of 10)
+      const prevCohortIds = await insertPrevCohortEvents(tp.projectId, eventName, 5);
+      await insertPrevRetentionEvents(tp.projectId, eventName, prevCohortIds.slice(0, 5));
+
+      // Current cohort: 5 users, 0 retained (0% retention — extreme drop)
+      await insertCurrentCohortEvents(tp.projectId, eventName, 5);
+
+      await svc.detectRetentionAnomalies(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      expect(insights).toHaveLength(0);
+    });
+  });
+
+  describe('detectConversionCorrelations', () => {
+    it('saves a conversion_correlation insight when intermediate event has relative lift > 50%', async () => {
+      const tp = await createTestProject(ctx.db);
+      const now = Date.now();
+      const conversionEvent = `purchase_${randomUUID().slice(0, 8)}`;
+      const intermediateEvent = `add_to_cart_${randomUUID().slice(0, 8)}`;
+      const noiseEvent = `page_view_${randomUUID().slice(0, 8)}`;
+
+      // Create 100 total users
+      const allPersonIds = Array.from({ length: 100 }, () => randomUUID());
+
+      // All 100 users do the noise event (page_view)
+      await insertTestEvents(
+        ctx.ch,
+        allPersonIds.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: noiseEvent,
+            timestamp: new Date(now - 15 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      // 40 users do the intermediate event (add_to_cart)
+      const intermediatePersonIds = allPersonIds.slice(0, 40);
+      await insertTestEvents(
+        ctx.ch,
+        intermediatePersonIds.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: intermediateEvent,
+            timestamp: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      // 32 of the intermediate users convert (32/40 = 80% conditional rate)
+      // Only 8 of the remaining 60 users convert (8/60 ≈ 13% from non-intermediate)
+      // Overall: 40 out of 100 users convert = 40% base rate
+      // Relative lift: 80% / 40% - 1 = 1.0 = 100% > 50% threshold
+      const convertingIntermediate = intermediatePersonIds.slice(0, 32);
+      const convertingNonIntermediate = allPersonIds.slice(40, 48); // 8 users
+      const allConverters = [...convertingIntermediate, ...convertingNonIntermediate];
+
+      await insertTestEvents(
+        ctx.ch,
+        allConverters.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: conversionEvent,
+            timestamp: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      // Should have at least one conversion_correlation insight
+      const corrInsights = insights.filter((i) => i.type === 'conversion_correlation');
+      expect(corrInsights.length).toBeGreaterThan(0);
+
+      // Find the specific correlation for our intermediate event
+      const targetInsight = corrInsights.find((i) => i.title.includes(intermediateEvent));
+      expect(targetInsight).toBeDefined();
+      expect(targetInsight!.title).toContain(conversionEvent);
+
+      const data = targetInsight!.data_json as {
+        relative_lift: number;
+        intermediate_users: number;
+        conversion_event: string;
+        intermediate_event: string;
+      };
+      expect(data.relative_lift).toBeGreaterThan(0.5);
+      expect(data.intermediate_users).toBeGreaterThanOrEqual(30);
+      expect(data.conversion_event).toBe(conversionEvent);
+      expect(data.intermediate_event).toBe(intermediateEvent);
+    });
+
+    it('does not save an insight when sample size is below 30', async () => {
+      const tp = await createTestProject(ctx.db);
+      const now = Date.now();
+      const conversionEvent = `checkout_${randomUUID().slice(0, 8)}`;
+      const rareIntermediateEvent = `rare_step_${randomUUID().slice(0, 8)}`;
+
+      // Create 100 total users doing a base event
+      const allPersonIds = Array.from({ length: 100 }, () => randomUUID());
+      await insertTestEvents(
+        ctx.ch,
+        allPersonIds.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: conversionEvent,
+            timestamp: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      // Only 10 users do the rare intermediate event (below min_sample=30)
+      // All of them convert — extremely high lift, but sample too small
+      const rarePersonIds = allPersonIds.slice(0, 10);
+      await insertTestEvents(
+        ctx.ch,
+        rarePersonIds.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: rareIntermediateEvent,
+            timestamp: new Date(now - 15 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      const corrInsights = insights.filter(
+        (i) => i.type === 'conversion_correlation' && (i.data_json as any)?.intermediate_event === rareIntermediateEvent,
+      );
+      expect(corrInsights).toHaveLength(0);
+    });
+
+    it('does not save an insight when lift is below 50%', async () => {
+      const tp = await createTestProject(ctx.db);
+      const now = Date.now();
+      const conversionEvent = `signup_${randomUUID().slice(0, 8)}`;
+      const lowLiftEvent = `browse_${randomUUID().slice(0, 8)}`;
+
+      // 100 users total; 50 do the low-lift intermediate event, 45 convert overall
+      // Intermediate: 50 users do it, 25 convert (50% rate)
+      // Non-intermediate: 50 users, 20 convert (40% rate)
+      // Overall base rate: 45/100 = 45%
+      // Relative lift: 50% / 45% - 1 ≈ 11% < 50% threshold
+      const allPersonIds = Array.from({ length: 100 }, () => randomUUID());
+
+      const intermediatePersonIds = allPersonIds.slice(0, 50);
+      const nonIntermediatePersonIds = allPersonIds.slice(50);
+
+      // All 100 users do a base page_view
+      await insertTestEvents(
+        ctx.ch,
+        allPersonIds.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: `base_${tp.projectId.slice(0, 8)}`,
+            timestamp: new Date(now - 20 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      // 50 users do the low-lift intermediate event
+      await insertTestEvents(
+        ctx.ch,
+        intermediatePersonIds.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: lowLiftEvent,
+            timestamp: new Date(now - 15 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      // Converters: 25 from intermediate + 20 from non-intermediate = 45 total
+      const converters = [
+        ...intermediatePersonIds.slice(0, 25),
+        ...nonIntermediatePersonIds.slice(0, 20),
+      ];
+      await insertTestEvents(
+        ctx.ch,
+        converters.map((pid) =>
+          buildEvent({
+            project_id: tp.projectId,
+            person_id: pid,
+            event_name: conversionEvent,
+            timestamp: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
+      const corrInsights = insights.filter(
+        (i) => i.type === 'conversion_correlation' && (i.data_json as any)?.intermediate_event === lowLiftEvent,
+      );
+      expect(corrInsights).toHaveLength(0);
+    });
+
+    it('returns without saving when project has no events', async () => {
+      const tp = await createTestProject(ctx.db);
+
+      await svc.detectConversionCorrelations(tp.projectId, 'Test Project');
+
+      const insights = await ctx.db
+        .select()
+        .from(aiInsights)
+        .where(eq(aiInsights.project_id, tp.projectId));
+
       expect(insights).toHaveLength(0);
     });
   });
