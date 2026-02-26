@@ -13,7 +13,6 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation, useSearchConversations } from '@/features/ai/hooks/use-ai-conversations';
-import { AiInsightsSection } from './ai-insights-section';
 import { AiTabNav } from './ai-tab-nav';
 import translations from './index.translations';
 
@@ -115,9 +114,6 @@ export function AiListView({ projectId }: { projectId: string }) {
       </PageHeader>
 
       <AiTabNav />
-
-      {/* Proactive insights */}
-      <AiInsightsSection projectId={projectId} />
 
       {/* Search field */}
       <div className="relative">
