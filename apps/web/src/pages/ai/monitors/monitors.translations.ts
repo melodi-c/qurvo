@@ -42,6 +42,9 @@ export default createTranslations({
     validationInvalidUrl: 'Enter a valid URL',
     saved: 'Monitor saved',
     deleted: 'Monitor deleted',
+    sendTest: 'Send test',
+    testSuccess: 'Test notification sent successfully',
+    testError: 'Failed to send test notification',
   },
   ru: {
     title: 'Мониторы аномалий',
@@ -84,5 +87,8 @@ export default createTranslations({
     validationInvalidUrl: 'Введите корректный URL',
     saved: 'Монитор сохранён',
     deleted: 'Монитор удалён',
+    sendTest: 'Тест',
+    testSuccess: 'Тестовое уведомление отправлено',
+    testError: 'Не удалось отправить тестовое уведомление',
   },
 });

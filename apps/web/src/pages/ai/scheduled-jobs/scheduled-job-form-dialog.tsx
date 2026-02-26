@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { useMutation } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCreateScheduledJob, useUpdateScheduledJob } from '@/features/ai-scheduled-jobs/use-scheduled-jobs';
 import type { AiScheduledJob } from '@/api/generated/Api';
+import { api } from '@/api/client';
+import type { TestNotificationDtoChannelTypeEnum } from '@/api/generated/Api';
+import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './scheduled-jobs.translations';
 
 interface JobFormState {
@@ -67,6 +71,12 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
 
   const createMutation = useCreateScheduledJob(projectId);
   const updateMutation = useUpdateScheduledJob(projectId);
+  const testMutation = useMutation({
+    mutationFn: (payload: { channel_type: TestNotificationDtoChannelTypeEnum; channel_config: Record<string, unknown> }) =>
+      api.notificationsControllerTestNotification({ projectId }, payload),
+    onSuccess: () => toast.success(t('testSuccess')),
+    onError: (err) => toast.error(extractApiErrorMessage(err, t('testError'))),
+  });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
@@ -98,22 +108,33 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
     return Object.keys(next).length === 0;
   }, [form, t]);
 
+  const buildChannelConfig = useCallback((): Record<string, unknown> => {
+    if (form.channel_type === 'slack') return { webhook_url: form.channel_config_value.trim() };
+    if (form.channel_type === 'telegram') {
+      return { chat_id: form.channel_config_value.trim(), bot_token: form.channel_config_extra.trim() };
+    }
+    return { email: form.channel_config_value.trim() };
+  }, [form.channel_type, form.channel_config_value, form.channel_config_extra]);
+
+  const isChannelConfigFilled = form.channel_config_value.trim().length > 0 &&
+    (form.channel_type !== 'telegram' || form.channel_config_extra.trim().length > 0);
+
+  const handleTest = useCallback(() => {
+    testMutation.mutate({
+      channel_type: form.channel_type as TestNotificationDtoChannelTypeEnum,
+      channel_config: buildChannelConfig(),
+    });
+  }, [testMutation, form.channel_type, buildChannelConfig]);
+
   const handleSubmit = useCallback(async () => {
     if (!validate()) return;
-
-    const channelConfig =
-      form.channel_type === 'slack'
-        ? { webhook_url: form.channel_config_value.trim() }
-        : form.channel_type === 'telegram'
-          ? { chat_id: form.channel_config_value.trim(), bot_token: form.channel_config_extra.trim() }
-          : { email: form.channel_config_value.trim() };
 
     const payload = {
       name: form.name.trim(),
       prompt: form.prompt.trim(),
       schedule: form.schedule,
       channel_type: form.channel_type,
-      channel_config: channelConfig,
+      channel_config: buildChannelConfig(),
     };
 
     try {
@@ -127,7 +148,7 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
     } catch {
       // error handled by mutation
     }
-  }, [validate, form, isEdit, job, createMutation, updateMutation, t, handleOpen]);
+  }, [validate, form, isEdit, job, createMutation, updateMutation, t, handleOpen, buildChannelConfig]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -230,6 +251,13 @@ export function ScheduledJobFormDialog({ open, onOpenChange, projectId, job }: S
         </div>
 
         <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleTest}
+            disabled={isPending || testMutation.isPending || !isChannelConfigFilled}
+          >
+            {t('sendTest')}
+          </Button>
           <Button variant="outline" onClick={() => handleOpen(false)} disabled={isPending}>
             {t('cancel')}
           </Button>

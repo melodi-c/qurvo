@@ -42,6 +42,9 @@ export default createTranslations({
     validationInvalidUrl: 'Enter a valid URL',
     saved: 'Scheduled job saved',
     deleted: 'Scheduled job deleted',
+    sendTest: 'Send test',
+    testSuccess: 'Test notification sent successfully',
+    testError: 'Failed to send test notification',
   },
   ru: {
     title: 'Расписания AI-анализов',
@@ -84,5 +87,8 @@ export default createTranslations({
     validationInvalidUrl: 'Введите корректный URL',
     saved: 'Расписание сохранено',
     deleted: 'Расписание удалено',
+    sendTest: 'Тест',
+    testSuccess: 'Тестовое уведомление отправлено',
+    testError: 'Не удалось отправить тестовое уведомление',
   },
 });
