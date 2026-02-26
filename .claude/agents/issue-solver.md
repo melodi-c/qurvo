@@ -121,13 +121,13 @@ fi
 - ClickHouse: `cd "$WORKTREE_PATH" && pnpm ch:generate <name>`
 
 ### 4.3 Build
-Собери только затронутые приложения из AFFECTED_APPS. Build-скрипты уже включают TypeScript-проверку — **не запускай `tsc --noEmit` отдельно**:
+Собери только затронутые приложения из AFFECTED_APPS через `pnpm turbo build --filter` — turbo автоматически перебилдит зависимые пакеты (`"dependsOn": ["^build"]` в turbo.json). **Не запускай `tsc --noEmit` отдельно** — build-скрипты уже включают TypeScript:
 - `@qurvo/web`: `build` = `tsc -b && vite build`
 - NestJS apps: `build` = `nest build` (включает tsc)
 
 ```bash
 # Для каждого app из AFFECTED_APPS:
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> build
+cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
 ```
 
 Docker build — только если issue имеет тип `feat` или является эпиком (заголовок начинается с `feat(`):
@@ -142,7 +142,7 @@ cd "$WORKTREE_PATH" && docker build --target <app> -t qurvo/<app>:check . --quie
 
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
 ```bash
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/api build && pnpm swagger:generate && pnpm generate-api
+cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/api && pnpm swagger:generate && pnpm generate-api
 ```
 
 Проверь swagger.json на пустые схемы:
@@ -198,7 +198,7 @@ pkill -f "vitest/dist/cli" 2>/dev/null || true
 pkill -f "vitest run" 2>/dev/null || true
 cd "$WORKTREE_PATH" && pnpm test:cleanup
 # Для каждого app из AFFECTED_APPS:
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> build
+cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
 ```
 
 ### 4.9 SDK (только если были правки SDK-пакетов)
