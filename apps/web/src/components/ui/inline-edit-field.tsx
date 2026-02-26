@@ -3,6 +3,8 @@ import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './inline-edit-field.translations';
 
 interface InlineEditFieldProps {
   value: string;
@@ -10,6 +12,7 @@ interface InlineEditFieldProps {
   isPending?: boolean;
   readOnly?: boolean;
   inputClassName?: string;
+  editLabel?: string;
   saveLabel?: string;
   savingLabel?: string;
   cancelLabel?: string;
@@ -21,12 +24,19 @@ export function InlineEditField({
   isPending = false,
   readOnly = false,
   inputClassName,
-  saveLabel = 'Save',
-  savingLabel = 'Saving...',
-  cancelLabel = 'Cancel',
+  editLabel,
+  saveLabel,
+  savingLabel,
+  cancelLabel,
 }: InlineEditFieldProps) {
+  const { t } = useLocalTranslation(translations);
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState('');
+
+  const resolvedEditLabel = editLabel ?? t('edit');
+  const resolvedSaveLabel = saveLabel ?? t('save');
+  const resolvedSavingLabel = savingLabel ?? t('saving');
+  const resolvedCancelLabel = cancelLabel ?? t('cancel');
 
   const startEditing = () => {
     setLocalValue(value);
@@ -60,10 +70,10 @@ export function InlineEditField({
           onClick={save}
           disabled={isPending || !localValue.trim()}
         >
-          {isPending ? savingLabel : saveLabel}
+          {isPending ? resolvedSavingLabel : resolvedSaveLabel}
         </Button>
-        <Button size="xs" variant="ghost" onClick={cancelEditing} aria-label={cancelLabel}>
-          {cancelLabel}
+        <Button size="xs" variant="ghost" onClick={cancelEditing} aria-label={resolvedCancelLabel}>
+          {resolvedCancelLabel}
         </Button>
       </span>
     );
@@ -77,7 +87,7 @@ export function InlineEditField({
           size="icon-xs"
           variant="ghost"
           onClick={startEditing}
-          aria-label="Edit"
+          aria-label={resolvedEditLabel}
         >
           <Pencil className="h-3 w-3" />
         </Button>
