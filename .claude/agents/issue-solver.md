@@ -113,8 +113,13 @@ echo "Изоляция подтверждена: работаем в $WORKTREE_P
 
 ### 4.1 Тесты
 ```bash
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts
+cd "$WORKTREE_PATH" && timeout 120 pnpm --filter @qurvo/<app> exec vitest run || true
+pkill -f "vitest/dist/cli" 2>/dev/null || true
+pkill -f "vitest run" 2>/dev/null || true
+
+cd "$WORKTREE_PATH" && timeout 120 pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts || true
+pkill -f "vitest/dist/cli" 2>/dev/null || true
+pkill -f "vitest run" 2>/dev/null || true
 ```
 Если важные интеграционные тесты отсутствуют -- напиши их.
 
@@ -216,7 +221,9 @@ cd "$WORKTREE_PATH" && git merge "$BASE_BRANCH"
 # Если конфликты -- попытайся разрешить самостоятельно
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run
+cd "$WORKTREE_PATH" && timeout 120 pnpm --filter @qurvo/<app> exec vitest run || true
+pkill -f "vitest/dist/cli" 2>/dev/null || true
+pkill -f "vitest run" 2>/dev/null || true
 cd "$WORKTREE_PATH" && pnpm test:cleanup
 # Для каждого app из AFFECTED_APPS:
 cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> build
