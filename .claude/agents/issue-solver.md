@@ -120,13 +120,11 @@ fi
 - PostgreSQL: `cd "$WORKTREE_PATH" && pnpm --filter @qurvo/db db:generate`
 - ClickHouse: `cd "$WORKTREE_PATH" && pnpm ch:generate <name>`
 
-### 4.3 TypeScript
-```bash
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec tsc --noEmit
-```
+### 4.3 Build
+Собери только затронутые приложения из AFFECTED_APPS. Build-скрипты уже включают TypeScript-проверку — **не запускай `tsc --noEmit` отдельно**:
+- `@qurvo/web`: `build` = `tsc -b && vite build`
+- NestJS apps: `build` = `nest build` (включает tsc)
 
-### 4.4 Build
-Собери только затронутые приложения из AFFECTED_APPS:
 ```bash
 # Для каждого app из AFFECTED_APPS:
 cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> build
