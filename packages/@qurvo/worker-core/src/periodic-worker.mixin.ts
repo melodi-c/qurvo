@@ -14,6 +14,7 @@ export abstract class PeriodicWorkerMixin implements OnApplicationBootstrap {
 
   onApplicationBootstrap() {
     this.timer = setTimeout(() => this.scheduledCycle(), this.initialDelayMs);
+    this.timer.unref();
   }
 
   async stop(): Promise<void> {
@@ -37,6 +38,7 @@ export abstract class PeriodicWorkerMixin implements OnApplicationBootstrap {
       this.cycleInFlight = null;
       if (!this.stopped) {
         this.timer = setTimeout(() => this.scheduledCycle(), this.intervalMs);
+        this.timer.unref();
       }
     }
   }
