@@ -32,7 +32,7 @@ export default function MonitorsPage() {
       await deleteMutation.mutateAsync(itemId);
       toast.success(t('deleted'));
     } catch (err) {
-      toast.error(extractApiErrorMessage(err, 'Failed to delete monitor'));
+      toast.error(extractApiErrorMessage(err, t('deleteErrorFallback')));
     }
   }, [itemId, projectId, deleteMutation, t]);
 
