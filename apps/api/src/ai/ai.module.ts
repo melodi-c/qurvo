@@ -40,6 +40,8 @@ import { CreateMonitorTool } from './tools/create-monitor.tool';
 import { CreateDashboardTool } from './tools/create-dashboard.tool';
 import { SegmentCompareTool } from './tools/segment-compare.tool';
 import { TimeBetweenEventsTool } from './tools/time-between-events.tool';
+import { CreateScheduledJobTool } from './tools/create-scheduled-job.tool';
+import { AiScheduledJobsModule } from '../ai-scheduled-jobs/ai-scheduled-jobs.module';
 
 const TOOL_CLASSES = [
   TrendTool,
@@ -62,6 +64,7 @@ const TOOL_CLASSES = [
   CreateDashboardTool,
   SegmentCompareTool,
   TimeBetweenEventsTool,
+  CreateScheduledJobTool,
 ];
 
 @Module({
@@ -74,6 +77,7 @@ const TOOL_CLASSES = [
     AiMonitorsModule,
     SavedInsightsModule,
     DashboardsModule,
+    AiScheduledJobsModule,
   ],
   providers: [
     AiService,
