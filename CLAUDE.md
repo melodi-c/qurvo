@@ -111,6 +111,14 @@ Each package has its own `CLAUDE.md` with detailed docs.
 - **`@qurvo/worker-core`** — shared worker bootstrap (`bootstrapWorker()`), logger factory (`workerLoggerModule()`), periodic timer mixin (`PeriodicWorkerMixin`). Used by processor, billing-worker, cohort-worker, insights-worker, monitor-worker, scheduled-jobs-worker.
 - **`@qurvo/testing`** — shared testcontainers + per-worker DB isolation + factories + date helpers. See `packages/@qurvo/testing/CLAUDE.md`
 
+### Web i18n — обязательное требование
+
+**Все user-visible строки в `@qurvo/web` ОБЯЗАНЫ использовать `t()`.** Хардкод на английском или русском языке в JSX — запрещён.
+
+Система: `useLocalTranslation(translations)` + `.translations.ts` файл рядом с компонентом. Подробности в `apps/web/CLAUDE.md` → раздел Internationalization.
+
+Нарушения (известные): `editor-header.tsx` ("Save"/"Discard"), `date-picker.tsx` ("Pick a date") — требуют исправления.
+
 ### Integration Tests
 
 ```bash
