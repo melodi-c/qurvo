@@ -102,10 +102,22 @@ describe('computeTotalPeriods', () => {
 
   it('computes week periods', () => {
     // daysAgo(14) to daysAgo(0) spans exactly 14 days (15 days inclusive).
-    // computeTotalPeriods uses floor(14 / 7) + 1 = 2 + 1 = 3.
-    // This represents the number of ISO-week buckets touched: the start week,
-    // a full middle week, and the end week — 3 total week buckets.
+    // This touches 3 ISO-week buckets: the start week, a full middle week, and the end week.
     expect(computeTotalPeriods(daysAgo(14), daysAgo(0), 'week')).toBe(3);
+  });
+
+  it('computes week periods correctly for mid-week boundaries (ISO week alignment)', () => {
+    // Thursday 2024-01-04 to Wednesday 2024-01-10 = 6 days, but crosses a Monday boundary.
+    // ISO week of 2024-01-04 (Thu): starts Mon 2024-01-01.
+    // ISO week of 2024-01-10 (Wed): starts Mon 2024-01-08.
+    // → 2 distinct ISO week buckets, not 1.
+    expect(computeTotalPeriods('2024-01-04', '2024-01-10', 'week')).toBe(2);
+
+    // Monday 2024-01-01 to Sunday 2024-01-07 = same ISO week → 1 bucket.
+    expect(computeTotalPeriods('2024-01-01', '2024-01-07', 'week')).toBe(1);
+
+    // Monday 2024-01-01 to Sunday 2024-01-14 → 2 ISO week buckets (week1 + week2).
+    expect(computeTotalPeriods('2024-01-01', '2024-01-14', 'week')).toBe(2);
   });
 
   it('computes month periods', () => {

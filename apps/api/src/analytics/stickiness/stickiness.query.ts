@@ -40,8 +40,16 @@ export function computeTotalPeriods(from: string, to: string, granularity: Stick
       return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
     }
     case 'week': {
-      const diffMs = d2.getTime() - d1.getTime();
-      return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)) + 1;
+      // Count ISO week buckets (Monday-aligned, matching ClickHouse toStartOfWeek(ts, 1)).
+      // Snap both dates to their ISO week Monday, then count the number of distinct weeks.
+      const isoWeekStart = (d: Date): number => {
+        const day = d.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const daysFromMonday = day === 0 ? 6 : day - 1;
+        return d.getTime() - daysFromMonday * 24 * 60 * 60 * 1000;
+      };
+      const w1 = isoWeekStart(d1);
+      const w2 = isoWeekStart(d2);
+      return Math.round((w2 - w1) / (7 * 24 * 60 * 60 * 1000)) + 1;
     }
     case 'month': {
       return (d2.getUTCFullYear() - d1.getUTCFullYear()) * 12 + (d2.getUTCMonth() - d1.getUTCMonth()) + 1;
