@@ -889,6 +889,81 @@ describe('CohortsService.resolveCohortBreakdowns — enrichDefinition stamps is_
   });
 });
 
+// ── getByIds: empty cohortIds array returns [] without DB query ───────────────
+
+describe('CohortsService.getByIds — empty array guard (Bug A)', () => {
+  it('resolveCohortFilters([]) returns [] without throwing', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    const result = await service.resolveCohortFilters(projectId, []);
+    expect(result).toEqual([]);
+  });
+
+  it('resolveCohortBreakdowns([]) returns [] without throwing', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    const result = await service.resolveCohortBreakdowns(projectId, []);
+    expect(result).toEqual([]);
+  });
+});
+
+// ── getByIds: duplicate cohortIds do not cause false 404 ──────────────────────
+
+describe('CohortsService.getByIds — duplicate IDs deduplication (Bug B)', () => {
+  it('resolveCohortFilters with duplicate cohort ID returns the cohort without throwing CohortNotFoundException', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'Dedup Test Cohort',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }],
+      },
+    });
+
+    // Pass the same ID twice — must NOT throw CohortNotFoundException
+    const result = await service.resolveCohortFilters(projectId, [cohort.id, cohort.id]);
+    expect(result).toHaveLength(1);
+    expect(result[0].cohort_id).toBe(cohort.id);
+  });
+
+  it('resolveCohortBreakdowns with duplicate cohort ID returns deduplicated result', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'Dedup Breakdown Cohort',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' }],
+      },
+    });
+
+    // Three copies of the same ID
+    const result = await service.resolveCohortBreakdowns(projectId, [cohort.id, cohort.id, cohort.id]);
+    expect(result).toHaveLength(1);
+    expect(result[0].cohort_id).toBe(cohort.id);
+  });
+
+  it('resolveCohortFilters still throws CohortNotFoundException when one of the unique IDs truly does not exist', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'Existing Cohort',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'free' }],
+      },
+    });
+
+    const missingId = randomUUID();
+
+    // One real + one missing (no duplicates) — must still throw
+    await expect(
+      service.resolveCohortFilters(projectId, [cohort.id, missingId]),
+    ).rejects.toThrow(CohortNotFoundException);
+  });
+});
+
 // ── CohortsService.getSizeHistory(): throws CohortNotFoundException for unknown cohortId ──
 
 describe('CohortsService.getSizeHistory — non-existent cohortId', () => {
