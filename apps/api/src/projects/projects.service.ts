@@ -14,6 +14,7 @@ const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
   token: projects.token,
+  timezone: projects.timezone,
   plan: plans.slug,
   is_demo: projects.is_demo,
   demo_scenario: projects.demo_scenario,
@@ -84,13 +85,16 @@ export class ProjectsService {
     return this.getById(userId, project.id);
   }
 
-  async update(userId: string, projectId: string, input: { name?: string }) {
+  async update(userId: string, projectId: string, input: { name?: string; timezone?: string }) {
     const membership = await this.getMembership(userId, projectId);
     if (membership.role === 'viewer') throw new InsufficientPermissionsException();
 
     const values: Record<string, unknown> = { updated_at: new Date() };
     if (input.name !== undefined) {
       values.name = input.name;
+    }
+    if (input.timezone !== undefined) {
+      values.timezone = input.timezone;
     }
     const [updated] = await this.db
       .update(projects)
