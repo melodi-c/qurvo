@@ -78,7 +78,7 @@ Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 3
 
 ## Integration Tests
 
-Tests in `src/test/`. 34 integration tests covering:
+Tests in `src/test/`. 42 integration tests covering:
 - Property/event condition cohorts (eq, gte)
 - AND (INTERSECT) / OR (UNION DISTINCT) logic
 - Version cleanup (old rows removed)
@@ -98,3 +98,13 @@ Tests in `src/test/`. 34 integration tests covering:
 - GC counter increments on empty cycles (no stale cohorts)
 - Advanced condition types: first_time_event, event_sequence, not_performed_event_sequence, performed_regularly, stopped_performing, restarted_performing
 - Negated cohort-ref (dependency level ordering)
+- Error backoff: recent error skipped, old error included, zero-error always eligible, exponent capped
+- Cyclic dependency: both cohorts get recordError, neither in cohort_members, backoff on next cycle
+- ClickHouse failure: error fields updated, not in pendingDeletions, retried after backoff expiry
+
+### Unit Tests
+
+`filterByBackoff` extracted as a pure function in `src/cohort-worker/backoff.ts`. 10 unit tests in `src/cohort-worker/__tests__/backoff.unit.test.ts`:
+```bash
+pnpm --filter @qurvo/cohort-worker exec vitest run --config vitest.unit.config.ts
+```
