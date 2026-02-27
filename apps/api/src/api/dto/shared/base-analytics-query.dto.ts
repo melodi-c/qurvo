@@ -25,6 +25,7 @@ export class CoreQueryDto {
   @IsOptional()
   force?: boolean;
 
+  @ApiPropertyOptional()
   @IsIanaTimezone()
   @IsOptional()
   timezone?: string;

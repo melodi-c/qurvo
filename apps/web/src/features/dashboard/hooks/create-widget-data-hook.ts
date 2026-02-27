@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useProjectStore } from '@/stores/project';
 import { refreshLimiter } from '../lib/refresh-limiter';
 
 const STALE_AFTER_MS = 30 * 60 * 1000; // 30 minutes
@@ -13,7 +14,7 @@ interface CachedResponse {
 interface WidgetDataHookOptions<Config, Response, Params> {
   queryKeyPrefix: string;
   apiFn: (params: Params) => Promise<Response>;
-  buildParams: (config: Config, projectId: string, widgetUuid: string | undefined) => Params;
+  buildParams: (config: Config, projectId: string, widgetUuid: string | undefined, timezone: string) => Params;
   configHash: (config: Config) => string;
   isEnabled: (config: Config) => boolean;
 }
@@ -32,17 +33,18 @@ export function createWidgetDataHook<Config, Response extends CachedResponse, Pa
 ) {
   return function useWidgetData(config: Config, widgetId: string): WidgetDataResult<Response> {
     const projectId = useProjectId();
+    const timezone = useProjectStore((s) => s.projectTimezone);
     const qc = useQueryClient();
     const autoRefreshTriggered = useRef(false);
     const widgetUuid = UUID_RE.test(widgetId) ? widgetId : undefined;
 
     const enabled = !!projectId && options.isEnabled(config);
     const hash = options.configHash(config);
-    const queryKey = [options.queryKeyPrefix, projectId, widgetId, hash];
+    const queryKey = [options.queryKeyPrefix, projectId, widgetId, hash, timezone];
 
     const query = useQuery<Response>({
       queryKey,
-      queryFn: () => options.apiFn(options.buildParams(config, projectId, widgetUuid)),
+      queryFn: () => options.apiFn(options.buildParams(config, projectId, widgetUuid, timezone)),
       enabled,
       placeholderData: keepPreviousData,
       staleTime: Infinity,
@@ -50,7 +52,7 @@ export function createWidgetDataHook<Config, Response extends CachedResponse, Pa
     });
 
     const refresh = () => refreshLimiter.run(async () => {
-      const params = options.buildParams(config, projectId, widgetUuid);
+      const params = options.buildParams(config, projectId, widgetUuid, timezone);
       const result = await options.apiFn({ ...params, force: true });
       qc.setQueryData(queryKey, result);
       return result;
