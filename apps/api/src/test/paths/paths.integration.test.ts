@@ -495,6 +495,115 @@ describe('queryPaths — project isolation', () => {
   });
 });
 
+// ── end_event not found ───────────────────────────────────────────────────────
+
+describe('queryPaths — end_event not found', () => {
+  it('returns empty graph when end_event is specified but never reached by any user', async () => {
+    // Bug: when end_event is not in the path, the else-branch returned p1 (full path)
+    // instead of [] (empty array). Users who never reached end_event were included in the
+    // graph with their full untruncated path.
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    // Both persons have paths that do NOT include 'purchase'
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'pageview', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'signup', timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'pageview', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'browse', timestamp: msAgo(2000) }),
+    ]);
+
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 5,
+      end_event: 'purchase', // 'purchase' never appears in any path
+    });
+
+    // No user reached 'purchase', so the graph must be empty
+    expect(result.transitions).toHaveLength(0);
+    expect(result.top_paths).toHaveLength(0);
+  });
+
+  it('excludes users who did not reach end_event from the graph', async () => {
+    // Mixed scenario: personA reaches end_event=checkout, personB does not.
+    // Only personA's path should appear in the result.
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personA: pageview → signup → checkout (reaches end_event)
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'pageview', timestamp: msAgo(4000) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'signup', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'checkout', timestamp: msAgo(2000) }),
+      // personB: pageview → signup → browse (does NOT reach checkout)
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'pageview', timestamp: msAgo(4000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'signup', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'browse', timestamp: msAgo(2000) }),
+    ]);
+
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 5,
+      end_event: 'checkout',
+    });
+
+    // Only personA's path: pageview → signup → checkout
+    // personB's 'browse' must not appear anywhere in the graph
+    const allEvents = result.transitions.flatMap((t) => [t.source, t.target]);
+    expect(allEvents).not.toContain('browse');
+
+    // personA's transitions must be present
+    expect(result.transitions.length).toBeGreaterThan(0);
+    const allTargets = result.transitions.map((t) => t.target);
+    expect(allTargets).toContain('checkout');
+
+    // All transitions should be from personA only (person_count = 1)
+    for (const t of result.transitions) {
+      expect(t.person_count).toBe(1);
+    }
+  });
+
+  it('correctly truncates path at end_event for users who reached it', async () => {
+    // Verify that for a user who reached end_event, the path is truncated
+    // at end_event (events after it are excluded).
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    // pageview → signup → checkout → confirm_email (events after checkout must be excluded)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'pageview', timestamp: msAgo(4000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'signup', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'checkout', timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'confirm_email', timestamp: msAgo(1000) }),
+    ]);
+
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 5,
+      end_event: 'checkout',
+    });
+
+    // Path must be truncated at checkout: pageview → signup → checkout
+    // confirm_email must NOT appear
+    const allEvents = result.transitions.flatMap((t) => [t.source, t.target]);
+    expect(allEvents).not.toContain('confirm_email');
+
+    // checkout must be the last target
+    const lastTarget = result.transitions.at(-1)?.target;
+    expect(lastTarget).toBe('checkout');
+
+    expect(result.transitions).toHaveLength(2);
+  });
+});
+
 // ── cohort_filters ────────────────────────────────────────────────────────────
 
 describe('queryPaths — cohort filters', () => {
