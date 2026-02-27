@@ -5,22 +5,25 @@ import { eq } from 'drizzle-orm';
 import { cohorts } from '@qurvo/db';
 import { getTestContext, type ContainerContext } from '../context';
 import { CohortsService } from '../../cohorts/cohorts.service';
+import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { materializeCohort, insertStaticCohortMembers } from './helpers';
 
 let ctx: ContainerContext;
 let service: CohortsService;
+let staticService: StaticCohortsService;
 
 beforeAll(async () => {
   ctx = await getTestContext();
   service = new CohortsService(ctx.db as any, ctx.ch as any);
+  staticService = new StaticCohortsService(ctx.db as any, ctx.ch as any, service);
 }, 120_000);
 
-// ── getByIds: deterministic ORDER BY id ──────────────────────────────────────
+// ── getByIds: preserves caller-supplied order ─────────────────────────────────
 
-describe('CohortsService.resolveCohortFilters — deterministic ordering', () => {
-  it('returns cohorts in consistent id-sorted order regardless of the order of the input ids', async () => {
+describe('CohortsService.resolveCohortFilters — input-order preservation', () => {
+  it('returns cohorts in the same order as the caller-supplied cohortIds array', async () => {
     const { projectId, userId } = await createTestProject(ctx.db);
 
     const cohortA = await service.create(userId, projectId, {
@@ -36,18 +39,133 @@ describe('CohortsService.resolveCohortFilters — deterministic ordering', () =>
       definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'c' }] },
     });
 
-    // Resolve in two different orders — the returned array must be identical
-    const filters1 = await service.resolveCohortFilters(projectId, [cohortA.id, cohortB.id, cohortC.id]);
-    const filters2 = await service.resolveCohortFilters(projectId, [cohortC.id, cohortA.id, cohortB.id]);
-    const filters3 = await service.resolveCohortFilters(projectId, [cohortB.id, cohortC.id, cohortA.id]);
+    // Resolve in [C, A, B] order — result must match that exact order
+    const filters = await service.resolveCohortFilters(projectId, [cohortC.id, cohortA.id, cohortB.id]);
+    expect(filters.map((f) => f.cohort_id)).toEqual([cohortC.id, cohortA.id, cohortB.id]);
+  });
 
-    // All three calls must produce the same ordered list (sorted by cohort id)
-    expect(filters1.map((f) => f.cohort_id)).toEqual(filters2.map((f) => f.cohort_id));
-    expect(filters1.map((f) => f.cohort_id)).toEqual(filters3.map((f) => f.cohort_id));
+  it('resolveCohortBreakdowns preserves caller-supplied order for breakdown label assignment', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
 
-    // Verify the order matches ascending UUID sort
-    const expectedOrder = [cohortA.id, cohortB.id, cohortC.id].sort();
-    expect(filters1.map((f) => f.cohort_id)).toEqual(expectedOrder);
+    const cohortX = await service.create(userId, projectId, {
+      name: 'Cohort X',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'x' }] },
+    });
+    const cohortY = await service.create(userId, projectId, {
+      name: 'Cohort Y',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'y' }] },
+    });
+
+    // Pass Y before X — breakdowns must reflect that order
+    const breakdowns = await service.resolveCohortBreakdowns(projectId, [cohortY.id, cohortX.id]);
+    expect(breakdowns.map((b) => b.cohort_id)).toEqual([cohortY.id, cohortX.id]);
+  });
+});
+
+// ── create(): is_static=true ignores caller-supplied definition ───────────────
+
+describe('CohortsService.create — static cohort definition override', () => {
+  it('stores sentinel empty definition when is_static=true even if a definition is supplied', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const suppliedDefinition = {
+      type: 'AND' as const,
+      values: [{ type: 'person_property' as const, property: 'plan', operator: 'eq' as const, value: 'premium' }],
+    };
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'Static With Definition',
+      is_static: true,
+      definition: suppliedDefinition,
+    });
+
+    // The stored definition must be the sentinel, NOT the caller-supplied one
+    expect(cohort.definition).toEqual({ type: 'AND', values: [] });
+    expect(cohort.is_static).toBe(true);
+
+    // Verify from DB as well
+    const fromDb = await service.getById(projectId, cohort.id);
+    expect(fromDb.definition).toEqual({ type: 'AND', values: [] });
+  });
+
+  it('stores sentinel empty definition when is_static=true and no definition is supplied', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'Static No Definition',
+      is_static: true,
+    });
+
+    expect(cohort.definition).toEqual({ type: 'AND', values: [] });
+    expect(cohort.is_static).toBe(true);
+  });
+});
+
+// ── duplicateAsStatic(): throws 400 for un-materialized dynamic cohort ────────
+
+describe('StaticCohortsService.duplicateAsStatic — non-materialized guard', () => {
+  it('throws AppBadRequestException when source dynamic cohort has membership_version === null', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const dynamic = await service.create(userId, projectId, {
+      name: 'Un-materialized Dynamic',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }] },
+    });
+
+    // membership_version is null by default — cohort-worker has not run yet
+    expect(dynamic.membership_version).toBeNull();
+
+    await expect(
+      staticService.duplicateAsStatic(userId, projectId, dynamic.id),
+    ).rejects.toThrow(AppBadRequestException);
+
+    await expect(
+      staticService.duplicateAsStatic(userId, projectId, dynamic.id),
+    ).rejects.toThrow('Cohort has not been computed yet');
+  });
+
+  it('succeeds when source dynamic cohort has been materialized', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const personA = randomUUID();
+
+    const definition = {
+      type: 'AND' as const,
+      values: [{ type: 'person_property' as const, property: 'plan', operator: 'eq' as const, value: 'enterprise' }],
+    };
+
+    const dynamic = await service.create(userId, projectId, { name: 'Materialized Dynamic', definition });
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'pa', event_name: '$set', user_properties: JSON.stringify({ plan: 'enterprise' }), timestamp: msAgo(1000) }),
+    ]);
+
+    // Materialize membership
+    const version = await materializeCohort(ctx.ch, projectId, dynamic.id, definition);
+    await ctx.db.update(cohorts).set({ membership_version: version }).where(eq(cohorts.id, dynamic.id));
+
+    // Now duplication should succeed
+    const staticCopy = await staticService.duplicateAsStatic(userId, projectId, dynamic.id);
+
+    expect(staticCopy).toBeDefined();
+    expect(staticCopy.is_static).toBe(true);
+    expect(staticCopy.name).toBe('Materialized Dynamic (static copy)');
+  });
+
+  it('allows duplicating a static cohort (always has no membership_version concept)', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const personA = randomUUID();
+
+    // Create + populate a static cohort
+    const staticSrc = await service.create(userId, projectId, {
+      name: 'Source Static',
+      is_static: true,
+    });
+    await insertStaticCohortMembers(ctx.ch, projectId, staticSrc.id, [personA]);
+
+    // Duplicating a static cohort must not throw even though membership_version is null
+    const copy = await staticService.duplicateAsStatic(userId, projectId, staticSrc.id);
+    expect(copy.is_static).toBe(true);
+    expect(copy.name).toBe('Source Static (static copy)');
   });
 });
 

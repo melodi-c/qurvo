@@ -25,6 +25,10 @@ export interface CohortBreakdownEntry {
  *
  * @param dateTo - Optional datetime string (e.g. "2025-01-31 23:59:59") used as
  *   the upper bound for behavioral conditions instead of `now()`.
+ * @param dateFrom - Optional datetime string used as the lower bound for the
+ *   `not_performed_event` condition. When provided together with `dateTo`, the
+ *   absence check is scoped to the exact `[dateFrom, dateTo]` analysis window
+ *   rather than the rolling `[dateTo - N days, dateTo]` window.
  */
 export function buildCohortFilterForBreakdown(
   cb: CohortBreakdownEntry,
@@ -32,6 +36,7 @@ export function buildCohortFilterForBreakdown(
   subqueryOffset: number,
   queryParams: Record<string, unknown>,
   dateTo?: string,
+  dateFrom?: string,
 ): string {
   queryParams[paramKey] = cb.cohort_id;
 
@@ -47,6 +52,6 @@ export function buildCohortFilterForBreakdown(
           WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
         )`;
   }
-  const subquery = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo);
+  const subquery = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo, dateFrom);
   return `${RESOLVED_PERSON} IN (${subquery})`;
 }

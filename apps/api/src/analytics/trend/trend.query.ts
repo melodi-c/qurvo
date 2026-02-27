@@ -229,7 +229,7 @@ async function executeTrendQuery(
       const cond = buildSeriesConditions(s, seriesIdx, queryParams);
       cohortBreakdowns.forEach((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
-        const cohortFilter = buildCohortFilterForBreakdown(cb, paramKey, 900 + cbIdx, queryParams, toChTs(dateTo, true));
+        const cohortFilter = buildCohortFilterForBreakdown(cb, paramKey, 900 + cbIdx, queryParams, toChTs(dateTo, true), toChTs(dateFrom));
         // Use cohort_id as breakdown_value to guarantee uniqueness across cohorts with identical names
         const cohortIdKey = `cohort_id_${seriesIdx}_${cbIdx}`;
         queryParams[cohortIdKey] = cb.cohort_id;
