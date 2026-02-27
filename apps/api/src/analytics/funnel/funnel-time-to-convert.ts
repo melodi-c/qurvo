@@ -134,36 +134,6 @@ export async function queryFunnelTimeToConvert(
     (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_arr`,
   ).join(',\n            ');
 
-  // Build a chain of sequence-aware timestamp expressions.
-  // step_0_ms = earliest occurrence of step 0 (no predecessor constraint).
-  // step_i_ms = earliest occurrence of step i that is >= step_{i-1}_ms
-  //             (mirrors what windowFunnel uses for the ordered sequence).
-  //
-  // Expressions are fully inlined (no alias references within the same SELECT level)
-  // because ClickHouse does not guarantee left-to-right alias resolution in SELECT.
-  // if(notEmpty(arr), arrayMin(arr), 0) avoids UInt64 overflow from arrayMin([]).
-  //
-  // To avoid re-computing the prev-step expression for each level, we build a map
-  // of step index → its inline SQL expression (without the AS alias).
-  const seqStepInlineExpr: string[] = [];
-  for (let i = 0; i < numSteps; i++) {
-    if (i === 0) {
-      seqStepInlineExpr.push(`if(notEmpty(step_0_arr), arrayMin(step_0_arr), 0)`);
-    } else {
-      const prevExpr = seqStepInlineExpr[i - 1]!;
-      // Use a unique lambda variable name per step to avoid shadowing in nested expressions.
-      const lv = `t${i}`;
-      seqStepInlineExpr.push(
-        `if(notEmpty(arrayFilter(${lv} -> ${lv} >= (${prevExpr}), step_${i}_arr)),` +
-        ` arrayMin(arrayFilter(${lv} -> ${lv} >= (${prevExpr}), step_${i}_arr)),` +
-        ` 0)`,
-      );
-    }
-  }
-  const seqStepSQL = seqStepInlineExpr
-    .map((expr, i) => `${expr} AS step_${i}_ms`)
-    .join(',\n      ');
-
   const fromCol = `step_${fromStep}_ms`;
   const toCol = `step_${toStep}_ms`;
 
@@ -187,18 +157,69 @@ export async function queryFunnelTimeToConvert(
     ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
 
+  // Build a chain of per-step CTEs to compute sequence-aware step timestamps without
+  // exponential SQL growth. The old approach inlined prevExpr twice per level, causing
+  // O(2^n) SQL size. This approach introduces one CTE per step where each step refers
+  // to the previous step's column alias — giving O(n) SQL size regardless of step count.
+  //
+  // CTE chain structure:
+  //   funnel_raw       — per-person windowFunnel + per-step timestamp arrays (one full scan)
+  //   seq_step_0       — step_0_ms = arrayMin of step_0_arr (no predecessor constraint)
+  //   seq_step_1       — step_1_ms = first step_1_arr element >= step_0_ms
+  //   seq_step_i       — step_i_ms = first step_i_arr element >= step_{i-1}_ms
+  //   funnel_per_user  — selects all step_{i}_ms columns + max_step from the last seq CTE
+  //
+  // Each seq_step CTE adds exactly one column (O(1) text). References to the previous
+  // step use a simple alias name ("step_{i-1}_ms"), not an inline expression.
+  //
+  // Step 0 uses arrayMin (earliest occurrence — no predecessor to sequence against).
+  // Steps i > 0 use: if(notEmpty(filtered), arrayMin(filtered), 0)
+  //   where filtered = arrayFilter(t -> t >= step_{i-1}_ms, step_i_arr)
+  //   The filtered array is computed once per lambda call, eliminating the duplication.
+  const seqStepCTEs: string[] = [];
+  for (let i = 0; i < numSteps; i++) {
+    const prevCTE = i === 0 ? 'funnel_raw' : `seq_step_${i - 1}`;
+    const passThrough = [
+      'person_id',
+      'max_step',
+      // pass through all step arrays
+      ...Array.from({ length: numSteps }, (_, j) => `step_${j}_arr`),
+      // pass through previously computed step_ms columns
+      ...Array.from({ length: i }, (_, j) => `step_${j}_ms`),
+      // pass through exclusion aliases
+      ...exclColumnAliases,
+    ].join(',\n        ');
+
+    let stepMsExpr: string;
+    if (i === 0) {
+      stepMsExpr = `if(notEmpty(step_0_arr), arrayMin(step_0_arr), 0) AS step_0_ms`;
+    } else {
+      // Reference to step_{i-1}_ms is a simple column alias from the previous CTE —
+      // O(1) text per step regardless of chain depth. The double arrayFilter here
+      // is fine: each CTE level references the alias name, not a growing inline expression.
+      stepMsExpr =
+        `if(notEmpty(arrayFilter(t${i} -> t${i} >= step_${i - 1}_ms, step_${i}_arr)),` +
+        ` arrayMin(arrayFilter(t${i} -> t${i} >= step_${i - 1}_ms, step_${i}_arr)),` +
+        ` 0) AS step_${i}_ms`;
+    }
+
+    seqStepCTEs.push(
+      `seq_step_${i} AS (\n      SELECT\n        ${passThrough},\n        ${stepMsExpr}\n      FROM ${prevCTE}\n    )`,
+    );
+  }
+
+  const lastSeqCTE = `seq_step_${numSteps - 1}`;
+  const stepMsCols = Array.from({ length: numSteps }, (_, i) => `step_${i}_ms`).join(',\n        ');
+
   // Single query: scan events once, compute both stats and raw durations.
   //
-  // Two-level CTE structure:
-  //   funnel_raw  — per-person windowFunnel + arrays of timestamps per step
-  //                 (one full scan of events)
-  //   funnel_per_user — derives sequence-aware step_i_ms from raw arrays:
-  //                 step_0_ms = arrayMin(step_0_arr)
-  //                 step_i_ms = first occurrence of step i that is >= step_{i-1}_ms
-  //                 This matches the ordering that windowFunnel uses and prevents
-  //                 earlier-ever occurrences (before step 0) from skewing the TTC.
-  //   converted   — filter to users who completed to_step; compute duration
-  //   final SELECT — aggregates stats + collects durations for histogram binning in JS
+  // CTE chain structure (linear SQL growth — O(n) not O(2^n)):
+  //   funnel_raw    — per-person windowFunnel + per-step arrays (one full scan)
+  //   seq_step_0    — add step_0_ms = arrayMin(step_0_arr)
+  //   seq_step_i    — add step_i_ms = min(step_i_arr elements >= step_{i-1}_ms)
+  //   funnel_per_user — select step_*_ms + max_step from last seq CTE
+  //   converted     — filter to users who completed to_step; compute duration
+  //   final SELECT  — aggregates stats + collects durations for histogram binning in JS
   //
   // Histogram binning is performed in JS using a simple loop:
   //   - bin_count = max(1, min(MAX_BINS, ceil(cbrt(sample_size)))) — same as before
@@ -239,12 +260,13 @@ export async function queryFunnelTimeToConvert(
         AND timestamp <= ${toExpr}${strictUserFilter}${cohortClause}${samplingClause}
       GROUP BY person_id
     ),
+    ${seqStepCTEs.join(',\n    ')},
     funnel_per_user AS (
       SELECT
         person_id,
         max_step,
-        ${seqStepSQL}${exclAliasSQL}
-      FROM funnel_raw
+        ${stepMsCols}${exclAliasSQL}
+      FROM ${lastSeqCTE}
     ),
     ${excludedUsersCTE}converted AS (
       SELECT

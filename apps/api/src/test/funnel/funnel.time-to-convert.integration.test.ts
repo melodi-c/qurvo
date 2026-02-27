@@ -154,9 +154,11 @@ describe('queryFunnelTimeToConvert', () => {
         { event_name: 'page_view', label: 'Page View' },
         { event_name: 'checkout', label: 'Checkout' },
       ],
+      // Use explicit value/unit to specify a 60-second window.
+      // conversion_window_days must be the default (14) when value/unit are provided.
+      conversion_window_days: 14,
       conversion_window_value: 60,
       conversion_window_unit: 'second',
-      conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
       from_step: 0,
@@ -790,5 +792,126 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
 
     // Only personB converts (in-order); personA reverse-order is NOT counted in ordered mode
     expect(ttcResult.sample_size).toBe(1);
+  });
+});
+
+// ── P1: 8-10 step SQL size regression ────────────────────────────────────────
+// Verifies that large funnels do not trigger ClickHouse's max_query_size limit.
+// Before the fix the SQL grew at O(2^n) — at 8 steps it exceeded 256 KB.
+// After the fix (per-step CTE chain) it grows at O(n).
+
+describe('queryFunnelTimeToConvert — 8/9/10-step funnel SQL size', () => {
+  const makeSteps = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ event_name: `step_${i}`, label: `Step ${i}` }));
+
+  it('10-step ordered funnel TTC executes without max_query_size error', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    // Insert a user who completes all 10 steps in order
+    const now = Date.now();
+    await insertTestEvents(ctx.ch, Array.from({ length: 10 }, (_, i) =>
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'ten-step-user',
+        event_name: `step_${i}`,
+        timestamp: new Date(now - (10 - i) * 1000).toISOString(),
+      }),
+    ));
+
+    // This call must not throw — previously it crashed with "Max query size exceeded"
+    await expect(
+      queryFunnelTimeToConvert(ctx.ch, {
+        project_id: projectId,
+        steps: makeSteps(10),
+        conversion_window_days: 7,
+        date_from: dateOffset(-1),
+        date_to: dateOffset(1),
+        from_step: 0,
+        to_step: 9,
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('10-step ordered funnel TTC returns correct sample_size for single converting user', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+    const noConvertPerson = randomUUID();
+
+    const now = Date.now();
+    // Full converter: completes all 10 steps
+    await insertTestEvents(ctx.ch, Array.from({ length: 10 }, (_, i) =>
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'ten-full',
+        event_name: `step_${i}`,
+        timestamp: new Date(now - (10 - i) * 2000).toISOString(),
+      }),
+    ));
+    // Partial converter: only first 5 steps
+    await insertTestEvents(ctx.ch, Array.from({ length: 5 }, (_, i) =>
+      buildEvent({
+        project_id: projectId,
+        person_id: noConvertPerson,
+        distinct_id: 'ten-partial',
+        event_name: `step_${i}`,
+        timestamp: new Date(now - (10 - i) * 2000).toISOString(),
+      }),
+    ));
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: makeSteps(10),
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 9,
+    });
+
+    // Only the full converter qualifies
+    expect(result.sample_size).toBe(1);
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds).toBeGreaterThan(0);
+    // 10 steps * 2s gap = 18s total (step_0 to step_9)
+    expect(result.average_seconds!).toBeGreaterThan(15);
+    expect(result.average_seconds!).toBeLessThan(25);
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
+
+  it('8-step ordered funnel TTC matches correct sequence-aware timestamps', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+    // User completes all 8 steps, each 3 seconds apart
+    await insertTestEvents(ctx.ch, Array.from({ length: 8 }, (_, i) =>
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'eight-step-user',
+        event_name: `step_${i}`,
+        timestamp: new Date(now - (8 - i) * 3000).toISOString(),
+      }),
+    ));
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: makeSteps(8),
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 7,
+    });
+
+    expect(result.sample_size).toBe(1);
+    // 8 steps * 3s gap = 21s total
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeGreaterThan(18);
+    expect(result.average_seconds!).toBeLessThan(25);
   });
 });
