@@ -261,15 +261,17 @@ export class CohortsService {
     cohortIds: string[],
   ): Promise<CohortBreakdownEntry[]> {
     const rows = await this.getByIds(projectId, cohortIds);
-    return rows.map((c) => ({
-      cohort_id: c.id,
-      name: c.name,
-      is_static: c.is_static,
-      materialized: c.membership_version !== null,
-      definition: c.definition,
-      // Same cache-invalidation rationale as resolveCohortFilters above.
-      membership_version: c.membership_version ?? null,
-    }));
+    return Promise.all(
+      rows.map(async (c) => ({
+        cohort_id: c.id,
+        name: c.name,
+        is_static: c.is_static,
+        materialized: c.membership_version !== null,
+        definition: await this.enrichDefinition(projectId, c.definition),
+        // Same cache-invalidation rationale as resolveCohortFilters above.
+        membership_version: c.membership_version ?? null,
+      })),
+    );
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────

@@ -29,6 +29,7 @@ export default createTranslations({
     minPlaceholder: 'min',
     maxPlaceholder: 'max',
     andSeparator: 'and',
+    removeValue: 'Remove "{{value}}"',
   },
   ru: {
     personProperty: 'Свойство пользователя',
@@ -58,5 +59,6 @@ export default createTranslations({
     minPlaceholder: 'мин',
     maxPlaceholder: 'макс',
     andSeparator: 'и',
+    removeValue: 'Удалить «{{value}}»',
   },
 });

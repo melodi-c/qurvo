@@ -36,10 +36,10 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
     { value: 'min', label: t('aggMin') },
     { value: 'max', label: t('aggMax') },
     { value: 'median', label: t('aggMedian') },
-    { value: 'p75', label: 'P75' },
-    { value: 'p90', label: 'P90' },
-    { value: 'p95', label: 'P95' },
-    { value: 'p99', label: 'P99' },
+    { value: 'p75', label: t('aggP75') },
+    { value: 'p90', label: t('aggP90') },
+    { value: 'p95', label: t('aggP95') },
+    { value: 'p99', label: t('aggP99') },
   ] as const, [t]);
 
   return (

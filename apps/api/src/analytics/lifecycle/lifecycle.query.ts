@@ -121,7 +121,7 @@ export async function queryLifecycle(
   const prevBucket = granularityNeighborExpr(params.granularity, 'bucket', -1, params.timezone);
   const nextBucket = granularityNeighborExpr(params.granularity, 'bucket', 1, params.timezone);
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
 
   const eventFilterParts = buildPropertyFilterConditions(params.event_filters ?? [], 'lc', queryParams);
   const eventFilterClause = buildFilterClause(eventFilterParts);
