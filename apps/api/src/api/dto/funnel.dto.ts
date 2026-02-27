@@ -80,11 +80,15 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  // Mandatory when conversion_window_unit is set; otherwise optional.
+  // Both fields must be provided together — validated at service level via resolveWindowSeconds().
   @IsOptional()
   conversion_window_value?: number;
 
   @ApiPropertyOptional({ enum: ['second', 'minute', 'hour', 'day', 'week', 'month'] })
   @IsIn(['second', 'minute', 'hour', 'day', 'week', 'month'])
+  // Mandatory when conversion_window_value is set; otherwise optional.
+  // Both fields must be provided together — validated at service level via resolveWindowSeconds().
   @IsOptional()
   conversion_window_unit?: string;
 
