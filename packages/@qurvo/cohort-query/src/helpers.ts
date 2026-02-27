@@ -18,7 +18,13 @@ export const TOP_LEVEL_COLUMNS = new Set([
 ]);
 
 function escapeJsonKey(key: string): string {
-  return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return key
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    .replace(/\0/g, '\\0')
+    .replace(/'/g, "\\'");
 }
 
 /**
