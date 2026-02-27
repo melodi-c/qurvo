@@ -160,6 +160,26 @@ export function resolveDateTo(ctx: BuildContext): string {
 }
 
 /**
+ * Returns the SQL expression to use as the "current time" lower bound for the
+ * `not_performed_event` condition when both `ctx.dateFrom` and `ctx.dateTo` are set.
+ *
+ * When both are set, the value is stored in `queryParams` under the key
+ * `"coh_date_from"` (idempotent — same value written on every call) and the
+ * function returns `{coh_date_from:DateTime64(3)}`, enabling a precise
+ * `[dateFrom, dateTo]` absence check.
+ *
+ * Returns `undefined` when `ctx.dateFrom` is absent, signalling the caller to
+ * fall back to the rolling `[dateTo - N days, dateTo]` window.
+ */
+export function resolveDateFrom(ctx: BuildContext): string | undefined {
+  if (ctx.dateFrom !== undefined) {
+    ctx.queryParams['coh_date_from'] = ctx.dateFrom;
+    return '{coh_date_from:DateTime64(3)}';
+  }
+  return undefined;
+}
+
+/**
  * Builds WHERE clause fragments for event filters (property sub-filters on event conditions).
  */
 export function buildEventFilterClauses(

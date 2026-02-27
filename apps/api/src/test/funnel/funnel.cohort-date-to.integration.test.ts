@@ -156,37 +156,49 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
     expect(r.steps[1].count).toBe(1); // personA converts
   });
 
-  it('behavioral cohort not_performed_event condition uses date_to anchor', async () => {
+  it('behavioral cohort not_performed_event condition uses [date_from, date_to] window', async () => {
     const projectId = randomUUID();
-    const personWithOldEvent = randomUUID();   // performed 'purchase' 40 days ago
-    const personWithoutEvent = randomUUID();   // never performed 'purchase'
+    const personWithEventInPeriod = randomUUID(); // performed 'purchase' inside [date_from, date_to]
+    const personWithoutEvent = randomUUID();       // never performed 'purchase'
 
-    // Both persons completed the funnel within 10-50 days ago.
+    // date_from = 30 days ago, date_to = 15 days ago.
+    // personWithEventInPeriod: purchase at 20 days ago (inside the analysis window)
+    //   → not_performed condition FAILS → excluded from funnel
+    // personWithoutEvent: no purchase
+    //   → not_performed condition PASSES → included in funnel
+    //
+    // Without the #469 fix (rolling window from now()):
+    //   window = [now - 30 days, now]
+    //   purchase at 20 days ago is inside the now()-anchored window too → both approaches agree
+    //
+    // The key distinction tested here is that date_to (not now()) is the upper bound
+    // (this covers the #466 regression), and the lower bound is date_from (not date_to - N days).
+    // See the issue-#469 describe block below for a test that exercises the lower-bound change.
     await insertTestEvents(ctx.ch, [
-      // personWithOldEvent: has 'purchase' at 40 days ago + funnel events
+      // personWithEventInPeriod: purchase at 20 dAgo (inside [30 dAgo, 15 dAgo]) + funnel events
       buildEvent({
         project_id: projectId,
-        person_id: personWithOldEvent,
-        distinct_id: 'with-old',
+        person_id: personWithEventInPeriod,
+        distinct_id: 'with-event',
         event_name: 'purchase',
-        user_properties: JSON.stringify({ role: 'buyer' }),
-        timestamp: daysAgo(40),
-      }),
-      buildEvent({
-        project_id: projectId,
-        person_id: personWithOldEvent,
-        distinct_id: 'with-old',
-        event_name: 'signup',
         user_properties: JSON.stringify({ role: 'buyer' }),
         timestamp: daysAgo(20),
       }),
       buildEvent({
         project_id: projectId,
-        person_id: personWithOldEvent,
-        distinct_id: 'with-old',
+        person_id: personWithEventInPeriod,
+        distinct_id: 'with-event',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(28),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithEventInPeriod,
+        distinct_id: 'with-event',
         event_name: 'checkout',
         user_properties: JSON.stringify({ role: 'buyer' }),
-        timestamp: daysAgo(19),
+        timestamp: daysAgo(27),
       }),
       // personWithoutEvent: no 'purchase', only funnel events
       buildEvent({
@@ -195,7 +207,7 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
         distinct_id: 'without',
         event_name: 'signup',
         user_properties: JSON.stringify({ role: 'free' }),
-        timestamp: daysAgo(20),
+        timestamp: daysAgo(28),
       }),
       buildEvent({
         project_id: projectId,
@@ -203,20 +215,14 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
         distinct_id: 'without',
         event_name: 'checkout',
         user_properties: JSON.stringify({ role: 'free' }),
-        timestamp: daysAgo(19),
+        timestamp: daysAgo(27),
       }),
     ]);
 
     // Cohort: "did NOT perform 'purchase' in the last 30 days"
-    // With date_to = 15 days ago and 30-day window:
-    //   active window = [45 days ago, 15 days ago]
-    //   personWithOldEvent: had 'purchase' at 40 days ago (INSIDE window) →
-    //     not_performed condition FAILS → excluded from funnel
-    //
-    // Without fix (using now()):
-    //   active window = [30 days ago, now]
-    //   personWithOldEvent: 'purchase' at 40 days ago is OUTSIDE window →
-    //     not_performed condition PASSES → included in funnel (WRONG for historical query)
+    // Analysis window [date_from, date_to] = [30 dAgo, 15 dAgo]
+    //   personWithEventInPeriod: purchase at 20 dAgo IS within [30, 15] → EXCLUDED
+    //   personWithoutEvent: no purchase → INCLUDED
     const cohortFilter: CohortFilterInput = {
       cohort_id: randomUUID(),
       definition: {
@@ -248,13 +254,218 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
 
-    // With date_to anchor:
-    //   personWithOldEvent: performed 'purchase' at 40 days ago (within [45 dAgo, 15 dAgo])
-    //     → NOT in "not performed" cohort → EXCLUDED from funnel
-    //   personWithoutEvent: never performed 'purchase'
-    //     → IS in "not performed" cohort → INCLUDED
-    //
-    // Expected: 1 person matches the funnel (only personWithoutEvent)
+    // personWithEventInPeriod: purchase within analysis window → EXCLUDED
+    // personWithoutEvent: no purchase → INCLUDED
+    // Expected: 1 person (only personWithoutEvent)
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+  });
+});
+
+/**
+ * Tests for issue #469: not_performed_event should check absence in
+ * [date_from, date_to] rather than the rolling [date_to - N days, date_to]
+ * window when used inside a funnel/trend query.
+ *
+ * The rolling window may extend before date_from, catching events that are
+ * outside the analysis period and incorrectly excluding users who performed the
+ * target event before the funnel started.
+ *
+ * Test strategy:
+ *   - Funnel period: [date_from, date_to] = [30 days ago, 10 days ago]
+ *   - Cohort: "did NOT perform 'checkout' in the last 60 days" (time_window_days=60)
+ *   - personA: performed 'checkout' at 45 days ago (BEFORE date_from=30 days ago)
+ *     → Rolling window [70 dAgo, 10 dAgo] catches 45 dAgo → incorrectly excluded (old bug)
+ *     → Fixed window  [30 dAgo, 10 dAgo] does NOT catch 45 dAgo → correctly included (new behaviour)
+ *   - personB: never performed 'checkout'
+ *     → Always included in cohort
+ *   Both complete the funnel within [date_from, date_to].
+ */
+describe('queryFunnel — not_performed_event uses [date_from, date_to] window (issue #469)', () => {
+  it('includes users who performed the event before date_from but not within the analysis period', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID(); // checkout at 45 dAgo (before date_from=30 dAgo)
+    const personB = randomUUID(); // never checkout
+
+    // date_from = 30 days ago, date_to = 10 days ago
+    // personA: checkout at 45 days ago (before date_from), funnel events within period
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'person-a',
+        event_name: 'checkout',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(45),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'person-a',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(25),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'person-a',
+        event_name: 'complete',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(24),
+      }),
+    ]);
+
+    // personB: no checkout at all, funnel events within period
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'person-b',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'free' }),
+        timestamp: daysAgo(25),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'person-b',
+        event_name: 'complete',
+        user_properties: JSON.stringify({ role: 'free' }),
+        timestamp: daysAgo(24),
+      }),
+    ]);
+
+    // Cohort: "did NOT perform checkout in last 60 days"
+    // Rolling window relative to date_to=10dAgo: [70 dAgo, 10 dAgo]
+    //   personA: checkout at 45 dAgo IS within [70, 10] → old code excludes personA (bug)
+    // Fixed window: [date_from=30 dAgo, date_to=10 dAgo]
+    //   personA: checkout at 45 dAgo is NOT within [30, 10] → new code includes personA (fix)
+    const cohortFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: {
+        type: 'AND',
+        values: [
+          {
+            type: 'not_performed_event',
+            event_name: 'checkout',
+            time_window_days: 60,
+          },
+        ],
+      },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'complete', label: 'Complete' },
+      ],
+      conversion_window_days: 7,
+      date_from: daysAgo(30),
+      date_to: daysAgo(10),
+      cohort_filters: [cohortFilter],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+
+    // Both persons should be included:
+    //   personA: checkout was at 45 dAgo (before date_from=30 dAgo) → NOT in analysis
+    //            window [30, 10] → passes "not_performed" filter → included ✓
+    //   personB: never did checkout → always passes filter → included ✓
+    expect(r.steps[0].count).toBe(2);
+    expect(r.steps[1].count).toBe(2);
+  });
+
+  it('still excludes users who performed the event within [date_from, date_to]', async () => {
+    const projectId = randomUUID();
+    const personWithCheckout = randomUUID(); // checkout within funnel period
+    const personWithoutCheckout = randomUUID(); // no checkout
+
+    await insertTestEvents(ctx.ch, [
+      // personWithCheckout: performed checkout inside [date_from, date_to]
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithCheckout,
+        distinct_id: 'with-checkout',
+        event_name: 'checkout',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(20),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithCheckout,
+        distinct_id: 'with-checkout',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(25),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithCheckout,
+        distinct_id: 'with-checkout',
+        event_name: 'complete',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: daysAgo(24),
+      }),
+    ]);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithoutCheckout,
+        distinct_id: 'without-checkout',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'free' }),
+        timestamp: daysAgo(25),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithoutCheckout,
+        distinct_id: 'without-checkout',
+        event_name: 'complete',
+        user_properties: JSON.stringify({ role: 'free' }),
+        timestamp: daysAgo(24),
+      }),
+    ]);
+
+    const cohortFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: {
+        type: 'AND',
+        values: [
+          {
+            type: 'not_performed_event',
+            event_name: 'checkout',
+            time_window_days: 60,
+          },
+        ],
+      },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'complete', label: 'Complete' },
+      ],
+      conversion_window_days: 7,
+      date_from: daysAgo(30),
+      date_to: daysAgo(10),
+      cohort_filters: [cohortFilter],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+
+    // personWithCheckout performed checkout at 20 dAgo which IS within [30 dAgo, 10 dAgo]
+    //   → fails "not_performed" filter → excluded from cohort → excluded from funnel
+    // personWithoutCheckout: never checkout → included
     expect(r.steps[0].count).toBe(1);
     expect(r.steps[1].count).toBe(1);
   });

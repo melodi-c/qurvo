@@ -93,22 +93,28 @@ export function shiftPeriod(dateFrom: string, dateTo: string): { from: string; t
 }
 
 /**
- * Builds a cohort WHERE clause fragment with an optional `dateTo` parameter.
+ * Builds a cohort WHERE clause fragment with optional `dateTo` and `dateFrom` parameters.
  *
  * @param dateTo - Passed through to behavioral cohort conditions so they use
  *   the query's `date_to` as the upper bound instead of `now()`.  This ensures
  *   that funnel/trend queries over a fixed historical period return the same
  *   result on every execution and that the Redis cache key (which includes
  *   `date_to`) is coherent with the actual SQL executed.
+ * @param dateFrom - When provided together with `dateTo`, passed to the
+ *   `not_performed_event` condition so that the absence check is scoped to the
+ *   exact `[dateFrom, dateTo]` analysis window instead of the rolling
+ *   `[dateTo - N days, dateTo]` window.  This prevents false-negative exclusions
+ *   for users who performed the target event *before* the analysis period started.
  */
 export function buildCohortClause(
   cohortFilters: CohortFilterInput[] | undefined,
   projectIdParam: string,
   queryParams: Record<string, unknown>,
   dateTo?: string,
+  dateFrom?: string,
 ): string {
   if (!cohortFilters?.length) return '';
-  return ' AND ' + buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo);
+  return ' AND ' + buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo, dateFrom);
 }
 
 /**

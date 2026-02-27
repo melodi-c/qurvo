@@ -212,7 +212,7 @@ async function executeTrendQuery(
   const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
   const aggCol = buildAggColumn(params.metric, params.metric_property);
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(dateTo, true));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(dateTo, true), toChTs(dateFrom));
 
   // Cohort breakdown path: one arm per (series x cohort)
   if (hasCohortBreakdown) {
