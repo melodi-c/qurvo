@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityNeighborExpr, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -118,7 +118,8 @@ export async function queryLifecycle(
   const fromExpr = tsExpr('from', 'tz', hasTz);
   const toExpr = tsExpr('to', 'tz', hasTz);
   const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
-  const interval = granularityInterval(params.granularity);
+  const prevBucket = granularityNeighborExpr(params.granularity, 'bucket', -1, params.timezone);
+  const nextBucket = granularityNeighborExpr(params.granularity, 'bucket', 1, params.timezone);
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
 
@@ -164,7 +165,7 @@ export async function queryLifecycle(
         multiIf(
           -- 'new': first appearance in the extended window AND no prior history at all
           bucket = first_bucket AND person_id NOT IN (SELECT person_id FROM prior_active), 'new',
-          has(buckets, bucket - ${interval}), 'returning',
+          has(buckets, ${prevBucket}), 'returning',
           'resurrecting'
         ) AS status
       FROM person_buckets
@@ -173,12 +174,12 @@ export async function queryLifecycle(
 
       UNION ALL
 
-      SELECT person_id, bucket + ${interval} AS ts_bucket, 'dormant' AS status
+      SELECT person_id, ${nextBucket} AS ts_bucket, 'dormant' AS status
       FROM person_buckets
       ARRAY JOIN buckets AS bucket
-      WHERE NOT has(buckets, bucket + ${interval})
-        AND bucket + ${interval} >= ${fromExpr}
-        AND bucket + ${interval} <= ${toExpr}
+      WHERE NOT has(buckets, ${nextBucket})
+        AND ${nextBucket} >= ${fromExpr}
+        AND ${nextBucket} <= ${toExpr}
     )
     GROUP BY ts_bucket, status
     ORDER BY ts_bucket ASC, status ASC`;

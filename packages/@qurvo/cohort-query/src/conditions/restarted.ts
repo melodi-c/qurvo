@@ -61,6 +61,7 @@ export function buildRestartedPerformingSubquery(
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND event_name = {${eventPk}:String}
-        AND timestamp >= ${upperBound} - INTERVAL {${recentPk}:UInt32} DAY${filterClause}
+        AND timestamp >= ${upperBound} - INTERVAL {${recentPk}:UInt32} DAY
+        AND timestamp <= ${upperBound}${filterClause}
     )`;
 }

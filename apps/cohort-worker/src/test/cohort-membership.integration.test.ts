@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
 import type { INestApplicationContext } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
@@ -10,11 +10,13 @@ import {
 } from '@qurvo/testing';
 import { eq } from 'drizzle-orm';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
+import { Queue } from 'bullmq';
+import { getQueueToken } from '@nestjs/bullmq';
 import { getTestContext } from './context';
 import { getCohortMembers } from './helpers/ch';
 import { CohortMembershipService } from '../cohort-worker/cohort-membership.service';
 import { CohortComputationService } from '../cohort-worker/cohort-computation.service';
-import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS } from '../constants';
+import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS, COHORT_COMPUTE_QUEUE } from '../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
@@ -563,5 +565,51 @@ describe('cohort membership', () => {
     expect(members).not.toContain(personId);
 
     await ctx.redis.del(COHORT_LOCK_KEY);
+  });
+
+  it('waitUntilFinished timeout — cycle completes and recordError is called', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+    const uniquePlan = `timeout_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-timeout-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Timeout Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    // Spy on the queue to intercept addBulk and inject a fake job that times out
+    const queue = workerApp.get<Queue>(getQueueToken(COHORT_COMPUTE_QUEUE));
+    const timeoutMsg = `Job wait compute timed out before finishing, no finish notification arrived after 100ms (id=fake-job-id)`;
+    const addBulkSpy = vi.spyOn(queue, 'addBulk').mockResolvedValueOnce([
+      {
+        id: 'fake-job-id',
+        name: 'compute',
+        data: { cohortId, projectId, definition: {} as never },
+        waitUntilFinished: () => Promise.reject(new Error(timeoutMsg)),
+      } as never,
+    ]);
+
+    const recordErrorSpy = vi.spyOn(computation, 'recordError');
+
+    await ctx.redis.del(COHORT_LOCK_KEY);
+    // runCycle must complete (not hang) despite the timeout
+    await expect(svc.runCycle()).resolves.toBeUndefined();
+
+    // recordError must have been called for the timed-out cohort
+    expect(recordErrorSpy).toHaveBeenCalledWith(cohortId, expect.objectContaining({ message: expect.stringContaining('timed out') }));
+
+    addBulkSpy.mockRestore();
+    recordErrorSpy.mockRestore();
   });
 });

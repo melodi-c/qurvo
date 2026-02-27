@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNumber, Min, IsUUID } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNumber, Min, IsUUID, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FunnelStepDto, FunnelExclusionDto } from './funnel.dto';
@@ -56,7 +56,9 @@ export class FunnelWidgetConfigDto {
   date_to: string;
   @ApiPropertyOptional() breakdown_property?: string;
   @ApiPropertyOptional({ enum: ['property', 'cohort'] }) breakdown_type?: 'property' | 'cohort';
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) breakdown_cohort_ids?: string[];
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
   @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] }) funnel_order_type?: 'ordered' | 'strict' | 'unordered';
   @ApiPropertyOptional() funnel_viz_type?: string;
@@ -93,8 +95,10 @@ export class TrendWidgetConfigDto {
   date_to: string;
   @ApiPropertyOptional() breakdown_property?: string;
   @ApiPropertyOptional({ enum: ['property', 'cohort'] }) breakdown_type?: 'property' | 'cohort';
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) breakdown_cohort_ids?: string[];
   compare: boolean;
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
   @ApiPropertyOptional({ type: [TrendFormulaDto] }) formulas?: TrendFormulaDto[];
 }
@@ -114,6 +118,7 @@ export class RetentionWidgetConfigDto {
   periods: number;
   date_from: string;
   date_to: string;
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
@@ -128,6 +133,7 @@ export class LifecycleWidgetConfigDto {
 
   date_from: string;
   date_to: string;
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
@@ -142,6 +148,7 @@ export class StickinessWidgetConfigDto {
 
   date_from: string;
   date_to: string;
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
@@ -168,6 +175,7 @@ export class PathsWidgetConfigDto {
   @ApiPropertyOptional() min_persons?: number;
   @ApiPropertyOptional({ type: [PathCleaningRuleConfigDto] }) path_cleaning_rules?: PathCleaningRuleConfigDto[];
   @ApiPropertyOptional({ type: [WildcardGroupConfigDto] }) wildcard_groups?: WildcardGroupConfigDto[];
+  @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 

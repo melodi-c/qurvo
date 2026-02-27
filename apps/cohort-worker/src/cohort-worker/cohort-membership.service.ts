@@ -13,6 +13,7 @@ import {
   COHORT_INITIAL_DELAY_MS,
   COHORT_GC_EVERY_N_CYCLES,
   COHORT_COMPUTE_QUEUE,
+  COHORT_JOB_TIMEOUT_MS,
   HEARTBEAT_PATH,
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_LOOP_STALE_MS,
@@ -134,9 +135,25 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
           }),
         );
 
-        // Wait for all jobs in this level to complete
+        // Wait for all jobs in this level to complete.
+        // ttl prevents indefinite hang when Redis is unavailable or Bull worker is stuck.
         const results = await Promise.allSettled(
-          jobs.map((j) => j.waitUntilFinished(this.queueEvents)),
+          jobs.map((j) =>
+            j.waitUntilFinished(this.queueEvents, COHORT_JOB_TIMEOUT_MS).catch(async (err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              const isTimeout = msg.includes('timed out before finishing');
+              if (isTimeout) {
+                this.logger.warn(
+                  { jobId: j.id, ttlMs: COHORT_JOB_TIMEOUT_MS },
+                  'Cohort compute job timed out — Redis/Bull may be unavailable',
+                );
+                await this.computation
+                  .recordError(j.data.cohortId, new Error('Compute job timed out: ' + msg))
+                  .catch(() => {});
+              }
+              throw err;
+            }),
+          ),
         );
 
         // Collect results
@@ -149,7 +166,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
               pendingDeletions.push({ cohortId: result.cohortId, version: result.version });
             }
           }
-          // rejected = job threw unexpectedly (shouldn't happen — processor catches all errors)
+          // rejected = job threw unexpectedly or timed out
         }
       }
 

@@ -126,6 +126,37 @@ describe('computeTotalPeriods', () => {
     from.setUTCMonth(from.getUTCMonth() - 2);
     expect(computeTotalPeriods(from.toISOString().slice(0, 10), now.toISOString().slice(0, 10), 'month')).toBe(3);
   });
+
+  it('week periods with timezone produce the same result as UTC for calendar-date boundaries', () => {
+    // Calendar dates have an invariant day-of-week regardless of timezone.
+    // 2024-01-04 (Thu) to 2024-01-10 (Wed) → 2 ISO week buckets in any timezone.
+    expect(computeTotalPeriods('2024-01-04', '2024-01-10', 'week', 'America/New_York')).toBe(2);
+    expect(computeTotalPeriods('2024-01-04', '2024-01-10', 'week', 'Asia/Tokyo')).toBe(2);
+
+    // Monday-to-Sunday within one ISO week → 1 bucket.
+    expect(computeTotalPeriods('2024-01-01', '2024-01-07', 'week', 'America/New_York')).toBe(1);
+
+    // Monday 2024-01-01 to Sunday 2024-01-14 → 2 buckets.
+    expect(computeTotalPeriods('2024-01-01', '2024-01-14', 'week', 'Europe/London')).toBe(2);
+
+    // 'UTC' explicit timezone must match the no-timezone path.
+    expect(computeTotalPeriods('2024-01-04', '2024-01-10', 'week', 'UTC')).toBe(2);
+  });
+
+  it('day periods are unaffected by timezone', () => {
+    expect(computeTotalPeriods(daysAgo(5), daysAgo(1), 'day', 'America/New_York')).toBe(5);
+    expect(computeTotalPeriods(daysAgo(5), daysAgo(1), 'day', 'Asia/Tokyo')).toBe(5);
+  });
+
+  it('month periods are unaffected by timezone', () => {
+    const now = new Date();
+    const from = new Date(now);
+    from.setUTCMonth(from.getUTCMonth() - 2);
+    const fromStr = from.toISOString().slice(0, 10);
+    const toStr = now.toISOString().slice(0, 10);
+    expect(computeTotalPeriods(fromStr, toStr, 'month', 'America/New_York')).toBe(3);
+    expect(computeTotalPeriods(fromStr, toStr, 'month', 'Asia/Tokyo')).toBe(3);
+  });
 });
 
 describe('queryStickiness — week granularity', () => {
@@ -445,6 +476,54 @@ describe('queryStickiness — cohort filters', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0].period_count).toBe(2);
     expect(result.data[0].user_count).toBe(1);
+  });
+});
+
+describe('queryStickiness — timezone-aware total_periods', () => {
+  it('total_periods with America/New_York timezone matches ClickHouse DISTINCT week bucket count', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    // Place events 28 and 14 days ago — they are always in two different ISO weeks.
+    // 28 days = exactly 4 weeks, so daysAgo(28) and daysAgo(14) are both Mondays
+    // relative to today, guaranteed to be in different weeks.
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'login', timestamp: ts(28, 12) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'login', timestamp: ts(14, 12) }),
+    ]);
+
+    const result = await queryStickiness(ctx.ch, {
+      project_id: projectId,
+      target_event: 'login',
+      granularity: 'week',
+      date_from: daysAgo(28),
+      date_to: daysAgo(1),
+      timezone: 'America/New_York',
+    });
+
+    // The person fired events in 2 distinct week buckets.
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].period_count).toBe(2);
+    expect(result.data[0].user_count).toBe(1);
+
+    // total_periods must be >= 2 (it covers 27 days = at least 4-5 week buckets).
+    // Most importantly it must be a positive integer — the timezone path must not
+    // produce NaN or 0.
+    expect(result.total_periods).toBeGreaterThanOrEqual(2);
+    expect(Number.isInteger(result.total_periods)).toBe(true);
+
+    // Verify total_periods matches what computeTotalPeriods computes with timezone.
+    const expected = computeTotalPeriods(daysAgo(28), daysAgo(1), 'week', 'America/New_York');
+    expect(result.total_periods).toBe(expected);
+  });
+
+  it('total_periods with UTC timezone is identical to no-timezone', async () => {
+    const from = '2024-01-01';
+    const to = '2024-01-21'; // 3 ISO weeks (Mon 1, Mon 8, Mon 15)
+    const withUtc = computeTotalPeriods(from, to, 'week', 'UTC');
+    const withNone = computeTotalPeriods(from, to, 'week');
+    expect(withUtc).toBe(withNone);
+    expect(withUtc).toBe(3);
   });
 });
 

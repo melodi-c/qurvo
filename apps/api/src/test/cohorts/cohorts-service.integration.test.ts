@@ -724,3 +724,92 @@ describe('CohortsService — membership_version propagation for cache invalidati
     expect(breakdowns[0].membership_version).toBeNull();
   });
 });
+
+// ── CohortsService.list(): project isolation + created_at DESC order ──────────
+
+describe('CohortsService.list — project isolation and ordering', () => {
+  it('returns only cohorts belonging to the given project', async () => {
+    const { projectId: projectA, userId } = await createTestProject(ctx.db);
+    const { projectId: projectB } = await createTestProject(ctx.db);
+
+    // Create cohorts in both projects
+    const cohortInA = await service.create(userId, projectA, {
+      name: 'Cohort in Project A',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }] },
+    });
+    await service.create(userId, projectB, {
+      name: 'Cohort in Project B',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }] },
+    });
+
+    const listA = await service.list(projectA);
+
+    // Only projectA cohort is returned
+    expect(listA.map((c) => c.id)).toContain(cohortInA.id);
+    const projectIds = listA.map((c) => c.project_id);
+    expect(projectIds.every((id) => id === projectA)).toBe(true);
+  });
+
+  it('returns cohorts ordered by created_at DESC (newest first)', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    // Create cohorts sequentially — created_at will differ by natural insert order
+    const first = await service.create(userId, projectId, {
+      name: 'First Cohort',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'a' }] },
+    });
+    const second = await service.create(userId, projectId, {
+      name: 'Second Cohort',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'b' }] },
+    });
+    const third = await service.create(userId, projectId, {
+      name: 'Third Cohort',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'c' }] },
+    });
+
+    const listed = await service.list(projectId);
+    const ids = listed.map((c) => c.id);
+
+    // Newest (third) should appear before older ones
+    const indexFirst = ids.indexOf(first.id);
+    const indexSecond = ids.indexOf(second.id);
+    const indexThird = ids.indexOf(third.id);
+
+    expect(indexThird).toBeLessThan(indexSecond);
+    expect(indexSecond).toBeLessThan(indexFirst);
+  });
+
+  it('returns an empty array when the project has no cohorts', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const listed = await service.list(projectId);
+    expect(listed).toEqual([]);
+  });
+});
+
+// ── CohortsService.getSizeHistory(): throws CohortNotFoundException for unknown cohortId ──
+
+describe('CohortsService.getSizeHistory — non-existent cohortId', () => {
+  it('throws CohortNotFoundException when cohortId does not exist in the project', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const nonExistentId = randomUUID();
+
+    await expect(
+      service.getSizeHistory(projectId, nonExistentId),
+    ).rejects.toThrow(CohortNotFoundException);
+  });
+
+  it('throws CohortNotFoundException when cohortId belongs to a different project', async () => {
+    const { projectId: projectA, userId } = await createTestProject(ctx.db);
+    const { projectId: projectB } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectA, {
+      name: 'Cohort in A',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }] },
+    });
+
+    // Requesting history for projectA cohort from projectB scope
+    await expect(
+      service.getSizeHistory(projectB, cohort.id),
+    ).rejects.toThrow(CohortNotFoundException);
+  });
+});

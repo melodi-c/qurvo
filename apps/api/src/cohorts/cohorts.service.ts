@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -33,7 +33,7 @@ export class CohortsService {
       .select()
       .from(cohorts)
       .where(eq(cohorts.project_id, projectId))
-      .orderBy(cohorts.created_at);
+      .orderBy(desc(cohorts.created_at));
   }
 
   async getById(projectId: string, cohortId: string) {
