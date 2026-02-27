@@ -55,6 +55,71 @@ describe('resolveEventPropertyExpr (cohort-query helpers)', () => {
   });
 });
 
+describe('buildOperatorClause — numeric operators use JSONExtractRaw (not JSONExtractString)', () => {
+  // JSONExtractString returns '' for numeric JSON values; JSONExtractRaw returns '42'.
+  // So toFloat64OrZero(JSONExtractRaw(...)) correctly parses numbers from JSON fields.
+
+  it('gt: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(argMax(user_properties, timestamp), 'price')";
+    const clause = buildOperatorClause(expr, 'gt', 'p0', params, '10');
+    expect(clause).toBe(
+      "toFloat64OrZero(JSONExtractRaw(argMax(user_properties, timestamp), 'price')) > {p0:Float64}",
+    );
+    expect(params['p0']).toBe(10);
+  });
+
+  it('lt: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(properties, 'count')";
+    const clause = buildOperatorClause(expr, 'lt', 'p0', params, '5');
+    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'count')) < {p0:Float64}");
+    expect(params['p0']).toBe(5);
+  });
+
+  it('gte: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(properties, 'score')";
+    const clause = buildOperatorClause(expr, 'gte', 'p0', params, '5');
+    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'score')) >= {p0:Float64}");
+  });
+
+  it('lte: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(properties, 'amount')";
+    const clause = buildOperatorClause(expr, 'lte', 'p0', params, '100');
+    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'amount')) <= {p0:Float64}");
+  });
+
+  it('between: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(properties, 'price')";
+    const clause = buildOperatorClause(expr, 'between', 'p0', params, undefined, ['10', '50']);
+    expect(clause).toBe(
+      "toFloat64OrZero(JSONExtractRaw(properties, 'price')) >= {p0_min:Float64} AND toFloat64OrZero(JSONExtractRaw(properties, 'price')) <= {p0_max:Float64}",
+    );
+    expect(params['p0_min']).toBe(10);
+    expect(params['p0_max']).toBe(50);
+  });
+
+  it('not_between: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(properties, 'age')";
+    const clause = buildOperatorClause(expr, 'not_between', 'p0', params, undefined, ['18', '65']);
+    expect(clause).toBe(
+      "(toFloat64OrZero(JSONExtractRaw(properties, 'age')) < {p0_min:Float64} OR toFloat64OrZero(JSONExtractRaw(properties, 'age')) > {p0_max:Float64})",
+    );
+  });
+
+  it('gt: does NOT replace non-JSON expressions (top-level column)', () => {
+    const params: Record<string, unknown> = {};
+    // Top-level columns like argMax(country, timestamp) have no JSONExtractString — unchanged.
+    const expr = 'argMax(some_numeric_col, timestamp)';
+    const clause = buildOperatorClause(expr, 'gt', 'p0', params, '0');
+    expect(clause).toBe('toFloat64OrZero(argMax(some_numeric_col, timestamp)) > {p0:Float64}');
+  });
+});
+
 describe('buildOperatorClause — LIKE wildcard escaping', () => {
   it('contains: escapes % in value so it is treated as a literal', () => {
     const params: Record<string, unknown> = {};
