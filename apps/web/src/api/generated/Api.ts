@@ -137,6 +137,7 @@ export interface ProjectWithRole {
   id: string;
   name: string;
   token: string;
+  timezone: string;
   plan: string | null;
   is_demo: boolean;
   /** @format date-time */
@@ -157,6 +158,7 @@ export interface Project {
   id: string;
   name: string;
   token: string;
+  timezone: string;
   plan: string | null;
   is_demo: boolean;
   /** @format date-time */
@@ -171,12 +173,14 @@ export interface UpdateProject {
    * @maxLength 100
    */
   name?: string;
+  timezone?: string;
 }
 
 export interface RotateTokenResponse {
   id: string;
   name: string;
   token: string;
+  timezone: string;
   plan: string | null;
   is_demo: boolean;
   /** @format date-time */
@@ -784,6 +788,11 @@ export interface CreateStaticCohort {
 export interface UploadCsv {
   /** @maxLength 5000000 */
   csv_content: string;
+}
+
+export interface ImportCsvResponse {
+  imported: number;
+  total_lines: number;
 }
 
 export interface StaticCohortMembers {
@@ -1876,7 +1885,7 @@ export interface PathsControllerGetPathsParams {
   wildcard_groups?: WildcardGroup[];
   /**
    * @min 3
-   * @max 10
+   * @max 1000
    * @default 5
    */
   step_limit?: number;
@@ -3769,12 +3778,13 @@ export class Api<
       data: UploadCsv,
       params: RequestParams = {},
     ) =>
-      this.request<void, any>({
+      this.request<ImportCsvResponse, any>({
         path: `/api/projects/${projectId}/cohorts/${cohortId}/upload-csv`,
         method: "POST",
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 
@@ -5024,21 +5034,6 @@ export class Api<
         ...params,
       }),
   };
-  health = {
-    /**
-     * No description
-     *
-     * @tags Health
-     * @name HealthControllerCheck
-     * @request GET:/health
-     */
-    healthControllerCheck: (params: RequestParams = {}) =>
-      this.request<void, any>({
-        path: `/health`,
-        method: "GET",
-        ...params,
-      }),
-  };
   admin = {
     /**
      * No description
@@ -5255,6 +5250,21 @@ export class Api<
         path: `/admin/plans/${id}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+  };
+  health = {
+    /**
+     * No description
+     *
+     * @tags Health
+     * @name HealthControllerCheck
+     * @request GET:/health
+     */
+    healthControllerCheck: (params: RequestParams = {}) =>
+      this.request<void, any>({
+        path: `/health`,
+        method: "GET",
         ...params,
       }),
   };
