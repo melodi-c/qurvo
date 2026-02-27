@@ -68,7 +68,7 @@ export async function runFunnelCohortBreakdown(
             countIf(max_step >= step_num + 1) AS next_step,
             avgIf(
               (last_step_ms - first_step_ms) / 1000.0,
-              max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+              max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
             ) AS avg_time_seconds
           FROM funnel_per_user
           CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
@@ -94,7 +94,7 @@ export async function runFunnelCohortBreakdown(
             countIf(max_step >= step_num + 1) AS next_step,
             avgIf(
               (last_step_ms - first_step_ms) / 1000.0,
-              max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+              max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
             ) AS avg_time_seconds
           FROM funnel_per_user
           CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
@@ -131,7 +131,7 @@ export async function runFunnelCohortBreakdown(
           countIf(max_step >= step_num + 1) AS next_step,
           avgIf(
             (last_step_ms - first_step_ms) / 1000.0,
-            max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+            max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
           ) AS avg_time_seconds
         FROM funnel_per_user
         CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
@@ -157,7 +157,7 @@ export async function runFunnelCohortBreakdown(
           countIf(max_step >= step_num + 1) AS next_step,
           avgIf(
             (last_step_ms - first_step_ms) / 1000.0,
-            max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+            max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
           ) AS avg_time_seconds
         FROM funnel_per_user
         CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}

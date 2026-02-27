@@ -123,7 +123,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
   //
   // The t0 <= last_step_ms filter naturally prevents inversions: if the only last-step event
   // predates all step-0 events that could form a valid window, the filtered array is empty,
-  // first_step_ms defaults to 0, and the avgIf guard (last_step_ms > first_step_ms) ensures
+  // first_step_ms defaults to 0, and the avgIf guard (first_step_ms > 0 AND last_step_ms > first_step_ms) ensures
   // the user is excluded from avg_time_to_convert rather than producing a garbage result.
 
   let funnelPerUserCTE: string;
@@ -170,7 +170,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
     //      AND last_step_ms > 0 (guard for missing last-step event).
     //   2. Take arrayMin (ordered) or arrayMax (strict) of the filtered set.
     //   3. When filtered set is empty (no valid anchor), return 0 so that the avgIf guard
-    //      (last_step_ms > first_step_ms) excludes the user from avg_time_to_convert.
+    //      (first_step_ms > 0 AND last_step_ms > first_step_ms) excludes the user from avg_time_to_convert.
     //
     // Example — issue #493 / ordered (window = 7d):
     //   t0_arr = [Jan1, Feb1], last_step_ms = Feb3

@@ -187,7 +187,7 @@ function buildFunnelSQL(
   // Time columns for avg_time_to_convert (only for non-breakdown).
   //
   // Semantics: avg time from first step completion to last step completion, measured over
-  // users who completed ALL N steps (max_step >= num_steps AND last_step_ms > first_step_ms).
+  // users who completed ALL N steps (max_step >= num_steps AND first_step_ms > 0 AND last_step_ms > first_step_ms).
   // The aggregate value is identical for every step_num in the CROSS JOIN — this is intentional:
   // each non-last step shows "the average full-funnel conversion time for users who completed
   // the entire funnel". The last step is set to null by computeStepResults (isLast check).
@@ -197,7 +197,7 @@ function buildFunnelSQL(
   const avgTimeCols = includeTimestampCols
     ? `,\n          avgIf(
             (last_step_ms - first_step_ms) / 1000.0,
-            max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+            max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
           ) AS avg_time_seconds`
     : '';
 
