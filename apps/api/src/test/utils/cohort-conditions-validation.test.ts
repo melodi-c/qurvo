@@ -5,6 +5,8 @@ import { plainToInstance } from 'class-transformer';
 import {
   CohortStoppedPerformingConditionDto,
   CohortRestartedPerformingConditionDto,
+  CohortEventFilterDto,
+  CohortPropertyConditionDto,
 } from '../../api/dto/cohort-conditions.dto';
 
 // ── stopped_performing ───────────────────────────────────────────────────────
@@ -93,5 +95,175 @@ describe('CohortRestartedPerformingConditionDto — window semantics', () => {
     const errors = await validate(buildRestarted(1, 1, 2));
     const windowErrors = errors.filter((e) => e.property === 'historical_window_days');
     expect(windowErrors.length).toBeGreaterThan(0);
+  });
+});
+
+// ── CohortEventFilterDto — in/not_in/contains_multi/not_contains_multi empty array ──
+
+describe('CohortEventFilterDto — ValuesMinSizeForOperator', () => {
+  function buildFilter(operator: string, values: string[] | undefined) {
+    return plainToInstance(CohortEventFilterDto, {
+      property: 'properties.plan',
+      operator,
+      values,
+    });
+  }
+
+  it('passes: in operator with non-empty values', async () => {
+    const errors = await validate(buildFilter('in', ['premium']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('fails: in operator with empty values array → valuesMinSizeForOperator', async () => {
+    const errors = await validate(buildFilter('in', []));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valuesMinSizeForOperator');
+  });
+
+  it('fails: not_in operator with empty values array', async () => {
+    const errors = await validate(buildFilter('not_in', []));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valuesMinSizeForOperator');
+  });
+
+  it('fails: contains_multi operator with empty values array', async () => {
+    const errors = await validate(buildFilter('contains_multi', []));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valuesMinSizeForOperator');
+  });
+
+  it('fails: not_contains_multi operator with empty values array', async () => {
+    const errors = await validate(buildFilter('not_contains_multi', []));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valuesMinSizeForOperator');
+  });
+
+  it('passes: not_in operator with values absent (operator does not require values when omitted)', async () => {
+    // values is undefined — @IsOptional passes before custom validator is reached
+    const errors = await validate(buildFilter('not_in', undefined));
+    // No valuesMinSizeForOperator error expected: @IsOptional skips undefined
+    // (the runtime guard in ClickHouse will default to empty array via ?? [])
+    // This edge case is intentionally lenient: callers must pass values for in/not_in.
+    // The DTO allows omitting for backward compat — the validator only fires when
+    // values is an explicit empty array.
+    const valErrors = errors.filter(
+      (e) => e.property === 'values' && e.constraints?.['valuesMinSizeForOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: eq operator with values absent — validator skips non-list operators', async () => {
+    const errors = await validate(buildFilter('eq', undefined));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: in operator with multiple values', async () => {
+    const errors = await validate(buildFilter('in', ['a', 'b', 'c']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+});
+
+// ── CohortEventFilterDto — between/not_between ordered range ────────────────
+
+describe('CohortEventFilterDto — BetweenValuesOrdered', () => {
+  function buildFilter(operator: string, values: string[] | undefined) {
+    return plainToInstance(CohortEventFilterDto, {
+      property: 'properties.price',
+      operator,
+      values,
+    });
+  }
+
+  it('passes: between with ordered range [10, 100]', async () => {
+    const errors = await validate(buildFilter('between', ['10', '100']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: between with equal bounds [50, 50]', async () => {
+    const errors = await validate(buildFilter('between', ['50', '50']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('fails: between with reversed range [100, 10] → betweenValuesOrdered', async () => {
+    const errors = await validate(buildFilter('between', ['100', '10']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('betweenValuesOrdered');
+  });
+
+  it('fails: not_between with reversed range [200, 5]', async () => {
+    const errors = await validate(buildFilter('not_between', ['200', '5']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('betweenValuesOrdered');
+  });
+
+  it('passes: not_between with ordered range [0, 99]', async () => {
+    const errors = await validate(buildFilter('not_between', ['0', '99']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('fails: between with only 1 element (not a pair)', async () => {
+    const errors = await validate(buildFilter('between', ['10']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('betweenValuesOrdered');
+  });
+
+  it('passes: eq operator with values — betweenValuesOrdered skips non-between operators', async () => {
+    const errors = await validate(buildFilter('eq', ['10', '5']));
+    const valErrors = errors.filter(
+      (e) => e.property === 'values' && e.constraints?.['betweenValuesOrdered'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+});
+
+// ── CohortPropertyConditionDto — same validators ─────────────────────────────
+
+describe('CohortPropertyConditionDto — ValuesMinSizeForOperator + BetweenValuesOrdered', () => {
+  function buildCond(operator: string, values: string[] | undefined) {
+    return plainToInstance(CohortPropertyConditionDto, {
+      type: 'person_property',
+      property: 'user_properties.plan',
+      operator,
+      values,
+    });
+  }
+
+  it('fails: in with empty values → valuesMinSizeForOperator', async () => {
+    const errors = await validate(buildCond('in', []));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valuesMinSizeForOperator');
+  });
+
+  it('fails: between with reversed range → betweenValuesOrdered', async () => {
+    const errors = await validate(buildCond('between', ['100', '10']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('betweenValuesOrdered');
+  });
+
+  it('passes: in with one element', async () => {
+    const errors = await validate(buildCond('in', ['free']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: between with [0, 50]', async () => {
+    const errors = await validate(buildCond('between', ['0', '50']));
+    const valErrors = errors.filter((e) => e.property === 'values');
+    expect(valErrors).toHaveLength(0);
   });
 });
