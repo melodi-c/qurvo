@@ -222,16 +222,20 @@ describe('queryTrend — breakdown + per-series filters', () => {
 });
 
 describe('queryTrend — breakdown + compare combined', () => {
-  it('returns breakdown series for both current and previous periods', async () => {
+  it('returns breakdown series for both current and previous periods — only current-period top-N values', async () => {
     const projectId = randomUUID();
 
     // Current period: daysAgo(4) to daysAgo(3)
+    // Chrome and Safari appear in the current period (these become the fixed top-N).
     await insertTestEvents(ctx.ch, [
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u1', event_name: 'click', browser: 'Chrome', timestamp: ts(3, 12) }),
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u2', event_name: 'click', browser: 'Safari', timestamp: ts(4, 12) }),
     ]);
 
-    // Previous period: daysAgo(6) to daysAgo(5) (shifted back by 2-day period duration)
+    // Previous period: daysAgo(6) to daysAgo(5) (shifted back by 2-day period duration).
+    // Chrome is present in both periods; Firefox is ONLY in the previous period.
+    // After the fix, Firefox must NOT appear in series_previous because it is not in
+    // the current-period top-N (Chrome and Safari).
     await insertTestEvents(ctx.ch, [
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u3', event_name: 'click', browser: 'Chrome', timestamp: ts(6, 12) }),
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'u4', event_name: 'click', browser: 'Firefox', timestamp: ts(5, 12) }),
@@ -261,14 +265,89 @@ describe('queryTrend — breakdown + compare combined', () => {
     expect(sumSeriesValues(currentChrome!.data)).toBe(1);
     expect(sumSeriesValues(currentSafari!.data)).toBe(1);
 
-    // Previous period should have Chrome and Firefox
-    expect(r.series_previous.length).toBeGreaterThanOrEqual(2);
+    // Previous period: Chrome=1 (present in both periods), Safari=0 (gap-filled),
+    // Firefox must NOT appear (it is not in the current-period top-N).
     const prevChrome = r.series_previous.find((s) => s.breakdown_value === 'Chrome');
+    const prevSafari = r.series_previous.find((s) => s.breakdown_value === 'Safari');
     const prevFirefox = r.series_previous.find((s) => s.breakdown_value === 'Firefox');
     expect(prevChrome).toBeDefined();
-    expect(prevFirefox).toBeDefined();
     expect(sumSeriesValues(prevChrome!.data)).toBe(1);
-    expect(sumSeriesValues(prevFirefox!.data)).toBe(1);
+    expect(prevSafari).toBeDefined();           // gap-filled with empty data
+    expect(sumSeriesValues(prevSafari!.data)).toBe(0);
+    expect(prevFirefox).toBeUndefined();         // excluded: not in current-period top-N
+  });
+});
+
+describe('queryTrend — compare + breakdown: previous period uses current-period top-N', () => {
+  it('previous period contains all breakdown values from current period (even if count=0)', async () => {
+    const projectId = randomUUID();
+
+    // Current period: daysAgo(4) to daysAgo(3)
+    // Chrome (2 events) and Safari (1 event) are top values in current period
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'c1', event_name: 'page', browser: 'Chrome', timestamp: ts(3, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'c2', event_name: 'page', browser: 'Chrome', timestamp: ts(4, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'c3', event_name: 'page', browser: 'Safari', timestamp: ts(3, 11) }),
+    ]);
+
+    // Previous period: daysAgo(6) to daysAgo(5)
+    // Only Firefox events — Chrome and Safari are absent from previous period.
+    // Before the fix: previous-period top-N would contain only Firefox, so Chrome/Safari
+    // would be missing from series_previous.
+    // After the fix: previous-period uses current-period top-N (Chrome, Safari), so
+    // both appear in series_previous with count=0.
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'p1', event_name: 'page', browser: 'Firefox', timestamp: ts(5, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'p2', event_name: 'page', browser: 'Firefox', timestamp: ts(6, 10) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'p3', event_name: 'page', browser: 'Firefox', timestamp: ts(6, 11) }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'page', label: 'Pages' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(4),
+      date_to: daysAgo(3),
+      breakdown_property: 'browser',
+      compare: true,
+    });
+
+    expect(result.compare).toBe(true);
+    expect(result.breakdown).toBe(true);
+    const r = result as Extract<typeof result, { compare: true; breakdown: true }>;
+
+    // Current period: Chrome=2, Safari=1
+    const currentChrome = r.series.find((s) => s.breakdown_value === 'Chrome');
+    const currentSafari = r.series.find((s) => s.breakdown_value === 'Safari');
+    expect(currentChrome).toBeDefined();
+    expect(currentSafari).toBeDefined();
+    expect(sumSeriesValues(currentChrome!.data)).toBe(2);
+    expect(sumSeriesValues(currentSafari!.data)).toBe(1);
+
+    // Collect the breakdown values present in current period
+    const currentBreakdownValues = new Set(r.series.map((s) => s.breakdown_value));
+    // Collect the breakdown values present in previous period
+    const prevBreakdownValues = new Set(r.series_previous.map((s) => s.breakdown_value));
+
+    // Every value from the current period must be present in the previous period
+    // (the acceptance criterion from the issue).  Chrome and Safari must appear
+    // in series_previous even though the previous-period data only has Firefox.
+    for (const bv of currentBreakdownValues) {
+      expect(prevBreakdownValues).toContain(bv);
+    }
+
+    // Chrome and Safari appear in series_previous with count=0 (no data in previous period)
+    const prevChrome = r.series_previous.find((s) => s.breakdown_value === 'Chrome');
+    const prevSafari = r.series_previous.find((s) => s.breakdown_value === 'Safari');
+    expect(prevChrome).toBeDefined();
+    expect(sumSeriesValues(prevChrome!.data)).toBe(0);
+    expect(prevSafari).toBeDefined();
+    expect(sumSeriesValues(prevSafari!.data)).toBe(0);
+
+    // Firefox should NOT appear in previous period — it is not in the current-period top-N
+    const prevFirefox = r.series_previous.find((s) => s.breakdown_value === 'Firefox');
+    expect(prevFirefox).toBeUndefined();
   });
 });
 
