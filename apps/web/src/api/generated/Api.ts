@@ -189,7 +189,14 @@ export interface RotateTokenResponse {
   updated_at: string;
 }
 
+export interface StepFilter {
+  property: string;
+  operator: StepFilterDtoOperatorEnum;
+  value?: string;
+}
+
 export interface FunnelExclusion {
+  filters?: StepFilter[];
   event_name: string;
   /**
    * @min 0
@@ -201,12 +208,6 @@ export interface FunnelExclusion {
    * @max 9
    */
   funnel_to_step: number;
-}
-
-export interface StepFilter {
-  property: string;
-  operator: StepFilterDtoOperatorEnum;
-  value?: string;
 }
 
 export interface FunnelStep {
@@ -781,29 +782,33 @@ export interface CohortConditionGroup {
 }
 
 export interface Cohort {
-  description?: string | null;
-  definition?: CohortConditionGroup | null;
-  last_error_at?: string | null;
-  last_error_message?: string | null;
   id: string;
   project_id: string;
   created_by: string;
   name: string;
+  description?: string | null;
+  definition?: CohortConditionGroup | null;
   is_static: boolean;
   errors_calculating: number;
+  last_error_at?: string | null;
+  last_error_message?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateCohort {
+  /** @maxLength 200 */
   name: string;
+  /** @maxLength 1000 */
   description?: string;
   definition?: CohortConditionGroup;
   is_static?: boolean;
 }
 
 export interface UpdateCohort {
+  /** @maxLength 200 */
   name?: string;
+  /** @maxLength 1000 */
   description?: string;
   definition?: CohortConditionGroup;
 }
@@ -818,17 +823,18 @@ export interface CohortMemberCount {
 }
 
 export interface CohortPreview {
-  definition?: CohortConditionGroup;
+  definition: CohortConditionGroup;
 }
 
 export interface CreateStaticCohort {
+  /** @maxLength 200 */
   name: string;
+  /** @maxLength 1000 */
   description?: string;
   person_ids?: string[];
 }
 
 export interface UploadCsv {
-  /** @maxLength 5000000 */
   csv_content: string;
 }
 
@@ -848,6 +854,7 @@ export interface StaticCohortMembersResponse {
 }
 
 export interface StaticCohortMembers {
+  /** @maxItems 10000 */
   person_ids: string[];
 }
 
@@ -1260,110 +1267,6 @@ export interface ResetDemoResponse {
   scenario: string;
 }
 
-export interface AiMonitor {
-  metric: AiMonitorDtoMetricEnum;
-  channel_type: AiMonitorDtoChannelTypeEnum;
-  channel_config: Record<string, any>;
-  id: string;
-  project_id: string;
-  event_name: string;
-  threshold_sigma: number;
-  is_active: boolean;
-  /** @format date-time */
-  created_at: string;
-  /** @format date-time */
-  updated_at: string;
-}
-
-export interface CreateMonitor {
-  channel_type: CreateMonitorDtoChannelTypeEnum;
-  channel_config: Record<string, any>;
-  /**
-   * @minLength 1
-   * @maxLength 255
-   */
-  event_name: string;
-  metric?: CreateMonitorDtoMetricEnum;
-  /**
-   * @min 1
-   * @max 10
-   */
-  threshold_sigma?: number;
-}
-
-export interface UpdateMonitor {
-  channel_config?: Record<string, any>;
-  /**
-   * @minLength 1
-   * @maxLength 255
-   */
-  event_name?: string;
-  metric?: UpdateMonitorDtoMetricEnum;
-  /**
-   * @min 1
-   * @max 10
-   */
-  threshold_sigma?: number;
-  channel_type?: UpdateMonitorDtoChannelTypeEnum;
-  is_active?: boolean;
-}
-
-export interface AiInsight {
-  type: AiInsightDtoTypeEnum;
-  data_json?: object;
-  dismissed_at?: string | null;
-  id: string;
-  project_id: string;
-  title: string;
-  description: string;
-  created_at: string;
-}
-
-export interface AiScheduledJob {
-  schedule: AiScheduledJobDtoScheduleEnum;
-  channel_type: AiScheduledJobDtoChannelTypeEnum;
-  channel_config: Record<string, any>;
-  id: string;
-  project_id: string;
-  user_id: string;
-  name: string;
-  prompt: string;
-  is_active: boolean;
-  /** @format date-time */
-  last_run_at: string | null;
-  /** @format date-time */
-  created_at: string;
-  /** @format date-time */
-  updated_at: string;
-}
-
-export interface CreateScheduledJob {
-  channel_type: CreateScheduledJobDtoChannelTypeEnum;
-  channel_config: Record<string, any>;
-  schedule: CreateScheduledJobDtoScheduleEnum;
-  /**
-   * @minLength 1
-   * @maxLength 255
-   */
-  name: string;
-  /** @minLength 1 */
-  prompt: string;
-}
-
-export interface UpdateScheduledJob {
-  schedule?: UpdateScheduledJobDtoScheduleEnum;
-  channel_type?: UpdateScheduledJobDtoChannelTypeEnum;
-  channel_config?: Record<string, any>;
-  /**
-   * @minLength 1
-   * @maxLength 255
-   */
-  name?: string;
-  /** @minLength 1 */
-  prompt?: string;
-  is_active?: boolean;
-}
-
 export interface Annotation {
   description?: string | null;
   color?: string | null;
@@ -1402,11 +1305,6 @@ export interface UpdateAnnotation {
   description?: string;
   /** @maxLength 20 */
   color?: string;
-}
-
-export interface TestNotification {
-  channel_type: TestNotificationDtoChannelTypeEnum;
-  channel_config: Record<string, any>;
 }
 
 export interface AdminStats {
@@ -1657,44 +1555,6 @@ export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
   | "event"
   | "person";
 
-export type AiMonitorDtoMetricEnum = "count" | "unique_users";
-
-export type AiMonitorDtoChannelTypeEnum = "slack" | "email" | "telegram";
-
-export type CreateMonitorDtoChannelTypeEnum = "slack" | "email" | "telegram";
-
-export type CreateMonitorDtoMetricEnum = "count" | "unique_users";
-
-export type UpdateMonitorDtoMetricEnum = "count" | "unique_users";
-
-export type UpdateMonitorDtoChannelTypeEnum = "slack" | "email" | "telegram";
-
-export type AiInsightDtoTypeEnum =
-  | "metric_change"
-  | "new_event"
-  | "retention_anomaly"
-  | "conversion_correlation";
-
-export type AiScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
-
-export type AiScheduledJobDtoChannelTypeEnum = "slack" | "email" | "telegram";
-
-export type CreateScheduledJobDtoChannelTypeEnum =
-  | "slack"
-  | "email"
-  | "telegram";
-
-export type CreateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
-
-export type UpdateScheduledJobDtoScheduleEnum = "daily" | "weekly" | "monthly";
-
-export type UpdateScheduledJobDtoChannelTypeEnum =
-  | "slack"
-  | "email"
-  | "telegram";
-
-export type TestNotificationDtoChannelTypeEnum = "slack" | "email" | "telegram";
-
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
 export type AdminProjectMemberDtoRoleEnum = "owner" | "editor" | "viewer";
@@ -1717,7 +1577,10 @@ export interface ProjectsControllerRotateTokenParams {
 
 export interface FunnelControllerGetFunnelParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   /**
    * @min 1
@@ -1732,7 +1595,10 @@ export interface FunnelControllerGetFunnelParams {
    */
   sampling_factor?: number;
   breakdown_type?: BreakdownTypeEnum;
-  /** @maxItems 10 */
+  /**
+   * @maxItems 10
+   * @uniqueItems true
+   */
   breakdown_cohort_ids?: string[];
   funnel_order_type?: FunnelOrderTypeEnum;
   exclusions?: FunnelExclusion[];
@@ -1790,7 +1656,10 @@ export type FunnelControllerGetFunnelParams1FunnelOrderTypeEnum =
 
 export interface FunnelControllerGetFunnelTimeToConvertParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   /**
    * @min 1
@@ -1889,12 +1758,18 @@ export interface EventsControllerGetEventPropertyNamesParams {
 
 export interface TrendControllerGetTrendParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   metric: TrendMetric;
   granularity: TrendGranularity;
   breakdown_type?: BreakdownTypeEnum1;
-  /** @maxItems 10 */
+  /**
+   * @maxItems 10
+   * @uniqueItems true
+   */
   breakdown_cohort_ids?: string[];
   series: TrendSeries[];
   metric_property?: string;
@@ -1917,7 +1792,10 @@ export type TrendControllerGetTrendParams1BreakdownTypeEnum =
 
 export interface RetentionControllerGetRetentionParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   retention_type: RetentionType;
   granularity: Granularity;
@@ -1940,7 +1818,10 @@ export interface RetentionControllerGetRetentionParams {
 
 export interface LifecycleControllerGetLifecycleParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   granularity: Granularity;
   target_event: string;
@@ -1955,7 +1836,10 @@ export interface LifecycleControllerGetLifecycleParams {
 
 export interface StickinessControllerGetStickinessParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   granularity: Granularity;
   target_event: string;
@@ -1970,7 +1854,10 @@ export interface StickinessControllerGetStickinessParams {
 
 export interface PathsControllerGetPathsParams {
   timezone?: string;
-  /** @maxItems 20 */
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
   cohort_ids?: string[];
   exclusions?: string[];
   path_cleaning_rules?: PathCleaningRule[];
@@ -2503,51 +2390,6 @@ export interface DemoControllerResetParams {
   projectId: string;
 }
 
-export interface AiMonitorsControllerListParams {
-  projectId: string;
-}
-
-export interface AiMonitorsControllerCreateParams {
-  projectId: string;
-}
-
-export interface AiMonitorsControllerUpdateParams {
-  projectId: string;
-  monitorId: string;
-}
-
-export interface AiMonitorsControllerRemoveParams {
-  projectId: string;
-  monitorId: string;
-}
-
-export interface AiInsightsControllerListParams {
-  projectId: string;
-}
-
-export interface AiInsightsControllerDismissParams {
-  projectId: string;
-  id: string;
-}
-
-export interface AiScheduledJobsControllerListParams {
-  projectId: string;
-}
-
-export interface AiScheduledJobsControllerCreateParams {
-  projectId: string;
-}
-
-export interface AiScheduledJobsControllerUpdateParams {
-  projectId: string;
-  jobId: string;
-}
-
-export interface AiScheduledJobsControllerRemoveParams {
-  projectId: string;
-  jobId: string;
-}
-
 export interface AnnotationsControllerListParams {
   date_from?: string;
   date_to?: string;
@@ -2574,10 +2416,6 @@ export interface PublicControllerGetPublicDashboardParams {
 
 export interface PublicControllerGetPublicInsightParams {
   shareToken: string;
-}
-
-export interface NotificationsControllerTestNotificationParams {
-  projectId: string;
 }
 
 export interface AdminUsersControllerGetUserParams {
@@ -4823,215 +4661,6 @@ export class Api<
     /**
      * No description
      *
-     * @tags AI Monitors
-     * @name AiMonitorsControllerList
-     * @request GET:/api/projects/{projectId}/ai/monitors
-     * @secure
-     */
-    aiMonitorsControllerList: (
-      { projectId, ...query }: AiMonitorsControllerListParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiMonitor[], any>({
-        path: `/api/projects/${projectId}/ai/monitors`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Monitors
-     * @name AiMonitorsControllerCreate
-     * @request POST:/api/projects/{projectId}/ai/monitors
-     * @secure
-     */
-    aiMonitorsControllerCreate: (
-      { projectId, ...query }: AiMonitorsControllerCreateParams,
-      data: CreateMonitor,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiMonitor, any>({
-        path: `/api/projects/${projectId}/ai/monitors`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Monitors
-     * @name AiMonitorsControllerUpdate
-     * @request PATCH:/api/projects/{projectId}/ai/monitors/{monitorId}
-     * @secure
-     */
-    aiMonitorsControllerUpdate: (
-      { projectId, monitorId, ...query }: AiMonitorsControllerUpdateParams,
-      data: UpdateMonitor,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiMonitor, any>({
-        path: `/api/projects/${projectId}/ai/monitors/${monitorId}`,
-        method: "PATCH",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Monitors
-     * @name AiMonitorsControllerRemove
-     * @request DELETE:/api/projects/{projectId}/ai/monitors/{monitorId}
-     * @secure
-     */
-    aiMonitorsControllerRemove: (
-      { projectId, monitorId, ...query }: AiMonitorsControllerRemoveParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/ai/monitors/${monitorId}`,
-        method: "DELETE",
-        secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Insights
-     * @name AiInsightsControllerList
-     * @request GET:/api/projects/{projectId}/ai/insights
-     * @secure
-     */
-    aiInsightsControllerList: (
-      { projectId, ...query }: AiInsightsControllerListParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiInsight[], any>({
-        path: `/api/projects/${projectId}/ai/insights`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Insights
-     * @name AiInsightsControllerDismiss
-     * @request POST:/api/projects/{projectId}/ai/insights/{id}/dismiss
-     * @secure
-     */
-    aiInsightsControllerDismiss: (
-      { projectId, id, ...query }: AiInsightsControllerDismissParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/ai/insights/${id}/dismiss`,
-        method: "POST",
-        secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Scheduled Jobs
-     * @name AiScheduledJobsControllerList
-     * @request GET:/api/projects/{projectId}/ai/scheduled-jobs
-     * @secure
-     */
-    aiScheduledJobsControllerList: (
-      { projectId, ...query }: AiScheduledJobsControllerListParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiScheduledJob[], any>({
-        path: `/api/projects/${projectId}/ai/scheduled-jobs`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Scheduled Jobs
-     * @name AiScheduledJobsControllerCreate
-     * @request POST:/api/projects/{projectId}/ai/scheduled-jobs
-     * @secure
-     */
-    aiScheduledJobsControllerCreate: (
-      { projectId, ...query }: AiScheduledJobsControllerCreateParams,
-      data: CreateScheduledJob,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiScheduledJob, any>({
-        path: `/api/projects/${projectId}/ai/scheduled-jobs`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Scheduled Jobs
-     * @name AiScheduledJobsControllerUpdate
-     * @request PATCH:/api/projects/{projectId}/ai/scheduled-jobs/{jobId}
-     * @secure
-     */
-    aiScheduledJobsControllerUpdate: (
-      { projectId, jobId, ...query }: AiScheduledJobsControllerUpdateParams,
-      data: UpdateScheduledJob,
-      params: RequestParams = {},
-    ) =>
-      this.request<AiScheduledJob, any>({
-        path: `/api/projects/${projectId}/ai/scheduled-jobs/${jobId}`,
-        method: "PATCH",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags AI Scheduled Jobs
-     * @name AiScheduledJobsControllerRemove
-     * @request DELETE:/api/projects/{projectId}/ai/scheduled-jobs/{jobId}
-     * @secure
-     */
-    aiScheduledJobsControllerRemove: (
-      { projectId, jobId, ...query }: AiScheduledJobsControllerRemoveParams,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/ai/scheduled-jobs/${jobId}`,
-        method: "DELETE",
-        secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
      * @tags Annotations
      * @name AnnotationsControllerList
      * @request GET:/api/projects/{projectId}/annotations
@@ -5112,28 +4741,6 @@ export class Api<
         path: `/api/projects/${projectId}/annotations/${id}`,
         method: "DELETE",
         secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Notifications
-     * @name NotificationsControllerTestNotification
-     * @request POST:/api/projects/{projectId}/notifications/test
-     * @secure
-     */
-    notificationsControllerTestNotification: (
-      { projectId, ...query }: NotificationsControllerTestNotificationParams,
-      data: TestNotification,
-      params: RequestParams = {},
-    ) =>
-      this.request<void, any>({
-        path: `/api/projects/${projectId}/notifications/test`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
         ...params,
       }),
   };

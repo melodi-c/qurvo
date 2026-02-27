@@ -16,12 +16,8 @@ import { WebAnalyticsModule } from '../web-analytics/web-analytics.module';
 import { BillingModule } from '../billing/billing.module';
 import { IngestionWarningsModule } from '../ingestion-warnings/ingestion-warnings.module';
 import { DemoModule } from '../demo/demo.module';
-import { AiMonitorsModule } from '../ai-monitors/ai-monitors.module';
-import { AiInsightsModule } from '../ai-insights/ai-insights.module';
-import { AiScheduledJobsModule } from '../ai-scheduled-jobs/ai-scheduled-jobs.module';
 import { AnnotationsModule } from '../annotations/annotations.module';
 import { ShareTokensModule } from '../share-tokens/share-tokens.module';
-import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminModule } from '../admin/admin.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
@@ -45,12 +41,8 @@ import { WebAnalyticsController } from './controllers/web-analytics.controller';
 import { BillingController } from './controllers/billing.controller';
 import { IngestionWarningsController } from './controllers/ingestion-warnings.controller';
 import { DemoController } from './controllers/demo.controller';
-import { AiMonitorsController } from './controllers/ai-monitors.controller';
-import { AiInsightsController } from './controllers/ai-insights.controller';
-import { AiScheduledJobsController } from './controllers/ai-scheduled-jobs.controller';
 import { AnnotationsController } from './controllers/annotations.controller';
 import { PublicController } from './controllers/public.controller';
-import { NotificationsController } from './controllers/notifications.controller';
 import { AdminStatsController } from './controllers/admin-stats.controller';
 import { AdminUsersController } from './controllers/admin-users.controller';
 import { AdminProjectsController } from './controllers/admin-projects.controller';
@@ -95,12 +87,8 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     BillingModule,
     IngestionWarningsModule,
     DemoModule,
-    AiMonitorsModule,
-    AiInsightsModule,
-    AiScheduledJobsModule,
     AnnotationsModule,
     ShareTokensModule,
-    NotificationsModule,
     AdminModule,
   ],
   controllers: [
@@ -128,12 +116,8 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     BillingController,
     IngestionWarningsController,
     DemoController,
-    AiMonitorsController,
-    AiInsightsController,
-    AiScheduledJobsController,
     AnnotationsController,
     PublicController,
-    NotificationsController,
     AdminStatsController,
     AdminUsersController,
     AdminProjectsController,
