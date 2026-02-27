@@ -143,7 +143,7 @@ describe('queryFunnel — per-window exclusion', () => {
         { event_name: 'signup', label: 'Signup' },
         { event_name: 'purchase', label: 'Purchase' },
       ],
-      conversion_window_days: 0,
+      conversion_window_days: 14,
       conversion_window_value: windowMs / 1000,
       conversion_window_unit: 'second',
       date_from: dateOffset(-1),

@@ -259,9 +259,9 @@ describe('resolveWindowSeconds', () => {
       expect(result).toBe(86400);
     });
 
-    it('uses value/unit when conversion_window_days=0 and value/unit set', () => {
+    it('uses value/unit when both value/unit and conversion_window_days are set', () => {
       const result = resolveWindowSeconds({
-        conversion_window_days: 0,
+        conversion_window_days: 14,
         conversion_window_value: 10,
         conversion_window_unit: 'second',
       });
