@@ -527,6 +527,142 @@ describe('countCohortMembers — not_performed_event_sequence', () => {
   });
 });
 
+// ── event_sequence — sub-second precision ────────────────────────────────────
+
+describe('countCohortMembers — event_sequence sub-second precision', () => {
+  it('detects correct order when events are 50ms apart (within same second)', async () => {
+    const projectId = randomUUID();
+    const user = randomUUID();
+
+    // Two events within the same second, 50ms apart: step1 first, step2 second
+    const baseTime = Date.now() - DAY_MS;
+    const step1Time = new Date(baseTime).toISOString();         // e.g. ...T12:00:00.000Z
+    const step2Time = new Date(baseTime + 50).toISOString();    // e.g. ...T12:00:00.050Z
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'subsecond',
+        event_name: 'step_a',
+        user_properties: JSON.stringify({ role: 'tester' }),
+        timestamp: step1Time,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'subsecond',
+        event_name: 'step_b',
+        user_properties: JSON.stringify({ role: 'tester' }),
+        timestamp: step2Time,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'event_sequence',
+          steps: [{ event_name: 'step_a' }, { event_name: 'step_b' }],
+          time_window_days: 7,
+        },
+      ],
+    });
+
+    // With millisecond precision: step_a (T+0ms) before step_b (T+50ms) → match
+    expect(count).toBe(1);
+  });
+
+  it('rejects wrong order when events are 50ms apart (within same second)', async () => {
+    const projectId = randomUUID();
+    const user = randomUUID();
+
+    // Two events within the same second, but step_b before step_a
+    const baseTime = Date.now() - DAY_MS;
+    const step2First = new Date(baseTime).toISOString();        // step_b at T+0ms
+    const step1Second = new Date(baseTime + 50).toISOString();  // step_a at T+50ms
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'subsecond-rev',
+        event_name: 'step_b',
+        user_properties: JSON.stringify({ role: 'tester' }),
+        timestamp: step2First,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'subsecond-rev',
+        event_name: 'step_a',
+        user_properties: JSON.stringify({ role: 'tester' }),
+        timestamp: step1Second,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'event_sequence',
+          steps: [{ event_name: 'step_a' }, { event_name: 'step_b' }],
+          time_window_days: 7,
+        },
+      ],
+    });
+
+    // Wrong order: step_b (T+0ms) before step_a (T+50ms) → no match
+    expect(count).toBe(0);
+  });
+});
+
+// ── not_performed_event_sequence — sub-second precision ─────────────────────
+
+describe('countCohortMembers — not_performed_event_sequence sub-second precision', () => {
+  it('excludes person who completed sequence with 50ms gap (sub-second)', async () => {
+    const projectId = randomUUID();
+    const user = randomUUID();
+
+    const baseTime = Date.now() - DAY_MS;
+    const step1Time = new Date(baseTime).toISOString();
+    const step2Time = new Date(baseTime + 50).toISOString();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'subsecond-np',
+        event_name: 'view',
+        user_properties: JSON.stringify({ role: 'tester' }),
+        timestamp: step1Time,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'subsecond-np',
+        event_name: 'buy',
+        user_properties: JSON.stringify({ role: 'tester' }),
+        timestamp: step2Time,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'not_performed_event_sequence',
+          steps: [{ event_name: 'view' }, { event_name: 'buy' }],
+          time_window_days: 7,
+        },
+      ],
+    });
+
+    // Sequence completed (view at T+0ms, buy at T+50ms) → excluded from "not performed"
+    expect(count).toBe(0);
+  });
+});
+
 // ── performed_regularly ───────────────────────────────────────────────────────
 
 describe('countCohortMembers — performed_regularly', () => {
