@@ -817,3 +817,157 @@ describe('countCohortMembers — multi-substring operators', () => {
     expect(count).toBe(1);
   });
 });
+
+// ── Date operator: epoch false-positive (Bug #585) ──────────────────────────
+//
+// parseDateTimeBestEffortOrZero("premium") returns 1970-01-01 00:00:00 (epoch).
+// Without the epoch guard, is_date_before('2020-01-01') would produce:
+//   1970-01-01 < 2020-01-01 = true  →  false positive.
+//
+// The fix wraps date comparisons with:
+//   parseDateTimeBestEffortOrZero(expr) != toDateTime(0) AND ...
+// so non-date strings (like "premium") never match.
+
+describe('countCohortMembers — date operator epoch false-positive guard (Bug #585)', () => {
+  it('is_date_before: user with non-date string property does NOT match (no epoch false positive)', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      // User with a non-date string property — parseDateTimeBestEffortOrZero("premium") = epoch.
+      // Before the fix this would match is_date_before('2020-01-01') because 1970-01-01 < 2020-01-01.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'non-date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: 'premium' }),
+        timestamp,
+      }),
+      // User with a valid early date — must still match.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'valid-early-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2018-05-01' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_before', value: '2020-01-01' },
+      ],
+    });
+
+    // Only valid-early-user qualifies (2018-05-01 < 2020-01-01).
+    // non-date-user must NOT match despite parseDateTimeBestEffortOrZero("premium") returning epoch.
+    expect(count).toBe(1);
+  });
+
+  it('is_date_after: user with non-date string property does NOT match (no epoch false positive)', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      // Non-date user — parseDateTimeBestEffortOrZero("enterprise") = epoch.
+      // Without the guard, is_date_after('1960-01-01') would be: 1970-01-01 > 1960-01-01 = true (false positive).
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'non-date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: 'enterprise' }),
+        timestamp,
+      }),
+      // Valid recent user — must match is_date_after('1960-01-01').
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'valid-recent-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2023-08-10' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_after', value: '1960-01-01' },
+      ],
+    });
+
+    // Only valid-recent-user qualifies.
+    // non-date-user must NOT match even though epoch (1970) > 1960.
+    expect(count).toBe(1);
+  });
+
+  it('is_date_exact: user with non-date string property does NOT match (no epoch false positive)', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      // Non-date user.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'non-date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: 'free' }),
+        timestamp,
+      }),
+      // Valid user with a real date that does not match — must not be included.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'valid-nonmatching-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2022-06-15' }),
+        timestamp,
+      }),
+    ]);
+
+    // Query: is_date_exact '1970-01-01'.
+    // non-date-user: parseDateTimeBestEffortOrZero("free") = epoch, BUT the epoch guard
+    // (parseDateTimeBestEffortOrZero(expr) != toDateTime(0)) excludes it.
+    // valid-nonmatching-user: 2022-06-15 != 1970-01-01, excluded by comparison.
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_exact', value: '1970-01-01' },
+      ],
+    });
+
+    // Both users are excluded: non-date-user by epoch guard, valid-nonmatching-user by comparison.
+    expect(count).toBe(0);
+  });
+
+  it('is_date_before with empty value returns 0 matches (no ClickHouse exception)', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'any-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2024-01-01' }),
+        timestamp,
+      }),
+    ]);
+
+    // Empty value — builder returns '1=0' (always-false), no parseDateTimeBestEffort call.
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'signup_date', operator: 'is_date_before', value: '' as any },
+      ],
+    });
+
+    expect(count).toBe(0);
+  });
+});
