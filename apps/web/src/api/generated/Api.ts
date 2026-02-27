@@ -220,8 +220,10 @@ export interface FunnelStep {
 
 export interface FunnelBreakdownStepResult {
   avg_time_to_convert_seconds: number | null;
-  /** Breakdown group value. Always present when breakdown is true. */
+  /** Unique breakdown group identifier. For cohort breakdowns this is the cohort UUID. */
   breakdown_value: string;
+  /** Human-readable display label for the breakdown group. Set for cohort breakdowns. */
+  breakdown_label?: string;
   step: number;
   label: string;
   event_name: string;
@@ -362,6 +364,8 @@ export interface TrendDataPoint {
 
 export interface TrendSeriesResult {
   breakdown_value?: string;
+  /** Human-readable display label for the breakdown group. Set for cohort breakdowns. */
+  breakdown_label?: string;
   series_idx: number;
   label: string;
   event_name: string;
