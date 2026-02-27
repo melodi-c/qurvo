@@ -62,10 +62,7 @@ BRANCH_NAME="fix/issue-<ISSUE_NUMBER>"
 BASE_BRANCH="main"  # или значение из промпта
 ```
 
-ЗАПРЕЩЕНО:
-- `git fetch origin main` — не синхронизировать с remote перед работой
-- `git push origin HEAD:<ветка>` — прямой пуш из worktree в origin запрещён
-- Создавать `git worktree add ...` — worktree уже существует
+> Деструктивные операции (push, fetch origin, worktree add/remove) заблокированы хуком `restrict-solver.sh`. Если команда rejected — не пытайся обойти, это by design: мерж и пуш делает оркестратор.
 
 ---
 
@@ -182,6 +179,19 @@ cd "$WORKTREE_PATH" && pnpm --filter @qurvo/web build-storybook
 
 Docker build — **пропускай**. Docker-верификация выполняется на уровне CI после мержа, не в solver.
 
+### 4.4 Lint
+
+Запусти eslint на изменённых файлах:
+```bash
+cd "$WORKTREE_PATH"
+CHANGED_FILES=$(git diff --name-only "$BASE_BRANCH"...HEAD -- '*.ts' '*.tsx' | tr '\n' ' ')
+if [ -n "$CHANGED_FILES" ]; then
+  pnpm exec eslint --no-error-on-unmatched-pattern --fix $CHANGED_FILES || true
+  # Если eslint --fix что-то поправил — добавь в коммит
+  git diff --quiet || { git add -u && git commit -m "chore: eslint auto-fix"; }
+fi
+```
+
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
 ```bash
 cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/api && pnpm swagger:generate && pnpm generate-api
@@ -224,6 +234,8 @@ run_in_background: false
 prompt: |
   WORKTREE_PATH: <абсолютный путь к worktree, результат git rev-parse --show-toplevel>
   ISSUE_NUMBER: <номер>
+  ISSUE_TITLE: <заголовок issue>
+  ISSUE_BODY: <тело issue — первые 500 символов, чтобы reviewer понимал контекст задачи>
   AFFECTED_APPS: <список, например "apps/api, apps/web">
   BASE_BRANCH: <ветка, например "main">
 ```
@@ -285,24 +297,58 @@ cd "$WORKTREE_PATH" && git log --oneline "fix/issue-<ISSUE_NUMBER>" "^$BASE_BRAN
 ```
 
 ```bash
-gh issue close <ISSUE_NUMBER> --comment "$(cat <<'COMMENT'
+# Подготовь переменные для AGENT_META
+CHANGED_FILES=$(cd "$WORKTREE_PATH" && git diff --name-only "$BASE_BRANCH"...HEAD | tr '\n' ',')
+UNIT_PASSED=$(grep -oP '\d+(?= passed)' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | head -1 || echo "0")
+UNIT_FAILED=$(grep -oP '\d+(?= failed)' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | head -1 || echo "0")
+INT_PASSED=$(grep -oP '\d+(?= passed)' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | head -1 || echo "0")
+INT_FAILED=$(grep -oP '\d+(?= failed)' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | head -1 || echo "0")
+TOTAL_PASSED=$((UNIT_PASSED + INT_PASSED))
+TOTAL_FAILED=$((UNIT_FAILED + INT_FAILED))
+
+gh issue close <ISSUE_NUMBER> --comment "$(cat <<COMMENT
 ## ✅ Реализовано
 
 ### Что сделано
-- ...
+- <конкретное изменение 1>
+- <конкретное изменение 2>
 
 ### Результаты проверок
 | Проверка | Статус | Детали |
 |---------|--------|--------|
-| Unit tests | ✅ ... | ... |
-| Integration tests | ✅ ... | ... |
+| Unit tests | <✅/❌> $UNIT_PASSED passed, $UNIT_FAILED failed | ... |
+| Integration tests | <✅/❌> $INT_PASSED passed, $INT_FAILED failed | ... |
 | Build | ✅ Успешно | turbo build |
-| Code review | ✅ APPROVE | 1 итерация |
+| Code review | ✅ APPROVE | <N> итераций |
 
 ### Коммиты
-...
+<вставь вывод git log>
 
-Мерж в `<BASE_BRANCH>` выполнит оркестратор.
+Мерж в \`$BASE_BRANCH\` выполнит оркестратор.
+
+<!-- AGENT_META
+STATUS=SUCCESS
+BRANCH=fix/issue-<ISSUE_NUMBER>
+FILES=$CHANGED_FILES
+TESTS_PASSED=$TOTAL_PASSED
+TESTS_FAILED=$TOTAL_FAILED
+BUILD=ok
+REVIEW=<APPROVE или REQUEST_CHANGES>
+-->
+COMMENT
+)"
+```
+
+**При FAILED или NEEDS_USER_INPUT** — тоже добавляй AGENT_META в комментарий:
+```bash
+gh issue comment <ISSUE_NUMBER> --body "$(cat <<COMMENT
+Не удалось завершить: <причина>.
+
+<!-- AGENT_META
+STATUS=FAILED
+BRANCH=fix/issue-<ISSUE_NUMBER>
+FAIL_REASON=<причина>
+-->
 COMMENT
 )"
 ```
@@ -328,7 +374,7 @@ STATUS: NEEDS_USER_INPUT | Задача слишком сложная для а�
 - Попытайся исправить (максимум 3 итерации)
 - НЕ зацикливайся, НЕ делай деструктивных операций
 - Если исправить не удалось:
-  1. `gh issue comment <ISSUE_NUMBER> --body "Не удалось завершить: <причина>."`
+  1. Опубликуй комментарий с AGENT_META (используй шаблон FAILED из Шага 4.9)
   2. `gh issue edit <ISSUE_NUMBER> --add-label "blocked"` (если лейбл существует)
   3. Верни: STATUS: FAILED | <конкретная причина>
 

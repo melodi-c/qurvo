@@ -1,7 +1,7 @@
 ---
 name: issue-decomposer
 description: "Принимает крупный/размытый GitHub issue, читает реальный код и возвращает список атомарных sub-issues готовых к созданию."
-model: inherit
+model: sonnet
 color: yellow
 tools: Read, Grep, Glob, Bash
 ---

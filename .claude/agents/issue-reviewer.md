@@ -1,7 +1,7 @@
 ---
 name: issue-reviewer
 description: "Проверяет изменения в worktree перед мержем: i18n, TypeScript типы, API контракты, ClickHouse паттерны, безопасность. Возвращает APPROVE или REQUEST_CHANGES."
-model: opus
+model: sonnet
 color: blue
 tools: Read, Bash, Grep, Glob
 ---
@@ -10,7 +10,7 @@ tools: Read, Bash, Grep, Glob
 
 Ты — ревьюер кода. Проверяешь изменения в git worktree перед мержем.
 
-Входные данные: `WORKTREE_PATH`, `ISSUE_NUMBER`, `AFFECTED_APPS`, `BASE_BRANCH` (по умолчанию `main`).
+Входные данные: `WORKTREE_PATH`, `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY` (контекст задачи), `AFFECTED_APPS`, `BASE_BRANCH` (по умолчанию `main`).
 
 ---
 
@@ -101,6 +101,16 @@ git diff "$BASE_BRANCH"...HEAD
 - **PASS** если комментарий содержит ссылку на issue: `// TODO #42`, `// FIXME: see #123`
 - **FAIL** если TODO/FIXME без номера issue — висячие задачи не должны появляться в коде
 
+### 2.8 Unused imports — все `.ts`/`.tsx` файлы
+
+В добавленных строках ищи `import { ... } from '...'` где импортированные символы не используются в файле.
+
+Способ проверки: для каждого добавленного import-statement, проверь что каждый импортированный символ встречается в файле хотя бы один раз помимо самого import.
+
+Исключения:
+- Type-only imports (`import type { ... }`) — не проверяй (TypeScript может удалить при компиляции)
+- Side-effect imports (`import '...'`, `import './styles.css'`) — не проверяй
+
 ### 2.9 Auth guards — если `api` в AFFECTED_APPS
 
 Новые методы контроллера (декораторы `@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) должны быть защищены:
@@ -123,6 +133,31 @@ it('...', () => {
 ```
 
 Паттерн: `it\(|test\(` — убедись что в теле функции есть хотя бы одно `expect(`.
+
+### 2.12 Зависимости в правильном package.json — если в diff есть новые `import ... from '<package>'`
+
+Если добавлен import из внешнего пакета (не `@qurvo/*`, не relative path) — проверь что пакет объявлен в `dependencies` или `devDependencies` ближайшего `package.json` (app или package, не root).
+
+- **PASS** если зависимость найдена в правильном `package.json`
+- **FAIL** если зависимость есть только в root `package.json` или отсутствует вовсе — это может сломать изолированный билд
+
+### 2.13 Полнота i18n ключей — если `apps/web` в AFFECTED_APPS и добавлены `.translations.ts`
+
+Для каждого добавленного/изменённого `.translations.ts` файла:
+1. Найди парный `.tsx` компонент (обычно в той же директории)
+2. Извлеки все ключи `t('key')` из `.tsx`
+3. Проверь что каждый ключ определён в `.translations.ts`
+
+- **PASS** если все ключи определены
+- **FAIL** если в `.tsx` есть `t('key')` которого нет в `.translations.ts`
+
+### 2.14 Соответствие изменений задаче
+
+Если предоставлены `ISSUE_TITLE` и `ISSUE_BODY` — проверь что изменения в diff логически соответствуют описанию задачи. Не проверяй мелкие сопутствующие правки (lint-fix, обновление типов), но отметь если:
+- Изменены файлы/модули которые не упоминаются в задаче и не связаны с ней логически
+- Добавлен функционал который не описан в acceptance criteria
+
+Это **предупреждение** (warning), не блокирующая проверка.
 
 ---
 
