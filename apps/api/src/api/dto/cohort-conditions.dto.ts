@@ -10,6 +10,7 @@ import {
   IsArray,
   ValidateNested,
   ArrayMinSize,
+  ArrayMaxSize,
   IsBoolean,
   IsUUID,
 } from 'class-validator';
@@ -318,6 +319,7 @@ export class CohortConditionGroupDto {
 
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(20)
   @ValidateNested({ each: true })
   @Type(() => Object, {
     discriminator: {
