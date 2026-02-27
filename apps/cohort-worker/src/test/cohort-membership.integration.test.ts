@@ -567,6 +567,91 @@ describe('cohort membership', () => {
     await ctx.redis.del(COHORT_LOCK_KEY);
   });
 
+  it('markComputationSuccess — stale write is rejected when newer version already stored', async () => {
+    const projectId = testProject.projectId;
+    const uniquePlan = `stale_version_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: `coh-stale-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Stale Version Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    const newerVersion = Date.now() + 100_000; // future timestamp — simulates newer worker
+    const staleVersion = Date.now() - 100_000; // past timestamp — simulates older worker
+
+    // Newer worker wins the PG update first
+    const newOk = await computation.markComputationSuccess(cohortId, newerVersion);
+    expect(newOk).toBe(true);
+
+    // Confirm PG has the newer version
+    const [rowAfterNew] = await ctx.db
+      .select({ membership_version: cohorts.membership_version })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowAfterNew.membership_version).toBe(newerVersion);
+
+    // Stale worker tries to overwrite — should be rejected
+    const staleOk = await computation.markComputationSuccess(cohortId, staleVersion);
+    expect(staleOk).toBe(false);
+
+    // PG must still hold the newer version (not overwritten by stale)
+    const [rowAfterStale] = await ctx.db
+      .select({ membership_version: cohorts.membership_version })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowAfterStale.membership_version).toBe(newerVersion);
+  });
+
+  it('markComputationSuccess — first write (null version) succeeds', async () => {
+    const projectId = testProject.projectId;
+    const uniquePlan = `null_version_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: `coh-nullver-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Null Version Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    // Cohort starts with membership_version = null
+    const [rowBefore] = await ctx.db
+      .select({ membership_version: cohorts.membership_version })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowBefore.membership_version).toBeNull();
+
+    // First write — should succeed even when membership_version IS NULL
+    const version = Date.now();
+    const ok = await computation.markComputationSuccess(cohortId, version);
+    expect(ok).toBe(true);
+
+    const [rowAfter] = await ctx.db
+      .select({ membership_version: cohorts.membership_version })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowAfter.membership_version).toBe(version);
+  });
+
   it('waitUntilFinished timeout — cycle completes and recordError is called', async () => {
     const projectId = testProject.projectId;
     const personId = randomUUID();
