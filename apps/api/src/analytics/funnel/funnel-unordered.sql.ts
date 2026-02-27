@@ -4,6 +4,7 @@ import {
   buildStepCondition,
   buildExclusionColumns,
   buildExcludedUsersCTE,
+  funnelTsExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -29,6 +30,8 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
 } {
   const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr } = options;
   const sentinel = 'toInt64(9007199254740992)';
+  const fromExpr = funnelTsExpr('from', queryParams);
+  const toExpr = funnelTsExpr('to', queryParams);
 
   const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams));
 
@@ -74,8 +77,8 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
       FROM events
       WHERE
         project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
+        AND timestamp >= ${fromExpr}
+        AND timestamp <= ${toExpr}
         AND event_name IN ({all_event_names:Array(String)})${cohortClause}${samplingClause}
       GROUP BY person_id
     ),
