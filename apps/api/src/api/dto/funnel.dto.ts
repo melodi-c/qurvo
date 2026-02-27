@@ -29,9 +29,14 @@ import {
 } from './shared/breakdown-validators';
 
 /**
- * Class-level decorator that rejects simultaneous use of `conversion_window_days`
- * (explicitly set to a non-default value) together with `conversion_window_value/unit`.
- * Passing both is ambiguous — exactly one mechanism should be used per request.
+ * Class-level decorator that validates conversion window fields.
+ * When conversion_window_value/unit is provided, it takes precedence over
+ * conversion_window_days (which is always present due to being a required field
+ * with a default of 14). No conflict error is raised — value/unit simply wins.
+ *
+ * The only validation performed here is that value and unit must be provided
+ * together (not one without the other) — but that's already handled by
+ * resolveWindowSeconds(), so this decorator is now a no-op pass-through.
  */
 function ConversionWindowMutuallyExclusive(validationOptions?: ValidationOptions) {
   return function (target: object) {
@@ -44,17 +49,10 @@ function ConversionWindowMutuallyExclusive(validationOptions?: ValidationOptions
         ...validationOptions,
       },
       validator: {
-        validate(_value: unknown, args: ValidationArguments) {
-          const obj = args.object as Record<string, unknown>;
-          const days = obj['conversion_window_days'];
-          const hasNonDefaultDays =
-            typeof days === 'number' && days !== 14;
-          const hasValueUnit =
-            obj['conversion_window_value'] != null ||
-            (typeof obj['conversion_window_unit'] === 'string' &&
-              obj['conversion_window_unit'].length > 0);
-          // Valid when not both non-default days + value/unit are present
-          return !(hasNonDefaultDays && hasValueUnit);
+        validate(_value: unknown, _args: ValidationArguments) {
+          // conversion_window_value/unit takes precedence when provided.
+          // No conflict with conversion_window_days — it is simply ignored.
+          return true;
         },
       },
     });

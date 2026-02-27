@@ -373,7 +373,7 @@ describe('FunnelQueryDto — conversion_window_days vs conversion_window_value/u
     expect(errors).toHaveLength(0);
   });
 
-  it('rejects when conversion_window_days=7 (non-default) and conversion_window_value/unit are both set', async () => {
+  it('accepts when conversion_window_days=7 (non-default) and conversion_window_value/unit are both set — value/unit takes precedence', async () => {
     const errors = await validateFunnelQueryDto(
       minimalFunnelQueryDto({
         conversion_window_days: 7,
@@ -381,12 +381,10 @@ describe('FunnelQueryDto — conversion_window_days vs conversion_window_value/u
         conversion_window_unit: 'minute',
       }),
     );
-    expect(
-      errors.some((msg) => msg.includes('conversion_window_days')),
-    ).toBe(true);
+    expect(errors).toHaveLength(0);
   });
 
-  it('rejects when conversion_window_days=1 (minimum non-default) and value/unit set', async () => {
+  it('accepts when conversion_window_days=1 (minimum non-default) and value/unit set — value/unit takes precedence', async () => {
     const errors = await validateFunnelQueryDto(
       minimalFunnelQueryDto({
         conversion_window_days: 1,
@@ -394,7 +392,7 @@ describe('FunnelQueryDto — conversion_window_days vs conversion_window_value/u
         conversion_window_unit: 'hour',
       }),
     );
-    expect(errors.length).toBeGreaterThan(0);
+    expect(errors).toHaveLength(0);
   });
 });
 
