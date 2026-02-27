@@ -212,6 +212,8 @@ AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 BASE_BRANCH: feature/issue-{PARENT_NUMBER}
 ```
 
+> **Примечание**: если `AFFECTED_APPS` содержит `apps/web` и issue (title/body) упоминает `.stories.tsx` файлы — issue-solver автоматически запустит `pnpm --filter @qurvo/web build-storybook` как часть DoD (шаг 4.3 Build). Дополнительных инструкций в промпте не нужно.
+
 ### 5.3 Финализация parent issue
 
 После успешного завершения ВСЕХ sub-issues одного parent — оркестратор сам мержит feature branch в main и закрывает parent issue:
