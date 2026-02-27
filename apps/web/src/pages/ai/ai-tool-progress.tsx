@@ -3,6 +3,7 @@ import { Loader2, TrendingUp, Filter, Users, Activity, Zap, GitBranch, List, Boo
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './ai-tool-progress.translations';
+import { formatShortDateRange } from '@/lib/formatting';
 
 interface AiToolProgressProps {
   toolName: string;
@@ -22,17 +23,10 @@ const TOOL_ICONS: Record<string, React.ElementType> = {
   save_to_dashboard: PlusSquare,
 };
 
-function formatDateRange(from: unknown, to: unknown): string | null {
-  if (typeof from !== 'string' || typeof to !== 'string') return null;
-  const fShort = from.slice(5); // MM-DD
-  const tShort = to.slice(5);
-  return `${fShort} – ${tShort}`;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: any, vars?: Record<string, string>) => string): string[] {
   const details: string[] = [];
-  const dateRange = formatDateRange(args.date_from, args.date_to);
+  const dateRange = formatShortDateRange(args.date_from, args.date_to);
 
   switch (toolName) {
     case 'query_trend': {
