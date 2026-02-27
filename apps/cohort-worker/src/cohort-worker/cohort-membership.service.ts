@@ -120,8 +120,14 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
       const pendingDeletions: Array<{ cohortId: string; version: number }> = [];
 
       for (const level of levels) {
-        // Extend lock TTL before processing each level
-        await this.lock.extend().catch(() => {});
+        // Extend lock TTL before processing each level.
+        // If extend() returns false, another instance acquired the lock — stop immediately
+        // to prevent dual-write race on cohort_members and membership_version.
+        const extended = await this.lock.extend().catch(() => false);
+        if (!extended) {
+          this.logger.warn('Lock lost during cohort cycle — aborting remaining levels');
+          break;
+        }
 
         // Enqueue all cohorts in this level for parallel computation.
         // Use cohortId-based job IDs to avoid collisions when multiple cohorts
@@ -163,7 +169,8 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
         );
 
         // Collect results
-        for (const r of results) {
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
           if (r.status === 'fulfilled') {
             const result = r.value as ComputeJobResult;
             computed += result.success ? 1 : 0;
@@ -171,8 +178,19 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
             if (result.success && result.version !== undefined) {
               pendingDeletions.push({ cohortId: result.cohortId, version: result.version });
             }
+          } else {
+            // rejected = framework-level Bull/Redis error or timeout that wasn't caught above.
+            // Map index back to cohort_id so recordError increments errors_calculating
+            // and error backoff kicks in on subsequent cycles.
+            const cohortId = jobs[i].data.cohortId;
+            this.logger.error(
+              { err: r.reason, cohortId, jobId: jobs[i].id },
+              'Cohort compute job rejected unexpectedly',
+            );
+            await this.computation
+              .recordError(cohortId, r.reason)
+              .catch(() => {});
           }
-          // rejected = job threw unexpectedly or timed out
         }
       }
 

@@ -187,9 +187,10 @@ export class CohortComputationService {
     const allDynamicIds = allDynamic.map((c) => c.id);
 
     if (allDynamicIds.length === 0) {
-      // No dynamic cohorts exist — all cohort_members rows are orphans
-      await this.ch.command({ query: `ALTER TABLE cohort_members DELETE WHERE 1 = 1` });
-      this.logger.debug('Orphan GC: deleted all cohort_members (no dynamic cohorts in PG)');
+      // No dynamic cohorts in PG. This could be a legitimate empty state or a race condition
+      // (cohorts just deleted from PG while their CH rows were freshly inserted).
+      // Skipping rather than deleting all rows prevents data loss in the race scenario.
+      this.logger.debug('Orphan GC: skipped — no dynamic cohorts in PG');
       return;
     }
 
