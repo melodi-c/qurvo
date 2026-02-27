@@ -405,6 +405,9 @@ importers:
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
+      '@qurvo/heartbeat':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/heartbeat
       '@qurvo/nestjs-infra':
         specifier: workspace:*
         version: link:../../packages/@qurvo/nestjs-infra

@@ -176,6 +176,23 @@ monitor-worker:
     SMTP_FROM: ""
 
 # ==============================================================================
+# Insights Worker
+# ==============================================================================
+insights-worker:
+  enabled: true
+  image:
+    repository: "insights-worker"
+    tag: ""
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ==============================================================================
 # Scheduled Jobs Worker
 # ==============================================================================
 scheduled-jobs-worker:

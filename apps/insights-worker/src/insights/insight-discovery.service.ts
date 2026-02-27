@@ -1,6 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
+import { Heartbeat } from '@qurvo/heartbeat';
 import { projects, aiInsights } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import type { AiInsightType } from '@qurvo/db';
@@ -13,6 +14,9 @@ import {
   RETENTION_ANOMALY_THRESHOLD,
   CONVERSION_CORRELATION_LIFT_THRESHOLD,
   CONVERSION_CORRELATION_MIN_SAMPLE,
+  HEARTBEAT_PATH,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_LOOP_STALE_MS,
 } from '../constants';
 
 interface MetricChangeRow {
@@ -52,9 +56,10 @@ interface ConversionCorrelationRow {
 }
 
 @Injectable()
-export class InsightDiscoveryService extends PeriodicWorkerMixin {
+export class InsightDiscoveryService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
   protected readonly intervalMs = INSIGHTS_INTERVAL_MS;
   protected readonly initialDelayMs = INSIGHTS_INITIAL_DELAY_MS;
+  private readonly heartbeat: Heartbeat;
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -62,10 +67,27 @@ export class InsightDiscoveryService extends PeriodicWorkerMixin {
     @InjectPinoLogger(InsightDiscoveryService.name) protected readonly logger: PinoLogger,
   ) {
     super();
+    this.heartbeat = new Heartbeat({
+      path: HEARTBEAT_PATH,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      staleMs: HEARTBEAT_LOOP_STALE_MS,
+      onStale: (loopAge) => this.logger.warn({ loopAge }, 'Insights-worker loop stale, skipping heartbeat'),
+    });
+  }
+
+  override onApplicationBootstrap() {
+    super.onApplicationBootstrap();
+    this.heartbeat.start();
+  }
+
+  override async stop(): Promise<void> {
+    await super.stop();
+    this.heartbeat.stop();
   }
 
   /** @internal — exposed for integration tests */
   async runCycle(): Promise<void> {
+    this.heartbeat.touch();
     const allProjects = await this.db.select({ id: projects.id }).from(projects);
 
     this.logger.info({ count: allProjects.length }, 'Starting insight discovery cycle');

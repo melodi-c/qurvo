@@ -1,3 +1,9 @@
+// ── Heartbeat ─────────────────────────────────────────────────────────────────
+export const HEARTBEAT_PATH = '/tmp/insights-worker.heartbeat';
+export const HEARTBEAT_INTERVAL_MS = 15_000;
+// insights cycle runs every 24h; allow up to 25h before considering the loop stale
+export const HEARTBEAT_LOOP_STALE_MS = 25 * 60 * 60 * 1000;
+
 // Run once every 24 hours
 export const INSIGHTS_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
