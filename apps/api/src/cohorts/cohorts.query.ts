@@ -21,14 +21,20 @@ async function queryCount(
 
 /**
  * Counts the number of unique persons matching a cohort definition (inline).
+ *
+ * @param resolveCohortIsStatic - Optional callback that returns whether a
+ *   referenced cohort ID is static. Used when the definition contains nested
+ *   `{ type: 'cohort', cohort_id }` conditions and the `is_static` flag has
+ *   not already been enriched on those conditions by the service layer.
  */
 export async function countCohortMembers(
   ch: ClickHouseClient,
   projectId: string,
   definition: CohortConditionGroup,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): Promise<number> {
   const params: Record<string, unknown> = { project_id: projectId };
-  const subquery = buildCohortSubquery(definition, 0, 'project_id', params);
+  const subquery = buildCohortSubquery(definition, 0, 'project_id', params, resolveCohortIsStatic);
   return queryCount(ch, `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`, params);
 }
 

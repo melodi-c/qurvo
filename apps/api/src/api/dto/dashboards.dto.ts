@@ -92,6 +92,8 @@ export class TrendWidgetConfigDto {
   date_from: string;
   date_to: string;
   @ApiPropertyOptional() breakdown_property?: string;
+  @ApiPropertyOptional({ enum: ['property', 'cohort'] }) breakdown_type?: 'property' | 'cohort';
+  @ApiPropertyOptional({ type: [String] }) breakdown_cohort_ids?: string[];
   compare: boolean;
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
   @ApiPropertyOptional({ type: [TrendFormulaDto] }) formulas?: TrendFormulaDto[];
