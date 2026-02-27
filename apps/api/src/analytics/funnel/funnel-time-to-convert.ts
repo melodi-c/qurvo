@@ -34,6 +34,20 @@ interface TtcChQueryParams extends FunnelChQueryParams {
   window_seconds: number;
 }
 
+/** Maximum number of bins in the histogram. */
+const MAX_BINS = 60;
+
+/**
+ * Compute histogram bins entirely in ClickHouse, avoiding the V8 stack overflow
+ * that occurs when spreading large arrays into Math.min / Math.max.
+ *
+ * The approach:
+ *   1. One CTE computes per-person duration_seconds.
+ *   2. A second CTE calculates min, max, sample_size, avg, median — all server-side.
+ *   3. The outer query groups converted users into bins using floor arithmetic,
+ *      so no timing array is ever transferred to Node.js.
+ */
+
 export async function queryFunnelTimeToConvert(
   ch: ClickHouseClient,
   params: TimeToConvertParams,
@@ -84,18 +98,24 @@ export async function queryFunnelTimeToConvert(
   const fromCol = `step_${fromStep}_ms`;
   const toCol = `step_${toStep}_ms`;
 
-  const sql = `
+  // Phase 1: fetch aggregate stats (avg, median, min, max, count) without pulling
+  // every individual timing into Node.js. This avoids the V8 spread-argument stack
+  // overflow that occurs for Math.min(...array) / Math.max(...array) when the array
+  // exceeds ~100k elements.
+  const statsSql = `
     SELECT
       avg_seconds,
       median_seconds,
       toInt64(sample_size) AS sample_size,
-      timings
+      min_seconds,
+      max_seconds
     FROM (
       SELECT
         avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
         quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
         countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS sample_size,
-        groupArrayIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS timings
+        minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
+        maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds
       FROM (
         SELECT
           (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
@@ -117,39 +137,83 @@ export async function queryFunnelTimeToConvert(
     )
   `;
 
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  const rows = await result.json<{
+  const statsResult = await ch.query({ query: statsSql, query_params: queryParams, format: 'JSONEachRow' });
+  const statsRows = await statsResult.json<{
     avg_seconds: string | null;
     median_seconds: string | null;
     sample_size: string;
-    timings: number[];
+    min_seconds: string | null;
+    max_seconds: string | null;
   }>();
 
-  const row = rows[0];
-  const sampleSize = Number(row?.sample_size ?? 0);
+  const statsRow = statsRows[0];
+  const sampleSize = Number(statsRow?.sample_size ?? 0);
 
-  if (sampleSize === 0 || !row?.timings?.length) {
+  if (sampleSize === 0) {
     return { from_step: fromStep, to_step: toStep, average_seconds: null, median_seconds: null, sample_size: 0, bins: [] };
   }
 
-  const timings = row.timings;
-  const avgSeconds = row.avg_seconds != null ? Math.round(Number(row.avg_seconds)) : null;
-  const medianSeconds = row.median_seconds != null ? Math.round(Number(row.median_seconds)) : null;
+  const avgSeconds = statsRow.avg_seconds != null ? Math.round(Number(statsRow.avg_seconds)) : null;
+  const medianSeconds = statsRow.median_seconds != null ? Math.round(Number(statsRow.median_seconds)) : null;
+  const minVal = Number(statsRow.min_seconds ?? 0);
+  const maxVal = Number(statsRow.max_seconds ?? 0);
 
-  const binCount = Math.max(1, Math.min(60, Math.ceil(Math.cbrt(timings.length))));
-  const minVal = Math.min(...timings);
-  const maxVal = Math.max(...timings);
+  // Determine bin parameters (same formula as before, now computed from server-side min/max).
+  const binCount = Math.max(1, Math.min(MAX_BINS, Math.ceil(Math.cbrt(sampleSize))));
   const range = maxVal - minVal;
   const binWidth = range === 0 ? 60 : Math.max(1, Math.ceil(range / binCount));
+
+  // Phase 2: compute histogram bins entirely in ClickHouse — O(n) server-side scan,
+  // zero per-timing data transferred to Node.js, no in-memory O(n × binCount) filtering.
+  const binsSql = `
+    SELECT
+      toInt64(bin_idx) AS bin_idx,
+      toInt64(count()) AS bin_count
+    FROM (
+      SELECT
+        greatest(0, least(
+          toInt64(${binCount - 1}),
+          toInt64(floor((duration_seconds - ${minVal}) / ${binWidth}))
+        )) AS bin_idx
+      FROM (
+        SELECT
+          (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
+        FROM (
+          SELECT
+            ${RESOLVED_PERSON} AS person_id,
+            ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
+            ${stepTimestampCols}
+          FROM events
+          WHERE
+            project_id = {project_id:UUID}
+            AND timestamp >= {from:DateTime64(3)}
+            AND timestamp <= {to:DateTime64(3)}
+            AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
+          GROUP BY person_id
+        )
+        WHERE max_step >= {to_step_num:UInt64}
+      )
+      WHERE duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}
+    )
+    GROUP BY bin_idx
+    ORDER BY bin_idx
+  `;
+
+  const binsResult = await ch.query({ query: binsSql, query_params: queryParams, format: 'JSONEachRow' });
+  const binsRows = await binsResult.json<{ bin_idx: string; bin_count: string }>();
+
+  // Build dense bin array (fill gaps with count=0).
+  const binCountByIdx = new Map<number, number>();
+  for (const r of binsRows) {
+    binCountByIdx.set(Number(r.bin_idx), Number(r.bin_count));
+  }
 
   const bins: TimeToConvertBin[] = [];
   for (let i = 0; i < binCount; i++) {
     const fromSec = Math.round(minVal + i * binWidth);
     const toSec = Math.round(minVal + (i + 1) * binWidth);
-    const isLast = i === binCount - 1;
-    const count = timings.filter((t: number) => t >= fromSec && (isLast ? t <= toSec : t < toSec)).length;
-    bins.push({ from_seconds: fromSec, to_seconds: toSec, count });
+    bins.push({ from_seconds: fromSec, to_seconds: toSec, count: binCountByIdx.get(i) ?? 0 });
   }
 
-  return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: timings.length, bins };
+  return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: sampleSize, bins };
 }
