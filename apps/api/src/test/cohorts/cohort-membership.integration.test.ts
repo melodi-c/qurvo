@@ -12,7 +12,7 @@ import {
   queryCohortSizeHistory,
 } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { materializeCohort } from './helpers';
+import { materializeCohort, insertStaticCohortMembers } from './helpers';
 
 let ctx: ContainerContext;
 
@@ -280,6 +280,94 @@ describe('countCohortMembers — cohort reference condition', () => {
     });
 
     expect(count).toBe(2); // personFreeA + personFreeB
+  });
+
+  it('static cohort ref (negated=false): reads from person_static_cohort', async () => {
+    const projectId = randomUUID();
+    const staticCohortId = randomUUID();
+    const personInStatic = randomUUID();
+    const personNotInStatic = randomUUID();
+
+    // Both persons appear in ClickHouse events (so they are visible)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personInStatic,
+        distinct_id: 'in-static',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personNotInStatic,
+        distinct_id: 'not-in-static',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    // Insert only personInStatic into the static cohort table
+    await insertStaticCohortMembers(ctx.ch, projectId, staticCohortId, [personInStatic]);
+
+    // Build definition with is_static pre-stamped (simulating service enrichment)
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [
+        { type: 'cohort', cohort_id: staticCohortId, negated: false, is_static: true },
+      ],
+    };
+
+    const count = await countCohortMembers(ctx.ch, projectId, definition);
+    expect(count).toBe(1); // only personInStatic
+  });
+
+  it('static cohort ref (negated=true): excludes members of static cohort', async () => {
+    const projectId = randomUUID();
+    const staticCohortId = randomUUID();
+    const personInStatic = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personInStatic,
+        distinct_id: 'in-static',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    await insertStaticCohortMembers(ctx.ch, projectId, staticCohortId, [personInStatic]);
+
+    const definition: CohortConditionGroup = {
+      type: 'AND',
+      values: [
+        { type: 'cohort', cohort_id: staticCohortId, negated: true, is_static: true },
+      ],
+    };
+
+    const count = await countCohortMembers(ctx.ch, projectId, definition);
+    expect(count).toBe(2); // personA + personB
   });
 
   it('negated cohort AND property: intersects correctly', async () => {
