@@ -22,31 +22,35 @@ export function buildCohortRefConditionSubquery(
     const upperBound = resolveDateTo(ctx);
     const lowerBound = resolveDateFrom(ctx);
     /**
-     * Timestamp bounds for the negated cohort-ref:
+     * Negated cohort-ref: return all persons in the project who are NOT members
+     * of the referenced cohort.
      *
-     * Without bounds the query scans the entire `events` table for all time,
-     * which is both slow and semantically wrong — a user who had events years
-     * ago (but none in the current analysis window) would still appear in the
-     * negated set, producing incorrect funnel/trend results.
+     * The outer SELECT enumerates persons from the `events` table; the inner
+     * NOT IN subquery checks the cohort_members / person_static_cohort table.
      *
-     * When `ctx.dateFrom` and `ctx.dateTo` are set (funnel/trend context) we
-     * restrict to the exact `[dateFrom, dateTo]` window, matching the period
-     * being analysed.  When only `ctx.dateTo` is set we use `[dateTo - 0d,
-     * dateTo]` (effectively dateTo as both bounds), and when neither is set
-     * (cohort-worker recomputation) we use `[now64(3) - 0d, now64(3)]` — the
-     * bound still prevents full-history scans while keeping the cohort fresh.
+     * Timestamp bounds scope the outer scan:
+     *   - When both `dateFrom` and `dateTo` are set (funnel/trend context) we
+     *     restrict to the exact `[dateFrom, dateTo]` window, matching the
+     *     period being analysed.
+     *   - When only `dateTo` is set we restrict `timestamp <= dateTo` without
+     *     a lower bound — the caller wants "up to dateTo" semantics.
+     *   - When neither is set (cohort-worker recomputation, countCohortMembers)
+     *     we use `timestamp <= now64(3)` without a lower bound so that ALL
+     *     persons in the project are considered.
      *
-     * The lowerBound falls back to upperBound (no rolling window, just the
-     * upper boundary) because cohort-ref has no `time_window_days` concept —
-     * membership is determined by the cohort table, not by a time window.
+     * The previous logic fell back `lowerBound ?? upperBound`, creating a
+     * degenerate `[now, now]` window that captured zero events and always
+     * returned 0 persons.  Cohort-ref membership is determined by the cohort
+     * table, not by a time window, so a lower bound is only applied when
+     * explicitly provided via `ctx.dateFrom`.
      */
-    const lowerBoundExpr = lowerBound ?? upperBound;
+    const lowerClause = lowerBound ? `AND timestamp >= ${lowerBound}` : '';
     return `
       SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
       FROM events
       WHERE project_id = {${ctx.projectIdParam}:UUID}
-        AND timestamp >= ${lowerBoundExpr}
         AND timestamp <= ${upperBound}
+        ${lowerClause}
         AND ${RESOLVED_PERSON} NOT IN (${subquery})`;
   }
 
