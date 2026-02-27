@@ -194,6 +194,10 @@ export class CohortsService {
       definition: c.definition,
       materialized: c.membership_version !== null,
       is_static: c.is_static,
+      // Include membership_version so that analytics cache keys embed the
+      // current materialized snapshot version.  When cohort-worker increments
+      // this value the existing Redis cache entry is automatically bypassed.
+      membership_version: c.membership_version ?? null,
     }));
   }
 
@@ -208,6 +212,8 @@ export class CohortsService {
       is_static: c.is_static,
       materialized: c.membership_version !== null,
       definition: c.definition,
+      // Same cache-invalidation rationale as resolveCohortFilters above.
+      membership_version: c.membership_version ?? null,
     }));
   }
 

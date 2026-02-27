@@ -8,6 +8,13 @@ export interface CohortBreakdownEntry {
   is_static: boolean;
   materialized: boolean;
   definition: CohortConditionGroup;
+  /**
+   * Monotonically-increasing version token for materialized cohorts.
+   * Included in the cache key so that cohort-worker recomputation automatically
+   * invalidates any cached analytics result that used this cohort as a breakdown.
+   * Undefined / null for inline (non-materialized, non-static) cohorts.
+   */
+  membership_version?: number | null;
 }
 
 /**
