@@ -115,8 +115,10 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(365)
   // Mandatory when conversion_window_unit is set; otherwise optional.
   // Both fields must be provided together — validated at service level via resolveWindowSeconds().
+  // The resolved window (value * unit_seconds) must not exceed 90 days — enforced in resolveWindowSeconds().
   @IsOptional()
   conversion_window_value?: number;
 

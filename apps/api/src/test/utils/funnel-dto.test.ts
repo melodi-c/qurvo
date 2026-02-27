@@ -84,6 +84,43 @@ describe('FunnelExclusionDto — @Max(9) constraint', () => {
   });
 });
 
+describe('FunnelQueryDto — conversion_window_value @Max(365) constraint', () => {
+  it('accepts conversion_window_value = 1 with unit (minimum valid value)', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_value: 1, conversion_window_unit: 'day' }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts conversion_window_value = 365 (boundary maximum)', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_value: 365, conversion_window_unit: 'second' }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects conversion_window_value = 366 (exceeds @Max(365))', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_value: 366, conversion_window_unit: 'day' }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects conversion_window_value = 999999 (the reported attack vector)', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_value: 999999, conversion_window_unit: 'day' }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects conversion_window_value = 0 (below @Min(1))', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_value: 0, conversion_window_unit: 'day' }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
 describe('FunnelQueryDto — breakdown_cohort_ids / breakdown_property mutual exclusion', () => {
   it('accepts when only breakdown_property is provided', async () => {
     const errors = await validateFunnelQueryDto(

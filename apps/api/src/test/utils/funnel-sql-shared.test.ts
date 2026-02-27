@@ -45,6 +45,98 @@ describe('resolveWindowSeconds', () => {
     });
   });
 
+  describe('90-day limit enforcement — throws when resolved window exceeds 90 days', () => {
+    const MAX_SECONDS = 90 * 86400; // 7_776_000
+
+    it('throws when value=91, unit=day (91 days > 90 days)', () => {
+      expect(() =>
+        resolveWindowSeconds({
+          conversion_window_days: 14,
+          conversion_window_value: 91,
+          conversion_window_unit: 'day',
+        }),
+      ).toThrow(AppBadRequestException);
+    });
+
+    it('throws with descriptive message for oversized window', () => {
+      expect(() =>
+        resolveWindowSeconds({
+          conversion_window_days: 14,
+          conversion_window_value: 91,
+          conversion_window_unit: 'day',
+        }),
+      ).toThrow('exceeds the maximum allowed window of 90 days');
+    });
+
+    it('throws when value=999999, unit=day (the reported attack vector)', () => {
+      expect(() =>
+        resolveWindowSeconds({
+          conversion_window_days: 14,
+          conversion_window_value: 999999,
+          conversion_window_unit: 'day',
+        }),
+      ).toThrow(AppBadRequestException);
+    });
+
+    it('throws when value=13, unit=week (13 weeks = 91 days > 90)', () => {
+      expect(() =>
+        resolveWindowSeconds({
+          conversion_window_days: 14,
+          conversion_window_value: 13,
+          conversion_window_unit: 'week',
+        }),
+      ).toThrow(AppBadRequestException);
+    });
+
+    it('throws when value=4, unit=month (4 months = 120 days > 90)', () => {
+      expect(() =>
+        resolveWindowSeconds({
+          conversion_window_days: 14,
+          conversion_window_value: 4,
+          conversion_window_unit: 'month',
+        }),
+      ).toThrow(AppBadRequestException);
+    });
+
+    it('accepts exactly 90 days (value=90, unit=day)', () => {
+      const result = resolveWindowSeconds({
+        conversion_window_days: 14,
+        conversion_window_value: 90,
+        conversion_window_unit: 'day',
+      });
+      expect(result).toBe(MAX_SECONDS);
+    });
+
+    it('accepts value=12, unit=week (12 weeks = 84 days < 90)', () => {
+      const result = resolveWindowSeconds({
+        conversion_window_days: 14,
+        conversion_window_value: 12,
+        conversion_window_unit: 'week',
+      });
+      expect(result).toBe(12 * 604800);
+    });
+
+    it('accepts value=3, unit=month (3 months = 90 days = exactly 90)', () => {
+      // 3 * 2_592_000 = 7_776_000 = 90 days
+      const result = resolveWindowSeconds({
+        conversion_window_days: 14,
+        conversion_window_value: 3,
+        conversion_window_unit: 'month',
+      });
+      expect(result).toBe(MAX_SECONDS);
+    });
+
+    it('accepts large value with small unit (value=86400, unit=second = 1 day)', () => {
+      // 86400 seconds = exactly 1 day — well within limit
+      const result = resolveWindowSeconds({
+        conversion_window_days: 14,
+        conversion_window_value: 86400,
+        conversion_window_unit: 'second',
+      });
+      expect(result).toBe(86400);
+    });
+  });
+
   describe('partial pair — throws AppBadRequestException', () => {
     it('throws when conversion_window_unit is provided without conversion_window_value', () => {
       expect(() =>

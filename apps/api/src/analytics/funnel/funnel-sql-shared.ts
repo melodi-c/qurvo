@@ -71,9 +71,17 @@ export function resolveWindowSeconds(params: {
     );
   }
 
+  const MAX_WINDOW_SECONDS = 90 * 86400; // 90 days, same limit as conversion_window_days
+
   if (hasValue && hasUnit) {
     const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit!] ?? 86400;
-    return params.conversion_window_value! * multiplier;
+    const resolved = params.conversion_window_value! * multiplier;
+    if (resolved > MAX_WINDOW_SECONDS) {
+      throw new AppBadRequestException(
+        `conversion_window_value * conversion_window_unit exceeds the maximum allowed window of 90 days (${MAX_WINDOW_SECONDS} seconds). Got ${resolved} seconds.`,
+      );
+    }
+    return resolved;
   }
   return params.conversion_window_days * 86400;
 }
