@@ -56,9 +56,23 @@ export function resolveWindowSeconds(params: {
   conversion_window_value?: number;
   conversion_window_unit?: string;
 }): number {
-  if (params.conversion_window_value != null && params.conversion_window_unit) {
-    const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit] ?? 86400;
-    return params.conversion_window_value * multiplier;
+  const hasValue = params.conversion_window_value != null;
+  const hasUnit = !!params.conversion_window_unit;
+
+  if (hasValue && !hasUnit) {
+    throw new AppBadRequestException(
+      'conversion_window_value requires conversion_window_unit to be specified',
+    );
+  }
+  if (hasUnit && !hasValue) {
+    throw new AppBadRequestException(
+      'conversion_window_unit requires conversion_window_value to be specified',
+    );
+  }
+
+  if (hasValue && hasUnit) {
+    const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit!] ?? 86400;
+    return params.conversion_window_value! * multiplier;
   }
   return params.conversion_window_days * 86400;
 }

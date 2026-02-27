@@ -8,7 +8,7 @@ import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
 import { buildUnorderedFunnelCTEs } from './funnel-unordered.sql';
 import {
   computeCohortBreakdownStepResults,
-  computeAggregateSteps,
+  computeStepResults,
   type RawFunnelRow,
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
@@ -96,8 +96,60 @@ export async function runFunnelCohortBreakdown(
 
   const allBreakdownSteps = perCohortResults.flat();
 
+  // Run a separate no-breakdown query for aggregate_steps.
+  // Summing per-cohort counts would double-count users who belong to multiple cohorts.
+  // The no-breakdown query counts each unique user exactly once, regardless of cohort membership.
+  const aggregateQueryParams = { ...baseQueryParams };
+  let aggregateSql: string;
+
+  if (orderType === 'unordered') {
+    const { cte, excludedUsersCTE, exclFilter } = buildUnorderedFunnelCTEs({
+      steps,
+      exclusions,
+      cohortClause,
+      samplingClause,
+      queryParams: aggregateQueryParams,
+    });
+    aggregateSql = `
+        WITH ${cte}${excludedUsersCTE}
+        SELECT step_num, countIf(max_step >= step_num) AS entered, countIf(max_step >= step_num + 1) AS next_step
+        FROM funnel_per_user
+        CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
+        GROUP BY step_num ORDER BY step_num`;
+  } else {
+    const { funnelPerUserCTE, excludedUsersCTE, exclFilter } = buildOrderedFunnelCTEs({
+      steps,
+      orderType,
+      stepConditions,
+      exclusions,
+      cohortClause,
+      samplingClause,
+      numSteps,
+      queryParams: aggregateQueryParams,
+    });
+    aggregateSql = `
+        WITH
+          ${funnelPerUserCTE}${excludedUsersCTE}
+        SELECT
+          step_num,
+          countIf(max_step >= step_num) AS entered,
+          countIf(max_step >= step_num + 1) AS next_step
+        FROM funnel_per_user
+        CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
+        GROUP BY step_num
+        ORDER BY step_num`;
+  }
+
+  const aggregateResult = await ch.query({
+    query: aggregateSql,
+    query_params: aggregateQueryParams,
+    format: 'JSONEachRow',
+  });
+  const aggregateRows = await aggregateResult.json<RawFunnelRow>();
+  const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
+
   return {
     steps: allBreakdownSteps,
-    aggregate_steps: computeAggregateSteps(allBreakdownSteps, steps),
+    aggregate_steps: aggregateSteps,
   };
 }
