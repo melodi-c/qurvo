@@ -905,6 +905,70 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     // Only personB converts (in-order); personA reverse-order is NOT counted in ordered mode
     expect(ttcResult.sample_size).toBe(1);
   });
+
+  it('unordered mode: user with only step-1/step-2 events (no step-0) is excluded from TTC sample_size', async () => {
+    // Regression for issue #505:
+    // The OR-guard `length(t0_arr) > 0 OR length(t1_arr) > 0 OR length(t2_arr) > 0`
+    // incorrectly admitted users who had step-1/step-2 events but no step-0 event.
+    // The fix replaces the OR-guard with `length(t0_arr) > 0` (step-0 only).
+    //
+    // personNoStep0: has 'view' and 'purchase' events but NOT 'signup' (step-0).
+    //   They should be excluded entirely — no step-0 means they never entered the funnel.
+    // personFull: signup → view → purchase — completes all 3 steps. Included in TTC.
+    const projectId = randomUUID();
+    const personNoStep0 = randomUUID();
+    const personFull = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personNoStep0: has step-1 (view) and step-2 (purchase) but NO step-0 (signup).
+      buildEvent({
+        project_id: projectId, person_id: personNoStep0, distinct_id: 'no-step0',
+        event_name: 'view', timestamp: msAgo(9000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personNoStep0, distinct_id: 'no-step0',
+        event_name: 'purchase', timestamp: msAgo(6000),
+      }),
+      // personFull: completes all 3 steps in order within the window.
+      buildEvent({
+        project_id: projectId, person_id: personFull, distinct_id: 'full-user',
+        event_name: 'signup', timestamp: msAgo(12000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personFull, distinct_id: 'full-user',
+        event_name: 'view', timestamp: msAgo(8000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personFull, distinct_id: 'full-user',
+        event_name: 'purchase', timestamp: msAgo(4000),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'view', label: 'View' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 2,
+      funnel_order_type: 'unordered' as const,
+    });
+
+    // personNoStep0 must NOT appear in sample_size — they have no step-0 event.
+    // Only personFull (signup → view → purchase) should be counted.
+    expect(result.sample_size).toBe(1);
+    // Duration: signup at msAgo(12000), purchase at msAgo(4000) → ~8s
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds).toBeGreaterThan(0);
+    // Bins should match sample_size
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
 });
 
 // ── P1: 8-10 step SQL size regression ────────────────────────────────────────
