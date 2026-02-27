@@ -727,6 +727,100 @@ describe('queryFunnel — avg_time_to_convert_seconds always null in breakdown q
     }
   });
 
+  it('cohort breakdown aggregate_steps count equals unique users (not sum of per-cohort counts)', async () => {
+    // User belongs to BOTH premium AND active cohorts.
+    // Per-cohort: premium step1=1, active step1=1 → naive sum = 2.
+    // Correct aggregate: 1 unique user.
+    const projectId = randomUUID();
+    const overlappingUser = randomUUID();
+    const premiumOnlyUser = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // overlappingUser is both premium and active
+      buildEvent({
+        project_id: projectId,
+        person_id: overlappingUser,
+        distinct_id: 'overlap',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'premium', status: 'active' }),
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: overlappingUser,
+        distinct_id: 'overlap',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ plan: 'premium', status: 'active' }),
+        timestamp: msAgo(1000),
+      }),
+      // premiumOnlyUser is premium but NOT active (status=inactive)
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumOnlyUser,
+        distinct_id: 'premium-only',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'premium', status: 'inactive' }),
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumOnlyUser,
+        distinct_id: 'premium-only',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ plan: 'premium', status: 'inactive' }),
+        timestamp: msAgo(500),
+      }),
+    ]);
+
+    const premiumCohort: CohortBreakdownEntry = {
+      cohort_id: randomUUID(),
+      name: 'Premium',
+      is_static: false,
+      materialized: false,
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }],
+      },
+    };
+
+    const activeCohort: CohortBreakdownEntry = {
+      cohort_id: randomUUID(),
+      name: 'Active',
+      is_static: false,
+      materialized: false,
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'status', operator: 'eq', value: 'active' }],
+      },
+    };
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_cohort_ids: [premiumCohort, activeCohort],
+    });
+
+    expect(result.breakdown).toBe(true);
+    const r = result as Extract<typeof result, { breakdown: true }>;
+
+    // Per-cohort breakdown: Premium has 2 users (overlap + premiumOnly), Active has 1 user (overlap)
+    const premiumSteps = r.steps.filter((s) => s.breakdown_value === 'Premium');
+    const activeSteps = r.steps.filter((s) => s.breakdown_value === 'Active');
+    expect(premiumSteps.find((s) => s.step === 1)?.count).toBe(2);
+    expect(activeSteps.find((s) => s.step === 1)?.count).toBe(1);
+
+    // aggregate_steps must reflect unique users across all cohorts.
+    // Naive sum = 2 + 1 = 3. Correct = 2 unique users (overlappingUser + premiumOnlyUser).
+    expect(r.aggregate_steps.find((s) => s.step === 1)?.count).toBe(2);
+    expect(r.aggregate_steps.find((s) => s.step === 2)?.count).toBe(2);
+  });
+
   it('non-breakdown funnel has avg_time populated (not null) for non-last steps when users convert', async () => {
     // This serves as a control: shows avg_time IS computed for non-breakdown funnels,
     // confirming the null values in breakdown tests above are due to the intended design.
