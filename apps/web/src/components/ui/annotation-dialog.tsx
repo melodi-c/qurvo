@@ -15,19 +15,9 @@ import {
 import { DatePicker } from '@/components/ui/date-picker';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { extractApiErrorMessage } from '@/lib/utils';
+import { ANNOTATION_PRESET_COLORS } from '@/lib/chart-colors';
 import translations from './annotation-dialog.translations';
 import type { Annotation, CreateAnnotation } from '@/api/generated/Api';
-
-const PRESET_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#a1a1aa',
-];
 
 interface AnnotationDialogProps {
   open: boolean;
@@ -51,7 +41,7 @@ export function AnnotationDialog({
   const [date, setDate] = useState(initialDate ?? '');
   const [label, setLabel] = useState('');
   const [description, setDescription] = useState('');
-  const [color, setColor] = useState(PRESET_COLORS[4]);
+  const [color, setColor] = useState<string>(ANNOTATION_PRESET_COLORS[4]);
   const [isPending, setIsPending] = useState(false);
 
   // Reset form when dialog opens / annotation changes
@@ -60,7 +50,7 @@ export function AnnotationDialog({
       setDate(annotation?.date ?? initialDate ?? '');
       setLabel(annotation?.label ?? '');
       setDescription(annotation?.description ?? '');
-      setColor(annotation?.color ?? PRESET_COLORS[4]);
+      setColor(annotation?.color ?? ANNOTATION_PRESET_COLORS[4]);
     }
   }, [open, annotation, initialDate]);
 
@@ -120,7 +110,7 @@ export function AnnotationDialog({
           <div className="flex flex-col gap-1.5">
             <Label>{t('colorLabel')}</Label>
             <div className="flex flex-wrap gap-2">
-              {PRESET_COLORS.map((c) => (
+              {ANNOTATION_PRESET_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
