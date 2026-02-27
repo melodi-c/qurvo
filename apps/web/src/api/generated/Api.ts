@@ -546,6 +546,8 @@ export interface TrendWidgetConfig {
   granularity: TrendGranularity;
   chart_type: ChartType;
   breakdown_property?: string;
+  breakdown_type?: TrendWidgetConfigDtoBreakdownTypeEnum;
+  breakdown_cohort_ids?: string[];
   cohort_ids?: string[];
   formulas?: TrendFormula[];
   date_from: string;
@@ -1579,6 +1581,8 @@ export type FunnelWidgetConfigDtoConversionRateDisplayEnum =
   | "relative";
 
 export type TrendWidgetConfigDtoTypeEnum = "trend";
+
+export type TrendWidgetConfigDtoBreakdownTypeEnum = "property" | "cohort";
 
 export type RetentionWidgetConfigDtoTypeEnum = "retention";
 
