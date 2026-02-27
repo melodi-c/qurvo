@@ -5,6 +5,7 @@ import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount, use
 import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useProjectRole } from '@/hooks/use-project-role';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
 import translations from '@/pages/cohort-editor/cohort-editor.translations';
 
@@ -51,6 +52,9 @@ export function useCohortEditor() {
     return { type: 'OR', values: groups };
   }, [groups]);
 
+  const role = useProjectRole();
+  const canPreview = role === 'owner' || role === 'editor';
+
   const { hash: debouncedHash } = useDebouncedHash(definition, 800);
 
   const hasValidConditions = useMemo(() => {
@@ -59,10 +63,10 @@ export function useCohortEditor() {
   }, [groups]);
 
   useEffect(() => {
-    if (!projectId || !hasValidConditions) return;
+    if (!projectId || !hasValidConditions || !canPreview) return;
     previewMutation.mutate({ definition });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedHash, projectId, hasValidConditions]);
+  }, [debouncedHash, projectId, hasValidConditions, canPreview]);
 
   const listPath = link.cohorts.list();
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -114,6 +118,7 @@ export function useCohortEditor() {
     groups,
     setGroups,
     hasValidConditions,
+    canPreview,
     previewMutation,
     listPath,
     isSaving,
