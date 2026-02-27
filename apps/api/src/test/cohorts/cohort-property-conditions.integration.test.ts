@@ -344,6 +344,121 @@ describe('countCohortMembers — date operators', () => {
   });
 });
 
+// ── Date operators — epoch false positive protection ─────────────────────────
+
+describe('countCohortMembers — date operators epoch false positive protection', () => {
+  it('is_date_before: user with non-date string property ("premium") is NOT matched', async () => {
+    // Bug: parseDateTimeBestEffortOrZero("premium") returned 1970-01-01 (epoch).
+    // For is_date_before('2025-01-01'): epoch (1970) < 2025 = true — false positive.
+    // Fix: add AND parseDateTimeBestEffortOrZero(expr) != toDateTime(0) guard.
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'non-date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: '2020-06-01' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        // non-date-user has plan="premium" — parseDateTimeBestEffortOrZero("premium") = epoch.
+        // Without fix: epoch < 2025-01-01 is true → false match.
+        // With fix: epoch != toDateTime(0) is false → excluded correctly.
+        // date-user has plan="2020-06-01" which is before 2025-01-01 → matched.
+        { type: 'person_property', property: 'plan', operator: 'is_date_before', value: '2025-01-01' },
+      ],
+    });
+
+    // Only date-user ('2020-06-01' < '2025-01-01') qualifies.
+    // non-date-user ('premium') must NOT be matched.
+    expect(count).toBe(1);
+  });
+
+  it('is_date_after: user with non-date string property is NOT matched', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'non-date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ status: 'active' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ status: '2026-01-01' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        // non-date-user has status="active" → parseDateTimeBestEffortOrZero = epoch → excluded.
+        // date-user has status="2026-01-01" which is after '2025-01-01' → matched.
+        { type: 'person_property', property: 'status', operator: 'is_date_after', value: '2025-01-01' },
+      ],
+    });
+
+    expect(count).toBe(1);
+  });
+
+  it('is_date_exact: user with non-date string property is NOT matched', async () => {
+    const projectId = randomUUID();
+    const timestamp = msAgo(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'non-date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ trial_start: 'enterprise' }),
+        timestamp,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'date-user',
+        event_name: '$set',
+        user_properties: JSON.stringify({ trial_start: '2025-03-15' }),
+        timestamp,
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        { type: 'person_property', property: 'trial_start', operator: 'is_date_exact', value: '2025-03-15' },
+      ],
+    });
+
+    // Only date-user with matching date. non-date-user ('enterprise') must NOT be matched.
+    expect(count).toBe(1);
+  });
+});
+
 // ── Numeric and set operators on person_property ─────────────────────────────
 
 describe('countCohortMembers — numeric and set operators for person_property', () => {

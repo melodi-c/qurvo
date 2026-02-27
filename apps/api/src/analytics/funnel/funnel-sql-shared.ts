@@ -210,7 +210,11 @@ export function validateUnorderedSteps(steps: FunnelStep[]): void {
 
 // ── Exclusion helpers ────────────────────────────────────────────────────────
 
-export function validateExclusions(exclusions: FunnelExclusion[], numSteps: number): void {
+export function validateExclusions(
+  exclusions: FunnelExclusion[],
+  numSteps: number,
+  steps?: FunnelStep[],
+): void {
   for (const excl of exclusions) {
     if (excl.funnel_from_step >= excl.funnel_to_step) {
       throw new AppBadRequestException(
@@ -221,6 +225,21 @@ export function validateExclusions(exclusions: FunnelExclusion[], numSteps: numb
       throw new AppBadRequestException(
         `Exclusion "${excl.event_name}": funnel_to_step ${excl.funnel_to_step} out of range (max ${numSteps - 1})`,
       );
+    }
+    // Reject exclusions that share an event_name with a funnel step but have no
+    // property filters to distinguish them. Without filters the exclusion will collect
+    // timestamps from step events and falsely exclude users who completed the step.
+    if (steps) {
+      for (const step of steps) {
+        const stepNames = resolveStepEventNames(step);
+        if (stepNames.includes(excl.event_name) && !excl.filters?.length) {
+          throw new AppBadRequestException(
+            `Exclusion "${excl.event_name}" shares the same event name with a funnel step but has no ` +
+            `property filters to distinguish them. Add property filters to the exclusion to avoid ` +
+            `false exclusions, or use a different event name.`,
+          );
+        }
+      }
     }
   }
 }
@@ -269,10 +288,19 @@ export function buildExclusionColumns(
       toCond = `event_name IN ({excl_${i}_to_step_names:Array(String)})`;
     }
 
+    // Build the exclusion event condition: event_name match + optional property filters.
+    // Using a dedicated prefix "excl_{i}_excl" to avoid collision with from/to-step params.
+    const exclFilterParts = buildPropertyFilterConditions(
+      excl.filters ?? [],
+      `excl_${i}_excl`,
+      queryParams,
+    );
+    const exclCond = [`event_name = {excl_${i}_name:String}`, ...exclFilterParts].join(' AND ');
+
     lines.push(
       `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${fromCond}) AS excl_${i}_from_arr`,
       `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${toCond}) AS excl_${i}_to_arr`,
-      `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_name:String}) AS excl_${i}_arr`,
+      `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${exclCond}) AS excl_${i}_arr`,
     );
   }
   return lines;

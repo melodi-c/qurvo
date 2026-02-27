@@ -2,6 +2,7 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
+  ArrayUnique,
   ValidateNested,
   IsString,
   IsNotEmpty,
@@ -100,6 +101,13 @@ export class FunnelExclusionDto {
   @Min(1)
   @Max(9)
   funnel_to_step: number;
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  @IsOptional()
+  filters?: StepFilterDto[];
 }
 
 @ConversionWindowMutuallyExclusive()
@@ -162,6 +170,7 @@ export class FunnelQueryDto extends FunnelBaseQueryDto {
   @Transform(parseJsonArray)
   @IsArray()
   @ArrayMaxSize(10)
+  @ArrayUnique()
   @IsUUID('4', { each: true })
   @IsOptional()
   breakdown_cohort_ids?: string[];

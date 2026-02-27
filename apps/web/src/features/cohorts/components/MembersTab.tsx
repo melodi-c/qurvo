@@ -1,14 +1,18 @@
-import { useCallback, useRef } from 'react';
-import { UserPlus, UserMinus, Trash2, Upload } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { UserPlus, UserMinus, Trash2, Upload, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DataTable, type Column } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { useAddCohortMembers, useRemoveCohortMembers } from '../hooks/use-cohort-members';
+import { useAddCohortMembers, useRemoveCohortMembers, useStaticCohortMembers, MEMBERS_LIMIT } from '../hooks/use-cohort-members';
 import { useUploadCohortCsv } from '../hooks/use-cohorts';
 import { extractApiErrorMessage } from '@/lib/utils';
+import { getPersonFields } from '@/lib/person';
 import { PersonSearchTable, type PersonRow } from './PersonSearchTable';
 import translations from './MembersTab.translations';
 
@@ -31,6 +35,10 @@ export function MembersTab({ cohortId, memberCount }: MembersTabProps) {
         </p>
       </div>
 
+      <CurrentMembersSection cohortId={cohortId} />
+
+      <Separator />
+
       <CsvUploadSection cohortId={cohortId} />
 
       <Separator />
@@ -40,6 +48,94 @@ export function MembersTab({ cohortId, memberCount }: MembersTabProps) {
       <Separator />
 
       <RemoveMembersSection cohortId={cohortId} />
+    </div>
+  );
+}
+
+interface MemberDisplayRow {
+  id: string;
+  displayId: string;
+  name: string;
+  email: string;
+}
+
+function CurrentMembersSection({ cohortId }: { cohortId: string }) {
+  const { t } = useLocalTranslation(translations);
+  const [page, setPage] = useState(0);
+
+  const { data, isLoading, isError } = useStaticCohortMembers(cohortId, page);
+
+  const members = data?.data ?? [];
+  const total = data?.total ?? 0;
+
+  const rows = useMemo((): MemberDisplayRow[] =>
+    members.map((m) => {
+      const { name, email } = getPersonFields(m.user_properties);
+      return {
+        id: m.person_id,
+        displayId: m.person_id.slice(0, 8),
+        name,
+        email,
+      };
+    }),
+    [members],
+  );
+
+  const columns = useMemo((): Column<MemberDisplayRow>[] => [
+    {
+      key: 'identifier',
+      header: t('identifier'),
+      className: 'font-mono text-xs text-muted-foreground truncate max-w-[160px]',
+      render: (row) => row.displayId,
+    },
+    {
+      key: 'name',
+      header: t('name'),
+      className: 'font-medium',
+      render: (row) => row.name || '\u2014',
+    },
+    {
+      key: 'email',
+      header: t('email'),
+      className: 'text-muted-foreground',
+      hideOnMobile: true,
+      render: (row) => row.email || '\u2014',
+    },
+  ], [t]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Users className="h-5 w-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm font-medium">{t('currentMembersTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('currentMembersDescription')}</p>
+        </div>
+      </div>
+
+      {isLoading && <ListSkeleton count={3} height="h-10" />}
+
+      {isError && (
+        <p className="text-sm text-destructive">{t('loadMembersFailed')}</p>
+      )}
+
+      {!isLoading && !isError && rows.length === 0 && (
+        <EmptyState
+          icon={Users}
+          description={t('noMembersDescription')}
+        />
+      )}
+
+      {!isLoading && !isError && rows.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={rows}
+          rowKey={(row) => row.id}
+          page={page}
+          onPageChange={setPage}
+          hasMore={page * MEMBERS_LIMIT + rows.length < total}
+        />
+      )}
     </div>
   );
 }

@@ -104,10 +104,13 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
   }
 
   // ── Step 5: breakdown_value ───────────────────────────────────────────────
-  // Pick the breakdown property value from the earliest step-0 event (consistent
-  // with the ordered funnel's argMinIf approach).
-  const breakdownCol = breakdownExpr
-    ? `,\n        argMinIf(${breakdownExpr}, timestamp, ${stepConds[0]}) AS breakdown_value`
+  // Collect step-0 breakdown values as a parallel array alongside t0_arr.
+  // In funnel_per_user (where anchor_ms is already resolved), we look up the
+  // breakdown value at the exact anchor_ms position via indexOf(t0_arr, anchor_ms).
+  // This correctly attributes breakdown to the winning anchor step-0, not the
+  // globally earliest step-0 (which was the bug: argMinIf picked the wrong attempt).
+  const breakdownArrCol = breakdownExpr
+    ? `,\n        groupArrayIf(${breakdownExpr}, ${stepConds[0]}) AS t0_bv_arr`
     : '';
 
   // ── Step 6: exclusion array columns ──────────────────────────────────────
@@ -119,9 +122,17 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
     : '';
 
   // ── Forward columns from step_times into anchor_per_user ─────────────────
-  const breakdownForward = breakdownExpr ? ',\n        breakdown_value' : '';
+  // t0_bv_arr is forwarded to anchor_per_user so funnel_per_user can resolve
+  // breakdown_value from the anchor position.
+  const breakdownArrForward = breakdownExpr ? ',\n        t0_bv_arr' : '';
   const exclColsForward = exclColumns.length > 0
     ? ',\n        ' + exclColumns.map(col => col.split(' AS ')[1]!).join(',\n        ')
+    : '';
+
+  // breakdown_value resolved in funnel_per_user using indexOf(t0_arr, anchor_ms)
+  // so the value comes from the same index position as the winning anchor.
+  const breakdownValueExpr = breakdownExpr
+    ? `,\n        t0_bv_arr[indexOf(t0_arr, anchor_ms)] AS breakdown_value`
     : '';
 
   // ── Step 7: last_step_ms — latest step in the winning window ─────────────
@@ -144,7 +155,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
   const cte = `step_times AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
-        ${groupArrayCols}${breakdownCol}${exclColsSQL}
+        ${groupArrayCols}${breakdownArrCol}${exclColsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
@@ -157,7 +168,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
       SELECT
         person_id,
         toInt64(${maxStepExpr}) AS max_step,
-        toInt64(${anchorMsExpr}) AS anchor_ms${breakdownForward}${exclColsForward},
+        toInt64(${anchorMsExpr}) AS anchor_ms${breakdownArrForward}${exclColsForward},
         ${steps.map((_, i) => `t${i}_arr`).join(', ')}
       FROM step_times
       WHERE ${anyStepNonEmpty}
@@ -167,7 +178,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
         person_id,
         max_step,
         anchor_ms AS first_step_ms,
-        toInt64(${lastStepMsExpr}) AS last_step_ms${breakdownForward}${exclColsForward}
+        toInt64(${lastStepMsExpr}) AS last_step_ms${breakdownValueExpr}${exclColsForward}
       FROM anchor_per_user
     )`;
 
