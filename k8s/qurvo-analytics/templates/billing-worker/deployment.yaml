@@ -39,6 +39,40 @@ spec:
             {{- include "qurvo.datadogEnvVars" (dict "component" "billing-worker" "root" .) | nindent 12 }}
           envFrom:
             {{- include "qurvo.commonEnvFrom" . | nindent 12 }}
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "[ -f /tmp/billing-worker.heartbeat ]"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  HEARTBEAT=/tmp/billing-worker.heartbeat
+                  [ -f "$HEARTBEAT" ] || exit 1
+                  AGE=$(( $(date +%s) - $(date -r "$HEARTBEAT" +%s) ))
+                  [ "$AGE" -lt 60 ] || exit 1
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  HEARTBEAT=/tmp/billing-worker.heartbeat
+                  [ -f "$HEARTBEAT" ] || exit 1
+                  AGE=$(( $(date +%s) - $(date -r "$HEARTBEAT" +%s) ))
+                  [ "$AGE" -lt 60 ] || exit 1
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
           resources:
             {{- toYaml (index .Values "billing-worker").resources | nindent 12 }}
 {{- end }}

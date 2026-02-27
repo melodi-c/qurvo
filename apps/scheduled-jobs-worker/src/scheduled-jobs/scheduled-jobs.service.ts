@@ -1,13 +1,20 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
+import { Heartbeat } from '@qurvo/heartbeat';
 import { eq } from 'drizzle-orm';
 import { aiScheduledJobs } from '@qurvo/db';
 import type { AiScheduledJob, Database } from '@qurvo/db';
 import { DRIZZLE } from '@qurvo/nestjs-infra';
 import { NotificationService } from './notification.service';
 import { AiRunnerService } from './ai-runner.service';
-import { SCHEDULED_JOBS_CHECK_INTERVAL_MS, SCHEDULED_JOBS_INITIAL_DELAY_MS } from '../constants';
+import {
+  SCHEDULED_JOBS_CHECK_INTERVAL_MS,
+  SCHEDULED_JOBS_INITIAL_DELAY_MS,
+  HEARTBEAT_PATH,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_LOOP_STALE_MS,
+} from '../constants';
 
 export function isDue(job: Pick<AiScheduledJob, 'last_run_at' | 'schedule'>, now: Date): boolean {
   if (!job.last_run_at) return true; // Never ran before
@@ -27,9 +34,10 @@ export function isDue(job: Pick<AiScheduledJob, 'last_run_at' | 'schedule'>, now
 }
 
 @Injectable()
-export class ScheduledJobsService extends PeriodicWorkerMixin {
+export class ScheduledJobsService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
   protected readonly intervalMs = SCHEDULED_JOBS_CHECK_INTERVAL_MS;
   protected readonly initialDelayMs = SCHEDULED_JOBS_INITIAL_DELAY_MS;
+  private readonly heartbeat: Heartbeat;
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -38,9 +46,26 @@ export class ScheduledJobsService extends PeriodicWorkerMixin {
     private readonly aiRunner: AiRunnerService,
   ) {
     super();
+    this.heartbeat = new Heartbeat({
+      path: HEARTBEAT_PATH,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      staleMs: HEARTBEAT_LOOP_STALE_MS,
+      onStale: (loopAge) => this.logger.warn({ loopAge }, 'Scheduled-jobs-worker loop stale, skipping heartbeat'),
+    });
+  }
+
+  override onApplicationBootstrap() {
+    super.onApplicationBootstrap();
+    this.heartbeat.start();
+  }
+
+  override async stop(): Promise<void> {
+    await super.stop();
+    this.heartbeat.stop();
   }
 
   async runCycle(): Promise<void> {
+    this.heartbeat.touch();
     const now = new Date();
     const jobs = await this.db
       .select()

@@ -1,6 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
+import { Heartbeat } from '@qurvo/heartbeat';
 import Redis from 'ioredis';
 import { eq, isNotNull } from 'drizzle-orm';
 import { projects, plans } from '@qurvo/db';
@@ -11,14 +12,18 @@ import {
   BILLING_INITIAL_DELAY_MS,
   BILLING_SET_TTL_SECONDS,
   BILLING_QUOTA_LIMITED_KEY,
+  HEARTBEAT_PATH,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_LOOP_STALE_MS,
   billingCounterKey,
 } from '../constants';
 import { MetricsService } from './metrics.service';
 
 @Injectable()
-export class BillingCheckService extends PeriodicWorkerMixin {
+export class BillingCheckService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
   protected readonly intervalMs = BILLING_CHECK_INTERVAL_MS;
   protected readonly initialDelayMs = BILLING_INITIAL_DELAY_MS;
+  private readonly heartbeat: Heartbeat;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -27,10 +32,27 @@ export class BillingCheckService extends PeriodicWorkerMixin {
     @Inject(MetricsService) private readonly metrics: MetricsService,
   ) {
     super();
+    this.heartbeat = new Heartbeat({
+      path: HEARTBEAT_PATH,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      staleMs: HEARTBEAT_LOOP_STALE_MS,
+      onStale: (loopAge) => this.logger.warn({ loopAge }, 'Billing-worker loop stale, skipping heartbeat'),
+    });
+  }
+
+  override onApplicationBootstrap() {
+    super.onApplicationBootstrap();
+    this.heartbeat.start();
+  }
+
+  override async stop(): Promise<void> {
+    await super.stop();
+    this.heartbeat.stop();
   }
 
   /** @internal — exposed for integration tests */
   async runCycle(): Promise<void> {
+    this.heartbeat.touch();
     const stopTimer = this.metrics.cycleDuration.startTimer();
 
     // 1. Get all projects with a billing limit

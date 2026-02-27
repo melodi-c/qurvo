@@ -147,6 +147,9 @@ importers:
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
+      '@qurvo/heartbeat':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/heartbeat
       '@qurvo/nestjs-infra':
         specifier: workspace:*
         version: link:../../packages/@qurvo/nestjs-infra
@@ -232,6 +235,9 @@ importers:
       '@qurvo/distributed-lock':
         specifier: workspace:*
         version: link:../../packages/@qurvo/distributed-lock
+      '@qurvo/heartbeat':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/heartbeat
       '@qurvo/nestjs-infra':
         specifier: workspace:*
         version: link:../../packages/@qurvo/nestjs-infra
@@ -503,6 +509,9 @@ importers:
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
+      '@qurvo/heartbeat':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/heartbeat
       '@qurvo/nestjs-infra':
         specifier: workspace:*
         version: link:../../packages/@qurvo/nestjs-infra
@@ -667,6 +676,9 @@ importers:
       '@qurvo/db':
         specifier: workspace:*
         version: link:../../packages/@qurvo/db
+      '@qurvo/heartbeat':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/heartbeat
       '@qurvo/nestjs-infra':
         specifier: workspace:*
         version: link:../../packages/@qurvo/nestjs-infra

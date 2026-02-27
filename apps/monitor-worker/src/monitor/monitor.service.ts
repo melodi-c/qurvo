@@ -1,6 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
+import { Heartbeat } from '@qurvo/heartbeat';
 import { eq } from 'drizzle-orm';
 import { aiMonitors } from '@qurvo/db';
 import type { AiMonitor, Database } from '@qurvo/db';
@@ -8,7 +9,13 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { DRIZZLE, CLICKHOUSE } from '@qurvo/nestjs-infra';
 import { NotificationService } from './notification.service';
 import { computeChangePercent } from './monitor.utils';
-import { MONITOR_CHECK_INTERVAL_MS, MONITOR_INITIAL_DELAY_MS } from '../constants';
+import {
+  MONITOR_CHECK_INTERVAL_MS,
+  MONITOR_INITIAL_DELAY_MS,
+  HEARTBEAT_PATH,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_LOOP_STALE_MS,
+} from '../constants';
 
 interface BaselineRow {
   baseline_avg: string;
@@ -17,9 +24,10 @@ interface BaselineRow {
 }
 
 @Injectable()
-export class MonitorService extends PeriodicWorkerMixin {
+export class MonitorService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
   protected readonly intervalMs = MONITOR_CHECK_INTERVAL_MS;
   protected readonly initialDelayMs = MONITOR_INITIAL_DELAY_MS;
+  private readonly heartbeat: Heartbeat;
 
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
@@ -28,9 +36,26 @@ export class MonitorService extends PeriodicWorkerMixin {
     private readonly notificationService: NotificationService,
   ) {
     super();
+    this.heartbeat = new Heartbeat({
+      path: HEARTBEAT_PATH,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      staleMs: HEARTBEAT_LOOP_STALE_MS,
+      onStale: (loopAge) => this.logger.warn({ loopAge }, 'Monitor-worker loop stale, skipping heartbeat'),
+    });
+  }
+
+  override onApplicationBootstrap() {
+    super.onApplicationBootstrap();
+    this.heartbeat.start();
+  }
+
+  override async stop(): Promise<void> {
+    await super.stop();
+    this.heartbeat.stop();
   }
 
   async runCycle(): Promise<void> {
+    this.heartbeat.touch();
     const monitors = await this.db
       .select()
       .from(aiMonitors)

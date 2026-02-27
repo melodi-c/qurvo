@@ -17,6 +17,7 @@
     "@qurvo/cohort-query": "workspace:*",
     "@qurvo/db": "workspace:*",
     "@qurvo/distributed-lock": "workspace:*",
+    "@qurvo/heartbeat": "workspace:*",
     "@qurvo/nestjs-infra": "workspace:*",
     "@qurvo/worker-core": "workspace:*",
     "bullmq": "^5.70.1",

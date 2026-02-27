@@ -1,3 +1,8 @@
+// ── Heartbeat ─────────────────────────────────────────────────────────────
+export const HEARTBEAT_PATH = '/tmp/cohort-worker.heartbeat';
+export const HEARTBEAT_INTERVAL_MS = 15_000;
+export const HEARTBEAT_LOOP_STALE_MS = 30_000;
+
 // ── Cohort ───────────────────────────────────────────────────────────────
 export const COHORT_MEMBERSHIP_INTERVAL_MS = 10 * 60_000; // 10 minutes
 // Must be > INTERVAL (to tolerate slow cycles), but < 2×INTERVAL (to avoid skipping).

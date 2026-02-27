@@ -1,3 +1,8 @@
+// ── Heartbeat ─────────────────────────────────────────────────────────────
+export const HEARTBEAT_PATH = '/tmp/billing-worker.heartbeat';
+export const HEARTBEAT_INTERVAL_MS = 15_000;
+export const HEARTBEAT_LOOP_STALE_MS = 30_000;
+
 // ── Billing check (decoupled quota — PostHog pattern) ────────────────────
 export const BILLING_CHECK_INTERVAL_MS = 30_000; // 30s
 export const BILLING_INITIAL_DELAY_MS = 5_000; // 5s (fast startup)

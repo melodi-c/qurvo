@@ -1,8 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, type QueueEvents } from 'bullmq';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
+import { Heartbeat } from '@qurvo/heartbeat';
 import { topologicalSortCohorts, groupCohortsByLevel } from '@qurvo/cohort-query';
 import { type DistributedLock } from '@qurvo/distributed-lock';
 import {
@@ -12,6 +13,9 @@ import {
   COHORT_INITIAL_DELAY_MS,
   COHORT_GC_EVERY_N_CYCLES,
   COHORT_COMPUTE_QUEUE,
+  HEARTBEAT_PATH,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_LOOP_STALE_MS,
 } from '../constants';
 import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
@@ -21,10 +25,11 @@ import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processo
 // ── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class CohortMembershipService extends PeriodicWorkerMixin {
+export class CohortMembershipService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
   protected readonly intervalMs = COHORT_MEMBERSHIP_INTERVAL_MS;
   protected readonly initialDelayMs = COHORT_INITIAL_DELAY_MS;
   private gcCycleCounter = 0;
+  private readonly heartbeat: Heartbeat;
 
   constructor(
     @Inject(DISTRIBUTED_LOCK) private readonly lock: DistributedLock,
@@ -36,10 +41,27 @@ export class CohortMembershipService extends PeriodicWorkerMixin {
     private readonly metrics: MetricsService,
   ) {
     super();
+    this.heartbeat = new Heartbeat({
+      path: HEARTBEAT_PATH,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      staleMs: HEARTBEAT_LOOP_STALE_MS,
+      onStale: (loopAge) => this.logger.warn({ loopAge }, 'Cohort-worker loop stale, skipping heartbeat'),
+    });
+  }
+
+  override onApplicationBootstrap() {
+    super.onApplicationBootstrap();
+    this.heartbeat.start();
+  }
+
+  override async stop(): Promise<void> {
+    await super.stop();
+    this.heartbeat.stop();
   }
 
   /** @internal — exposed for integration tests */
   async runCycle(): Promise<void> {
+    this.heartbeat.touch();
     const stopTimer = this.metrics.cycleDurationMs.startTimer();
     const startMs = Date.now();
 

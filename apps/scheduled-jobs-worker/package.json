@@ -14,6 +14,7 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@qurvo/db": "workspace:*",
+    "@qurvo/heartbeat": "workspace:*",
     "@qurvo/nestjs-infra": "workspace:*",
     "@qurvo/worker-core": "workspace:*",
     "dd-trace": "^5.0.0",
