@@ -558,3 +558,202 @@ describe('queryFunnel — conversion window units', () => {
     expect(rWin.steps[1].count).toBe(1); // only fast within 1 min
   });
 });
+
+// ── Property-filter exclusion ────────────────────────────────────────────────
+
+describe('queryFunnel — exclusion with property filters', () => {
+  it('does not exclude users whose exclusion event does not match the exclusion property filter', async () => {
+    // Scenario: step1=Signup, step2=ThankYou, exclusion=Purchase(plan=pro).
+    // The exclusion filters by plan=pro. personBasic has Purchase(plan=basic)
+    // which does NOT match the exclusion filter → should convert.
+    // personPro has Purchase(plan=pro) which DOES match → should be excluded.
+    const projectId = randomUUID();
+    const personPro = randomUUID();
+    const personBasic = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personPro: Signup → Purchase(plan=pro) → ThankYou
+      // Purchase(plan=pro) matches the exclusion filter → personPro is excluded
+      buildEvent({
+        project_id: projectId,
+        person_id: personPro,
+        distinct_id: 'pro',
+        event_name: 'Signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personPro,
+        distinct_id: 'pro',
+        event_name: 'Purchase',
+        timestamp: msAgo(4000),
+        properties: JSON.stringify({ plan: 'pro' }),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personPro,
+        distinct_id: 'pro',
+        event_name: 'ThankYou',
+        timestamp: msAgo(2000),
+      }),
+      // personBasic: Signup → Purchase(plan=basic) → ThankYou
+      // Purchase(plan=basic) does NOT match the exclusion filter (plan=pro) → should convert
+      buildEvent({
+        project_id: projectId,
+        person_id: personBasic,
+        distinct_id: 'basic',
+        event_name: 'Signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personBasic,
+        distinct_id: 'basic',
+        event_name: 'Purchase',
+        timestamp: msAgo(4000),
+        properties: JSON.stringify({ plan: 'basic' }),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personBasic,
+        distinct_id: 'basic',
+        event_name: 'ThankYou',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'Signup', label: 'Signup' },
+        { event_name: 'ThankYou', label: 'Thank You' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [
+        {
+          event_name: 'Purchase',
+          funnel_from_step: 0,
+          funnel_to_step: 1,
+          filters: [{ property: 'properties.plan', operator: 'eq', value: 'pro' }],
+        },
+      ],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personPro is excluded (matched exclusion filter), personBasic is not (different plan)
+    expect(r.steps[0].count).toBe(1); // only personBasic (personPro fully excluded)
+    expect(r.steps[1].count).toBe(1); // personBasic converts
+  });
+
+  it('excludes a user whose exclusion event matches both name and property filter', async () => {
+    // Exclusion: Refund(reason=fraud). personFraud has Refund(reason=fraud) → excluded.
+    // personChargeback has Refund(reason=chargeback) → NOT matched by exclusion → converts.
+    const projectId = randomUUID();
+    const personFraud = randomUUID();
+    const personChargeback = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personFraud: Purchase → Refund(reason=fraud) → ThankYou → excluded
+      buildEvent({
+        project_id: projectId,
+        person_id: personFraud,
+        distinct_id: 'fraud',
+        event_name: 'Purchase',
+        timestamp: msAgo(8000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFraud,
+        distinct_id: 'fraud',
+        event_name: 'Refund',
+        timestamp: msAgo(6000),
+        properties: JSON.stringify({ reason: 'fraud' }),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFraud,
+        distinct_id: 'fraud',
+        event_name: 'ThankYou',
+        timestamp: msAgo(4000),
+      }),
+      // personChargeback: Purchase → Refund(reason=chargeback) → ThankYou → converts
+      buildEvent({
+        project_id: projectId,
+        person_id: personChargeback,
+        distinct_id: 'chargeback',
+        event_name: 'Purchase',
+        timestamp: msAgo(8000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personChargeback,
+        distinct_id: 'chargeback',
+        event_name: 'Refund',
+        timestamp: msAgo(6000),
+        properties: JSON.stringify({ reason: 'chargeback' }),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personChargeback,
+        distinct_id: 'chargeback',
+        event_name: 'ThankYou',
+        timestamp: msAgo(4000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'Purchase', label: 'Purchase' },
+        { event_name: 'ThankYou', label: 'Thank You' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [
+        {
+          event_name: 'Refund',
+          funnel_from_step: 0,
+          funnel_to_step: 1,
+          filters: [{ property: 'properties.reason', operator: 'eq', value: 'fraud' }],
+        },
+      ],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personFraud is excluded (Refund reason=fraud), personChargeback converts (reason=chargeback)
+    expect(r.steps[0].count).toBe(1); // only personChargeback
+    expect(r.steps[1].count).toBe(1); // personChargeback converts
+  });
+
+  it('rejects an exclusion with the same event_name as a step and no property filters', async () => {
+    // This configuration would cause false exclusions — the exclusion would match all
+    // step events, excluding users who completed the step correctly.
+    // validateExclusions should throw an AppBadRequestException.
+    const projectId = randomUUID();
+    await expect(() =>
+      queryFunnel(ctx.ch, {
+        project_id: projectId,
+        steps: [
+          { event_name: 'Purchase', label: 'Purchase' },
+          { event_name: 'ThankYou', label: 'Thank You' },
+        ],
+        conversion_window_days: 7,
+        date_from: dateOffset(-1),
+        date_to: dateOffset(1),
+        exclusions: [
+          {
+            event_name: 'Purchase', // same as step 0
+            funnel_from_step: 0,
+            funnel_to_step: 1,
+            // no filters → guaranteed false exclusion
+          },
+        ],
+      }),
+    ).rejects.toThrow('shares the same event name with a funnel step');
+  });
+});

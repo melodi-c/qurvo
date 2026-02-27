@@ -37,7 +37,7 @@ export async function queryFunnel(
   const orderType = params.funnel_order_type ?? 'ordered';
   const numSteps = steps.length;
 
-  validateExclusions(exclusions, numSteps);
+  validateExclusions(exclusions, numSteps, steps);
 
   if (orderType === 'unordered') {
     validateUnorderedSteps(steps);
