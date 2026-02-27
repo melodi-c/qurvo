@@ -45,6 +45,13 @@ export class StaticCohortsService {
   async duplicateAsStatic(userId: string, projectId: string, cohortId: string) {
     const source = await this.cohortsService.getById(projectId, cohortId);
 
+    // Dynamic cohorts must be materialized before duplication; without a
+    // computed membership the INSERT…SELECT would silently copy zero rows and
+    // produce a misleading empty static cohort.
+    if (!source.is_static && source.membership_version === null) {
+      throw new AppBadRequestException('Cohort has not been computed yet');
+    }
+
     // Create static cohort (INSERT...SELECT copies members atomically — no pre-count needed)
     const rows = await this.db
       .insert(cohorts)
