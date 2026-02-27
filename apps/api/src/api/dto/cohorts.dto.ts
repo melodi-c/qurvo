@@ -12,7 +12,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CohortConditionGroupDto } from './cohort-conditions.dto';
 
 // Re-export so existing imports from './cohorts.dto' keep working
@@ -130,4 +130,33 @@ export class CohortHistoryPointDto {
 export class ImportCsvResponseDto {
   imported: number;
   total_lines: number;
+}
+
+// ── Static cohort members listing DTOs ────────────────────────────────────────
+
+export class GetStaticCohortMembersQueryDto {
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  @IsOptional()
+  @Type(() => Number)
+  @ApiPropertyOptional({ description: 'Max number of members per page (default 50, max 500)', default: 50 })
+  limit?: number = 50;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  @ApiPropertyOptional({ description: 'Number of members to skip (default 0)', default: 0 })
+  offset?: number = 0;
+}
+
+export class StaticCohortMemberDto {
+  person_id: string;
+  @ApiProperty({ type: 'object', additionalProperties: true }) user_properties: Record<string, unknown>;
+}
+
+export class StaticCohortMembersResponseDto {
+  @ApiProperty({ type: [StaticCohortMemberDto] }) data: StaticCohortMemberDto[];
+  total: number;
 }
