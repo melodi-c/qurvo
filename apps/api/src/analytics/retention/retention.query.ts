@@ -50,14 +50,26 @@ function assembleResult(
   rows: RawRetentionRow[],
   params: RetentionQueryParams,
 ): RetentionQueryResult {
-  // Group by cohort_period
+  // Separate cohort-size sentinel rows (period_offset = -1) from retention rows.
+  // Sentinel rows carry the true cohort size computed from initial_events directly,
+  // independent of the INNER JOIN with return_events.
+  const cohortSizeMap = new Map<string, number>();
   const cohortMap = new Map<string, number[]>();
   for (const row of rows) {
     const key = row.cohort_period;
+    const offset = Number(row.period_offset);
+    if (offset === -1) {
+      // Sentinel row: true cohort size from initial_events
+      cohortSizeMap.set(key, Number(row.user_count));
+      // Ensure this cohort_period key exists in cohortMap even if there are no return rows
+      if (!cohortMap.has(key)) {
+        cohortMap.set(key, new Array(params.periods + 1).fill(0));
+      }
+      continue;
+    }
     if (!cohortMap.has(key)) {
       cohortMap.set(key, new Array(params.periods + 1).fill(0));
     }
-    const offset = Number(row.period_offset);
     if (offset >= 0 && offset <= params.periods) {
       cohortMap.get(key)![offset] = Number(row.user_count);
     }
@@ -67,7 +79,7 @@ function assembleResult(
   const sortedKeys = [...cohortMap.keys()].sort();
   const cohorts: RetentionCohort[] = sortedKeys.map((key) => ({
     cohort_date: key,
-    cohort_size: cohortMap.get(key)![0],
+    cohort_size: cohortSizeMap.get(key) ?? cohortMap.get(key)![0],
     periods: cohortMap.get(key)!,
   }));
 
@@ -216,6 +228,20 @@ export async function queryRetention(
         WHERE r.return_period >= i.cohort_period
           AND dateDiff('${unit}', i.cohort_period, r.return_period) <= {periods:UInt32}
       )
+    -- Cohort size rows (sentinel period_offset = -1): true count of persons in
+    -- initial_events per cohort_period, independent of the return_events JOIN.
+    -- This is critical when return_event != target_event — periods[0] only counts
+    -- users who performed the return_event on their cohort day, not the cohort size.
+    SELECT
+      toString(cohort_period) AS cohort_period,
+      toInt32(-1) AS period_offset,
+      uniqExact(person_id) AS user_count
+    FROM initial_events
+    GROUP BY cohort_period
+
+    UNION ALL
+
+    -- Retention period rows (period_offset >= 0)
     SELECT
       toString(cohort_period) AS cohort_period,
       period_offset,
