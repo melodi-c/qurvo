@@ -51,6 +51,11 @@ gh issue list --label "in-progress" --state open --json number,title
 
 ## Шаг 1: Получить issues
 
+Зафиксируй время старта для итогового отчёта:
+```bash
+START_TIME=$(date +%s)
+```
+
 Используй `gh` CLI для получения списка issues. Выбери подходящую команду на основе запроса пользователя:
 
 ```bash
@@ -110,7 +115,7 @@ gh api repos/$REPO/issues/<NUMBER>/sub_issues --jq '[.[] | {number, title, state
 3. Какие issues должны выполняться последовательно (пересекаются)
 
 ВАЖНО — обязательные правила параллелизации:
-- Если два или более issues затрагивают схему БД (`packages/@qurvo/db` или `packages/@qurvo/clickhouse`) — они ВСЕГДА должны быть в РАЗНЫХ последовательных группах, даже если остальной код не пересекается. Параллельная генерация миграций создаёт дублирующие номера.
+- Если два или более issues затрагивают схему БД (`packages/@qurvo/db` или `packages/@qurvo/clickhouse`) — они ВСЕГДА должны быть в РАЗНЫХ последовательных группах, даже если остальной код не пересекается. Параллельная генерация миграций создаёт дублирующие номера. Сигналы: лейбл `has-migrations` или упоминание DB/ClickHouse в body.
 - Если issue затрагивает `packages/@qurvo/db` и другой затрагивает только `apps/*` без изменения схемы — они могут быть параллельными.
 
 Верни ТОЛЬКО JSON в таком формате, без другого текста:
@@ -156,6 +161,13 @@ echo "Worktree dir: $REPO_ROOT/.claude/worktrees"
 ```bash
 gh label create "in-progress" --description "Currently being worked on" --color "0052CC" 2>/dev/null || true
 gh label create "blocked" --description "Blocked, needs attention" --color "B60205" 2>/dev/null || true
+gh label create "ready" --description "Ready to be worked on" --color "0E8A16" 2>/dev/null || true
+gh label create "needs-clarification" --description "Needs clarification before work can begin" --color "FBCA04" 2>/dev/null || true
+gh label create "has-migrations" --description "Requires DB or ClickHouse migrations" --color "C5DEF5" 2>/dev/null || true
+gh label create "size:xs" --description "Extra small: <30 min" --color "F9D0C4" 2>/dev/null || true
+gh label create "size:s"  --description "Small: <2 hours" --color "F9D0C4" 2>/dev/null || true
+gh label create "size:m"  --description "Medium: <1 day" --color "E4E669" 2>/dev/null || true
+gh label create "size:l"  --description "Large: >1 day" --color "D93F0B" 2>/dev/null || true
 ```
 
 ---
@@ -289,18 +301,26 @@ Parent issue **не передаётся** в issue-solver — он являет
 
 ## Шаг 7: Итоговый отчёт
 
-После завершения ВСЕХ групп и всех подагентов, выведи сводку:
+После завершения ВСЕХ групп и всех подагентов, выведи сводку. Зафиксируй время старта в начале работы (`START_TIME=$(date +%s)`) и вычисли elapsed в конце.
 
 ```
 ## Итог выполнения issues
 
-| # | Issue | Статус | Детали |
-|---|-------|--------|--------|
-| 1 | #42 "Title" | SUCCESS | Смерджено в main |
-| 2 | #43 "Title" | FAILED | Причина |
-| 3 | #45 "Title" | NEEDS_USER_INPUT | Ожидает ответа |
+| # | Issue | Статус | Тесты | Review | Детали |
+|---|-------|--------|-------|--------|--------|
+| 1 | #42 "Title" | ✅ SUCCESS | ✅ passed | ✅ APPROVE (1 iter) | Смерджено в main |
+| 2 | #43 "Title" | ❌ FAILED  | ❌ failed | —                  | TypeError в funnel.service.ts:42 |
+| 3 | #45 "Title" | ⏳ NEEDS_INPUT | —  | —                  | Issue слишком размытый |
 
-Выполнено: N из M
+Выполнено: N из M  |  Время: X мин  |  Групп параллельного запуска: G
+```
+
+Если есть FAILED или NEEDS_INPUT — добавь секцию рекомендаций:
+
+```
+### Рекомендации
+- **#43**: исправить падающие тесты → `/issue-executor 43` после фикса
+- **#45**: уточнить acceptance criteria → запустить `/issue-validator 45` затем `/issue-executor 45`
 ```
 
 ---

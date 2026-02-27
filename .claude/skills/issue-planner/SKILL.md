@@ -124,13 +124,17 @@ gh issue list --state open --json number,title --limit 50
 
 [Что происходит — точная формулировка от пользователя. Симптом, условия воспроизведения.]
 
+## Acceptance Criteria
+
+- [ ] [Что должно работать корректно после фикса]
+
 ## Зависимости
 Depends on: #NUMBER   ← только при реальной зависимости
 
 ## Приоритет
 P1 / P2 / P3
 ```
-Labels: `bug` + scope (`web`, `api`, etc.)
+Labels: `bug` + scope (`web`, `api`, etc.) + `size:xs/s/m/l`
 
 **Режим `audit` — тело issue** (найдено через code-explorer):
 ```
@@ -150,13 +154,17 @@ Labels: `bug` + scope (`web`, `api`, etc.)
 
 (если изменение одно — можно просто текстом без чеклиста)
 
+## Acceptance Criteria
+
+- [ ] [Как проверить что проблема исправлена — конкретный сценарий или тест]
+
 ## Зависимости
 Depends on: #NUMBER   ← только при реальной зависимости
 
 ## Приоритет
 P1 / P2 / P3
 ```
-Labels: `bug` + scope (`web`, `api`, etc.)
+Labels: `bug` + scope (`web`, `api`, etc.) + `size:xs/s/m/l` + `has-migrations` (если затрагивает DB/CH)
 
 **Режим `feature` — тело обычного issue:**
 ```
@@ -164,13 +172,22 @@ Labels: `bug` + scope (`web`, `api`, etc.)
 
 [Что нужно реализовать. Конкретные файлы — что создать, что расширить.]
 
+## Acceptance Criteria
+
+- [ ] [Измеримый критерий 1 — что именно должно работать]
+- [ ] [Измеримый критерий 2]
+
+## Technical Notes
+
+[Паттерны из CLAUDE.md, существующий код на который ориентироваться, подводные камни]
+
 ## Зависимости
 Depends on: #NUMBER   ← только при реальной зависимости
 
 ## Приоритет
 P1 / P2 / P3
 ```
-Labels: `enhancement` + scope
+Labels: `enhancement` + scope + `size:xs/s/m/l` + `has-migrations` (если затрагивает DB/CH)
 
 **Формат эпика** (только для `feature` режима):
 
@@ -201,8 +218,21 @@ Labels: `epic` + scope
 - **P2** — важно (заметно ухудшает UX или перформанс)
 - **P3** — улучшение (рефакторинг, мелкие недочёты)
 
+### Оценка размера (`size:*`) — обязательно для каждого issue:
+- **`size:xs`** — одиночная правка, один файл (<30 мин): опечатка, добавить одно поле, мелкий bugfix
+- **`size:s`** — небольшая задача (<2 ч): добавить endpoint, исправить компонент, написать тесты
+- **`size:m`** — средняя задача (<1 дня): новый модуль, новая страница, набор связанных изменений
+- **`size:l`** — крупная задача (>1 дня): архитектурные изменения, новая фича с несколькими слоями
+
+### Лейбл `has-migrations`:
+Добавляй к issue если он явно затрагивает:
+- `packages/@qurvo/db` — Drizzle-схему PostgreSQL
+- `packages/@qurvo/clickhouse` — ClickHouse миграции
+
+Это сигнал для executor не параллелизировать такие issues с другими DB-issues.
+
 **Labels** (из существующих в проекте):
-`bug`, `enhancement`, `refactor`, `ux/ui`, `architecture`, `web`, `api`, `security`, `billing`, `ai`, `i18n`, `good first issue`, `epic`
+`bug`, `enhancement`, `refactor`, `ux/ui`, `architecture`, `web`, `api`, `security`, `billing`, `ai`, `i18n`, `good first issue`, `epic`, `has-migrations`, `size:xs`, `size:s`, `size:m`, `size:l`
 
 ---
 
