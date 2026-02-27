@@ -146,7 +146,7 @@ export async function queryPaths(
       SELECT
         pid,
         arrayCompact(
-          arraySlice(groupArray(cleaned_name), 1, toUInt16({step_limit:UInt8}))
+          arraySlice(groupArray(cleaned_name), 1, {step_limit:UInt16})
         ) AS raw_path
       FROM ordered_events
       GROUP BY pid
@@ -181,7 +181,7 @@ export async function queryPaths(
     FROM final_paths
     ARRAY JOIN arrayEnumerate(path) AS idx
     WHERE idx < length(path)
-      AND idx <= {step_limit:UInt8}
+      AND idx <= {step_limit:UInt16}
     GROUP BY step, source, target
     HAVING person_count >= {min_persons:UInt32}
     ORDER BY step ASC, person_count DESC`;
@@ -190,7 +190,7 @@ export async function queryPaths(
   const topPathsSql = `
     ${pathsCTE}
     SELECT
-      arraySlice(path, 1, {step_limit:UInt8}) AS path,
+      arraySlice(path, 1, {step_limit:UInt16}) AS path,
       uniqExact(pid) AS person_count
     FROM final_paths
     WHERE length(path) >= 2

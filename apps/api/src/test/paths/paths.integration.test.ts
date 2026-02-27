@@ -232,6 +232,49 @@ describe('queryPaths — step limit', () => {
     expect(allEvents).not.toContain('step_e');
     expect(allEvents).not.toContain('step_f');
   });
+
+  it('handles step_limit > 255 correctly (UInt16 range)', async () => {
+    // Regression test: previously step_limit was typed as UInt8 in ClickHouse params,
+    // causing silent truncation mod 256 for values > 255.
+    // With step_limit=300, UInt8 would wrap to 44 (300 % 256), truncating paths incorrectly.
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    // personA: a simple 3-step path
+    // personB: a different 3-step path
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'start', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'middle', timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'end_a', timestamp: msAgo(1000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'start', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'middle', timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'end_b', timestamp: msAgo(1000) }),
+    ]);
+
+    // step_limit=300 is above the UInt8 max (255) — must not cause truncation
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 300,
+    });
+
+    // All 3-step paths must be preserved; step 1 and step 2 must be present
+    const step1 = result.transitions.filter((t) => t.step === 1);
+    const step2 = result.transitions.filter((t) => t.step === 2);
+    expect(step1).toHaveLength(1);
+    expect(step1[0].source).toBe('start');
+    expect(step1[0].target).toBe('middle');
+    expect(step1[0].person_count).toBe(2);
+    expect(step2).toHaveLength(2);
+
+    // top_paths must include both full 3-step paths
+    expect(result.top_paths).toHaveLength(2);
+    for (const tp of result.top_paths) {
+      expect(tp.path).toHaveLength(3);
+    }
+  });
 });
 
 describe('queryPaths — min_persons filter', () => {
