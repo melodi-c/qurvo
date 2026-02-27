@@ -1,9 +1,9 @@
 import { PlainFunnel } from './PlainFunnel';
 import { BreakdownFunnel } from './BreakdownFunnel';
-import type { FunnelStepResult } from '@/api/generated/Api';
+import type { FunnelStepResult, FunnelBreakdownStepResult } from '@/api/generated/Api';
 
 export interface FunnelChartProps {
-  steps: FunnelStepResult[];
+  steps: (FunnelStepResult | FunnelBreakdownStepResult)[];
   breakdown?: boolean;
   aggregateSteps?: FunnelStepResult[];
   compact?: boolean;
