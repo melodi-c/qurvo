@@ -79,7 +79,7 @@ describe('buildPropertyFilterConditions', () => {
     expect(params['p_f0_v']).toBe('page_view');
   });
 
-  it('builds neq condition', () => {
+  it('builds neq condition for direct column (no JSONHas guard)', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'country', operator: 'neq', value: 'US' },
@@ -87,6 +87,26 @@ describe('buildPropertyFilterConditions', () => {
     const result = buildPropertyFilterConditions(filters, 'q', params);
     expect(result).toEqual(['country != {q_f0_v:String}']);
     expect(params['q_f0_v']).toBe('US');
+  });
+
+  it('builds neq condition for JSON property with JSONHas guard', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.plan', operator: 'neq', value: 'pro' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'q', params);
+    expect(result).toEqual(["JSONHas(properties, 'plan') AND JSONExtractString(properties, 'plan') != {q_f0_v:String}"]);
+    expect(params['q_f0_v']).toBe('pro');
+  });
+
+  it('builds neq condition for user_properties JSON with JSONHas guard', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'user_properties.tier', operator: 'neq', value: 'free' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(user_properties, 'tier') AND JSONExtractString(user_properties, 'tier') != {p_f0_v:String}"]);
+    expect(params['p_f0_v']).toBe('free');
   });
 
   it('builds contains condition with escaped LIKE pattern', () => {
@@ -108,7 +128,7 @@ describe('buildPropertyFilterConditions', () => {
     expect(params['p_f0_v']).toBe('%50\\%\\_off%');
   });
 
-  it('builds not_contains condition', () => {
+  it('builds not_contains condition for direct column (no JSONHas guard)', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'url', operator: 'not_contains', value: 'admin' },
@@ -116,6 +136,26 @@ describe('buildPropertyFilterConditions', () => {
     const result = buildPropertyFilterConditions(filters, 'p', params);
     expect(result).toEqual(['url NOT LIKE {p_f0_v:String}']);
     expect(params['p_f0_v']).toBe('%admin%');
+  });
+
+  it('builds not_contains condition for JSON property with JSONHas guard', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.plan', operator: 'not_contains', value: 'pro' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(properties, 'plan') AND JSONExtractString(properties, 'plan') NOT LIKE {p_f0_v:String}"]);
+    expect(params['p_f0_v']).toBe('%pro%');
+  });
+
+  it('builds not_contains condition for user_properties JSON with JSONHas guard', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'user_properties.email', operator: 'not_contains', value: 'gmail' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(user_properties, 'email') AND JSONExtractString(user_properties, 'email') NOT LIKE {p_f0_v:String}"]);
+    expect(params['p_f0_v']).toBe('%gmail%');
   });
 
   it('builds is_set condition for JSON property using JSONHas', () => {

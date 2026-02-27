@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, asc } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -217,7 +217,8 @@ export class CohortsService {
     const rows = await this.db
       .select()
       .from(cohorts)
-      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, cohortIds)));
+      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, cohortIds)))
+      .orderBy(asc(cohorts.id));
 
     if (rows.length !== cohortIds.length) {
       const found = new Set(rows.map((r) => r.id));

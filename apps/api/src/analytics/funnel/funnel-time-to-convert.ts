@@ -1,7 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { buildCohortClause, RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
-import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin } from './funnel.types';
+import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
 import {
   resolveWindowSeconds,
   resolveStepEventNames,
@@ -12,6 +12,7 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   validateExclusions,
+  validateUnorderedSteps,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -68,6 +69,7 @@ export async function queryFunnelTimeToConvert(
   const exclusions = params.exclusions ?? [];
   const numSteps = steps.length;
   const windowSeconds = resolveWindowSeconds(params);
+  const orderType: FunnelOrderType = params.funnel_order_type ?? 'ordered';
 
   if (fromStep >= toStep) {
     throw new AppBadRequestException('from_step must be strictly less than to_step');
@@ -77,6 +79,10 @@ export async function queryFunnelTimeToConvert(
   }
 
   validateExclusions(exclusions, numSteps);
+
+  if (orderType === 'unordered') {
+    validateUnorderedSteps(steps);
+  }
 
   const allEventNames = buildAllEventNames(steps, exclusions);
 
@@ -106,6 +112,15 @@ export async function queryFunnelTimeToConvert(
   // Build step conditions once and reuse
   const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams));
   const stepConditions = stepConds.join(', ');
+
+  // Build exclusion columns and CTE (same pattern as ordered/unordered funnel)
+  const exclColumns = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps, queryParams)
+    : [];
+
+  if (orderType === 'unordered') {
+    return buildUnorderedTtcSql(ch, queryParams, stepConds, exclColumns, exclusions, fromStep, toStep, cohortClause, samplingClause);
+  }
 
   // Per-step timestamp arrays — collect all timestamps per step in a single scan.
   // We use groupArrayIf to get all occurrences so we can find the first one
@@ -149,10 +164,6 @@ export async function queryFunnelTimeToConvert(
   const fromCol = `step_${fromStep}_ms`;
   const toCol = `step_${toStep}_ms`;
 
-  // Build exclusion columns and CTE (same pattern as ordered funnel)
-  const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams)
-    : [];
   // Aggregation expressions for funnel_raw (e.g. "groupArrayIf(...) AS excl_0_from_arr")
   const exclColumnsSQL = exclColumns.length > 0
     ? ',\n            ' + exclColumns.join(',\n            ')
@@ -192,18 +203,34 @@ export async function queryFunnelTimeToConvert(
   //   - each duration is binned with: clamp(floor((d - min) / bin_width), 0, bin_count-1)
   // This avoids the V8 spread-argument stack overflow (no Math.min/max spread) because
   // min and max are returned from ClickHouse as scalar values, not derived from the array.
+
+  // Strict mode requires scanning ALL events for qualifying users (not just step events),
+  // so that windowFunnel('strict_order') can detect and reset on intervening events.
+  // We pre-filter to users who have at least one funnel step event (same pattern as the
+  // main ordered-funnel query).
+  const strictUserFilter = orderType === 'strict' ? [
+    '',
+    '                AND distinct_id IN (',
+    '                  SELECT DISTINCT distinct_id',
+    '                  FROM events',
+    '                  WHERE project_id = {project_id:UUID}',
+    '                    AND timestamp >= {from:DateTime64(3)}',
+    '                    AND timestamp <= {to:DateTime64(3)}',
+    '                    AND event_name IN ({step_names:Array(String)})',
+    '                )',
+  ].join('\n') : `\n                AND event_name IN ({step_names:Array(String)})`;
+
   const sql = `
     WITH funnel_raw AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
-        ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
+        ${buildWindowFunnelExpr(orderType, stepConditions)} AS max_step,
         ${stepArrayCols}${exclColumnsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
         AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
-        AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
+        AND timestamp <= {to:DateTime64(3)}${strictUserFilter}${cohortClause}${samplingClause}
       GROUP BY person_id
     ),
     funnel_per_user AS (
@@ -230,15 +257,23 @@ export async function queryFunnelTimeToConvert(
   `;
 
   const queryResult = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  const rows = await queryResult.json<{
-    avg_seconds: string | null;
-    median_seconds: string | null;
-    sample_size: string;
-    min_seconds: string | null;
-    max_seconds: string | null;
-    durations: number[];
-  }>();
+  const rows = await queryResult.json<TtcAggRow>();
 
+  return parseTtcRows(rows, fromStep, toStep);
+}
+
+// ── Shared result-row types and parser ───────────────────────────────────────
+
+interface TtcAggRow {
+  avg_seconds: string | null;
+  median_seconds: string | null;
+  sample_size: string;
+  min_seconds: string | null;
+  max_seconds: string | null;
+  durations: number[];
+}
+
+function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): TimeToConvertResult {
   const row = rows[0];
   const sampleSize = Number(row?.sample_size ?? 0);
 
@@ -273,4 +308,114 @@ export async function queryFunnelTimeToConvert(
   }
 
   return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: sampleSize, bins };
+}
+
+// ── Unordered TTC ────────────────────────────────────────────────────────────
+
+/**
+ * Builds and executes the TTC query for unordered funnels.
+ *
+ * Uses the same anchor-based minIf logic as the unordered main funnel:
+ *   - t_i_ms = minIf(timestamp, stepCondition) per step
+ *   - anchor_ms = least(t_0_ms, ..., t_n_ms)   (earliest qualifying step)
+ *   - max_step  = count of steps where t_i_ms is within anchor + window
+ *
+ * Duration = |t_{to_step}_ms - t_{from_step}_ms|
+ * This mirrors the unordered funnel's semantics: steps can complete in any
+ * order, so TTC may be positive or negative depending on which step fired
+ * first. We take abs() so that duration_seconds is always non-negative.
+ */
+async function buildUnorderedTtcSql(
+  ch: ClickHouseClient,
+  queryParams: TtcChQueryParams,
+  stepConds: string[],
+  exclColumns: string[],
+  exclusions: NonNullable<TimeToConvertParams['exclusions']>,
+  fromStep: number,
+  toStep: number,
+  cohortClause: string,
+  samplingClause: string,
+): Promise<TimeToConvertResult> {
+  const sentinel = 'toInt64(9007199254740992)';
+  const numSteps = stepConds.length;
+
+  // minIf per step: smallest timestamp matching the step condition (0 if no match)
+  const minIfCols = stepConds.map(
+    (cond, i) => `toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${cond})) AS t${i}_ms`,
+  ).join(',\n        ');
+
+  // Exclusion array columns (same as ordered path)
+  const exclColsSQL = exclColumns.length > 0
+    ? ',\n        ' + exclColumns.join(',\n        ')
+    : '';
+
+  // anchor_ms = earliest non-zero step (same as funnel-unordered.sql)
+  const anchorArgs = Array.from({ length: numSteps }, (_, i) => `if(t${i}_ms > 0, t${i}_ms, ${sentinel})`).join(', ');
+
+  // max_step = count of steps that fired within the anchor window
+  const stepCountParts = Array.from(
+    { length: numSteps },
+    (_, i) => `if(t${i}_ms > 0 AND t${i}_ms >= anchor_ms AND t${i}_ms <= anchor_ms + (toInt64({window:UInt64}) * 1000), 1, 0)`,
+  ).join(' + ');
+
+  // Pass-through exclusion aliases from step_times to funnel_per_user
+  const exclColAliases = exclColumns.map(col => col.split(' AS ')[1]!);
+  const exclColsForward = exclColAliases.length > 0
+    ? ',\n        ' + exclColAliases.join(',\n        ')
+    : '';
+
+  const excludedUsersCTE = exclusions.length > 0
+    ? ',\n  ' + buildExcludedUsersCTE(exclusions)
+    : '';
+
+  const exclAndCondition = exclusions.length > 0
+    ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
+    : '';
+
+  // Duration = abs(t_{to}_ms - t_{from}_ms) / 1000.0
+  // abs() ensures duration is non-negative regardless of which step fired first.
+  const sql = `
+    WITH step_times AS (
+      SELECT
+        ${RESOLVED_PERSON} AS person_id,
+        ${minIfCols}${exclColsSQL}
+      FROM events
+      WHERE
+        project_id = {project_id:UUID}
+        AND timestamp >= {from:DateTime64(3)}
+        AND timestamp <= {to:DateTime64(3)}
+        AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
+      GROUP BY person_id
+    ),
+    funnel_per_user AS (
+      SELECT
+        person_id,
+        least(${anchorArgs}) AS anchor_ms,
+        (${stepCountParts}) AS max_step,
+        t${fromStep}_ms,
+        t${toStep}_ms${exclColsForward}
+      FROM step_times
+      WHERE least(${anchorArgs}) < ${sentinel}
+    )${excludedUsersCTE},
+    converted AS (
+      SELECT
+        abs(t${toStep}_ms - t${fromStep}_ms) / 1000.0 AS duration_seconds
+      FROM funnel_per_user
+      WHERE max_step >= {to_step_num:UInt64}
+        AND t${fromStep}_ms > 0
+        AND t${toStep}_ms > 0${exclAndCondition}
+    )
+    SELECT
+      avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
+      quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
+      toInt64(countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
+      minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
+      maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
+      groupArrayIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
+    FROM converted
+  `;
+
+  const queryResult = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const rows = await queryResult.json<TtcAggRow>();
+  return parseTtcRows(rows, fromStep, toStep);
 }
