@@ -57,14 +57,43 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # ==============================================================================
-# Stage: nestjs-builder — build target NestJS app + all its dependencies
+# Stage: packages-builder — build all shared packages once
+#
+# Each NestJS app depends on a subset of these packages. Building them in a
+# single stage means they are compiled exactly once regardless of how many app
+# stages are built in parallel, eliminating N-fold recompilation.
+#
+# Build order respects intra-package dependency graph:
+#   Level 0 (no @qurvo deps):   db, clickhouse, worker-core, distributed-lock,
+#                                heartbeat, ai-types
+#   Level 1 (depends on level 0): nestjs-infra (→ db, clickhouse),
+#                                  cohort-query (→ db)
+# ==============================================================================
+FROM base AS packages-builder
+
+RUN pnpm --filter @qurvo/db build \
+ && pnpm --filter @qurvo/clickhouse build \
+ && pnpm --filter @qurvo/worker-core build \
+ && pnpm --filter @qurvo/distributed-lock build \
+ && pnpm --filter @qurvo/heartbeat build \
+ && pnpm --filter @qurvo/ai-types build \
+ && pnpm --filter @qurvo/nestjs-infra build \
+ && pnpm --filter @qurvo/cohort-query build
+
+# ==============================================================================
+# Stage: nestjs-builder — build target NestJS app only (packages already built)
 # ==============================================================================
 FROM base AS nestjs-builder
 
 ARG APP
 
-# pnpm --filter @qurvo/${APP}... builds the app AND all transitive workspace deps
-RUN pnpm --filter @qurvo/${APP}... build
+# Copy pre-built package dist directories from packages-builder so pnpm can
+# resolve workspace:* references without recompiling shared packages.
+COPY --from=packages-builder /repo/packages/ packages/
+
+# Build only the target app — shared packages are already compiled above.
+# Use plain --filter (without ...) because transitive deps are already built.
+RUN pnpm --filter @qurvo/${APP} build
 
 # Auto-collect all built dist/ dirs + drizzle migrations into /pkg-dists
 RUN mkdir -p /pkg-dists && \
@@ -114,7 +143,10 @@ CMD ["node", "--require", "./dist/tracer.js", "dist/main.js"]
 # ==============================================================================
 FROM base AS web-builder
 
-RUN pnpm --filter @qurvo/web... build
+# Copy pre-built package dist directories so web's shared @qurvo deps resolve.
+COPY --from=packages-builder /repo/packages/ packages/
+
+RUN pnpm --filter @qurvo/web build
 
 # ==============================================================================
 # Stage: web — nginx serving SPA
@@ -150,9 +182,9 @@ EXPOSE 80
 # ==============================================================================
 FROM base AS storybook-builder
 
-# Build all workspace dependencies that @qurvo/web depends on before running
-# Storybook's build (which does not resolve workspace:* packages from dist).
-RUN pnpm --filter @qurvo/web^... build
+# Copy pre-built package dist directories so @qurvo/web's workspace deps resolve.
+COPY --from=packages-builder /repo/packages/ packages/
+
 RUN pnpm --filter @qurvo/web run build-storybook
 
 # ==============================================================================
