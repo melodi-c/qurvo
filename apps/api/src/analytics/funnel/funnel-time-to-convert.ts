@@ -42,14 +42,20 @@ interface TtcChQueryParams extends FunnelChQueryParams {
 const MAX_BINS = 60;
 
 /**
- * Compute histogram bins entirely in ClickHouse, avoiding the V8 stack overflow
- * that occurs when spreading large arrays into Math.min / Math.max.
+ * Compute time-to-convert stats and histogram in a single ClickHouse query.
  *
- * The approach:
- *   1. One CTE computes per-person duration_seconds.
- *   2. A second CTE calculates min, max, sample_size, avg, median — all server-side.
- *   3. The outer query groups converted users into bins using floor arithmetic,
- *      so no timing array is ever transferred to Node.js.
+ * The single-query approach:
+ *   funnel_per_user — per-person windowFunnel + timestamps (one full scan of events)
+ *   converted       — filter to users who reached to_step within window
+ *   final SELECT    — computes avg, median, min, max, count AND collects all
+ *                     duration_seconds values in groupArray — all in one pass.
+ *
+ * Histogram binning is done in JS from the returned durations array:
+ *   - bin_count and bin_width are computed from server-side min/max/count
+ *   - a simple for-loop bins each duration (no Math.min/max spread, no V8 stack risk)
+ *
+ * This replaces the previous two-query approach (statsSql + binsSql), reducing
+ * ClickHouse scans of the events table from 2 to 1.
  */
 
 export async function queryFunnelTimeToConvert(
@@ -122,11 +128,19 @@ export async function queryFunnelTimeToConvert(
     ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
 
-  // Phase 1: fetch aggregate stats (avg, median, min, max, count) without pulling
-  // every individual timing into Node.js. This avoids the V8 spread-argument stack
-  // overflow that occurs for Math.min(...array) / Math.max(...array) when the array
-  // exceeds ~100k elements.
-  const statsSql = `
+  // Single query: scan events once, compute both stats and raw durations.
+  //
+  // The converted CTE is referenced only once in the final SELECT, so ClickHouse
+  // evaluates funnel_per_user (the events scan) exactly once.
+  //
+  // groupArray collects all valid duration_seconds values (up to sample_size floats).
+  // Histogram binning is performed in JS using a simple loop:
+  //   - bin_count = max(1, min(MAX_BINS, ceil(cbrt(sample_size)))) — same as before
+  //   - bin_width = range == 0 ? 60 : max(1, ceil(range / bin_count))  — same as before
+  //   - each duration is binned with: clamp(floor((d - min) / bin_width), 0, bin_count-1)
+  // This avoids the V8 spread-argument stack overflow (no Math.min/max spread) because
+  // min and max are returned from ClickHouse as scalar values, not derived from the array.
+  const sql = `
     WITH funnel_per_user AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
@@ -151,81 +165,45 @@ export async function queryFunnelTimeToConvert(
       quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
       toInt64(countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
       minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
-      maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds
+      maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
+      groupArrayIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
     FROM converted
   `;
 
-  const statsResult = await ch.query({ query: statsSql, query_params: queryParams, format: 'JSONEachRow' });
-  const statsRows = await statsResult.json<{
+  const queryResult = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const rows = await queryResult.json<{
     avg_seconds: string | null;
     median_seconds: string | null;
     sample_size: string;
     min_seconds: string | null;
     max_seconds: string | null;
+    durations: number[];
   }>();
 
-  const statsRow = statsRows[0];
-  const sampleSize = Number(statsRow?.sample_size ?? 0);
+  const row = rows[0];
+  const sampleSize = Number(row?.sample_size ?? 0);
 
   if (sampleSize === 0) {
     return { from_step: fromStep, to_step: toStep, average_seconds: null, median_seconds: null, sample_size: 0, bins: [] };
   }
 
-  const avgSeconds = statsRow.avg_seconds != null ? Math.round(Number(statsRow.avg_seconds)) : null;
-  const medianSeconds = statsRow.median_seconds != null ? Math.round(Number(statsRow.median_seconds)) : null;
-  const minVal = Number(statsRow.min_seconds ?? 0);
-  const maxVal = Number(statsRow.max_seconds ?? 0);
+  const avgSeconds = row.avg_seconds != null ? Math.round(Number(row.avg_seconds)) : null;
+  const medianSeconds = row.median_seconds != null ? Math.round(Number(row.median_seconds)) : null;
+  const minVal = Number(row.min_seconds ?? 0);
+  const maxVal = Number(row.max_seconds ?? 0);
 
-  // Determine bin parameters (same formula as before, now computed from server-side min/max).
+  // Determine bin parameters (same formula as before).
   const binCount = Math.max(1, Math.min(MAX_BINS, Math.ceil(Math.cbrt(sampleSize))));
   const range = maxVal - minVal;
   const binWidth = range === 0 ? 60 : Math.max(1, Math.ceil(range / binCount));
 
-  // Phase 2: compute histogram bins entirely in ClickHouse — O(n) server-side scan,
-  // zero per-timing data transferred to Node.js, no in-memory O(n × binCount) filtering.
-  const binsSql = `
-    WITH funnel_per_user AS (
-      SELECT
-        ${RESOLVED_PERSON} AS person_id,
-        ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
-        ${stepTimestampCols}${exclColumnsSQL}
-      FROM events
-      WHERE
-        project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
-        AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
-      GROUP BY person_id
-    ),
-    ${excludedUsersCTE}converted AS (
-      SELECT
-        (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
-      FROM funnel_per_user
-      WHERE max_step >= {to_step_num:UInt64}${exclAndCondition}
-    )
-    SELECT
-      toInt64(bin_idx) AS bin_idx,
-      toInt64(count()) AS bin_count
-    FROM (
-      SELECT
-        greatest(0, least(
-          toInt64(${binCount - 1}),
-          toInt64(floor((duration_seconds - ${minVal}) / ${binWidth}))
-        )) AS bin_idx
-      FROM converted
-      WHERE duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}
-    )
-    GROUP BY bin_idx
-    ORDER BY bin_idx
-  `;
-
-  const binsResult = await ch.query({ query: binsSql, query_params: queryParams, format: 'JSONEachRow' });
-  const binsRows = await binsResult.json<{ bin_idx: string; bin_count: string }>();
-
-  // Build dense bin array (fill gaps with count=0).
+  // Build dense bin array by iterating durations with a for-loop.
+  // Using a loop (not Math.min/max spread) avoids V8 stack overflow on large arrays.
   const binCountByIdx = new Map<number, number>();
-  for (const r of binsRows) {
-    binCountByIdx.set(Number(r.bin_idx), Number(r.bin_count));
+  const durations: number[] = row.durations ?? [];
+  for (const d of durations) {
+    const idx = Math.max(0, Math.min(binCount - 1, Math.floor((d - minVal) / binWidth)));
+    binCountByIdx.set(idx, (binCountByIdx.get(idx) ?? 0) + 1);
   }
 
   const bins: TimeToConvertBin[] = [];
