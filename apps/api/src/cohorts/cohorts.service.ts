@@ -276,14 +276,18 @@ export class CohortsService {
   // ── Private helpers ──────────────────────────────────────────────────────
 
   private async getByIds(projectId: string, cohortIds: string[]) {
+    if (cohortIds.length === 0) return [];
+
+    const uniqueIds = [...new Set(cohortIds)];
+
     const rows = await this.db
       .select()
       .from(cohorts)
-      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, cohortIds)));
+      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, uniqueIds)));
 
-    if (rows.length !== cohortIds.length) {
+    if (rows.length !== uniqueIds.length) {
       const found = new Set(rows.map((r) => r.id));
-      const missing = cohortIds.find((id) => !found.has(id));
+      const missing = uniqueIds.find((id) => !found.has(id));
       throw new CohortNotFoundException(`Cohort ${missing} not found`);
     }
 
