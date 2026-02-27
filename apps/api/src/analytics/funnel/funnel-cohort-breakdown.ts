@@ -46,7 +46,7 @@ export async function runFunnelCohortBreakdown(
     const cbQueryParams = { ...baseQueryParams };
 
     const cohortFilterPredicate = buildCohortFilterForBreakdown(
-      cb, cbParamKey, 900 + cbIdx, cbQueryParams, toChTs(params.date_to, true),
+      cb, cbParamKey, 900 + cbIdx, cbQueryParams, toChTs(params.date_to, true), toChTs(params.date_from),
     );
     const cohortFilter = ` AND ${cohortFilterPredicate}`;
 
