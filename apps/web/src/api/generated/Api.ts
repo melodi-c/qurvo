@@ -563,6 +563,7 @@ export interface RetentionWidgetConfig {
   type: RetentionWidgetConfigDtoTypeEnum;
   retention_type: RetentionType;
   granularity: Granularity;
+  return_event?: string;
   cohort_ids?: string[];
   target_event: string;
   periods: number;
@@ -1911,6 +1912,7 @@ export interface RetentionControllerGetRetentionParams {
   retention_type: RetentionType;
   granularity: Granularity;
   target_event: string;
+  return_event?: string;
   /**
    * @min 1
    * @max 30

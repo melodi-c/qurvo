@@ -5,6 +5,7 @@ import {
   Min,
   Max,
   IsIn,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -15,6 +16,10 @@ export class RetentionQueryDto extends BaseAnalyticsQueryDto {
   @IsString()
   @IsNotEmpty()
   target_event: string;
+
+  @IsOptional()
+  @IsString()
+  return_event?: string;
 
   @ApiProperty({ enum: ['first_time', 'recurring'], enumName: 'RetentionType' })
   @IsIn(['first_time', 'recurring'])
