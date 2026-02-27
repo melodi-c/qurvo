@@ -1288,13 +1288,14 @@ describe('restarted_performing — dateTo upper bound', () => {
 
     // dateTo = 10 days ago
     // Config: historical=60, gap=20, recent=30
+    // gapStart = recent + gap = 50
     // Windows relative to dateTo (10d ago):
-    //   historical: [70d, 40d ago) from now
-    //   gap:        [40d, 30d ago) from now (NOT an event here)
-    //   recent:     [40d, 10d ago] from now ← user has NO events here before dateTo
+    //   historical: [dateTo-60, dateTo-50) = [70d, 60d ago) from now
+    //   gap:        [dateTo-50, dateTo-30) = [60d, 40d ago) from now (NOT an event here)
+    //   recent:     [dateTo-30, dateTo]    = [40d, 10d ago] from now ← user has NO events here before dateTo
     //   post-dateTo: after 10d ago ← must be ignored
 
-    const historicalTs = new Date(Date.now() - 55 * DAY_MS).toISOString(); // within historical
+    const historicalTs = new Date(Date.now() - 65 * DAY_MS).toISOString(); // within historical [70d, 60d)
     const postDateToTs = new Date(Date.now() - 5 * DAY_MS).toISOString();  // after dateTo
 
     await insertTestEvents(ctx.ch, [
@@ -1342,12 +1343,13 @@ describe('restarted_performing — dateTo upper bound', () => {
 
     // dateTo = 10 days ago
     // Config: historical=60, gap=20, recent=30
+    // gapStart = recent + gap = 50
     // Windows relative to dateTo (10d ago):
-    //   historical: [70d, 40d ago) from now
-    //   gap:        [40d, 30d ago) from now (no events)
-    //   recent:     [40d, 10d ago] from now ← user active here (20d ago)
+    //   historical: [dateTo-60, dateTo-50) = [70d, 60d ago) from now
+    //   gap:        [dateTo-50, dateTo-30) = [60d, 40d ago) from now (no events)
+    //   recent:     [dateTo-30, dateTo]    = [40d, 10d ago] from now ← user active here (20d ago)
 
-    const historicalTs = new Date(Date.now() - 55 * DAY_MS).toISOString(); // historical
+    const historicalTs = new Date(Date.now() - 65 * DAY_MS).toISOString(); // within historical [70d, 60d)
     const recentTs = new Date(Date.now() - 20 * DAY_MS).toISOString();     // 20d ago → within recent window relative to dateTo=10d
 
     await insertTestEvents(ctx.ch, [
