@@ -149,6 +149,9 @@ EXPOSE 80
 # ==============================================================================
 FROM base AS storybook-builder
 
+# Build all workspace dependencies that @qurvo/web depends on before running
+# Storybook's build (which does not resolve workspace:* packages from dist).
+RUN pnpm --filter @qurvo/web^... build
 RUN pnpm --filter @qurvo/web run build-storybook
 
 # ==============================================================================
