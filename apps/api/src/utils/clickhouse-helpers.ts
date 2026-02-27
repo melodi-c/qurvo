@@ -59,6 +59,24 @@ export function granularityTruncExpr(granularity: Granularity, col: string, tz?:
   }
 }
 
+/**
+ * Returns a SQL expression for the granularity-truncated minimum of a timestamp column.
+ *
+ * Semantically equivalent to `min(granularityTruncExpr(col))` but expressed as
+ * `granularityTruncExpr(min(col))`, exploiting the monotonicity of truncation functions:
+ *   min(toStartOfDay(t)) == toStartOfDay(min(t))   ✓
+ *   min(toStartOfWeek(t)) == toStartOfWeek(min(t)) ✓
+ *   min(toStartOfMonth(t)) == toStartOfMonth(min(t)) ✓
+ *
+ * Writing it as truncate(min(col)) rather than min(truncate(col)) allows ClickHouse
+ * to use aggregate projections that store `min(timestamp)` — the aggregate function
+ * `min(timestamp)` is directly available from the projection, whereas
+ * `min(toStartOfDay(timestamp))` is not.
+ */
+export function granularityTruncMinExpr(granularity: Granularity, col: string, tz?: string): string {
+  return granularityTruncExpr(granularity, `min(${col})`, tz);
+}
+
 export function shiftPeriod(dateFrom: string, dateTo: string): { from: string; to: string } {
   const from = new Date(`${dateFrom}T00:00:00Z`);
   const to = new Date(`${dateTo}T00:00:00Z`);

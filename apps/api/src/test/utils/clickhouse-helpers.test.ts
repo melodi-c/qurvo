@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   toChTs,
   granularityTruncExpr,
+  granularityTruncMinExpr,
   shiftPeriod,
   shiftDate,
   truncateDate,
@@ -109,6 +110,51 @@ describe('granularityTruncExpr', () => {
     it('behaves same as no timezone when tz is UTC', () => {
       expect(granularityTruncExpr('day', 'timestamp', 'UTC')).toBe('toStartOfDay(timestamp)');
       expect(granularityTruncExpr('week', 'timestamp', 'UTC')).toBe('toDateTime(toStartOfWeek(timestamp, 1))');
+    });
+  });
+});
+
+describe('granularityTruncMinExpr', () => {
+  // granularityTruncMinExpr wraps min(col) with the granularity truncation.
+  // This is semantically equivalent to min(granularityTruncExpr(col)) due to
+  // monotonicity of all supported truncation functions, but allows ClickHouse
+  // to use aggregate projections that precompute min(timestamp).
+
+  it('wraps min(col) in toStartOfDay for day granularity', () => {
+    expect(granularityTruncMinExpr('day', 'timestamp')).toBe('toStartOfDay(min(timestamp))');
+  });
+
+  it('wraps min(col) in toStartOfHour for hour granularity', () => {
+    expect(granularityTruncMinExpr('hour', 'timestamp')).toBe('toStartOfHour(min(timestamp))');
+  });
+
+  it('wraps min(col) in toDateTime(toStartOfWeek) for week granularity', () => {
+    expect(granularityTruncMinExpr('week', 'timestamp')).toBe(
+      'toDateTime(toStartOfWeek(min(timestamp), 1))',
+    );
+  });
+
+  it('wraps min(col) in toDateTime(toStartOfMonth) for month granularity', () => {
+    expect(granularityTruncMinExpr('month', 'timestamp')).toBe(
+      'toDateTime(toStartOfMonth(min(timestamp)))',
+    );
+  });
+
+  describe('with timezone', () => {
+    it('includes timezone for day granularity', () => {
+      expect(granularityTruncMinExpr('day', 'timestamp', 'America/New_York')).toBe(
+        "toStartOfDay(min(timestamp), 'America/New_York')",
+      );
+    });
+
+    it('includes timezone for week granularity', () => {
+      expect(granularityTruncMinExpr('week', 'timestamp', 'Europe/Moscow')).toBe(
+        "toDateTime(toStartOfWeek(min(timestamp), 1, 'Europe/Moscow'), 'Europe/Moscow')",
+      );
+    });
+
+    it('behaves same as no timezone when tz is UTC', () => {
+      expect(granularityTruncMinExpr('day', 'timestamp', 'UTC')).toBe('toStartOfDay(min(timestamp))');
     });
   });
 });

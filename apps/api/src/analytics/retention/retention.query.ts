@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, granularityTruncMinExpr, buildCohortClause, shiftDate, truncateDate, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -142,21 +142,41 @@ export async function queryRetention(
         AND event_name = {target_event:String}${cohortClause}${filterClause}
       GROUP BY person_id, cohort_period`;
   } else {
-    // First-time: only the first ever occurrence of the event, ignoring property
-    // filters — filters must NOT affect which occurrence counts as "first".
-    // Filters are applied only to return_events (see below).
+    // First-time: only the first ever occurrence of the event counts as the cohort date.
+    // Property filters are NOT applied here — the cohort date is the true first event,
+    // regardless of its properties. Filters are applied only to return_events (see below).
+    //
+    // Performance note: we cannot safely add a lower-bound timestamp filter to this scan.
+    // A user whose very first event predates date_from must be EXCLUDED from the cohort
+    // (their min(timestamp) < date_from → the outer HAVING filters them out). But adding
+    // `AND timestamp >= date_from` to the WHERE clause would hide their pre-date_from events,
+    // making min(timestamp) appear to be >= date_from — which would incorrectly include
+    // them as "new" users. The full history scan is therefore semantically necessary.
+    //
+    // Optimisation path: migration 0008 adds an aggregate projection
+    // `events_person_min_timestamp (project_id, event_name, person_id, min(timestamp))`.
+    // The HAVING clause uses `min(timestamp)` directly (rather than filtering on the
+    // computed granularity bucket) so ClickHouse can read precomputed per-person
+    // minimums from the projection instead of scanning all rows.
+    // `cohort_period` is expressed as `granExpr(min(timestamp))` — equivalent to
+    // `min(granExpr(timestamp))` by monotonicity of all supported truncation functions.
+    //
+    // Caveat: when RESOLVED_PERSON (coalesce(dictGetOrNull(..., distinct_id), person_id))
+    // is used as the GROUP BY key, ClickHouse's optimizer may not automatically recognise
+    // it as equivalent to the raw `person_id` column used in the projection key. The
+    // projection still eliminates the per-row read by compressing many events into a single
+    // aggregate row per (project_id, event_name, person_id), improving I/O significantly
+    // even when full equivalence detection is unavailable.
+    const granMinExpr = granularityTruncMinExpr(params.granularity, 'timestamp', params.timezone);
     initialCte = `
-      SELECT person_id, cohort_period
-      FROM (
-        SELECT ${RESOLVED_PERSON} AS person_id,
-               min(${granExpr}) AS cohort_period
-        FROM events
-        WHERE project_id = {project_id:UUID}
-          AND event_name = {target_event:String}${cohortClause}
-        GROUP BY person_id
-      )
-      WHERE cohort_period >= ${fromExpr}
-        AND cohort_period <= ${toExpr}`;
+      SELECT ${RESOLVED_PERSON} AS person_id,
+             ${granMinExpr} AS cohort_period
+      FROM events
+      WHERE project_id = {project_id:UUID}
+        AND event_name = {target_event:String}${cohortClause}
+      GROUP BY person_id
+      HAVING min(timestamp) >= ${fromExpr}
+         AND min(timestamp) <= ${toExpr}`;
   }
 
   const sql = `

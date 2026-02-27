@@ -30,8 +30,7 @@ export function computeStepResults(
     const entered = Number(row.entered);
     const nextStep = Number(row.next_step);
     const isLast = stepIdx === numSteps - 1;
-    const converted = isLast ? 0 : nextStep;
-    const dropOff = entered - converted;
+    const dropOff = isLast ? 0 : entered - nextStep;
     return {
       step: Number(row.step_num),
       label: steps[stepIdx]?.label ?? '',
@@ -39,7 +38,7 @@ export function computeStepResults(
       count: entered,
       conversion_rate: firstCount > 0 ? Math.round((entered / firstCount) * 1000) / 10 : 0,
       drop_off: dropOff,
-      drop_off_rate: entered > 0 ? Math.round((dropOff / entered) * 1000) / 10 : 0,
+      drop_off_rate: isLast ? 0 : (entered > 0 ? Math.round((dropOff / entered) * 1000) / 10 : 0),
       avg_time_to_convert_seconds:
         !isLast && row.avg_time_seconds != null ? Math.round(Number(row.avg_time_seconds)) : null,
     };
@@ -101,11 +100,8 @@ export function computeAggregateSteps(
     const total = stepTotals.get(sn) ?? 0;
     const isLast = idx === stepNums.length - 1;
     const nextTotal = isLast ? 0 : (stepTotals.get(stepNums[idx + 1]) ?? 0);
-    const converted = isLast ? 0 : nextTotal;
-    const dropOff = total - converted;
-    const dropOffRate = total > 0
-      ? Math.round((dropOff / total) * 1000) / 10
-      : 0;
+    const dropOff = isLast ? 0 : total - nextTotal;
+    const dropOffRate = isLast ? 0 : (total > 0 ? Math.round((dropOff / total) * 1000) / 10 : 0);
     return {
       step: sn,
       label: steps[sn - 1]?.label ?? '',

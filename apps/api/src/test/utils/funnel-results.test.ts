@@ -9,9 +9,9 @@ const steps = [
 ];
 
 describe('computeAggregateSteps', () => {
-  it('last step drop_off equals total (same semantics as computeStepResults)', () => {
-    // computeStepResults: last step drop_off = entered (converted = 0)
-    // computeAggregateSteps must produce the same result.
+  it('last step drop_off is 0 (same semantics as computeStepResults)', () => {
+    // Both computeStepResults and computeAggregateSteps: last step drop_off = 0, drop_off_rate = 0
+    // Semantics: the last step has no "next step" to drop off to, so nobody is counted as dropped.
     const rows = [
       { step_num: '1', entered: '100', next_step: '40', avg_time_seconds: '5' },
       { step_num: '2', entered: '40', next_step: '15', avg_time_seconds: '3' },
@@ -23,19 +23,19 @@ describe('computeAggregateSteps', () => {
     const breakdownSteps: FunnelBreakdownStepResult[] = [
       { step: 1, label: 'Page View', event_name: 'page_view', count: 60, conversion_rate: 100, drop_off: 20, drop_off_rate: 33.3, avg_time_to_convert_seconds: null, breakdown_value: 'A' },
       { step: 2, label: 'Sign Up', event_name: 'signup', count: 25, conversion_rate: 50, drop_off: 10, drop_off_rate: 40, avg_time_to_convert_seconds: null, breakdown_value: 'A' },
-      { step: 3, label: 'Purchase', event_name: 'purchase', count: 10, conversion_rate: 20, drop_off: 10, drop_off_rate: 100, avg_time_to_convert_seconds: null, breakdown_value: 'A' },
+      { step: 3, label: 'Purchase', event_name: 'purchase', count: 10, conversion_rate: 20, drop_off: 0, drop_off_rate: 0, avg_time_to_convert_seconds: null, breakdown_value: 'A' },
       { step: 1, label: 'Page View', event_name: 'page_view', count: 40, conversion_rate: 100, drop_off: 20, drop_off_rate: 50, avg_time_to_convert_seconds: null, breakdown_value: 'B' },
       { step: 2, label: 'Sign Up', event_name: 'signup', count: 15, conversion_rate: 50, drop_off: 10, drop_off_rate: 66.7, avg_time_to_convert_seconds: null, breakdown_value: 'B' },
-      { step: 3, label: 'Purchase', event_name: 'purchase', count: 5, conversion_rate: 10, drop_off: 5, drop_off_rate: 100, avg_time_to_convert_seconds: null, breakdown_value: 'B' },
+      { step: 3, label: 'Purchase', event_name: 'purchase', count: 5, conversion_rate: 10, drop_off: 0, drop_off_rate: 0, avg_time_to_convert_seconds: null, breakdown_value: 'B' },
     ];
     const agg = computeAggregateSteps(breakdownSteps, steps);
 
     // Aggregate step 3 total = 10 + 5 = 15, matching stepResults
     expect(agg[2].count).toBe(15);
-    // Last step: drop_off must equal total (all who entered are "dropped off")
-    expect(agg[2].drop_off).toBe(15);
-    expect(agg[2].drop_off_rate).toBe(100);
-    // This should now match computeStepResults semantics exactly
+    // Last step: drop_off must be 0 (no next step to drop off to)
+    expect(agg[2].drop_off).toBe(0);
+    expect(agg[2].drop_off_rate).toBe(0);
+    // This matches computeStepResults semantics exactly
     expect(agg[2].drop_off).toBe(stepResults[2].drop_off);
     expect(agg[2].drop_off_rate).toBe(stepResults[2].drop_off_rate);
   });

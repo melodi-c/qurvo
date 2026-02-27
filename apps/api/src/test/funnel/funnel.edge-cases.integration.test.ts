@@ -56,9 +56,9 @@ describe('queryFunnel — 1-step funnel (degenerate case)', () => {
     expect(r.steps).toHaveLength(1);
     expect(r.steps[0].count).toBe(2);
     expect(r.steps[0].conversion_rate).toBe(100);
-    // There is no "next step", so drop_off = entered - 0 = 2 (last step always drops off nobody)
-    // The last step semantics: drop_off = entered - converted, converted = 0 for last step
-    expect(r.steps[0].drop_off).toBe(2);
+    // Last step: drop_off = 0 and drop_off_rate = 0 — no next step means nobody drops off
+    expect(r.steps[0].drop_off).toBe(0);
+    expect(r.steps[0].drop_off_rate).toBe(0);
     // avg_time is always null for the last step
     expect(r.steps[0].avg_time_to_convert_seconds).toBeNull();
   });
