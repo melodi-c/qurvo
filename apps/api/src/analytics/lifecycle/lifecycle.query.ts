@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityNeighborExpr, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate, granularityNeighborExpr, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ export async function queryLifecycle(
   };
   if (hasTz) queryParams['tz'] = params.timezone;
 
-  const extendedFrom = shiftDate(params.date_from, -1, params.granularity);
+  const extendedFrom = shiftDate(truncateDate(params.date_from, params.granularity), -1, params.granularity);
   queryParams['extended_from'] = toChTs(extendedFrom, false, params.timezone);
   queryParams['from'] = toChTs(params.date_from, false, params.timezone);
   queryParams['to'] = toChTs(params.date_to, true, params.timezone);

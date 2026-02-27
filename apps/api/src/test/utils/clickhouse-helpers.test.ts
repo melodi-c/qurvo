@@ -341,6 +341,64 @@ describe('truncateDate', () => {
   });
 });
 
+describe('shiftDate(truncateDate(date_from, granularity)) — lifecycle extendedFrom alignment (issue #577)', () => {
+  // The lifecycle query uses shiftDate(truncateDate(date_from, granularity), -1, granularity)
+  // to compute extendedFrom. Truncating first ensures extendedFrom aligns to a period boundary
+  // (Monday for weeks, 1st for months) even when date_from is not aligned.
+  // Without truncation, shiftDate('2026-02-11', -1, 'week') = '2026-02-04' (Wednesday),
+  // which cuts off Mon–Tue events that should be included in the look-back window.
+
+  it('week: unaligned Wednesday date_from produces Monday extendedFrom', () => {
+    // date_from = 2026-02-11 (Wednesday)
+    // truncateDate → 2026-02-09 (Monday of that week)
+    // shiftDate(-1 week) → 2026-02-02 (Monday of prior week)
+    const extendedFrom = shiftDate(truncateDate('2026-02-11', 'week'), -1, 'week');
+    expect(extendedFrom).toBe('2026-02-02');
+    // Confirm it is a Monday (UTCDay = 1)
+    expect(new Date(`${extendedFrom}T00:00:00Z`).getUTCDay()).toBe(1);
+  });
+
+  it('week: already-aligned Monday date_from stays aligned after shift', () => {
+    // date_from = 2026-02-09 (Monday) — already aligned
+    // truncateDate → 2026-02-09 (no change)
+    // shiftDate(-1 week) → 2026-02-02 (Monday)
+    const extendedFrom = shiftDate(truncateDate('2026-02-09', 'week'), -1, 'week');
+    expect(extendedFrom).toBe('2026-02-02');
+    expect(new Date(`${extendedFrom}T00:00:00Z`).getUTCDay()).toBe(1);
+  });
+
+  it('week: Sunday date_from produces Monday extendedFrom (Sunday rounds to Monday of same week)', () => {
+    // date_from = 2026-02-08 (Sunday) — belongs to the week starting 2026-02-02
+    // truncateDate → 2026-02-02 (Monday of that week)
+    // shiftDate(-1 week) → 2026-01-26 (Monday)
+    const extendedFrom = shiftDate(truncateDate('2026-02-08', 'week'), -1, 'week');
+    expect(extendedFrom).toBe('2026-01-26');
+    expect(new Date(`${extendedFrom}T00:00:00Z`).getUTCDay()).toBe(1);
+  });
+
+  it('month: unaligned mid-month date_from produces 1st of prior month as extendedFrom', () => {
+    // date_from = 2026-02-15 (15th of February)
+    // truncateDate → 2026-02-01
+    // shiftDate(-1 month) → 2026-01-01
+    const extendedFrom = shiftDate(truncateDate('2026-02-15', 'month'), -1, 'month');
+    expect(extendedFrom).toBe('2026-01-01');
+  });
+
+  it('month: already-aligned 1st of month produces 1st of prior month as extendedFrom', () => {
+    // date_from = 2026-02-01 — already the 1st
+    // truncateDate → 2026-02-01 (no change)
+    // shiftDate(-1 month) → 2026-01-01
+    const extendedFrom = shiftDate(truncateDate('2026-02-01', 'month'), -1, 'month');
+    expect(extendedFrom).toBe('2026-01-01');
+  });
+
+  it('day: any date_from produces a 1-day-earlier extendedFrom (day granularity is always aligned)', () => {
+    // For day granularity, truncateDate is a no-op, so the result equals shiftDate alone.
+    const extendedFrom = shiftDate(truncateDate('2026-02-11', 'day'), -1, 'day');
+    expect(extendedFrom).toBe('2026-02-10');
+  });
+});
+
 describe('granularityInterval', () => {
   it('returns INTERVAL 1 DAY for day', () => {
     expect(granularityInterval('day')).toBe('INTERVAL 1 DAY');
