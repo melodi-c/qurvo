@@ -245,6 +245,175 @@ describe('queryFunnelTimeToConvert', () => {
   });
 });
 
+// ── TTC from_step > 0 ────────────────────────────────────────────────────────
+
+describe('queryFunnelTimeToConvert — from_step > 0 sequence-aware timestamps', () => {
+  it('TTC from_step=1 to_step=2 ignores checkout events that occurred before step 0', async () => {
+    // Scenario from the bug report:
+    //   3-step funnel: signup (0) → checkout (1) → purchase (2)
+    //   from_step=1, to_step=2
+    //
+    // User timeline:
+    //   checkout@T0 (120 s ago)  — before signup; old minIf would pick this as step_1_ms
+    //   signup@T1   (100 s ago)  — step 0
+    //   checkout@T2  (60 s ago)  — step 1 (the one windowFunnel actually uses)
+    //   purchase@T3  (20 s ago)  — step 2
+    //
+    // Correct TTC (checkout→purchase): T3 − T2 = 40 s
+    // Buggy  TTC (earliest checkout→purchase): T3 − T0 = 100 s
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+    const T0 = new Date(now - 120_000).toISOString(); // checkout before signup
+    const T1 = new Date(now - 100_000).toISOString(); // signup (step 0)
+    const T2 = new Date(now - 60_000).toISOString();  // checkout after signup (step 1)
+    const T3 = new Date(now - 20_000).toISOString();  // purchase (step 2)
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'seq-user',
+        event_name: 'checkout',
+        timestamp: T0,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'seq-user',
+        event_name: 'signup',
+        timestamp: T1,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'seq-user',
+        event_name: 'checkout',
+        timestamp: T2,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'seq-user',
+        event_name: 'purchase',
+        timestamp: T3,
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 1,
+      to_step: 2,
+    });
+
+    expect(result.sample_size).toBe(1);
+    // Correct TTC: T3 − T2 = 40 s ± rounding; must NOT be ~100 s (buggy behaviour)
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeGreaterThan(30);
+    expect(result.average_seconds!).toBeLessThan(60);
+
+    // Bins must contain exactly 1 conversion
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
+
+  it('sample_size in TTC matches steps[to_step].count in main funnel query', async () => {
+    // Verifies the second acceptance criterion: sample_size === funnel step count.
+    // 3-step funnel with 3 users:
+    //   personA: signup → checkout → purchase  (full conversion, checkout repeated before signup)
+    //   personB: signup → checkout → purchase  (full conversion, clean)
+    //   personC: signup → checkout only        (drops off at step 1, no purchase)
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+    const personC = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // personA: checkout before signup (old event), then normal sequence
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'ttc-a',
+        event_name: 'checkout', timestamp: new Date(now - 200_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'ttc-a',
+        event_name: 'signup', timestamp: new Date(now - 150_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'ttc-a',
+        event_name: 'checkout', timestamp: new Date(now - 100_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'ttc-a',
+        event_name: 'purchase', timestamp: new Date(now - 50_000).toISOString(),
+      }),
+      // personB: clean 3-step sequence
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'ttc-b',
+        event_name: 'signup', timestamp: new Date(now - 120_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'ttc-b',
+        event_name: 'checkout', timestamp: new Date(now - 80_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'ttc-b',
+        event_name: 'purchase', timestamp: new Date(now - 30_000).toISOString(),
+      }),
+      // personC: signup + checkout only, no purchase
+      buildEvent({
+        project_id: projectId, person_id: personC, distinct_id: 'ttc-c',
+        event_name: 'signup', timestamp: new Date(now - 90_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personC, distinct_id: 'ttc-c',
+        event_name: 'checkout', timestamp: new Date(now - 60_000).toISOString(),
+      }),
+    ]);
+
+    const sharedParams = {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    };
+
+    const funnelResult = await queryFunnel(ctx.ch, sharedParams);
+    expect(funnelResult.breakdown).toBe(false);
+    const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
+    // All 3 users enter step 0
+    expect(funnelSteps[0].count).toBe(3);
+    // Only personA and personB complete step 2 (purchase)
+    expect(funnelSteps[2].count).toBe(2);
+    const expectedSampleSize = funnelSteps[2].count;
+
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      ...sharedParams,
+      from_step: 1,
+      to_step: 2,
+    });
+
+    // sample_size must match main funnel steps[to_step].count
+    expect(ttcResult.sample_size).toBe(expectedSampleSize);
+    expect(ttcResult.sample_size).toBe(2);
+  });
+});
+
 // ── P1: TTC exclusions ───────────────────────────────────────────────────────
 
 describe('queryFunnelTimeToConvert — exclusions', () => {
