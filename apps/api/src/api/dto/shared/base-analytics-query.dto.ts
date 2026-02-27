@@ -8,6 +8,7 @@ import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { parseJsonArray } from './transforms';
 import { IsDateOnly } from './is-date-only.decorator';
+import { IsIanaTimezone } from './is-iana-timezone.decorator';
 
 export class CoreQueryDto {
   @IsUUID()
@@ -23,6 +24,10 @@ export class CoreQueryDto {
   @IsBoolean()
   @IsOptional()
   force?: boolean;
+
+  @IsIanaTimezone()
+  @IsOptional()
+  timezone?: string;
 }
 
 export class BaseAnalyticsQueryDto extends CoreQueryDto {

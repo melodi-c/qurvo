@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, buildFilterClause } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -15,6 +15,7 @@ export interface StickinessQueryParams {
   date_to: string;
   event_filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
+  timezone?: string;
 }
 
 export interface StickinessDataPoint {
@@ -70,15 +71,19 @@ export async function queryStickiness(
   ch: ClickHouseClient,
   params: StickinessQueryParams,
 ): Promise<StickinessQueryResult> {
+  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: Record<string, unknown> = {
     project_id: params.project_id,
     target_event: params.target_event,
   };
+  if (hasTz) queryParams['tz'] = params.timezone;
 
-  queryParams['from'] = toChTs(params.date_from);
-  queryParams['to'] = toChTs(params.date_to, true);
+  queryParams['from'] = toChTs(params.date_from, false, params.timezone);
+  queryParams['to'] = toChTs(params.date_to, true, params.timezone);
 
-  const truncExpr = granularityTruncExpr(params.granularity, 'timestamp');
+  const fromExpr = tsExpr('from', 'tz', hasTz);
+  const toExpr = tsExpr('to', 'tz', hasTz);
+  const truncExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
 
@@ -92,8 +97,8 @@ export async function queryStickiness(
       FROM events
       WHERE project_id = {project_id:UUID}
         AND event_name = {target_event:String}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}${eventFilterClause}${cohortClause}
+        AND timestamp >= ${fromExpr}
+        AND timestamp <= ${toExpr}${eventFilterClause}${cohortClause}
       GROUP BY person_id
     )
     SELECT active_periods, count() AS user_count

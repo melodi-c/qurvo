@@ -1,8 +1,21 @@
 import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-query';
 
-export function toChTs(iso: string, endOfDay = false): string {
-  if (iso.length === 10 && endOfDay) return `${iso} 23:59:59`;
-  if (iso.length === 10) return iso;
+/**
+ * Converts an ISO date/datetime string to a ClickHouse-compatible datetime string.
+ *
+ * When `tz` is provided and `iso` is a date-only string (YYYY-MM-DD), returns a
+ * local-time string like `'2026-02-27 00:00:00'` (or `'2026-02-27 23:59:59'` for
+ * end-of-day). ClickHouse will interpret this via `toDateTime64({param:String}, 3, {tz:String})`.
+ *
+ * Without `tz` the behaviour is unchanged: UTC wall-clock time is returned.
+ */
+export function toChTs(iso: string, endOfDay = false, tz?: string): string {
+  if (iso.length === 10) {
+    // Date-only input — no timezone conversion needed in Node.js.
+    // ClickHouse handles the timezone interpretation via toDateTime64(..., tz).
+    if (endOfDay) return `${iso} 23:59:59`;
+    return `${iso} 00:00:00`;
+  }
   // If the string has an explicit timezone offset (+HH:MM or -HH:MM) or a Z
   // suffix we must normalise to UTC so the offset is applied correctly.
   // Without an explicit timezone the caller is already passing UTC wall-clock
@@ -21,12 +34,24 @@ export { RESOLVED_PERSON } from '@qurvo/cohort-query';
 
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
-export function granularityTruncExpr(granularity: Granularity, col: string): string {
+export function granularityTruncExpr(granularity: Granularity, col: string, tz?: string): string {
+  const hastz = tz && tz !== 'UTC';
   switch (granularity) {
-    case 'hour':  return `toStartOfHour(${col})`;
-    case 'day':   return `toStartOfDay(${col})`;
-    case 'week':  return `toDateTime(toStartOfWeek(${col}, 1))`;
-    case 'month': return `toDateTime(toStartOfMonth(${col}))`;
+    case 'hour':
+      return hastz ? `toStartOfHour(${col}, '${tz}')` : `toStartOfHour(${col})`;
+    case 'day':
+      return hastz ? `toStartOfDay(${col}, '${tz}')` : `toStartOfDay(${col})`;
+    case 'week':
+      // toStartOfWeek returns Date; wrap with toDateTime to get DateTime.
+      // With timezone: toStartOfWeek(col, 1, tz) → Date → toDateTime(..., tz) → DateTime
+      return hastz
+        ? `toDateTime(toStartOfWeek(${col}, 1, '${tz}'), '${tz}')`
+        : `toDateTime(toStartOfWeek(${col}, 1))`;
+    case 'month':
+      // toStartOfMonth returns Date; wrap with toDateTime to get DateTime.
+      return hastz
+        ? `toDateTime(toStartOfMonth(${col}, '${tz}'), '${tz}')`
+        : `toDateTime(toStartOfMonth(${col}))`;
     default: {
       const _exhaustive: never = granularity;
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
@@ -112,6 +137,23 @@ export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'
  */
 export function buildFilterClause(conditions: string[]): string {
   return conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
+}
+
+/**
+ * Returns the SQL expression to compare `timestamp` against a named datetime parameter.
+ *
+ * - Without timezone: `{paramName:DateTime64(3)}` — param value must be a UTC datetime string.
+ * - With timezone: `toDateTime64({paramName:String}, 3, {tzParam:String})` — ClickHouse interprets
+ *   the local-time string using the timezone value stored in `{tzParam}`.
+ *
+ * @param paramName - the ClickHouse query parameter name for the datetime value (e.g. 'from', 'to')
+ * @param tzParam   - the ClickHouse query parameter name for the timezone string (e.g. 'tz')
+ * @param hasTz     - whether timezone-aware mode should be used
+ */
+export function tsExpr(paramName: string, tzParam: string, hasTz: boolean): string {
+  return hasTz
+    ? `toDateTime64({${paramName}:String}, 3, {${tzParam}:String})`
+    : `{${paramName}:DateTime64(3)}`;
 }
 
 /**
