@@ -73,6 +73,76 @@ describe('countCohortMembers — event conditions', () => {
   });
 });
 
+// ── Event conditions with event_filters ────────────────────────────────────
+
+describe('countCohortMembers — event conditions with event_filters', () => {
+  it('counts only persons who performed event with matching event property', async () => {
+    const projectId = randomUUID();
+    const electronicsUser = randomUUID();
+    const clothingUser = randomUUID();
+
+    // electronicsUser: purchased electronics twice
+    // clothingUser: purchased clothing twice
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: electronicsUser,
+        distinct_id: 'elec',
+        event_name: 'purchase',
+        properties: JSON.stringify({ category: 'electronics' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: electronicsUser,
+        distinct_id: 'elec',
+        event_name: 'purchase',
+        properties: JSON.stringify({ category: 'electronics' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: clothingUser,
+        distinct_id: 'cloth',
+        event_name: 'purchase',
+        properties: JSON.stringify({ category: 'clothing' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: clothingUser,
+        distinct_id: 'cloth',
+        event_name: 'purchase',
+        properties: JSON.stringify({ category: 'clothing' }),
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    // Cohort: "performed purchase with properties.category = 'electronics' at least 1 time"
+    const count = await countCohortMembers(ctx.ch, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'event',
+          event_name: 'purchase',
+          count_operator: 'gte',
+          count: 1,
+          time_window_days: 30,
+          event_filters: [
+            { property: 'properties.category', operator: 'eq', value: 'electronics' },
+          ],
+        },
+      ],
+    });
+
+    expect(count).toBe(1); // only electronicsUser
+  });
+});
+
 // ── Event aggregation math ──────────────────────────────────────────────────
 
 describe('countCohortMembers — event aggregation math', () => {
