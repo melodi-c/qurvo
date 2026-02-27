@@ -1030,9 +1030,14 @@ export class OnlineSchoolScenario extends BaseScenario {
     const insightRefundFunnelId = randomUUID();
     const insightLearningFunnelId = randomUUID();
 
+    const insightNewLeadsId = randomUUID();
+    const insightWebinarRegId = randomUUID();
+    const insightRefundsId = randomUUID();
+
     const insightRetentionId = randomUUID();
     const insightLifecycleId = randomUUID();
     const insightStickinessId = randomUUID();
+    const insightPathsId = randomUUID();
 
     const insights: InsightInput[] = [
       // ── Trends ──
@@ -1085,6 +1090,54 @@ export class OnlineSchoolScenario extends BaseScenario {
           metric: 'total_events',
           granularity: 'week',
           chart_type: 'line',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+      },
+      {
+        id: insightNewLeadsId,
+        type: 'trend',
+        name: 'Новые лиды',
+        description: 'Количество новых лидов по дням',
+        config: {
+          type: 'trend',
+          series: [{ event_name: 'lead_created', label: 'Новые лиды' }],
+          metric: 'total_events',
+          granularity: 'day',
+          chart_type: 'bar',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+      },
+      {
+        id: insightWebinarRegId,
+        type: 'trend',
+        name: 'Вебинарные регистрации',
+        description: 'Количество регистраций на вебинары по неделям',
+        config: {
+          type: 'trend',
+          series: [{ event_name: 'webinar_registered', label: 'Регистрации на вебинар' }],
+          metric: 'total_events',
+          granularity: 'week',
+          chart_type: 'bar',
+          date_from: dateFrom,
+          date_to: dateTo,
+          compare: false,
+        },
+      },
+      {
+        id: insightRefundsId,
+        type: 'trend',
+        name: 'Возвраты',
+        description: 'Количество запросов на возврат по неделям',
+        config: {
+          type: 'trend',
+          series: [{ event_name: 'refund_requested', label: 'Запросы возврата' }],
+          metric: 'total_events',
+          granularity: 'week',
+          chart_type: 'bar',
           date_from: dateFrom,
           date_to: dateTo,
           compare: false,
@@ -1277,15 +1330,15 @@ export class OnlineSchoolScenario extends BaseScenario {
         is_favorite: true,
       },
 
-      // ── Retention / Lifecycle / Stickiness ──
+      // ── Retention / Lifecycle / Stickiness / Paths ──
       {
         id: insightRetentionId,
         type: 'retention',
-        name: 'Удержание по урокам',
-        description: 'Удержание студентов неделя за неделей после первого урока',
+        name: 'Удержание оплативших учеников',
+        description: 'Удержание студентов неделя за неделей после первой оплаты',
         config: {
           type: 'retention',
-          target_event: 'lesson_started',
+          target_event: 'payment_success',
           retention_type: 'first_time',
           granularity: 'week',
           periods: 8,
@@ -1297,8 +1350,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       {
         id: insightLifecycleId,
         type: 'lifecycle',
-        name: 'Жизненный цикл активности',
-        description: 'Новые, возвращающиеся, воскресающие и неактивные учащиеся',
+        name: 'Жизненный цикл по активности в обучении',
+        description: 'Новые, возвращающиеся, воскресающие и неактивные учащиеся по урокам',
         config: {
           type: 'lifecycle',
           target_event: 'lesson_started',
@@ -1316,6 +1369,19 @@ export class OnlineSchoolScenario extends BaseScenario {
           type: 'stickiness',
           target_event: 'lesson_started',
           granularity: 'week',
+          date_from: dateFrom,
+          date_to: dateTo,
+        },
+      },
+      {
+        id: insightPathsId,
+        type: 'paths',
+        name: 'Пути после оплаты курса',
+        description: 'Куда переходят пользователи после успешной оплаты',
+        config: {
+          type: 'paths',
+          start_event: 'payment_success',
+          step_limit: 5,
           date_from: dateFrom,
           date_to: dateTo,
         },
@@ -1341,8 +1407,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       { dashboardId: dashboardOverviewId, insightId: insightDauId, layout: { x: 0, y: 0, w: 6, h: 4 } },
       { dashboardId: dashboardOverviewId, insightId: insightRevenueId, layout: { x: 6, y: 0, w: 6, h: 4 } },
       { dashboardId: dashboardOverviewId, insightId: insightLessonActivityId, layout: { x: 0, y: 4, w: 6, h: 4 } },
-      { dashboardId: dashboardOverviewId, insightId: insightActivationFunnelId, layout: { x: 6, y: 4, w: 6, h: 5 } },
-      { dashboardId: dashboardOverviewId, insightId: insightRetentionId, layout: { x: 0, y: 8, w: 6, h: 5 } },
+      { dashboardId: dashboardOverviewId, insightId: insightNewLeadsId, layout: { x: 6, y: 4, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightActivationFunnelId, layout: { x: 0, y: 8, w: 6, h: 5 } },
+      { dashboardId: dashboardOverviewId, insightId: insightRetentionId, layout: { x: 6, y: 8, w: 6, h: 5 } },
+      { dashboardId: dashboardOverviewId, insightId: insightWebinarRegId, layout: { x: 0, y: 13, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightRefundsId, layout: { x: 6, y: 13, w: 6, h: 4 } },
 
       // Funnels dashboard
       { dashboardId: dashboardFunnelsId, insightId: insightAcquisitionFunnelId, layout: { x: 0, y: 0, w: 12, h: 5 } },
@@ -1358,7 +1427,8 @@ export class OnlineSchoolScenario extends BaseScenario {
       { dashboardId: dashboardLearningId, insightId: insightRetentionId, layout: { x: 0, y: 5, w: 12, h: 5 } },
       { dashboardId: dashboardLearningId, insightId: insightLifecycleId, layout: { x: 0, y: 10, w: 6, h: 4 } },
       { dashboardId: dashboardLearningId, insightId: insightStickinessId, layout: { x: 6, y: 10, w: 6, h: 4 } },
-      { dashboardId: dashboardLearningId, insightId: insightLessonActivityId, layout: { x: 0, y: 14, w: 12, h: 4 } },
+      { dashboardId: dashboardLearningId, insightId: insightLessonActivityId, layout: { x: 0, y: 14, w: 6, h: 4 } },
+      { dashboardId: dashboardLearningId, insightId: insightPathsId, layout: { x: 6, y: 14, w: 6, h: 4 } },
     ];
 
     // ── Cohorts ───────────────────────────────────────────────────────────────
