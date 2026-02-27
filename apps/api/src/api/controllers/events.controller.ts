@@ -20,7 +20,7 @@ export class EventsController {
   async getEvents(
     @Query() query: EventsQueryDto,
   ): Promise<EventRowDto[]> {
-    return this.eventsService.getEvents(query);
+    return this.eventsService.getEvents(query) as any;
   }
 
   @Get('events/:eventId')
@@ -28,7 +28,7 @@ export class EventsController {
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Query() query: EventDetailQueryDto,
   ): Promise<EventDetailDto> {
-    return this.eventsService.getEventDetail(query.project_id, eventId, query.timestamp);
+    return this.eventsService.getEventDetail(query.project_id, eventId, query.timestamp) as any;
   }
 
   @Get('event-names')
@@ -36,7 +36,7 @@ export class EventsController {
     @Query() query: EventNamesQueryDto,
   ): Promise<EventNamesResponseDto> {
     const event_names = await this.eventsService.getEventNames(query.project_id);
-    return { event_names };
+    return { event_names } as any;
   }
 
   @Get('event-property-names')

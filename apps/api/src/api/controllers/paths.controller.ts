@@ -17,6 +17,6 @@ export class PathsController {
   async getPaths(
     @Query() query: PathsQueryDto,
   ): Promise<PathsResponseDto> {
-    return this.pathsService.query({ ...query, step_limit: query.step_limit ?? 5 });
+    return this.pathsService.query({ ...query, step_limit: query.step_limit ?? 5 }) as any;
   }
 }

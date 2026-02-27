@@ -55,6 +55,6 @@ export class PersonsController {
       person_id: personId,
       limit: query.limit!,
       offset: query.offset!,
-    });
+    }) as any;
   }
 }
