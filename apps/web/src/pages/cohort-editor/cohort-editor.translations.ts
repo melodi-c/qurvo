@@ -31,6 +31,7 @@ export default createTranslations({
     settings: 'Settings',
     hideSettings: 'Hide settings',
     viewerNoPreview: 'Preview requires editor access',
+    previewError: 'Failed to preview cohort',
   },
   ru: {
     backLabel: 'Когорты',
@@ -62,5 +63,6 @@ export default createTranslations({
     settings: 'Настройки',
     hideSettings: 'Скрыть настройки',
     viewerNoPreview: 'Предпросмотр доступен только редакторам',
+    previewError: 'Не удалось получить предпросмотр',
   },
 });
