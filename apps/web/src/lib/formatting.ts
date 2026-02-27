@@ -17,8 +17,8 @@ export function formatDate(iso: string): string {
 export function formatDateWithGranularity(iso: string, granularity: string, timezone?: string): string {
   const locale = getLocale();
   const displayTz = timezone || 'UTC';
-  // Normalise ClickHouse bucket format (space-separated) to ISO UTC
-  const utcStr = iso.includes(' ') ? iso.replace(' ', 'T') + 'Z' : iso + 'T00:00:00Z';
+  // Normalise ClickHouse bucket format to UTC ISO 8601
+  const utcStr = normaliseBucketToUtc(iso);
   const d = new Date(utcStr);
   if (granularity === 'month') {
     return d.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: displayTz });
@@ -49,6 +49,15 @@ export function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString(locale);
 }
 
+/** Normalise a ClickHouse bucket string to a UTC ISO 8601 string parseable by `new Date()`.
+ * ClickHouse returns "YYYY-MM-DD HH:MM:SS" (space, no tz) or "YYYY-MM-DD" (date-only).
+ * Already-normalised strings (containing 'T' or 'Z') are returned as-is. */
+function normaliseBucketToUtc(bucket: string): string {
+  if (bucket.includes('T') || bucket.includes('Z')) return bucket; // already ISO
+  if (bucket.includes(' ')) return bucket.replace(' ', 'T') + 'Z'; // "YYYY-MM-DD HH:MM:SS"
+  return bucket + 'T00:00:00Z';                                     // "YYYY-MM-DD"
+}
+
 /** Return a badge variant for a given event name. */
 export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 'outline' {
   if (eventName === '$pageview') return 'default';
@@ -65,12 +74,7 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
 export function formatBucket(bucket: string, granularity: string, compact?: boolean, timezone?: string): string {
   if (!bucket) return '';
   const locale = getLocale();
-  // ClickHouse returns buckets as "YYYY-MM-DD HH:MM:SS" (space separator, no tz suffix)
-  // or as "YYYY-MM-DD" (date-only). Normalise to ISO 8601 UTC so Date() parses correctly.
-  const utcStr = bucket.includes(' ')
-    ? bucket.replace(' ', 'T') + 'Z'   // "YYYY-MM-DD HH:MM:SS" → "YYYY-MM-DDTHH:MM:SSZ"
-    : bucket + 'T00:00:00Z';           // "YYYY-MM-DD" → "YYYY-MM-DDT00:00:00Z"
-  const d = new Date(utcStr);
+  const d = new Date(normaliseBucketToUtc(bucket));
   // For display: use the project's timezone when provided, else UTC (avoids browser-local offset shifts).
   const displayTz = timezone || 'UTC';
   if (granularity === 'hour') {
