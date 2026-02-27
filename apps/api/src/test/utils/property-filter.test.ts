@@ -90,7 +90,7 @@ describe('buildPropertyFilterConditions', () => {
     expect(params).toEqual({});
   });
 
-  it('builds eq condition', () => {
+  it('builds eq condition for direct column', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'event_name', operator: 'eq', value: 'page_view' },
@@ -98,6 +98,18 @@ describe('buildPropertyFilterConditions', () => {
     const result = buildPropertyFilterConditions(filters, 'p', params);
     expect(result).toEqual(['event_name = {p_f0_v:String}']);
     expect(params['p_f0_v']).toBe('page_view');
+  });
+
+  it('builds eq condition for JSON property with boolean/number OR fallback', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.active', operator: 'eq', value: 'true' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual([
+      "(JSONExtractString(properties, 'active') = {p_f0_v:String} OR toString(JSONExtractRaw(properties, 'active')) = {p_f0_v:String})",
+    ]);
+    expect(params['p_f0_v']).toBe('true');
   });
 
   it('builds neq condition for direct column (no JSONHas guard)', () => {
@@ -110,23 +122,27 @@ describe('buildPropertyFilterConditions', () => {
     expect(params['q_f0_v']).toBe('US');
   });
 
-  it('builds neq condition for JSON property with JSONHas guard', () => {
+  it('builds neq condition for JSON property with JSONHas guard and boolean/number AND condition', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'properties.plan', operator: 'neq', value: 'pro' },
     ];
     const result = buildPropertyFilterConditions(filters, 'q', params);
-    expect(result).toEqual(["JSONHas(properties, 'plan') AND JSONExtractString(properties, 'plan') != {q_f0_v:String}"]);
+    expect(result).toEqual([
+      "JSONHas(properties, 'plan') AND (JSONExtractString(properties, 'plan') != {q_f0_v:String} AND toString(JSONExtractRaw(properties, 'plan')) != {q_f0_v:String})",
+    ]);
     expect(params['q_f0_v']).toBe('pro');
   });
 
-  it('builds neq condition for user_properties JSON with JSONHas guard', () => {
+  it('builds neq condition for user_properties JSON with JSONHas guard and boolean/number AND condition', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'user_properties.tier', operator: 'neq', value: 'free' },
     ];
     const result = buildPropertyFilterConditions(filters, 'p', params);
-    expect(result).toEqual(["JSONHas(user_properties, 'tier') AND JSONExtractString(user_properties, 'tier') != {p_f0_v:String}"]);
+    expect(result).toEqual([
+      "JSONHas(user_properties, 'tier') AND (JSONExtractString(user_properties, 'tier') != {p_f0_v:String} AND toString(JSONExtractRaw(user_properties, 'tier')) != {p_f0_v:String})",
+    ]);
     expect(params['p_f0_v']).toBe('free');
   });
 
@@ -277,24 +293,26 @@ describe('buildPropertyFilterConditions', () => {
 
 // ── Nested dot-notation (a.b) path tests ─────────────────────────────────────
 describe('buildPropertyFilterConditions — nested dot-notation paths', () => {
-  it('eq on nested path uses variadic JSONExtractString', () => {
+  it('eq on nested path uses variadic JSONExtractString with boolean/number OR fallback', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'properties.address.city', operator: 'eq', value: 'Moscow' },
     ];
     const result = buildPropertyFilterConditions(filters, 'p', params);
-    expect(result).toEqual(["JSONExtractString(properties, 'address', 'city') = {p_f0_v:String}"]);
+    expect(result).toEqual([
+      "(JSONExtractString(properties, 'address', 'city') = {p_f0_v:String} OR toString(JSONExtractRaw(JSONExtractRaw(properties, 'address'), 'city')) = {p_f0_v:String})",
+    ]);
     expect(params['p_f0_v']).toBe('Moscow');
   });
 
-  it('neq on nested path uses JSONHas parent traversal guard', () => {
+  it('neq on nested path uses JSONHas parent traversal guard and boolean/number AND condition', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'properties.address.city', operator: 'neq', value: 'London' },
     ];
     const result = buildPropertyFilterConditions(filters, 'p', params);
     expect(result).toEqual([
-      "JSONHas(JSONExtractRaw(properties, 'address'), 'city') AND JSONExtractString(properties, 'address', 'city') != {p_f0_v:String}",
+      "JSONHas(JSONExtractRaw(properties, 'address'), 'city') AND (JSONExtractString(properties, 'address', 'city') != {p_f0_v:String} AND toString(JSONExtractRaw(JSONExtractRaw(properties, 'address'), 'city')) != {p_f0_v:String})",
     ]);
     expect(params['p_f0_v']).toBe('London');
   });
@@ -365,12 +383,14 @@ describe('buildPropertyFilterConditions — nested dot-notation paths', () => {
     expect(params['p_f0_v']).toBe('%osc%');
   });
 
-  it('three-level nested path works correctly', () => {
+  it('three-level nested path works correctly with boolean/number OR fallback', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'properties.a.b.c', operator: 'eq', value: 'val' },
     ];
     const result = buildPropertyFilterConditions(filters, 'p', params);
-    expect(result).toEqual(["JSONExtractString(properties, 'a', 'b', 'c') = {p_f0_v:String}"]);
+    expect(result).toEqual([
+      "(JSONExtractString(properties, 'a', 'b', 'c') = {p_f0_v:String} OR toString(JSONExtractRaw(JSONExtractRaw(JSONExtractRaw(properties, 'a'), 'b'), 'c')) = {p_f0_v:String})",
+    ]);
   });
 });

@@ -55,6 +55,52 @@ describe('resolveEventPropertyExpr (cohort-query helpers)', () => {
   });
 });
 
+describe('buildOperatorClause — eq/neq with JSON expressions use OR/AND with JSONExtractRaw for boolean/number support', () => {
+  it('eq: uses OR with JSONExtractRaw when expr contains JSONExtractString', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(argMax(user_properties, timestamp), 'is_premium')";
+    const clause = buildOperatorClause(expr, 'eq', 'p0', params, 'true');
+    expect(clause).toBe(
+      "(JSONExtractString(argMax(user_properties, timestamp), 'is_premium') = {p0:String} OR toString(JSONExtractRaw(argMax(user_properties, timestamp), 'is_premium')) = {p0:String})",
+    );
+    expect(params['p0']).toBe('true');
+  });
+
+  it('eq: does NOT add OR fallback for non-JSON expressions (top-level column)', () => {
+    const params: Record<string, unknown> = {};
+    // argMax(country, timestamp) — no JSONExtractString, no OR fallback
+    const clause = buildOperatorClause('argMax(country, timestamp)', 'eq', 'p0', params, 'US');
+    expect(clause).toBe('argMax(country, timestamp) = {p0:String}');
+    expect(params['p0']).toBe('US');
+  });
+
+  it('neq: uses AND with JSONExtractRaw when expr contains JSONExtractString', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(argMax(properties, timestamp), 'active')";
+    const clause = buildOperatorClause(expr, 'neq', 'p0', params, 'false');
+    expect(clause).toBe(
+      "(JSONExtractString(argMax(properties, timestamp), 'active') != {p0:String} AND toString(JSONExtractRaw(argMax(properties, timestamp), 'active')) != {p0:String})",
+    );
+    expect(params['p0']).toBe('false');
+  });
+
+  it('neq: does NOT add AND guard for non-JSON expressions', () => {
+    const params: Record<string, unknown> = {};
+    const clause = buildOperatorClause('argMax(country, timestamp)', 'neq', 'p0', params, 'US');
+    expect(clause).toBe('argMax(country, timestamp) != {p0:String}');
+    expect(params['p0']).toBe('US');
+  });
+
+  it('eq: event-level JSON expression also uses OR with JSONExtractRaw', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(properties, 'active')";
+    const clause = buildOperatorClause(expr, 'eq', 'ef0', params, 'true');
+    expect(clause).toBe(
+      "(JSONExtractString(properties, 'active') = {ef0:String} OR toString(JSONExtractRaw(properties, 'active')) = {ef0:String})",
+    );
+  });
+});
+
 describe('buildOperatorClause — numeric operators use JSONExtractRaw (not JSONExtractString)', () => {
   // JSONExtractString returns '' for numeric JSON values; JSONExtractRaw returns '42'.
   // So toFloat64OrZero(JSONExtractRaw(...)) correctly parses numbers from JSON fields.

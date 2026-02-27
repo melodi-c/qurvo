@@ -122,15 +122,27 @@ export function buildPropertyFilterConditions(
     switch (f.operator) {
       case 'eq':
         queryParams[pk] = f.value ?? '';
-        parts.push(`${expr} = {${pk}:String}`);
+        if (source) {
+          // JSONExtractString returns '' for boolean/number JSON values (e.g. true, false, 42).
+          // JSONExtractRaw returns the raw token ('true', 'false', '42').
+          // OR-ing both ensures string values and boolean/number values are both matched.
+          const rawEqExpr = buildJsonExtractRaw(source.jsonColumn, source.segments);
+          parts.push(`(${expr} = {${pk}:String} OR toString(${rawEqExpr}) = {${pk}:String})`);
+        } else {
+          parts.push(`${expr} = {${pk}:String}`);
+        }
         break;
       case 'neq':
         queryParams[pk] = f.value ?? '';
-        // For JSON properties: require the key to be present before comparing.
-        // JSONExtractString returns '' for missing keys, so '' != 'target' would be true,
-        // incorrectly including users who never had this property.
         if (source) {
-          parts.push(`${buildJsonHas(source.jsonColumn, source.segments)} AND ${expr} != {${pk}:String}`);
+          // For JSON properties: require the key to be present before comparing.
+          // JSONExtractString returns '' for missing keys, so '' != 'target' would be true,
+          // incorrectly including users who never had this property.
+          // Also handle boolean/number values via JSONExtractRaw (AND both conditions must not match).
+          const rawNeqExpr = buildJsonExtractRaw(source.jsonColumn, source.segments);
+          parts.push(
+            `${buildJsonHas(source.jsonColumn, source.segments)} AND (${expr} != {${pk}:String} AND toString(${rawNeqExpr}) != {${pk}:String})`,
+          );
         } else {
           parts.push(`${expr} != {${pk}:String}`);
         }
