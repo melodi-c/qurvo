@@ -553,8 +553,8 @@ describe('queryFunnel — cohort breakdown with exclusions', () => {
     expect(result.breakdown).toBe(true);
     const r = result as Extract<typeof result, { breakdown: true }>;
 
-    const premiumSteps = r.steps.filter((s) => s.breakdown_value === 'Premium');
-    const freeSteps = r.steps.filter((s) => s.breakdown_value === 'Free');
+    const premiumSteps = r.steps.filter((s) => s.breakdown_value === premiumCohort.cohort_id);
+    const freeSteps = r.steps.filter((s) => s.breakdown_value === freeCohort.cohort_id);
 
     // Premium cohort: 2 users entered, 1 excluded → 1 remains in step 1, 1 converts
     expect(premiumSteps.find((s) => s.step === 1)?.count).toBe(1);
@@ -566,8 +566,8 @@ describe('queryFunnel — cohort breakdown with exclusions', () => {
 
     // avg_time_to_convert_seconds: non-last steps with converters are non-null
     // (cohort breakdown now includes avgIf in SQL)
-    const premiumStep1After = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
-    const premiumStep2After = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 2);
+    const premiumStep1After = r.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 1);
+    const premiumStep2After = r.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 2);
     expect(premiumStep1After?.avg_time_to_convert_seconds).not.toBeNull();
     expect(premiumStep1After?.avg_time_to_convert_seconds).toBeGreaterThan(0);
     expect(premiumStep2After?.avg_time_to_convert_seconds).toBeNull(); // last step always null
@@ -729,14 +729,14 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
     const r = result as Extract<typeof result, { breakdown: true }>;
 
     // cohort breakdown now includes avg_time columns — non-last steps with converters are non-null
-    const premiumStep1 = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
-    const premiumStep2 = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 2);
+    const premiumStep1 = r.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 1);
+    const premiumStep2 = r.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 2);
     expect(premiumStep1?.avg_time_to_convert_seconds).not.toBeNull();
     expect(premiumStep1?.avg_time_to_convert_seconds).toBeGreaterThan(0);
     expect(premiumStep2?.avg_time_to_convert_seconds).toBeNull(); // last step always null
 
-    const freeStep1 = r.steps.find((s) => s.breakdown_value === 'Free' && s.step === 1);
-    const freeStep2 = r.steps.find((s) => s.breakdown_value === 'Free' && s.step === 2);
+    const freeStep1 = r.steps.find((s) => s.breakdown_value === freeCohort.cohort_id && s.step === 1);
+    const freeStep2 = r.steps.find((s) => s.breakdown_value === freeCohort.cohort_id && s.step === 2);
     expect(freeStep1?.avg_time_to_convert_seconds).not.toBeNull();
     expect(freeStep1?.avg_time_to_convert_seconds).toBeGreaterThan(0);
     expect(freeStep2?.avg_time_to_convert_seconds).toBeNull(); // last step always null
@@ -832,8 +832,8 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
     const r = result as Extract<typeof result, { breakdown: true }>;
 
     // Per-cohort breakdown: Premium has 2 users (overlap + premiumOnly), Active has 1 user (overlap)
-    const premiumSteps = r.steps.filter((s) => s.breakdown_value === 'Premium');
-    const activeSteps = r.steps.filter((s) => s.breakdown_value === 'Active');
+    const premiumSteps = r.steps.filter((s) => s.breakdown_value === premiumCohort.cohort_id);
+    const activeSteps = r.steps.filter((s) => s.breakdown_value === activeCohort.cohort_id);
     expect(premiumSteps.find((s) => s.step === 1)?.count).toBe(2);
     expect(activeSteps.find((s) => s.step === 1)?.count).toBe(1);
 

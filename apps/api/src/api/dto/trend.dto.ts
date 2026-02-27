@@ -89,6 +89,8 @@ export class TrendSeriesResultDto {
   @Type(() => TrendDataPointDto)
   data: TrendDataPointDto[];
   @ApiPropertyOptional() breakdown_value?: string;
+  @ApiPropertyOptional({ description: 'Human-readable display label for the breakdown group. Set for cohort breakdowns.' })
+  breakdown_label?: string;
 }
 
 export class TrendResultDto {

@@ -195,9 +195,9 @@ describe('queryFunnel — zero events: cohort breakdown', () => {
     expect(result.breakdown).toBe(true);
     const r = result as Extract<typeof result, { breakdown: true }>;
 
-    // Each cohort returns N zero-count steps
-    const premiumSteps = r.steps.filter((s) => s.breakdown_value === 'Premium');
-    const freeSteps = r.steps.filter((s) => s.breakdown_value === 'Free');
+    // Each cohort returns N zero-count steps (breakdown_value is cohort_id, not name)
+    const premiumSteps = r.steps.filter((s) => s.breakdown_value === premiumCohort.cohort_id);
+    const freeSteps = r.steps.filter((s) => s.breakdown_value === freeCohort.cohort_id);
 
     expect(premiumSteps).toHaveLength(2);
     expect(freeSteps).toHaveLength(2);

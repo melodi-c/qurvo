@@ -18,6 +18,7 @@ import {
   ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 function IsLessThan(property: string, validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
@@ -58,6 +59,7 @@ export class CohortEventFilterDto {
   @IsNotEmpty()
   property: string;
 
+  @ApiProperty({ enum: COHORT_OPERATORS })
   @IsIn(COHORT_OPERATORS)
   operator: CohortOperator;
 
@@ -74,6 +76,7 @@ export class CohortEventFilterDto {
 // ── Condition DTOs ───────────────────────────────────────────────────────────
 
 export class CohortPropertyConditionDto {
+  @ApiProperty({ enum: ['person_property'] })
   @IsIn(['person_property'])
   type: 'person_property';
 
@@ -81,6 +84,7 @@ export class CohortPropertyConditionDto {
   @IsNotEmpty()
   property: string;
 
+  @ApiProperty({ enum: COHORT_OPERATORS })
   @IsIn(COHORT_OPERATORS)
   operator: CohortOperator;
 
@@ -95,6 +99,7 @@ export class CohortPropertyConditionDto {
 }
 
 export class CohortEventConditionDto {
+  @ApiProperty({ enum: ['event'] })
   @IsIn(['event'])
   type: 'event';
 
@@ -102,6 +107,7 @@ export class CohortEventConditionDto {
   @IsNotEmpty()
   event_name: string;
 
+  @ApiProperty({ enum: ['gte', 'lte', 'eq'] })
   @IsIn(['gte', 'lte', 'eq'])
   count_operator: 'gte' | 'lte' | 'eq';
 
@@ -122,6 +128,7 @@ export class CohortEventConditionDto {
   @IsOptional()
   event_filters?: CohortEventFilterDto[];
 
+  @ApiPropertyOptional({ enum: ['count', 'sum', 'avg', 'min', 'max', 'median', 'p75', 'p90', 'p95', 'p99'] })
   @IsIn(['count', 'sum', 'avg', 'min', 'max', 'median', 'p75', 'p90', 'p95', 'p99'])
   @IsOptional()
   aggregation_type?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'p75' | 'p90' | 'p95' | 'p99';
@@ -132,6 +139,7 @@ export class CohortEventConditionDto {
 }
 
 export class CohortCohortConditionDto {
+  @ApiProperty({ enum: ['cohort'] })
   @IsIn(['cohort'])
   type: 'cohort';
 
@@ -143,6 +151,7 @@ export class CohortCohortConditionDto {
 }
 
 export class CohortFirstTimeEventConditionDto {
+  @ApiProperty({ enum: ['first_time_event'] })
   @IsIn(['first_time_event'])
   type: 'first_time_event';
 
@@ -164,6 +173,7 @@ export class CohortFirstTimeEventConditionDto {
 }
 
 export class CohortNotPerformedEventConditionDto {
+  @ApiProperty({ enum: ['not_performed_event'] })
   @IsIn(['not_performed_event'])
   type: 'not_performed_event';
 
@@ -197,6 +207,7 @@ export class EventSequenceStepDto {
 }
 
 export class CohortEventSequenceConditionDto {
+  @ApiProperty({ enum: ['event_sequence'] })
   @IsIn(['event_sequence'])
   type: 'event_sequence';
 
@@ -214,6 +225,7 @@ export class CohortEventSequenceConditionDto {
 }
 
 export class CohortNotPerformedEventSequenceConditionDto {
+  @ApiProperty({ enum: ['not_performed_event_sequence'] })
   @IsIn(['not_performed_event_sequence'])
   type: 'not_performed_event_sequence';
 
@@ -231,6 +243,7 @@ export class CohortNotPerformedEventSequenceConditionDto {
 }
 
 export class CohortPerformedRegularlyConditionDto {
+  @ApiProperty({ enum: ['performed_regularly'] })
   @IsIn(['performed_regularly'])
   type: 'performed_regularly';
 
@@ -238,6 +251,7 @@ export class CohortPerformedRegularlyConditionDto {
   @IsNotEmpty()
   event_name: string;
 
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
   @IsIn(['day', 'week', 'month'])
   period_type: 'day' | 'week' | 'month';
 
@@ -265,6 +279,7 @@ export class CohortPerformedRegularlyConditionDto {
 }
 
 export class CohortStoppedPerformingConditionDto {
+  @ApiProperty({ enum: ['stopped_performing'] })
   @IsIn(['stopped_performing'])
   type: 'stopped_performing';
 
@@ -328,6 +343,7 @@ function IsGreaterThanSum(
 }
 
 export class CohortRestartedPerformingConditionDto {
+  @ApiProperty({ enum: ['restarted_performing'] })
   @IsIn(['restarted_performing'])
   type: 'restarted_performing';
 
@@ -379,6 +395,7 @@ type CohortConditionValue =
   | CohortConditionGroupDto;
 
 export class CohortConditionGroupDto {
+  @ApiProperty({ enum: ['AND', 'OR'] })
   @IsIn(['AND', 'OR'])
   type: 'AND' | 'OR';
 

@@ -289,8 +289,10 @@ export class FunnelStepResultDto {
 
 // Breakdown step result — breakdown_value is REQUIRED (always present when breakdown: true).
 export class FunnelBreakdownStepResultDto extends FunnelStepResultDto {
-  @ApiProperty({ description: 'Breakdown group value. Always present when breakdown is true.' })
+  @ApiProperty({ description: 'Unique breakdown group identifier. For cohort breakdowns this is the cohort UUID.' })
   breakdown_value: string;
+  @ApiPropertyOptional({ description: 'Human-readable display label for the breakdown group. Set for cohort breakdowns.' })
+  breakdown_label?: string;
 }
 
 @ApiExtraModels(FunnelBreakdownStepResultDto)

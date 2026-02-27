@@ -115,11 +115,11 @@ describe('queryFunnel — cohort breakdown avg_time_to_convert (ordered)', () =>
     expect(result.breakdown).toBe(true);
     const rBd = result as Extract<typeof result, { breakdown: true }>;
 
-    // Per-cohort step results
-    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
-    const premiumStep2 = rBd.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 2);
-    const freeStep1 = rBd.steps.find((s) => s.breakdown_value === 'Free' && s.step === 1);
-    const freeStep2 = rBd.steps.find((s) => s.breakdown_value === 'Free' && s.step === 2);
+    // Per-cohort step results (breakdown_value is cohort_id, breakdown_label is cohort name)
+    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 1);
+    const premiumStep2 = rBd.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 2);
+    const freeStep1 = rBd.steps.find((s) => s.breakdown_value === freeCohort.cohort_id && s.step === 1);
+    const freeStep2 = rBd.steps.find((s) => s.breakdown_value === freeCohort.cohort_id && s.step === 2);
 
     expect(premiumStep1?.count).toBe(2);
     expect(premiumStep2?.count).toBe(2);
@@ -219,8 +219,8 @@ describe('queryFunnel — cohort breakdown avg_time_to_convert (ordered)', () =>
     expect(result.breakdown).toBe(true);
     const rBd = result as Extract<typeof result, { breakdown: true }>;
 
-    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
-    const freeStep1 = rBd.steps.find((s) => s.breakdown_value === 'Free' && s.step === 1);
+    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 1);
+    const freeStep1 = rBd.steps.find((s) => s.breakdown_value === freeCohort.cohort_id && s.step === 1);
 
     // Premium: 1 user entered but 0 converted → avg_time must be null
     expect(premiumStep1?.count).toBe(1);
@@ -313,8 +313,8 @@ describe('queryFunnel — cohort breakdown avg_time_to_convert (unordered)', () 
     expect(result.breakdown).toBe(true);
     const rBd = result as Extract<typeof result, { breakdown: true }>;
 
-    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
-    const freeStep1 = rBd.steps.find((s) => s.breakdown_value === 'Free' && s.step === 1);
+    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === premiumCohort.cohort_id && s.step === 1);
+    const freeStep1 = rBd.steps.find((s) => s.breakdown_value === freeCohort.cohort_id && s.step === 1);
 
     // Both cohorts convert — avg_time must be non-null and positive
     expect(premiumStep1?.avg_time_to_convert_seconds).not.toBeNull();

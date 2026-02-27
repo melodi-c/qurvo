@@ -63,16 +63,24 @@ export function computeStepResults(
 }
 
 /**
- * Computes step results for a single cohort, attaching breakdown_value.
+ * Computes step results for a single cohort, attaching breakdown_value and optional breakdown_label.
+ *
+ * @param breakdownValue - Unique identifier for the breakdown group (e.g. cohort UUID).
+ * @param breakdownLabel - Optional human-readable display label (e.g. cohort name).
  */
 export function computeCohortBreakdownStepResults(
   rows: RawFunnelRow[],
   steps: FunnelStep[],
   numSteps: number,
   breakdownValue: string,
+  breakdownLabel?: string,
 ): FunnelBreakdownStepResult[] {
   const stepResults = computeStepResults(rows, steps, numSteps);
-  return stepResults.map((sr) => ({ ...sr, breakdown_value: breakdownValue }));
+  return stepResults.map((sr) => ({
+    ...sr,
+    breakdown_value: breakdownValue,
+    ...(breakdownLabel !== undefined ? { breakdown_label: breakdownLabel } : {}),
+  }));
 }
 
 /**

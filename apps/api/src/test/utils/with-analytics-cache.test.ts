@@ -98,6 +98,51 @@ describe('cache key stability', () => {
 
     expect(stableStringify(paramsA)).toBe(stableStringify(paramsB));
   });
+
+  it('changing membership_version in a materialized cohort filter produces a different cache key', async () => {
+    // Simulates the scenario where cohort-worker recomputes membership:
+    // the version token changes, so the cache key must change and the stale
+    // cached result is automatically bypassed on the next request.
+    const baseFilter = {
+      cohort_id: 'cohort-uuid',
+      definition: { type: 'AND', values: [] },
+      materialized: true,
+      is_static: false,
+    };
+
+    const paramsV1 = {
+      project_id: 'proj-1',
+      date_from: '2025-01-01',
+      date_to: '2025-01-31',
+      cohort_filters: [{ ...baseFilter, membership_version: 1000 }],
+    };
+    const paramsV2 = {
+      project_id: 'proj-1',
+      date_from: '2025-01-01',
+      date_to: '2025-01-31',
+      cohort_filters: [{ ...baseFilter, membership_version: 2000 }],
+    };
+
+    expect(stableStringify(paramsV1)).not.toBe(stableStringify(paramsV2));
+  });
+
+  it('null membership_version on non-materialized cohort filter does not affect cache key stability', async () => {
+    // Inline (behavioral) cohorts never have a membership_version — cache key
+    // must remain stable across calls for the same definition.
+    const filter = {
+      cohort_id: 'cohort-uuid',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }] },
+      materialized: false,
+      is_static: false,
+      membership_version: null,
+    };
+
+    const paramsA = { project_id: 'proj-1', date_from: '2025-01-01', date_to: '2025-01-31', cohort_filters: [filter] };
+    // Same params, different key insertion order
+    const paramsB = { date_to: '2025-01-31', project_id: 'proj-1', date_from: '2025-01-01', cohort_filters: [filter] };
+
+    expect(stableStringify(paramsA)).toBe(stableStringify(paramsB));
+  });
 });
 
 describe('withAnalyticsCache', () => {

@@ -35,6 +35,8 @@ export interface FunnelStepResult {
 
 export interface FunnelBreakdownStepResult extends FunnelStepResult {
   breakdown_value: string;
+  /** Human-readable label for the breakdown group. Set when breakdown_type='cohort'. */
+  breakdown_label?: string;
 }
 
 export type FunnelQueryResult =

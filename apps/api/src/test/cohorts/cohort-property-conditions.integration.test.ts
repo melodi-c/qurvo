@@ -79,6 +79,17 @@ describe('countCohortMembers — person_property conditions', () => {
         user_properties: JSON.stringify({ plan: 'free' }),
         timestamp,
       }),
+      // user without 'plan' property at all:
+      // JSONExtractString returns '' for absent keys, and '' != 'premium' is true,
+      // so users with no 'plan' property ARE included in neq: 'premium' results.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'user-no-plan',
+        event_name: '$set',
+        user_properties: JSON.stringify({ company: 'Acme' }),
+        timestamp,
+      }),
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
@@ -88,7 +99,10 @@ describe('countCohortMembers — person_property conditions', () => {
       ],
     });
 
-    expect(count).toBe(2);
+    // user-b and user-c have plan='free' (not 'premium'), user-no-plan has no 'plan' key at all.
+    // JSONExtractString returns '' for absent keys, '' != 'premium' evaluates to true,
+    // so user-no-plan is INCLUDED in neq results. Total: 3.
+    expect(count).toBe(3);
   });
 
   it('counts persons matching contains condition', async () => {
@@ -285,6 +299,7 @@ describe('countCohortMembers — date operators', () => {
     const timestamp = msAgo(0);
 
     await insertTestEvents(ctx.ch, [
+      // target-user: stored as ISO datetime — is_date_exact strips time via toDate(), so it matches.
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
@@ -293,12 +308,24 @@ describe('countCohortMembers — date operators', () => {
         user_properties: JSON.stringify({ signup_date: '2025-03-15T14:30:00Z' }),
         timestamp,
       }),
+      // other-user-next-day: signed up on 2025-03-16 — one day after target, must NOT match.
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
-        distinct_id: 'other-user',
+        distinct_id: 'other-user-next-day',
         event_name: '$set',
         user_properties: JSON.stringify({ signup_date: '2025-03-16' }),
+        timestamp,
+      }),
+      // other-user-different-month: signed up on 2025-04-01 — completely different date, must NOT match.
+      // This second negative case ensures that if the implementation returns all users (broken),
+      // count would be 3 instead of 1, catching the false-positive scenario.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'other-user-different-month',
+        event_name: '$set',
+        user_properties: JSON.stringify({ signup_date: '2025-04-01' }),
         timestamp,
       }),
     ]);
@@ -310,6 +337,9 @@ describe('countCohortMembers — date operators', () => {
       ],
     });
 
+    // Only target-user qualifies. other-user-next-day (2025-03-16) and
+    // other-user-different-month (2025-04-01) must be excluded.
+    // With 3 users total, a broken implementation returning all users would yield count=3, not 1.
     expect(count).toBe(1);
   });
 });
@@ -338,6 +368,16 @@ describe('countCohortMembers — numeric and set operators for person_property',
         user_properties: JSON.stringify({ plan: 'free' }),
         timestamp,
       }),
+      // user with company set to empty string:
+      // is_set is implemented as expr != '' so company='' is treated as NOT set.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'user-empty-company',
+        event_name: '$set',
+        user_properties: JSON.stringify({ company: '' }),
+        timestamp,
+      }),
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
@@ -347,6 +387,9 @@ describe('countCohortMembers — numeric and set operators for person_property',
       ],
     });
 
+    // Only user-with-company qualifies: company='Acme Corp' != ''.
+    // user-without-company: JSONExtractString returns '' for absent key → fails != '' check.
+    // user-empty-company: company='' → fails != '' check, treated same as absent.
     expect(count).toBe(1);
   });
 
@@ -379,6 +422,17 @@ describe('countCohortMembers — numeric and set operators for person_property',
         user_properties: JSON.stringify({ plan: 'premium' }),
         timestamp,
       }),
+      // user with company explicitly set to empty string:
+      // is_not_set is implemented as expr = '' so company='' falls into is_not_set,
+      // same as a completely absent property key.
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'user-empty-company',
+        event_name: '$set',
+        user_properties: JSON.stringify({ company: '' }),
+        timestamp,
+      }),
     ]);
 
     const count = await countCohortMembers(ctx.ch, projectId, {
@@ -388,7 +442,10 @@ describe('countCohortMembers — numeric and set operators for person_property',
       ],
     });
 
-    expect(count).toBe(2);
+    // user-without-company and another-without-company: no 'company' key, JSONExtractString → '' = ''.
+    // user-empty-company: company='' → '' = '' is true, treated same as absent property.
+    // Total: 3 (absent key and empty string are both classified as is_not_set).
+    expect(count).toBe(3);
   });
 
   it('gt: counts persons where numeric user_property > threshold', async () => {

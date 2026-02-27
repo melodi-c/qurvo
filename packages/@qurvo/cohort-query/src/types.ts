@@ -5,6 +5,14 @@ export interface CohortFilterInput {
   definition: CohortConditionGroup;
   materialized: boolean;
   is_static: boolean;
+  /**
+   * Monotonically-increasing version token for materialized cohorts.
+   * Set by cohort-worker after each successful recomputation (Unix ms timestamp).
+   * Included in cache keys so that a new version automatically invalidates
+   * any cached analytics result that depended on the old membership snapshot.
+   * Undefined / null for inline (non-materialized, non-static) cohorts.
+   */
+  membership_version?: number | null;
 }
 
 export interface BuildContext {
