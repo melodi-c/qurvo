@@ -22,15 +22,9 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendQueryPanel.translations';
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 
-/** Breakdown fields used by the UI but not declared in the generated TrendWidgetConfig. */
-type TrendConfig = TrendWidgetConfig & {
-  breakdown_type?: 'property' | 'cohort';
-  breakdown_cohort_ids?: string[];
-};
-
 interface TrendQueryPanelProps {
-  config: TrendConfig;
-  onChange: (config: TrendConfig) => void;
+  config: TrendWidgetConfig;
+  onChange: (config: TrendWidgetConfig) => void;
 }
 
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
