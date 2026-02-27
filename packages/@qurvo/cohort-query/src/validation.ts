@@ -36,20 +36,26 @@ export async function detectCircularDependency(
   definition: CohortConditionGroup,
   resolveDefinition: (id: string) => Promise<CohortConditionGroup | null>,
 ): Promise<boolean> {
-  const visited = new Set<string>();
-  visited.add(cohortId);
+  // ancestors tracks the current DFS path, not all visited nodes globally.
+  // A node is only a cycle if it appears in the current call stack (ancestor path),
+  // not merely because it was visited via a different branch (diamond dependency).
+  const ancestors = new Set<string>([cohortId]);
 
-  async function check(def: CohortConditionGroup): Promise<boolean> {
+  async function check(def: CohortConditionGroup, currentAncestors: Set<string>): Promise<boolean> {
     const refs = extractCohortReferences(def);
     for (const refId of refs) {
-      if (visited.has(refId)) return true;
-      visited.add(refId);
+      if (currentAncestors.has(refId)) return true;
 
       const refDef = await resolveDefinition(refId);
-      if (refDef && await check(refDef)) return true;
+      if (refDef) {
+        // Pass a new Set that extends the current path — do not mutate the shared set.
+        const nextAncestors = new Set<string>(currentAncestors);
+        nextAncestors.add(refId);
+        if (await check(refDef, nextAncestors)) return true;
+      }
     }
     return false;
   }
 
-  return check(definition);
+  return check(definition, ancestors);
 }
