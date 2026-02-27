@@ -44,8 +44,13 @@ const MAX_BINS = 60;
 /**
  * Compute time-to-convert stats and histogram in a single ClickHouse query.
  *
- * The single-query approach:
- *   funnel_per_user — per-person windowFunnel + timestamps (one full scan of events)
+ * Two-level CTE structure (single events scan):
+ *   funnel_raw      — per-person windowFunnel + groupArrayIf per step (one full scan)
+ *   funnel_per_user — derives sequence-aware step_i_ms from raw arrays:
+ *                     step_0_ms = arrayMin(step_0_arr)
+ *                     step_i_ms = first occurrence of step i that is >= step_{i-1}_ms
+ *                     This prevents earliest-ever occurrences (before step 0) from
+ *                     skewing TTC when from_step > 0.
  *   converted       — filter to users who reached to_step within window
  *   final SELECT    — computes avg, median, min, max, count AND collects all
  *                     duration_seconds values in groupArray — all in one pass.
@@ -53,9 +58,6 @@ const MAX_BINS = 60;
  * Histogram binning is done in JS from the returned durations array:
  *   - bin_count and bin_width are computed from server-side min/max/count
  *   - a simple for-loop bins each duration (no Math.min/max spread, no V8 stack risk)
- *
- * This replaces the previous two-query approach (statsSql + binsSql), reducing
- * ClickHouse scans of the events table from 2 to 1.
  */
 
 export async function queryFunnelTimeToConvert(
@@ -105,10 +107,44 @@ export async function queryFunnelTimeToConvert(
   const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams));
   const stepConditions = stepConds.join(', ');
 
-  // Per-step minIf timestamps (reuse cached step conditions)
-  const stepTimestampCols = stepConds.map(
-    (cond, i) => `minIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_ms`,
+  // Per-step timestamp arrays — collect all timestamps per step in a single scan.
+  // We use groupArrayIf to get all occurrences so we can find the first one
+  // that comes after the previous step (i.e. matches the windowFunnel sequence).
+  // Step 0 always uses the global minimum. For step i > 0 we derive the
+  // "sequence-aware" timestamp in the step_timestamps CTE.
+  const stepArrayCols = stepConds.map(
+    (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_arr`,
   ).join(',\n            ');
+
+  // Build a chain of sequence-aware timestamp expressions.
+  // step_0_ms = earliest occurrence of step 0 (no predecessor constraint).
+  // step_i_ms = earliest occurrence of step i that is >= step_{i-1}_ms
+  //             (mirrors what windowFunnel uses for the ordered sequence).
+  //
+  // Expressions are fully inlined (no alias references within the same SELECT level)
+  // because ClickHouse does not guarantee left-to-right alias resolution in SELECT.
+  // if(notEmpty(arr), arrayMin(arr), 0) avoids UInt64 overflow from arrayMin([]).
+  //
+  // To avoid re-computing the prev-step expression for each level, we build a map
+  // of step index → its inline SQL expression (without the AS alias).
+  const seqStepInlineExpr: string[] = [];
+  for (let i = 0; i < numSteps; i++) {
+    if (i === 0) {
+      seqStepInlineExpr.push(`if(notEmpty(step_0_arr), arrayMin(step_0_arr), 0)`);
+    } else {
+      const prevExpr = seqStepInlineExpr[i - 1]!;
+      // Use a unique lambda variable name per step to avoid shadowing in nested expressions.
+      const lv = `t${i}`;
+      seqStepInlineExpr.push(
+        `if(notEmpty(arrayFilter(${lv} -> ${lv} >= (${prevExpr}), step_${i}_arr)),` +
+        ` arrayMin(arrayFilter(${lv} -> ${lv} >= (${prevExpr}), step_${i}_arr)),` +
+        ` 0)`,
+      );
+    }
+  }
+  const seqStepSQL = seqStepInlineExpr
+    .map((expr, i) => `${expr} AS step_${i}_ms`)
+    .join(',\n      ');
 
   const fromCol = `step_${fromStep}_ms`;
   const toCol = `step_${toStep}_ms`;
@@ -117,8 +153,17 @@ export async function queryFunnelTimeToConvert(
   const exclColumns = exclusions.length > 0
     ? buildExclusionColumns(exclusions, steps, queryParams)
     : [];
+  // Aggregation expressions for funnel_raw (e.g. "groupArrayIf(...) AS excl_0_from_arr")
   const exclColumnsSQL = exclColumns.length > 0
     ? ',\n            ' + exclColumns.join(',\n            ')
+    : '';
+  // Pass-through aliases for funnel_per_user (e.g. "excl_0_from_arr")
+  const exclColumnAliases = exclColumns.map((expr) => {
+    const match = /AS (\w+)$/.exec(expr.trim());
+    return match ? match[1]! : expr;
+  });
+  const exclAliasSQL = exclColumnAliases.length > 0
+    ? ',\n      ' + exclColumnAliases.join(',\n      ')
     : '';
   const excludedUsersCTE = exclusions.length > 0
     ? buildExcludedUsersCTE(exclusions) + ',\n  '
@@ -130,10 +175,17 @@ export async function queryFunnelTimeToConvert(
 
   // Single query: scan events once, compute both stats and raw durations.
   //
-  // The converted CTE is referenced only once in the final SELECT, so ClickHouse
-  // evaluates funnel_per_user (the events scan) exactly once.
+  // Two-level CTE structure:
+  //   funnel_raw  — per-person windowFunnel + arrays of timestamps per step
+  //                 (one full scan of events)
+  //   funnel_per_user — derives sequence-aware step_i_ms from raw arrays:
+  //                 step_0_ms = arrayMin(step_0_arr)
+  //                 step_i_ms = first occurrence of step i that is >= step_{i-1}_ms
+  //                 This matches the ordering that windowFunnel uses and prevents
+  //                 earlier-ever occurrences (before step 0) from skewing the TTC.
+  //   converted   — filter to users who completed to_step; compute duration
+  //   final SELECT — aggregates stats + collects durations for histogram binning in JS
   //
-  // groupArray collects all valid duration_seconds values (up to sample_size floats).
   // Histogram binning is performed in JS using a simple loop:
   //   - bin_count = max(1, min(MAX_BINS, ceil(cbrt(sample_size)))) — same as before
   //   - bin_width = range == 0 ? 60 : max(1, ceil(range / bin_count))  — same as before
@@ -141,11 +193,11 @@ export async function queryFunnelTimeToConvert(
   // This avoids the V8 spread-argument stack overflow (no Math.min/max spread) because
   // min and max are returned from ClickHouse as scalar values, not derived from the array.
   const sql = `
-    WITH funnel_per_user AS (
+    WITH funnel_raw AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
         ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
-        ${stepTimestampCols}${exclColumnsSQL}
+        ${stepArrayCols}${exclColumnsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
@@ -153,6 +205,13 @@ export async function queryFunnelTimeToConvert(
         AND timestamp <= {to:DateTime64(3)}
         AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
       GROUP BY person_id
+    ),
+    funnel_per_user AS (
+      SELECT
+        person_id,
+        max_step,
+        ${seqStepSQL}${exclAliasSQL}
+      FROM funnel_raw
     ),
     ${excludedUsersCTE}converted AS (
       SELECT
