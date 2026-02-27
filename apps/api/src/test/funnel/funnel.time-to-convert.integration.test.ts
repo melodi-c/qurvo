@@ -672,22 +672,24 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     expect(totalBinCount).toBe(ttcResult.sample_size);
   });
 
-  it('unordered mode: sample_size TTC matches steps[to_step].count in main funnel', async () => {
+  it('unordered mode: TTC only counts users where fromStep occurred before toStep', async () => {
     // Scenario: a 2-step funnel in unordered mode.
     // personA: purchase → signup (steps in reverse order) — converts in unordered mode.
-    // personB: signup → purchase (in-order) — also converts in unordered mode.
+    //   But for TTC (from_step=0/signup, to_step=1/purchase), purchase happened BEFORE signup,
+    //   so this is a reverse conversion and must NOT be counted in TTC.
+    // personB: signup → purchase (in-order) — converts in unordered mode and in TTC.
     // personC: signup only — does NOT complete step 2.
     //
     // Main funnel unordered: steps[1].count = 2 (personA and personB)
-    // TTC unordered: sample_size must equal 2 (matches main funnel)
-    // TTC ordered (wrong): would return sample_size = 1 (only personB, in-order)
+    // TTC unordered: sample_size = 1 (only personB — fromStep before toStep)
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
     const personC = randomUUID();
 
     await insertTestEvents(ctx.ch, [
-      // personA: reverse order — purchase first, then signup
+      // personA: reverse order — purchase first, then signup.
+      // to_step (purchase) is BEFORE from_step (signup) → excluded from TTC.
       buildEvent({
         project_id: projectId, person_id: personA, distinct_id: 'unordered-a',
         event_name: 'purchase', timestamp: msAgo(8000),
@@ -696,7 +698,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
         project_id: projectId, person_id: personA, distinct_id: 'unordered-a',
         event_name: 'signup', timestamp: msAgo(4000),
       }),
-      // personB: in-order signup → purchase
+      // personB: in-order signup → purchase. from_step (signup) before to_step (purchase) → included.
       buildEvent({
         project_id: projectId, person_id: personB, distinct_id: 'unordered-b',
         event_name: 'signup', timestamp: msAgo(7000),
@@ -727,7 +729,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     const funnelResult = await queryFunnel(ctx.ch, sharedParams);
     expect(funnelResult.breakdown).toBe(false);
     const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
-    // personA and personB both complete 2 steps (in any order)
+    // personA and personB both complete 2 steps (in any order) in the main funnel
     expect(funnelSteps[1]!.count).toBe(2);
 
     const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
@@ -736,17 +738,73 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       to_step: 1,
     });
 
-    // sample_size must match main funnel steps[to_step].count
-    expect(ttcResult.sample_size).toBe(funnelSteps[1]!.count);
-    expect(ttcResult.sample_size).toBe(2);
+    // TTC only counts personB (signup before purchase).
+    // personA is excluded because their purchase (toStep) occurred before signup (fromStep).
+    expect(ttcResult.sample_size).toBe(1);
 
-    // Both conversions should have valid durations
+    // personB duration: signup at msAgo(7000), purchase at msAgo(3000) → ~4s
     expect(ttcResult.average_seconds).not.toBeNull();
     expect(ttcResult.average_seconds).toBeGreaterThan(0);
 
     // Bins total should match sample_size
     const totalBinCount = ttcResult.bins.reduce((sum, b) => sum + b.count, 0);
     expect(totalBinCount).toBe(ttcResult.sample_size);
+  });
+
+  it('unordered mode: user with toStep before fromStep is excluded; user with fromStep before toStep is included with correct duration', async () => {
+    // Direct regression test for: abs() replaced with directional check.
+    // personReverse: toStep (purchase) at t=-20s, fromStep (signup) at t=-10s.
+    //   abs(to - from) = 10s — was wrongly included with duration_seconds = 10.
+    //   With fix: to_step_ms < from_step_ms → excluded.
+    // personForward: fromStep (signup) at t=-20s, toStep (purchase) at t=-10s.
+    //   duration = 10s → included, duration_seconds = 10.
+    const projectId = randomUUID();
+    const personReverse = randomUUID();
+    const personForward = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personReverse: purchase (toStep) then signup (fromStep) — reverse order
+      buildEvent({
+        project_id: projectId, person_id: personReverse, distinct_id: 'rev-user',
+        event_name: 'purchase', timestamp: msAgo(20_000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personReverse, distinct_id: 'rev-user',
+        event_name: 'signup', timestamp: msAgo(10_000),
+      }),
+      // personForward: signup (fromStep) then purchase (toStep) — forward order, 10s apart
+      buildEvent({
+        project_id: projectId, person_id: personForward, distinct_id: 'fwd-user',
+        event_name: 'signup', timestamp: msAgo(20_000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personForward, distinct_id: 'fwd-user',
+        event_name: 'purchase', timestamp: msAgo(10_000),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+      funnel_order_type: 'unordered' as const,
+    });
+
+    // Only personForward should be included (fromStep before toStep)
+    expect(result.sample_size).toBe(1);
+    // personForward duration ≈ 10s
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds).toBeGreaterThan(0);
+    // Bins total should match sample_size
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
   });
 
   it('default (no funnel_order_type) uses ordered mode — reverse-order user is NOT counted', async () => {

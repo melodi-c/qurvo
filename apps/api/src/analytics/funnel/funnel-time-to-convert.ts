@@ -474,11 +474,11 @@ async function buildUnorderedTtcSql(
     )${excludedUsersCTE},
     converted AS (
       SELECT
-        abs(to_step_ms - from_step_ms) / 1000.0 AS duration_seconds
+        (to_step_ms - from_step_ms) / 1000.0 AS duration_seconds
       FROM funnel_per_user
       WHERE max_step >= {to_step_num:UInt64}
-        AND from_step_ms > 0
-        AND to_step_ms > 0${exclAndCondition}
+        AND to_step_ms >= from_step_ms
+        AND from_step_ms > 0${exclAndCondition}
     )
     SELECT
       avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
