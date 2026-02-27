@@ -8,7 +8,7 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { Queue } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -16,7 +16,7 @@ import { getTestContext } from './context';
 import { getCohortMembers } from './helpers/ch';
 import { CohortMembershipService } from '../cohort-worker/cohort-membership.service';
 import { CohortComputationService } from '../cohort-worker/cohort-computation.service';
-import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS, COHORT_COMPUTE_QUEUE, COHORT_GC_CYCLE_REDIS_KEY, COHORT_GC_EVERY_N_CYCLES } from '../constants';
+import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS, COHORT_COMPUTE_QUEUE, COHORT_GC_CYCLE_REDIS_KEY, COHORT_GC_EVERY_N_CYCLES, COHORT_ERROR_BACKOFF_BASE_MINUTES, COHORT_ERROR_BACKOFF_MAX_EXPONENT } from '../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
@@ -1395,5 +1395,464 @@ describe('cohort membership', () => {
       name: 'Dummy Restore',
       definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'dummy' }] },
     });
+  });
+
+  // ── Error backoff (filterByBackoff) integration ──────────────────────
+
+  it('error backoff — cohort with recent error is skipped, cohort with old error is included', async () => {
+    const projectId = testProject.projectId;
+    const personRecent = randomUUID();
+    const personOld = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personRecent,
+        distinct_id: `coh-backoff-recent-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ backoff_test: 'recent' }),
+        timestamp: ts(1),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personOld,
+        distinct_id: `coh-backoff-old-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ backoff_test: 'old' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    // Cohort A: errors_calculating=1, last_error_at=now → should be skipped (backoff=60min)
+    const cohortRecentErr = await createCohort(projectId, testProject.userId, 'Backoff Recent Error', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'backoff_test', operator: 'eq', value: 'recent' }],
+    });
+    await ctx.db
+      .update(cohorts)
+      .set({ errors_calculating: 1, last_error_at: new Date() })
+      .where(eq(cohorts.id, cohortRecentErr));
+
+    // Cohort B: errors_calculating=1, last_error_at=2 hours ago → should be included (backoff=60min < 2h)
+    const cohortOldErr = await createCohort(projectId, testProject.userId, 'Backoff Old Error', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'backoff_test', operator: 'eq', value: 'old' }],
+    });
+    await ctx.db
+      .update(cohorts)
+      .set({ errors_calculating: 1, last_error_at: new Date(Date.now() - 2 * 60 * 60_000) })
+      .where(eq(cohorts.id, cohortOldErr));
+
+    await runCycle();
+
+    // Cohort with recent error should NOT have been computed
+    const membersRecent = await getCohortMembers(ctx.ch, projectId, cohortRecentErr);
+    expect(membersRecent).not.toContain(personRecent);
+
+    // Cohort with old error should have been computed (backoff expired)
+    const membersOld = await getCohortMembers(ctx.ch, projectId, cohortOldErr);
+    expect(membersOld).toContain(personOld);
+
+    // Verify PG: old-error cohort had errors_calculating reset to 0 (success resets errors)
+    const [rowOld] = await ctx.db
+      .select({ errors_calculating: cohorts.errors_calculating })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortOldErr));
+    expect(rowOld.errors_calculating).toBe(0);
+
+    // Recent-error cohort still has errors_calculating=1 (was skipped, not recomputed)
+    const [rowRecent] = await ctx.db
+      .select({ errors_calculating: cohorts.errors_calculating })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortRecentErr));
+    expect(rowRecent.errors_calculating).toBe(1);
+  });
+
+  it('error backoff — cohort with errors=0 and last_error_at=null is always included', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-backoff-zero-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ backoff_zero: 'yes' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Backoff Zero Errors', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'backoff_zero', operator: 'eq', value: 'yes' }],
+    });
+
+    // Explicitly set errors_calculating=0, last_error_at=null (default, but be explicit)
+    await ctx.db
+      .update(cohorts)
+      .set({ errors_calculating: 0, last_error_at: null })
+      .where(eq(cohorts.id, cohortId));
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personId);
+  });
+
+  it('error backoff — exponent capped at COHORT_ERROR_BACKOFF_MAX_EXPONENT', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-backoff-cap-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ backoff_cap: 'yes' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Backoff Exponent Cap', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'backoff_cap', operator: 'eq', value: 'yes' }],
+    });
+
+    // Set errors above max exponent. Backoff should still be 2^MAX_EXPONENT * base, not 2^(errors) * base.
+    // MAX_EXPONENT=10 → backoff = 2^10 * 30min = 1024 * 30min ≈ 21.3 days
+    const errorsAboveCap = COHORT_ERROR_BACKOFF_MAX_EXPONENT + 5;
+    const cappedBackoffMs = Math.pow(2, COHORT_ERROR_BACKOFF_MAX_EXPONENT) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
+
+    // Set last_error_at to just past the capped backoff → should be eligible
+    await ctx.db
+      .update(cohorts)
+      .set({
+        errors_calculating: errorsAboveCap,
+        last_error_at: new Date(Date.now() - cappedBackoffMs - 1000),
+      })
+      .where(eq(cohorts.id, cohortId));
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personId);
+  });
+
+  // ── Cyclic dependency → recordError ─────────────────────────────────
+
+  it('cyclic dependency — both cohorts get recordError, neither appears in cohort_members', async () => {
+    const projectId = testProject.projectId;
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: `coh-cyclic-a-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ cyclic: 'a' }),
+        timestamp: ts(1),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: `coh-cyclic-b-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ cyclic: 'b' }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    // Create cohort A with a temporary definition (will be updated after B is created)
+    const cohortAId = await createCohort(projectId, testProject.userId, 'Cyclic A', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'cyclic', operator: 'eq', value: 'a' }],
+    });
+
+    // Create cohort B referencing cohort A
+    const cohortBId = await createCohort(projectId, testProject.userId, 'Cyclic B', {
+      type: 'AND',
+      values: [{ type: 'cohort', cohort_id: cohortAId, negated: false }],
+    });
+
+    // Update cohort A to reference cohort B → creates A↔B cycle
+    await ctx.db
+      .update(cohorts)
+      .set({
+        definition: {
+          type: 'AND',
+          values: [{ type: 'cohort', cohort_id: cohortBId, negated: false }],
+        } satisfies CohortConditionGroup,
+      })
+      .where(eq(cohorts.id, cohortAId));
+
+    await runCycle();
+
+    // Neither cohort should have members (both were cyclic, skipped from computation)
+    const membersA = await getCohortMembers(ctx.ch, projectId, cohortAId);
+    const membersB = await getCohortMembers(ctx.ch, projectId, cohortBId);
+    expect(membersA).toHaveLength(0);
+    expect(membersB).toHaveLength(0);
+
+    // Both should have errors_calculating incremented
+    const [rowA] = await ctx.db
+      .select({
+        errors_calculating: cohorts.errors_calculating,
+        last_error_at: cohorts.last_error_at,
+        last_error_message: cohorts.last_error_message,
+      })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortAId));
+    const [rowB] = await ctx.db
+      .select({
+        errors_calculating: cohorts.errors_calculating,
+        last_error_at: cohorts.last_error_at,
+        last_error_message: cohorts.last_error_message,
+      })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortBId));
+
+    expect(rowA.errors_calculating).toBe(1);
+    expect(rowA.last_error_at).not.toBeNull();
+    expect(rowA.last_error_message).toContain('Cyclic');
+
+    expect(rowB.errors_calculating).toBe(1);
+    expect(rowB.last_error_at).not.toBeNull();
+    expect(rowB.last_error_message).toContain('Cyclic');
+  });
+
+  it('cyclic dependency — on next cycle both are skipped by backoff', async () => {
+    const projectId = testProject.projectId;
+
+    // Create a fresh pair of cyclic cohorts
+    const cohortAId = await createCohort(projectId, testProject.userId, 'Cyclic Backoff A', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'dummy' }],
+    });
+    const cohortBId = await createCohort(projectId, testProject.userId, 'Cyclic Backoff B', {
+      type: 'AND',
+      values: [{ type: 'cohort', cohort_id: cohortAId, negated: false }],
+    });
+    // Make A reference B → cycle
+    await ctx.db
+      .update(cohorts)
+      .set({
+        definition: {
+          type: 'AND',
+          values: [{ type: 'cohort', cohort_id: cohortBId, negated: false }],
+        } satisfies CohortConditionGroup,
+      })
+      .where(eq(cohorts.id, cohortAId));
+
+    // First cycle: detects cycle, calls recordError on both
+    await runCycle();
+
+    const [rowA1] = await ctx.db
+      .select({ errors_calculating: cohorts.errors_calculating })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortAId));
+    expect(rowA1.errors_calculating).toBe(1);
+
+    // Spy on computeMembership to verify nothing is computed on second cycle
+    const computeSpy = vi.spyOn(computation, 'computeMembership');
+
+    // Second cycle: both have errors=1, last_error_at=recent → backoff should skip them
+    await runCycle();
+
+    // computeMembership should NOT have been called for the cyclic cohorts
+    const computedIds = computeSpy.mock.calls.map((c) => c[0]);
+    expect(computedIds).not.toContain(cohortAId);
+    expect(computedIds).not.toContain(cohortBId);
+
+    // errors_calculating should still be 1 (not incremented further because they were skipped)
+    const [rowA2] = await ctx.db
+      .select({ errors_calculating: cohorts.errors_calculating })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortAId));
+    expect(rowA2.errors_calculating).toBe(1);
+
+    computeSpy.mockRestore();
+  });
+
+  // ── ClickHouse failure during computeMembership ─────────────────────
+
+  it('ClickHouse failure — errors_calculating incremented, last_error fields updated, no cohort_members written', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+    const uniquePlan = `ch_fail_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-chfail-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'CH Fail Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    // Mock computeMembership to throw (simulating ClickHouse failure)
+    const computeSpy = vi.spyOn(computation, 'computeMembership')
+      .mockRejectedValueOnce(new Error('ClickHouse connection refused'));
+
+    await runCycle();
+
+    // No cohort_members should have been written (CH call failed before INSERT)
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toHaveLength(0);
+
+    // PG: errors_calculating incremented, last_error fields updated
+    const [row] = await ctx.db
+      .select({
+        errors_calculating: cohorts.errors_calculating,
+        last_error_at: cohorts.last_error_at,
+        last_error_message: cohorts.last_error_message,
+        membership_version: cohorts.membership_version,
+        membership_computed_at: cohorts.membership_computed_at,
+      })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+
+    expect(row.errors_calculating).toBe(1);
+    expect(row.last_error_at).not.toBeNull();
+    expect(row.last_error_message).toContain('ClickHouse connection refused');
+    // membership_version should still be null (never succeeded)
+    expect(row.membership_version).toBeNull();
+    expect(row.membership_computed_at).toBeNull();
+
+    computeSpy.mockRestore();
+  });
+
+  it('ClickHouse failure — cohort not in pendingDeletions (no deleteOldVersions for it)', async () => {
+    const projectId = testProject.projectId;
+    const personOk = randomUUID();
+    const personFail = randomUUID();
+    const planOk = `ch_fail_ok_${randomUUID().slice(0, 8)}`;
+    const planFail = `ch_fail_bad_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personOk,
+        distinct_id: `coh-chfail-ok-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: planOk }),
+        timestamp: ts(1),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personFail,
+        distinct_id: `coh-chfail-bad-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: planFail }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortOk = await createCohort(projectId, testProject.userId, 'CH Fail OK Cohort', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: planOk }],
+    });
+    const cohortFail = await createCohort(projectId, testProject.userId, 'CH Fail Bad Cohort', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: planFail }],
+    });
+
+    // Mock computeMembership: fail only for the "bad" cohort, succeed for "ok" cohort
+    const originalCompute = computation.computeMembership.bind(computation);
+    const computeSpy = vi.spyOn(computation, 'computeMembership')
+      .mockImplementation(async (id, pid, def, ver) => {
+        if (id === cohortFail) {
+          throw new Error('ClickHouse timeout');
+        }
+        return originalCompute(id, pid, def, ver);
+      });
+
+    // Spy on deleteOldVersions to verify the failed cohort is not in the list
+    const deleteSpy = vi.spyOn(computation, 'deleteOldVersions');
+
+    await runCycle();
+
+    // OK cohort: members written, success
+    const membersOk = await getCohortMembers(ctx.ch, projectId, cohortOk);
+    expect(membersOk).toContain(personOk);
+
+    // Failed cohort: no members
+    const membersFail = await getCohortMembers(ctx.ch, projectId, cohortFail);
+    expect(membersFail).toHaveLength(0);
+
+    // If deleteOldVersions was called, the failed cohort should NOT be in the deletions list
+    if (deleteSpy.mock.calls.length > 0) {
+      const deletions = deleteSpy.mock.calls[0][0];
+      const deletedCohortIds = deletions.map((d: { cohortId: string }) => d.cohortId);
+      expect(deletedCohortIds).not.toContain(cohortFail);
+    }
+
+    computeSpy.mockRestore();
+    deleteSpy.mockRestore();
+  });
+
+  it('ClickHouse failure — cohort retried after backoff expiry', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+    const uniquePlan = `ch_retry_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-chretry-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'CH Retry Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    // First cycle: CH fails → errors_calculating=1
+    const computeSpy = vi.spyOn(computation, 'computeMembership')
+      .mockRejectedValueOnce(new Error('ClickHouse unavailable'));
+
+    await runCycle();
+
+    const [rowAfterFail] = await ctx.db
+      .select({ errors_calculating: cohorts.errors_calculating })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowAfterFail.errors_calculating).toBe(1);
+
+    computeSpy.mockRestore();
+
+    // Simulate backoff expiry: set last_error_at far in the past
+    await ctx.db
+      .update(cohorts)
+      .set({ last_error_at: new Date(Date.now() - 3 * 60 * 60_000) }) // 3h ago, backoff=1h
+      .where(eq(cohorts.id, cohortId));
+
+    // Second cycle: should retry and succeed
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personId);
+
+    // errors_calculating should be reset to 0 after successful computation
+    const [rowAfterRetry] = await ctx.db
+      .select({ errors_calculating: cohorts.errors_calculating })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowAfterRetry.errors_calculating).toBe(0);
   });
 });

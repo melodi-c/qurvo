@@ -10,8 +10,6 @@ import { type DistributedLock } from '@qurvo/distributed-lock';
 import { REDIS } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
-  COHORT_ERROR_BACKOFF_BASE_MINUTES,
-  COHORT_ERROR_BACKOFF_MAX_EXPONENT,
   COHORT_INITIAL_DELAY_MS,
   COHORT_GC_EVERY_N_CYCLES,
   COHORT_COMPUTE_QUEUE,
@@ -23,6 +21,7 @@ import {
 } from '../constants';
 import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
+import { filterByBackoff } from './backoff';
 import { MetricsService } from './metrics.service';
 import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processor';
 
@@ -90,7 +89,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
       if (staleCohorts.length === 0) return;
 
       // ── 2. Error backoff filter ────────────────────────────────────────
-      const eligible = this.filterByBackoff(staleCohorts);
+      const eligible = filterByBackoff(staleCohorts);
 
       eligibleCount = eligible.length;
       const backoffSkipped = staleCount - eligibleCount;
@@ -217,16 +216,6 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
 
       await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
     }
-  }
-
-  private filterByBackoff(staleCohorts: StaleCohort[]): StaleCohort[] {
-    const now = Date.now();
-    return staleCohorts.filter((c) => {
-      if (c.errors_calculating === 0 || !c.last_error_at) return true;
-      const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
-      const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
-      return now >= c.last_error_at.getTime() + backoffMs;
-    });
   }
 
   private async runGcIfDue(): Promise<void> {
