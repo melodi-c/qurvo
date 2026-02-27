@@ -30,6 +30,17 @@ describe('resolvePropertyExpr', () => {
   it('escapes single quotes in property key', () => {
     expect(resolvePropertyExpr("properties.user's_plan")).toBe("JSONExtractString(properties, 'user\\'s_plan')");
   });
+
+  it('escapes backslash in property key before single quote escaping', () => {
+    // key = "foo\\" → escaped → "foo\\\\"
+    expect(resolvePropertyExpr('properties.foo\\')).toBe("JSONExtractString(properties, 'foo\\\\')");
+  });
+
+  it('escapes backslash followed by single quote (SQL injection vector)', () => {
+    // key = "foo\\'" — without backslash escaping this would produce "foo\\'", breaking the SQL string.
+    // With proper escaping: backslash → "\\\\", quote → "\\'", result: "foo\\\\\\'"
+    expect(resolvePropertyExpr("properties.foo\\'")).toBe("JSONExtractString(properties, 'foo\\\\\\'')");
+  });
 });
 
 describe('resolveNumericPropertyExpr', () => {
@@ -115,6 +126,24 @@ describe('buildPropertyFilterConditions', () => {
     const result = buildPropertyFilterConditions(filters, 'p', params);
     expect(result).toEqual(["JSONHas(properties, 'plan')"]);
     expect(Object.keys(params)).toHaveLength(0);
+  });
+
+  it('escapes backslash in is_set JSON key', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.foo\\', operator: 'is_set' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(properties, 'foo\\\\')"]);
+  });
+
+  it('escapes backslash+quote in is_not_set JSON key (SQL injection vector)', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: "properties.foo\\'", operator: 'is_not_set' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["NOT JSONHas(properties, 'foo\\\\\\'')"]); // backslash → \\\\, quote → \\'
   });
 
   it('builds is_set condition for direct column using != empty string', () => {
