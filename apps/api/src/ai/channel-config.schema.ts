@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const slackChannelConfigSchema = z.object({
-  webhook_url: z.string().url().describe('Slack incoming webhook URL'),
+  webhook_url: z.string().describe('Slack incoming webhook URL (https://hooks.slack.com/services/...)'),
 });
 
 export const emailChannelConfigSchema = z.object({

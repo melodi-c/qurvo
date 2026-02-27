@@ -30,9 +30,19 @@ export function tokenize(expression: string): Token[] {
 
     if (ch >= '0' && ch <= '9' || ch === '.') {
       let num = '';
+      let dotCount = 0;
       while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) {
+        if (s[i] === '.') {
+          dotCount++;
+          if (dotCount > 1) {
+            throw new Error(`Invalid number: "${num}."`);
+          }
+        }
         num += s[i];
         i++;
+      }
+      if (!Number.isFinite(parseFloat(num))) {
+        throw new Error(`Invalid number token: "${num}"`);
       }
       tokens.push({ type: 'number', value: num });
       continue;

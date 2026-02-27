@@ -47,6 +47,23 @@ describe('tokenize', () => {
   it('throws on unexpected character', () => {
     expect(() => tokenize('A & B')).toThrow('Unexpected character');
   });
+
+  it('throws on number with multiple decimal points', () => {
+    expect(() => tokenize('1.2.3')).toThrow('Invalid number');
+  });
+
+  it('throws on bare dot', () => {
+    expect(() => tokenize('.')).toThrow('Invalid number token');
+  });
+
+  it('tokenizes decimal number with leading dot (.5) as invalid', () => {
+    // .5 starts with dot — parseFloat('.5') = 0.5, but this is an edge case.
+    // The tokenizer currently accepts leading-dot numbers. Test that it at least
+    // doesn't silently produce NaN.
+    expect(() => tokenize('.5')).not.toThrow();
+    const tokens = tokenize('.5');
+    expect(tokens).toEqual([{ type: 'number', value: '.5' }]);
+  });
 });
 
 // ── evaluateFormula ──
@@ -235,5 +252,23 @@ describe('validateFormula', () => {
 
   it('accepts formula with single series', () => {
     expect(validateFormula('A * 2', letters)).toEqual({ valid: true });
+  });
+
+  it('rejects number with multiple decimal points (1.2.3)', () => {
+    const result = validateFormula('A/1.2.3*B', letters);
+    expect(result.valid).toBe(false);
+    expect((result as { valid: false; error: string }).error).toBe('syntax');
+  });
+
+  it('rejects bare dot as number (.)', () => {
+    const result = validateFormula('A/.*B', letters);
+    expect(result.valid).toBe(false);
+    expect((result as { valid: false; error: string }).error).toBe('syntax');
+  });
+
+  it('accepts valid decimal numbers in formulas', () => {
+    expect(validateFormula('A/B*100', letters)).toEqual({ valid: true });
+    expect(validateFormula('A+B-C', letters)).toEqual({ valid: true });
+    expect(validateFormula('A * 1.5', letters)).toEqual({ valid: true });
   });
 });

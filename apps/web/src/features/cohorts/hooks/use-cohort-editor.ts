@@ -7,6 +7,7 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectRole } from '@/hooks/use-project-role';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
+import { stripClientKeys } from '@/features/cohorts/utils/strip-client-keys';
 import translations from '@/pages/cohort-editor/cohort-editor.translations';
 
 export function useCohortEditor() {
@@ -70,19 +71,19 @@ export function useCohortEditor() {
 
   const listPath = link.cohorts.list();
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const allConditions = groups.flatMap((g) => g.values);
-  const isValid = name.trim() !== '' && allConditions.length > 0;
+  const isValid = name.trim() !== '' && hasValidConditions;
 
   const handleSave = useCallback(async () => {
     if (!isValid || isSaving) return;
     setSaveError(null);
 
     try {
+      const cleanDefinition = stripClientKeys(definition);
       if (isNew) {
         await createMutation.mutateAsync({
           name: name.trim(),
           description: description.trim() || undefined,
-          definition,
+          definition: cleanDefinition,
         });
         toast.success(t('cohortCreated'));
       } else {
@@ -91,7 +92,7 @@ export function useCohortEditor() {
           data: {
             name: name.trim(),
             description: description.trim() || undefined,
-            definition,
+            definition: cleanDefinition,
           },
         });
         toast.success(t('cohortUpdated'));
