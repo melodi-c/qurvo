@@ -13,6 +13,40 @@ beforeAll(async () => {
   service = new CohortsService(ctx.db as any, ctx.ch as any);
 }, 120_000);
 
+// ── getByIds: deterministic ORDER BY id ──────────────────────────────────────
+
+describe('CohortsService.resolveCohortFilters — deterministic ordering', () => {
+  it('returns cohorts in consistent id-sorted order regardless of the order of the input ids', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohortA = await service.create(userId, projectId, {
+      name: 'Cohort A',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'a' }] },
+    });
+    const cohortB = await service.create(userId, projectId, {
+      name: 'Cohort B',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'b' }] },
+    });
+    const cohortC = await service.create(userId, projectId, {
+      name: 'Cohort C',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'c' }] },
+    });
+
+    // Resolve in two different orders — the returned array must be identical
+    const filters1 = await service.resolveCohortFilters(projectId, [cohortA.id, cohortB.id, cohortC.id]);
+    const filters2 = await service.resolveCohortFilters(projectId, [cohortC.id, cohortA.id, cohortB.id]);
+    const filters3 = await service.resolveCohortFilters(projectId, [cohortB.id, cohortC.id, cohortA.id]);
+
+    // All three calls must produce the same ordered list (sorted by cohort id)
+    expect(filters1.map((f) => f.cohort_id)).toEqual(filters2.map((f) => f.cohort_id));
+    expect(filters1.map((f) => f.cohort_id)).toEqual(filters3.map((f) => f.cohort_id));
+
+    // Verify the order matches ascending UUID sort
+    const expectedOrder = [cohortA.id, cohortB.id, cohortC.id].sort();
+    expect(filters1.map((f) => f.cohort_id)).toEqual(expectedOrder);
+  });
+});
+
 // ── IDOR: update() must enforce project_id in WHERE ──────────────────────────
 
 describe('CohortsService.update — project_id isolation', () => {
