@@ -9,3 +9,6 @@ export const buildCohortFilterClause = (): string => '';
 export type CohortFilterInput = Record<string, unknown>;
 
 export const RESOLVED_PERSON = 'person_id';
+
+export const validateDefinitionComplexity = (): void => {};
+export const detectCircularDependency = async (): Promise<boolean> => false;
