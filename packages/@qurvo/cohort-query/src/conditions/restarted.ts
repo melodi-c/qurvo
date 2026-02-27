@@ -6,6 +6,12 @@ export function buildRestartedPerformingSubquery(
   cond: CohortRestartedPerformingCondition,
   ctx: BuildContext,
 ): string {
+  if (cond.historical_window_days <= cond.recent_window_days + cond.gap_window_days) {
+    throw new Error(
+      `restarted_performing: historical_window_days (${cond.historical_window_days}) must be greater than recent_window_days (${cond.recent_window_days}) + gap_window_days (${cond.gap_window_days})`,
+    );
+  }
+
   const condIdx = ctx.counter.value++;
   const eventPk = `coh_${condIdx}_event`;
   const recentPk = `coh_${condIdx}_recent`;

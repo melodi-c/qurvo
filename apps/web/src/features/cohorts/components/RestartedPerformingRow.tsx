@@ -14,6 +14,11 @@ interface RestartedPerformingRowProps {
 export function RestartedPerformingRow({ condition, onChange, onRemove }: RestartedPerformingRowProps) {
   const { t } = useLocalTranslation(translations);
 
+  const windowError =
+    condition.historical_window_days <= condition.recent_window_days + condition.gap_window_days
+      ? t('windowError')
+      : undefined;
+
   return (
     <ConditionRowWrapper label={t('restartedPerforming')} labelColor="text-teal-400" tooltip={t('tooltip')} onRemove={onRemove}>
       <EventNameCombobox
@@ -29,7 +34,7 @@ export function RestartedPerformingRow({ condition, onChange, onRemove }: Restar
             type="number" min={1} max={365}
             value={condition.historical_window_days}
             onChange={(e) => onChange({ ...condition, historical_window_days: Number(e.target.value) })}
-            className="h-8 text-xs w-20"
+            className={`h-8 text-xs w-20${windowError ? ' border-destructive' : ''}`}
           />
           <span className="text-xs text-muted-foreground">{t('days')}</span>
         </div>
@@ -55,6 +60,10 @@ export function RestartedPerformingRow({ condition, onChange, onRemove }: Restar
           />
           <span className="text-xs text-muted-foreground">{t('days')}</span>
         </div>
+
+        {windowError && (
+          <p className="text-xs text-destructive">{windowError}</p>
+        )}
       </div>
     </ConditionRowWrapper>
   );
