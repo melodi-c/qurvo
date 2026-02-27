@@ -378,8 +378,11 @@ describe('multiple cohort_filters AND semantics (funnel)', () => {
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<FunnelQueryResult, { breakdown: false }>;
-    // When no users match, the funnel returns an empty steps array
-    expect(r.steps).toHaveLength(0);
+    // When no users match, the funnel returns N zero-count steps (not an empty array)
+    // so the frontend can still render the funnel structure
+    expect(r.steps).toHaveLength(1);
+    expect(r.steps[0].count).toBe(0);
+    expect(r.steps[0].event_name).toBe('signup');
   });
 });
 

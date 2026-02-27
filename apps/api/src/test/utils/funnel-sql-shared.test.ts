@@ -1,6 +1,89 @@
 import { describe, it, expect } from 'vitest';
-import { resolveWindowSeconds } from '../../analytics/funnel/funnel-sql-shared';
+import {
+  resolveWindowSeconds,
+  buildSamplingClause,
+  RESOLVED_PERSON,
+  type FunnelChQueryParams,
+} from '../../analytics/funnel/funnel-sql-shared';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
+
+// ── buildSamplingClause ───────────────────────────────────────────────────────
+
+describe('buildSamplingClause', () => {
+  const makeParams = (): FunnelChQueryParams => ({
+    project_id: 'proj',
+    from: '2024-01-01',
+    to: '2024-01-31',
+    window: 86400,
+    num_steps: 2,
+    all_event_names: ['a'],
+  });
+
+  it('returns empty string when samplingFactor is undefined', () => {
+    const qp = makeParams();
+    expect(buildSamplingClause(undefined, qp)).toBe('');
+    expect(qp.sample_pct).toBeUndefined();
+  });
+
+  it('returns empty string when samplingFactor is 1 (full scan)', () => {
+    const qp = makeParams();
+    expect(buildSamplingClause(1, qp)).toBe('');
+    expect(qp.sample_pct).toBeUndefined();
+  });
+
+  it('returns empty string when samplingFactor > 1', () => {
+    const qp = makeParams();
+    expect(buildSamplingClause(2, qp)).toBe('');
+    expect(qp.sample_pct).toBeUndefined();
+  });
+
+  it('returns empty string when samplingFactor is NaN (not silently a full scan)', () => {
+    const qp = makeParams();
+    expect(buildSamplingClause(NaN, qp)).toBe('');
+    expect(qp.sample_pct).toBeUndefined();
+  });
+
+  it('returns WHERE clause with pct=0 when samplingFactor is 0 (empty sample)', () => {
+    // Regression: previously `!samplingFactor` was true for 0, skipping sampling entirely.
+    // Now 0 is treated as a valid sampling factor producing an impossible WHERE condition
+    // (sipHash64(...) % 100 < 0), which returns no rows — correct for 0% sampling.
+    const qp = makeParams();
+    const clause = buildSamplingClause(0, qp);
+    expect(clause).not.toBe('');
+    expect(qp.sample_pct).toBe(0);
+    expect(clause).toContain('{sample_pct:UInt8}');
+  });
+
+  it('produces a clause referencing RESOLVED_PERSON (person_id), not distinct_id', () => {
+    // Regression: sampling used to be on sipHash64(distinct_id), which splits merged users.
+    // Now it must use RESOLVED_PERSON so each person is fully in or fully out.
+    const qp = makeParams();
+    const clause = buildSamplingClause(0.5, qp);
+    expect(clause).toContain(RESOLVED_PERSON);
+    expect(clause).not.toContain('distinct_id');
+  });
+
+  it('sets sample_pct to rounded percentage for 0.5', () => {
+    const qp = makeParams();
+    buildSamplingClause(0.5, qp);
+    expect(qp.sample_pct).toBe(50);
+  });
+
+  it('sets sample_pct to rounded percentage for 0.333', () => {
+    const qp = makeParams();
+    buildSamplingClause(0.333, qp);
+    expect(qp.sample_pct).toBe(33);
+  });
+
+  it('returns a valid ClickHouse WHERE fragment for 10% sampling', () => {
+    const qp = makeParams();
+    const clause = buildSamplingClause(0.1, qp);
+    expect(qp.sample_pct).toBe(10);
+    expect(clause).toContain('% 100 < {sample_pct:UInt8}');
+  });
+});
+
+// ── resolveWindowSeconds ──────────────────────────────────────────────────────
 
 describe('resolveWindowSeconds', () => {
   describe('fallback — only conversion_window_days provided', () => {

@@ -96,6 +96,12 @@ function buildGroupSubquery(
  *   as the upper bound for behavioral conditions instead of `now()`.  Pass the
  *   funnel/trend `date_to` value here to ensure historical queries are
  *   reproducible and cache-coherent.
+ * @param dateFrom - Optional datetime string used as the lower bound for the
+ *   `not_performed_event` condition.  When provided together with `dateTo`, the
+ *   absence check is scoped to the exact `[dateFrom, dateTo]` analysis window
+ *   rather than the rolling `[dateTo - N days, dateTo]` window.  Pass the
+ *   funnel/trend `date_from` value here to avoid false-negative exclusions when
+ *   a user performed the target event before the analysis period began.
  */
 export function buildCohortSubquery(
   definition: CohortConditionGroup,
@@ -104,12 +110,14 @@ export function buildCohortSubquery(
   queryParams: Record<string, unknown>,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
+  dateFrom?: string,
 ): string {
   const ctx: BuildContext = {
     projectIdParam,
     queryParams,
     counter: { value: cohortIdx * 100 },
     dateTo,
+    dateFrom,
   };
   return buildGroupSubquery(definition, ctx, resolveCohortIsStatic);
 }
@@ -123,6 +131,11 @@ export function buildCohortSubquery(
  * @param dateTo - Optional datetime string used as the upper bound for
  *   behavioral conditions instead of `now()`.  Pass the funnel/trend `date_to`
  *   value here to ensure historical queries are reproducible.
+ * @param dateFrom - Optional datetime string used as the lower bound for the
+ *   `not_performed_event` condition.  When provided together with `dateTo`, the
+ *   absence check is scoped to the exact `[dateFrom, dateTo]` analysis window.
+ *   Pass the funnel/trend `date_from` value here to avoid false-negative
+ *   exclusions when a user performed the target event before the analysis period.
  */
 export function buildCohortFilterClause(
   cohorts: CohortFilterInput[],
@@ -130,6 +143,7 @@ export function buildCohortFilterClause(
   queryParams: Record<string, unknown>,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
+  dateFrom?: string,
 ): string {
   if (cohorts.length === 0) return '';
 
@@ -150,7 +164,7 @@ export function buildCohortFilterClause(
         WHERE cohort_id = {${idParam}:UUID} AND project_id = {${projectIdParam}:UUID}
       )`;
     }
-    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo);
+    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
     return `${RESOLVED_PERSON} IN (${subquery})`;
   });
 

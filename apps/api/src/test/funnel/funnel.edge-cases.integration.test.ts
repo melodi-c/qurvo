@@ -63,9 +63,9 @@ describe('queryFunnel — 1-step funnel (degenerate case)', () => {
     expect(r.steps[0].avg_time_to_convert_seconds).toBeNull();
   });
 
-  it('returns empty steps for 1-step funnel when no events match', async () => {
+  it('returns N zero-count steps for 1-step funnel when no events match', async () => {
     // When no events exist in the queried project/date range, funnel_per_user has 0 rows.
-    // The CROSS JOIN with numbers(N) yields 0 output rows, so steps is an empty array.
+    // computeStepResults returns N zero-valued steps so frontend can render an empty funnel.
     const projectId = randomUUID();
 
     const result = await queryFunnel(ctx.ch, {
@@ -78,8 +78,15 @@ describe('queryFunnel — 1-step funnel (degenerate case)', () => {
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    // No events → funnel_per_user is empty → CROSS JOIN yields 0 rows → steps is []
-    expect(r.steps).toHaveLength(0);
+    // No events → N zero-valued steps, not an empty array
+    expect(r.steps).toHaveLength(1);
+    expect(r.steps[0].count).toBe(0);
+    expect(r.steps[0].conversion_rate).toBe(0);
+    expect(r.steps[0].drop_off).toBe(0);
+    expect(r.steps[0].drop_off_rate).toBe(0);
+    expect(r.steps[0].avg_time_to_convert_seconds).toBeNull();
+    expect(r.steps[0].label).toBe('Never');
+    expect(r.steps[0].event_name).toBe('never_happened');
   });
 
   it('1-step funnel with a step filter restricts to matching events only', async () => {

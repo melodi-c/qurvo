@@ -20,12 +20,27 @@ export interface RawBreakdownRow extends RawFunnelRow {
 /**
  * Converts raw ClickHouse rows into FunnelStepResult[].
  * Single canonical implementation — used by all funnel paths.
+ *
+ * When rows is empty (no users entered the funnel in the queried period),
+ * returns N zero-valued steps so the frontend can still render the funnel structure.
  */
 export function computeStepResults(
   rows: RawFunnelRow[],
   steps: FunnelStep[],
   numSteps: number,
 ): FunnelStepResult[] {
+  if (rows.length === 0) {
+    return steps.map((s, i) => ({
+      step: i + 1,
+      label: s.label ?? '',
+      event_name: s.event_name,
+      count: 0,
+      conversion_rate: 0,
+      drop_off: 0,
+      drop_off_rate: 0,
+      avg_time_to_convert_seconds: null,
+    }));
+  }
   const firstCount = Number(rows[0]?.entered ?? 0);
   return rows.map((row) => {
     const stepIdx = Number(row.step_num) - 1;
@@ -103,11 +118,26 @@ export function computePropertyBreakdownResults(
 
 /**
  * Computes aggregate (sum across breakdowns) step results.
+ *
+ * When allBreakdownSteps is empty (no users in any breakdown group),
+ * returns N zero-valued steps so the frontend can still render the funnel structure.
  */
 export function computeAggregateSteps(
   allBreakdownSteps: FunnelBreakdownStepResult[],
   steps: FunnelStep[],
 ): FunnelStepResult[] {
+  if (allBreakdownSteps.length === 0) {
+    return steps.map((s, i) => ({
+      step: i + 1,
+      label: s.label ?? '',
+      event_name: s.event_name,
+      count: 0,
+      conversion_rate: 0,
+      drop_off: 0,
+      drop_off_rate: 0,
+      avg_time_to_convert_seconds: null,
+    }));
+  }
   const stepTotals = new Map<number, number>();
   for (const r of allBreakdownSteps) {
     stepTotals.set(r.step, (stepTotals.get(r.step) ?? 0) + r.count);
