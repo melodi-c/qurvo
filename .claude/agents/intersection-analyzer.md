@@ -90,7 +90,8 @@ grep -rn "functionName" apps/ packages/ --include='*.ts' -l
   "reasoning": "Issues #42 и #44 не пересекаются (web vs processor). #43 имеет миграции — изолирован. #45 и #46 оба в api но разные модули — допустимо параллельно, т.к. затрагивают разные сервисы.",
   "conflicts": [
     {"issues": [43, 45], "resource": "packages/@qurvo/db", "reason": "обе issues меняют DB schema"}
-  ]
+  ],
+  "human_summary": "4 issues → 3 группы. #42 и #44 параллельно (web vs processor). #43 изолирован (миграции). Конфликт: #43 и #45 пересекаются в @qurvo/db."
 }
 ```
 

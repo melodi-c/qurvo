@@ -31,6 +31,8 @@ fi
 
 State файл содержит полное состояние выполнения: список issues, их статусы, группы, результаты. Продолжи с того шага, на котором остановился.
 
+**Валидация версии**: проверь `schema_version` в state файле. Если отсутствует или < 2 — state устаревший, используй fallback (Шаг 0.2) вместо него.
+
 ### 0.2: Fallback — если state файла нет
 
 Найди issues в статусе in-progress:
@@ -63,10 +65,11 @@ BRANCH=$(echo "$LAST_COMMENT" | grep -oP '(?<=BRANCH=)\S+' || echo "")
 mkdir -p "$CLAUDE_PROJECT_DIR/.claude/state"
 cat > "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json" <<'STATE'
 {
+  "schema_version": 2,
   "started_at": "<ISO timestamp>",
   "current_step": "<step number>",
   "issues": {
-    "42": {"title": "...", "status": "pending|running|success|failed|needs_input", "branch": "fix/issue-42", "group": 0, "agent_id": "...", "worktree_path": "...", "merge_commit": "..."},
+    "42": {"title": "...", "status": "pending|running|success|failed|needs_input", "branch": "fix/issue-42", "group": 0, "agent_id": "...", "worktree_path": "...", "merge_commit": "...", "pr_url": "..."},
     "43": {"title": "...", "status": "running", "branch": "fix/issue-43", "group": 0, "agent_id": "...", "worktree_path": "..."}
   },
   "parallel_groups": [[42, 43], [44]],
@@ -77,6 +80,28 @@ cat > "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json" <<'STATE'
 }
 STATE
 ```
+
+### State Schema
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `schema_version` | `number` | Версия формата state (текущая: 2) |
+| `started_at` | `string` | ISO timestamp начала выполнения |
+| `current_step` | `string` | Номер текущего шага оркестратора |
+| `issues` | `object` | Карта issue_number → состояние |
+| `issues[N].title` | `string` | Заголовок issue |
+| `issues[N].status` | `enum` | `pending`, `running`, `success`, `failed`, `needs_input` |
+| `issues[N].branch` | `string` | Имя ветки (`fix/issue-N`) |
+| `issues[N].group` | `number` | Индекс группы параллелизации |
+| `issues[N].agent_id` | `string` | ID подагента (для resume) |
+| `issues[N].worktree_path` | `string` | Путь к worktree |
+| `issues[N].merge_commit` | `string` | Hash коммита мержа (после успеха) |
+| `issues[N].pr_url` | `string` | URL pull request (после мержа) |
+| `parallel_groups` | `number[][]` | Группы параллельного выполнения |
+| `current_group_index` | `number` | Индекс текущей группы |
+| `parent_issues` | `object` | Карта parent → sub-issues |
+| `merge_results` | `object` | Результаты мержей |
+| `post_merge_verification` | `string\|null` | Результат post-merge верификации |
 
 ---
 
@@ -277,23 +302,34 @@ RELATED_ISSUES: {другие sub-issues этого parent}
 
 ### 5.3 Финализация parent issue
 
-После успешного завершения ВСЕХ sub-issues — мержи feature branch в main:
+После успешного завершения ВСЕХ sub-issues — мержи feature branch в main через PR:
 
 ```bash
 FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
 
-MAIN_BEFORE=$(git -C "$REPO_ROOT" rev-parse main)
-git -C "$REPO_ROOT" checkout main
-git -C "$REPO_ROOT" merge "$FEATURE_BRANCH"
-MAIN_AFTER=$(git -C "$REPO_ROOT" rev-parse main)
-[ "$MAIN_BEFORE" != "$MAIN_AFTER" ] \
-  || { echo "FATAL: мерж feature branch не продвинул main"; exit 1; }
+# Push feature branch (sub-issues уже смержены в неё)
+git -C "$REPO_ROOT" push origin "$FEATURE_BRANCH"
 
-git -C "$REPO_ROOT" push origin main
+# Создать PR: feature branch → main
+PR_BODY="## Summary
 
-gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализованы и смерджены через $FEATURE_BRANCH в main."
-git -C "$REPO_ROOT" branch -d "$FEATURE_BRANCH"
-git -C "$REPO_ROOT" push origin --delete "$FEATURE_BRANCH"
+All sub-issues merged into \`$FEATURE_BRANCH\`.
+
+Closes #<PARENT_NUMBER>"
+
+PARENT_PR_URL=$(gh pr create \
+  --base main \
+  --head "$FEATURE_BRANCH" \
+  --title "Merge $FEATURE_BRANCH: <PARENT_ISSUE_TITLE>" \
+  --body "$PR_BODY")
+
+# Auto-merge PR
+gh pr merge "$PARENT_PR_URL" --merge --delete-branch
+
+# Обновить локальный main
+git -C "$REPO_ROOT" pull origin main
+
+gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализованы. PR: $PARENT_PR_URL"
 ```
 
 Parent issue **не передаётся** в issue-solver.
@@ -321,34 +357,41 @@ REVIEW=$(echo "$LAST_COMMENT" | grep -oP '(?<=REVIEW=)\S+' || echo "")
 
 1. Сними `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`
 2. Получи `BRANCH` и `WORKTREE_PATH` из результата подагента (или AGENT_META)
-3. **Мерж через скрипт**:
+3. **Мерж через PR (скрипт)**:
    ```bash
    cd "$REPO_ROOT"
    MERGE_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/merge-worktree.sh" \
-     "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$REPO_ROOT" "<ISSUE_TITLE>")
+     "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$REPO_ROOT" "<ISSUE_TITLE>" \
+     "<AFFECTED_APPS>" "<ISSUE_NUMBER>") || EXIT_CODE=$?
    COMMIT_HASH=$(echo "$MERGE_RESULT" | grep -oP '(?<=COMMIT_HASH=)\S+')
+   PR_URL=$(echo "$MERGE_RESULT" | grep -oP '(?<=PR_URL=)\S+')
    ```
-4. Если merge-скрипт вернул exit 1 (конфликт) → запусти `conflict-resolver`:
-   ```
-   subagent_type: "conflict-resolver"
-   model: opus
-   run_in_background: false
-   prompt: |
-     WORKTREE_PATH: <path>
-     BRANCH: <branch>
-     BASE_BRANCH: <base>
-     ISSUE_A_TITLE: <текущий issue title>
-     ISSUE_B_TITLE: <issue что уже в base branch>
-   ```
-   - `RESOLVED` → повтори мерж
-   - `UNRESOLVABLE` → считай FAILED
-5. **Обнови state файл**
+4. Обработка ошибок merge-скрипта по exit code:
+   - **exit 1** (merge conflict) → запусти `conflict-resolver`:
+     ```
+     subagent_type: "conflict-resolver"
+     model: opus
+     run_in_background: false
+     prompt: |
+       WORKTREE_PATH: <path>
+       BRANCH: <branch>
+       BASE_BRANCH: <base>
+       ISSUE_A_TITLE: <текущий issue title>
+       ISSUE_B_TITLE: <issue что уже в base branch>
+     ```
+     - `RESOLVED` → повтори мерж
+     - `UNRESOLVABLE` → считай FAILED
+   - **exit 2** (pre-merge build failed) → считай FAILED, добавь hint об ошибке build
+   - **exit 3** (push failed) → retry 1 раз, если повторно → FAILED
+   - **exit 4** (PR create failed) → retry 1 раз, если повторно → FAILED
+5. **Обнови state файл** (включая `pr_url`)
 6. **Добавь итоговый комментарий**:
    ```bash
    cd "$REPO_ROOT"
    gh issue comment <NUMBER> --body "$(cat <<COMMENT
    ## ✅ Смерджено
 
+   **PR**: $PR_URL
    **Коммит**: \`$COMMIT_HASH\`
    **Ветка**: \`$BASE_BRANCH\`
    **Файлы**: $FILES
@@ -432,9 +475,24 @@ VERIFY_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/verify-post-merge.sh" 
 if echo "$VERIFY_RESULT" | grep -q "^ALL_GREEN"; then
   echo "Post-merge verification: OK"
 else
-  echo "Post-merge verification: REGRESSION detected"
-  echo "$VERIFY_RESULT"
-  # Не откатывай автоматически — сообщи пользователю
+  echo "Post-merge verification: REGRESSION detected — запускаю rollback-agent" >&2
+
+  # Подготовь JSON со смерженными issues этой группы
+  # MERGED_ISSUES_JSON: [{"number": 42, "title": "...", "merge_commit": "...", "pr_url": "..."}, ...]
+
+  # Запусти rollback-agent
+  # subagent_type: "rollback-agent"
+  # model: haiku
+  # run_in_background: false
+  # prompt: |
+  #   REPO_ROOT: $REPO_ROOT
+  #   BASE_BRANCH: main
+  #   MERGED_ISSUES: $MERGED_ISSUES_JSON
+  #   REGRESSION_DETAILS: <вывод verify-post-merge.sh>
+
+  # Обработай результат:
+  # - REVERTED → обнови state, добавь regression info в отчёт
+  # - UNRESOLVABLE → эскалируй пользователю с деталями
 fi
 ```
 
@@ -442,7 +500,25 @@ fi
 
 ---
 
-## Шаг 7: Итоговый отчёт
+## Шаг 7: Changelog + Итоговый отчёт
+
+### 7.1 Changelog (если 2+ issues смерджены)
+
+Если в текущем прогоне успешно смерджены 2+ issues — запусти `changelog-generator`:
+
+```
+subagent_type: "changelog-generator"
+model: haiku
+run_in_background: false
+prompt: |
+  MERGED_ISSUES: <JSON массив смерженных issues с number, title, labels, pr_url, commit_hash>
+  REPO_NAME: <owner/repo>
+  POST_COMMENT: true
+```
+
+Включи changelog в итоговый отчёт.
+
+### 7.2 Итоговый отчёт
 
 ```
 ## Итог выполнения issues

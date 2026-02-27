@@ -105,7 +105,8 @@ NEW_FILES=$(git diff "$BASE_BRANCH"...HEAD --name-only -- 'packages/@qurvo/db/dr
     "files": []
   },
   "warnings": [],
-  "errors": []
+  "errors": [],
+  "human_summary": "1 PG миграция (0042_add_export_table.sql): нумерация OK, обратная совместимость OK. CH миграций нет."
 }
 ```
 
@@ -126,7 +127,8 @@ NEW_FILES=$(git diff "$BASE_BRANCH"...HEAD --name-only -- 'packages/@qurvo/db/dr
     "projections_ok": false
   },
   "warnings": ["DROP COLUMN email в 0042 — проверь что column не используется"],
-  "errors": ["NOT NULL без DEFAULT на существующей колонке name"]
+  "errors": ["NOT NULL без DEFAULT на существующей колонке name"],
+  "human_summary": "FAIL: NOT NULL без DEFAULT в PG миграции. CH миграция ломает projections в events."
 }
 ```
 

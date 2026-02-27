@@ -67,7 +67,8 @@ gh issue view <DEP_NUMBER> --json state -q .state
   "issue_number": 42,
   "estimated_size": "s",
   "warnings": [],
-  "blockers": []
+  "blockers": [],
+  "human_summary": "Issue #42 готов к выполнению. Размер: s. Дубликатов и блокеров нет."
 }
 ```
 
@@ -79,7 +80,8 @@ gh issue view <DEP_NUMBER> --json state -q .state
   "issue_number": 42,
   "estimated_size": "m",
   "warnings": ["Потенциальный дубликат #38 (закрыт 2 дня назад)"],
-  "blockers": ["Зависимость #40 ещё не закрыта (OPEN)"]
+  "blockers": ["Зависимость #40 ещё не закрыта (OPEN)"],
+  "human_summary": "Issue #42 заблокирован: зависимость #40 не закрыта. Потенциальный дубликат #38."
 }
 ```
 
@@ -91,7 +93,8 @@ gh issue view <DEP_NUMBER> --json state -q .state
   "issue_number": 42,
   "estimated_size": "l",
   "warnings": ["size:l — рассмотри декомпозицию", "Есть открытый PR fix/issue-42"],
-  "blockers": []
+  "blockers": [],
+  "human_summary": "Issue #42: size:l, рекомендуется декомпозиция. Уже есть открытый PR."
 }
 ```
 

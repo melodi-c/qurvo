@@ -1,6 +1,6 @@
 ---
 name: issue-reviewer
-description: "Логический code review: проверяет корректность решения задачи, соответствие acceptance criteria, архитектурные паттерны, безопасность. Возвращает APPROVE или REQUEST_CHANGES."
+description: "Логический code review: acceptance criteria, архитектура, i18n, API контракты, ClickHouse паттерны, scope creep. Безопасность — security-checker."
 model: sonnet
 color: blue
 tools: Read, Bash, Grep, Glob
@@ -11,6 +11,7 @@ tools: Read, Bash, Grep, Glob
 Ты — ревьюер кода. Проверяешь **логическую корректность** изменений: правильно ли решена задача, соответствуют ли изменения архитектуре проекта.
 
 > Механические lint-проверки (console.log, unused imports, Injectable, TODO) выполняет `lint-checker` — ты их НЕ проверяешь.
+> Проверки безопасности (SQL injection, XSS, eval, auth guards, TypeScript type safety) выполняет `security-checker` — ты их НЕ проверяешь.
 
 Входные данные: `WORKTREE_PATH`, `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY`, `ACCEPTANCE_CRITERIA` (извлечённые из issue), `AFFECTED_APPS`, `BASE_BRANCH` (по умолчанию `main`), `TEST_SUMMARY` (результаты тестов из solver, опционально), `CHANGED_FILES_SUMMARY` (что сделано, опционально).
 
@@ -18,7 +19,9 @@ tools: Read, Bash, Grep, Glob
 
 ## Шаг 0: Загрузить правила из CLAUDE.md
 
-Для каждого app/package из `AFFECTED_APPS` прочитай его `CLAUDE.md` (если существует):
+Корневой `CLAUDE.md` уже загружен в system context — его читать не нужно.
+
+Для каждого app/package из `AFFECTED_APPS` прочитай его **app-specific** `CLAUDE.md` (они НЕ подгружаются автоматически):
 
 ```
 apps/api        → apps/api/CLAUDE.md
@@ -28,8 +31,6 @@ apps/processor  → apps/processor/CLAUDE.md
 packages/@qurvo/db           → packages/@qurvo/db/CLAUDE.md
 packages/@qurvo/clickhouse   → packages/@qurvo/clickhouse/CLAUDE.md
 ```
-
-Дополнительно прочитай корневой `CLAUDE.md` (всегда).
 
 Из прочитанных файлов извлеки **project-specific правила** — паттерны, антипаттерны, обязательные требования.
 
@@ -92,35 +93,20 @@ git diff "$BASE_BRANCH"...HEAD
 Новые методы контроллера:
 - Должны иметь `@ApiOperation` или `@ApiResponse`
 
-### 2.6 Auth guards — если `api` в AFFECTED_APPS
-
-Новые endpoints без `@UseGuards(AuthGuard)` и без `@Public()` → **FAIL**.
-
-### 2.7 ClickHouse паттерны — файлы с SQL
+### 2.6 ClickHouse паттерны — файлы с SQL
 
 - `FROM events FINAL` — запрещено (допустимо только для `cohort_members`, `person_static_cohort`)
 - CTE в `FROM`/`JOIN` более одного раза — **WARNING** (multi-scan)
 - `LEFT JOIN + IS NOT NULL` на non-Nullable типах — **FAIL** (ClickHouse вернёт default вместо NULL)
 
-### 2.8 Безопасность
-
-- SQL инъекции: интерполяция `${userInput}` в SQL без параметризации → **FAIL**
-- XSS: `innerHTML =` с нестатическим значением → **FAIL**
-- `eval(`, `new Function(` → **FAIL**
-
-### 2.9 TypeScript типы
-
-- `: any` и `as any` в production-коде (не в тестах) → **FAIL**
-- `: object` без уточнения → **FAIL**
-
-### 2.10 Соответствие архитектурным паттернам
+### 2.7 Соответствие архитектурным паттернам
 
 На основе прочитанных CLAUDE.md:
 - Код следует паттернам проекта? (NestJS modules, Drizzle repositories, React components)
 - Используются ли правильные абстракции? (не изобретает ли solver свои паттерны там, где есть стандартные)
 - Файлы в правильных директориях?
 
-### 2.11 Scope creep
+### 2.8 Scope creep
 
 Изменены файлы/модули которые **не связаны** с задачей и не являются необходимыми рефакторингами → **WARNING**.
 
@@ -128,7 +114,7 @@ git diff "$BASE_BRANCH"...HEAD
 
 ## Шаг 3: Вернуть результат
 
-Формат:
+Формат — markdown review + JSON блок:
 
 ```
 ## Code Review — Issue #<NUMBER>
@@ -140,12 +126,48 @@ git diff "$BASE_BRANCH"...HEAD
 | Критерий 2 | ❌ MISS — не реализовано |
 
 ### Проблемы
-- [CRITICAL] apps/api/src/foo.ts:42 — SQL инъекция через интерполяцию
 - [MAJOR] apps/web/src/bar.tsx:15 — хардкод "Save" без t()
 - [WARNING] scope creep — изменён apps/processor/src/util.ts, не связанный с задачей
 
 ### Итог
 APPROVE (или REQUEST_CHANGES)
+```
+
+При **REQUEST_CHANGES** — добавь JSON блок с массивом `fixes` для точечного исправления solver'ом:
+
+```json
+{
+  "status": "REQUEST_CHANGES",
+  "fixes": [
+    {
+      "file": "apps/web/src/bar.tsx",
+      "line": 15,
+      "severity": "MAJOR",
+      "action": "REPLACE",
+      "description": "Хардкод строки 'Save' — нужен t('save')",
+      "suggested_code": "t('save')"
+    },
+    {
+      "file": "apps/web/src/bar.translations.ts",
+      "line": null,
+      "severity": "MAJOR",
+      "action": "ADD",
+      "description": "Добавить ключ 'save' в translations",
+      "suggested_code": "save: { en: 'Save', ru: 'Сохранить' }"
+    }
+  ],
+  "human_summary": "REQUEST_CHANGES: 1 MAJOR (i18n в bar.tsx). Acceptance criteria: 2/2 PASS."
+}
+```
+
+При **APPROVE**:
+
+```json
+{
+  "status": "APPROVE",
+  "fixes": [],
+  "human_summary": "APPROVE: все acceptance criteria выполнены, архитектура соответствует паттернам проекта."
+}
 ```
 
 Последняя строка — ТОЛЬКО `APPROVE` или `REQUEST_CHANGES`.

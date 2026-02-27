@@ -174,9 +174,7 @@ if [ "$LAST_IN_MAIN" != "$LAST_IN_WORKTREE" ]; then
 fi
 ```
 
-Если проверка прошла — генерируй:
-- PostgreSQL: `cd "$WORKTREE_PATH" && pnpm --filter @qurvo/db db:generate`
-- ClickHouse: `cd "$WORKTREE_PATH" && pnpm ch:generate <name>`
+Если проверка прошла — генерируй миграции (см. CLAUDE.md → "Database migrations").
 
 ### 4.2.1 Валидация миграций
 
@@ -225,27 +223,13 @@ fi
 ```
 
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
+
+Сгенерируй swagger и API-клиент (см. CLAUDE.md → "API client generation"):
 ```bash
 cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/api && pnpm swagger:generate && pnpm generate-api
 ```
 
-Проверь swagger.json на пустые схемы:
-```bash
-cd "$WORKTREE_PATH" && node -e "
-const s = require('./apps/api/docs/swagger.json');
-const schemas = s.components?.schemas || {};
-const bad = Object.entries(schemas).filter(([name, schema]) => {
-  return schema.type === 'object' && !schema.properties && !schema.allOf && !schema.oneOf;
-});
-if (bad.length) { console.log('BAD SCHEMAS:'); bad.forEach(([n]) => console.log(' -', n)); process.exit(1); }
-else console.log('OK');
-"
-```
-
-Проверь Api.ts на плохие типы:
-```bash
-grep -n ': object\b\|Record<string, object>\|: any\b' apps/web/src/api/generated/Api.ts
-```
+Проверь качество: пустые схемы в swagger.json и плохие типы (`: any`, `: object`) в `Api.ts`.
 
 ### 4.6 Обновить CLAUDE.md
 Если добавлены новые паттерны или gotcha -- обнови CLAUDE.md соответствующего приложения.
@@ -273,15 +257,16 @@ prompt: |
 - `PASS` → переходи к 4.7.2
 - `FAIL` → исправь перечисленные проблемы, коммит, перезапусти lint-checker (максимум 1 повтор)
 
-### 4.7.2 Logic Review
+### 4.7.2 Logic Review + Security Check (параллельно)
 
 Извлеки acceptance criteria из issue body. Подготовь описание изменений.
 
-Запусти `issue-reviewer` через **Task tool в foreground**:
+Запусти `issue-reviewer` и `security-checker` **параллельно** через Task tool (`run_in_background: true`):
 
+**issue-reviewer**:
 ```
 subagent_type: "issue-reviewer"
-run_in_background: false
+run_in_background: true
 prompt: |
   WORKTREE_PATH: <абсолютный путь к worktree>
   ISSUE_NUMBER: <номер>
@@ -294,11 +279,23 @@ prompt: |
   CHANGED_FILES_SUMMARY: <список изменённых файлов и что в них сделано — 1-2 строки на файл>
 ```
 
-Дождись завершения:
+**security-checker**:
+```
+subagent_type: "security-checker"
+model: haiku
+run_in_background: true
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+```
 
-- `APPROVE` → переходи к 4.8
-- `REQUEST_CHANGES` → исправь все перечисленные CRITICAL и MAJOR проблемы, коммит, перезапусти reviewer
-- Максимум 2 итерации исправлений. Если после 2-й итерации всё ещё `REQUEST_CHANGES` → верни `STATUS: NEEDS_USER_INPUT | Review не пройден после 2 итераций: <список проблем>`
+Дождись завершения обоих. Обработка результатов:
+
+- **Оба APPROVE/PASS** → переходи к 4.8
+- **reviewer: REQUEST_CHANGES** → парсь массив `fixes` из ответа (если есть), применяй точечно. Коммит, перезапусти reviewer (максимум 2 итерации)
+- **security-checker: FAIL** → исправь все CRITICAL проблемы, коммит, перезапусти security-checker (максимум 2 итерации)
+- Если после 2-й итерации любой из них всё ещё FAIL/REQUEST_CHANGES → верни `STATUS: NEEDS_USER_INPUT | Review не пройден после 2 итераций: <список проблем>`
 
 ### 4.8 Финальная проверка с актуальным BASE_BRANCH
 ```bash

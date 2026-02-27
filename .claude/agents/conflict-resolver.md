@@ -82,7 +82,8 @@ pnpm turbo build --filter=@qurvo/<затронутые apps>
   "status": "RESOLVED",
   "files_resolved": ["apps/api/src/foo.ts", "packages/@qurvo/db/schema.ts"],
   "strategy": "Объединены imports и функции из обеих сторон",
-  "build": "ok"
+  "build": "ok",
+  "human_summary": "Разрешены конфликты в 2 файлах: объединены imports и функции. Build OK."
 }
 ```
 
@@ -92,7 +93,8 @@ pnpm turbo build --filter=@qurvo/<затронутые apps>
 {
   "status": "UNRESOLVABLE",
   "files": ["apps/api/src/foo.ts"],
-  "reason": "Обе стороны фундаментально меняют одну структуру данных — нужно ручное решение"
+  "reason": "Обе стороны фундаментально меняют одну структуру данных — нужно ручное решение",
+  "human_summary": "Конфликт в foo.ts неразрешим автоматически: обе стороны меняют одну структуру данных."
 }
 ```
 

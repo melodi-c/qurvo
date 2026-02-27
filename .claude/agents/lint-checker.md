@@ -69,7 +69,8 @@ git diff "$BASE_BRANCH"...HEAD
 ```json
 {
   "status": "PASS",
-  "issues": []
+  "issues": [],
+  "human_summary": "Проверено N файлов. Lint-проблем не обнаружено."
 }
 ```
 
@@ -81,7 +82,8 @@ git diff "$BASE_BRANCH"...HEAD
   "issues": [
     {"file": "apps/web/src/foo.tsx", "line": 42, "check": "console.log", "message": "console.log в production-коде"},
     {"file": "apps/api/src/bar.service.ts", "line": 10, "check": "injectable", "message": "BarService без @Injectable()"}
-  ]
+  ],
+  "human_summary": "Найдено 2 проблемы: console.log в foo.tsx, отсутствующий @Injectable() в bar.service.ts."
 }
 ```
 

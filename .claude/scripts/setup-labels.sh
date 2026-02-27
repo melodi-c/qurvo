@@ -28,6 +28,7 @@ labels=(
   "ux/ui|User experience / interface|D876E3"
   "architecture|Architecture related|006B75"
   "good first issue|Good for newcomers|7057FF"
+  "regression|Reverted due to post-merge regression|B60205"
 )
 
 CREATED=0
