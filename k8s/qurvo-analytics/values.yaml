@@ -61,7 +61,7 @@ geolite2CountryUrl: "https://cf92270d-b971-4f1a-9fc8-1cde9031d973.selstorage.ru/
 # AI Assistant (OpenAI-compatible)
 # ==============================================================================
 openai:
-  baseUrl: "https://agent.timeweb.cloud/api/v1/cloud-ai/agents/f9e83f9a-1845-4e4e-85b8-acc7f9605386/v1"
+  baseUrl: "https://agent.timeweb.cloud/api/v1/cloud-ai/agents/d1e4a078-93de-4838-ad39-ca35132b701f/v1"
   model: ""
 
 # ==============================================================================
