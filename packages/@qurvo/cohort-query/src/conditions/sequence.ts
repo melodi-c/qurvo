@@ -23,6 +23,7 @@ export function buildEventSequenceSubquery(
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND timestamp >= ${upperBound} - INTERVAL {${daysPk}:UInt32} DAY
+        AND timestamp <= ${upperBound}
       GROUP BY person_id
     )
     WHERE seq_match = 1`;
