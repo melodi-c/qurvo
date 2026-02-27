@@ -140,6 +140,13 @@ export default function CohortEditorPage() {
         <span className="text-sm">{t('calculating')}</span>
       </div>
     );
+  } else if (previewMutation.isError) {
+    previewContent = (
+      <EmptyState
+        icon={AlertTriangle}
+        description={t('previewError')}
+      />
+    );
   } else if (previewMutation.data) {
     previewContent = (
       <div className="text-center">

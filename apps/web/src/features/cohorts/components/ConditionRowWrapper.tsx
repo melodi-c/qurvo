@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import translations from './ConditionRowWrapper.translations';
 
 interface ConditionRowWrapperProps {
   label: string;
@@ -11,6 +13,8 @@ interface ConditionRowWrapperProps {
 }
 
 export function ConditionRowWrapper({ label, labelColor, tooltip, onRemove, children }: ConditionRowWrapperProps) {
+  const { t } = useLocalTranslation(translations);
+
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2.5">
       <div className="flex items-center justify-between">
@@ -21,6 +25,7 @@ export function ConditionRowWrapper({ label, labelColor, tooltip, onRemove, chil
         <button
           type="button"
           onClick={onRemove}
+          aria-label={t('removeCondition')}
           className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive"
         >
           <X className="h-3 w-3" />

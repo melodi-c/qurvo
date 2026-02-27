@@ -7,6 +7,7 @@ import {
   CohortRestartedPerformingConditionDto,
   CohortEventFilterDto,
   CohortPropertyConditionDto,
+  CohortPerformedRegularlyConditionDto,
 } from '../../api/dto/cohort-conditions.dto';
 
 // ── stopped_performing ───────────────────────────────────────────────────────
@@ -226,6 +227,54 @@ describe('CohortEventFilterDto — BetweenValuesOrdered', () => {
       (e) => e.property === 'values' && e.constraints?.['betweenValuesOrdered'],
     );
     expect(valErrors).toHaveLength(0);
+  });
+});
+
+// ── CohortPerformedRegularlyConditionDto — min_periods ≤ total_periods ───────
+
+describe('CohortPerformedRegularlyConditionDto — min_periods <= total_periods', () => {
+  function buildRegularly(minPeriods: number, totalPeriods: number) {
+    return plainToInstance(CohortPerformedRegularlyConditionDto, {
+      type: 'performed_regularly',
+      event_name: 'page_view',
+      period_type: 'week',
+      total_periods: totalPeriods,
+      min_periods: minPeriods,
+      time_window_days: 30,
+    });
+  }
+
+  it('passes when min_periods === total_periods', async () => {
+    const errors = await validate(buildRegularly(3, 3));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors).toHaveLength(0);
+  });
+
+  it('passes when min_periods < total_periods', async () => {
+    const errors = await validate(buildRegularly(2, 5));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors).toHaveLength(0);
+  });
+
+  it('passes with minimal valid values (min_periods=1, total_periods=1)', async () => {
+    const errors = await validate(buildRegularly(1, 1));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors).toHaveLength(0);
+  });
+
+  it('fails when min_periods > total_periods (10 out of 3 is impossible)', async () => {
+    const errors = await validate(buildRegularly(10, 3));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors.length).toBeGreaterThan(0);
+    expect(periodErrors[0].constraints).toMatchObject({
+      isLessOrEqualTo: expect.stringContaining('min_periods must be'),
+    });
+  });
+
+  it('fails when min_periods is just 1 over total_periods', async () => {
+    const errors = await validate(buildRegularly(4, 3));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors.length).toBeGreaterThan(0);
   });
 });
 
