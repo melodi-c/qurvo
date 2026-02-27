@@ -77,8 +77,13 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
   // Optional first/last step timestamps for avg_time_to_convert.
   // Use full step conditions (not bare event_name =) so OR-logic steps are handled correctly:
   // a user who satisfies step 0 via any of the OR-events gets a valid first_step_ms.
+  // Use minIf for both first_step_ms AND last_step_ms: windowFunnel matches the first
+  // occurrence of each step in sequence, so the correct conversion time is from the
+  // first step-0 event to the FIRST occurrence of the last step that completed the funnel.
+  // Using maxIf for last_step_ms would pick the latest repetition of the last-step event
+  // (e.g. a repeated purchase hours later), systematically inflating avg_time_to_convert.
   const timestampCols = includeTimestampCols
-    ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              maxIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
+    ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
     : '';
 
   // Exclusion columns

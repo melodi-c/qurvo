@@ -115,8 +115,10 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(365)
   // Mandatory when conversion_window_unit is set; otherwise optional.
   // Both fields must be provided together — validated at service level via resolveWindowSeconds().
+  // The resolved window (value * unit_seconds) must not exceed 90 days — enforced in resolveWindowSeconds().
   @IsOptional()
   conversion_window_value?: number;
 
@@ -167,6 +169,16 @@ export class FunnelQueryDto extends FunnelBaseQueryDto {
   @Type(() => FunnelExclusionDto)
   @IsOptional()
   exclusions?: FunnelExclusionDto[];
+
+  @ApiPropertyOptional({
+    description: 'Max number of breakdown groups to return for property breakdown (2–25). Default: 25.',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(2)
+  @Max(25)
+  @IsOptional()
+  breakdown_limit?: number;
 }
 
 export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
@@ -207,6 +219,8 @@ export class FunnelResultDto {
   @ApiPropertyOptional() breakdown_property?: string;
   @ApiPropertyOptional({ description: 'Sampling factor used (if < 1.0, results are sampled)' })
   sampling_factor?: number;
+  @ApiPropertyOptional({ description: 'True when the number of breakdown groups was truncated to breakdown_limit' })
+  breakdown_truncated?: boolean;
   @Type(() => FunnelStepResultDto)
   steps: FunnelStepResultDto[];
   @ApiPropertyOptional()
