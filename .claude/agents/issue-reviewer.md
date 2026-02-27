@@ -3,6 +3,7 @@ name: issue-reviewer
 description: "Проверяет изменения в worktree перед мержем: i18n, TypeScript типы, API контракты, ClickHouse паттерны, безопасность. Возвращает APPROVE или REQUEST_CHANGES."
 model: inherit
 color: blue
+tools: Read, Bash, Grep, Glob
 ---
 
 # Issue Reviewer
@@ -62,6 +63,34 @@ git diff "$BASE_BRANCH"...HEAD
 - Интерполяция переменных напрямую в SQL: `` `SELECT ... ${userInput}` `` без параметризации
 - `innerHTML =` с нестатическим значением
 - `eval(`, `new Function(`
+
+### 2.6 console.log в prod-коде
+
+Ищи `console.log(`, `console.error(`, `console.warn(` в не-тестовых файлах (вне `*.test.*`, `*.spec.*`, `*.integration.*`, `*.stories.*`).
+
+Исключения (не считать нарушением):
+- Файлы в директориях `scripts/`, `cli/`, `tools/`
+- Строки закомментированные (`// console.log`)
+- `console.error(` в catch-блоках верхнего уровня (bootstrap, main) — это допустимо
+
+### 2.7 TODO/FIXME без привязки к issue
+
+Ищи комментарии `// TODO`, `// FIXME`, `// HACK`, `// XXX` в добавленных строках.
+
+- **PASS** если комментарий содержит ссылку на issue: `// TODO #42`, `// FIXME: see #123`
+- **FAIL** если TODO/FIXME без номера issue — висячие задачи не должны появляться в коде
+
+### 2.8 Тесты без assertions
+
+В добавленных тест-файлах (`*.test.*`, `*.spec.*`, `*.integration.*`) ищи test-блоки без `expect(`:
+
+```
+it('...', () => {
+  // нет expect() — это бессмысленный тест
+})
+```
+
+Паттерн: `it\(|test\(` — убедись что в теле функции есть хотя бы одно `expect(`.
 
 ---
 
