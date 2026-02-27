@@ -149,14 +149,17 @@ export function buildOperatorClause(
  * essential for both historical correctness and Redis cache coherence.
  *
  * When `ctx.dateTo` is absent (e.g. cohort-worker recomputation, AI tool),
- * the function returns `now()` — preserving the previous behaviour.
+ * the function returns `now64(3)` — matching the DateTime64(3) precision of
+ * the events table to avoid false exclusions when event timestamps contain
+ * sub-second precision (now() returns DateTime, and comparing DateTime64(3)
+ * '16:28:08.500' <= DateTime '16:28:08' evaluates to false).
  */
 export function resolveDateTo(ctx: BuildContext): string {
   if (ctx.dateTo !== undefined) {
     ctx.queryParams['coh_date_to'] = ctx.dateTo;
     return '{coh_date_to:DateTime64(3)}';
   }
-  return 'now()';
+  return 'now64(3)';
 }
 
 /**
