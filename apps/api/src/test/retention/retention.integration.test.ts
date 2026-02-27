@@ -326,22 +326,86 @@ describe('queryRetention — edge cases', () => {
   });
 
   it('average retention computed correctly across cohorts', async () => {
+    // Uses first_time retention to ensure clean cohort membership (each person
+    // appears in exactly one cohort — their first-ever event day).
+    // date_to=daysAgo(4): truncTo=daysAgo(4).
+    //   cohort day-6: offset=1 → daysAgo(5) <= daysAgo(4) ✓ mature
+    //   cohort day-5: offset=1 → daysAgo(4) <= daysAgo(4) ✓ mature
+    // Both cohorts are mature → weighted average includes both.
     const projectId = randomUUID();
-    const personA = randomUUID();
-    const personB = randomUUID();
-    const personC = randomUUID();
+    const personA = randomUUID(); // first event day-6, returns day-5
+    const personB = randomUUID(); // first event day-6, returns day-5
+    const personC = randomUUID(); // first event day-6, no return at offset-1
+    const personD = randomUUID(); // first event day-5, returns day-4
+    const personE = randomUUID(); // first event day-5, no return
 
     await insertTestEvents(ctx.ch, [
-      // Cohort day-6: personA, personB (size=2)
+      // Cohort day-6 (first_time): personA, personB, personC (size=3)
       buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'act', timestamp: ts(6, 10) }),
       buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'act', timestamp: ts(6, 10) }),
-      // Return day-5: personA only for cohort day-6 (1/2 = 50%)
+      buildEvent({ project_id: projectId, person_id: personC, distinct_id: 'c', event_name: 'act', timestamp: ts(6, 10) }),
+      // Return day-5: personA and personB → cohort day-6 period_1 = 2
       buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'act', timestamp: ts(5, 10) }),
-      // Cohort day-5 (recurring): personA, personB, personC (size=3)
       buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'act', timestamp: ts(5, 10) }),
-      buildEvent({ project_id: projectId, person_id: personC, distinct_id: 'c', event_name: 'act', timestamp: ts(5, 10) }),
-      // Return day-4: personA only for cohort day-5 (1/3 ≈ 33.33%)
+      // Cohort day-5 (first_time): personD, personE (size=2)
+      buildEvent({ project_id: projectId, person_id: personD, distinct_id: 'd', event_name: 'act', timestamp: ts(5, 10) }),
+      buildEvent({ project_id: projectId, person_id: personE, distinct_id: 'e', event_name: 'act', timestamp: ts(5, 10) }),
+      // Return day-4: only personD → cohort day-5 period_1 = 1
+      buildEvent({ project_id: projectId, person_id: personD, distinct_id: 'd', event_name: 'act', timestamp: ts(4, 10) }),
+    ]);
+
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'act',
+      retention_type: 'first_time',
+      granularity: 'day',
+      periods: 1,
+      date_from: daysAgo(6),
+      date_to: daysAgo(4),
+    });
+
+    expect(result.cohorts).toHaveLength(2); // day-6, day-5
+    // average_retention[0] = 100% (all cohort members at period 0)
+    expect(result.average_retention[0]).toBe(100);
+    // Both cohorts are mature for offset=1 (truncTo=daysAgo(4)).
+    // Weighted average: sum(returned) / sum(cohort_size) * 100
+    // Cohort day-6: size=3 (A+B+C), period_1: A and B returned → 2
+    // Cohort day-5: size=2 (D+E), period_1: only D returned → 1
+    // average_retention[1] = (2 + 1) / (3 + 2) * 100 = 60%
+    expect(result.average_retention[1]).toBeCloseTo(60, 1);
+  });
+});
+
+describe('queryRetention — average_retention immature cohort exclusion', () => {
+  it('does not include immature cohorts in average_retention denominator', async () => {
+    // Regression for issue #522.
+    //
+    // Setup: 3 cohorts (day-4, day-3, day-2), each with 1 person, periods=2,
+    // date_to=daysAgo(2).
+    //
+    // truncTo = daysAgo(2).
+    // Maturity check for offset=2:
+    //   cohort day-4 → day-4+2 = day-2 = truncTo → mature (included)
+    //   cohort day-3 → day-3+2 = day-1 > truncTo → immature (excluded)
+    //   cohort day-2 → day-2+2 = today > truncTo → immature (excluded)
+    //
+    // Only personA (cohort day-4) could have shown a period-2 return.
+    // They did return on day-2, so average_retention[2] should be 100%
+    // (1 returned / 1 mature cohort member), NOT 33.3% (1/3 if all cohorts counted).
+    const projectId = randomUUID();
+    const personA = randomUUID(); // cohort day-4, returns at day-2
+    const personB = randomUUID(); // cohort day-3, no return at offset 2 possible
+    const personC = randomUUID(); // cohort day-2, no return at offset 2 possible
+
+    await insertTestEvents(ctx.ch, [
+      // cohort day-4: personA
       buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'act', timestamp: ts(4, 10) }),
+      // cohort day-3: personB
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'act', timestamp: ts(3, 10) }),
+      // cohort day-2: personC
+      buildEvent({ project_id: projectId, person_id: personC, distinct_id: 'c', event_name: 'act', timestamp: ts(2, 10) }),
+      // personA returns at day-2 (offset=2 relative to day-4)
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'act', timestamp: ts(2, 14) }),
     ]);
 
     const result = await queryRetention(ctx.ch, {
@@ -349,19 +413,67 @@ describe('queryRetention — edge cases', () => {
       target_event: 'act',
       retention_type: 'recurring',
       granularity: 'day',
-      periods: 1,
-      date_from: daysAgo(6),
-      date_to: daysAgo(5),
+      periods: 2,
+      date_from: daysAgo(4),
+      date_to: daysAgo(2),
     });
 
-    expect(result.cohorts).toHaveLength(2);
-    // average_retention[0] = 100% (all cohort members present at period 0 by definition)
+    expect(result.cohorts).toHaveLength(3);
+
+    // offset=0: all 3 cohorts are mature (cohort_date + 0 <= truncTo always).
+    // All 3 cohorts each have 1 person present at period 0 → sum = 3/3 = 100%.
     expect(result.average_retention[0]).toBe(100);
-    // Weighted average: sum(returned) / sum(cohort_size) * 100
-    // Cohort day-6: size=2 (A+B), period_1: both A and B active on day-5 → returned=2
-    // Cohort day-5: size=3 (A+B+C), period_1: only A returned day-4 → returned=1
-    // average_retention[1] = (2 + 1) / (2 + 3) * 100 = 60%
-    expect(result.average_retention[1]).toBeCloseTo(60, 1);
+
+    // offset=1: cohort day-4 (day-4+1=day-3 <= day-2 ✓) and cohort day-3
+    //   (day-3+1=day-2 <= day-2 ✓) are mature; cohort day-2 (day-2+1=day-1 > day-2) is not.
+    // Neither personA nor personB returned at their respective offset-1 period,
+    // so average_retention[1] = 0 / 2 = 0%.
+    expect(result.average_retention[1]).toBe(0);
+
+    // offset=2: only cohort day-4 (day-4+2=day-2 <= day-2 ✓) is mature.
+    // personA returned at day-2 → 1 returned / 1 mature cohort member = 100%.
+    // Without the fix: 1/3 ≈ 33.33% (all 3 cohort sizes counted in denominator).
+    expect(result.average_retention[2]).toBe(100);
+  });
+
+  it('single old cohort: average_retention matches cohort periods exactly', async () => {
+    // When there is only one cohort and it is mature for all offsets,
+    // average_retention[N] should equal cohort.periods[N] / cohort_size * 100.
+    // Uses first_time retention so personA and personB only appear in cohort day-5
+    // (their first event is on day-5) even though personA also fires on day-4 and day-3.
+    // date_to=daysAgo(3) ensures truncTo=daysAgo(3), so cohort day-5 at offset=2
+    // (→ daysAgo(3) <= daysAgo(3)) is mature.
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Both persons first fire on day-5 → cohort day-5 (size=2)
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'use', timestamp: ts(5, 10) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'use', timestamp: ts(5, 10) }),
+      // Only personA returns at day-4 (offset=1) and day-3 (offset=2)
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'use', timestamp: ts(4, 10) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'use', timestamp: ts(3, 10) }),
+    ]);
+
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'use',
+      retention_type: 'first_time', // ensures only one cohort (first-ever occurrence)
+      granularity: 'day',
+      periods: 2,
+      date_from: daysAgo(5),
+      date_to: daysAgo(3),
+    });
+
+    expect(result.cohorts).toHaveLength(1);
+    const cohort = result.cohorts[0];
+    expect(cohort.cohort_size).toBe(2);
+
+    // average_retention[N] = cohort.periods[N] / cohort_size * 100
+    expect(result.average_retention[0]).toBe(100); // 2/2
+    expect(result.average_retention[1]).toBe(50);  // 1/2 (personA returned day-4)
+    expect(result.average_retention[2]).toBe(50);  // 1/2 (personA returned day-3)
   });
 });
 
