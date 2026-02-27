@@ -57,7 +57,9 @@ export function computeStepResults(
       drop_off: dropOff,
       drop_off_rate: isLast ? 0 : (entered > 0 ? Math.round((dropOff / entered) * 1000) / 10 : 0),
       avg_time_to_convert_seconds:
-        !isLast && row.avg_time_seconds != null ? Math.round(Number(row.avg_time_seconds)) : null,
+        !isLast && row.avg_time_seconds != null && Number(row.avg_time_seconds) > 0
+          ? Math.round(Number(row.avg_time_seconds))
+          : null,
     };
   });
 }

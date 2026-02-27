@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildStoppedPerformingSubquery } from '../conditions/stopped';
 import { buildRestartedPerformingSubquery } from '../conditions/restarted';
+import { CohortQueryValidationError } from '../errors';
 import type { BuildContext } from '../types';
 
 function makeCtx(): BuildContext {
@@ -14,7 +15,16 @@ function makeCtx(): BuildContext {
 // ── stopped_performing guard ─────────────────────────────────────────────────
 
 describe('buildStoppedPerformingSubquery — window guard', () => {
-  it('throws when recent_window_days >= historical_window_days (equal)', () => {
+  it('throws CohortQueryValidationError when recent_window_days >= historical_window_days (equal)', () => {
+    expect(() =>
+      buildStoppedPerformingSubquery(
+        { type: 'stopped_performing', event_name: 'page_view', recent_window_days: 30, historical_window_days: 30 },
+        makeCtx(),
+      ),
+    ).toThrow(CohortQueryValidationError);
+  });
+
+  it('throws with correct message when recent_window_days >= historical_window_days (equal)', () => {
     expect(() =>
       buildStoppedPerformingSubquery(
         { type: 'stopped_performing', event_name: 'page_view', recent_window_days: 30, historical_window_days: 30 },
@@ -23,7 +33,16 @@ describe('buildStoppedPerformingSubquery — window guard', () => {
     ).toThrow(/recent_window_days.*must be less than.*historical_window_days/i);
   });
 
-  it('throws when recent_window_days > historical_window_days', () => {
+  it('throws CohortQueryValidationError when recent_window_days > historical_window_days', () => {
+    expect(() =>
+      buildStoppedPerformingSubquery(
+        { type: 'stopped_performing', event_name: 'page_view', recent_window_days: 60, historical_window_days: 30 },
+        makeCtx(),
+      ),
+    ).toThrow(CohortQueryValidationError);
+  });
+
+  it('throws with correct message when recent_window_days > historical_window_days', () => {
     expect(() =>
       buildStoppedPerformingSubquery(
         { type: 'stopped_performing', event_name: 'page_view', recent_window_days: 60, historical_window_days: 30 },
@@ -45,7 +64,23 @@ describe('buildStoppedPerformingSubquery — window guard', () => {
 // ── restarted_performing guard ───────────────────────────────────────────────
 
 describe('buildRestartedPerformingSubquery — window guard', () => {
-  it('throws when historical_window_days === recent + gap', () => {
+  it('throws CohortQueryValidationError when historical_window_days === recent + gap', () => {
+    // recent=7, gap=14 → sum=21; historical=21 is invalid (must be > 21)
+    expect(() =>
+      buildRestartedPerformingSubquery(
+        {
+          type: 'restarted_performing',
+          event_name: 'page_view',
+          recent_window_days: 7,
+          gap_window_days: 14,
+          historical_window_days: 21,
+        },
+        makeCtx(),
+      ),
+    ).toThrow(CohortQueryValidationError);
+  });
+
+  it('throws with correct message when historical_window_days === recent + gap', () => {
     // recent=7, gap=14 → sum=21; historical=21 is invalid (must be > 21)
     expect(() =>
       buildRestartedPerformingSubquery(
@@ -61,7 +96,23 @@ describe('buildRestartedPerformingSubquery — window guard', () => {
     ).toThrow(/historical_window_days.*must be greater than/i);
   });
 
-  it('throws when historical_window_days < recent + gap', () => {
+  it('throws CohortQueryValidationError when historical_window_days < recent + gap', () => {
+    // recent=7, gap=14 → sum=21; historical=10 < 21 → invalid
+    expect(() =>
+      buildRestartedPerformingSubquery(
+        {
+          type: 'restarted_performing',
+          event_name: 'page_view',
+          recent_window_days: 7,
+          gap_window_days: 14,
+          historical_window_days: 10,
+        },
+        makeCtx(),
+      ),
+    ).toThrow(CohortQueryValidationError);
+  });
+
+  it('throws with correct message when historical_window_days < recent + gap', () => {
     // recent=7, gap=14 → sum=21; historical=10 < 21 → invalid
     expect(() =>
       buildRestartedPerformingSubquery(

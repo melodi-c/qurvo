@@ -2,6 +2,7 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
+  ArrayUnique,
   ValidateNested,
   IsString,
   IsNotEmpty,
@@ -73,6 +74,7 @@ export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @Transform(parseJsonArray)
   @IsArray()
   @ArrayMaxSize(10)
+  @ArrayUnique()
   @IsUUID('4', { each: true })
   @IsOptional()
   breakdown_cohort_ids?: string[];

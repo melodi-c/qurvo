@@ -466,3 +466,197 @@ describe('not_performed_event_sequence — timestamp <= upperBound', () => {
     expect(count).toBe(0);
   });
 });
+
+// ── not_performed_event_sequence — dateFrom lower-bound fix ───────────────────
+//
+// Issue #562: not_performed_event_sequence was using only the rolling window
+// [dateTo - N days, dateTo], so users who completed the sequence *before*
+// dateFrom (outside the analysis period) were falsely excluded.
+// The fix mirrors not-performed.ts: when dateFrom+dateTo are provided, the
+// absence check is scoped to [dateFrom, dateTo] instead.
+
+describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
+  it('does NOT exclude a person who completed the sequence before dateFrom', async () => {
+    const projectId = randomUUID();
+    const preWindowCompleter = randomUUID(); // completed sequence BEFORE dateFrom
+
+    // Analysis window: dateFrom = 30 days ago, dateTo = 1 day ago
+    // Cohort condition: "did NOT perform product_view → purchase in last 90 days"
+    // Rolling window would be [dateTo - 90d, dateTo] = [91d ago, 1d ago],
+    // which reaches before dateFrom (30d ago) and would falsely exclude this user.
+    // Fixed window: [dateFrom, dateTo] = [30d ago, 1d ago] — user has no events there → included ✓
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: preWindowCompleter,
+        distinct_id: 'pre-window-buyer',
+        event_name: 'product_view',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(60 * DAY_MS), // 60 days ago — BEFORE dateFrom (30d ago)
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: preWindowCompleter,
+        distinct_id: 'pre-window-buyer',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(55 * DAY_MS), // 55 days ago — BEFORE dateFrom (30d ago)
+      }),
+    ]);
+
+    const dateTo = toChTs(msAgo(1 * DAY_MS));   // 1 day ago
+    const dateFrom = toChTs(msAgo(30 * DAY_MS)); // 30 days ago
+    const params: Record<string, unknown> = { project_id: projectId };
+    const subquery = buildCohortSubquery(
+      {
+        type: 'AND',
+        values: [{
+          type: 'not_performed_event_sequence',
+          steps: [
+            { event_name: 'product_view' },
+            { event_name: 'purchase' },
+          ],
+          time_window_days: 90,
+        }],
+      },
+      0,
+      'project_id',
+      params,
+      undefined,
+      dateTo,
+      dateFrom,
+    );
+
+    const count = await countWithDateTo(subquery, params);
+    // User completed sequence 60→55 days ago, which is BEFORE dateFrom (30d ago).
+    // The fixed window [dateFrom, dateTo] = [30d, 1d] contains no matching events.
+    // → seq_match=0 → person IS included in "not performed" cohort
+    expect(count).toBe(1);
+  });
+
+  it('still excludes a person who completed the sequence inside [dateFrom, dateTo]', async () => {
+    const projectId = randomUUID();
+    const inWindowCompleter = randomUUID(); // completed sequence within [dateFrom, dateTo]
+
+    // Analysis window: dateFrom = 30 days ago, dateTo = 1 day ago
+    // User performed view at 20d ago and purchase at 15d ago — both inside [dateFrom, dateTo].
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: inWindowCompleter,
+        distinct_id: 'in-window-buyer',
+        event_name: 'product_view',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(20 * DAY_MS), // 20d ago — inside [30d, 1d]
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: inWindowCompleter,
+        distinct_id: 'in-window-buyer',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(15 * DAY_MS), // 15d ago — inside [30d, 1d]
+      }),
+    ]);
+
+    const dateTo = toChTs(msAgo(1 * DAY_MS));
+    const dateFrom = toChTs(msAgo(30 * DAY_MS));
+    const params: Record<string, unknown> = { project_id: projectId };
+    const subquery = buildCohortSubquery(
+      {
+        type: 'AND',
+        values: [{
+          type: 'not_performed_event_sequence',
+          steps: [
+            { event_name: 'product_view' },
+            { event_name: 'purchase' },
+          ],
+          time_window_days: 90,
+        }],
+      },
+      0,
+      'project_id',
+      params,
+      undefined,
+      dateTo,
+      dateFrom,
+    );
+
+    const count = await countWithDateTo(subquery, params);
+    // Sequence completed inside [dateFrom, dateTo] → seq_match=1 → excluded from "not performed"
+    expect(count).toBe(0);
+  });
+
+  it('correctly handles mixed: one user before dateFrom (included), one inside window (excluded)', async () => {
+    const projectId = randomUUID();
+    const preWindowUser  = randomUUID(); // completed sequence before dateFrom → should be included
+    const inWindowUser   = randomUUID(); // completed sequence inside analysis window → should be excluded
+
+    const dateTo   = toChTs(msAgo(1 * DAY_MS));   // 1 day ago
+    const dateFrom = toChTs(msAgo(30 * DAY_MS));  // 30 days ago
+
+    await insertTestEvents(ctx.ch, [
+      // preWindowUser: both steps before dateFrom
+      buildEvent({
+        project_id: projectId,
+        person_id: preWindowUser,
+        distinct_id: 'pre',
+        event_name: 'add_to_cart',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(50 * DAY_MS),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: preWindowUser,
+        distinct_id: 'pre',
+        event_name: 'checkout',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(45 * DAY_MS),
+      }),
+      // inWindowUser: both steps inside [dateFrom, dateTo]
+      buildEvent({
+        project_id: projectId,
+        person_id: inWindowUser,
+        distinct_id: 'in',
+        event_name: 'add_to_cart',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(25 * DAY_MS),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: inWindowUser,
+        distinct_id: 'in',
+        event_name: 'checkout',
+        user_properties: JSON.stringify({ role: 'visitor' }),
+        timestamp: msAgo(20 * DAY_MS),
+      }),
+    ]);
+
+    const params: Record<string, unknown> = { project_id: projectId };
+    const subquery = buildCohortSubquery(
+      {
+        type: 'AND',
+        values: [{
+          type: 'not_performed_event_sequence',
+          steps: [
+            { event_name: 'add_to_cart' },
+            { event_name: 'checkout' },
+          ],
+          time_window_days: 90,
+        }],
+      },
+      0,
+      'project_id',
+      params,
+      undefined,
+      dateTo,
+      dateFrom,
+    );
+
+    const count = await countWithDateTo(subquery, params);
+    // preWindowUser: sequence before dateFrom → seq_match=0 in [dateFrom, dateTo] → included ✓
+    // inWindowUser: sequence inside [dateFrom, dateTo] → seq_match=1 → excluded ✓
+    // Expected: only preWindowUser included → count = 1
+    expect(count).toBe(1);
+  });
+});

@@ -16,7 +16,7 @@ import { getTestContext } from './context';
 import { getCohortMembers } from './helpers/ch';
 import { CohortMembershipService } from '../cohort-worker/cohort-membership.service';
 import { CohortComputationService } from '../cohort-worker/cohort-computation.service';
-import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS, COHORT_COMPUTE_QUEUE } from '../constants';
+import { COHORT_LOCK_KEY, COHORT_MAX_ERRORS, COHORT_COMPUTE_QUEUE, COHORT_GC_CYCLE_REDIS_KEY, COHORT_GC_EVERY_N_CYCLES } from '../constants';
 
 let ctx: ContainerContext;
 let workerApp: INestApplicationContext;
@@ -650,6 +650,63 @@ describe('cohort membership', () => {
       .from(cohorts)
       .where(eq(cohorts.id, cohortId));
     expect(rowAfter.membership_version).toBe(version);
+  });
+
+  it('job IDs are unique — 100 concurrent enqueues do not collide (Bug 1)', async () => {
+    const projectId = testProject.projectId;
+
+    // Create 100 cohorts
+    const cohortIds: string[] = [];
+    for (let i = 0; i < 100; i++) {
+      const uniquePlan = `concurrent_test_${randomUUID().slice(0, 8)}_${i}`;
+      await insertTestEvents(ctx.ch, [
+        buildEvent({
+          project_id: projectId,
+          person_id: randomUUID(),
+          distinct_id: `coh-concurrent-${randomUUID()}`,
+          event_name: 'page_view',
+          user_properties: JSON.stringify({ concurrent_plan: uniquePlan }),
+          timestamp: ts(1),
+        }),
+      ]);
+      const id = await createCohort(projectId, testProject.userId, `Concurrent Test ${i}`, {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'concurrent_plan', operator: 'eq', value: uniquePlan }],
+      });
+      cohortIds.push(id);
+    }
+
+    // Running a single cycle enqueues all stale cohorts. With cohortId-based job IDs
+    // there should be no "Job ID already exists" collision error.
+    await ctx.redis.del(COHORT_LOCK_KEY);
+    await expect(svc.runCycle()).resolves.toBeUndefined();
+  });
+
+  it('gc cycle counter persists across restarts — GC runs at correct cadence (Bug 2)', async () => {
+    // Reset the Redis counter to a known state
+    await ctx.redis.del(COHORT_GC_CYCLE_REDIS_KEY);
+
+    const gcSpy = vi.spyOn(computation, 'gcOrphanedMemberships').mockResolvedValue(undefined);
+
+    // Run COHORT_GC_EVERY_N_CYCLES - 1 cycles: GC should NOT be triggered yet
+    for (let i = 0; i < COHORT_GC_EVERY_N_CYCLES - 1; i++) {
+      await ctx.redis.del(COHORT_LOCK_KEY);
+      await svc.runCycle();
+    }
+    expect(gcSpy).not.toHaveBeenCalled();
+
+    // Simulate a restart: counter in Redis is still at COHORT_GC_EVERY_N_CYCLES - 1
+    // (not reset to 0 as it would be with in-memory counter)
+    const counterBeforeRestart = await ctx.redis.get(COHORT_GC_CYCLE_REDIS_KEY);
+    expect(Number(counterBeforeRestart)).toBe(COHORT_GC_EVERY_N_CYCLES - 1);
+
+    // One more cycle (the Nth) should trigger GC
+    await ctx.redis.del(COHORT_LOCK_KEY);
+    await svc.runCycle();
+    expect(gcSpy).toHaveBeenCalledTimes(1);
+
+    gcSpy.mockRestore();
+    await ctx.redis.del(COHORT_GC_CYCLE_REDIS_KEY);
   });
 
   it('waitUntilFinished timeout — cycle completes and recordError is called', async () => {

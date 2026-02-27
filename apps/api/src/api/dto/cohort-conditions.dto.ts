@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsIn,
   IsInt,
-  IsNumber,
   Min,
   Max,
   IsArray,
@@ -60,6 +59,41 @@ function IsLessThan(property: string, validationOptions?: ValidationOptions) {
         defaultMessage(args: ValidationArguments) {
           const [relatedPropertyName] = args.constraints as [string];
           return `${args.property} must be less than ${relatedPropertyName}`;
+        },
+      },
+    });
+  };
+}
+
+/**
+ * Validates that `value` is a non-empty string when the sibling `operator`
+ * field is `is_date_before`, `is_date_after`, or `is_date_exact`.
+ *
+ * An empty or missing value for date operators would cause ClickHouse to throw
+ * a parse exception when evaluating `parseDateTimeBestEffort('')`.
+ *
+ * Applied to the `value` property of DTO classes that carry both `operator`
+ * and `value` fields (CohortEventFilterDto, CohortPropertyConditionDto).
+ */
+function ValueNotEmptyForDateOperator(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'valueNotEmptyForDateOperator',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const op = obj['operator'] as string | undefined;
+          const DATE_OPS = new Set(['is_date_before', 'is_date_after', 'is_date_exact']);
+          if (op && DATE_OPS.has(op)) {
+            return typeof value === 'string' && value.length > 0;
+          }
+          return true;
+        },
+        defaultMessage() {
+          return 'value must be a non-empty string for is_date_before/is_date_after/is_date_exact operators';
         },
       },
     });
@@ -153,6 +187,7 @@ export class CohortEventFilterDto {
 
   @IsString()
   @IsOptional()
+  @ValueNotEmptyForDateOperator()
   value?: string;
 
   @IsArray()
@@ -180,6 +215,7 @@ export class CohortPropertyConditionDto {
 
   @IsString()
   @IsOptional()
+  @ValueNotEmptyForDateOperator()
   value?: string;
 
   @IsArray()
@@ -204,7 +240,7 @@ export class CohortEventConditionDto {
   count_operator: 'gte' | 'lte' | 'eq';
 
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(0)
   count: number;
 
@@ -350,11 +386,13 @@ export class CohortPerformedRegularlyConditionDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(365)
   total_periods: number;
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(365)
   @IsLessOrEqualTo('total_periods', { message: 'min_periods must be \u2264 total_periods' })
   min_periods: number;
 
