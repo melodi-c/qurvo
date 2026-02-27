@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Мерж ветки из worktree в целевую ветку через PR с pre-merge verification.
-# Использование: bash merge-worktree.sh <WORKTREE_PATH> <BRANCH> <BASE_BRANCH> <REPO_ROOT> <ISSUE_TITLE> [AFFECTED_APPS] [ISSUE_NUMBER]
+# Использование: bash merge-worktree.sh <WORKTREE_PATH> <BRANCH> <BASE_BRANCH> <REPO_ROOT> <ISSUE_TITLE> [AFFECTED_APPS] [ISSUE_NUMBER] [AUTO_MERGE]
 # AFFECTED_APPS: опционально, через запятую (например "api,web"). Если указан — запускает build перед PR.
 # ISSUE_NUMBER: опционально, для "Closes #N" в PR body.
+# AUTO_MERGE: "true" (default) — мержит PR автоматически. "false" — создаёт PR но не мержит.
 # Вывод (stdout): COMMIT_HASH=<hash> и PR_URL=<url> при успехе.
 # Exit codes: 0 = success, 1 = merge failed, 2 = pre-merge verification failed, 3 = push failed, 4 = PR create failed.
 set -euo pipefail
@@ -14,6 +15,7 @@ REPO_ROOT="$4"
 ISSUE_TITLE="${5:-}"
 AFFECTED_APPS="${6:-}"
 ISSUE_NUMBER="${7:-}"
+AUTO_MERGE="${8:-true}"
 
 cd "$REPO_ROOT"
 
@@ -88,22 +90,28 @@ PR_URL=$(gh pr create \
 }
 echo "PR created: $PR_URL" >&2
 
-# ── Шаг 4: Auto-merge PR ───────────────────────────────────────────
-echo "Merging PR..." >&2
-gh pr merge "$PR_URL" --merge --delete-branch 2>&1 >&2 || {
-  echo "PR_MERGE_FAILED: не удалось смержить PR $PR_URL" >&2
-  exit 1
-}
-echo "PR merged." >&2
+# ── Шаг 4: Auto-merge PR (если AUTO_MERGE=true) ─────────────────────
+if [[ "$AUTO_MERGE" == "true" ]]; then
+  echo "Merging PR..." >&2
+  gh pr merge "$PR_URL" --merge --delete-branch 2>&1 >&2 || {
+    echo "PR_MERGE_FAILED: не удалось смержить PR $PR_URL" >&2
+    exit 1
+  }
+  echo "PR merged." >&2
 
-# ── Шаг 5: Обновить локальный main ─────────────────────────────────
-git pull origin "$BASE_BRANCH" >&2 2>&1
+  # ── Шаг 5: Обновить локальный main ─────────────────────────────────
+  git pull origin "$BASE_BRANCH" >&2 2>&1
 
-# ── Шаг 6: Очистка worktree ────────────────────────────────────────
-git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
-git branch -D "$BRANCH" 2>/dev/null || true
+  # ── Шаг 6: Очистка worktree ────────────────────────────────────────
+  git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
+  git branch -D "$BRANCH" 2>/dev/null || true
 
-# ── Вывод результата ────────────────────────────────────────────────
-COMMIT_HASH=$(git rev-parse --short "$BASE_BRANCH")
-echo "COMMIT_HASH=$COMMIT_HASH"
-echo "PR_URL=$PR_URL"
+  # ── Вывод результата ────────────────────────────────────────────────
+  COMMIT_HASH=$(git rev-parse --short "$BASE_BRANCH")
+  echo "COMMIT_HASH=$COMMIT_HASH"
+  echo "PR_URL=$PR_URL"
+else
+  echo "AUTO_MERGE=false: PR создан, мерж пропущен." >&2
+  echo "COMMIT_HASH=pending"
+  echo "PR_URL=$PR_URL"
+fi

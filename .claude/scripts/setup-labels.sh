@@ -29,6 +29,8 @@ labels=(
   "architecture|Architecture related|006B75"
   "good first issue|Good for newcomers|7057FF"
   "regression|Reverted due to post-merge regression|B60205"
+  "under-review|Under automated review|0052CC"
+  "needs-review|Requires human review before merge|FBCA04"
 )
 
 CREATED=0

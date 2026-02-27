@@ -80,6 +80,8 @@ git diff "$BASE_BRANCH"...HEAD -- '*.controller.ts' | grep -E "^\+.*@(Get|Post|P
 Исключения:
 - `// eslint-disable-next-line` с обоснованием — допустимо
 - `@ts-expect-error` с комментарием — допустимо
+- `catch (e: any)` / `catch (error: any)` — допустимо (TypeScript не типизирует catch)
+- Assertion functions (`asserts value is T`) с `as any` внутри — допустимо (type narrowing pattern)
 
 ### 2.6 Secrets / Credentials
 

@@ -31,7 +31,7 @@ fi
 
 State файл содержит полное состояние выполнения: список issues, их статусы, группы, результаты. Продолжи с того шага, на котором остановился.
 
-**Валидация версии**: проверь `schema_version` в state файле. Если отсутствует или < 2 — state устаревший, используй fallback (Шаг 0.2) вместо него.
+**Валидация версии**: проверь `schema_version` в state файле. Если отсутствует или < 3 — state устаревший, используй fallback (Шаг 0.2) вместо него.
 
 ### 0.2: Fallback — если state файла нет
 
@@ -48,7 +48,7 @@ STATUS=$(echo "$LAST_COMMENT" | grep -oP '(?<=STATUS=)\S+' || echo "UNKNOWN")
 BRANCH=$(echo "$LAST_COMMENT" | grep -oP '(?<=BRANCH=)\S+' || echo "")
 ```
 
-- **Issue закрыт + STATUS=SUCCESS** → нужен мерж (Шаг 6)
+- **Issue закрыт + STATUS=READY_FOR_REVIEW** → нужен review + мерж (Шаг 6)
 - **Issue открыт + нет AGENT_META** → перезапусти через Шаг 5
 
 ### 0.3: Продолжи выполнение
@@ -65,12 +65,12 @@ BRANCH=$(echo "$LAST_COMMENT" | grep -oP '(?<=BRANCH=)\S+' || echo "")
 mkdir -p "$CLAUDE_PROJECT_DIR/.claude/state"
 cat > "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json" <<'STATE'
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "started_at": "<ISO timestamp>",
-  "current_step": "<step number>",
+  "phase": "EXECUTING_GROUP",
   "issues": {
-    "42": {"title": "...", "status": "pending|running|success|failed|needs_input", "branch": "fix/issue-42", "group": 0, "agent_id": "...", "worktree_path": "...", "merge_commit": "...", "pr_url": "..."},
-    "43": {"title": "...", "status": "running", "branch": "fix/issue-43", "group": 0, "agent_id": "...", "worktree_path": "..."}
+    "42": {"title": "...", "status": "SOLVING", "branch": "fix/issue-42", "group": 0, "agent_id": "...", "worktree_path": "...", "merge_commit": "...", "pr_url": "..."},
+    "43": {"title": "...", "status": "PENDING", "branch": "fix/issue-43", "group": 0, "agent_id": "...", "worktree_path": "..."}
   },
   "parallel_groups": [[42, 43], [44]],
   "current_group_index": 0,
@@ -83,14 +83,42 @@ STATE
 
 ### State Schema
 
+**Фазы executor** (`phase`):
+
+| Фаза | Описание |
+|------|----------|
+| `PREFLIGHT` | Шаг 1.7 — issue-validator проверяет issues |
+| `ANALYZING_INTERSECTIONS` | Шаг 2 — анализ пересечений |
+| `EXECUTING_GROUP` | Шаг 5 — solver'ы работают |
+| `REVIEWING` | Шаг 6 — review loop (lint, reviewer, security) |
+| `MERGING` | Шаг 6 — мерж через merge-worktree.sh |
+| `POST_MERGE_VERIFY` | Шаг 6.5 — verify-post-merge.sh |
+| `REPORTING` | Шаг 7 — changelog + итоговый отчёт |
+| `DONE` | Завершено |
+
+**Статусы issue** (`issues[N].status`):
+
+| Статус | Описание |
+|--------|----------|
+| `PENDING` | Ожидает выполнения |
+| `SOLVING` | Solver работает |
+| `READY_FOR_REVIEW` | Solver завершил, ожидает review |
+| `REVIEWING` | Review loop в процессе |
+| `REVIEW_PASSED` | Review пройден, готов к мержу |
+| `MERGING` | Мерж в процессе |
+| `MERGED` | Успешно смержен |
+| `FAILED` | Ошибка на любом этапе |
+
+**Поля state:**
+
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `schema_version` | `number` | Версия формата state (текущая: 2) |
+| `schema_version` | `number` | Версия формата state (текущая: 3) |
 | `started_at` | `string` | ISO timestamp начала выполнения |
-| `current_step` | `string` | Номер текущего шага оркестратора |
+| `phase` | `enum` | Текущая фаза executor (см. таблицу выше) |
 | `issues` | `object` | Карта issue_number → состояние |
 | `issues[N].title` | `string` | Заголовок issue |
-| `issues[N].status` | `enum` | `pending`, `running`, `success`, `failed`, `needs_input` |
+| `issues[N].status` | `enum` | Статус issue (см. таблицу выше) |
 | `issues[N].branch` | `string` | Имя ветки (`fix/issue-N`) |
 | `issues[N].group` | `number` | Индекс группы параллелизации |
 | `issues[N].agent_id` | `string` | ID подагента (для resume) |
@@ -126,18 +154,6 @@ gh issue view <N> --json number,title,body,labels,comments
 
 **Фильтр `skip`**: исключи issues с лейблом `skip`. Если есть — упомяни в отчёте как "пропущено (skip)".
 
-**Автовалидация**: если среди issues есть без лейбла `ready` — запусти скрипт валидации:
-
-```bash
-bash "$CLAUDE_PROJECT_DIR/.claude/scripts/validate-issues.sh" <НОМЕРА БЕЗ READY ЧЕРЕЗ ПРОБЕЛ>
-```
-
-Если после валидации у issues появился `needs-clarification` — спроси пользователя:
-> Issues #N, #M получили `needs-clarification` — acceptance criteria недостаточны.
-> Продолжить без них?
-
-При отказе — остановись. При согласии — исключи эти issues.
-
 Если issues не найдены (или все отфильтрованы) -- сообщи пользователю и останови выполнение.
 
 **Обнови state файл** с полученным списком issues.
@@ -163,12 +179,12 @@ gh api repos/$REPO/issues/<NUMBER>/sub_issues --jq '[.[] | {number, title, state
 
 ---
 
-## Шаг 1.7: Pre-flight проверка
+## Шаг 1.7: Валидация issues
 
-Запусти `pre-flight-checker` **параллельно** для каждого issue:
+Запусти `issue-validator` **параллельно** для каждого issue:
 
 ```
-subagent_type: "pre-flight-checker"
+subagent_type: "issue-validator"
 model: haiku
 run_in_background: true
 prompt: |
@@ -179,11 +195,16 @@ prompt: |
 ```
 
 Обработай результаты:
-- **BLOCKED** → исключи issue, сообщи причину (зависимость не закрыта, etc.)
-- **WARN** → продолжай, но запомни warnings (size:l → рассмотри декомпозицию)
 - **READY** → продолжай
+- **BLOCKED** → исключи issue, сообщи причину (зависимость не закрыта, etc.)
+- **NEEDS_CLARIFICATION** → спроси пользователя:
+  > Issues #N, #M требуют уточнения: <reasons>.
+  > Продолжить без них?
+  При отказе — остановись. При согласии — исключи эти issues.
 
-Для issues с `WARN` + `size:l` — предложи пользователю запустить decomposer.
+Для issues с warning `size:l` — предложи пользователю запустить decomposer.
+
+**Обнови state** с `phase: "PREFLIGHT"` перед запуском валидаторов.
 
 ---
 
@@ -212,12 +233,9 @@ prompt: |
   <ISSUES_JSON>
 ```
 
-Распарси JSON-ответ. Если невалиден — fallback на скрипт:
-```bash
-echo '<ISSUES_JSON>' | bash "$CLAUDE_PROJECT_DIR/.claude/scripts/analyze-intersections.sh"
-```
+Распарси JSON-ответ. Если невалиден — retry 1 раз с пометкой "Верни ТОЛЬКО валидный JSON". Если повторно невалиден — все issues последовательно (каждый в отдельной группе).
 
-**Обнови state файл** с parallel_groups.
+**Обнови state** с `phase: "ANALYZING_INTERSECTIONS"` и `parallel_groups`.
 
 ---
 
@@ -336,7 +354,7 @@ Parent issue **не передаётся** в issue-solver.
 
 ---
 
-## Шаг 6: Обработка результатов
+## Шаг 6: Обработка результатов + Review Loop
 
 После завершения каждого background подагента прочитай его результат.
 
@@ -350,65 +368,175 @@ FILES=$(echo "$LAST_COMMENT" | grep -oP '(?<=FILES=)\S+' || echo "")
 TESTS_PASSED=$(echo "$LAST_COMMENT" | grep -oP '(?<=TESTS_PASSED=)\S+' || echo "")
 TESTS_FAILED=$(echo "$LAST_COMMENT" | grep -oP '(?<=TESTS_FAILED=)\S+' || echo "")
 BUILD=$(echo "$LAST_COMMENT" | grep -oP '(?<=BUILD=)\S+' || echo "")
-REVIEW=$(echo "$LAST_COMMENT" | grep -oP '(?<=REVIEW=)\S+' || echo "")
 ```
 
-### STATUS: SUCCESS
+**Обнови state**: issue status → `READY_FOR_REVIEW`, phase → `REVIEWING`.
 
-1. Сними `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`
-2. Получи `BRANCH` и `WORKTREE_PATH` из результата подагента (или AGENT_META)
-3. **Мерж через PR (скрипт)**:
-   ```bash
-   cd "$REPO_ROOT"
-   MERGE_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/merge-worktree.sh" \
-     "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$REPO_ROOT" "<ISSUE_TITLE>" \
-     "<AFFECTED_APPS>" "<ISSUE_NUMBER>") || EXIT_CODE=$?
-   COMMIT_HASH=$(echo "$MERGE_RESULT" | grep -oP '(?<=COMMIT_HASH=)\S+')
-   PR_URL=$(echo "$MERGE_RESULT" | grep -oP '(?<=PR_URL=)\S+')
-   ```
-4. Обработка ошибок merge-скрипта по exit code:
-   - **exit 1** (merge conflict) → запусти `conflict-resolver`:
-     ```
-     subagent_type: "conflict-resolver"
-     model: opus
-     run_in_background: false
-     prompt: |
-       WORKTREE_PATH: <path>
-       BRANCH: <branch>
-       BASE_BRANCH: <base>
-       ISSUE_A_TITLE: <текущий issue title>
-       ISSUE_B_TITLE: <issue что уже в base branch>
-     ```
-     - `RESOLVED` → повтори мерж
-     - `UNRESOLVABLE` → считай FAILED
-   - **exit 2** (pre-merge build failed) → считай FAILED, добавь hint об ошибке build
-   - **exit 3** (push failed) → retry 1 раз, если повторно → FAILED
-   - **exit 4** (PR create failed) → retry 1 раз, если повторно → FAILED
-5. **Обнови state файл** (включая `pr_url`)
-6. **Добавь итоговый комментарий**:
-   ```bash
-   cd "$REPO_ROOT"
-   gh issue comment <NUMBER> --body "$(cat <<COMMENT
-   ## ✅ Смерджено
+---
 
-   **PR**: $PR_URL
-   **Коммит**: \`$COMMIT_HASH\`
-   **Ветка**: \`$BASE_BRANCH\`
-   **Файлы**: $FILES
-   **Тесты**: passed=$TESTS_PASSED failed=$TESTS_FAILED
-   **Build**: $BUILD
-   **Review**: $REVIEW
-   COMMENT
-   )"
-   ```
+### STATUS: READY_FOR_REVIEW — Review Loop
+
+Навесь лейбл `under-review`:
+```bash
+gh issue edit <NUMBER> --add-label "under-review"
+```
+
+#### 6.1 Lint Check
+
+```
+subagent_type: "lint-checker"
+model: haiku
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+```
+
+- `PASS` → переходи к 6.2
+- `FAIL` → format fixes → re-launch solver (max 1 retry):
+  ```
+  subagent_type: "issue-solver"
+  run_in_background: false
+  isolation: "worktree"
+  prompt: |
+    Исправь следующие lint-проблемы в worktree {WORKTREE_PATH}:
+    <LINT_ISSUES>
+
+    Issue #{NUMBER}: {TITLE}
+    AFFECTED_APPS: {APPS}
+    BASE_BRANCH: {BRANCH}
+  ```
+
+#### 6.2 Migration Validation (только если has-migrations)
+
+Если issue имеет лейбл `has-migrations` или solver изменил файлы в `packages/@qurvo/db/drizzle/` или `packages/@qurvo/clickhouse/`:
+
+```
+subagent_type: "migration-validator"
+model: sonnet
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: <абсолютный путь>
+  BASE_BRANCH: <ветка>
+```
+
+- `PASS` или `WARN` → продолжай
+- `FAIL` → re-launch solver с описанием проблем (max 1 retry)
+
+#### 6.3 Logic Review + Security Check (параллельно)
+
+Запусти `issue-reviewer` и `security-checker` **параллельно** (`run_in_background: true`):
+
+**issue-reviewer**:
+```
+subagent_type: "issue-reviewer"
+run_in_background: true
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  ISSUE_NUMBER: <номер>
+  ISSUE_TITLE: <заголовок issue>
+  ISSUE_BODY: <тело issue — первые 500 символов>
+  ACCEPTANCE_CRITERIA: <список acceptance criteria из issue body>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+  TEST_SUMMARY: <результаты тестов — passed/failed>
+  CHANGED_FILES_SUMMARY: <список изменённых файлов — 1-2 строки на файл>
+```
+
+**security-checker**:
+```
+subagent_type: "security-checker"
+model: haiku
+run_in_background: true
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+```
+
+Дождись завершения обоих. Обработка результатов:
+
+- **Оба APPROVE/PASS** → issue status → `REVIEW_PASSED` → переходи к 6.4 (мерж)
+- **reviewer: REQUEST_CHANGES** или **security: FAIL** → structured feedback → re-launch solver (max 2 итерации)
+
+**Structured feedback protocol** (передаётся solver'у при retry):
+```
+Исправь следующие проблемы в worktree {WORKTREE_PATH}:
+1. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
+2. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
+
+Issue #{NUMBER}: {TITLE}
+AFFECTED_APPS: {APPS}
+BASE_BRANCH: {BRANCH}
+```
+
+Solver получает чёткие инструкции — не парсит reviewer JSON.
+
+Если после 2-й итерации review всё ещё FAIL/REQUEST_CHANGES → эскалируй пользователю.
+
+#### 6.4 Мерж
+
+**Обнови state**: issue status → `MERGING`, phase → `MERGING`.
+
+Определи AUTO_MERGE: если issue имеет label `size:l` или `needs-review` → `AUTO_MERGE="false"`.
+
+```bash
+cd "$REPO_ROOT"
+MERGE_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/merge-worktree.sh" \
+  "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$REPO_ROOT" "<ISSUE_TITLE>" \
+  "<AFFECTED_APPS>" "<ISSUE_NUMBER>" "$AUTO_MERGE") || EXIT_CODE=$?
+COMMIT_HASH=$(echo "$MERGE_RESULT" | grep -oP '(?<=COMMIT_HASH=)\S+')
+PR_URL=$(echo "$MERGE_RESULT" | grep -oP '(?<=PR_URL=)\S+')
+```
+
+Обработка ошибок merge-скрипта по exit code:
+- **exit 1** (merge conflict) → запусти `conflict-resolver`:
+  ```
+  subagent_type: "conflict-resolver"
+  model: opus
+  run_in_background: false
+  prompt: |
+    WORKTREE_PATH: <path>
+    BRANCH: <branch>
+    BASE_BRANCH: <base>
+    ISSUE_A_TITLE: <текущий issue title>
+    ISSUE_B_TITLE: <issue что уже в base branch>
+  ```
+  - `RESOLVED` → повтори мерж
+  - `UNRESOLVABLE` → считай FAILED
+- **exit 2** (pre-merge build failed) → считай FAILED, добавь hint
+- **exit 3** (push failed) → retry 1 раз, если повторно → FAILED
+- **exit 4** (PR create failed) → retry 1 раз, если повторно → FAILED
+
+**Обнови state**: issue status → `MERGED`, записать `pr_url` и `merge_commit`.
+
+Сними лейблы и закрой:
+```bash
+gh issue edit <NUMBER> --remove-label "in-progress" --remove-label "under-review"
+gh issue close <NUMBER> --comment "$(cat <<COMMENT
+## ✅ Смерджено
+
+**PR**: $PR_URL
+**Коммит**: \`$COMMIT_HASH\`
+**Ветка**: \`$BASE_BRANCH\`
+**Файлы**: $FILES
+**Тесты**: passed=$TESTS_PASSED failed=$TESTS_FAILED
+**Build**: $BUILD
+**Review**: APPROVE
+**Lint**: PASS
+COMMENT
+)"
+```
+
+---
 
 ### STATUS: FAILED — Retry механизм
 
 1. Прочитай причину из JSON output или AGENT_META `FAIL_REASON`
 2. **Определи тип ошибки**:
-   - **Build/test failure** → retry 1 раз с hint'ом об ошибке в промпте
-   - **Review не пройден 2 раза** → эскалация пользователю
-   - **Merge conflict** → пробуй conflict-resolver
+   - **Test failure** → запусти `test-failure-analyzer` для диагностики, передай анализ как HINT при retry
+   - **Build failure** → retry 1 раз с hint'ом об ошибке build
    - **Другое** → эскалация пользователю
 
 3. **Retry** (максимум 1 раз):
@@ -449,7 +577,7 @@ REVIEW=$(echo "$LAST_COMMENT" | grep -oP '(?<=REVIEW=)\S+' || echo "")
 
 После обработки результатов каждой группы:
 
-1. Проверь все issues со статусом `pending` в state файле
+1. Проверь все issues со статусом `PENDING` в state файле
 2. Для каждого — проверь `Depends on: #N` в body
 3. Если зависимость только что была закрыта (SUCCESS + merged) → issue разблокирован
 4. Добавь разблокированные issues в следующую группу (если не конфликтуют с уже запланированными)
@@ -497,6 +625,23 @@ fi
 ```
 
 **Пропускай** этот шаг если в группе был только 1 issue.
+
+---
+
+## Шаг 6.7: OpenAPI post-merge
+
+Если среди MERGED issues группы есть затрагивающие `apps/api` (AFFECTED_APPS содержит `api`):
+
+```bash
+cd "$REPO_ROOT"
+pnpm swagger:generate && pnpm generate-api
+# Проверь есть ли изменения в Api.ts
+if ! git diff --quiet -- apps/web/src/api/generated/Api.ts; then
+  git add apps/web/src/api/generated/Api.ts apps/api/docs/swagger.json
+  git commit -m "chore: regenerate OpenAPI client"
+  git push origin "$BASE_BRANCH"
+fi
+```
 
 ---
 
@@ -556,12 +701,14 @@ rm -f "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json"
 4. Если в группе один issue -- всё равно запусти как background подагента.
 5. При перезапуске подагента — передай `WORKTREE_PATH` из предыдущего запуска.
 6. Не запрашивай подтверждение если план ясен. Действуй автономно.
-7. **Мерж делает ТОЛЬКО оркестратор** (Шаг 6).
+7. **Мерж и review делает ТОЛЬКО оркестратор** (Шаг 6). Solver возвращает READY_FOR_REVIEW.
 8. Если 1 issue — пропусти Шаг 2.
 9. Sub-issues НИКОГДА не мержатся в `main` — только в feature branch parent'а.
 10. Parent issue закрывается оркестратором (Шаг 5.3), не подагентом.
 11. Post-merge верификация — только для групп из 2+ issues.
-12. При compact recovery — читай state файл (Шаг 0.1), fallback на AGENT_META.
-13. State файл обновляется после КАЖДОГО значимого шага.
-14. Retry FAILED issues максимум 1 раз.
+12. При compact recovery — читай state файл (Шаг 0.1), fallback на AGENT_META. schema_version < 3 = устаревший.
+13. State файл обновляется после КАЖДОГО значимого шага с named phases (не номерами).
+14. Retry FAILED issues максимум 1 раз. Review retry — максимум 2 итерации.
 15. Conflict resolver — только при merge conflicts, не для других ошибок.
+16. Issues с `size:l` или `needs-review` → `AUTO_MERGE="false"` (PR без автомержа).
+17. OpenAPI regeneration — после мержа issues, затрагивающих `apps/api` (Шаг 6.7).
