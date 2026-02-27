@@ -608,10 +608,11 @@ describe('queryRetention — first_time + property filters', () => {
     expect(result.cohorts).toHaveLength(2);
 
     const cohortDay6 = result.cohorts[0]; // mixedUser's cohort
-    // cohort_size = periods[0] = count of users with a matching organic event ON their
-    // cohort day (day-6). mixedUser's only day-6 event has source=direct (no match),
-    // so periods[0] = 0.  But they DO have an organic event on day-5 → periods[1] = 1.
-    expect(cohortDay6.cohort_size).toBe(0);
+    // cohort_size = 1: mixedUser's true first event is day-6, so they are in initial_events.
+    // cohort_size is computed from initial_events directly, independent of property filters.
+    // periods[0] = 0: no matching organic return_event on day-6 (mixedUser's day-6 event has source=direct).
+    expect(cohortDay6.cohort_size).toBe(1);
+    expect(cohortDay6.periods[0]).toBe(0);
     // mixedUser's return event on day-5 has source=organic → period_1 = 1
     expect(cohortDay6.periods[1]).toBe(1);
 
@@ -622,12 +623,11 @@ describe('queryRetention — first_time + property filters', () => {
     expect(cohortDay5.periods[1]).toBe(1);
   });
 
-  it('first_time with filter: user whose ONLY events lack the property is excluded from cohort', async () => {
-    // A user whose first event lacks the filter property never shows a return_event
-    // matching the filter → they appear in initial_events but have no matching return
-    // at period_0. Actually they ARE included in the cohort (period_0 = 1) but only
-    // if there is an organic event on the same day as their cohort date.
-    // This test verifies that a user with ZERO matching events is entirely absent.
+  it('first_time with filter: user whose ONLY events lack the property appears in cohort with zero returns', async () => {
+    // A user whose first event lacks the filter property enters the cohort
+    // (initial_events is unfiltered for first_time), but has no matching return
+    // events → all periods are 0. Cohort still appears because cohort_size is
+    // computed from initial_events, not from return_events.
     const projectId = randomUUID();
     const directOnlyUser = randomUUID(); // all events: source=direct (never matches filter)
 
@@ -661,9 +661,12 @@ describe('queryRetention — first_time + property filters', () => {
       filters: [{ property: 'properties.source', operator: 'eq', value: 'organic' }],
     });
 
-    // directOnlyUser has no organic events → return_events CTE is empty for them
-    // → JOIN produces no rows → no cohort periods → cohorts list is empty
-    expect(result.cohorts).toHaveLength(0);
+    // directOnlyUser IS in initial_events (first_time doesn't apply filters to initial CTE).
+    // Cohort appears with size=1 but all return periods are 0 (no organic events).
+    expect(result.cohorts).toHaveLength(1);
+    expect(result.cohorts[0].cohort_size).toBe(1);
+    expect(result.cohorts[0].periods[0]).toBe(0);
+    expect(result.cohorts[0].periods[1]).toBe(0);
   });
 });
 
@@ -822,7 +825,11 @@ describe('queryRetention — extendedTo computed from truncTo, not date_to', () 
 });
 
 describe('queryRetention — return_event differs from target_event', () => {
-  it('tracks whether users who performed target_event later performed return_event', async () => {
+  it('cohort_size reflects target_event users, not return_event on day-0', async () => {
+    // Regression for issue #559.
+    // When return_event != target_event, cohort_size must be the count of users
+    // who performed target_event (entered the cohort), NOT the count of users who
+    // performed return_event on their cohort day (periods[0]).
     const projectId = randomUUID();
     const personA = randomUUID();
     const personB = randomUUID();
@@ -835,6 +842,8 @@ describe('queryRetention — return_event differs from target_event', () => {
       buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'signup', timestamp: ts(5, 12) }),
     ]);
 
+    // date_to=daysAgo(4) so that truncTo=daysAgo(4) and the cohort at daysAgo(5)
+    // is mature for offset=1 (daysAgo(5)+1=daysAgo(4) <= daysAgo(4) ✓).
     const result = await queryRetention(ctx.ch, {
       project_id: projectId,
       target_event: 'signup',
@@ -843,17 +852,64 @@ describe('queryRetention — return_event differs from target_event', () => {
       granularity: 'day',
       periods: 1,
       date_from: daysAgo(5),
-      date_to: daysAgo(5),
+      date_to: daysAgo(4),
     });
 
     expect(result.cohorts).toHaveLength(1);
     const cohort = result.cohorts[0];
-    // Both persons signed up on day-5, BUT period 0 uses return_event=purchase, not signup.
-    // personA has a purchase on day-5? No — purchase is on day-4. So periods[0] = 0 for
-    // both (no purchases on the cohort day itself), and periods[1] = 1 (personA purchased day-4).
-    // cohort_size = periods[0].
-    expect(cohort.periods[0]).toBe(0);   // no one purchased on cohort day (day-5)
-    expect(cohort.periods[1]).toBe(1);   // only personA purchased on day-4
+    // cohort_size = 2: both personA and personB signed up (target_event) on day-5.
+    // This is computed from initial_events directly, not from periods[0].
+    expect(cohort.cohort_size).toBe(2);
+    // periods[0] = 0: no one purchased (return_event) on the cohort day (day-5)
+    expect(cohort.periods[0]).toBe(0);
+    // periods[1] = 1: only personA purchased on day-4
+    expect(cohort.periods[1]).toBe(1);
+    // average_retention[1] = 1/2 * 100 = 50% (not 0% as it was with the bug)
+    expect(result.average_retention[1]).toBe(50);
+  });
+
+  it('average_retention is correct when no return_events on day-0', async () => {
+    // Verifies that cohorts with cohort_size > 0 but periods[0] = 0 still
+    // contribute to average_retention (the bug would skip them entirely).
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+    const personC = randomUUID();
+
+    // 3 users sign up on day-7, all purchase on day-5 (but none purchase on day-7)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'signup', timestamp: ts(7, 12) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'signup', timestamp: ts(7, 12) }),
+      buildEvent({ project_id: projectId, person_id: personC, distinct_id: 'c', event_name: 'signup', timestamp: ts(7, 12) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'purchase', timestamp: ts(5, 12) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'purchase', timestamp: ts(5, 12) }),
+      buildEvent({ project_id: projectId, person_id: personC, distinct_id: 'c', event_name: 'purchase', timestamp: ts(5, 12) }),
+    ]);
+
+    // date_to=daysAgo(4) ensures all offsets up to 3 are mature:
+    //   offset=0: daysAgo(7)+0=daysAgo(7) <= daysAgo(4) ✓
+    //   offset=2: daysAgo(7)+2=daysAgo(5) <= daysAgo(4) ✓
+    //   offset=3: daysAgo(7)+3=daysAgo(4) <= daysAgo(4) ✓
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'signup',
+      return_event: 'purchase',
+      retention_type: 'recurring',
+      granularity: 'day',
+      periods: 3,
+      date_from: daysAgo(7),
+      date_to: daysAgo(4),
+    });
+
+    expect(result.cohorts).toHaveLength(1);
+    const cohort = result.cohorts[0];
+    expect(cohort.cohort_size).toBe(3);
+    expect(cohort.periods[0]).toBe(0);  // no purchases on day-7
+    expect(cohort.periods[2]).toBe(3);  // all 3 purchased on day-5 (offset=2)
+    // average_retention[0] = 0/3 * 100 = 0% (no one did return_event on cohort day)
+    expect(result.average_retention[0]).toBe(0);
+    // average_retention[2] = 3/3 * 100 = 100%
+    expect(result.average_retention[2]).toBe(100);
   });
 });
 
