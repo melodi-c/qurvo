@@ -13,6 +13,7 @@ import {
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
 import type { FunnelChQueryParams } from './funnel-sql-shared';
+import { toChTs } from '../../utils/clickhouse-helpers';
 
 interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];
@@ -45,7 +46,7 @@ export async function runFunnelCohortBreakdown(
     const cbQueryParams = { ...baseQueryParams };
 
     const cohortFilterPredicate = buildCohortFilterForBreakdown(
-      cb, cbParamKey, 900 + cbIdx, cbQueryParams,
+      cb, cbParamKey, 900 + cbIdx, cbQueryParams, toChTs(params.date_to, true),
     );
     const cohortFilter = ` AND ${cohortFilterPredicate}`;
 

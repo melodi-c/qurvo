@@ -15,12 +15,16 @@ export interface CohortBreakdownEntry {
  * Returns a bare predicate (no leading " AND ") — callers prepend that themselves.
  *
  * Mutates queryParams with the cohort param key and any inline subquery params.
+ *
+ * @param dateTo - Optional datetime string (e.g. "2025-01-31 23:59:59") used as
+ *   the upper bound for behavioral conditions instead of `now()`.
  */
 export function buildCohortFilterForBreakdown(
   cb: CohortBreakdownEntry,
   paramKey: string,
   subqueryOffset: number,
   queryParams: Record<string, unknown>,
+  dateTo?: string,
 ): string {
   queryParams[paramKey] = cb.cohort_id;
 
@@ -36,6 +40,6 @@ export function buildCohortFilterForBreakdown(
           WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
         )`;
   }
-  const subquery = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams);
+  const subquery = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo);
   return `${RESOLVED_PERSON} IN (${subquery})`;
 }
