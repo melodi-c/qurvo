@@ -12,6 +12,7 @@ import { CHART_COLORS_HSL } from '@/lib/chart-colors';
 import type { CohortHistoryPoint } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortSizeChart.translations';
+import { formatBucket } from '@/lib/formatting';
 
 const SERIES_COLOR = CHART_COLORS_HSL[0]; // blue
 
@@ -20,19 +21,16 @@ interface CohortSizeChartProps {
 }
 
 export function CohortSizeChart({ data }: CohortSizeChartProps) {
-  const { t, lang } = useLocalTranslation(translations);
+  const { t } = useLocalTranslation(translations);
 
   const chartData = useMemo(
     () =>
       data.map((p) => ({
         date: p.date,
         count: p.count,
-        label: new Date(p.date).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-          day: '2-digit',
-          month: 'short',
-        }),
+        label: formatBucket(p.date, 'day'),
       })),
-    [data, lang],
+    [data],
   );
 
   if (chartData.length === 0) {

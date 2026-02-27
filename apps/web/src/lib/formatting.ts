@@ -12,6 +12,24 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(getLocale());
 }
 
+/** Format an ISO date string with granularity context (month: "Jan 2024", other: "Jan 15"). Uses UTC to avoid timezone shifts. */
+export function formatDateWithGranularity(iso: string, granularity: string): string {
+  const locale = getLocale();
+  const d = new Date(iso);
+  if (granularity === 'month') {
+    return d.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  }
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+/** Format a short date range from two ISO strings. Extracts MM-DD portion (e.g. "03-15 – 04-20"). Returns null if either value is not a string. */
+export function formatShortDateRange(from: unknown, to: unknown): string | null {
+  if (typeof from !== 'string' || typeof to !== 'string') return null;
+  const fShort = from.slice(5); // MM-DD
+  const tShort = to.slice(5);
+  return `${fShort} – ${tShort}`;
+}
+
 /** Format an ISO timestamp into a relative time string (e.g. "5 minutes ago"). Uses Intl.RelativeTimeFormat for locale-aware output. */
 export function formatRelativeTime(iso: string): string {
   const locale = getLocale();

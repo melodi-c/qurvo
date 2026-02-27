@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './RetentionTable.translations';
 import type { RetentionResult } from '@/api/generated/Api';
+import { formatDateWithGranularity } from '@/lib/formatting';
 
 interface RetentionTableProps {
   result: RetentionResult;
@@ -23,17 +24,9 @@ function heatmapColor(pct: number): string {
   return `rgba(34, 197, 94, ${opacity})`;
 }
 
-function formatDate(dateStr: string, granularity: string, locale: string): string {
-  const d = new Date(dateStr);
-  if (granularity === 'month') {
-    return d.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
-  }
-  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-}
-
 export function RetentionTable({ result, compact = false }: RetentionTableProps) {
   const { cohorts, average_retention, granularity } = result;
-  const { t, lang } = useLocalTranslation(translations);
+  const { t } = useLocalTranslation(translations);
 
   const maxPeriods = compact
     ? Math.min(average_retention.length, 7)
@@ -88,7 +81,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
           return (
             <TableRow key={cohort.cohort_date}>
               <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
-                {formatDate(cohort.cohort_date, granularity, lang)}
+                {formatDateWithGranularity(cohort.cohort_date, granularity)}
               </TableCell>
               <TableCell className="sticky left-[100px] bg-background z-10 text-right text-xs tabular-nums">
                 {cohort.cohort_size.toLocaleString()}
