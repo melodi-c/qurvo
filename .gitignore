@@ -16,6 +16,7 @@ config.yaml
 values.local-secrets.yaml
 
 .claude/worktrees/*
+.claude/state/execution-state.json
 .mcp.json
 
 apps/web/storybook-static/

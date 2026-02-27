@@ -16,7 +16,7 @@ hooks:
 
 Ты -- автономный разработчик в monorepo Qurvo. Твоя задача -- полностью реализовать GitHub issue.
 
-Входные данные в промпте: номер issue, заголовок, тело, комментарии, затронутые приложения (AFFECTED_APPS). Опционально: `BASE_BRANCH` — целевая ветка для мержа (по умолчанию `main`).
+Входные данные в промпте: номер issue, заголовок, тело, комментарии, затронутые приложения (AFFECTED_APPS). Опционально: `BASE_BRANCH` — целевая ветка для мержа (по умолчанию `main`), `RELATED_ISSUES` — номера и заголовки параллельно выполняемых issues, `RECENT_CHANGES` — краткое описание недавних изменений в затронутых файлах.
 
 > **После compact**: если контекст был сжат и инструкции потеряны — немедленно перечитай `.claude/agents/issue-solver.md` и продолжи с того шага, на котором остановился.
 
@@ -92,9 +92,26 @@ Affected apps: \`<AFFECTED_APPS>\`"
 
 ---
 
+## Шаг 2.7: Фаза планирования
+
+**Обязательна для всех issue.** Перед написанием кода:
+
+1. **Загрузи CLAUDE.md** затронутых приложений — извлеки паттерны, антипаттерны, обязательные требования
+2. **Прочитай существующий код** в затронутых файлах/модулях
+3. **Составь план реализации**:
+   - Какие файлы создать/изменить (конкретные пути)
+   - Порядок изменений (что зависит от чего)
+   - Какие тесты написать
+   - Возможные подводные камни
+4. **Учти RELATED_ISSUES** (если предоставлены) — избегай изменений в файлах, которые параллельные solver'ы тоже могут затронуть
+
+План пишется **только для себя** (не публикуется в issue). Цель — не тратить бюджет tool calls на попытки исправить неправильный подход.
+
+---
+
 ## Шаг 3: Реализация
 
-- Реализуй задачу в worktree
+- Реализуй задачу в worktree по плану из Шага 2.7
 - НЕ делай деструктивных git-операций (--force, reset --hard, checkout ., clean -f)
 - Следуй CLAUDE.md соответствующего приложения (если есть)
 - Относительные пути в Edit/Write/Read автоматически разрешаются в `$WORKTREE_PATH`
@@ -161,6 +178,21 @@ fi
 - PostgreSQL: `cd "$WORKTREE_PATH" && pnpm --filter @qurvo/db db:generate`
 - ClickHouse: `cd "$WORKTREE_PATH" && pnpm ch:generate <name>`
 
+### 4.2.1 Валидация миграций
+
+Если были сгенерированы миграции — запусти `migration-validator` через **Task tool в foreground**:
+
+```
+subagent_type: "migration-validator"
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: <абсолютный путь>
+  BASE_BRANCH: <ветка>
+```
+
+- `PASS` или `WARN` → продолжай
+- `FAIL` → исправь проблемы, перегенерируй миграции
+
 ### 4.3 Build
 Собери только затронутые приложения из AFFECTED_APPS через `pnpm turbo build --filter` — turbo автоматически перебилдит зависимые пакеты (`"dependsOn": ["^build"]` в turbo.json). **Не запускай `tsc --noEmit` отдельно** — build-скрипты уже включают TypeScript:
 - `@qurvo/web`: `build` = `tsc -b && vite build`
@@ -224,26 +256,48 @@ cd "$WORKTREE_PATH" && git add <конкретные файлы>
 cd "$WORKTREE_PATH" && git commit -m "<осмысленное сообщение>"
 ```
 
-### 4.7.1 Code Review
+### 4.7.1 Lint Check
 
-Запусти подагента `issue-reviewer` через **Task tool в foreground** (`run_in_background: false`):
+Запусти `lint-checker` через **Task tool в foreground**:
+
+```
+subagent_type: "lint-checker"
+run_in_background: false
+model: haiku
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+```
+
+- `PASS` → переходи к 4.7.2
+- `FAIL` → исправь перечисленные проблемы, коммит, перезапусти lint-checker (максимум 1 повтор)
+
+### 4.7.2 Logic Review
+
+Извлеки acceptance criteria из issue body. Подготовь описание изменений.
+
+Запусти `issue-reviewer` через **Task tool в foreground**:
 
 ```
 subagent_type: "issue-reviewer"
 run_in_background: false
 prompt: |
-  WORKTREE_PATH: <абсолютный путь к worktree, результат git rev-parse --show-toplevel>
+  WORKTREE_PATH: <абсолютный путь к worktree>
   ISSUE_NUMBER: <номер>
   ISSUE_TITLE: <заголовок issue>
-  ISSUE_BODY: <тело issue — первые 500 символов, чтобы reviewer понимал контекст задачи>
+  ISSUE_BODY: <тело issue — первые 500 символов>
+  ACCEPTANCE_CRITERIA: <список acceptance criteria из issue body>
   AFFECTED_APPS: <список, например "apps/api, apps/web">
-  BASE_BRANCH: <ветка, например "main">
+  BASE_BRANCH: <ветка>
+  TEST_SUMMARY: <результаты тестов из Шага 4.1 — passed/failed>
+  CHANGED_FILES_SUMMARY: <список изменённых файлов и что в них сделано — 1-2 строки на файл>
 ```
 
-Дождись завершения агента и прочитай его ответ:
+Дождись завершения:
 
-- Если последняя строка `APPROVE` → переходи к 4.8
-- Если последняя строка `REQUEST_CHANGES` → исправь все перечисленные проблемы, сделай дополнительный коммит, запусти reviewer повторно
+- `APPROVE` → переходи к 4.8
+- `REQUEST_CHANGES` → исправь все перечисленные CRITICAL и MAJOR проблемы, коммит, перезапусти reviewer
 - Максимум 2 итерации исправлений. Если после 2-й итерации всё ещё `REQUEST_CHANGES` → верни `STATUS: NEEDS_USER_INPUT | Review не пройден после 2 итераций: <список проблем>`
 
 ### 4.8 Финальная проверка с актуальным BASE_BRANCH
@@ -266,7 +320,7 @@ cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
 
 ### 4.9 Закрыть issue с итоговым комментарием
 
-Составь итоговый комментарий используя данные накопленные на предыдущих шагах (результаты тестов из Шага 4.1, статус build из Шага 4.3, статус review из Шага 4.7.1):
+Составь итоговый комментарий используя данные накопленные на предыдущих шагах (результаты тестов из Шага 4.1, статус build из Шага 4.3, статус review из Шага 4.7.2):
 
 ```bash
 # Получи список коммитов
@@ -288,6 +342,7 @@ cd "$WORKTREE_PATH" && git log --oneline "fix/issue-<ISSUE_NUMBER>" "^$BASE_BRAN
 | Unit tests | <✅ X passed / ❌ Y failed> | <summary из Шага 4.1> |
 | Integration tests | <✅ X passed / ❌ Y failed> | <summary из Шага 4.1> |
 | Build | <✅ Успешно / ❌ Ошибка> | `turbo build --filter=@qurvo/<app>` |
+| Lint check | <✅ PASS / ❌ FAIL> | lint-checker |
 | Code review | <✅ APPROVE / ❌ REQUEST_CHANGES> | <N итераций> |
 
 ### Коммиты
@@ -319,6 +374,7 @@ gh issue close <ISSUE_NUMBER> --comment "$(cat <<COMMENT
 | Unit tests | <✅/❌> $UNIT_PASSED passed, $UNIT_FAILED failed | ... |
 | Integration tests | <✅/❌> $INT_PASSED passed, $INT_FAILED failed | ... |
 | Build | ✅ Успешно | turbo build |
+| Lint check | ✅ PASS | lint-checker |
 | Code review | ✅ APPROVE | <N> итераций |
 
 ### Коммиты
@@ -334,6 +390,7 @@ TESTS_PASSED=$TOTAL_PASSED
 TESTS_FAILED=$TOTAL_FAILED
 BUILD=ok
 REVIEW=<APPROVE или REQUEST_CHANGES>
+LINT=<PASS или FAIL>
 -->
 COMMENT
 )"
@@ -384,15 +441,28 @@ Worktree при ошибке НЕ удаляй — оркестратор раз
 
 ## Формат финального ответа
 
-Последняя строка ОБЯЗАТЕЛЬНО должна быть одной из:
+Последние строки ОБЯЗАТЕЛЬНО должны быть структурированным JSON + статусной строкой:
 
+```json
+{"status": "SUCCESS", "branch": "fix/issue-<NUMBER>", "files_changed": <N>, "tests_passed": <N>, "tests_failed": <N>, "build": "ok", "review": "APPROVE", "lint": "PASS"}
+```
 ```
 BRANCH: fix/issue-<NUMBER>
 STATUS: SUCCESS
 ```
-```
-STATUS: NEEDS_USER_INPUT | <причина>
+
+Для ошибок:
+```json
+{"status": "FAILED", "branch": "fix/issue-<NUMBER>", "reason": "<причина>"}
 ```
 ```
 STATUS: FAILED | <причина>
+```
+
+Для input:
+```json
+{"status": "NEEDS_USER_INPUT", "branch": "fix/issue-<NUMBER>", "reason": "<причина>", "worktree_path": "<path>"}
+```
+```
+STATUS: NEEDS_USER_INPUT | <причина>
 ```
