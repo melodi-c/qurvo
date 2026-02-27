@@ -5,6 +5,7 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildStepCondition,
+  funnelTsExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -38,6 +39,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
   } = options;
 
   const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
+  const fromExpr = funnelTsExpr('from', queryParams);
+  const toExpr = funnelTsExpr('to', queryParams);
 
   // Ordered mode: filter to only funnel-relevant events (step + exclusion names) for efficiency.
   // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
@@ -53,8 +56,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
     '                  SELECT DISTINCT distinct_id',
     '                  FROM events',
     '                  WHERE project_id = {project_id:UUID}',
-    '                    AND timestamp >= {from:DateTime64(3)}',
-    '                    AND timestamp <= {to:DateTime64(3)}',
+    `                    AND timestamp >= ${fromExpr}`,
+    `                    AND timestamp <= ${toExpr}`,
     '                    AND event_name IN ({all_event_names:Array(String)})',
     '                )',
   ].join('\n');
@@ -123,8 +126,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
             FROM events
             WHERE
               project_id = {project_id:UUID}
-              AND timestamp >= {from:DateTime64(3)}
-              AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}${samplingClause}
+              AND timestamp >= ${fromExpr}
+              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
             GROUP BY person_id
           )`;
 
