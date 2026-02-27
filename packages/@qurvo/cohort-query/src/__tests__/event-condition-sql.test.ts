@@ -13,7 +13,7 @@ function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
 
 describe('buildEventConditionSubquery — event_filters: [] (empty array)', () => {
   it('produces valid SQL without any filter clause when event_filters is empty', () => {
-    const ctx = makeCtx('2025-03-01 23:59:59');
+    const ctx = makeCtx({ dateTo: '2025-03-01 23:59:59' });
     const sql = buildEventConditionSubquery(
       {
         type: 'event',
@@ -39,8 +39,8 @@ describe('buildEventConditionSubquery — event_filters: [] (empty array)', () =
   });
 
   it('produces identical SQL to no event_filters property when event_filters is []', () => {
-    const ctxA = makeCtx('2025-03-01 23:59:59');
-    const ctxB = makeCtx('2025-03-01 23:59:59');
+    const ctxA = makeCtx({ dateTo: '2025-03-01 23:59:59' });
+    const ctxB = makeCtx({ dateTo: '2025-03-01 23:59:59' });
     const base = {
       type: 'event' as const,
       event_name: 'signup',

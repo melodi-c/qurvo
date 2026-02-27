@@ -487,8 +487,8 @@ describe('queryCohortSizeHistory', () => {
 // NOTE: StaticCohortsService is a NestJS injectable requiring the full app
 // module (Drizzle DB, CohortsService, etc.). These integration tests use bare
 // container clients from @qurvo/testing, so we replicate the service's
-// resolveEmailsToPersonIds query directly. The query below mirrors the SQL in
-// StaticCohortsService.resolveEmailsToPersonIds (including RESOLVED_PERSON).
+// resolveEmailsToPersonIds query directly. The queries below mirror the SQL in
+// StaticCohortsService.resolveEmailsToPersonIds (including lower() and RESOLVED_PERSON).
 
 const RESOLVED_PERSON =
   `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
@@ -520,14 +520,16 @@ describe('importStaticCohortCsv — email resolution', () => {
     ]);
 
     // Resolve emails to person_ids — mirrors StaticCohortsService.resolveEmailsToPersonIds
+    // (uses lower() on both sides for case-insensitive matching)
     const emails = ['alice@example.com', 'unknown@example.com'];
+    const normalizedEmails = emails.map((e) => e.toLowerCase());
     const result = await ctx.ch.query({
       query: `
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
-      query_params: { project_id: projectId, emails },
+          AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
+      query_params: { project_id: projectId, emails: normalizedEmails },
       format: 'JSONEachRow',
     });
     const rows = await result.json<{ resolved_person_id: string }>();
@@ -562,13 +564,14 @@ describe('importStaticCohortCsv — email resolution', () => {
     ]);
 
     const emails = ['alice@example.com', 'bob@example.com', 'nobody@example.com'];
+    const normalizedEmails = emails.map((e) => e.toLowerCase());
     const result = await ctx.ch.query({
       query: `
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
-      query_params: { project_id: projectId, emails },
+          AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
+      query_params: { project_id: projectId, emails: normalizedEmails },
       format: 'JSONEachRow',
     });
     const rows = await result.json<{ resolved_person_id: string }>();
@@ -576,6 +579,76 @@ describe('importStaticCohortCsv — email resolution', () => {
     expect(rows.length).toBe(2);
     const resolvedIds = rows.map((r) => r.resolved_person_id).sort();
     expect(resolvedIds).toEqual([personA, personB].sort());
+  });
+
+  it('resolves uppercase CSV email to lowercase stored email (case-insensitive lookup)', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+
+    // Stored email is lowercase
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'alice-upper-did',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'alice@example.com' }),
+        timestamp: msAgo(500),
+      }),
+    ]);
+
+    // CSV provides email in uppercase — must still resolve
+    const emailsFromCsv = ['ALICE@EXAMPLE.COM'];
+    const normalizedEmails = emailsFromCsv.map((e) => e.toLowerCase());
+
+    const result = await ctx.ch.query({
+      query: `
+        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        FROM events
+        WHERE project_id = {project_id:UUID}
+          AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
+      query_params: { project_id: projectId, emails: normalizedEmails },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ resolved_person_id: string }>();
+
+    expect(rows.length).toBe(1);
+    expect(rows[0].resolved_person_id).toBe(personA);
+  });
+
+  it('resolves mixed-case CSV email to lowercase stored email', async () => {
+    const projectId = randomUUID();
+    const personB = randomUUID();
+
+    // Stored email is lowercase
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'bob-mixed-did',
+        event_name: '$set',
+        user_properties: JSON.stringify({ email: 'bob@domain.org' }),
+        timestamp: msAgo(200),
+      }),
+    ]);
+
+    // CSV provides email in mixed case
+    const emailsFromCsv = ['Bob@Domain.Org'];
+    const normalizedEmails = emailsFromCsv.map((e) => e.toLowerCase());
+
+    const result = await ctx.ch.query({
+      query: `
+        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        FROM events
+        WHERE project_id = {project_id:UUID}
+          AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
+      query_params: { project_id: projectId, emails: normalizedEmails },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ resolved_person_id: string }>();
+
+    expect(rows.length).toBe(1);
+    expect(rows[0].resolved_person_id).toBe(personB);
   });
 });
 
@@ -663,6 +736,81 @@ describe('importStaticCohortCsv — distinct_id resolution', () => {
     expect(rows.length).toBe(2);
     const resolvedIds = rows.map((r) => r.resolved_person_id).sort();
     expect(resolvedIds).toEqual([personA, personB].sort());
+  });
+});
+
+// ── insertStaticMembers chunking ────────────────────────────────────────────
+// Mirrors the chunked insert logic in StaticCohortsService.insertStaticMembers.
+// Uses a chunk size of 5 to verify that all rows land correctly when the total
+// exceeds one chunk (simulates the production CHUNK_SIZE=5_000 path at small scale).
+
+describe('importStaticCohortCsv — chunked insert', () => {
+  it('inserts all members correctly across multiple chunks', async () => {
+    const projectId = randomUUID();
+    const cohortId = randomUUID();
+
+    // Generate 12 person IDs (will require 3 chunks of size 5 with the test CHUNK_SIZE=5)
+    const personIds = Array.from({ length: 12 }, () => randomUUID());
+
+    // Simulate chunked insert (mirrors service logic with CHUNK_SIZE=5)
+    const CHUNK_SIZE = 5;
+    for (let i = 0; i < personIds.length; i += CHUNK_SIZE) {
+      const chunk = personIds.slice(i, i + CHUNK_SIZE);
+      await ctx.ch.insert({
+        table: 'person_static_cohort',
+        values: chunk.map((pid) => ({
+          project_id: projectId,
+          cohort_id: cohortId,
+          person_id: pid,
+        })),
+        format: 'JSONEachRow',
+        clickhouse_settings: { async_insert: 0 },
+      });
+    }
+
+    // Verify all 12 rows are present in the table
+    const result = await ctx.ch.query({
+      query: `
+        SELECT count() AS total
+        FROM person_static_cohort FINAL
+        WHERE project_id = {project_id:UUID}
+          AND cohort_id = {cohort_id:UUID}`,
+      query_params: { project_id: projectId, cohort_id: cohortId },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ total: string }>();
+    expect(parseInt(rows[0].total, 10)).toBe(12);
+  });
+
+  it('single chunk (count < CHUNK_SIZE) inserts correctly', async () => {
+    const projectId = randomUUID();
+    const cohortId = randomUUID();
+
+    // Only 3 persons — fits in one chunk
+    const personIds = [randomUUID(), randomUUID(), randomUUID()];
+
+    await ctx.ch.insert({
+      table: 'person_static_cohort',
+      values: personIds.map((pid) => ({
+        project_id: projectId,
+        cohort_id: cohortId,
+        person_id: pid,
+      })),
+      format: 'JSONEachRow',
+      clickhouse_settings: { async_insert: 0 },
+    });
+
+    const result = await ctx.ch.query({
+      query: `
+        SELECT count() AS total
+        FROM person_static_cohort FINAL
+        WHERE project_id = {project_id:UUID}
+          AND cohort_id = {cohort_id:UUID}`,
+      query_params: { project_id: projectId, cohort_id: cohortId },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ total: string }>();
+    expect(parseInt(rows[0].total, 10)).toBe(3);
   });
 });
 

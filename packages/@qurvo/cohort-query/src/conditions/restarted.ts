@@ -1,13 +1,14 @@
 import type { CohortRestartedPerformingCondition } from '@qurvo/db';
 import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
+import { CohortQueryValidationError } from '../errors';
 
 export function buildRestartedPerformingSubquery(
   cond: CohortRestartedPerformingCondition,
   ctx: BuildContext,
 ): string {
   if (cond.historical_window_days <= cond.recent_window_days + cond.gap_window_days) {
-    throw new Error(
+    throw new CohortQueryValidationError(
       `restarted_performing: historical_window_days (${cond.historical_window_days}) must be greater than recent_window_days (${cond.recent_window_days}) + gap_window_days (${cond.gap_window_days})`,
     );
   }
