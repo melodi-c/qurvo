@@ -271,3 +271,71 @@ describe('queryTrend — breakdown + compare combined', () => {
     expect(sumSeriesValues(prevFirefox!.data)).toBe(1);
   });
 });
+
+describe('queryTrend — breakdown empty string vs null', () => {
+  it('empty string breakdown_value maps to (none), not a separate group', async () => {
+    // JSONExtractString returns '' both when the key is missing (null-like)
+    // and when the property is explicitly set to ''.
+    // Before the fix: both mapped to '(none)' via || operator — but '' was falsy.
+    // After the fix: both map to '(none)' explicitly via != null && !== '' check.
+    // This test verifies the non-empty breakdown_value 'premium' is a distinct group.
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // User with explicit non-empty plan property → should form 'premium' group
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u-premium',
+        event_name: 'pageview',
+        properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(5000),
+      }),
+      // User without plan property → JSONExtractString returns '' → maps to '(none)'
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u-no-plan',
+        event_name: 'pageview',
+        properties: JSON.stringify({}),
+        timestamp: msAgo(4000),
+      }),
+      // Another user without plan property
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u-no-plan-2',
+        event_name: 'pageview',
+        properties: JSON.stringify({}),
+        timestamp: msAgo(3000),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'pageview', label: 'Pageviews' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(1),
+      date_to: daysAgo(0),
+      breakdown_property: 'properties.plan',
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    // 'premium' group must exist with count 1
+    const premiumSeries = rBd.series.find((s) => s.breakdown_value === 'premium');
+    expect(premiumSeries).toBeDefined();
+    expect(sumSeriesValues(premiumSeries!.data)).toBe(1);
+
+    // '(none)' group should contain the 2 users without plan property (empty string from ClickHouse)
+    const noneSeries = rBd.series.find((s) => s.breakdown_value === '(none)');
+    expect(noneSeries).toBeDefined();
+    expect(sumSeriesValues(noneSeries!.data)).toBe(2);
+
+    // No group with breakdown_value === '' should exist
+    const emptyStringSeries = rBd.series.find((s) => s.breakdown_value === '');
+    expect(emptyStringSeries).toBeUndefined();
+  });
+});

@@ -131,6 +131,7 @@ describe('cohort filter integration with trend', () => {
     });
 
     const r = result as Extract<TrendQueryResult, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
     expect(r.series[0].data[0]?.value).toBe(1);
   });
 
@@ -164,6 +165,7 @@ describe('cohort filter integration with trend', () => {
     });
 
     const r = result as Extract<TrendQueryResult, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
     expect(r.series[0].data[0]?.value).toBe(1);
   });
 });

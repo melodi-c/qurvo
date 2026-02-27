@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeAggregateSteps, computeStepResults } from '../../analytics/funnel/funnel-results';
+import { computeAggregateSteps, computeStepResults, computePropertyBreakdownResults } from '../../analytics/funnel/funnel-results';
 import type { FunnelBreakdownStepResult } from '../../analytics/funnel/funnel.types';
 
 const steps = [
@@ -103,5 +103,74 @@ describe('computeAggregateSteps', () => {
     expect(agg).toHaveLength(2);
     expect(agg[0]).toMatchObject({ step: 2, label: 'Sign Up', event_name: 'signup' });
     expect(agg[1]).toMatchObject({ step: 3, label: 'Purchase', event_name: 'purchase' });
+  });
+});
+
+describe('computePropertyBreakdownResults — breakdown_value empty string vs null', () => {
+  it('empty string breakdown_value maps to (none) — not a separate group', () => {
+    // Users with properties.plan = '' should map to '(none)', same as null/missing property.
+    // The key requirement from the issue: '' must NOT produce a separate '' group.
+    const rows = [
+      { step_num: '1', entered: '5', next_step: '3', avg_time_seconds: null, breakdown_value: '' },
+      { step_num: '2', entered: '3', next_step: '0', avg_time_seconds: null, breakdown_value: '' },
+    ];
+
+    const result = computePropertyBreakdownResults(rows, steps, 2);
+
+    // No group with breakdown_value === '' should exist
+    const emptyStringGroup = result.filter((r) => r.breakdown_value === '');
+    expect(emptyStringGroup).toHaveLength(0);
+
+    // Instead, rows collapsed to '(none)'
+    const noneGroup = result.filter((r) => r.breakdown_value === '(none)');
+    expect(noneGroup.find((r) => r.step === 1)?.count).toBe(5);
+    expect(noneGroup.find((r) => r.step === 2)?.count).toBe(3);
+  });
+
+  it('null breakdown_value maps to (none)', () => {
+    const rows = [
+      { step_num: '1', entered: '7', next_step: '2', avg_time_seconds: null, breakdown_value: null as unknown as string },
+      { step_num: '2', entered: '2', next_step: '0', avg_time_seconds: null, breakdown_value: null as unknown as string },
+    ];
+
+    const result = computePropertyBreakdownResults(rows, steps, 2);
+
+    const noneGroup = result.filter((r) => r.breakdown_value === '(none)');
+    expect(noneGroup.find((r) => r.step === 1)?.count).toBe(7);
+    expect(noneGroup.find((r) => r.step === 2)?.count).toBe(2);
+  });
+
+  it('non-empty breakdown_value is preserved as-is and separate from (none)', () => {
+    const rows = [
+      { step_num: '1', entered: '10', next_step: '4', avg_time_seconds: null, breakdown_value: 'premium' },
+      { step_num: '2', entered: '4', next_step: '0', avg_time_seconds: null, breakdown_value: 'premium' },
+      { step_num: '1', entered: '3', next_step: '1', avg_time_seconds: null, breakdown_value: null as unknown as string },
+      { step_num: '2', entered: '1', next_step: '0', avg_time_seconds: null, breakdown_value: null as unknown as string },
+    ];
+
+    const result = computePropertyBreakdownResults(rows, steps, 2);
+
+    const premiumGroup = result.filter((r) => r.breakdown_value === 'premium');
+    const noneGroup = result.filter((r) => r.breakdown_value === '(none)');
+
+    expect(premiumGroup.find((r) => r.step === 1)?.count).toBe(10);
+    expect(premiumGroup.find((r) => r.step === 2)?.count).toBe(4);
+    expect(noneGroup.find((r) => r.step === 1)?.count).toBe(3);
+    expect(noneGroup.find((r) => r.step === 2)?.count).toBe(1);
+    // No mixing between premium and (none)
+    expect(result.every((r) => r.breakdown_value === 'premium' || r.breakdown_value === '(none)')).toBe(true);
+  });
+
+  it('undefined breakdown_value maps to (none)', () => {
+    const rows = [
+      { step_num: '1', entered: '6', next_step: '2', avg_time_seconds: null, breakdown_value: undefined as unknown as string },
+      { step_num: '2', entered: '2', next_step: '0', avg_time_seconds: null, breakdown_value: undefined as unknown as string },
+    ];
+
+    const result = computePropertyBreakdownResults(rows, steps, 2);
+    const noneGroup = result.filter((r) => r.breakdown_value === '(none)');
+    expect(noneGroup).toHaveLength(2); // step 1 and step 2
+    expect(noneGroup.find((r) => r.step === 1)?.count).toBe(6);
+    expect(noneGroup.find((r) => r.step === 2)?.count).toBe(2);
   });
 });
