@@ -248,10 +248,18 @@ cd "$WORKTREE_PATH" && git merge "$BASE_BRANCH"
 # Если конфликты -- попытайся разрешить самостоятельно
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
 
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.unit.config.ts || true
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts || true
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.unit.config.ts 2>&1 | tee /tmp/issue-<ISSUE_NUMBER>-final-unit.txt || true
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts 2>&1 | tee /tmp/issue-<ISSUE_NUMBER>-final-int.txt || true
 # Для каждого app из AFFECTED_APPS:
 cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
+```
+
+Если финальные тесты упали (а в Шаге 4.1 проходили) — это регрессия от merge. Попытайся исправить. Если не получается — верни `STATUS: NEEDS_USER_INPUT | Регрессия после merge с $BASE_BRANCH: <summary>`.
+
+Обнови сохранённые summary для итогового комментария (Шаг 4.10) финальными данными:
+```bash
+UNIT_SUMMARY=$(grep -E "Tests |passed|failed" /tmp/issue-<ISSUE_NUMBER>-final-unit.txt 2>/dev/null | tail -3 || cat /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | grep -E "Tests |passed|failed" | tail -3 || echo "нет данных")
+INT_SUMMARY=$(grep -E "Tests |passed|failed" /tmp/issue-<ISSUE_NUMBER>-final-int.txt 2>/dev/null | tail -3 || cat /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | grep -E "Tests |passed|failed" | tail -3 || echo "нет данных")
 ```
 
 ### 4.9 SDK (только если были правки SDK-пакетов)
