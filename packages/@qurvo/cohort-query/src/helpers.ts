@@ -21,6 +21,22 @@ function escapeJsonKey(key: string): string {
   return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+/**
+ * Converts a string-typed property expression to one suitable for numeric comparison.
+ *
+ * `JSONExtractString` returns `''` (empty string) for JSON number/bool values, so
+ * `toFloat64OrZero(JSONExtractString(...))` always evaluates to 0 for numeric fields.
+ *
+ * `JSONExtractRaw` returns the raw JSON token (e.g. `'42'`, `'3.14'`, `'true'`), so
+ * `toFloat64OrZero(JSONExtractRaw(...))` correctly parses the numeric value.
+ *
+ * For top-level column expressions that do not contain `JSONExtractString` the original
+ * expression is returned unchanged — those are already numeric-compatible.
+ */
+function toNumericExpr(expr: string): string {
+  return expr.replace(/\bJSONExtractString\b/g, 'JSONExtractRaw');
+}
+
 function extractJsonKey(property: string): { column: 'properties' | 'user_properties'; key: string } {
   if (property.startsWith('properties.')) {
     return { column: 'properties', key: escapeJsonKey(property.slice('properties.'.length)) };
@@ -80,18 +96,26 @@ export function buildOperatorClause(
       return `${expr} != ''`;
     case 'is_not_set':
       return `${expr} = ''`;
-    case 'gt':
+    case 'gt': {
+      const numExpr = toNumericExpr(expr);
       queryParams[pk] = Number(value ?? 0);
-      return `toFloat64OrZero(${expr}) > {${pk}:Float64}`;
-    case 'lt':
+      return `toFloat64OrZero(${numExpr}) > {${pk}:Float64}`;
+    }
+    case 'lt': {
+      const numExpr = toNumericExpr(expr);
       queryParams[pk] = Number(value ?? 0);
-      return `toFloat64OrZero(${expr}) < {${pk}:Float64}`;
-    case 'gte':
+      return `toFloat64OrZero(${numExpr}) < {${pk}:Float64}`;
+    }
+    case 'gte': {
+      const numExpr = toNumericExpr(expr);
       queryParams[pk] = Number(value ?? 0);
-      return `toFloat64OrZero(${expr}) >= {${pk}:Float64}`;
-    case 'lte':
+      return `toFloat64OrZero(${numExpr}) >= {${pk}:Float64}`;
+    }
+    case 'lte': {
+      const numExpr = toNumericExpr(expr);
       queryParams[pk] = Number(value ?? 0);
-      return `toFloat64OrZero(${expr}) <= {${pk}:Float64}`;
+      return `toFloat64OrZero(${numExpr}) <= {${pk}:Float64}`;
+    }
     case 'regex':
       queryParams[pk] = value ?? '';
       return `match(${expr}, {${pk}:String})`;
@@ -105,16 +129,18 @@ export function buildOperatorClause(
       queryParams[pk] = values ?? [];
       return `${expr} NOT IN {${pk}:Array(String)}`;
     case 'between': {
+      const numExpr = toNumericExpr(expr);
       const minPk = `${pk}_min`, maxPk = `${pk}_max`;
       queryParams[minPk] = Number(values?.[0] ?? 0);
       queryParams[maxPk] = Number(values?.[1] ?? 0);
-      return `toFloat64OrZero(${expr}) >= {${minPk}:Float64} AND toFloat64OrZero(${expr}) <= {${maxPk}:Float64}`;
+      return `toFloat64OrZero(${numExpr}) >= {${minPk}:Float64} AND toFloat64OrZero(${numExpr}) <= {${maxPk}:Float64}`;
     }
     case 'not_between': {
+      const numExpr = toNumericExpr(expr);
       const minPk = `${pk}_min`, maxPk = `${pk}_max`;
       queryParams[minPk] = Number(values?.[0] ?? 0);
       queryParams[maxPk] = Number(values?.[1] ?? 0);
-      return `(toFloat64OrZero(${expr}) < {${minPk}:Float64} OR toFloat64OrZero(${expr}) > {${maxPk}:Float64})`;
+      return `(toFloat64OrZero(${numExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${numExpr}) > {${maxPk}:Float64})`;
     }
     case 'is_date_before':
       queryParams[pk] = value ?? '';
