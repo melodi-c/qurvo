@@ -93,10 +93,9 @@ export const FUNNEL_LEGEND_COLORS = {
 } as const;
 
 /** World map choropleth colors. */
-/** Start color (no data / minimum value) — zinc-800 (#27272a). */
+/** Country fill when no data is present, and gradient start (t=0) — zinc-800 (#27272a). */
 export const MAP_COLOR_EMPTY = '#27272a';
-/** Gradient start color (t=0) — same as MAP_COLOR_EMPTY, zinc-800 (#27272a). */
-export const MAP_COLOR_FROM = '#27272a';
+export const MAP_COLOR_FROM = MAP_COLOR_EMPTY;
 /** Gradient end color (t=1) — indigo-400 (#818cf8). */
 export const MAP_COLOR_TO = '#818cf8';
 /** Stroke color for country borders — zinc-950 (#09090b). */
