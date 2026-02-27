@@ -1,13 +1,14 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
 import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
+import { CohortQueryValidationError } from '../errors';
 
 export function buildStoppedPerformingSubquery(
   cond: CohortStoppedPerformingCondition,
   ctx: BuildContext,
 ): string {
   if (cond.recent_window_days >= cond.historical_window_days) {
-    throw new Error(
+    throw new CohortQueryValidationError(
       `stopped_performing: recent_window_days (${cond.recent_window_days}) must be less than historical_window_days (${cond.historical_window_days})`,
     );
   }

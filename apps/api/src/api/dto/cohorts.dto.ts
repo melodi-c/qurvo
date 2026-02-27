@@ -11,6 +11,7 @@ import {
   Max,
   MaxLength,
   IsDefined,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -24,10 +25,12 @@ export { CohortConditionGroupDto } from './cohort-conditions.dto';
 export class CreateCohortDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   name: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   description?: string;
 
   @ValidateNested()
@@ -44,10 +47,12 @@ export class UpdateCohortDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
+  @MaxLength(200)
   name?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   description?: string;
 
   @ValidateNested()
@@ -67,10 +72,12 @@ export class CohortPreviewDto {
 export class CreateStaticCohortDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   name: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   description?: string;
 
   @IsArray()
@@ -82,13 +89,16 @@ export class CreateStaticCohortDto {
 export class StaticCohortMembersDto {
   @IsArray()
   @IsUUID('4', { each: true })
+  @ArrayMaxSize(10_000)
   person_ids: string[];
 }
 
 export class UploadCsvDto {
   @IsString()
   @IsNotEmpty()
-  @MaxLength(5_000_000)
+  // Note: body-parser enforces a 100 kb request body limit before this field is
+  // reached, so any MaxLength here would be effectively unreachable. The real
+  // cap is controlled by the body-parser limit in main.ts (currently 100 kb).
   csv_content: string;
 }
 
