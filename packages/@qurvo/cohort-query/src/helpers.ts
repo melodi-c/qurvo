@@ -131,19 +131,21 @@ export function buildOperatorClause(
       // JSONExtractString returns '' for boolean/number JSON values (e.g. true, 42),
       // so `expr != ''` incorrectly returns false for properties like {"active": true}.
       // JSONExtractRaw returns the raw token ('true', '42', '"hello"') or '' when the
-      // key is absent. Checking rawExpr NOT IN ('', 'null') correctly handles all types.
+      // key is absent. Checking rawExpr NOT IN ('', 'null', '""') correctly handles
+      // all types including empty strings: JSONExtractRaw('{"k":""}', 'k') = '""'.
       const rawIsSetExpr = toRawExpr(expr);
       if (rawIsSetExpr) {
-        return `${rawIsSetExpr} NOT IN ('', 'null')`;
+        return `${rawIsSetExpr} NOT IN ('', 'null', '""')`;
       }
       return `${expr} != ''`;
     }
     case 'is_not_set': {
       // Same reasoning as is_set — use JSONExtractRaw so boolean/number values
       // are treated as "set" rather than "not set".
+      // Include '""' so that empty string values are classified as "not set".
       const rawIsNotSetExpr = toRawExpr(expr);
       if (rawIsNotSetExpr) {
-        return `${rawIsNotSetExpr} IN ('', 'null')`;
+        return `${rawIsNotSetExpr} IN ('', 'null', '""')`;
       }
       return `${expr} = ''`;
     }

@@ -328,13 +328,14 @@ describe('buildOperatorClause — is_set / is_not_set with JSON expressions use 
   // JSONExtractString returns '' for boolean/number JSON values, so is_set would
   // incorrectly return false for {"active": true} or {"score": 42}.
   // The fix: use JSONExtractRaw (which returns 'true', '42', '"hello"' etc.) and check
-  // NOT IN ('', 'null') for is_set and IN ('', 'null') for is_not_set.
+  // NOT IN ('', 'null', '""') for is_set and IN ('', 'null', '""') for is_not_set.
+  // '""' is the raw JSON representation of an empty string — treated as "not set".
 
   it('is_set: uses JSONExtractRaw NOT IN for user_properties JSON expression', () => {
     const params: Record<string, unknown> = {};
     const expr = "JSONExtractString(argMax(user_properties, timestamp), 'active')";
     const clause = buildOperatorClause(expr, 'is_set', 'p0', params);
-    expect(clause).toBe("JSONExtractRaw(argMax(user_properties, timestamp), 'active') NOT IN ('', 'null')");
+    expect(clause).toBe("JSONExtractRaw(argMax(user_properties, timestamp), 'active') NOT IN ('', 'null', '\"\"')");
     // is_set does not use queryParams
     expect(Object.keys(params)).toHaveLength(0);
   });
@@ -343,7 +344,7 @@ describe('buildOperatorClause — is_set / is_not_set with JSON expressions use 
     const params: Record<string, unknown> = {};
     const expr = "JSONExtractString(argMax(user_properties, timestamp), 'active')";
     const clause = buildOperatorClause(expr, 'is_not_set', 'p0', params);
-    expect(clause).toBe("JSONExtractRaw(argMax(user_properties, timestamp), 'active') IN ('', 'null')");
+    expect(clause).toBe("JSONExtractRaw(argMax(user_properties, timestamp), 'active') IN ('', 'null', '\"\"')");
     expect(Object.keys(params)).toHaveLength(0);
   });
 
@@ -351,14 +352,14 @@ describe('buildOperatorClause — is_set / is_not_set with JSON expressions use 
     const params: Record<string, unknown> = {};
     const expr = "JSONExtractString(properties, 'score')";
     const clause = buildOperatorClause(expr, 'is_set', 'p0', params);
-    expect(clause).toBe("JSONExtractRaw(properties, 'score') NOT IN ('', 'null')");
+    expect(clause).toBe("JSONExtractRaw(properties, 'score') NOT IN ('', 'null', '\"\"')");
   });
 
   it('is_not_set: uses JSONExtractRaw IN for event properties JSON expression', () => {
     const params: Record<string, unknown> = {};
     const expr = "JSONExtractString(properties, 'score')";
     const clause = buildOperatorClause(expr, 'is_not_set', 'p0', params);
-    expect(clause).toBe("JSONExtractRaw(properties, 'score') IN ('', 'null')");
+    expect(clause).toBe("JSONExtractRaw(properties, 'score') IN ('', 'null', '\"\"')");
   });
 
   it('is_set: falls back to != \'\' for non-JSON (top-level column) expression', () => {
