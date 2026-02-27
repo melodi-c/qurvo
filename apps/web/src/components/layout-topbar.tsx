@@ -24,7 +24,7 @@ export function LayoutTopbar({ onMenuOpen, userInitial, logoHref }: LayoutTopbar
       </button>
       <Link to={logoHref} className="flex items-center gap-2 flex-1">
         <QurvoLogo className="w-5 h-5 text-primary shrink-0" />
-        <span className="text-sm font-semibold tracking-tight">Qurvo</span>
+        <span className="text-sm font-semibold tracking-tight">{t('appName')}</span>
       </Link>
       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-[10px] font-bold text-primary shrink-0">
         {userInitial}
