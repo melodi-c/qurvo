@@ -6,6 +6,12 @@ export function buildStoppedPerformingSubquery(
   cond: CohortStoppedPerformingCondition,
   ctx: BuildContext,
 ): string {
+  if (cond.recent_window_days >= cond.historical_window_days) {
+    throw new Error(
+      `stopped_performing: recent_window_days (${cond.recent_window_days}) must be less than historical_window_days (${cond.historical_window_days})`,
+    );
+  }
+
   const condIdx = ctx.counter.value++;
   const eventPk = `coh_${condIdx}_event`;
   const recentPk = `coh_${condIdx}_recent`;

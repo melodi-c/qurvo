@@ -13,8 +13,34 @@ import {
   ArrayMaxSize,
   IsBoolean,
   IsUUID,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+function IsLessThan(property: string, validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isLessThan',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      constraints: [property],
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const [relatedPropertyName] = args.constraints as [string];
+          const relatedValue = (args.object as Record<string, unknown>)[relatedPropertyName];
+          return typeof value === 'number' && typeof relatedValue === 'number' && value < relatedValue;
+        },
+        defaultMessage(args: ValidationArguments) {
+          const [relatedPropertyName] = args.constraints as [string];
+          return `${args.property} must be less than ${relatedPropertyName}`;
+        },
+      },
+    });
+  };
+}
 
 const COHORT_OPERATORS = [
   'eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
@@ -250,6 +276,9 @@ export class CohortStoppedPerformingConditionDto {
   @IsInt()
   @Min(1)
   @Max(365)
+  @IsLessThan('historical_window_days', {
+    message: 'recent_window_days must be less than historical_window_days',
+  })
   recent_window_days: number;
 
   @Type(() => Number)
@@ -263,6 +292,39 @@ export class CohortStoppedPerformingConditionDto {
   @Type(() => CohortEventFilterDto)
   @IsOptional()
   event_filters?: CohortEventFilterDto[];
+}
+
+function IsGreaterThanSum(
+  prop1: string,
+  prop2: string,
+  validationOptions?: ValidationOptions,
+) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isGreaterThanSum',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      constraints: [prop1, prop2],
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const [p1, p2] = args.constraints as [string, string];
+          const v1 = (args.object as Record<string, unknown>)[p1];
+          const v2 = (args.object as Record<string, unknown>)[p2];
+          return (
+            typeof value === 'number' &&
+            typeof v1 === 'number' &&
+            typeof v2 === 'number' &&
+            value > v1 + v2
+          );
+        },
+        defaultMessage(args: ValidationArguments) {
+          const [p1, p2] = args.constraints as [string, string];
+          return `${args.property} must be greater than ${p1} + ${p2}`;
+        },
+      },
+    });
+  };
 }
 
 export class CohortRestartedPerformingConditionDto {
@@ -289,6 +351,9 @@ export class CohortRestartedPerformingConditionDto {
   @IsInt()
   @Min(1)
   @Max(365)
+  @IsGreaterThanSum('recent_window_days', 'gap_window_days', {
+    message: 'historical_window_days must be greater than recent_window_days + gap_window_days',
+  })
   historical_window_days: number;
 
   @IsArray()
