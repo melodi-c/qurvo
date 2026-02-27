@@ -8,14 +8,18 @@ export const TOP_LEVEL_COLUMNS = new Set([
   'browser_version', 'os', 'os_version', 'language',
 ]);
 
+function escapeJsonKey(key: string): string {
+  return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 function extractJsonKey(property: string): { column: 'properties' | 'user_properties'; key: string } {
   if (property.startsWith('properties.')) {
-    return { column: 'properties', key: property.slice('properties.'.length).replace(/'/g, "\\'") };
+    return { column: 'properties', key: escapeJsonKey(property.slice('properties.'.length)) };
   }
-  const key = property.startsWith('user_properties.')
+  const rawKey = property.startsWith('user_properties.')
     ? property.slice('user_properties.'.length)
     : property;
-  return { column: 'user_properties', key: key.replace(/'/g, "\\'") };
+  return { column: 'user_properties', key: escapeJsonKey(rawKey) };
 }
 
 export function resolvePropertyExpr(property: string): string {
