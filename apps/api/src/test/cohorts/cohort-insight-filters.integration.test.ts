@@ -298,6 +298,139 @@ describe('funnel cohort breakdown', () => {
   });
 });
 
+// ── Multiple cohort_filters AND semantics ─────────────────────────────────
+// These tests verify that multiple cohort_filters entries are applied together
+// (AND semantics): only users satisfying ALL filters are included.
+// This is the behaviour produced by the factory's merge:
+//   [...existing_cohort_filters, ...resolved_from_cohort_ids]
+
+describe('multiple cohort_filters AND semantics (funnel)', () => {
+  it('user matching both cohort filters is included', async () => {
+    const projectId = randomUUID();
+    // userA: plan=premium AND tier=gold  → satisfies both filters
+    // userB: plan=premium AND tier=silver → satisfies only plan filter
+    // userC: plan=free    AND tier=gold   → satisfies only tier filter
+    // Note: 'tier' is not a top-level CH column — resolves via user_properties JSON.
+    const userA = randomUUID();
+    const userB = randomUUID();
+    const userC = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: userA, distinct_id: 'a', event_name: 'signup', user_properties: JSON.stringify({ plan: 'premium', tier: 'gold' }), timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: userA, distinct_id: 'a', event_name: 'checkout', user_properties: JSON.stringify({ plan: 'premium', tier: 'gold' }), timestamp: msAgo(1000) }),
+      buildEvent({ project_id: projectId, person_id: userB, distinct_id: 'b', event_name: 'signup', user_properties: JSON.stringify({ plan: 'premium', tier: 'silver' }), timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: userB, distinct_id: 'b', event_name: 'checkout', user_properties: JSON.stringify({ plan: 'premium', tier: 'silver' }), timestamp: msAgo(1000) }),
+      buildEvent({ project_id: projectId, person_id: userC, distinct_id: 'c', event_name: 'signup', user_properties: JSON.stringify({ plan: 'free', tier: 'gold' }), timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: userC, distinct_id: 'c', event_name: 'checkout', user_properties: JSON.stringify({ plan: 'free', tier: 'gold' }), timestamp: msAgo(1000) }),
+    ]);
+
+    const premiumFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }] },
+      materialized: false,
+      is_static: false,
+    };
+    const goldFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' }] },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      // Both filters applied simultaneously (AND semantics): only userA qualifies
+      cohort_filters: [premiumFilter, goldFilter],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<FunnelQueryResult, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(1); // only userA
+    expect(r.steps[1].count).toBe(1);
+  });
+
+  it('no users matching all cohort filters yields empty steps', async () => {
+    const projectId = randomUUID();
+    const user = randomUUID();
+
+    // user has plan=free — won't match the premium cohort filter
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: user, distinct_id: 'u', event_name: 'signup', user_properties: JSON.stringify({ plan: 'free' }), timestamp: msAgo(2000) }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [{ event_name: 'signup', label: 'Signup' }],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      cohort_filters: [
+        { cohort_id: randomUUID(), definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }] }, materialized: false, is_static: false },
+      ],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<FunnelQueryResult, { breakdown: false }>;
+    // When no users match, the funnel returns an empty steps array
+    expect(r.steps).toHaveLength(0);
+  });
+});
+
+describe('multiple cohort_filters AND semantics (trend)', () => {
+  it('only user matching all cohort filters is counted', async () => {
+    const projectId = randomUUID();
+    // userA: plan=premium AND tier=gold   → in both cohorts → counted
+    // userB: plan=premium AND tier=silver → in plan cohort only → excluded
+    // userC: plan=free    AND tier=gold   → in tier cohort only → excluded
+    // Note: 'tier' is not a top-level CH column — resolves via user_properties JSON.
+    const userA = randomUUID();
+    const userB = randomUUID();
+    const userC = randomUUID();
+    const today = dateOffset(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: userA, distinct_id: 'a', event_name: 'page_view', user_properties: JSON.stringify({ plan: 'premium', tier: 'gold' }), timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: userB, distinct_id: 'b', event_name: 'page_view', user_properties: JSON.stringify({ plan: 'premium', tier: 'silver' }), timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: userC, distinct_id: 'c', event_name: 'page_view', user_properties: JSON.stringify({ plan: 'free', tier: 'gold' }), timestamp: msAgo(3000) }),
+    ]);
+
+    const premiumFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }] },
+      materialized: false,
+      is_static: false,
+    };
+    const goldFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' }] },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'page_view', label: 'Views' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: today,
+      date_to: today,
+      cohort_filters: [premiumFilter, goldFilter],
+    });
+
+    const r = result as Extract<TrendQueryResult, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
+    // Only userA (premium + gold) matches both cohort filters
+    expect(r.series[0].data[0]?.value).toBe(1);
+  });
+});
+
 // ── Trend cohort breakdown ─────────────────────────────────────────────────
 
 describe('trend cohort breakdown', () => {

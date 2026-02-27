@@ -63,6 +63,7 @@ export class FunnelStepDto {
   @ApiPropertyOptional({ type: [String], description: 'Additional event names for OR-logic within step' })
   @IsArray()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @IsOptional()
   event_names?: string[];
 
@@ -71,6 +72,7 @@ export class FunnelStepDto {
   label: string;
 
   @IsArray()
+  @ArrayMaxSize(20)
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)
@@ -165,6 +167,7 @@ export class FunnelQueryDto extends FunnelBaseQueryDto {
   @ApiPropertyOptional({ type: [FunnelExclusionDto] })
   @Transform(makeJsonArrayTransform(FunnelExclusionDto))
   @IsArray()
+  @ArrayMaxSize(5)
   @ValidateNested({ each: true })
   @Type(() => FunnelExclusionDto)
   @IsOptional()
@@ -200,6 +203,7 @@ export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   @ApiPropertyOptional({ type: [FunnelExclusionDto] })
   @Transform(makeJsonArrayTransform(FunnelExclusionDto))
   @IsArray()
+  @ArrayMaxSize(5)
   @ValidateNested({ each: true })
   @Type(() => FunnelExclusionDto)
   @IsOptional()
