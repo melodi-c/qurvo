@@ -52,6 +52,13 @@ export interface CohortCohortCondition {
   type: 'cohort';
   cohort_id: string;
   negated: boolean;
+  /**
+   * Runtime-only flag populated during query resolution.
+   * Not stored in the database — enriched by CohortsService before building SQL.
+   * When true, the condition reads from `person_static_cohort FINAL`;
+   * when false/absent, it reads from `cohort_members FINAL`.
+   */
+  is_static?: boolean;
 }
 
 export interface CohortFirstTimeEventCondition {

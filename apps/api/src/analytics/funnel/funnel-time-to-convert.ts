@@ -314,10 +314,18 @@ function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): Time
   const minVal = Number(row.min_seconds ?? 0);
   const maxVal = Number(row.max_seconds ?? 0);
 
-  // Determine bin parameters (same formula as before).
-  const binCount = Math.max(1, Math.min(MAX_BINS, Math.ceil(Math.cbrt(sampleSize))));
+  // When all converters took exactly the same time (range = 0), return a single
+  // point bin instead of creating binCount empty bins spanning an arbitrary range.
   const range = maxVal - minVal;
-  const binWidth = range === 0 ? 60 : Math.max(1, Math.ceil(range / binCount));
+  if (range === 0) {
+    const pointSec = Math.round(minVal);
+    const bins: TimeToConvertBin[] = [{ from_seconds: pointSec, to_seconds: pointSec + 1, count: sampleSize }];
+    return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: sampleSize, bins };
+  }
+
+  // Determine bin parameters.
+  const binCount = Math.max(1, Math.min(MAX_BINS, Math.ceil(Math.cbrt(sampleSize))));
+  const binWidth = Math.max(1, Math.ceil(range / binCount));
 
   // Build dense bin array by iterating durations with a for-loop.
   // Using a loop (not Math.min/max spread) avoids V8 stack overflow on large arrays.

@@ -16,6 +16,39 @@ import {
 } from '../dto/cohorts.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
+type CohortRow = {
+  id: string;
+  project_id: string;
+  created_by: string;
+  name: string;
+  description: string | null;
+  definition: unknown;
+  is_static: boolean;
+  errors_calculating: number;
+  last_error_at: Date | null;
+  last_error_message: string | null;
+  created_at: Date;
+  updated_at: Date;
+  [key: string]: unknown;
+};
+
+function mapCohortRow(row: CohortRow): CohortDto {
+  return {
+    id: row.id,
+    project_id: row.project_id,
+    created_by: row.created_by,
+    name: row.name,
+    description: row.description,
+    definition: row.definition as CohortDto['definition'],
+    is_static: row.is_static,
+    errors_calculating: row.errors_calculating,
+    last_error_at: row.last_error_at ? row.last_error_at.toISOString() : null,
+    last_error_message: row.last_error_message,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string),
+    updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string),
+  };
+}
+
 @ApiTags('Cohorts')
 @ApiBearerAuth()
 @Controller('api/projects/:projectId/cohorts')
@@ -27,7 +60,8 @@ export class CohortsController {
   async list(
     @Param('projectId') projectId: string,
   ): Promise<CohortDto[]> {
-    return this.cohortsService.list(projectId) as any;
+    const rows = await this.cohortsService.list(projectId);
+    return rows.map((r) => mapCohortRow(r as CohortRow));
   }
 
   @RequireRole('editor')
@@ -37,7 +71,8 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Body() body: CreateCohortDto,
   ): Promise<CohortDto> {
-    return this.cohortsService.create(user.user_id, projectId, body) as any;
+    const row = await this.cohortsService.create(user.user_id, projectId, body);
+    return mapCohortRow(row as CohortRow);
   }
 
   @Get(':cohortId')
@@ -45,7 +80,8 @@ export class CohortsController {
     @Param('projectId') projectId: string,
     @Param('cohortId', ParseUUIDPipe) cohortId: string,
   ): Promise<CohortDto> {
-    return this.cohortsService.getById(projectId, cohortId) as any;
+    const row = await this.cohortsService.getById(projectId, cohortId);
+    return mapCohortRow(row as CohortRow);
   }
 
   @RequireRole('editor')
@@ -55,7 +91,8 @@ export class CohortsController {
     @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Body() body: UpdateCohortDto,
   ): Promise<CohortDto> {
-    return this.cohortsService.update(projectId, cohortId, body) as any;
+    const row = await this.cohortsService.update(projectId, cohortId, body);
+    return mapCohortRow(row as CohortRow);
   }
 
   @RequireRole('editor')
