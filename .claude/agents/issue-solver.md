@@ -1,7 +1,7 @@
 ---
 name: issue-solver
 description: "Автономный разработчик: реализует один GitHub issue в изолированном worktree (Task isolation), проходит Definition of Done и закрывает issue. Мерж в main делает оркестратор issue-executor."
-model: inherit
+model: opus
 color: green
 isolation: worktree
 hooks:
@@ -45,9 +45,9 @@ echo "WORKTREE_PATH: $WORKTREE_PATH"
 echo "REPO_ROOT: $REPO_ROOT"
 echo "BRANCH: $(git rev-parse --abbrev-ref HEAD)"
 
-# Устанавливаем зависимости — в worktree нет node_modules (gitignored).
+# Устанавливаем зависимости только если node_modules отсутствует.
 # pnpm быстро создаёт симлинки из глобального стора, не скачивает пакеты заново.
-pnpm install --frozen-lockfile
+[ -d node_modules ] || pnpm install --frozen-lockfile
 ```
 
 **Изоляция гарантирована**: все файловые инструменты (Edit, Write, Read, Glob, Grep) работают относительно `$WORKTREE_PATH`. Ты физически не можешь изменить файлы в `$REPO_ROOT` через эти инструменты — они разрешаются в `$WORKTREE_PATH`.
@@ -144,7 +144,7 @@ $INT_SUMMARY
 \`\`\`"
 ```
 
-Запомни эти summary-строки — они войдут в итоговый closing comment (Шаг 4.10).
+Запомни эти summary-строки — они войдут в итоговый closing comment (Шаг 4.9).
 
 ### 4.2 Миграции
 
@@ -180,15 +180,7 @@ cd "$WORKTREE_PATH" && pnpm --filter @qurvo/web build-storybook
 ```
 Успешный билд обязателен — он проверяет что stories компилируются без ошибок.
 
-Docker build — только если issue имеет тип `feat` или является эпиком (заголовок начинается с `feat(`):
-```bash
-# Для каждого app из AFFECTED_APPS
-# Допустимые --target: api, ingest, processor, cohort-worker, billing-worker,
-#   insights-worker, monitor-worker, scheduled-jobs-worker, web
-cd "$WORKTREE_PATH" && docker build --target <app> -t qurvo/<app>:check . --quiet
-```
-Если Docker недоступен — зафиксируй предупреждение в финальном отчёте, не блокируй мерж.
-Для `fix`, `refactor`, `chore`, `perf`, `docs`, `test` — Docker build пропускай.
+Docker build — **пропускай**. Docker-верификация выполняется на уровне CI после мержа, не в solver.
 
 ### 4.5 OpenAPI (ТОЛЬКО если затронут @qurvo/api)
 ```bash
@@ -247,29 +239,20 @@ prompt: |
 cd "$WORKTREE_PATH" && git merge "$BASE_BRANCH"
 # Если конфликты -- попытайся разрешить самостоятельно
 # Если не получается -- верни STATUS: NEEDS_USER_INPUT | Merge conflict в <файлах>
+```
 
+**Повторный прогон тестов — только если merge имел конфликты** (т.е. ты редактировал файлы при разрешении). Если merge был чистым (fast-forward или auto-merge без конфликтов) — тесты из Шага 4.1 актуальны, перезапускать не нужно.
+
+Если конфликты были и ты их разрешил:
+```bash
 cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.unit.config.ts 2>&1 | tee /tmp/issue-<ISSUE_NUMBER>-final-unit.txt || true
 cd "$WORKTREE_PATH" && pnpm --filter @qurvo/<app> exec vitest run --config vitest.integration.config.ts 2>&1 | tee /tmp/issue-<ISSUE_NUMBER>-final-int.txt || true
-# Для каждого app из AFFECTED_APPS:
 cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
 ```
 
 Если финальные тесты упали (а в Шаге 4.1 проходили) — это регрессия от merge. Попытайся исправить. Если не получается — верни `STATUS: NEEDS_USER_INPUT | Регрессия после merge с $BASE_BRANCH: <summary>`.
 
-Обнови сохранённые summary для итогового комментария (Шаг 4.10) финальными данными:
-```bash
-UNIT_SUMMARY=$(grep -E "Tests |passed|failed" /tmp/issue-<ISSUE_NUMBER>-final-unit.txt 2>/dev/null | tail -3 || cat /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | grep -E "Tests |passed|failed" | tail -3 || echo "нет данных")
-INT_SUMMARY=$(grep -E "Tests |passed|failed" /tmp/issue-<ISSUE_NUMBER>-final-int.txt 2>/dev/null | tail -3 || cat /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | grep -E "Tests |passed|failed" | tail -3 || echo "нет данных")
-```
-
-### 4.9 SDK (только если были правки SDK-пакетов)
-```bash
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-core publish --access public --no-git-checks
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-browser publish --access public --no-git-checks
-cd "$WORKTREE_PATH" && pnpm --filter @qurvo/sdk-node publish --access public --no-git-checks
-```
-
-### 4.10 Закрыть issue с итоговым комментарием
+### 4.9 Закрыть issue с итоговым комментарием
 
 Составь итоговый комментарий используя данные накопленные на предыдущих шагах (результаты тестов из Шага 4.1, статус build из Шага 4.3, статус review из Шага 4.7.1):
 
@@ -325,6 +308,17 @@ COMMENT
 ```
 
 **Worktree НЕ удаляй** — оркестратор сделает мерж из него и затем очистит.
+
+---
+
+## Бюджет
+
+Следи за количеством шагов. Если ты потратил **50+ tool calls** и задача всё ещё не решена — остановись и верни:
+```
+STATUS: NEEDS_USER_INPUT | Задача слишком сложная для автономного выполнения: <что именно не получается>
+```
+
+Не зацикливайся на одной проблеме. Если 3 попытки исправить одну ошибку не помогли — это сигнал вернуть NEEDS_USER_INPUT, а не пробовать 4-ю.
 
 ---
 

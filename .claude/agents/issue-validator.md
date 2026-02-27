@@ -1,7 +1,7 @@
 ---
 name: issue-validator
 description: "Проверяет готовность GitHub issues к выполнению: наличие acceptance criteria, закрытость зависимостей, достаточность описания. Навешивает лейбл ready или needs-clarification."
-model: inherit
+model: haiku
 color: green
 tools: Bash
 ---

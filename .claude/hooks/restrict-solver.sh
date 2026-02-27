@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # PreToolUse hook для issue-solver агентов.
-# Блокирует деструктивные git-операции выполняемые напрямую в REPO_ROOT
-# (не через worktree). Операции чтения — разрешены.
+# Блокирует:
+#   1) Деструктивные git-операции с -C (направленные в REPO_ROOT)
+#   2) Bare git push/commit/merge (без -C, из текущей директории)
+#   3) npm/pnpm publish (SDK публикация — ручное действие)
 #
 # Получает JSON со структурой:
 #   { "tool_name": "Bash", "tool_input": { "command": "..." }, "cwd": "..." }
@@ -17,30 +19,37 @@ if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
-# Деструктивные git-субкоманды, которые не должны выполняться в REPO_ROOT из solver:
-# - checkout/switch  — переключает ветку в основном репо
-# - commit           — коммит в основном репо (solver должен коммитить только в worktree)
-# - merge            — мерж в основном репо (это дело оркестратора)
-# - push             — пуш из основного репо
-# - reset            — сброс состояния в основном репо
-# - rebase           — ребейс в основном репо
-# - branch -D/-d     — удаление веток в основном репо
-# - worktree add     — создание нового worktree (solver уже в worktree)
-# - worktree remove  — удаление worktree (это дело оркестратора)
-# - clean            — очистка неотслеживаемых файлов
-
-DANGEROUS_PATTERN='git[[:space:]]+-C[[:space:]]+[^[:space:]].*[[:space:]]+(checkout|switch|commit|merge|push|reset|rebase|clean)[[:space:]]'
+# --- 1. Деструктивные git-операции с -C (направленные в REPO_ROOT) ---
+DANGEROUS_C_PATTERN='git[[:space:]]+-C[[:space:]]+[^[:space:]].*[[:space:]]+(checkout|switch|commit|merge|push|reset|rebase|clean)[[:space:]]'
 DANGEROUS_BRANCH_PATTERN='git[[:space:]]+-C[[:space:]]+[^[:space:]].*[[:space:]]+branch[[:space:]]+-[Dd][[:space:]]'
 DANGEROUS_WORKTREE_PATTERN='git[[:space:]]+-C[[:space:]]+[^[:space:]].*[[:space:]]+worktree[[:space:]]+(add|remove|prune)'
 
-if echo "$COMMAND" | grep -qE "$DANGEROUS_PATTERN" \
-   || echo "$COMMAND" | grep -qE "$DANGEROUS_BRANCH_PATTERN" \
-   || echo "$COMMAND" | grep -qE "$DANGEROUS_WORKTREE_PATTERN"; then
-  cat >&2 <<'MSG'
-[restrict-solver] BLOCKED: деструктивная git-операция в REPO_ROOT запрещена из issue-solver.
-Solver может только: читать файлы из REPO_ROOT (ls, cat, git log, git show),
-коммитить и пушить в пределах своего worktree.
-Операции checkout/commit/merge/push/reset в REPO_ROOT выполняет оркестратор (issue-executor).
+# --- 2. Bare git push (без -C, из worktree в origin) ---
+# Solver НЕ должен пушить — мерж и пуш делает оркестратор.
+BARE_PUSH_PATTERN='(^|[;&|]+[[:space:]]*)git[[:space:]]+push([[:space:]]|$)'
+
+# --- 3. npm/pnpm publish (SDK публикация запрещена из solver) ---
+PUBLISH_PATTERN='(npm|pnpm)[[:space:]]+publish'
+
+BLOCKED=""
+
+if echo "$COMMAND" | grep -qE "$DANGEROUS_C_PATTERN"; then
+  BLOCKED="деструктивная git-операция с -C в REPO_ROOT"
+elif echo "$COMMAND" | grep -qE "$DANGEROUS_BRANCH_PATTERN"; then
+  BLOCKED="удаление ветки в REPO_ROOT"
+elif echo "$COMMAND" | grep -qE "$DANGEROUS_WORKTREE_PATTERN"; then
+  BLOCKED="управление worktree из solver"
+elif echo "$COMMAND" | grep -qE "$BARE_PUSH_PATTERN"; then
+  BLOCKED="git push из solver запрещён — мерж и пуш делает оркестратор"
+elif echo "$COMMAND" | grep -qE "$PUBLISH_PATTERN"; then
+  BLOCKED="npm/pnpm publish запрещён из solver — публикация SDK только вручную"
+fi
+
+if [ -n "$BLOCKED" ]; then
+  cat >&2 <<MSG
+[restrict-solver] BLOCKED: $BLOCKED.
+Solver может только: читать файлы, коммитить в своём worktree, запускать тесты/билды.
+Операции push/merge/publish выполняет оркестратор или пользователь вручную.
 MSG
   exit 2
 fi

@@ -1,7 +1,7 @@
 ---
 name: issue-reviewer
 description: "Проверяет изменения в worktree перед мержем: i18n, TypeScript типы, API контракты, ClickHouse паттерны, безопасность. Возвращает APPROVE или REQUEST_CHANGES."
-model: inherit
+model: opus
 color: blue
 tools: Read, Bash, Grep, Glob
 ---
@@ -101,7 +101,18 @@ git diff "$BASE_BRANCH"...HEAD
 - **PASS** если комментарий содержит ссылку на issue: `// TODO #42`, `// FIXME: see #123`
 - **FAIL** если TODO/FIXME без номера issue — висячие задачи не должны появляться в коде
 
-### 2.8 Тесты без assertions
+### 2.9 Auth guards — если `api` в AFFECTED_APPS
+
+Новые методы контроллера (декораторы `@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`) должны быть защищены:
+- Метод имеет `@UseGuards(AuthGuard)` (или класс-контроллер имеет) — **PASS**
+- Метод имеет `@Public()` декоратор (намеренно публичный) — **PASS**
+- Ни того ни другого — **FAIL**: endpoint без авторизации
+
+### 2.10 NestJS Injectable — если `api` или workers в AFFECTED_APPS
+
+Новые классы-сервисы (имя заканчивается на `Service`, `Repository`, `Guard`, `Interceptor`, `Pipe`) без декоратора `@Injectable()` — **FAIL**.
+
+### 2.11 Тесты без assertions
 
 В добавленных тест-файлах (`*.test.*`, `*.spec.*`, `*.integration.*`) ищи test-блоки без `expect(`:
 

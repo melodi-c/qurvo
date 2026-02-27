@@ -110,9 +110,23 @@ gh api repos/$REPO/issues/<NUMBER>/sub_issues --jq '[.[] | {number, title, state
 
 ---
 
-## Шаг 2: Анализ пересечений (foreground подагент)
+## Шаг 2: Анализ пересечений
 
-Запусти подагента типа `general-purpose` **в foreground** (НЕ background -- оркестратор ждёт результат).
+### Если issues <= 3: определи affected apps самостоятельно
+
+Не спавни подагента — определи affected apps напрямую по labels и title/body каждого issue:
+- Лейбл `web` или title содержит `(web)` → `apps/web`
+- Лейбл `api` или title содержит `(api)` → `apps/api`
+- Лейбл `has-migrations` или body упоминает `@qurvo/db` / `@qurvo/clickhouse` → `packages/@qurvo/db` и/или `packages/@qurvo/clickhouse`
+- Лейблы `billing`, `ai`, `security` → соответствующие workers
+
+Правило: если 2 issues затрагивают одни и те же apps/packages — они идут последовательно. Иначе — параллельно. Issues с `has-migrations` ВСЕГДА последовательны друг с другом.
+
+Сформируй тот же JSON-формат `parallel_groups` что и подагент, и переходи к Шагу 3.
+
+### Если issues >= 4: запусти подагента
+
+Запусти подагента типа `general-purpose` (модель `sonnet`) **в foreground** (НЕ background -- оркестратор ждёт результат).
 
 Промпт для подагента:
 
@@ -164,9 +178,8 @@ for bad_dir in .claire .claud .cloude claude; do
     || echo "ВНИМАНИЕ: найдена подозрительная директория $REPO_ROOT/$bad_dir — удали её вручную"
 done
 
-# Проверка 2: рабочая директория для worktree существует и называется правильно
-[ -d "$REPO_ROOT/.claude/worktrees" ] || mkdir -p "$REPO_ROOT/.claude/worktrees"
-echo "Worktree dir: $REPO_ROOT/.claude/worktrees"
+# Проверка 2: рабочая директория для worktree (находится вне проекта — ~/worktrees/)
+echo "Worktree dir: $HOME/worktrees (управляется хуком WorktreeCreate)"
 ```
 
 ---
@@ -244,16 +257,13 @@ BASE_BRANCH: feature/issue-{PARENT_NUMBER}
 
 > **Примечание**: если `AFFECTED_APPS` содержит `apps/web` и issue (title/body) упоминает `.stories.tsx` файлы — issue-solver автоматически запустит `pnpm --filter @qurvo/web build-storybook` как часть DoD (шаг 4.3 Build). Дополнительных инструкций в промпте не нужно.
 
-> **TypeScript-проверка (обязательно)**: после реализации issue-solver должен запустить TSC для всех затронутых приложений из `AFFECTED_APPS`:
-> - `apps/api` → `pnpm --filter @qurvo/api exec tsc --noEmit`
-> - `apps/web` → `pnpm --filter @qurvo/web exec tsc --noEmit`
-> - Остальные apps — аналогично через `--filter`
+> **Build-проверка**: issue-solver автоматически запускает `turbo build` для AFFECTED_APPS в своём DoD (Шаг 4.3), что включает TypeScript-компиляцию. Отдельный `tsc --noEmit` не нужен.
 >
 > В конце ответа issue-solver должен вывести строки метаданных (используй для комментария на issue):
 > ```
 > FILES: <список изменённых файлов через запятую>
 > TESTS: <X passed, Y failed | not run>
-> TSC: ok | error
+> BUILD: ok | error
 > REVIEW: APPROVE | REQUEST_CHANGES
 > ```
 
@@ -291,10 +301,18 @@ Parent issue **не передаётся** в issue-solver — он являет
 - `STATUS: SUCCESS` — подагент реализовал задачу, issue закрыт. Оркестратор делает мерж:
   1. Сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`
   2. Получи `BRANCH` из результата подагента (строка вида `BRANCH: fix/issue-<NUMBER>`) и путь к worktree из Task tool result (`worktree_path`).
-  3. **Смержи ветку в BASE_BRANCH** (fast-forward без переключения текущей ветки):
+  3. **Смержи ветку в BASE_BRANCH** (попробуй fast-forward, fallback на merge --no-ff):
      ```bash
      BASE_BEFORE=$(git -C "$REPO_ROOT" rev-parse "$BASE_BRANCH")
-     git -C "$REPO_ROOT" fetch "$WORKTREE_PATH" "fix/issue-<NUMBER>:$BASE_BRANCH"
+
+     # Попытка 1: fast-forward через fetch
+     if ! git -C "$REPO_ROOT" fetch "$WORKTREE_PATH" "fix/issue-<NUMBER>:$BASE_BRANCH" 2>/dev/null; then
+       # Попытка 2: merge --no-ff (если main продвинулся от предыдущего мержа)
+       echo "Fast-forward невозможен, делаю merge --no-ff"
+       git -C "$REPO_ROOT" checkout "$BASE_BRANCH"
+       git -C "$REPO_ROOT" merge --no-ff "fix/issue-<NUMBER>" -m "Merge fix/issue-<NUMBER>: <ISSUE_TITLE>"
+     fi
+
      BASE_AFTER=$(git -C "$REPO_ROOT" rev-parse "$BASE_BRANCH")
      [ "$BASE_BEFORE" != "$BASE_AFTER" ] \
        || { echo "FATAL: мерж не продвинул $BASE_BRANCH"; }
@@ -316,7 +334,7 @@ Parent issue **не передаётся** в issue-solver — он являет
      ```bash
      COMMIT_HASH=$(git -C "$REPO_ROOT" rev-parse --short "$BASE_BRANCH")
      # Извлеки из результата подагента (если есть, иначе "—"):
-     # FILES_LINE, TESTS_LINE, TSC_LINE, REVIEW_LINE
+     # FILES_LINE, TESTS_LINE, BUILD_LINE, REVIEW_LINE
      gh issue comment <NUMBER> --body "$(cat <<'COMMENT'
      ## ✅ Реализовано агентом
 
@@ -325,7 +343,7 @@ Parent issue **не передаётся** в issue-solver — он являет
 
      **Файлы**: FILES_LINE
      **Тесты**: TESTS_LINE
-     **TypeScript**: TSC_LINE
+     **Build**: BUILD_LINE
      **Review**: REVIEW_LINE
      COMMENT
      )"
@@ -346,6 +364,26 @@ Parent issue **не передаётся** в issue-solver — он являет
 - `STATUS: FAILED | <причина>` — сними лейбл `in-progress`: `gh issue edit <NUMBER> --remove-label "in-progress"`. Добавь в отчёт как failed.
 
 Если строка STATUS не найдена -- считай результат как FAILED с причиной "подагент не вернул статус". Сними лейбл `in-progress`.
+
+---
+
+## Шаг 6.5: Post-merge верификация
+
+После мержа ВСЕЙ группы (не после каждого отдельного issue) запусти подагента `post-merge-verifier` в **foreground**:
+
+```
+subagent_type: "post-merge-verifier"
+run_in_background: false
+prompt: |
+  AFFECTED_APPS: <объединённый список affected apps всей группы>
+  MERGED_ISSUES: <номера смерженных issues>
+```
+
+Дождись результата:
+- `ALL_GREEN` → переходи к следующей группе или к Шагу 7
+- `REGRESSION` → зафиксируй в отчёте какой merge виновен (агент укажет). Не откатывай автоматически — сообщи пользователю.
+
+**Пропускай** этот шаг если в группе был только 1 issue (отдельная верификация не нужна — solver уже прогнал тесты).
 
 ---
 
@@ -384,6 +422,7 @@ Parent issue **не передаётся** в issue-solver — он являет
 5. При перезапуске подагента (после NEEDS_USER_INPUT) -- передай `WORKTREE_PATH` из Task tool result предыдущего запуска, запускай снова с `isolation: "worktree"`.
 6. Не запрашивай подтверждение у пользователя перед запуском подагентов, если план ясен. Действуй автономно.
 7. **Мерж в main/BASE_BRANCH делает ТОЛЬКО оркестратор** (Шаг 6) — issue-solver только реализует и коммитит.
-7. Если пользователь дал всего 1 issue -- пропусти Шаг 2 (анализ пересечений), сразу запусти одного подагента.
-8. Sub-issues НИКОГДА не мержатся напрямую в `main` — только в feature branch своего parent issue.
-9. Parent issue закрывается оркестратором (Шаг 5.3), НЕ подагентом — не передавай parent issue в issue-solver как задачу на реализацию.
+8. Если пользователь дал всего 1 issue -- пропусти Шаг 2 (анализ пересечений), сразу запусти одного подагента.
+9. Sub-issues НИКОГДА не мержатся напрямую в `main` — только в feature branch своего parent issue.
+10. Parent issue закрывается оркестратором (Шаг 5.3), НЕ подагентом — не передавай parent issue в issue-solver как задачу на реализацию.
+11. **Post-merge верификация** (Шаг 6.5) запускается после мержа группы из 2+ issues. Для одиночных — пропускай.

@@ -378,13 +378,4 @@ BODY
   /issue-executor 61 62 63 64
 ```
 
-После вывода отчёта — **немедленно запусти агента `issue-validator`** через Task tool для всех только что созданных issues. Не жди подтверждения пользователя — валидация автоматическая.
-
-```
-subagent_type: "issue-validator"
-run_in_background: false
-prompt: |
-  Проверь issues: #N #M ... (перечисли все созданные номера)
-```
-
-Это навесит лейблы `ready` и сделает issues готовыми к executor.
+Issues создаются по строгому шаблону с acceptance criteria — отдельная валидация не нужна. Executor автоматически запустит `issue-validator` перед выполнением для issues без лейбла `ready`.
