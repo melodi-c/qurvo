@@ -29,12 +29,6 @@ export default function AdminProjectsPage() {
       render: (row) => <span className="font-medium">{row.name}</span>,
     },
     {
-      key: 'slug',
-      header: t('slug'),
-      render: (row) => <span className="text-muted-foreground font-mono text-xs">{row.slug}</span>,
-      hideOnMobile: true,
-    },
-    {
       key: 'plan',
       header: t('plan'),
       render: (row) =>

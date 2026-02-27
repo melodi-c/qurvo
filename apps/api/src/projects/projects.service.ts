@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { projects, projectMembers, plans } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
@@ -9,20 +9,14 @@ import type Redis from 'ioredis';
 import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { ProjectNotFoundException } from './exceptions/project-not-found.exception';
 import { InsufficientPermissionsException } from '../exceptions/insufficient-permissions.exception';
-import { ProjectNameConflictException } from './exceptions/project-name-conflict.exception';
-import { isPgUniqueViolation } from '../utils/pg-errors';
-
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
 
 const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
-  slug: projects.slug,
   token: projects.token,
   plan: plans.slug,
   is_demo: projects.is_demo,
+  demo_scenario: projects.demo_scenario,
   created_at: projects.created_at,
   updated_at: projects.updated_at,
   role: projectMembers.role,
@@ -59,22 +53,7 @@ export class ProjectsService {
     return project;
   }
 
-  async getBySlug(userId: string, slug: string) {
-    const [project] = await this.db
-      .select({ ...PROJECT_COLUMNS, demo_scenario: projects.demo_scenario, token: projects.token })
-      .from(projectMembers)
-      .innerJoin(projects, eq(projectMembers.project_id, projects.id))
-      .leftJoin(plans, eq(projects.plan_id, plans.id))
-      .where(and(eq(projects.slug, slug), eq(projectMembers.user_id, userId)))
-      .limit(1);
-
-    if (!project) throw new ProjectNotFoundException();
-    return project;
-  }
-
   async create(userId: string, input: { name: string; is_demo?: boolean; demo_scenario?: string }) {
-    const baseSlug = slugify(input.name);
-
     const freePlan = await this.db
       .select({ id: plans.id })
       .from(plans)
@@ -82,47 +61,27 @@ export class ProjectsService {
       .limit(1);
     const planId = freePlan[0]?.id ?? null;
 
-    // Retry with a random suffix on slug collision (e.g. two users both creating
-    // a "LearnFlow (Demo)" project at registration time).
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${crypto.randomBytes(3).toString('hex')}`;
-      try {
-        const project = await this.db.transaction(async (tx) => {
-          const token = crypto.randomBytes(24).toString('base64url');
+    const project = await this.db.transaction(async (tx) => {
+      const token = crypto.randomBytes(24).toString('base64url');
 
-          const [created] = await tx.insert(projects).values({
-            name: input.name,
-            slug,
-            token,
-            plan_id: planId,
-            is_demo: input.is_demo ?? false,
-            demo_scenario: input.demo_scenario ?? null,
-          }).returning();
+      const [created] = await tx.insert(projects).values({
+        name: input.name,
+        token,
+        plan_id: planId,
+        is_demo: input.is_demo ?? false,
+        demo_scenario: input.demo_scenario ?? null,
+      }).returning();
 
-          await tx.insert(projectMembers).values({
-            project_id: created.id,
-            user_id: userId,
-            role: 'owner',
-          });
+      await tx.insert(projectMembers).values({
+        project_id: created.id,
+        user_id: userId,
+        role: 'owner',
+      });
 
-          return created;
-        });
-        this.logger.log({ projectId: project.id, userId }, 'Project created');
-        return this.getById(userId, project.id);
-      } catch (err) {
-        if (isPgUniqueViolation(err) && attempt < 4) {
-          // slug collision — retry with a different suffix
-          continue;
-        }
-        if (isPgUniqueViolation(err)) {
-          throw new ProjectNameConflictException();
-        }
-        throw err;
-      }
-    }
-
-    // unreachable — for-loop always returns or throws
-    throw new ProjectNameConflictException();
+      return created;
+    });
+    this.logger.log({ projectId: project.id, userId }, 'Project created');
+    return this.getById(userId, project.id);
   }
 
   async update(userId: string, projectId: string, input: { name?: string }) {
@@ -131,15 +90,7 @@ export class ProjectsService {
 
     const values: Record<string, unknown> = { updated_at: new Date() };
     if (input.name !== undefined) {
-      const newSlug = slugify(input.name);
-      const existing = await this.db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(and(eq(projects.slug, newSlug), ne(projects.id, projectId)))
-        .limit(1);
-      if (existing.length > 0) throw new ProjectNameConflictException();
       values.name = input.name;
-      values.slug = newSlug;
     }
     const [updated] = await this.db
       .update(projects)

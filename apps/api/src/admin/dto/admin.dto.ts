@@ -71,7 +71,6 @@ export class AdminProjectMemberDto {
 export class AdminProjectListItemDto {
   id: string;
   name: string;
-  slug: string;
   plan_id: string | null;
   plan_name: string | null;
   member_count: number;
@@ -81,7 +80,6 @@ export class AdminProjectListItemDto {
 export class AdminProjectDetailDto {
   id: string;
   name: string;
-  slug: string;
   token: string;
   plan_id: string | null;
   plan_name: string | null;

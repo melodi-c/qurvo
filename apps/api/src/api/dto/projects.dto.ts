@@ -20,7 +20,6 @@ export class UpdateProjectDto {
 export class ProjectDto {
   id: string;
   name: string;
-  slug: string;
   token: string;
   plan: string | null;
   is_demo: boolean;

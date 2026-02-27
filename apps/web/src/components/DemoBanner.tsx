@@ -12,11 +12,10 @@ import translations from './DemoBanner.translations';
 
 interface DemoBannerProps {
   projectId: string;
-  projectSlug: string;
   isDemo: boolean;
 }
 
-export function DemoBanner({ projectId, projectSlug, isDemo }: DemoBannerProps) {
+export function DemoBanner({ projectId, isDemo }: DemoBannerProps) {
   const { t } = useLocalTranslation(translations);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -32,7 +31,7 @@ export function DemoBanner({ projectId, projectSlug, isDemo }: DemoBannerProps) 
   });
 
   const resetMutation = useMutation({
-    mutationFn: () => api.demoControllerReset({ projectSlug }, {}),
+    mutationFn: () => api.demoControllerReset({ projectId }, {}),
     onSuccess: () => {
       toast.success(t('resetSuccess'));
       void qc.invalidateQueries({ queryKey: ['events', projectId] });

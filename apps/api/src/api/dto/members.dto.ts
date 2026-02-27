@@ -59,7 +59,6 @@ export class InviteDto {
 export class ProjectSummaryDto {
   id: string;
   name: string;
-  slug: string;
 }
 
 export class MyInviteDto {

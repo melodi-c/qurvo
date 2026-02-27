@@ -31,7 +31,6 @@ export default function Layout() {
     projects,
     pendingInvitesCount,
     currentProjectName,
-    currentProjectSlug,
     currentProjectIsDemo,
     hasProjects,
     shouldRedirectToProjects,
@@ -122,7 +121,7 @@ export default function Layout() {
       {/* Main content */}
       <main className="flex-1 overflow-auto flex flex-col">
         {currentProject && (
-          <DemoBanner projectId={currentProject} projectSlug={currentProjectSlug} isDemo={currentProjectIsDemo} />
+          <DemoBanner projectId={currentProject} isDemo={currentProjectIsDemo} />
         )}
         <div className="p-4 lg:p-6 flex-1">
           <Suspense fallback={<PageLoadingFallback />}>

@@ -162,7 +162,7 @@ export class MembersService {
         role: projectInvites.role,
         status: projectInvites.status,
         created_at: projectInvites.created_at,
-        project: { id: projects.id, name: projects.name, slug: projects.slug },
+        project: { id: projects.id, name: projects.name },
         invited_by: {
           id: users.id,
           email: users.email,

@@ -78,11 +78,6 @@ export function GeneralTab({ projectId }: { projectId: string }) {
               </span>
             </DefinitionListRow>
 
-            {/* Slug */}
-            <DefinitionListRow label={t('slug')}>
-              <span className="text-muted-foreground font-mono text-xs">{project?.slug}</span>
-            </DefinitionListRow>
-
             {/* Role */}
             <DefinitionListRow label={t('yourRole')}>
               <span className="capitalize">{project?.role}</span>

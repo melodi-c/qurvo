@@ -26,7 +26,6 @@ export class AdminProjectsController {
       .select({
         id: projects.id,
         name: projects.name,
-        slug: projects.slug,
         plan_id: projects.plan_id,
         plan_name: plans.name,
         member_count: sql<number>`COUNT(${projectMembers.id})::int`,
@@ -38,7 +37,6 @@ export class AdminProjectsController {
       .groupBy(
         projects.id,
         projects.name,
-        projects.slug,
         projects.plan_id,
         plans.name,
         projects.created_at,
@@ -54,7 +52,6 @@ export class AdminProjectsController {
       .select({
         id: projects.id,
         name: projects.name,
-        slug: projects.slug,
         token: projects.token,
         plan_id: projects.plan_id,
         plan_name: plans.name,
