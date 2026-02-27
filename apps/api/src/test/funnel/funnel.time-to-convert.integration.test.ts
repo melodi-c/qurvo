@@ -154,9 +154,11 @@ describe('queryFunnelTimeToConvert', () => {
         { event_name: 'page_view', label: 'Page View' },
         { event_name: 'checkout', label: 'Checkout' },
       ],
+      // Use explicit value/unit to specify a 60-second window.
+      // conversion_window_days must be the default (14) when value/unit are provided.
+      conversion_window_days: 14,
       conversion_window_value: 60,
       conversion_window_unit: 'second',
-      conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
       from_step: 0,
