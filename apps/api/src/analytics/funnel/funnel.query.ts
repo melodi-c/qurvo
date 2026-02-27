@@ -47,7 +47,7 @@ export async function queryFunnel(
   const queryParams = buildBaseQueryParams(params, allEventNames);
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
   const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
   // Mirror the same guard used in buildSamplingClause: sampling is active only when
   // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
