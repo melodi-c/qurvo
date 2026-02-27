@@ -44,6 +44,8 @@ export interface TrendSeriesResult {
   event_name: string;
   data: TrendDataPoint[];
   breakdown_value?: string;
+  /** Human-readable label for the breakdown group. Set when breakdown_type='cohort'. */
+  breakdown_label?: string;
 }
 
 export type TrendQueryResult =
@@ -158,6 +160,7 @@ function assembleBreakdown(
   rows: RawBreakdownRow[],
   metric: TrendMetric,
   seriesMeta: TrendSeries[],
+  cohortLabelMap?: Map<string, string>,
 ): TrendSeriesResult[] {
   const grouped = new Map<string, TrendDataPoint[]>();
   const keyMeta = new Map<string, { series_idx: number; breakdown_value: string }>();
@@ -178,12 +181,14 @@ function assembleBreakdown(
   for (const [key, data] of grouped) {
     const meta = keyMeta.get(key)!;
     const s = seriesMeta[meta.series_idx];
+    const breakdownLabel = cohortLabelMap?.get(meta.breakdown_value);
     results.push({
       series_idx: meta.series_idx,
       label: s?.label ?? '',
       event_name: s?.event_name ?? '',
       data,
       breakdown_value: meta.breakdown_value,
+      ...(breakdownLabel !== undefined ? { breakdown_label: breakdownLabel } : {}),
     });
   }
   return results;
@@ -217,18 +222,21 @@ async function executeTrendQuery(
   // Cohort breakdown path: one arm per (series x cohort)
   if (hasCohortBreakdown) {
     const cohortBreakdowns = params.breakdown_cohort_ids!;
+    // Map cohort_id → cohort name for attaching breakdown_label after assembly
+    const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
     const arms: string[] = [];
     params.series.forEach((s, seriesIdx) => {
       const cond = buildSeriesConditions(s, seriesIdx, queryParams);
       cohortBreakdowns.forEach((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
         const cohortFilter = buildCohortFilterForBreakdown(cb, paramKey, 900 + cbIdx, queryParams, toChTs(dateTo, true));
-        const nameKey = `cohort_name_${seriesIdx}_${cbIdx}`;
-        queryParams[nameKey] = cb.name;
+        // Use cohort_id as breakdown_value to guarantee uniqueness across cohorts with identical names
+        const cohortIdKey = `cohort_id_${seriesIdx}_${cbIdx}`;
+        queryParams[cohortIdKey] = cb.cohort_id;
         arms.push(`
           SELECT
             ${seriesIdx} AS series_idx,
-            {${nameKey}:String} AS breakdown_value,
+            {${cohortIdKey}:String} AS breakdown_value,
             ${bucketExpr} AS bucket,
             count() AS raw_value,
             uniqExact(${RESOLVED_PERSON}) AS uniq_value,
@@ -247,7 +255,7 @@ async function executeTrendQuery(
     const sql = `${arms.join('\nUNION ALL\n')}\nORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
     const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
     const rows = await result.json<RawBreakdownRow>();
-    return assembleBreakdown(rows, params.metric, params.series);
+    return assembleBreakdown(rows, params.metric, params.series, cohortLabelMap);
   }
 
   if (!hasBreakdown) {

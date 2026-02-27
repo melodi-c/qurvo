@@ -194,6 +194,9 @@ describe('funnel cohort breakdown', () => {
       values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'free' }],
     };
 
+    const premiumCohortId = randomUUID();
+    const freeCohortId = randomUUID();
+
     const result = await queryFunnel(ctx.ch, {
       project_id: projectId,
       steps: [
@@ -204,15 +207,15 @@ describe('funnel cohort breakdown', () => {
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
       breakdown_cohort_ids: [
-        { cohort_id: randomUUID(), name: 'Premium', is_static: false, materialized: false, definition: premiumDef },
-        { cohort_id: randomUUID(), name: 'Free', is_static: false, materialized: false, definition: freeDef },
+        { cohort_id: premiumCohortId, name: 'Premium', is_static: false, materialized: false, definition: premiumDef },
+        { cohort_id: freeCohortId, name: 'Free', is_static: false, materialized: false, definition: freeDef },
       ],
     });
 
     expect(result.breakdown).toBe(true);
     const r = result as Extract<FunnelQueryResult, { breakdown: true }>;
-    const premiumStep1 = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
-    const freeStep1 = r.steps.find((s) => s.breakdown_value === 'Free' && s.step === 1);
+    const premiumStep1 = r.steps.find((s) => s.breakdown_value === premiumCohortId && s.step === 1);
+    const freeStep1 = r.steps.find((s) => s.breakdown_value === freeCohortId && s.step === 1);
     expect(premiumStep1).toBeDefined();
     expect(freeStep1).toBeDefined();
     expect(premiumStep1!.count).toBe(1);
@@ -254,7 +257,7 @@ describe('funnel cohort breakdown', () => {
 
     expect(result.breakdown).toBe(true);
     const r = result as Extract<FunnelQueryResult, { breakdown: true }>;
-    const premiumStep1 = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
+    const premiumStep1 = r.steps.find((s) => s.breakdown_value === cohortId && s.step === 1);
     expect(premiumStep1).toBeDefined();
     expect(premiumStep1!.count).toBe(1);
   });
@@ -292,7 +295,7 @@ describe('funnel cohort breakdown', () => {
 
     expect(result.breakdown).toBe(true);
     const r = result as Extract<FunnelQueryResult, { breakdown: true }>;
-    const staticStep1 = r.steps.find((s) => s.breakdown_value === 'Static Premium' && s.step === 1);
+    const staticStep1 = r.steps.find((s) => s.breakdown_value === cohortId && s.step === 1);
     expect(staticStep1).toBeDefined();
     expect(staticStep1!.count).toBe(1);
   });
@@ -457,6 +460,9 @@ describe('trend cohort breakdown', () => {
       values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'free' }],
     };
 
+    const premiumCohortId = randomUUID();
+    const freeCohortId = randomUUID();
+
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
       series: [{ event_name: 'page_view', label: 'Views' }],
@@ -465,16 +471,18 @@ describe('trend cohort breakdown', () => {
       date_from: today,
       date_to: today,
       breakdown_cohort_ids: [
-        { cohort_id: randomUUID(), name: 'Premium', is_static: false, materialized: false, definition: premiumDef },
-        { cohort_id: randomUUID(), name: 'Free', is_static: false, materialized: false, definition: freeDef },
+        { cohort_id: premiumCohortId, name: 'Premium', is_static: false, materialized: false, definition: premiumDef },
+        { cohort_id: freeCohortId, name: 'Free', is_static: false, materialized: false, definition: freeDef },
       ],
     });
 
     const r = result as Extract<TrendQueryResult, { compare: false; breakdown: true }>;
-    const premiumSeries = r.series.find((s) => s.breakdown_value === 'Premium');
-    const freeSeries = r.series.find((s) => s.breakdown_value === 'Free');
+    const premiumSeries = r.series.find((s) => s.breakdown_value === premiumCohortId);
+    const freeSeries = r.series.find((s) => s.breakdown_value === freeCohortId);
     expect(premiumSeries).toBeDefined();
     expect(freeSeries).toBeDefined();
+    expect(premiumSeries!.breakdown_label).toBe('Premium');
+    expect(freeSeries!.breakdown_label).toBe('Free');
     expect(premiumSeries!.data[0]?.value).toBe(1);
     expect(freeSeries!.data[0]?.value).toBe(1);
   });
@@ -511,8 +519,9 @@ describe('trend cohort breakdown', () => {
     });
 
     const r = result as Extract<TrendQueryResult, { compare: false; breakdown: true }>;
-    const premiumSeries = r.series.find((s) => s.breakdown_value === 'Premium');
+    const premiumSeries = r.series.find((s) => s.breakdown_value === cohortId);
     expect(premiumSeries).toBeDefined();
+    expect(premiumSeries!.breakdown_label).toBe('Premium');
     expect(premiumSeries!.data[0]?.value).toBe(1);
   });
 
@@ -545,8 +554,122 @@ describe('trend cohort breakdown', () => {
     });
 
     const r = result as Extract<TrendQueryResult, { compare: false; breakdown: true }>;
-    const staticSeries = r.series.find((s) => s.breakdown_value === 'Static Premium');
+    const staticSeries = r.series.find((s) => s.breakdown_value === cohortId);
     expect(staticSeries).toBeDefined();
+    expect(staticSeries!.breakdown_label).toBe('Static Premium');
     expect(staticSeries!.data[0]?.value).toBe(1);
+  });
+});
+
+// ── Duplicate cohort name regression (issue #510) ───────────────────────────
+// Two cohorts with identical names must produce distinct breakdown_value entries.
+
+describe('cohort breakdown with duplicate names (issue #510 regression)', () => {
+  it('funnel: two cohorts with the same name produce distinct breakdown_value entries', async () => {
+    const projectId = randomUUID();
+    const userA = randomUUID();
+    const userB = randomUUID();
+    const today = dateOffset(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: userA, distinct_id: 'a', event_name: 'signup', user_properties: JSON.stringify({ tier: 'gold' }), timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: userB, distinct_id: 'b', event_name: 'signup', user_properties: JSON.stringify({ tier: 'silver' }), timestamp: msAgo(3000) }),
+    ]);
+
+    const goldDef: CohortConditionGroup = {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' }],
+    };
+    const silverDef: CohortConditionGroup = {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'silver' }],
+    };
+
+    const cohortId1 = randomUUID();
+    const cohortId2 = randomUUID();
+
+    // Both cohorts share the name "Duplicate Name"
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [{ event_name: 'signup', label: 'Signup' }],
+      conversion_window_days: 7,
+      date_from: today,
+      date_to: today,
+      breakdown_cohort_ids: [
+        { cohort_id: cohortId1, name: 'Duplicate Name', is_static: false, materialized: false, definition: goldDef },
+        { cohort_id: cohortId2, name: 'Duplicate Name', is_static: false, materialized: false, definition: silverDef },
+      ],
+    });
+
+    expect(result.breakdown).toBe(true);
+    const r = result as Extract<FunnelQueryResult, { breakdown: true }>;
+
+    // breakdown_value must be the cohort UUID, not the name — ensuring uniqueness
+    const steps1 = r.steps.filter((s) => s.breakdown_value === cohortId1);
+    const steps2 = r.steps.filter((s) => s.breakdown_value === cohortId2);
+    expect(steps1).toHaveLength(1);
+    expect(steps2).toHaveLength(1);
+
+    // breakdown_label carries the human-readable name
+    expect(steps1[0]?.breakdown_label).toBe('Duplicate Name');
+    expect(steps2[0]?.breakdown_label).toBe('Duplicate Name');
+
+    // Each cohort contains exactly 1 user
+    expect(steps1[0]?.count).toBe(1);
+    expect(steps2[0]?.count).toBe(1);
+  });
+
+  it('trend: two cohorts with the same name produce distinct breakdown_value entries', async () => {
+    const projectId = randomUUID();
+    const userA = randomUUID();
+    const userB = randomUUID();
+    const today = dateOffset(0);
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: userA, distinct_id: 'a', event_name: 'click', user_properties: JSON.stringify({ tier: 'gold' }), timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: userB, distinct_id: 'b', event_name: 'click', user_properties: JSON.stringify({ tier: 'silver' }), timestamp: msAgo(3000) }),
+    ]);
+
+    const goldDef: CohortConditionGroup = {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'gold' }],
+    };
+    const silverDef: CohortConditionGroup = {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'silver' }],
+    };
+
+    const cohortId1 = randomUUID();
+    const cohortId2 = randomUUID();
+
+    // Both cohorts share the name "Duplicate Name"
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'click', label: 'Clicks' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: today,
+      date_to: today,
+      breakdown_cohort_ids: [
+        { cohort_id: cohortId1, name: 'Duplicate Name', is_static: false, materialized: false, definition: goldDef },
+        { cohort_id: cohortId2, name: 'Duplicate Name', is_static: false, materialized: false, definition: silverDef },
+      ],
+    });
+
+    const r = result as Extract<TrendQueryResult, { compare: false; breakdown: true }>;
+
+    // breakdown_value must be the cohort UUID, not the name — ensuring uniqueness
+    const series1 = r.series.find((s) => s.breakdown_value === cohortId1);
+    const series2 = r.series.find((s) => s.breakdown_value === cohortId2);
+    expect(series1).toBeDefined();
+    expect(series2).toBeDefined();
+
+    // breakdown_label carries the human-readable name
+    expect(series1!.breakdown_label).toBe('Duplicate Name');
+    expect(series2!.breakdown_label).toBe('Duplicate Name');
+
+    // Each cohort contains exactly 1 event
+    expect(series1!.data[0]?.value).toBe(1);
+    expect(series2!.data[0]?.value).toBe(1);
   });
 });
