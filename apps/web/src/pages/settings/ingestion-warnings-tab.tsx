@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
-import { api } from '@/api/client';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -8,14 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { formatRelativeTime } from '@/lib/formatting';
 import translations from './ingestion-warnings-tab.translations';
-
-function useIngestionWarnings(projectId: string) {
-  return useQuery({
-    queryKey: ['ingestionWarnings', projectId],
-    queryFn: () => api.ingestionWarningsControllerGetIngestionWarnings({ project_id: projectId, limit: 100 }),
-    enabled: !!projectId,
-  });
-}
+import { useIngestionWarnings } from './hooks/use-ingestion-warnings';
 
 function WarningTypeBadge({ type }: { type: string }) {
   const { t } = useLocalTranslation(translations);
