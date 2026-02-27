@@ -21,3 +21,7 @@ export const COHORT_INITIAL_DELAY_MS = 30_000;
 // ── Bull queue ───────────────────────────────────────────────────────────
 export const COHORT_COMPUTE_QUEUE = 'cohort-compute';
 export const COHORT_COMPUTE_CONCURRENCY = 4;
+// Maximum time to wait for a single Bull job to complete.
+// Prevents indefinite hang when Redis is unavailable or Bull worker is stuck.
+// Set equal to the distributed lock TTL so the cycle cannot outlive the lock.
+export const COHORT_JOB_TIMEOUT_MS = COHORT_LOCK_TTL_SECONDS * 1000; // 660_000
