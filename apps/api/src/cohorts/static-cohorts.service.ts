@@ -1,4 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
@@ -10,6 +11,8 @@ import { parseCohortCsv } from './parse-cohort-csv';
 
 @Injectable()
 export class StaticCohortsService {
+  private readonly logger = new Logger(StaticCohortsService.name);
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
@@ -52,7 +55,9 @@ export class StaticCohortsService {
       throw new AppBadRequestException('Cohort has not been computed yet');
     }
 
-    // Create static cohort (INSERT...SELECT copies members atomically — no pre-count needed)
+    // Create static cohort in PostgreSQL first, then copy members to ClickHouse.
+    // If the CH INSERT fails, we must roll back the PG record to prevent a
+    // "ghost" cohort (PG row exists but CH has no members).
     const rows = await this.db
       .insert(cohorts)
       .values({
@@ -67,16 +72,35 @@ export class StaticCohortsService {
 
     const newCohort = rows[0];
 
-    // Copy members from source cohort into static table
-    const sourceTable = source.is_static ? 'person_static_cohort' : 'cohort_members';
-    await this.ch.command({
-      query: `
-        INSERT INTO person_static_cohort (project_id, cohort_id, person_id)
-        SELECT project_id, {new_cohort_id:UUID} AS cohort_id, person_id
-        FROM ${sourceTable} FINAL
-        WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
-      query_params: { new_cohort_id: newCohort.id, project_id: projectId, cohort_id: cohortId },
-    });
+    try {
+      // Copy members from source cohort into static table
+      const sourceTable = source.is_static ? 'person_static_cohort' : 'cohort_members';
+      await this.ch.command({
+        query: `
+          INSERT INTO person_static_cohort (project_id, cohort_id, person_id)
+          SELECT project_id, {new_cohort_id:UUID} AS cohort_id, person_id
+          FROM ${sourceTable} FINAL
+          WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
+        query_params: { new_cohort_id: newCohort.id, project_id: projectId, cohort_id: cohortId },
+      });
+    } catch (chError) {
+      // Compensating delete: remove the PG record so no ghost cohort remains.
+      this.logger.error(
+        { err: chError, cohortId: newCohort.id },
+        'ClickHouse INSERT failed during duplicateAsStatic — rolling back PG record',
+      );
+      try {
+        await this.db
+          .delete(cohorts)
+          .where(and(eq(cohorts.id, newCohort.id), eq(cohorts.project_id, projectId)));
+      } catch (deleteError) {
+        this.logger.error(
+          { err: deleteError, cohortId: newCohort.id },
+          'Failed to roll back PG cohort record after ClickHouse error',
+        );
+      }
+      throw chError;
+    }
 
     return newCohort;
   }

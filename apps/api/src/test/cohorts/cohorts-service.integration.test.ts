@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { randomUUID } from 'crypto';
 import { createTestProject, insertTestEvents, buildEvent, msAgo, pollUntil, dateOffset } from '@qurvo/testing';
 import { eq } from 'drizzle-orm';
@@ -167,6 +167,68 @@ describe('StaticCohortsService.duplicateAsStatic — non-materialized guard', ()
     const copy = await staticService.duplicateAsStatic(userId, projectId, staticSrc.id);
     expect(copy.is_static).toBe(true);
     expect(copy.name).toBe('Source Static (static copy)');
+  });
+});
+
+// ── duplicateAsStatic(): compensating PG delete on ClickHouse failure ─────────
+
+describe('StaticCohortsService.duplicateAsStatic — ghost cohort prevention', () => {
+  it('rolls back the PG cohort record when ClickHouse INSERT fails', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const personA = randomUUID();
+
+    // Create + populate a static source cohort
+    const staticSrc = await service.create(userId, projectId, {
+      name: 'Source for ghost test',
+      is_static: true,
+    });
+    await insertStaticCohortMembers(ctx.ch, projectId, staticSrc.id, [personA]);
+
+    // Spy on CH command to simulate a ClickHouse failure
+    const chCommandSpy = vi.spyOn(ctx.ch, 'command').mockRejectedValueOnce(
+      new Error('Simulated ClickHouse timeout'),
+    );
+
+    // duplicateAsStatic should propagate the CH error
+    await expect(
+      staticService.duplicateAsStatic(userId, projectId, staticSrc.id),
+    ).rejects.toThrow('Simulated ClickHouse timeout');
+
+    chCommandSpy.mockRestore();
+
+    // Verify no ghost cohort remains in PostgreSQL
+    const allCohorts = await ctx.db
+      .select()
+      .from(cohorts)
+      .where(eq(cohorts.project_id, projectId));
+
+    // Only the source cohort should remain — the failed copy must have been deleted
+    expect(allCohorts).toHaveLength(1);
+    expect(allCohorts[0].id).toBe(staticSrc.id);
+  });
+
+  it('still returns the new cohort on successful duplication (no regression)', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const personA = randomUUID();
+
+    const staticSrc = await service.create(userId, projectId, {
+      name: 'Source for success test',
+      is_static: true,
+    });
+    await insertStaticCohortMembers(ctx.ch, projectId, staticSrc.id, [personA]);
+
+    const copy = await staticService.duplicateAsStatic(userId, projectId, staticSrc.id);
+
+    expect(copy).toBeDefined();
+    expect(copy.is_static).toBe(true);
+    expect(copy.name).toBe('Source for success test (static copy)');
+
+    // Both cohorts should exist in PG
+    const allCohorts = await ctx.db
+      .select()
+      .from(cohorts)
+      .where(eq(cohorts.project_id, projectId));
+    expect(allCohorts).toHaveLength(2);
   });
 });
 
