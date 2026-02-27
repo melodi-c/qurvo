@@ -78,11 +78,23 @@ Cohorts that fail to compute are skipped with exponential backoff: `2^errors * 3
 
 ## Integration Tests
 
-Tests in `src/test/`. 9 integration tests:
+Tests in `src/test/`. 34 integration tests covering:
 - Property/event condition cohorts (eq, gte)
 - AND (INTERSECT) / OR (UNION DISTINCT) logic
 - Version cleanup (old rows removed)
-- Orphan GC (deleted cohort memberships removed)
+- Orphan GC (deleted cohort memberships removed, 0 dynamic cohorts safe)
 - Max errors cap (cohorts with >= 20 errors excluded)
 - Batch delete (multiple cohorts cleaned up in single mutation)
 - Distributed lock blocks concurrent runs
+- Stale write rejection (newer membership_version wins)
+- First write from null version
+- 100 concurrent job enqueues (Bug 1)
+- GC counter persisted in Redis across restarts (Bug 2)
+- Rejected Bull job triggers recordError (Bug a)
+- lock.extend() returning false or throwing aborts remaining levels (Bug b)
+- waitUntilFinished timeout handling
+- PG failure after CH write — membership_version not updated, next cycle recomputes
+- GC scheduling via runCycle() at Nth cycle cadence
+- GC counter increments on empty cycles (no stale cohorts)
+- Advanced condition types: first_time_event, event_sequence, not_performed_event_sequence, performed_regularly, stopped_performing, restarted_performing
+- Negated cohort-ref (dependency level ordering)

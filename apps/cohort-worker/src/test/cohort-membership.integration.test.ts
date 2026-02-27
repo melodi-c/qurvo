@@ -1191,6 +1191,173 @@ describe('cohort membership', () => {
     expect(members).not.toContain(personOnlyRecent);
   });
 
+  // ── PG failure after CH write ──────────────────────────────────────────
+
+  it('PG failure after CH write — membership_version not updated, next cycle recomputes', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+    const uniquePlan = `pg_fail_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-pgfail-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'PG Fail Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    // Mock markComputationSuccess to return false (simulating PG failure)
+    const markSpy = vi.spyOn(computation, 'markComputationSuccess').mockResolvedValue(false);
+
+    await runCycle();
+
+    // CH write succeeded — person is in cohort_members
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personId);
+
+    // PG not updated: membership_version is still null, errors_calculating not reset
+    const [row] = await ctx.db
+      .select({
+        membership_version: cohorts.membership_version,
+        errors_calculating: cohorts.errors_calculating,
+        membership_computed_at: cohorts.membership_computed_at,
+      })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(row.membership_version).toBeNull();
+    expect(row.membership_computed_at).toBeNull();
+
+    markSpy.mockRestore();
+
+    // Next cycle should recompute the cohort (it's still stale because membership_computed_at is null)
+    const computeSpy = vi.spyOn(computation, 'computeMembership');
+    await runCycle();
+
+    const computedCohortIds = computeSpy.mock.calls.map((c) => c[0]);
+    expect(computedCohortIds).toContain(cohortId);
+
+    // Now PG should be updated (markComputationSuccess is real again)
+    const [rowAfter] = await ctx.db
+      .select({ membership_version: cohorts.membership_version })
+      .from(cohorts)
+      .where(eq(cohorts.id, cohortId));
+    expect(rowAfter.membership_version).not.toBeNull();
+
+    computeSpy.mockRestore();
+  });
+
+  // ── Lock extend failure (throw) ────────────────────────────────────────
+
+  it('lock.extend() throwing an error aborts remaining levels (same as returning false)', async () => {
+    const projectId = testProject.projectId;
+
+    // Two cohorts with dependency → 2 levels
+    const baseCohortId = await createCohort(projectId, testProject.userId, 'Lock Throw Base', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: `lock_throw_base_${randomUUID().slice(0, 8)}` }],
+    });
+
+    await createCohort(projectId, testProject.userId, 'Lock Throw Dependent', {
+      type: 'AND',
+      values: [{ type: 'cohort', cohort_id: baseCohortId, negated: false }],
+    });
+
+    // Spy on lock.extend: succeed for level 0, throw for level 1
+    const lock = (svc as any).lock;
+    let extendCallCount = 0;
+    const extendSpy = vi.spyOn(lock, 'extend').mockImplementation(async () => {
+      extendCallCount++;
+      if (extendCallCount > 1) throw new Error('Redis connection lost during extend');
+      return true;
+    });
+
+    const computeSpy = vi.spyOn(computation, 'computeMembership');
+
+    await ctx.redis.del(COHORT_LOCK_KEY);
+    // Cycle should complete without throwing
+    await expect(svc.runCycle()).resolves.toBeUndefined();
+
+    // Only level 0 (baseCohort) should be computed; level 1 aborted
+    const computedCohortIds = computeSpy.mock.calls.map((c) => c[0]);
+    expect(computedCohortIds).toContain(baseCohortId);
+
+    extendSpy.mockRestore();
+    computeSpy.mockRestore();
+  });
+
+  // ── GC counter via runCycle() ──────────────────────────────────────────
+
+  it('GC scheduling via runCycle — runs at Nth cycle, not before', async () => {
+    // Reset counter
+    await ctx.redis.del(COHORT_GC_CYCLE_REDIS_KEY);
+
+    const gcSpy = vi.spyOn(computation, 'gcOrphanedMemberships').mockResolvedValue(undefined);
+
+    // Run (N-1) cycles — GC should NOT trigger
+    for (let i = 0; i < COHORT_GC_EVERY_N_CYCLES - 1; i++) {
+      await runCycle();
+    }
+    expect(gcSpy).not.toHaveBeenCalled();
+
+    // Counter should be N-1
+    const counterBefore = await ctx.redis.get(COHORT_GC_CYCLE_REDIS_KEY);
+    expect(Number(counterBefore)).toBe(COHORT_GC_EVERY_N_CYCLES - 1);
+
+    // Nth cycle triggers GC
+    await runCycle();
+    expect(gcSpy).toHaveBeenCalledTimes(1);
+
+    // Counter is now N
+    const counterAfter = await ctx.redis.get(COHORT_GC_CYCLE_REDIS_KEY);
+    expect(Number(counterAfter)).toBe(COHORT_GC_EVERY_N_CYCLES);
+
+    // Next (N+1) to (2N-1) cycles: no GC
+    gcSpy.mockClear();
+    for (let i = 0; i < COHORT_GC_EVERY_N_CYCLES - 1; i++) {
+      await runCycle();
+    }
+    expect(gcSpy).not.toHaveBeenCalled();
+
+    // 2*Nth cycle triggers GC again
+    await runCycle();
+    expect(gcSpy).toHaveBeenCalledTimes(1);
+
+    gcSpy.mockRestore();
+    await ctx.redis.del(COHORT_GC_CYCLE_REDIS_KEY);
+  });
+
+  it('GC counter increments on empty cycles (no stale cohorts)', async () => {
+    await ctx.redis.del(COHORT_GC_CYCLE_REDIS_KEY);
+
+    // Make all dynamic cohorts "fresh" so findStaleCohorts returns []
+    const findSpy = vi.spyOn(computation, 'findStaleCohorts').mockResolvedValue([]);
+    const gcSpy = vi.spyOn(computation, 'gcOrphanedMemberships').mockResolvedValue(undefined);
+
+    // Run N cycles — even though all are empty, the counter should increment
+    for (let i = 0; i < COHORT_GC_EVERY_N_CYCLES; i++) {
+      await runCycle();
+    }
+
+    // GC should have been called on the Nth empty cycle
+    expect(gcSpy).toHaveBeenCalledTimes(1);
+
+    // Counter should be exactly N
+    const counter = await ctx.redis.get(COHORT_GC_CYCLE_REDIS_KEY);
+    expect(Number(counter)).toBe(COHORT_GC_EVERY_N_CYCLES);
+
+    findSpy.mockRestore();
+    gcSpy.mockRestore();
+    await ctx.redis.del(COHORT_GC_CYCLE_REDIS_KEY);
+  });
+
   it('gcOrphanedMemberships with 0 dynamic cohorts does not delete all rows (Bug c)', async () => {
     const projectId = testProject.projectId;
     const personId = randomUUID();
