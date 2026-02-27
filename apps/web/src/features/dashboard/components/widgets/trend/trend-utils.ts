@@ -41,7 +41,7 @@ export function buildDataPoints(
   }
   const buckets = Array.from(bucketSet).sort();
 
-  return buckets.map((bucket) => {
+  return buckets.map((bucket, index) => {
     const point: Record<string, string | number> = { bucket };
     for (const s of series) {
       const key = seriesKey(s);
@@ -51,7 +51,12 @@ export function buildDataPoints(
     if (previousSeries) {
       for (const ps of previousSeries) {
         const key = `prev_${seriesKey(ps)}`;
-        const dp = ps.data.find((d) => d.bucket === bucket);
+        // Previous-period buckets have different date values than current-period
+        // buckets (e.g. "2026-02-13" vs "2026-02-20"), so matching by bucket
+        // string never works. Use positional index instead: the i-th bucket of
+        // the current period corresponds to the i-th data point of the previous
+        // period.
+        const dp = ps.data[index];
         point[key] = dp?.value ?? 0;
       }
     }

@@ -17,6 +17,9 @@ export const VERIFICATION_ATTEMPTS_WINDOW_SECONDS = 10 * 60;
 export const ANALYTICS_CACHE_TTL_SECONDS = 3600; // 1 hour
 export const PROPERTY_NAMES_CACHE_TTL_SECONDS = 3600; // 1 hour
 
+/** Redis key prefix for all analytics result cache entries. Format: analytics:{projectId}:{rest} */
+export const ANALYTICS_CACHE_KEY_PREFIX = 'analytics';
+
 export const AI_MAX_TOOL_CALL_ITERATIONS = 10;
 export const AI_CONTEXT_MESSAGE_LIMIT = 60;
 export const AI_RATE_LIMIT_PER_MINUTE = parseInt(process.env.AI_RATE_LIMIT_PER_MINUTE ?? '20', 10);

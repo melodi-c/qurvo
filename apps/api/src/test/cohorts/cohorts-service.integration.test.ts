@@ -16,7 +16,7 @@ let staticService: StaticCohortsService;
 
 beforeAll(async () => {
   ctx = await getTestContext();
-  service = new CohortsService(ctx.db as any, ctx.ch as any);
+  service = new CohortsService(ctx.db as any, ctx.ch as any, ctx.redis as any);
   staticService = new StaticCohortsService(ctx.db as any, ctx.ch as any, service);
 }, 120_000);
 
@@ -811,5 +811,71 @@ describe('CohortsService.getSizeHistory — non-existent cohortId', () => {
     await expect(
       service.getSizeHistory(projectB, cohort.id),
     ).rejects.toThrow(CohortNotFoundException);
+  });
+});
+
+// ── Cache invalidation on cohort update ──────────────────────────────────────
+
+describe('CohortsService.update — analytics cache invalidation', () => {
+  it('deletes all analytics:{projectId}:* keys from Redis after update()', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'Cache Invalidation Test Cohort',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }],
+      },
+    });
+
+    // Manually write two fake analytics cache entries for this project
+    // to simulate cached trend / funnel results.
+    const keyA = `analytics:${projectId}:trend_result:anonymous:abcd1234abcd1234`;
+    const keyB = `analytics:${projectId}:funnel_result:widget-uuid:5678567856785678`;
+    // Also write a key for a different project to verify isolation
+    const otherProjectId = randomUUID();
+    const keyOther = `analytics:${otherProjectId}:trend_result:anonymous:ffffffffffffffff`;
+
+    await ctx.redis.set(keyA, '{"data":[],"cached_at":"2025-01-01T00:00:00.000Z"}', 'EX', 3600);
+    await ctx.redis.set(keyB, '{"data":[],"cached_at":"2025-01-01T00:00:00.000Z"}', 'EX', 3600);
+    await ctx.redis.set(keyOther, '{"data":[],"cached_at":"2025-01-01T00:00:00.000Z"}', 'EX', 3600);
+
+    // Trigger update — fire-and-forget invalidation runs in background
+    await service.update(projectId, cohort.id, {
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'enterprise' }],
+      },
+    });
+
+    // Wait briefly for the fire-and-forget SCAN+DEL to complete
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const afterA = await ctx.redis.exists(keyA);
+    const afterB = await ctx.redis.exists(keyB);
+    const afterOther = await ctx.redis.exists(keyOther);
+
+    expect(afterA).toBe(0); // deleted
+    expect(afterB).toBe(0); // deleted
+    expect(afterOther).toBe(1); // untouched — different project
+  });
+
+  it('does not delete any keys when there are no cached analytics entries for the project', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    const cohort = await service.create(userId, projectId, {
+      name: 'No Cache Cohort',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'tier', operator: 'eq', value: 'basic' }],
+      },
+    });
+
+    // No cache entries seeded — update should not throw
+    await expect(
+      service.update(projectId, cohort.id, {
+        name: 'No Cache Cohort (renamed)',
+      }),
+    ).resolves.not.toThrow();
   });
 });
