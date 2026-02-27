@@ -397,3 +397,127 @@ describe('queryFunnel — property breakdown empty string vs null', () => {
     expect(emptyStringSteps).toHaveLength(0);
   });
 });
+
+describe('queryFunnel — breakdown groups ordered by popularity', () => {
+  it('returns groups sorted by step-1 entered count descending', async () => {
+    const projectId = randomUUID();
+
+    // Three browser groups with different entered counts:
+    //   Chrome:  5 users enter step 1
+    //   Firefox: 3 users enter step 1
+    //   Safari:  1 user  enters step 1
+    // Expected order: Chrome, Firefox, Safari
+
+    const events = [
+      ...Array.from({ length: 5 }, (_, i) =>
+        buildEvent({
+          project_id: projectId, person_id: randomUUID(), distinct_id: `chrome-${i}`,
+          event_name: 'signup', browser: 'Chrome', timestamp: msAgo(5000 + i * 100),
+        }),
+      ),
+      ...Array.from({ length: 3 }, (_, i) =>
+        buildEvent({
+          project_id: projectId, person_id: randomUUID(), distinct_id: `firefox-${i}`,
+          event_name: 'signup', browser: 'Firefox', timestamp: msAgo(4000 + i * 100),
+        }),
+      ),
+      buildEvent({
+        project_id: projectId, person_id: randomUUID(), distinct_id: 'safari-0',
+        event_name: 'signup', browser: 'Safari', timestamp: msAgo(3000),
+      }),
+    ];
+
+    await insertTestEvents(ctx.ch, events);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'browser',
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    // Extract distinct breakdown_value in order of first appearance (step 1 rows come first per group).
+    const step1Rows = rBd.steps.filter((s) => s.step === 1);
+    const groupOrder = step1Rows.map((s) => s.breakdown_value);
+
+    // Groups must be ordered by descending step-1 count.
+    expect(groupOrder[0]).toBe('Chrome');   // 5 users
+    expect(groupOrder[1]).toBe('Firefox');  // 3 users
+    expect(groupOrder[2]).toBe('Safari');   // 1 user
+  });
+});
+
+describe('queryFunnel — (none) does not displace real values from top-N', () => {
+  it('excludes (none) from top-N ranking so real property values are not evicted', async () => {
+    const projectId = randomUUID();
+
+    // 5 real plan values + many users without any plan.
+    // With breakdown_limit: 5, all 5 real values should appear even though (none) has more users.
+    const plans = ['starter', 'pro', 'business', 'enterprise', 'ultimate'];
+    const events: ReturnType<typeof buildEvent>[] = [];
+
+    // 100 users without a plan (none) — high count to dominate if included in top-N
+    for (let i = 0; i < 100; i++) {
+      events.push(
+        buildEvent({
+          project_id: projectId, person_id: randomUUID(), distinct_id: `noplan-${i}`,
+          event_name: 'signup', properties: JSON.stringify({}), timestamp: msAgo(8000 + i),
+        }),
+      );
+    }
+
+    // 2 users per real plan
+    for (const plan of plans) {
+      for (let i = 0; i < 2; i++) {
+        events.push(
+          buildEvent({
+            project_id: projectId, person_id: randomUUID(), distinct_id: `${plan}-${i}`,
+            event_name: 'signup', properties: JSON.stringify({ plan }), timestamp: msAgo(5000 + i * 100),
+          }),
+        );
+      }
+    }
+
+    await insertTestEvents(ctx.ch, events);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'properties.plan',
+      breakdown_limit: 5,
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    const breakdownValues = new Set(rBd.steps.map((s) => s.breakdown_value));
+    // All 5 real plan values must be present.
+    for (const plan of plans) {
+      expect(breakdownValues.has(plan)).toBe(true);
+    }
+    // (none) must also be present (shown as extra, outside top-N competition).
+    expect(breakdownValues.has('(none)')).toBe(true);
+    // Total groups = 5 real + 1 (none) = 6, not limited to 5.
+    expect(breakdownValues.size).toBe(6);
+    // breakdown_truncated is false because all 5 real values fit within the limit.
+    expect(rBd.breakdown_truncated).toBe(false);
+
+    // (none) must be last in the ordering.
+    const step1Rows = rBd.steps.filter((s) => s.step === 1);
+    expect(step1Rows[step1Rows.length - 1]!.breakdown_value).toBe('(none)');
+  });
+});
