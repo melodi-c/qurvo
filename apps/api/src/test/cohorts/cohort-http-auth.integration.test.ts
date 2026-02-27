@@ -272,16 +272,7 @@ describe('Viewer → write endpoints → 403', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it('POST /api/projects/:id/cohorts/preview-count → 403 for viewer', async () => {
-    const { projectId } = await createProject();
-    const { token: viewerToken } = await createUserWithRole(projectId, 'viewer');
-
-    const res = await req('POST', `/api/projects/${projectId}/cohorts/preview-count`, viewerToken, {
-      definition: VALID_DEFINITION,
-    });
-
-    expect(res.statusCode).toBe(403);
-  });
+  // preview-count is a read operation — intentionally accessible to viewer (no @RequireRole guard)
 });
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -330,6 +321,18 @@ describe('Viewer → read endpoints → 200', () => {
 
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.json())).toBe(true);
+  });
+
+  it('POST /api/projects/:id/cohorts/preview-count → 200 for viewer (read-only operation)', async () => {
+    const { projectId } = await createProject();
+    const { token: viewerToken } = await createUserWithRole(projectId, 'viewer');
+
+    const res = await req('POST', `/api/projects/${projectId}/cohorts/preview-count`, viewerToken, {
+      definition: VALID_DEFINITION,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveProperty('count');
   });
 });
 
