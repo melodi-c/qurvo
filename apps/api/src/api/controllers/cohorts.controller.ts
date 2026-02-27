@@ -110,7 +110,7 @@ export class CohortsController {
     @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Query() query: CohortSizeHistoryQueryDto,
   ): Promise<CohortHistoryPointDto[]> {
-    return this.cohortsService.getSizeHistory(projectId, cohortId, query.days!) as any;
+    return this.cohortsService.getSizeHistory(projectId, cohortId, query.days ?? 30) as any;
   }
 
   @Get(':cohortId/count')
@@ -122,7 +122,6 @@ export class CohortsController {
     return { count };
   }
 
-  @RequireRole('editor')
   @Post('preview-count')
   async previewCount(
     @Param('projectId') projectId: string,

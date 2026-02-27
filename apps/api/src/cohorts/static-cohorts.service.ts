@@ -212,14 +212,18 @@ export class StaticCohortsService {
   }
 
   private async resolveEmailsToPersonIds(projectId: string, emails: string[]): Promise<string[]> {
+    // Normalise emails to lowercase — ClickHouse string comparison is case-sensitive,
+    // and CSV files from external systems often have different casing.
+    const normalizedEmails = emails.map((e) => e.toLowerCase());
+
     // Resolve via ClickHouse events — latest user_properties email
     const result = await this.ch.query({
       query: `
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND JSONExtractString(user_properties, 'email') IN {emails:Array(String)}`,
-      query_params: { project_id: projectId, emails },
+          AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
+      query_params: { project_id: projectId, emails: normalizedEmails },
       format: 'JSONEachRow',
     });
     const rows = await result.json<{ resolved_person_id: string }>();
@@ -227,14 +231,20 @@ export class StaticCohortsService {
   }
 
   private async insertStaticMembers(projectId: string, cohortId: string, personIds: string[]) {
-    await this.ch.insert({
-      table: 'person_static_cohort',
-      values: personIds.map((pid) => ({
-        project_id: projectId,
-        cohort_id: cohortId,
-        person_id: pid,
-      })),
-      format: 'JSONEachRow',
-    });
+    // Insert in chunks of 5 000 to avoid memory spikes and ClickHouse query-size limits
+    // when importing large CSV files (up to ~135 k rows).
+    const CHUNK_SIZE = 5_000;
+    for (let i = 0; i < personIds.length; i += CHUNK_SIZE) {
+      const chunk = personIds.slice(i, i + CHUNK_SIZE);
+      await this.ch.insert({
+        table: 'person_static_cohort',
+        values: chunk.map((pid) => ({
+          project_id: projectId,
+          cohort_id: cohortId,
+          person_id: pid,
+        })),
+        format: 'JSONEachRow',
+      });
+    }
   }
 }
