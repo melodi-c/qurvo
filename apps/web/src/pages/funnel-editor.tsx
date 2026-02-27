@@ -86,9 +86,10 @@ export default function FunnelEditorPage() {
   const activeIsLoading = isTimeToConvert ? ttcIsLoading : isLoading;
   const activeIsFetching = isTimeToConvert ? ttcIsFetching : isFetching;
   const activeShowSkeleton = showSkeleton(activeIsLoading, isTimeToConvert ? ttcData : data);
-  const activeIsEmpty = isTimeToConvert
-    ? !ttcResult || ttcResult.sample_size === 0
-    : !steps || steps.length === 0;
+  // For TTC view, never treat empty data as "no results" — TimeToConvertChart
+  // renders its own EmptyState so the step selectors (from/to step) remain
+  // visible and interactive even when the query returns no data.
+  const activeIsEmpty = isTimeToConvert ? false : !steps || steps.length === 0;
 
   return (
     <InsightEditorLayout
