@@ -54,8 +54,10 @@ const MAX_BINS = 60;
  *                     This prevents earliest-ever occurrences (before step 0) from
  *                     skewing TTC when from_step > 0.
  *   converted       — filter to users who reached to_step within window
- *   final SELECT    — computes avg, median, min, max, count AND collects all
+ *   final SELECT    — computes avg, min, max, count AND collects all
  *                     duration_seconds values in groupArray — all in one pass.
+ *                     Median is computed in TypeScript from the durations array
+ *                     for exact results (traditional statistical median).
  *
  * Histogram binning is done in JS from the returned durations array:
  *   - bin_count and bin_width are computed from server-side min/max/count
@@ -311,7 +313,6 @@ export async function queryFunnelTimeToConvert(
     )
     SELECT
       avgIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-      quantileIf(0.5)(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
       toInt64(countIf(duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
       minIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
       maxIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
@@ -329,11 +330,27 @@ export async function queryFunnelTimeToConvert(
 
 interface TtcAggRow {
   avg_seconds: string | null;
-  median_seconds: string | null;
   sample_size: string;
   min_seconds: string | null;
   max_seconds: string | null;
   durations: number[];
+}
+
+/**
+ * Compute the exact median from a sorted array of numbers.
+ *
+ * For even-length arrays, returns the average of the two middle values
+ * (traditional statistical median). This is consistent with the histogram
+ * bins derived from the same `durations` array.
+ */
+function exactMedian(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) {
+    return sorted[mid]!;
+  }
+  return (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
 function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): TimeToConvertResult {
@@ -345,7 +362,9 @@ function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): Time
   }
 
   const avgSeconds = row.avg_seconds != null ? Math.round(Number(row.avg_seconds)) : null;
-  const medianSeconds = row.median_seconds != null ? Math.round(Number(row.median_seconds)) : null;
+  const durations: number[] = row.durations ?? [];
+  const rawMedian = exactMedian(durations);
+  const medianSeconds = rawMedian != null ? Math.round(rawMedian) : null;
   const minVal = Number(row.min_seconds ?? 0);
   const maxVal = Number(row.max_seconds ?? 0);
 
@@ -365,7 +384,6 @@ function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): Time
   // Build dense bin array by iterating durations with a for-loop.
   // Using a loop (not Math.min/max spread) avoids V8 stack overflow on large arrays.
   const binCountByIdx = new Map<number, number>();
-  const durations: number[] = row.durations ?? [];
   for (const d of durations) {
     const idx = Math.max(0, Math.min(binCount - 1, Math.floor((d - minVal) / binWidth)));
     binCountByIdx.set(idx, (binCountByIdx.get(idx) ?? 0) + 1);
@@ -528,7 +546,6 @@ async function buildUnorderedTtcSql(
     )
     SELECT
       avgIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-      quantileIf(0.5)(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
       toInt64(countIf(duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
       minIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
       maxIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
