@@ -30,6 +30,7 @@ export default createTranslations({
     duplicateFailed: 'Failed to duplicate cohort',
     settings: 'Settings',
     hideSettings: 'Hide settings',
+    viewerNoPreview: 'Preview requires editor access',
   },
   ru: {
     backLabel: 'Когорты',
@@ -60,5 +61,6 @@ export default createTranslations({
     duplicateFailed: 'Не удалось продублировать когорту',
     settings: 'Настройки',
     hideSettings: 'Скрыть настройки',
+    viewerNoPreview: 'Предпросмотр доступен только редакторам',
   },
 });
