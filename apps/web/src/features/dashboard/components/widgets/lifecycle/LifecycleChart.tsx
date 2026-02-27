@@ -77,6 +77,7 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
               labelFormatter={(v) => formatBucket(v as string, result.granularity, false, timezone)}
+              formatter={(value: number) => [Math.abs(value), undefined]}
             />
             <Bar dataKey="new" stackId="a" fill={LIFECYCLE_STATUS_COLORS.new} name={t('new')} />
             <Bar dataKey="returning" stackId="a" fill={LIFECYCLE_STATUS_COLORS.returning} name={t('returning')} />

@@ -40,7 +40,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
       isEmpty={!result || result.steps.length === 0}
       emptyMessage={t('noEventsFound')}
       emptyHint={t('tryAdjusting')}
-      metric={<span className="text-xl font-bold tabular-nums text-primary">{overallConversion}%</span>}
+      metric={<span className="text-xl font-bold tabular-nums text-primary">{overallConversion !== null ? `${overallConversion}%` : '\u2014'}</span>}
       metricSecondary={
         <span className="text-xs text-muted-foreground tabular-nums truncate">
           {totalEntered?.toLocaleString()} &rarr; {totalConverted?.toLocaleString()}
