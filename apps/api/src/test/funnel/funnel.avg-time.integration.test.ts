@@ -130,6 +130,160 @@ describe('queryFunnel — avg_time_to_convert for unordered funnel', () => {
   });
 });
 
+// ── avg_time_to_convert: unordered funnel anchor_ms order-independence (issue #545) ──
+
+describe('queryFunnel — unordered funnel anchor_ms is deterministic regardless of array order (issue #545)', () => {
+  it('picks the latest qualifying step-0 anchor when multiple qualify, regardless of array order', async () => {
+    // Scenario: user has THREE step-0 occurrences, all within window of step-1.
+    // The correct anchor is the LATEST qualifying one (arrayMax), matching ordered-funnel
+    // semantics (maxIf heuristic from issue #474) and ensuring exclusion scoping
+    // works correctly (issue #497).
+    //
+    // step-0 at T-60s (qualifies, but not the latest)
+    // step-0 at T-30s (qualifies, but not the latest)
+    // step-0 at T-10s (latest qualifying anchor)
+    // step-1 at T
+    //
+    // All three step-0 timestamps cover step-1 within the 7-day window.
+    // Correct anchor = T-10s → avg_time = 10s.
+    //
+    // With the old arrayFirst: depending on groupArrayIf order,
+    // anchor could be any of the three — nondeterministic.
+    // With arrayMax(arrayFilter(...)): always picks T-10s → avg_time=10s.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-anchor',
+        event_name: 'step_a',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-anchor',
+        event_name: 'step_a',
+        timestamp: msAgo(30_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-anchor',
+        event_name: 'step_a',
+        timestamp: msAgo(10_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-anchor',
+        event_name: 'step_b',
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'Step A' },
+        { event_name: 'step_b', label: 'Step B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+
+    // anchor_ms should be the latest qualifying step-0 = T-10s.
+    // avg_time = (last_step_ms - first_step_ms) = T - (T-10s) = 10s.
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    // Must be ~10s (latest anchor), deterministic regardless of array order.
+    expect(avgTime!).toBeGreaterThan(5);
+    expect(avgTime!).toBeLessThan(20);
+  });
+
+  it('picks latest anchor across 3-step funnel with multiple qualifying anchors', async () => {
+    // 3-step funnel. User has two step-0 occurrences, both within window.
+    //
+    // step-0 at T-50s (qualifies, but earlier)
+    // step-0 at T-20s (latest qualifying anchor)
+    // step-1 at T-10s
+    // step-2 at T
+    //
+    // Both step-0 anchors cover all 3 steps within 7-day window.
+    // Correct anchor = T-20s → avg_time = 20s.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-3step',
+        event_name: 'signup',
+        timestamp: msAgo(50_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-3step',
+        event_name: 'signup',
+        timestamp: msAgo(20_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-3step',
+        event_name: 'checkout',
+        timestamp: msAgo(10_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'multi-3step',
+        event_name: 'purchase',
+        timestamp: msAgo(0),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+    expect(r.steps[2].count).toBe(1);
+
+    // anchor = T-20s, last_step = T → avg_time ≈ 20s
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    expect(avgTime!).toBeGreaterThan(15);
+    expect(avgTime!).toBeLessThan(30);
+
+    // Last step always null
+    expect(r.steps[2].avg_time_to_convert_seconds).toBeNull();
+  });
+});
+
 // ── avg_time_to_convert: OR-logic steps ─────────────────────────────────────
 
 describe('queryFunnel — avg_time_to_convert for OR-logic steps (ordered funnel)', () => {

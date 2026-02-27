@@ -81,10 +81,15 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
     ? maxFromEachStep[0]!
     : `greatest(${maxFromEachStep.join(', ')})`;
 
-  // ── Step 4: anchor_ms — first anchor achieving full coverage (all N steps) ──
-  // arrayFirst(pred, arr): returns first element where pred(element) != 0; returns 0 if none.
-  // We try each step array in turn and take the first non-zero result.
-  // The WHERE guard (t0_arr non-empty) already ensures step-0 is present.
+  // ── Step 4: anchor_ms — latest anchor achieving full coverage (all N steps) ──
+  // arrayMax(arrayFilter(pred, arr)): returns the maximum (latest) element satisfying
+  // the predicate, independent of array order. arrayMax of an empty array returns 0.
+  // We pick the LATEST qualifying anchor (not earliest) to match ordered-funnel
+  // semantics (maxIf heuristic from issue #474) and to correctly scope exclusion
+  // checks to the most recent conversion window (issue #497).
+  // The original arrayFirst(pred, arr) was order-dependent because groupArrayIf
+  // does not guarantee element order — replaced with arrayMax(arrayFilter(...))
+  // which is deterministic regardless of storage order (issue #545).
   let anchorMsExpr: string;
   if (N === 1) {
     // Single step: anchor = the minimum timestamp in the array (any event qualifies).
@@ -92,13 +97,13 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
   } else {
     const fullCovPred = (i: number): string =>
       `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
-    const firsts = steps.map((_, i) =>
-      `arrayFirst(${fullCovPred(i)}, t${i}_arr)`,
+    const maxes = steps.map((_, i) =>
+      `arrayMax(arrayFilter(${fullCovPred(i)}, t${i}_arr))`,
     );
     // Nested if/else: if(x0 != 0, x0, if(x1 != 0, x1, ... 0))
     let expr = `toInt64(0)`;
-    for (let i = firsts.length - 1; i >= 0; i--) {
-      expr = `if(toInt64(${firsts[i]}) != 0, toInt64(${firsts[i]}), ${expr})`;
+    for (let i = maxes.length - 1; i >= 0; i--) {
+      expr = `if(toInt64(${maxes[i]}) != 0, toInt64(${maxes[i]}), ${expr})`;
     }
     anchorMsExpr = expr;
   }
