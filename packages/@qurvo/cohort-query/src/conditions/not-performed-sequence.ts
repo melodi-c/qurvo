@@ -7,7 +7,7 @@ export function buildNotPerformedEventSequenceSubquery(
   cond: CohortNotPerformedEventSequenceCondition,
   ctx: BuildContext,
 ): string {
-  const { pattern, stepConditions, daysPk } = buildSequenceCore(cond, ctx);
+  const { stepIndexExpr, seqMatchExpr, daysPk } = buildSequenceCore(cond, ctx);
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
 
@@ -25,9 +25,9 @@ export function buildNotPerformedEventSequenceSubquery(
    *   Funnel: 01.12 – 31.12   (date_from = 01.12, date_to = 31.12)
    *   Cohort: "did NOT perform signup→purchase in last 90 days"
    *   Rolling window (old): [01.10, 31.12] — user who completed the sequence
-   *                         on 15.10 → EXCLUDED ✗ (false exclusion)
+   *                         on 15.10 → EXCLUDED (false exclusion)
    *   Fixed window (new):   [01.12, 31.12] — user who completed the sequence
-   *                         on 15.10 → INCLUDED ✓
+   *                         on 15.10 → INCLUDED
    *
    * When only `ctx.dateTo` is set (or neither, e.g. cohort-worker recomputation),
    * we fall back to the traditional rolling window `[dateTo - N days, dateTo]`
@@ -44,16 +44,20 @@ export function buildNotPerformedEventSequenceSubquery(
     SELECT person_id
     FROM (
       SELECT
-        ${RESOLVED_PERSON} AS person_id,
-        sequenceMatch('${pattern}')(
-          toDateTime(timestamp),
-          ${stepConditions.join(',\n          ')}
-        ) AS seq_match
-      FROM events
-      WHERE
-        project_id = {${ctx.projectIdParam}:UUID}
-        AND timestamp >= ${lowerBoundExpr}
-        AND timestamp <= ${upperBound}
+        person_id,
+        ${seqMatchExpr} AS seq_match
+      FROM (
+        SELECT
+          ${RESOLVED_PERSON} AS person_id,
+          timestamp,
+          ${stepIndexExpr} AS step_idx
+        FROM events
+        WHERE
+          project_id = {${ctx.projectIdParam}:UUID}
+          AND timestamp >= ${lowerBoundExpr}
+          AND timestamp <= ${upperBound}
+      )
+      WHERE step_idx > 0
       GROUP BY person_id
     )
     WHERE seq_match = 0`;
