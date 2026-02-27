@@ -92,6 +92,60 @@ describe('queryFunnelTimeToConvert', () => {
     expect(totalBinCount).toBe(2);
   });
 
+  it('returns a single bin when all users convert in exactly the same time (range = 0)', async () => {
+    // Acceptance criterion from issue #494:
+    // When all converters take exactly the same time, the histogram must return
+    // exactly 1 bin containing all users — not binCount bins with 9 empty ones.
+    const projectId = randomUUID();
+    const now = Date.now();
+    const users = Array.from({ length: 5 }, () => randomUUID());
+
+    // All 5 users convert in exactly 30 seconds (signup at T-30s, purchase at T-0s).
+    await insertTestEvents(ctx.ch, users.flatMap((personId, i) => [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `same-ttc-${i}`,
+        event_name: 'signup',
+        timestamp: new Date(now - 30_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `same-ttc-${i}`,
+        event_name: 'purchase',
+        timestamp: new Date(now).toISOString(),
+      }),
+    ]));
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(result.sample_size).toBe(5);
+
+    // Must return exactly 1 bin (not 10 bins with 9 empty)
+    expect(result.bins).toHaveLength(1);
+
+    // The single bin must contain all 5 users
+    expect(result.bins[0].count).toBe(5);
+
+    // The single bin starts at ~30 seconds
+    expect(result.bins[0].from_seconds).toBeCloseTo(30, 0);
+
+    // to_seconds must be from_seconds + 1 (minimal non-zero width for point bins)
+    expect(result.bins[0].to_seconds).toBe(result.bins[0].from_seconds + 1);
+  });
+
   it('excludes conversions beyond the conversion window from avg and median', async () => {
     const projectId = randomUUID();
     const personA = randomUUID();

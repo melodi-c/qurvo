@@ -57,6 +57,12 @@ export function createAnalyticsQueryProvider<
             );
           }
 
+          if (breakdown_type === 'cohort' && !breakdown_cohort_ids?.length) {
+            throw new AppBadRequestException(
+              "breakdown_cohort_ids must have at least one cohort when breakdown_type is 'cohort'",
+            );
+          }
+
           if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {
             mutableParams.breakdown_cohort_ids =
               await cohortsService.resolveCohortBreakdowns(params.project_id, breakdown_cohort_ids);
