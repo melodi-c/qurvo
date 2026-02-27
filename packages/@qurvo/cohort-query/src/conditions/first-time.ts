@@ -22,7 +22,8 @@ export function buildFirstTimeEventSubquery(
     FROM events
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
-      AND event_name = {${eventPk}:String}${filterClause}
+      AND event_name = {${eventPk}:String}
+      AND timestamp <= ${upperBound}${filterClause}
     GROUP BY person_id
     HAVING min(timestamp) >= ${upperBound} - INTERVAL {${daysPk}:UInt32} DAY`;
 }
