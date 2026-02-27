@@ -578,3 +578,121 @@ describe('importStaticCohortCsv — email resolution', () => {
     expect(resolvedIds).toEqual([personA, personB].sort());
   });
 });
+
+// ── resolveDistinctIdsToPersonIds (via importStaticCohortCsv path) ────────────
+// Mirrors StaticCohortsService.resolveDistinctIdsToPersonIds SQL directly.
+
+describe('importStaticCohortCsv — distinct_id resolution', () => {
+  it('resolves distinct_id to person_id via ClickHouse events', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'alice-distinct',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    // Resolve known + unknown distinct_ids — mirrors StaticCohortsService.resolveDistinctIdsToPersonIds
+    const distinctIds = ['alice-distinct', 'unknown-distinct'];
+    const result = await ctx.ch.query({
+      query: `
+        SELECT DISTINCT
+          coalesce(
+            dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)),
+            person_id
+          ) AS resolved_person_id
+        FROM events
+        WHERE project_id = {project_id:UUID}
+          AND distinct_id IN {ids:Array(String)}`,
+      query_params: { project_id: projectId, ids: distinctIds },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ resolved_person_id: string }>();
+
+    // alice-distinct resolves, unknown-distinct does not appear
+    expect(rows.length).toBe(1);
+    expect(rows[0].resolved_person_id).toBe(personA);
+  });
+
+  it('resolves multiple known distinct_ids and ignores unknown', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'did-alice',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(2000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'did-bob',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const distinctIds = ['did-alice', 'did-bob', 'did-nobody'];
+    const result = await ctx.ch.query({
+      query: `
+        SELECT DISTINCT
+          coalesce(
+            dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)),
+            person_id
+          ) AS resolved_person_id
+        FROM events
+        WHERE project_id = {project_id:UUID}
+          AND distinct_id IN {ids:Array(String)}`,
+      query_params: { project_id: projectId, ids: distinctIds },
+      format: 'JSONEachRow',
+    });
+    const rows = await result.json<{ resolved_person_id: string }>();
+
+    expect(rows.length).toBe(2);
+    const resolvedIds = rows.map((r) => r.resolved_person_id).sort();
+    expect(resolvedIds).toEqual([personA, personB].sort());
+  });
+});
+
+// ── countCohortMembers: empty group sentinel { type: 'AND', values: [] } → 0 ──
+
+describe('countCohortMembers — empty group sentinel', () => {
+  it('{ type: "AND", values: [] } returns 0 even when events exist', async () => {
+    const projectId = randomUUID();
+
+    // Insert events so that any miscoded "match all" would return > 0
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'sentinel-p1',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(1000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'sentinel-p2',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: msAgo(500),
+      }),
+    ]);
+
+    const count = await countCohortMembers(ctx.ch, projectId, { type: 'AND', values: [] });
+    expect(count).toBe(0);
+  });
+});

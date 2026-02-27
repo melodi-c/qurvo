@@ -1034,6 +1034,14 @@ describe('countCohortMembers — restarted_performing', () => {
 // "recent performers" and incorrectly exclude them from stopped_performing
 // (or incorrectly qualify them for restarted_performing).
 
+/**
+ * Formats a Date to the ClickHouse DateTime-compatible string "YYYY-MM-DD HH:mm:ss".
+ * This matches the format expected by DateTime64(3) query parameters.
+ */
+function toChDateTime(d: Date): string {
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 describe('stopped_performing — dateTo upper bound', () => {
   it('event after dateTo does not exclude user from stopped_performing', async () => {
     const projectId = randomUUID();
@@ -1074,7 +1082,7 @@ describe('stopped_performing — dateTo upper bound', () => {
     // dateTo = 10 days ago: churnedUser had historical activity but no activity
     // in the recent [17d, 10d] window. The post-dateTo event must NOT make them
     // appear as a "recent performer" and incorrectly exclude them.
-    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const dateTo = toChDateTime(new Date(Date.now() - 10 * DAY_MS));
     const count = await countCohortMembersAt(ctx, projectId, {
       type: 'AND',
       values: [
@@ -1120,7 +1128,7 @@ describe('stopped_performing — dateTo upper bound', () => {
       }),
     ]);
 
-    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const dateTo = toChDateTime(new Date(Date.now() - 10 * DAY_MS));
     const count = await countCohortMembersAt(ctx, projectId, {
       type: 'AND',
       values: [
@@ -1173,7 +1181,7 @@ describe('restarted_performing — dateTo upper bound', () => {
       }),
     ]);
 
-    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const dateTo = toChDateTime(new Date(Date.now() - 10 * DAY_MS));
     const count = await countCohortMembersAt(ctx, projectId, {
       type: 'AND',
       values: [
@@ -1225,7 +1233,7 @@ describe('restarted_performing — dateTo upper bound', () => {
       }),
     ]);
 
-    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const dateTo = toChDateTime(new Date(Date.now() - 10 * DAY_MS));
     const count = await countCohortMembersAt(ctx, projectId, {
       type: 'AND',
       values: [
