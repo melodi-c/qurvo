@@ -219,9 +219,8 @@ export class CohortsService {
 
   async previewCount(
     projectId: string,
-    definition: CohortConditionGroup | undefined,
+    definition: CohortConditionGroup,
   ): Promise<number> {
-    if (!definition) return 0;
     const enriched = await this.enrichDefinition(projectId, definition);
     return countCohortMembers(this.ch, projectId, enriched);
   }

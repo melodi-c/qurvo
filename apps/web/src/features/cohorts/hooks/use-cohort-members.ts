@@ -6,6 +6,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { extractApiErrorMessage } from '@/lib/utils';
 
 const PERSONS_LIMIT = 10;
+const MEMBERS_LIMIT = 20;
 
 interface MutationMessages {
   success: string;
@@ -24,6 +25,7 @@ export function useAddCohortMembers(cohortId: string, messages: MutationMessages
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'count'] });
+      qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
       toast.success(messages.success);
     },
     onError: (err) => {
@@ -44,6 +46,7 @@ export function useRemoveCohortMembers(cohortId: string, messages: MutationMessa
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'count'] });
+      qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
       toast.success(messages.success);
     },
     onError: (err) => {
@@ -69,4 +72,27 @@ export function usePersonSearch(search: string, page: number) {
   });
 }
 
-export { PERSONS_LIMIT };
+export function useStaticCohortMembers(cohortId: string, page: number) {
+  const projectId = useProjectId();
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ['cohorts', projectId, cohortId, 'members', page],
+    queryFn: () =>
+      api.staticCohortsControllerGetMembers({
+        projectId,
+        cohortId,
+        limit: MEMBERS_LIMIT,
+        offset: page * MEMBERS_LIMIT,
+      }),
+    enabled: !!projectId && !!cohortId,
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
+  };
+
+  return { ...query, invalidate };
+}
+
+export { PERSONS_LIMIT, MEMBERS_LIMIT };

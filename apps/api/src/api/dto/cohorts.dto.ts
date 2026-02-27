@@ -10,6 +10,7 @@ import {
   Min,
   Max,
   MaxLength,
+  IsDefined,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -56,10 +57,11 @@ export class UpdateCohortDto {
 }
 
 export class CohortPreviewDto {
+  @IsDefined()
   @ValidateNested()
   @Type(() => CohortConditionGroupDto)
-  @IsOptional()
-  definition?: CohortConditionGroupDto;
+  @ApiProperty({ type: CohortConditionGroupDto })
+  definition: CohortConditionGroupDto;
 }
 
 export class CreateStaticCohortDto {
@@ -93,19 +95,19 @@ export class UploadCsvDto {
 // ── Response DTOs ────────────────────────────────────────────────────────────
 
 export class CohortDto {
-  id: string;
-  project_id: string;
-  created_by: string;
-  name: string;
+  @ApiProperty() id: string;
+  @ApiProperty() project_id: string;
+  @ApiProperty() created_by: string;
+  @ApiProperty() name: string;
   @ApiPropertyOptional() description: string | null;
   @ApiPropertyOptional({ type: CohortConditionGroupDto })
   definition: CohortConditionGroupDto | null;
-  is_static: boolean;
-  errors_calculating: number;
+  @ApiProperty() is_static: boolean;
+  @ApiProperty() errors_calculating: number;
   @ApiPropertyOptional() last_error_at: string | null;
   @ApiPropertyOptional() last_error_message: string | null;
-  created_at: string;
-  updated_at: string;
+  @ApiProperty() created_at: string;
+  @ApiProperty() updated_at: string;
 }
 
 export class CohortMemberCountDto {
