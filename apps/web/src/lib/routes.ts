@@ -192,18 +192,6 @@ export const routes = {
     '/projects/:projectId/ai',
     (projectId: string) => `/projects/${projectId}/ai`,
   ),
-  aiDiscoveries: route(
-    '/projects/:projectId/ai/discoveries',
-    (projectId: string) => `/projects/${projectId}/ai/discoveries`,
-  ),
-  aiMonitors: route(
-    '/projects/:projectId/ai/monitors',
-    (projectId: string) => `/projects/${projectId}/ai/monitors`,
-  ),
-  aiScheduledJobs: route(
-    '/projects/:projectId/ai/scheduled-jobs',
-    (projectId: string) => `/projects/${projectId}/ai/scheduled-jobs`,
-  ),
   dataManagement: {
     list: route(
       '/projects/:projectId/data-management',
