@@ -13,7 +13,7 @@ import { RetentionChart } from '@/features/dashboard/components/widgets/retentio
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
-import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_GRID_COLOR, chartAxisTick } from '@/lib/chart-colors';
+import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_GRID_COLOR, STATUS_COLORS_HEX, chartAxisTick } from '@/lib/chart-colors';
 import { formatCompactNumber } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectId } from '@/hooks/use-project-id';
@@ -428,7 +428,7 @@ function RootCauseChart({ data }: RootCauseChartProps) {
             {chartData.map((entry) => (
               <Cell
                 key={entry.name}
-                fill={entry.contribution >= 0 ? '#10b981' : '#ef4444'}
+                fill={entry.contribution >= 0 ? STATUS_COLORS_HEX.positive : STATUS_COLORS_HEX.negative}
               />
             ))}
           </Bar>
@@ -495,7 +495,7 @@ function FunnelGapChart({ data }: FunnelGapChartProps) {
             {chartData.map((entry) => (
               <Cell
                 key={entry.name}
-                fill={entry.lift >= 0 ? '#10b981' : '#ef4444'}
+                fill={entry.lift >= 0 ? STATUS_COLORS_HEX.positive : STATUS_COLORS_HEX.negative}
               />
             ))}
           </Bar>

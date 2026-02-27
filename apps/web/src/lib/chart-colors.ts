@@ -76,6 +76,12 @@ export const STATUS_COLORS = {
   successText: 'text-green-400',
 } as const;
 
+/** Hex equivalents of STATUS_COLORS for SVG/Recharts fill props (emerald-500 / red-500). */
+export const STATUS_COLORS_HEX = {
+  positive: '#10b981',
+  negative: '#ef4444',
+} as const;
+
 /** Event type icon colors — keyed by event name prefix. */
 export const EVENT_TYPE_COLORS = {
   pageview: 'text-blue-400',
