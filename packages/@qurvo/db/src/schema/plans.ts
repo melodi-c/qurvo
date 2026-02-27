@@ -5,7 +5,6 @@ export interface PlanFeatures {
   lifecycle: boolean;
   stickiness: boolean;
   api_export: boolean;
-  ai_insights: boolean;
 }
 
 export const plans = pgTable('plans', {
