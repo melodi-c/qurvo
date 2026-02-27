@@ -98,28 +98,39 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
     ? ',\n              ' + exclColumns.join(',\n              ')
     : '';
 
-  // Build the funnel_per_user CTE. For ordered mode with timestamp columns, we use a two-CTE
-  // approach to correctly compute first_step_ms for users with multiple funnel attempts.
+  // Build the funnel_per_user CTE. For ordered/strict mode with timestamp columns, we use a
+  // two-CTE approach to correctly compute first_step_ms for users with multiple funnel attempts.
   //
-  // Problem with single-CTE minIf approach (ordered mode):
-  //   A user with step_0=Jan1 (no step_1 within window), then step_0=Feb1, step_1=Feb3 would get:
-  //   first_step_ms = Jan1 (global minIf), last_step_ms = Feb3 → 33 days instead of 2 days.
+  // Problem with single-CTE approach:
+  //   Ordered mode: minIf(step0) gives the global earliest step-0, which may be from a failed
+  //   attempt far before the successful window. E.g. step_0=Jan1 (fails), step_0=Feb1, step_1=Feb3
+  //   → first_step_ms=Jan1, last_step_ms=Feb3 → 33 days instead of 2 days (issue #493).
   //
-  // Fix (ordered mode): collect step_0 timestamps as an array, then in a second CTE derive
-  //   first_step_ms = earliest step_0 where last_step_ms falls within [step_0, step_0 + window].
-  //   This identifies the specific attempt that windowFunnel('ordered') matched.
+  //   Strict mode: maxIf(step0) gives the globally latest step-0, but minIf(last_step) gives the
+  //   globally earliest last-step. With multiple attempts, the earliest last-step may be BEFORE
+  //   the latest step-0, producing an inverted (negative) difference. E.g.:
+  //     T=100: step-0 (failed attempt)
+  //     T=200: last-step (from an isolated old attempt)
+  //     T=300: step-0 (successful attempt)
+  //     T=400: last-step (successful completion)
+  //   maxIf(step0)=300, minIf(last_step)=200 → negative → user dropped (issue #507).
   //
-  // Strict mode: keep the existing maxIf heuristic (documented as best-effort in #474).
-  //   The strict_order scenario where a user has step_0 → interruption → step_0 → step_1 is
-  //   actually not convertible via windowFunnel('strict_order') in ClickHouse (the interruption
-  //   resets the attempt and subsequent attempts also reset). The maxIf heuristic still applies
-  //   to the simple repeated step_0 case (no interruption between them).
+  // Fix (ordered + strict mode): collect step_0 timestamps as an array plus global minIf(last_step)
+  // in a raw CTE, then in a second CTE derive first_step_ms by filtering the t0 array to those
+  // where last_step_ms falls within [t0, t0+window]:
+  //   - Ordered: arrayMin of valid t0s (earliest valid anchor — matches windowFunnel('ordered'))
+  //   - Strict:  arrayMax of valid t0s (latest valid anchor — preserves maxIf heuristic from #474)
+  //
+  // The t0 <= last_step_ms filter naturally prevents inversions: if the only last-step event
+  // predates all step-0 events that could form a valid window, the filtered array is empty,
+  // first_step_ms defaults to 0, and the avgIf guard (last_step_ms > first_step_ms) ensures
+  // the user is excluded from avg_time_to_convert rather than producing a garbage result.
 
   let funnelPerUserCTE: string;
 
-  if (includeTimestampCols && orderType === 'ordered') {
-    // Two-CTE approach for ordered mode: collect step_0 timestamps + last_step_ms in raw CTE,
-    // then derive the correct first_step_ms (anchor of the successful window) in funnel_per_user.
+  if (includeTimestampCols && (orderType === 'ordered' || orderType === 'strict')) {
+    // Two-CTE approach for ordered and strict modes: collect step_0 timestamps + last_step_ms
+    // in raw CTE, then derive the correct first_step_ms in funnel_per_user.
     const winMs = `toInt64({window:UInt64}) * 1000`;
 
     const rawCTE = `funnel_raw AS (
@@ -143,31 +154,37 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
 
     const breakdownForward = breakdownExpr ? ',\n              breakdown_value' : '';
 
-    // first_step_ms: earliest step_0 timestamp where last_step_ms falls within [t0, t0 + window].
+    // first_step_ms: step_0 timestamp where last_step_ms falls within [t0, t0 + window].
     //
-    // windowFunnel('ordered') starts from the first eligible step_0 occurrence — so when
-    // multiple step_0 timestamps could anchor a valid window, the earliest one that leads to
-    // a successful conversion is the correct starting point for avg_time_to_convert.
+    // Ordered mode: arrayMin of valid t0s (earliest valid anchor).
+    //   windowFunnel('ordered') starts from the first eligible step_0 — so the earliest t0
+    //   that leads to a successful conversion is the correct starting point.
+    //
+    // Strict mode: arrayMax of valid t0s (latest valid anchor).
+    //   Consistent with the maxIf heuristic from #474: the latest step-0 that falls within
+    //   a valid window is the best proxy for the successful attempt's starting point.
+    //   The t0 <= last_step_ms constraint in the filter prevents inversions (issue #507).
     //
     // Algorithm:
-    //   1. Filter t0_arr to only elements where last_step_ms ∈ [t0, t0 + window].
-    //   2. Take arrayMin of the filtered set (the earliest valid anchor).
-    //   3. When the filtered set is empty (no valid anchor) or last_step_ms = 0 (no step_N
-    //      event found), return 0 so that the avgIf guard (last_step_ms > first_step_ms)
-    //      excludes non-converters from avg_time_to_convert.
+    //   1. Filter t0_arr to elements where t0 <= last_step_ms AND last_step_ms <= t0 + window
+    //      AND last_step_ms > 0 (guard for missing last-step event).
+    //   2. Take arrayMin (ordered) or arrayMax (strict) of the filtered set.
+    //   3. When filtered set is empty (no valid anchor), return 0 so that the avgIf guard
+    //      (last_step_ms > first_step_ms) excludes the user from avg_time_to_convert.
     //
-    // Example — issue #493 scenario (window = 7d):
+    // Example — issue #493 / ordered (window = 7d):
     //   t0_arr = [Jan1, Feb1], last_step_ms = Feb3
     //   filtered = [Feb1]  (Jan1: Feb3 > Jan1+7d → excluded; Feb1: Feb3 ≤ Feb1+7d → included)
-    //   first_step_ms = arrayMin([Feb1]) = Feb1 → 2 days ✓ (not 33 days from Jan1)
+    //   first_step_ms = arrayMin([Feb1]) = Feb1 → 2 days ✓
     //
-    // Example — single attempt (window = 7d):
-    //   t0_arr = [T-60s, T-30s], last_step_ms = T-10s
-    //   filtered = [T-60s, T-30s]  (both within 7-day window)
-    //   first_step_ms = arrayMin([T-60s, T-30s]) = T-60s → 50s ✓ (matches windowFunnel)
+    // Example — issue #507 / strict (window = 7d):
+    //   t0_arr = [T100, T300], last_step_ms = minIf(last_step) = T200
+    //   filtered = [T100]  (T100 ≤ T200 ≤ T100+window; T300 > T200 → excluded)
+    //   first_step_ms = arrayMax([T100]) = T100 → positive diff ✓ (not inverted T300 > T200)
+    const arrayAgg = orderType === 'strict' ? 'arrayMax' : 'arrayMin';
     const firstStepMsExpr = `if(
               notEmpty(arrayFilter(t0 -> t0 <= last_step_ms AND last_step_ms <= t0 + ${winMs} AND last_step_ms > 0, t0_arr)),
-              toInt64(arrayMin(arrayFilter(t0 -> t0 <= last_step_ms AND last_step_ms <= t0 + ${winMs} AND last_step_ms > 0, t0_arr))),
+              toInt64(${arrayAgg}(arrayFilter(t0 -> t0 <= last_step_ms AND last_step_ms <= t0 + ${winMs} AND last_step_ms > 0, t0_arr))),
               toInt64(0)
             )`;
 
@@ -181,19 +198,10 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
             FROM funnel_raw
           )`;
   } else {
-    // Single-CTE approach: strict mode (maxIf heuristic) or no timestamp columns needed.
-    //
-    // Strict mode heuristic: maxIf for first_step_ms — windowFunnel('strict_order') resets
-    // progress on any intervening non-step event. If a user has an early failed attempt
-    // (step-0 → interruption) followed by a successful attempt (step-0 → … → last), the LATEST
-    // step-0 is more likely to correspond to the successful sequence, making avg_time_to_convert
-    // closer to the true value.
-    // This is a best-effort heuristic. Exact per-user strict_order timing would require replaying
-    // the windowFunnel logic outside ClickHouse or using a UDF.
-    // TODO(#474): Implement exact strict_order first_step_ms via UDF or multi-CTE approach.
-    const firstStepAgg = orderType === 'strict' ? 'maxIf' : 'minIf';
+    // Single-CTE approach: no timestamp columns needed (unordered mode or breakdown mode).
+    // For unordered mode, minIf is used for both first and last step timestamps.
     const timestampCols = includeTimestampCols
-      ? `,\n              ${firstStepAgg}(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
+      ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
       : '';
 
     funnelPerUserCTE = `funnel_per_user AS (
