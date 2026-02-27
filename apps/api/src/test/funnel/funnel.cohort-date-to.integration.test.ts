@@ -156,6 +156,107 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
     expect(r.steps[1].count).toBe(1); // personA converts
   });
 
+  it('person_property condition respects date_to — user who became pro AFTER date_to must not be included', async () => {
+    const projectId = randomUUID();
+    const personUpgradedBefore = randomUUID();  // became 'pro' before date_to
+    const personUpgradedAfter = randomUUID();   // became 'pro' after date_to
+
+    const dateTo = daysAgo(10);
+
+    // personUpgradedBefore: set plan='pro' 20 days ago (before date_to=10dAgo)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personUpgradedBefore,
+        distinct_id: 'upgraded-before',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'pro' }),
+        timestamp: daysAgo(20),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personUpgradedBefore,
+        distinct_id: 'upgraded-before',
+        event_name: 'checkout',
+        user_properties: JSON.stringify({ plan: 'pro' }),
+        timestamp: daysAgo(19),
+      }),
+    ]);
+
+    // personUpgradedAfter: started as 'free', upgraded to 'pro' AFTER date_to (5 days ago)
+    // Without the fix, argMax would pick up the 'pro' value from 5 days ago,
+    // making this person appear in the cohort even for historical queries.
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personUpgradedAfter,
+        distinct_id: 'upgraded-after',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: daysAgo(20),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personUpgradedAfter,
+        distinct_id: 'upgraded-after',
+        event_name: 'checkout',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: daysAgo(19),
+      }),
+      // This event is AFTER date_to — must not influence the cohort evaluation
+      buildEvent({
+        project_id: projectId,
+        person_id: personUpgradedAfter,
+        distinct_id: 'upgraded-after',
+        event_name: '$set',
+        user_properties: JSON.stringify({ plan: 'pro' }),
+        timestamp: daysAgo(5),
+      }),
+    ]);
+
+    // Cohort: "user_properties.plan = 'pro'" evaluated at date_to=10 days ago
+    const cohortFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: {
+        type: 'AND',
+        values: [
+          {
+            type: 'person_property',
+            property: 'plan',
+            operator: 'eq',
+            value: 'pro',
+          },
+        ],
+      },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: daysAgo(30),
+      date_to: dateTo,
+      cohort_filters: [cohortFilter],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+
+    // With the fix:
+    //   personUpgradedBefore: argMax(plan) at timestamp <= 10dAgo = 'pro' → matches cohort ✓
+    //   personUpgradedAfter: argMax(plan) at timestamp <= 10dAgo = 'free' → does NOT match cohort ✗
+    //
+    // Without the fix (no timestamp upper bound):
+    //   personUpgradedAfter: argMax(plan) = 'pro' (from the event at 5dAgo) → wrongly matches cohort
+    expect(r.steps[0].count).toBe(1);  // only personUpgradedBefore
+    expect(r.steps[1].count).toBe(1);  // personUpgradedBefore converts
+  });
+
   it('behavioral cohort not_performed_event condition uses date_to anchor', async () => {
     const projectId = randomUUID();
     const personWithOldEvent = randomUUID();   // performed 'purchase' 40 days ago
