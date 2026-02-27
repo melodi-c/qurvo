@@ -121,7 +121,7 @@ export class CohortsService {
     const rows = await this.db
       .update(cohorts)
       .set(updateData)
-      .where(eq(cohorts.id, cohortId))
+      .where(and(eq(cohorts.id, cohortId), eq(cohorts.project_id, projectId)))
       .returning();
 
     return rows[0];
