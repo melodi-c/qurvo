@@ -16,6 +16,15 @@ describe('resolvePropertyExpr', () => {
     expect(resolvePropertyExpr('user_properties.email')).toBe("JSONExtractString(user_properties, 'email')");
   });
 
+  it('resolves nested dot-notation to variadic JSONExtractString', () => {
+    expect(resolvePropertyExpr('properties.address.city')).toBe(
+      "JSONExtractString(properties, 'address', 'city')",
+    );
+    expect(resolvePropertyExpr('user_properties.location.country.code')).toBe(
+      "JSONExtractString(user_properties, 'location', 'country', 'code')",
+    );
+  });
+
   it('resolves direct column name as-is', () => {
     expect(resolvePropertyExpr('event_name')).toBe('event_name');
     expect(resolvePropertyExpr('country')).toBe('country');
@@ -41,6 +50,12 @@ describe('resolvePropertyExpr', () => {
     // With proper escaping: backslash → "\\\\", quote → "\\'", result: "foo\\\\\\'"
     expect(resolvePropertyExpr("properties.foo\\'")).toBe("JSONExtractString(properties, 'foo\\\\\\'')");
   });
+
+  it('escapes single quotes in nested path segments individually', () => {
+    expect(resolvePropertyExpr("properties.a's.b")).toBe(
+      "JSONExtractString(properties, 'a\\'s', 'b')",
+    );
+  });
 });
 
 describe('resolveNumericPropertyExpr', () => {
@@ -50,6 +65,12 @@ describe('resolveNumericPropertyExpr', () => {
 
   it('resolves user_properties.* to toFloat64OrZero(JSONExtractRaw)', () => {
     expect(resolveNumericPropertyExpr('user_properties.age')).toBe("toFloat64OrZero(JSONExtractRaw(user_properties, 'age'))");
+  });
+
+  it('resolves nested dot-notation numeric to chained JSONExtractRaw', () => {
+    expect(resolveNumericPropertyExpr('properties.meta.price')).toBe(
+      "toFloat64OrZero(JSONExtractRaw(JSONExtractRaw(properties, 'meta'), 'price'))",
+    );
   });
 
   it('throws for direct columns (not allowed as numeric)', () => {
@@ -251,5 +272,80 @@ describe('buildPropertyFilterConditions', () => {
       { property: 'nonexistent_column', operator: 'eq', value: 'val' },
     ];
     expect(() => buildPropertyFilterConditions(filters, 'p', params)).toThrow(AppBadRequestException);
+  });
+});
+
+// ── Nested dot-notation (a.b) path tests ─────────────────────────────────────
+describe('buildPropertyFilterConditions — nested dot-notation paths', () => {
+  it('eq on nested path uses variadic JSONExtractString', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.address.city', operator: 'eq', value: 'Moscow' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONExtractString(properties, 'address', 'city') = {p_f0_v:String}"]);
+    expect(params['p_f0_v']).toBe('Moscow');
+  });
+
+  it('neq on nested path uses JSONHas parent traversal guard', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.address.city', operator: 'neq', value: 'London' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual([
+      "JSONHas(JSONExtractRaw(properties, 'address'), 'city') AND JSONExtractString(properties, 'address', 'city') != {p_f0_v:String}",
+    ]);
+    expect(params['p_f0_v']).toBe('London');
+  });
+
+  it('is_set on nested path uses JSONHas with parent traversal', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'user_properties.location.country', operator: 'is_set' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(JSONExtractRaw(user_properties, 'location'), 'country')"]);
+    expect(Object.keys(params)).toHaveLength(0);
+  });
+
+  it('is_not_set on nested path uses NOT JSONHas with parent traversal', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.meta.score', operator: 'is_not_set' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["NOT JSONHas(JSONExtractRaw(properties, 'meta'), 'score')"]);
+  });
+
+  it('contains on nested path uses variadic JSONExtractString', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.address.city', operator: 'contains', value: 'osc' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONExtractString(properties, 'address', 'city') LIKE {p_f0_v:String}"]);
+    expect(params['p_f0_v']).toBe('%osc%');
+  });
+
+  it('not_contains on nested path uses JSONHas parent traversal guard', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.address.city', operator: 'not_contains', value: 'osc' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual([
+      "JSONHas(JSONExtractRaw(properties, 'address'), 'city') AND JSONExtractString(properties, 'address', 'city') NOT LIKE {p_f0_v:String}",
+    ]);
+    expect(params['p_f0_v']).toBe('%osc%');
+  });
+
+  it('three-level nested path works correctly', () => {
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.a.b.c', operator: 'eq', value: 'val' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONExtractString(properties, 'a', 'b', 'c') = {p_f0_v:String}"]);
   });
 });
