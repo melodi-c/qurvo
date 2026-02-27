@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Delete, Body, Param, UseGuards, ParseUUIDPipe,
+  Controller, Post, Delete, Get, Body, Param, Query, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
@@ -8,8 +8,10 @@ import { RequireRole } from '../decorators/require-role.decorator';
 import {
   CohortDto,
   CreateStaticCohortDto,
+  GetStaticCohortMembersQueryDto,
   ImportCsvResponseDto,
   StaticCohortMembersDto,
+  StaticCohortMembersResponseDto,
   UploadCsvDto,
 } from '../dto/cohorts.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
@@ -49,6 +51,20 @@ export class StaticCohortsController {
     @Body() body: UploadCsvDto,
   ): Promise<ImportCsvResponseDto> {
     return this.staticCohortsService.importStaticCohortCsv(projectId, cohortId, body.csv_content) as any;
+  }
+
+  @Get(':cohortId/members')
+  async getMembers(
+    @Param('projectId') projectId: string,
+    @Param('cohortId', ParseUUIDPipe) cohortId: string,
+    @Query() query: GetStaticCohortMembersQueryDto,
+  ): Promise<StaticCohortMembersResponseDto> {
+    return this.staticCohortsService.getStaticMembers(
+      projectId,
+      cohortId,
+      query.limit ?? 50,
+      query.offset ?? 0,
+    ) as any;
   }
 
   @RequireRole('editor')

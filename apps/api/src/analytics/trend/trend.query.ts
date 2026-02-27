@@ -196,11 +196,19 @@ function assembleBreakdown(
 
 // ── Core query executor ───────────────────────────────────────────────────────
 
+/**
+ * Execute the breakdown trend query.
+ *
+ * @param fixedBreakdownValues — when provided (compare mode), skip the top_values CTE and
+ *   filter by this pre-computed set of breakdown values instead.  This ensures that
+ *   the previous-period query uses the same breakdown values as the current period.
+ */
 async function executeTrendQuery(
   ch: ClickHouseClient,
   params: TrendQueryParams,
   dateFrom: string,
   dateTo: string,
+  fixedBreakdownValues?: string[],
 ): Promise<TrendSeriesResult[]> {
   const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: TrendChQueryParams = {
@@ -217,7 +225,7 @@ async function executeTrendQuery(
   const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
   const aggCol = buildAggColumn(params.metric, params.metric_property);
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(dateTo, true), toChTs(dateFrom));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(dateTo, true, params.timezone), toChTs(dateFrom, false, params.timezone));
 
   // Cohort breakdown path: one arm per (series x cohort)
   if (hasCohortBreakdown) {
@@ -306,45 +314,62 @@ async function executeTrendQuery(
       GROUP BY breakdown_value, bucket`;
   });
 
-  // top_values CTE: use UNION ALL of per-series conditions so that only events
-  // matching at least one series' full filter set are considered. This prevents
-  // breakdown values from unrelated events (that match no series filter) from
-  // occupying slots in the top-N list.
-  const topValuesArms = params.series.map((s, idx) => {
-    // buildSeriesConditions already populated queryParams for this series index,
-    // so we just need to reconstruct the condition string without re-mutating params.
-    const filterParts = buildPropertyFilterConditions(
-      s.filters ?? [],
-      `s${idx}`,
-      queryParams,
-    );
-    const cond = [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
-    return `
-      SELECT ${breakdownExpr} AS breakdown_value
-      FROM events
-      WHERE
-        project_id = {project_id:UUID}
-        AND timestamp >= ${fromExpr}
-        AND timestamp <= ${toExpr}
-        AND ${cond}${cohortClause}`;
-  });
-
-  const sql = `
-    WITH top_values AS (
-      SELECT breakdown_value, count() AS cnt
+  // Determine which breakdown values to include.
+  // When fixedBreakdownValues is supplied (previous-period query in compare mode),
+  // use those values directly so that both periods share the same top-N set.
+  // Otherwise build the top_values CTE from the current period's data.
+  let sql: string;
+  if (fixedBreakdownValues) {
+    // Pass the fixed list as an Array(String) parameter to avoid SQL injection.
+    queryParams['fixed_breakdown_values'] = fixedBreakdownValues;
+    sql = `
+      SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
       FROM (
-        ${topValuesArms.join('\nUNION ALL\n')}
+        ${arms.join('\nUNION ALL\n')}
       )
-      GROUP BY breakdown_value
-      ORDER BY cnt DESC
-      LIMIT ${MAX_BREAKDOWN_VALUES}
-    )
-    SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
-    FROM (
-      ${arms.join('\nUNION ALL\n')}
-    )
-    WHERE breakdown_value IN (SELECT breakdown_value FROM top_values)
-    ORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
+      WHERE breakdown_value IN ({fixed_breakdown_values:Array(String)})
+      ORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
+  } else {
+    // top_values CTE: use UNION ALL of per-series conditions so that only events
+    // matching at least one series' full filter set are considered. This prevents
+    // breakdown values from unrelated events (that match no series filter) from
+    // occupying slots in the top-N list.
+    const topValuesArms = params.series.map((s, idx) => {
+      // buildSeriesConditions already populated queryParams for this series index,
+      // so we just need to reconstruct the condition string without re-mutating params.
+      const filterParts = buildPropertyFilterConditions(
+        s.filters ?? [],
+        `s${idx}`,
+        queryParams,
+      );
+      const cond = [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
+      return `
+        SELECT ${breakdownExpr} AS breakdown_value
+        FROM events
+        WHERE
+          project_id = {project_id:UUID}
+          AND timestamp >= ${fromExpr}
+          AND timestamp <= ${toExpr}
+          AND ${cond}${cohortClause}`;
+    });
+
+    sql = `
+      WITH top_values AS (
+        SELECT breakdown_value, count() AS cnt
+        FROM (
+          ${topValuesArms.join('\nUNION ALL\n')}
+        )
+        GROUP BY breakdown_value
+        ORDER BY cnt DESC
+        LIMIT ${MAX_BREAKDOWN_VALUES}
+      )
+      SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
+      FROM (
+        ${arms.join('\nUNION ALL\n')}
+      )
+      WHERE breakdown_value IN (SELECT breakdown_value FROM top_values)
+      ORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
+  }
 
   const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
@@ -375,7 +400,57 @@ export async function queryTrend(
   }
 
   const prev = shiftPeriod(params.date_from, params.date_to);
-  const previousSeries = await executeTrendQuery(ch, params, prev.from, prev.to);
+
+  // When comparing with a property breakdown, lock the previous-period query to the
+  // same set of breakdown values that appeared in the current period.  Without this,
+  // each period independently computes its own top-N, so values in the top-N of the
+  // current period may be absent from the previous period's results and vice-versa.
+  //
+  // Cohort breakdowns are fixed by definition (the cohort list never changes between
+  // the two calls), so no special handling is needed there.
+  const hasPropertyBreakdown = !!params.breakdown_property && !params.breakdown_cohort_ids?.length;
+  let fixedBreakdownValues: string[] | undefined;
+  if (hasPropertyBreakdown) {
+    // Collect the unique breakdown values that survived the top-N filter in the current period.
+    // '(none)' is the assembled sentinel for a raw empty-string value in ClickHouse, so
+    // convert it back to '' before passing to the SQL IN clause.
+    fixedBreakdownValues = [
+      ...new Set(
+        currentSeries.map((s) => {
+          const bv = s.breakdown_value ?? '(none)';
+          return bv === '(none)' ? '' : bv;
+        }),
+      ),
+    ];
+  }
+
+  let previousSeries = await executeTrendQuery(ch, params, prev.from, prev.to, fixedBreakdownValues);
+
+  // For property breakdowns, guarantee that every (series_idx, breakdown_value) pair
+  // present in the current period also appears in the previous period.  When a
+  // breakdown value had zero events in the previous period, the query returns no rows
+  // for it and assembleBreakdown omits it entirely.  Fill those gaps with an empty
+  // data array so the consumer can render a zero line without special-casing.
+  if (hasPropertyBreakdown) {
+    const prevIndex = new Set(previousSeries.map((s) => `${s.series_idx}::${s.breakdown_value ?? '(none)'}`));
+    const gaps: TrendSeriesResult[] = [];
+    for (const cur of currentSeries) {
+      const key = `${cur.series_idx}::${cur.breakdown_value ?? '(none)'}`;
+      if (!prevIndex.has(key)) {
+        gaps.push({
+          series_idx: cur.series_idx,
+          label: cur.label,
+          event_name: cur.event_name,
+          data: [],
+          breakdown_value: cur.breakdown_value,
+          ...(cur.breakdown_label !== undefined ? { breakdown_label: cur.breakdown_label } : {}),
+        });
+      }
+    }
+    if (gaps.length > 0) {
+      previousSeries = [...previousSeries, ...gaps];
+    }
+  }
 
   if (!hasAnyBreakdown) {
     return { compare: true, breakdown: false, series: currentSeries, series_previous: previousSeries };

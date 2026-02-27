@@ -19,7 +19,7 @@ interface LegendTableProps {
   allSeriesKeys: string[];
   formulaKeys: string[];
   seriesTotals: number[];
-  formulaTotals: number[];
+  formulaTotals: (number | null)[];
   hiddenKeys: Set<string>;
   onToggleSeries: (key: string) => void;
   previousSeries?: TrendSeriesResult[];
@@ -88,8 +88,15 @@ export function LegendTable({
           })}
           {formulaKeys.map((key, idx) => {
             const isHidden = hiddenKeys.has(key);
-            const total = formulaTotals[idx] ?? 0;
+            const total = formulaTotals[idx] ?? null;
             const color = FORMULA_COLORS[idx % FORMULA_COLORS.length];
+
+            const totalDisplay =
+              total === null
+                ? '\u2014'
+                : Number.isInteger(total)
+                  ? total.toLocaleString()
+                  : total.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
             return (
               <TableRow
@@ -109,7 +116,7 @@ export function LegendTable({
                   </div>
                 </TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums font-medium text-foreground">
-                  {Number.isInteger(total) ? total.toLocaleString() : total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  {totalDisplay}
                 </TableCell>
                 {hasPrevious && (
                   <TableCell className="py-1.5 text-right tabular-nums text-muted-foreground">

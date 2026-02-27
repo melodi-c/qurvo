@@ -108,7 +108,7 @@ export async function queryFunnelTimeToConvert(
     }
   });
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
 
   const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
 

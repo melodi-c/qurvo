@@ -30,6 +30,7 @@ export default createTranslations({
     uploadCsvSuccess: 'CSV imported successfully',
     uploadCsvFailed: 'Failed to import CSV',
     uploadCsvInvalidFormat: 'Invalid file format — only .csv files are accepted',
+    selectPerson: 'Select {{id}}',
   },
   ru: {
     addMembersTitle: 'Добавить участников',
@@ -60,5 +61,6 @@ export default createTranslations({
     uploadCsvSuccess: 'CSV импортирован успешно',
     uploadCsvFailed: 'Не удалось импортировать CSV',
     uploadCsvInvalidFormat: 'Неверный формат файла — принимаются только файлы .csv',
+    selectPerson: 'Выбрать {{id}}',
   },
 });
