@@ -16,6 +16,10 @@ import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
+import {
+  BreakdownMutuallyExclusive,
+  BreakdownCohortIdsRequiresCohortType,
+} from './shared/breakdown-validators';
 
 export class TrendSeriesDto {
   @IsString()
@@ -33,6 +37,8 @@ export class TrendSeriesDto {
   filters?: StepFilterDto[];
 }
 
+@BreakdownMutuallyExclusive()
+@BreakdownCohortIdsRequiresCohortType()
 export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @Transform(makeJsonArrayTransform(TrendSeriesDto))
   @IsArray()

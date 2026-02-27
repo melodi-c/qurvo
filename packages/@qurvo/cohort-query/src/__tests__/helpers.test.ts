@@ -32,6 +32,40 @@ describe('resolvePropertyExpr (cohort-query helpers)', () => {
     expect(resolvePropertyExpr("properties.foo\\'")).toBe(
       "JSONExtractString(argMax(properties, timestamp), 'foo\\\\\\'')");
   });
+
+  it('escapes newline in property key', () => {
+    // key containing \n — must be escaped to \\n so ClickHouse sees a literal newline token
+    expect(resolvePropertyExpr('properties.foo\nbar')).toBe(
+      "JSONExtractString(argMax(properties, timestamp), 'foo\\nbar')",
+    );
+  });
+
+  it('escapes carriage return in property key', () => {
+    expect(resolvePropertyExpr('properties.foo\rbar')).toBe(
+      "JSONExtractString(argMax(properties, timestamp), 'foo\\rbar')",
+    );
+  });
+
+  it('escapes tab in property key', () => {
+    expect(resolvePropertyExpr('properties.foo\tbar')).toBe(
+      "JSONExtractString(argMax(properties, timestamp), 'foo\\tbar')",
+    );
+  });
+
+  it('escapes null byte in property key', () => {
+    expect(resolvePropertyExpr('properties.foo\0bar')).toBe(
+      "JSONExtractString(argMax(properties, timestamp), 'foo\\0bar')",
+    );
+  });
+
+  it('property key ending with backslash is correctly escaped (path\\ case)', () => {
+    // Input key: "path\\" (one trailing backslash)
+    // After escaping backslash → "\\\\" so ClickHouse literal is "path\\"
+    // which searches for the key "path\" in the JSON — correct.
+    expect(resolvePropertyExpr('properties.path\\')).toBe(
+      "JSONExtractString(argMax(properties, timestamp), 'path\\\\')",
+    );
+  });
 });
 
 describe('resolveEventPropertyExpr (cohort-query helpers)', () => {
@@ -52,6 +86,18 @@ describe('resolveEventPropertyExpr (cohort-query helpers)', () => {
   it('escapes backslash+quote (SQL injection vector)', () => {
     expect(resolveEventPropertyExpr("user_properties.foo\\'")).toBe(
       "JSONExtractString(user_properties, 'foo\\\\\\'')");
+  });
+
+  it('escapes newline in event property key', () => {
+    expect(resolveEventPropertyExpr('properties.foo\nbar')).toBe(
+      "JSONExtractString(properties, 'foo\\nbar')",
+    );
+  });
+
+  it('escapes tab in event property key', () => {
+    expect(resolveEventPropertyExpr('properties.key\twith\ttabs')).toBe(
+      "JSONExtractString(properties, 'key\\twith\\ttabs')",
+    );
   });
 });
 
