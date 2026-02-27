@@ -14,7 +14,7 @@ import {
   type CohortCohortCondition,
   type Database,
 } from '@qurvo/db';
-import { detectCircularDependency } from '@qurvo/cohort-query';
+import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/cohort-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
@@ -70,6 +70,11 @@ export class CohortsService {
       throw new AppBadRequestException('definition is required for dynamic cohorts');
     }
 
+    // Validate definition complexity (total leaf conditions + nesting depth)
+    if (definition) {
+      validateDefinitionComplexity(definition);
+    }
+
     // Check circular dependency only for dynamic cohorts that reference others
     if (definition) {
       await this.checkCircularDependency('', definition, projectId);
@@ -110,6 +115,11 @@ export class CohortsService {
 
     if (definition !== undefined && existing[0].is_static) {
       throw new AppBadRequestException('Cannot set a definition on a static cohort');
+    }
+
+    // Validate definition complexity (total leaf conditions + nesting depth)
+    if (definition) {
+      validateDefinitionComplexity(definition);
     }
 
     if (definition) {
@@ -221,6 +231,7 @@ export class CohortsService {
     projectId: string,
     definition: CohortConditionGroup,
   ): Promise<number> {
+    validateDefinitionComplexity(definition);
     const enriched = await this.enrichDefinition(projectId, definition);
     return countCohortMembers(this.ch, projectId, enriched);
   }

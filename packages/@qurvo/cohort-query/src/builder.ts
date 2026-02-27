@@ -12,6 +12,7 @@ import { buildPerformedRegularlySubquery } from './conditions/regularity';
 import { buildStoppedPerformingSubquery } from './conditions/stopped';
 import { buildRestartedPerformingSubquery } from './conditions/restarted';
 import { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
+import { validateDefinitionComplexity } from './validation';
 
 // ── Strategy registry ────────────────────────────────────────────────────────
 
@@ -112,6 +113,11 @@ export function buildCohortSubquery(
   dateTo?: string,
   dateFrom?: string,
 ): string {
+  // Defence-in-depth: reject overly complex definitions before generating SQL.
+  // The API layer also validates via CohortsService, but this guard protects
+  // any caller of the library (e.g. cohort-worker) that bypasses the API DTO layer.
+  validateDefinitionComplexity(definition);
+
   const ctx: BuildContext = {
     projectIdParam,
     queryParams,
