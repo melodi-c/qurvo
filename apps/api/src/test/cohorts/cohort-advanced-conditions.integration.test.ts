@@ -8,6 +8,29 @@ import {
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import { countCohortMembers } from '../../cohorts/cohorts.query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import type { CohortConditionGroup } from '@qurvo/db';
+
+/**
+ * Counts cohort members using a specific dateTo upper bound.
+ * Used to verify that events after dateTo do not affect classification.
+ */
+async function countCohortMembersAt(
+  context: ContainerContext,
+  projectId: string,
+  definition: CohortConditionGroup,
+  dateTo: string,
+): Promise<number> {
+  const params: Record<string, unknown> = { project_id: projectId };
+  const subquery = buildCohortSubquery(definition, 0, 'project_id', params, undefined, dateTo);
+  const result = await context.ch.query({
+    query: `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`,
+    query_params: params,
+    format: 'JSONEachRow',
+  });
+  const rows = await result.json<{ cnt: string }>();
+  return Number(rows[0]?.cnt ?? 0);
+}
 
 let ctx: ContainerContext;
 
@@ -999,5 +1022,223 @@ describe('countCohortMembers — restarted_performing', () => {
     });
 
     expect(count).toBe(0); // no recent activity → has not restarted
+  });
+});
+
+// ── dateTo upper-bound regression tests ───────────────────────────────────────
+//
+// These tests verify that events occurring after dateTo do not affect the
+// classification of stopped_performing / restarted_performing.
+// Before the fix, the "recent performers" subquery had no upper bound on
+// timestamp, so a post-dateTo event would falsely include the user in
+// "recent performers" and incorrectly exclude them from stopped_performing
+// (or incorrectly qualify them for restarted_performing).
+
+describe('stopped_performing — dateTo upper bound', () => {
+  it('event after dateTo does not exclude user from stopped_performing', async () => {
+    const projectId = randomUUID();
+    const churnedUser = randomUUID();
+
+    // dateTo is set to 10 days ago (the "analysis point in time").
+    // Config: historical_window_days=30, recent_window_days=7
+    // Windows relative to dateTo (10 days ago):
+    //   historical: [10d+30d, 10d+7d) = [40d ago, 17d ago)
+    //   recent:     [10d+7d ago, 10d ago] = [17d ago, 10d ago]
+    //   post-dateTo: anything after 10d ago ← must be ignored
+
+    // Historical event: 25 days ago (within historical window relative to dateTo=10d ago)
+    const historicalTs = new Date(Date.now() - 25 * DAY_MS).toISOString();
+    // Post-dateTo event: 5 days ago (after dateTo=10d ago — must be ignored)
+    const postDateToTs = new Date(Date.now() - 5 * DAY_MS).toISOString();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: churnedUser,
+        distinct_id: 'churned',
+        event_name: 'login',
+        user_properties: JSON.stringify({ role: 'user' }),
+        timestamp: historicalTs,
+      }),
+      // This event is AFTER dateTo — the fixed query must ignore it
+      buildEvent({
+        project_id: projectId,
+        person_id: churnedUser,
+        distinct_id: 'churned',
+        event_name: 'login',
+        user_properties: JSON.stringify({ role: 'user' }),
+        timestamp: postDateToTs,
+      }),
+    ]);
+
+    // dateTo = 10 days ago: churnedUser had historical activity but no activity
+    // in the recent [17d, 10d] window. The post-dateTo event must NOT make them
+    // appear as a "recent performer" and incorrectly exclude them.
+    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const count = await countCohortMembersAt(ctx, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'stopped_performing',
+          event_name: 'login',
+          recent_window_days: 7,
+          historical_window_days: 30,
+        },
+      ],
+    }, dateTo);
+
+    // churnedUser stopped before dateTo; post-dateTo event must be ignored
+    expect(count).toBe(1);
+  });
+
+  it('event within recent window (before dateTo) correctly excludes user from stopped_performing', async () => {
+    const projectId = randomUUID();
+    const activeUser = randomUUID();
+
+    // dateTo = 10 days ago
+    // historical: [40d ago, 17d ago), recent: [17d ago, 10d ago]
+    // activeUser has events in both windows → should NOT be in stopped_performing
+    const historicalTs = new Date(Date.now() - 25 * DAY_MS).toISOString();
+    const recentTs = new Date(Date.now() - 12 * DAY_MS).toISOString(); // 12d ago → within [17d, 10d] window
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: activeUser,
+        distinct_id: 'active',
+        event_name: 'login',
+        user_properties: JSON.stringify({ role: 'user' }),
+        timestamp: historicalTs,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: activeUser,
+        distinct_id: 'active',
+        event_name: 'login',
+        user_properties: JSON.stringify({ role: 'user' }),
+        timestamp: recentTs,
+      }),
+    ]);
+
+    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const count = await countCohortMembersAt(ctx, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'stopped_performing',
+          event_name: 'login',
+          recent_window_days: 7,
+          historical_window_days: 30,
+        },
+      ],
+    }, dateTo);
+
+    expect(count).toBe(0); // activeUser performed in the recent window → not stopped
+  });
+});
+
+describe('restarted_performing — dateTo upper bound', () => {
+  it('event after dateTo does not falsely qualify user as restarted_performing', async () => {
+    const projectId = randomUUID();
+    const nonRestartedUser = randomUUID();
+
+    // dateTo = 10 days ago
+    // Config: historical=60, gap=20, recent=30
+    // Windows relative to dateTo (10d ago):
+    //   historical: [70d, 40d ago) from now
+    //   gap:        [40d, 30d ago) from now (NOT an event here)
+    //   recent:     [40d, 10d ago] from now ← user has NO events here before dateTo
+    //   post-dateTo: after 10d ago ← must be ignored
+
+    const historicalTs = new Date(Date.now() - 55 * DAY_MS).toISOString(); // within historical
+    const postDateToTs = new Date(Date.now() - 5 * DAY_MS).toISOString();  // after dateTo
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: nonRestartedUser,
+        distinct_id: 'non-restarted',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: historicalTs,
+      }),
+      // Post-dateTo event: must NOT be treated as "recent activity"
+      buildEvent({
+        project_id: projectId,
+        person_id: nonRestartedUser,
+        distinct_id: 'non-restarted',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: postDateToTs,
+      }),
+    ]);
+
+    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const count = await countCohortMembersAt(ctx, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'restarted_performing',
+          event_name: 'purchase',
+          recent_window_days: 30,
+          gap_window_days: 20,
+          historical_window_days: 60,
+        },
+      ],
+    }, dateTo);
+
+    // nonRestartedUser has no activity in the recent window before dateTo.
+    // The post-dateTo event must NOT be mistaken for recent activity.
+    expect(count).toBe(0);
+  });
+
+  it('event within recent window (before dateTo) correctly qualifies user as restarted_performing', async () => {
+    const projectId = randomUUID();
+    const restartedUser = randomUUID();
+
+    // dateTo = 10 days ago
+    // Config: historical=60, gap=20, recent=30
+    // Windows relative to dateTo (10d ago):
+    //   historical: [70d, 40d ago) from now
+    //   gap:        [40d, 30d ago) from now (no events)
+    //   recent:     [40d, 10d ago] from now ← user active here (20d ago)
+
+    const historicalTs = new Date(Date.now() - 55 * DAY_MS).toISOString(); // historical
+    const recentTs = new Date(Date.now() - 20 * DAY_MS).toISOString();     // 20d ago → within recent window relative to dateTo=10d
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: restartedUser,
+        distinct_id: 'restarted',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: historicalTs,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: restartedUser,
+        distinct_id: 'restarted',
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ role: 'buyer' }),
+        timestamp: recentTs,
+      }),
+    ]);
+
+    const dateTo = new Date(Date.now() - 10 * DAY_MS).toISOString();
+    const count = await countCohortMembersAt(ctx, projectId, {
+      type: 'AND',
+      values: [
+        {
+          type: 'restarted_performing',
+          event_name: 'purchase',
+          recent_window_days: 30,
+          gap_window_days: 20,
+          historical_window_days: 60,
+        },
+      ],
+    }, dateTo);
+
+    expect(count).toBe(1); // classic win-back pattern confirmed within dateTo
   });
 });
