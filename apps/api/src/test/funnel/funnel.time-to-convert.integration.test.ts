@@ -301,6 +301,201 @@ describe('queryFunnelTimeToConvert', () => {
   });
 });
 
+// ── Zero-duration (instant) conversions (issue #586) ─────────────────────────
+
+describe('queryFunnelTimeToConvert — zero-duration conversions (issue #586)', () => {
+  it('includes instant conversions (duration_seconds = 0) in sample_size for ordered funnel', async () => {
+    // When SDK sends events in a batch, step_0 and step_1 can have the same
+    // millisecond timestamp. windowFunnel counts these users as converted (>=
+    // semantics), but TTC previously used `duration_seconds > 0` which excluded
+    // them. After the fix, `duration_seconds >= 0` includes them.
+    const projectId = randomUUID();
+    const personInstant = randomUUID();
+    const personNormal = randomUUID();
+    const personDropoff = randomUUID();
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // personInstant: both steps at the same millisecond → duration = 0
+      buildEvent({
+        project_id: projectId,
+        person_id: personInstant,
+        distinct_id: 'instant',
+        event_name: 'signup',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personInstant,
+        distinct_id: 'instant',
+        event_name: 'purchase',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+      // personNormal: 20 seconds to convert
+      buildEvent({
+        project_id: projectId,
+        person_id: personNormal,
+        distinct_id: 'normal',
+        event_name: 'signup',
+        timestamp: new Date(now - 40_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personNormal,
+        distinct_id: 'normal',
+        event_name: 'purchase',
+        timestamp: new Date(now - 20_000).toISOString(),
+      }),
+      // personDropoff: only signup, no purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personDropoff,
+        distinct_id: 'dropoff',
+        event_name: 'signup',
+        timestamp: new Date(now - 30_000).toISOString(),
+      }),
+    ]);
+
+    // Verify main funnel counts 2 converted users
+    const funnelResult = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+    expect(funnelResult.steps[1].count).toBe(2);
+
+    // TTC must also count 2 users (including the instant one)
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(ttcResult.sample_size).toBe(2);
+    // avg = (0 + 20) / 2 = 10
+    expect(ttcResult.average_seconds).toBeCloseTo(10, 0);
+    const totalBinCount = ttcResult.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(2);
+  });
+
+  it('handles all-zero-duration conversions (all instant)', async () => {
+    // All users convert instantly — sample_size must equal conversion count,
+    // and the single-point bin logic (range = 0) should produce a [0, 1] bin.
+    const projectId = randomUUID();
+    const now = Date.now();
+    const users = Array.from({ length: 3 }, () => randomUUID());
+
+    await insertTestEvents(ctx.ch, users.flatMap((personId, i) => [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `all-instant-${i}`,
+        event_name: 'signup',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `all-instant-${i}`,
+        event_name: 'purchase',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+    ]));
+
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(ttcResult.sample_size).toBe(3);
+    expect(ttcResult.average_seconds).toBe(0);
+    expect(ttcResult.median_seconds).toBe(0);
+    // range = 0 → single bin at [0, 1]
+    expect(ttcResult.bins).toHaveLength(1);
+    expect(ttcResult.bins[0].from_seconds).toBe(0);
+    expect(ttcResult.bins[0].to_seconds).toBe(1);
+    expect(ttcResult.bins[0].count).toBe(3);
+  });
+
+  it('includes instant conversions in unordered funnel TTC', async () => {
+    const projectId = randomUUID();
+    const personInstant = randomUUID();
+    const personNormal = randomUUID();
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // personInstant: both steps at the same ms
+      buildEvent({
+        project_id: projectId,
+        person_id: personInstant,
+        distinct_id: 'unord-instant',
+        event_name: 'signup',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personInstant,
+        distinct_id: 'unord-instant',
+        event_name: 'purchase',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+      // personNormal: 15 seconds
+      buildEvent({
+        project_id: projectId,
+        person_id: personNormal,
+        distinct_id: 'unord-normal',
+        event_name: 'signup',
+        timestamp: new Date(now - 30_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personNormal,
+        distinct_id: 'unord-normal',
+        event_name: 'purchase',
+        timestamp: new Date(now - 15_000).toISOString(),
+      }),
+    ]);
+
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+      funnel_order_type: 'unordered',
+    });
+
+    expect(ttcResult.sample_size).toBe(2);
+    const totalBinCount = ttcResult.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(2);
+  });
+});
+
 // ── TTC from_step > 0 ────────────────────────────────────────────────────────
 
 describe('queryFunnelTimeToConvert — from_step > 0 sequence-aware timestamps', () => {

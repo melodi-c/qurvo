@@ -310,12 +310,12 @@ export async function queryFunnelTimeToConvert(
       WHERE max_step >= {to_step_num:UInt64}${exclAndCondition}
     )
     SELECT
-      avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-      quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
-      toInt64(countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
-      minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
-      maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
-      groupArrayIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
+      avgIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
+      quantileIf(0.5)(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
+      toInt64(countIf(duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
+      minIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
+      maxIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
+      groupArrayIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
     FROM converted
   `;
 
@@ -527,12 +527,12 @@ async function buildUnorderedTtcSql(
         AND from_step_ms > 0${exclAndCondition}
     )
     SELECT
-      avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-      quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
-      toInt64(countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
-      minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
-      maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
-      groupArrayIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
+      avgIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
+      quantileIf(0.5)(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
+      toInt64(countIf(duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
+      minIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
+      maxIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
+      groupArrayIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
     FROM converted
   `;
 
