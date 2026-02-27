@@ -3,7 +3,7 @@ import { AppBadRequestException } from '../../exceptions/app-bad-request.excepti
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr, resolveNumericPropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ export interface TrendQueryParams {
   breakdown_cohort_ids?: CohortBreakdownEntry[];
   compare?: boolean;
   cohort_filters?: CohortFilterInput[];
+  timezone?: string;
 }
 
 export interface TrendDataPoint {
@@ -197,13 +198,17 @@ async function executeTrendQuery(
   dateFrom: string,
   dateTo: string,
 ): Promise<TrendSeriesResult[]> {
+  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: TrendChQueryParams = {
     project_id: params.project_id,
-    from: toChTs(dateFrom),
-    to: toChTs(dateTo, true),
+    from: toChTs(dateFrom, false, params.timezone),
+    to: toChTs(dateTo, true, params.timezone),
   };
+  if (hasTz) queryParams['tz'] = params.timezone;
 
-  const bucketExpr = granularityTruncExpr(params.granularity, 'timestamp');
+  const fromExpr = tsExpr('from', 'tz', hasTz);
+  const toExpr = tsExpr('to', 'tz', hasTz);
+  const bucketExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const hasCohortBreakdown = !!params.breakdown_cohort_ids?.length;
   const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
   const aggCol = buildAggColumn(params.metric, params.metric_property);
@@ -232,8 +237,8 @@ async function executeTrendQuery(
           FROM events
           WHERE
             project_id = {project_id:UUID}
-            AND timestamp >= {from:DateTime64(3)}
-            AND timestamp <= {to:DateTime64(3)}
+            AND timestamp >= ${fromExpr}
+            AND timestamp <= ${toExpr}
             AND ${cond}${cohortClause}
             AND ${cohortFilter}
           GROUP BY bucket`);
@@ -259,8 +264,8 @@ async function executeTrendQuery(
         FROM events
         WHERE
           project_id = {project_id:UUID}
-          AND timestamp >= {from:DateTime64(3)}
-          AND timestamp <= {to:DateTime64(3)}
+          AND timestamp >= ${fromExpr}
+          AND timestamp <= ${toExpr}
           AND ${cond}${cohortClause}
         GROUP BY bucket`;
     });
@@ -290,8 +295,8 @@ async function executeTrendQuery(
       FROM events
       WHERE
         project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
+        AND timestamp >= ${fromExpr}
+        AND timestamp <= ${toExpr}
         AND ${cond}${cohortClause}
       GROUP BY breakdown_value, bucket`;
   });
@@ -302,8 +307,8 @@ async function executeTrendQuery(
       FROM events
       WHERE
         project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
+        AND timestamp >= ${fromExpr}
+        AND timestamp <= ${toExpr}
         AND event_name IN ({all_event_names:Array(String)})${cohortClause}
       GROUP BY breakdown_value
       ORDER BY count() DESC

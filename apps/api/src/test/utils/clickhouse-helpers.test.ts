@@ -6,11 +6,12 @@ import {
   shiftDate,
   truncateDate,
   granularityInterval,
+  tsExpr,
 } from '../../utils/clickhouse-helpers';
 
 describe('toChTs', () => {
-  it('returns date string unchanged when only date part is given', () => {
-    expect(toChTs('2024-01-10')).toBe('2024-01-10');
+  it('returns midnight local datetime string when only date part is given', () => {
+    expect(toChTs('2024-01-10')).toBe('2024-01-10 00:00:00');
   });
 
   it('appends 23:59:59 when date-only and endOfDay=true', () => {
@@ -78,6 +79,52 @@ describe('granularityTruncExpr', () => {
 
   it('throws for unknown granularity', () => {
     expect(() => granularityTruncExpr('year' as never, 'ts')).toThrow('Unhandled granularity: year');
+  });
+
+  describe('with timezone', () => {
+    it('includes timezone in toStartOfHour for hour granularity', () => {
+      expect(granularityTruncExpr('hour', 'timestamp', 'Europe/Moscow')).toBe(
+        "toStartOfHour(timestamp, 'Europe/Moscow')",
+      );
+    });
+
+    it('includes timezone in toStartOfDay for day granularity', () => {
+      expect(granularityTruncExpr('day', 'timestamp', 'America/New_York')).toBe(
+        "toStartOfDay(timestamp, 'America/New_York')",
+      );
+    });
+
+    it('includes timezone in toStartOfWeek for week granularity', () => {
+      expect(granularityTruncExpr('week', 'timestamp', 'Europe/Moscow')).toBe(
+        "toDateTime(toStartOfWeek(timestamp, 1, 'Europe/Moscow'), 'Europe/Moscow')",
+      );
+    });
+
+    it('includes timezone in toStartOfMonth for month granularity', () => {
+      expect(granularityTruncExpr('month', 'timestamp', 'Asia/Tokyo')).toBe(
+        "toDateTime(toStartOfMonth(timestamp, 'Asia/Tokyo'), 'Asia/Tokyo')",
+      );
+    });
+
+    it('behaves same as no timezone when tz is UTC', () => {
+      expect(granularityTruncExpr('day', 'timestamp', 'UTC')).toBe('toStartOfDay(timestamp)');
+      expect(granularityTruncExpr('week', 'timestamp', 'UTC')).toBe('toDateTime(toStartOfWeek(timestamp, 1))');
+    });
+  });
+});
+
+describe('tsExpr', () => {
+  it('returns DateTime64 param expression when hasTz is false', () => {
+    expect(tsExpr('from', 'tz', false)).toBe('{from:DateTime64(3)}');
+  });
+
+  it('returns toDateTime64 String expression when hasTz is true', () => {
+    expect(tsExpr('from', 'tz', true)).toBe('toDateTime64({from:String}, 3, {tz:String})');
+  });
+
+  it('uses provided param and tz names', () => {
+    expect(tsExpr('extended_from', 'tz', true)).toBe('toDateTime64({extended_from:String}, 3, {tz:String})');
+    expect(tsExpr('to', 'timezone_param', false)).toBe('{to:DateTime64(3)}');
   });
 });
 

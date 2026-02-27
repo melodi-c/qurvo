@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval, buildFilterClause } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, granularityInterval, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ export interface LifecycleQueryParams {
   date_to: string;
   event_filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
+  timezone?: string;
 }
 
 export interface LifecycleDataPoint {
@@ -101,17 +102,22 @@ export async function queryLifecycle(
   ch: ClickHouseClient,
   params: LifecycleQueryParams,
 ): Promise<LifecycleQueryResult> {
+  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: Record<string, unknown> = {
     project_id: params.project_id,
     target_event: params.target_event,
   };
+  if (hasTz) queryParams['tz'] = params.timezone;
 
   const extendedFrom = shiftDate(params.date_from, -1, params.granularity);
-  queryParams['extended_from'] = toChTs(extendedFrom);
-  queryParams['from'] = toChTs(params.date_from);
-  queryParams['to'] = toChTs(params.date_to, true);
+  queryParams['extended_from'] = toChTs(extendedFrom, false, params.timezone);
+  queryParams['from'] = toChTs(params.date_from, false, params.timezone);
+  queryParams['to'] = toChTs(params.date_to, true, params.timezone);
 
-  const granExpr = granularityTruncExpr(params.granularity, 'timestamp');
+  const extendedFromExpr = tsExpr('extended_from', 'tz', hasTz);
+  const fromExpr = tsExpr('from', 'tz', hasTz);
+  const toExpr = tsExpr('to', 'tz', hasTz);
+  const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const interval = granularityInterval(params.granularity);
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
@@ -133,8 +139,8 @@ export async function queryLifecycle(
         FROM events
         WHERE project_id = {project_id:UUID}
           AND event_name = {target_event:String}
-          AND timestamp >= {extended_from:DateTime64(3)}
-          AND timestamp <= {to:DateTime64(3)}${cohortClause}${eventFilterClause}
+          AND timestamp >= ${extendedFromExpr}
+          AND timestamp <= ${toExpr}${cohortClause}${eventFilterClause}
         GROUP BY person_id
       ),
       -- Users who have ANY matching event strictly before extended_from.
@@ -144,7 +150,7 @@ export async function queryLifecycle(
         FROM events
         WHERE project_id = {project_id:UUID}
           AND event_name = {target_event:String}
-          AND timestamp < {extended_from:DateTime64(3)}${cohortClause}${eventFilterClause}
+          AND timestamp < ${extendedFromExpr}${cohortClause}${eventFilterClause}
       )
     SELECT
       toString(ts_bucket) AS period,
@@ -160,7 +166,7 @@ export async function queryLifecycle(
         ) AS status
       FROM person_buckets
       ARRAY JOIN buckets AS bucket
-      WHERE bucket >= {from:DateTime64(3)}
+      WHERE bucket >= ${fromExpr}
 
       UNION ALL
 
@@ -168,8 +174,8 @@ export async function queryLifecycle(
       FROM person_buckets
       ARRAY JOIN buckets AS bucket
       WHERE NOT has(buckets, bucket + ${interval})
-        AND bucket + ${interval} >= {from:DateTime64(3)}
-        AND bucket + ${interval} <= {to:DateTime64(3)}
+        AND bucket + ${interval} >= ${fromExpr}
+        AND bucket + ${interval} <= ${toExpr}
     )
     GROUP BY ts_bucket, status
     ORDER BY ts_bucket ASC, status ASC`;

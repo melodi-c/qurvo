@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate, buildFilterClause } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
 
 // ── Public types ─────────────────────────────────────────────────────────────
@@ -18,6 +18,7 @@ export interface RetentionQueryParams {
   date_to: string;
   filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
+  timezone?: string;
 }
 
 export interface RetentionCohort {
@@ -97,21 +98,26 @@ export async function queryRetention(
   ch: ClickHouseClient,
   params: RetentionQueryParams,
 ): Promise<RetentionQueryResult> {
+  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: Record<string, unknown> = {
     project_id: params.project_id,
     target_event: params.target_event,
     periods: params.periods,
   };
+  if (hasTz) queryParams['tz'] = params.timezone;
 
   const truncFrom = truncateDate(params.date_from, params.granularity);
   const truncTo = truncateDate(params.date_to, params.granularity);
   const extendedTo = shiftDate(params.date_to, params.periods, params.granularity);
 
-  queryParams['from'] = toChTs(truncFrom);
-  queryParams['to'] = toChTs(truncTo, true);
-  queryParams['extended_to'] = toChTs(extendedTo, true);
+  queryParams['from'] = toChTs(truncFrom, false, params.timezone);
+  queryParams['to'] = toChTs(truncTo, true, params.timezone);
+  queryParams['extended_to'] = toChTs(extendedTo, true, params.timezone);
 
-  const granExpr = granularityTruncExpr(params.granularity, 'timestamp');
+  const fromExpr = tsExpr('from', 'tz', hasTz);
+  const toExpr = tsExpr('to', 'tz', hasTz);
+  const extendedToExpr = tsExpr('extended_to', 'tz', hasTz);
+  const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const unit = params.granularity;
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
@@ -131,8 +137,8 @@ export async function queryRetention(
       SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS cohort_period
       FROM events
       WHERE project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
+        AND timestamp >= ${fromExpr}
+        AND timestamp <= ${toExpr}
         AND event_name = {target_event:String}${cohortClause}${filterClause}
       GROUP BY person_id, cohort_period`;
   } else {
@@ -149,8 +155,8 @@ export async function queryRetention(
           AND event_name = {target_event:String}${cohortClause}
         GROUP BY person_id
       )
-      WHERE cohort_period >= {from:DateTime64(3)}
-        AND cohort_period <= {to:DateTime64(3)}`;
+      WHERE cohort_period >= ${fromExpr}
+        AND cohort_period <= ${toExpr}`;
   }
 
   const sql = `
@@ -160,8 +166,8 @@ export async function queryRetention(
         SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS return_period
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND timestamp >= {from:DateTime64(3)}
-          AND timestamp <= {extended_to:DateTime64(3)}
+          AND timestamp >= ${fromExpr}
+          AND timestamp <= ${extendedToExpr}
           AND event_name = {target_event:String}${cohortClause}${filterClause}
         GROUP BY person_id, return_period
       ),
