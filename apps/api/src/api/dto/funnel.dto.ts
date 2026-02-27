@@ -136,6 +136,14 @@ export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   @IsInt()
   @Min(1)
   to_step: number;
+
+  @ApiPropertyOptional({ type: [FunnelExclusionDto] })
+  @Transform(makeJsonArrayTransform(FunnelExclusionDto))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FunnelExclusionDto)
+  @IsOptional()
+  exclusions?: FunnelExclusionDto[];
 }
 
 // breakdown_value присутствует только у breakdown-шагов, поэтому optional

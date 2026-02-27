@@ -8,6 +8,10 @@ import {
   buildStepCondition,
   buildSamplingClause,
   buildWindowFunnelExpr,
+  buildAllEventNames,
+  buildExclusionColumns,
+  buildExcludedUsersCTE,
+  validateExclusions,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -53,6 +57,7 @@ export async function queryFunnelTimeToConvert(
   params: TimeToConvertParams,
 ): Promise<TimeToConvertResult> {
   const { steps, project_id, from_step: fromStep, to_step: toStep } = params;
+  const exclusions = params.exclusions ?? [];
   const numSteps = steps.length;
   const windowSeconds = resolveWindowSeconds(params);
 
@@ -63,14 +68,18 @@ export async function queryFunnelTimeToConvert(
     throw new AppBadRequestException(`to_step ${toStep} out of range (max ${numSteps - 1})`);
   }
 
+  validateExclusions(exclusions, numSteps);
+
+  const allEventNames = buildAllEventNames(steps, exclusions);
+
   const queryParams: TtcChQueryParams = {
     project_id,
     from: toChTs(params.date_from),
     to: toChTs(params.date_to, true),
     window: windowSeconds,
     num_steps: steps.length,
-    all_event_names: steps.flatMap((s) => resolveStepEventNames(s)),
-    step_names: steps.flatMap((s) => resolveStepEventNames(s)),
+    all_event_names: allEventNames,
+    step_names: allEventNames,
     to_step_num: toStep + 1,
     window_seconds: windowSeconds,
   };
@@ -98,43 +107,52 @@ export async function queryFunnelTimeToConvert(
   const fromCol = `step_${fromStep}_ms`;
   const toCol = `step_${toStep}_ms`;
 
+  // Build exclusion columns and CTE (same pattern as ordered funnel)
+  const exclColumns = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps, queryParams)
+    : [];
+  const exclColumnsSQL = exclColumns.length > 0
+    ? ',\n            ' + exclColumns.join(',\n            ')
+    : '';
+  const excludedUsersCTE = exclusions.length > 0
+    ? buildExcludedUsersCTE(exclusions) + ',\n  '
+    : '';
+  // Extra AND condition appended to the WHERE clause in the `converted` CTE
+  const exclAndCondition = exclusions.length > 0
+    ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
+    : '';
+
   // Phase 1: fetch aggregate stats (avg, median, min, max, count) without pulling
   // every individual timing into Node.js. This avoids the V8 spread-argument stack
   // overflow that occurs for Math.min(...array) / Math.max(...array) when the array
   // exceeds ~100k elements.
   const statsSql = `
-    SELECT
-      avg_seconds,
-      median_seconds,
-      toInt64(sample_size) AS sample_size,
-      min_seconds,
-      max_seconds
-    FROM (
+    WITH funnel_per_user AS (
       SELECT
-        avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-        quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
-        countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS sample_size,
-        minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
-        maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds
-      FROM (
-        SELECT
-          (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
-        FROM (
-          SELECT
-            ${RESOLVED_PERSON} AS person_id,
-            ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
-            ${stepTimestampCols}
-          FROM events
-          WHERE
-            project_id = {project_id:UUID}
-            AND timestamp >= {from:DateTime64(3)}
-            AND timestamp <= {to:DateTime64(3)}
-            AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
-          GROUP BY person_id
-        )
-        WHERE max_step >= {to_step_num:UInt64}
-      )
+        ${RESOLVED_PERSON} AS person_id,
+        ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
+        ${stepTimestampCols}${exclColumnsSQL}
+      FROM events
+      WHERE
+        project_id = {project_id:UUID}
+        AND timestamp >= {from:DateTime64(3)}
+        AND timestamp <= {to:DateTime64(3)}
+        AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
+      GROUP BY person_id
+    ),
+    ${excludedUsersCTE}converted AS (
+      SELECT
+        (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
+      FROM funnel_per_user
+      WHERE max_step >= {to_step_num:UInt64}${exclAndCondition}
     )
+    SELECT
+      avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
+      quantileIf(0.5)(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS median_seconds,
+      toInt64(countIf(duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
+      minIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
+      maxIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds
+    FROM converted
   `;
 
   const statsResult = await ch.query({ query: statsSql, query_params: queryParams, format: 'JSONEachRow' });
@@ -166,6 +184,25 @@ export async function queryFunnelTimeToConvert(
   // Phase 2: compute histogram bins entirely in ClickHouse — O(n) server-side scan,
   // zero per-timing data transferred to Node.js, no in-memory O(n × binCount) filtering.
   const binsSql = `
+    WITH funnel_per_user AS (
+      SELECT
+        ${RESOLVED_PERSON} AS person_id,
+        ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
+        ${stepTimestampCols}${exclColumnsSQL}
+      FROM events
+      WHERE
+        project_id = {project_id:UUID}
+        AND timestamp >= {from:DateTime64(3)}
+        AND timestamp <= {to:DateTime64(3)}
+        AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
+      GROUP BY person_id
+    ),
+    ${excludedUsersCTE}converted AS (
+      SELECT
+        (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
+      FROM funnel_per_user
+      WHERE max_step >= {to_step_num:UInt64}${exclAndCondition}
+    )
     SELECT
       toInt64(bin_idx) AS bin_idx,
       toInt64(count()) AS bin_count
@@ -175,24 +212,7 @@ export async function queryFunnelTimeToConvert(
           toInt64(${binCount - 1}),
           toInt64(floor((duration_seconds - ${minVal}) / ${binWidth}))
         )) AS bin_idx
-      FROM (
-        SELECT
-          (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
-        FROM (
-          SELECT
-            ${RESOLVED_PERSON} AS person_id,
-            ${buildWindowFunnelExpr('ordered', stepConditions)} AS max_step,
-            ${stepTimestampCols}
-          FROM events
-          WHERE
-            project_id = {project_id:UUID}
-            AND timestamp >= {from:DateTime64(3)}
-            AND timestamp <= {to:DateTime64(3)}
-            AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
-          GROUP BY person_id
-        )
-        WHERE max_step >= {to_step_num:UInt64}
-      )
+      FROM converted
       WHERE duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}
     )
     GROUP BY bin_idx
