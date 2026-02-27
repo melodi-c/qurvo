@@ -56,6 +56,39 @@ function BreakdownMutuallyExclusive(validationOptions?: ValidationOptions) {
 }
 
 /**
+ * Class-level decorator that rejects simultaneous use of `conversion_window_days`
+ * (explicitly set to a non-default value) together with `conversion_window_value/unit`.
+ * Passing both is ambiguous — exactly one mechanism should be used per request.
+ */
+function ConversionWindowMutuallyExclusive(validationOptions?: ValidationOptions) {
+  return function (target: object) {
+    registerDecorator({
+      name: 'conversionWindowMutuallyExclusive',
+      target: target as new (...args: unknown[]) => unknown,
+      propertyName: 'conversion_window_days',
+      options: {
+        message: 'specify either conversion_window_days or conversion_window_value/unit, not both',
+        ...validationOptions,
+      },
+      validator: {
+        validate(_value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const days = obj['conversion_window_days'];
+          const hasNonDefaultDays =
+            typeof days === 'number' && days !== 14;
+          const hasValueUnit =
+            obj['conversion_window_value'] != null ||
+            (typeof obj['conversion_window_unit'] === 'string' &&
+              obj['conversion_window_unit'].length > 0);
+          // Valid when not both non-default days + value/unit are present
+          return !(hasNonDefaultDays && hasValueUnit);
+        },
+      },
+    });
+  };
+}
+
+/**
  * Class-level decorator that requires `breakdown_type='cohort'` when
  * `breakdown_cohort_ids` is provided. Passing cohort IDs without the
  * matching breakdown_type silently ignores them, so we reject early.
@@ -126,6 +159,7 @@ export class FunnelExclusionDto {
   funnel_to_step: number;
 }
 
+@ConversionWindowMutuallyExclusive()
 class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Transform(makeJsonArrayTransform(FunnelStepDto))
   @IsArray()
