@@ -107,6 +107,30 @@ describe('queryPaths — basic transitions', () => {
   });
 });
 
+describe('queryPaths — no events matching start_event', () => {
+  it('returns empty result when start_event matches no events', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    // Insert events that exist but do NOT match the specified start_event
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'pageview', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'a', event_name: 'signup', timestamp: msAgo(2000) }),
+    ]);
+
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 5,
+      start_event: 'nonexistent_start_event',
+    });
+
+    expect(result.transitions).toHaveLength(0);
+    expect(result.top_paths).toHaveLength(0);
+  });
+});
+
 describe('queryPaths — start and end event filtering', () => {
   it('filters paths by start event', async () => {
     const projectId = randomUUID();

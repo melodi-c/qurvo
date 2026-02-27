@@ -79,9 +79,11 @@ describe('queryFunnel — sampling', () => {
     expect(sampled.breakdown).toBe(false);
     const rSampled = sampled as Extract<typeof sampled, { breakdown: false }>;
     expect(rSampled.sampling_factor).toBe(0.5);
-    // With 20 users and 50% sampling, we expect roughly 10 (±5 due to hash distribution)
+    // With 20 users and 50% sampling, we expect roughly 10 (±5 due to hash distribution).
+    // The upper bound is 15 (not 20) to ensure sampling actually reduced the count — if
+    // sampling were not applied, all 20 users would appear and this assertion would fail.
     expect(rSampled.steps[0].count).toBeGreaterThan(0);
-    expect(rSampled.steps[0].count).toBeLessThanOrEqual(20);
+    expect(rSampled.steps[0].count).toBeLessThanOrEqual(15);
     // Conversion rate should remain 100% (all sampled users complete both steps)
     expect(rSampled.steps[1].conversion_rate).toBe(100);
 

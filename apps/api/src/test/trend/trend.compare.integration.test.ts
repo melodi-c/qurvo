@@ -5,9 +5,8 @@ import {
   buildEvent,
   daysAgo,
   ts,
-  type ContainerContext,
 } from '@qurvo/testing';
-import { getTestContext } from '../context';
+import { getTestContext, type ContainerContext } from '../context';
 import { queryTrend } from '../../analytics/trend/trend.query';
 import { sumSeriesValues } from '../helpers';
 
@@ -47,5 +46,23 @@ describe('queryTrend — compare mode', () => {
     expect(currentTotal).toBe(2);
     const prevTotal = sumSeriesValues(r.series_previous[0]?.data ?? []);
     expect(prevTotal).toBe(1);
+
+    // Verify bucket timestamps: current period covers daysAgo(4)..daysAgo(3),
+    // previous period (shifted back by 2 days) covers daysAgo(6)..daysAgo(5).
+    // Bucket dates must differ between current and previous series so that a
+    // bug in shiftPeriod (returning same offset) would cause an assertion failure.
+    const currentBuckets = r.series[0].data.map((d) => d.bucket);
+    const previousBuckets = r.series_previous[0].data.map((d) => d.bucket);
+    expect(currentBuckets.length).toBeGreaterThan(0);
+    expect(previousBuckets.length).toBeGreaterThan(0);
+    // None of the current-period bucket dates should be present in the previous-period buckets
+    for (const cb of currentBuckets) {
+      expect(previousBuckets).not.toContain(cb);
+    }
+    // Current buckets should contain daysAgo(3) and daysAgo(4)
+    expect(currentBuckets.some((b) => b.startsWith(daysAgo(3)))).toBe(true);
+    expect(currentBuckets.some((b) => b.startsWith(daysAgo(4)))).toBe(true);
+    // Previous buckets should contain daysAgo(6) (the one event in the previous period)
+    expect(previousBuckets.some((b) => b.startsWith(daysAgo(6)))).toBe(true);
   });
 });
