@@ -39,9 +39,27 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
 
   const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
 
-  // Strict mode needs ALL events visible to windowFunnel('strict_order')
+  // Ordered mode: filter to only funnel-relevant events (step + exclusion names) for efficiency.
+  // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
+  // doesn't match the current or next expected step. So it must see ALL events for correctness.
+  // However, we still pre-filter to users who have at least one funnel step event — this avoids
+  // scanning every event for users who would never enter the funnel (e.g. pageview-only users).
+  // Semantics are preserved: step events that pass the subquery filter are still present;
+  // non-step events for qualifying users are included in the outer scan so strict_order can
+  // detect and reset on them.
+  const strictUserFilter = [
+    '',
+    '                AND distinct_id IN (',
+    '                  SELECT DISTINCT distinct_id',
+    '                  FROM events',
+    '                  WHERE project_id = {project_id:UUID}',
+    '                    AND timestamp >= {from:DateTime64(3)}',
+    '                    AND timestamp <= {to:DateTime64(3)}',
+    '                    AND event_name IN ({all_event_names:Array(String)})',
+    '                )',
+  ].join('\n');
   const eventNameFilter = orderType === 'strict'
-    ? ''
+    ? strictUserFilter
     : '\n                AND event_name IN ({all_event_names:Array(String)})';
 
   // Build full step conditions for step 0 and last step — these handle OR-logic
