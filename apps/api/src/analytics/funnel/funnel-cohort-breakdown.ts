@@ -104,7 +104,7 @@ export async function runFunnelCohortBreakdown(
 
     const result = await ch.query({ query: sql, query_params: cbQueryParams, format: 'JSONEachRow' });
     const rows = await result.json<RawFunnelRow>();
-    perCohortResults.push(computeCohortBreakdownStepResults(rows, steps, numSteps, cb.name));
+    perCohortResults.push(computeCohortBreakdownStepResults(rows, steps, numSteps, cb.cohort_id, cb.name));
   }
 
   const allBreakdownSteps = perCohortResults.flat();

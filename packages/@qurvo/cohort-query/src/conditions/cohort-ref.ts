@@ -11,7 +11,7 @@ export function buildCohortRefConditionSubquery(
   const idPk = `coh_${condIdx}_ref_id`;
   ctx.queryParams[idPk] = cond.cohort_id;
 
-  const isStatic = resolveCohortIsStatic?.(cond.cohort_id) ?? false;
+  const isStatic = cond.is_static ?? resolveCohortIsStatic?.(cond.cohort_id) ?? false;
   const table = isStatic ? 'person_static_cohort' : 'cohort_members';
 
   const subquery = `

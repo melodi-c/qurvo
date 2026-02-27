@@ -16,7 +16,7 @@ export function buildEventSequenceSubquery(
       SELECT
         ${RESOLVED_PERSON} AS person_id,
         sequenceMatch('${pattern}')(
-          timestamp,
+          toDateTime(timestamp),
           ${stepConditions.join(',\n          ')}
         ) AS seq_match
       FROM events
