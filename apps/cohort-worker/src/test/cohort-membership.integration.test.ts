@@ -843,6 +843,354 @@ describe('cohort membership', () => {
     computeSpy.mockRestore();
   });
 
+  // ── Advanced condition types ──────────────────────────────────────────────
+
+  it('first_time_event — person whose first event is within the window is included', async () => {
+    const projectId = testProject.projectId;
+    const newPerson = randomUUID();   // first signup 2 days ago → within 7-day window
+    const oldPerson = randomUUID();   // first signup 20 days ago → outside window
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: newPerson,
+        distinct_id: `coh-fte-new-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'new' }),
+        timestamp: ts(2),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: oldPerson,
+        distinct_id: `coh-fte-old-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ role: 'old' }),
+        timestamp: ts(20),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'First Time Signup', {
+      type: 'AND',
+      values: [
+        { type: 'first_time_event', event_name: 'signup', time_window_days: 7 },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(newPerson);
+    expect(members).not.toContain(oldPerson);
+  });
+
+  it('event_sequence — person with correct order included, reversed order excluded', async () => {
+    const projectId = testProject.projectId;
+    const personCorrect = randomUUID();   // signup → purchase (correct order)
+    const personReversed = randomUUID();  // purchase → signup (wrong order)
+
+    await insertTestEvents(ctx.ch, [
+      // personCorrect: signup at day 3 hour 10, purchase at day 3 hour 11 (correct order)
+      buildEvent({
+        project_id: projectId,
+        person_id: personCorrect,
+        distinct_id: `coh-seq-ok-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ seq: 'correct' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personCorrect,
+        distinct_id: `coh-seq-ok-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ seq: 'correct' }),
+        timestamp: ts(3, 11),
+      }),
+      // personReversed: purchase at day 3 hour 10, signup at day 3 hour 11 (wrong order)
+      buildEvent({
+        project_id: projectId,
+        person_id: personReversed,
+        distinct_id: `coh-seq-rev-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ seq: 'reversed' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personReversed,
+        distinct_id: `coh-seq-rev-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ seq: 'reversed' }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Signup Then Purchase', {
+      type: 'AND',
+      values: [
+        {
+          type: 'event_sequence',
+          steps: [
+            { event_name: 'signup' },
+            { event_name: 'purchase' },
+          ],
+          time_window_days: 30,
+        },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personCorrect);
+    expect(members).not.toContain(personReversed);
+  });
+
+  it('not_performed_event_sequence — person without sequence included, with sequence excluded', async () => {
+    const projectId = testProject.projectId;
+    const personNoSeq = randomUUID();    // has signup only (no purchase after) → included
+    const personWithSeq = randomUUID();  // has signup → purchase → excluded
+
+    await insertTestEvents(ctx.ch, [
+      // personNoSeq: only signup, no purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personNoSeq,
+        distinct_id: `coh-nseq-no-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ nseq: 'no' }),
+        timestamp: ts(3, 10),
+      }),
+      // personWithSeq: signup then purchase (matches sequence)
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithSeq,
+        distinct_id: `coh-nseq-yes-${randomUUID()}`,
+        event_name: 'signup',
+        user_properties: JSON.stringify({ nseq: 'yes' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personWithSeq,
+        distinct_id: `coh-nseq-yes-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ nseq: 'yes' }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Not Signup Then Purchase', {
+      type: 'AND',
+      values: [
+        {
+          type: 'not_performed_event_sequence',
+          steps: [
+            { event_name: 'signup' },
+            { event_name: 'purchase' },
+          ],
+          time_window_days: 30,
+        },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personNoSeq);
+    expect(members).not.toContain(personWithSeq);
+  });
+
+  it('performed_regularly — person active in enough periods included, sparse excluded', async () => {
+    const projectId = testProject.projectId;
+    const personRegular = randomUUID();   // events in 4 distinct weeks → meets min_periods=3
+    const personSparse = randomUUID();    // events in 1 week only → below threshold
+
+    // personRegular: events across 4 distinct weeks within last 30 days
+    // Week 1: ~3 days ago, Week 2: ~10 days ago, Week 3: ~17 days ago, Week 4: ~24 days ago
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personRegular,
+        distinct_id: `coh-reg-ok-${randomUUID()}`,
+        event_name: 'login',
+        user_properties: JSON.stringify({ regularity: 'high' }),
+        timestamp: ts(3),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personRegular,
+        distinct_id: `coh-reg-ok-${randomUUID()}`,
+        event_name: 'login',
+        user_properties: JSON.stringify({ regularity: 'high' }),
+        timestamp: ts(10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personRegular,
+        distinct_id: `coh-reg-ok-${randomUUID()}`,
+        event_name: 'login',
+        user_properties: JSON.stringify({ regularity: 'high' }),
+        timestamp: ts(17),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personRegular,
+        distinct_id: `coh-reg-ok-${randomUUID()}`,
+        event_name: 'login',
+        user_properties: JSON.stringify({ regularity: 'high' }),
+        timestamp: ts(24),
+      }),
+      // personSparse: only 1 event in last 30 days
+      buildEvent({
+        project_id: projectId,
+        person_id: personSparse,
+        distinct_id: `coh-reg-sparse-${randomUUID()}`,
+        event_name: 'login',
+        user_properties: JSON.stringify({ regularity: 'low' }),
+        timestamp: ts(3),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Regular Users', {
+      type: 'AND',
+      values: [
+        {
+          type: 'performed_regularly',
+          event_name: 'login',
+          period_type: 'week',
+          total_periods: 4,
+          min_periods: 3,
+          time_window_days: 30,
+        },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personRegular);
+    expect(members).not.toContain(personSparse);
+  });
+
+  it('stopped_performing — person active historically but not recently is included', async () => {
+    const projectId = testProject.projectId;
+    const personStopped = randomUUID();   // event 15 days ago (in historical), none in recent → included
+    const personActive = randomUUID();    // event 2 days ago (in recent window) → excluded
+
+    // Config: recent_window_days=7, historical_window_days=30
+    // Historical window: [now-30d, now-7d)
+    // Recent window: [now-7d, now]
+    await insertTestEvents(ctx.ch, [
+      // personStopped: event 15 days ago → in historical but not in recent
+      buildEvent({
+        project_id: projectId,
+        person_id: personStopped,
+        distinct_id: `coh-stop-yes-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ stopped: 'yes' }),
+        timestamp: ts(15),
+      }),
+      // personActive: event 2 days ago → in recent window → NOT stopped
+      buildEvent({
+        project_id: projectId,
+        person_id: personActive,
+        distinct_id: `coh-stop-no-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ stopped: 'no' }),
+        timestamp: ts(15),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personActive,
+        distinct_id: `coh-stop-no-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ stopped: 'no' }),
+        timestamp: ts(2),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Stopped Purchasing', {
+      type: 'AND',
+      values: [
+        {
+          type: 'stopped_performing',
+          event_name: 'purchase',
+          recent_window_days: 7,
+          historical_window_days: 30,
+        },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personStopped);
+    expect(members).not.toContain(personActive);
+  });
+
+  it('restarted_performing — person with historical + gap + recent activity included', async () => {
+    const projectId = testProject.projectId;
+    const personRestarted = randomUUID();  // events in historical & recent, none in gap → included
+    const personOnlyRecent = randomUUID(); // events only in recent → excluded (no historical)
+
+    // Config: recent_window_days=7, gap_window_days=14, historical_window_days=60
+    // Validation: historical (60) > recent (7) + gap (14) = 21 ✓
+    //
+    // Windows (relative to now):
+    //   Recent:     [now-7d, now]
+    //   Gap:        [now-21d, now-7d)
+    //   Historical: [now-60d, now-21d)
+    await insertTestEvents(ctx.ch, [
+      // personRestarted: historical event (40 days ago) — in [now-60d, now-21d)
+      buildEvent({
+        project_id: projectId,
+        person_id: personRestarted,
+        distinct_id: `coh-restart-yes-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ restarted: 'yes' }),
+        timestamp: ts(40),
+      }),
+      // personRestarted: recent event (3 days ago) — in [now-7d, now]
+      buildEvent({
+        project_id: projectId,
+        person_id: personRestarted,
+        distinct_id: `coh-restart-yes-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ restarted: 'yes' }),
+        timestamp: ts(3),
+      }),
+      // personOnlyRecent: only recent event (3 days ago), no historical
+      buildEvent({
+        project_id: projectId,
+        person_id: personOnlyRecent,
+        distinct_id: `coh-restart-no-${randomUUID()}`,
+        event_name: 'purchase',
+        user_properties: JSON.stringify({ restarted: 'no' }),
+        timestamp: ts(3),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Restarted Purchasing', {
+      type: 'AND',
+      values: [
+        {
+          type: 'restarted_performing',
+          event_name: 'purchase',
+          recent_window_days: 7,
+          gap_window_days: 14,
+          historical_window_days: 60,
+        },
+      ],
+    });
+
+    await runCycle();
+
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personRestarted);
+    expect(members).not.toContain(personOnlyRecent);
+  });
+
   it('gcOrphanedMemberships with 0 dynamic cohorts does not delete all rows (Bug c)', async () => {
     const projectId = testProject.projectId;
     const personId = randomUUID();
