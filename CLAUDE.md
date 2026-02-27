@@ -20,9 +20,6 @@ pnpm --filter @qurvo/ingest dev
 pnpm --filter @qurvo/processor dev
 pnpm --filter @qurvo/cohort-worker dev
 pnpm --filter @qurvo/billing-worker dev
-pnpm --filter @qurvo/insights-worker dev
-pnpm --filter @qurvo/monitor-worker dev
-pnpm --filter @qurvo/scheduled-jobs-worker dev
 pnpm --filter @qurvo/web dev
 
 # Build
@@ -70,9 +67,6 @@ SDK (@qurvo/sdk-browser | @qurvo/sdk-node)
 - **`@qurvo/processor`** — Background worker. Consumes Redis Stream, resolves person identity, writes to ClickHouse. See `apps/processor/CLAUDE.md`.
 - **`@qurvo/cohort-worker`** — Background worker. Periodically recomputes dynamic cohort memberships. See `apps/cohort-worker/CLAUDE.md`.
 - **`@qurvo/billing-worker`** — Background worker. Periodically checks billing counters and populates `billing:quota_limited` Redis Set for ingest. See `apps/billing-worker/CLAUDE.md`.
-- **`@qurvo/insights-worker`** — Background worker. Runs every 24 hours. Detects significant metric changes and newly appearing events across all projects using ClickHouse queries; persists findings as `ai_insights` rows in PostgreSQL. See `apps/insights-worker/CLAUDE.md`.
-- **`@qurvo/monitor-worker`** — Background worker. Runs every hour. Evaluates active user-configured monitors for statistical anomalies (z-score model, 29-day baseline) and dispatches Slack/email alerts when the threshold is exceeded. See `apps/monitor-worker/CLAUDE.md`.
-- **`@qurvo/scheduled-jobs-worker`** — Background worker. Runs every hour. Executes AI-powered scheduled jobs (daily/weekly/monthly cadence) by calling OpenAI with a user-defined prompt and delivering results via Slack or email. See `apps/scheduled-jobs-worker/CLAUDE.md`.
 - **`@qurvo/web`** (port 5173) — React SPA dashboard. See `apps/web/CLAUDE.md`.
 
 ### Deployment
@@ -108,7 +102,7 @@ Each package has its own `CLAUDE.md` with detailed docs.
 - **`@qurvo/sdk-core`** — fetch-based transport with queue
 - **`@qurvo/sdk-browser`** / **`@qurvo/sdk-node`** — platform-specific SDK wrappers
 - **`@qurvo/distributed-lock`** — Redis-based distributed lock (SET NX + Lua-guarded release). Used by processor's DLQ replay and cohort-worker's membership service.
-- **`@qurvo/worker-core`** — shared worker bootstrap (`bootstrapWorker()`), logger factory (`workerLoggerModule()`), periodic timer mixin (`PeriodicWorkerMixin`). Used by processor, billing-worker, cohort-worker, insights-worker, monitor-worker, scheduled-jobs-worker.
+- **`@qurvo/worker-core`** — shared worker bootstrap (`bootstrapWorker()`), logger factory (`workerLoggerModule()`), periodic timer mixin (`PeriodicWorkerMixin`). Used by processor, billing-worker, cohort-worker.
 - **`@qurvo/testing`** — shared testcontainers + per-worker DB isolation + factories + date helpers. See `packages/@qurvo/testing/CLAUDE.md`
 
 ### Web i18n — обязательное требование
@@ -126,9 +120,6 @@ pnpm --filter @qurvo/ingest exec vitest run --config vitest.integration.config.t
 pnpm --filter @qurvo/processor exec vitest run --config vitest.integration.config.ts
 pnpm --filter @qurvo/cohort-worker exec vitest run --config vitest.integration.config.ts
 pnpm --filter @qurvo/billing-worker exec vitest run --config vitest.integration.config.ts
-pnpm --filter @qurvo/insights-worker exec vitest run --config vitest.integration.config.ts
-pnpm --filter @qurvo/monitor-worker exec vitest run --config vitest.integration.config.ts
-pnpm --filter @qurvo/scheduled-jobs-worker exec vitest run --config vitest.integration.config.ts
 ```
 
 Each app uses `createGlobalSetup()` from `@qurvo/testing` in its `globalSetup`. This starts **3 shared containers** (PG, Redis, CH) once in the main process, then vitest forks (up to `maxForks: 4`) each create isolated databases (`qurvo_worker_N`) and Redis DB N. No `singleFork` — tests run in parallel across forks.

@@ -32,7 +32,7 @@ for i in $(seq 0 $((TOTAL - 1))); do
   if echo "$LABELS" | grep -qx "web"; then APPS="${APPS}apps/web,"; fi
   if echo "$LABELS" | grep -qx "api"; then APPS="${APPS}apps/api,"; fi
   if echo "$LABELS" | grep -qx "billing"; then APPS="${APPS}apps/billing-worker,"; fi
-  if echo "$LABELS" | grep -qx "ai"; then APPS="${APPS}apps/insights-worker,apps/scheduled-jobs-worker,"; fi
+  # "ai" label — workers removed in issue #600
 
   # По title
   if echo "$TITLE" | grep -qi "(web)"; then APPS="${APPS}apps/web,"; fi
