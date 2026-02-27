@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { eq, and, inArray, asc } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -56,12 +56,17 @@ export class CohortsService {
       is_static?: boolean;
     },
   ) {
-    const definition = input.definition ?? null;
-    if (!definition && !input.is_static) {
+    // Static cohorts always store the sentinel empty definition regardless of
+    // any caller-supplied definition — their membership is managed explicitly
+    // and never computed from the definition.
+    const isStatic = input.is_static ?? false;
+    const definition = isStatic ? null : (input.definition ?? null);
+
+    if (!definition && !isStatic) {
       throw new AppBadRequestException('definition is required for dynamic cohorts');
     }
 
-    // Check circular dependency if definition references other cohorts
+    // Check circular dependency only for dynamic cohorts that reference others
     if (definition) {
       await this.checkCircularDependency('', definition, projectId);
     }
@@ -74,7 +79,7 @@ export class CohortsService {
         name: input.name,
         description: input.description ?? null,
         definition: definition ?? { type: 'AND', values: [] },
-        is_static: input.is_static ?? false,
+        is_static: isStatic,
       })
       .returning();
 
@@ -231,14 +236,18 @@ export class CohortsService {
     const rows = await this.db
       .select()
       .from(cohorts)
-      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, cohortIds)))
-      .orderBy(asc(cohorts.id));
+      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, cohortIds)));
 
     if (rows.length !== cohortIds.length) {
       const found = new Set(rows.map((r) => r.id));
       const missing = cohortIds.find((id) => !found.has(id));
       throw new CohortNotFoundException(`Cohort ${missing} not found`);
     }
+
+    // Re-sort to match the caller-supplied order so that cohort breakdowns
+    // assign labels to the correct buckets (bucket index === cohortIds index).
+    const indexMap = new Map(cohortIds.map((id, i) => [id, i]));
+    rows.sort((a, b) => (indexMap.get(a.id) ?? 0) - (indexMap.get(b.id) ?? 0));
 
     return rows;
   }
