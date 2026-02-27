@@ -9,10 +9,7 @@ metadata:
 spec:
   replicas: {{ (index .Values "scheduled-jobs-worker").replicas }}
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+    type: Recreate
   selector:
     matchLabels:
       {{- include "qurvo.selectorLabels" (dict "component" "scheduled-jobs-worker" "root" .) | nindent 6 }}
