@@ -220,63 +220,52 @@ describe('resolveWindowSeconds', () => {
     });
   });
 
-  describe('conflict — both non-default conversion_window_days and value/unit provided', () => {
-    it('throws when conversion_window_days=7 and conversion_window_value/unit are both set', () => {
-      expect(() =>
-        resolveWindowSeconds({
-          conversion_window_days: 7,
-          conversion_window_value: 30,
-          conversion_window_unit: 'minute',
-        }),
-      ).toThrow(AppBadRequestException);
+  describe('value/unit takes precedence over conversion_window_days', () => {
+    it('uses value/unit when conversion_window_days=7 (non-default) and value/unit are both set', () => {
+      // conversion_window_days is a required field in FunnelQueryParams, so callers always
+      // provide it. When value/unit is also provided, value/unit wins — no conflict error.
+      const result = resolveWindowSeconds({
+        conversion_window_days: 7,
+        conversion_window_value: 30,
+        conversion_window_unit: 'minute',
+      });
+      expect(result).toBe(30 * 60);
     });
 
-    it('throws with message "specify either conversion_window_days or conversion_window_value/unit, not both"', () => {
-      expect(() =>
-        resolveWindowSeconds({
-          conversion_window_days: 7,
-          conversion_window_value: 30,
-          conversion_window_unit: 'minute',
-        }),
-      ).toThrow('specify either conversion_window_days or conversion_window_value/unit, not both');
-    });
-
-    it('does NOT throw when conversion_window_days=14 (default) and value/unit are set — default is treated as absent', () => {
-      // When the caller sends only conversion_window_value/unit, the DTO default (14) is still
-      // present. We must NOT reject in this case — only non-default days trigger the guard.
-      expect(() =>
-        resolveWindowSeconds({
-          conversion_window_days: 14,
-          conversion_window_value: 30,
-          conversion_window_unit: 'minute',
-        }),
-      ).not.toThrow();
+    it('uses value/unit when conversion_window_days=14 (default) and value/unit are set', () => {
       const result = resolveWindowSeconds({
         conversion_window_days: 14,
         conversion_window_value: 30,
         conversion_window_unit: 'minute',
       });
-      expect(result).toBe(30 * 60); // value/unit wins
+      expect(result).toBe(30 * 60);
     });
 
-    it('throws when conversion_window_days=1 (non-default minimum) and value/unit set', () => {
-      expect(() =>
-        resolveWindowSeconds({
-          conversion_window_days: 1,
-          conversion_window_value: 2,
-          conversion_window_unit: 'hour',
-        }),
-      ).toThrow(AppBadRequestException);
+    it('uses value/unit when conversion_window_days=1 and value/unit set', () => {
+      const result = resolveWindowSeconds({
+        conversion_window_days: 1,
+        conversion_window_value: 2,
+        conversion_window_unit: 'hour',
+      });
+      expect(result).toBe(2 * 3600);
     });
 
-    it('throws when conversion_window_days=90 (non-default maximum) and value/unit set', () => {
-      expect(() =>
-        resolveWindowSeconds({
-          conversion_window_days: 90,
-          conversion_window_value: 1,
-          conversion_window_unit: 'day',
-        }),
-      ).toThrow(AppBadRequestException);
+    it('uses value/unit when conversion_window_days=90 and value/unit set', () => {
+      const result = resolveWindowSeconds({
+        conversion_window_days: 90,
+        conversion_window_value: 1,
+        conversion_window_unit: 'day',
+      });
+      expect(result).toBe(86400);
+    });
+
+    it('uses value/unit when conversion_window_days=0 and value/unit set', () => {
+      const result = resolveWindowSeconds({
+        conversion_window_days: 0,
+        conversion_window_value: 10,
+        conversion_window_unit: 'second',
+      });
+      expect(result).toBe(10);
     });
   });
 
