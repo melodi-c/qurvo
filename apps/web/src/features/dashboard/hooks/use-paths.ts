@@ -19,11 +19,12 @@ export const usePathsData = createWidgetDataHook<PathsWidgetConfig, PathsRespons
       cohort_ids: config.cohort_ids,
     }),
   isEnabled: () => true,
-  buildParams: (config, projectId, widgetUuid) => ({
+  buildParams: (config, projectId, widgetUuid, timezone) => ({
     project_id: projectId,
     date_from: config.date_from,
     date_to: config.date_to,
     step_limit: config.step_limit,
+    ...(timezone && timezone !== 'UTC' ? { timezone } : {}),
     ...(config.start_event ? { start_event: config.start_event } : {}),
     ...(config.end_event ? { end_event: config.end_event } : {}),
     ...(config.exclusions?.length ? { exclusions: config.exclusions } : {}),

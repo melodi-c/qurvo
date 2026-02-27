@@ -74,7 +74,11 @@ function buildCleaningExpr(
   if (arms.length === 0) return 'event_name';
 
   const cases = arms
-    .map((a) => `match(event_name, '${a.pattern.replace(/'/g, "\\'")}'), '${a.alias.replace(/'/g, "\\'")}'`)
+    .map((a) => {
+      const escapedPattern = a.pattern.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const escapedAlias = a.alias.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return `match(event_name, '${escapedPattern}'), '${escapedAlias}'`;
+    })
     .join(', ');
   return `multiIf(${cases}, event_name)`;
 }

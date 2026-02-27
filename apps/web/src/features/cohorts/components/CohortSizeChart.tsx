@@ -11,6 +11,7 @@ import {
 import { CHART_COLORS_HSL } from '@/lib/chart-colors';
 import type { CohortHistoryPoint } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useProjectStore } from '@/stores/project';
 import translations from './CohortSizeChart.translations';
 import { formatBucket } from '@/lib/formatting';
 
@@ -22,15 +23,16 @@ interface CohortSizeChartProps {
 
 export function CohortSizeChart({ data }: CohortSizeChartProps) {
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
 
   const chartData = useMemo(
     () =>
       data.map((p) => ({
         date: p.date,
         count: p.count,
-        label: formatBucket(p.date, 'day'),
+        label: formatBucket(p.date, 'day', false, timezone),
       })),
-    [data],
+    [data, timezone],
   );
 
   if (chartData.length === 0) {

@@ -24,6 +24,7 @@ import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useProjectStore } from '@/stores/project';
 import translations from './TrendChart.translations';
 
 const COLORS = CHART_COLORS_HSL;
@@ -100,6 +101,7 @@ function renderAnnotations(annotations: Annotation[] | undefined, compact?: bool
 
 export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations }: TrendChartProps) {
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
@@ -186,7 +188,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
               <XAxis
                 dataKey="bucket"
-                tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact)}
+                tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact, timezone)}
                 tick={tickStyle}
                 tickLine={false}
                 axisLine={false}
@@ -200,7 +202,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               />
               <Tooltip
                 contentStyle={CHART_TOOLTIP_STYLE}
-                labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
+                labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
               />
               {renderPrevSeries(seriesProps)}
               {renderCurrentSeries(seriesProps)}
@@ -220,7 +222,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
                 <XAxis
                   dataKey="bucket"
-                  tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact)}
+                  tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact, timezone)}
                   tick={chartAxisTick()}
                   tickLine={false}
                   axisLine={false}
@@ -236,7 +238,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 />
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
-                  labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day')}
+                  labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
                 />
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}

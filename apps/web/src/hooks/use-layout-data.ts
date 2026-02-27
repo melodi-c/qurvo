@@ -80,6 +80,7 @@ export function useLayoutData() {
   const currentProjectData = projects?.find((p) => p.id === currentProject);
   const currentProjectName = currentProjectData?.name;
   const currentProjectIsDemo = currentProjectData?.is_demo ?? false;
+  const currentProjectTimezone = currentProjectData?.timezone;
   const hasProjects = projects && projects.length > 0;
   const projectsLoaded = projects !== undefined;
 
@@ -129,6 +130,7 @@ export function useLayoutData() {
     pendingInvitesCount,
     currentProjectName,
     currentProjectIsDemo,
+    currentProjectTimezone,
     hasProjects,
     shouldRedirectToProjects,
     isActive,
