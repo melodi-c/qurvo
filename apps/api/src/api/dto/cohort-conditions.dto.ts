@@ -43,6 +43,71 @@ function IsLessThan(property: string, validationOptions?: ValidationOptions) {
   };
 }
 
+/**
+ * Validates that `values` is a non-empty array when the sibling `operator`
+ * field requires a list: `in`, `not_in`, `contains_multi`, `not_contains_multi`.
+ *
+ * Applied to the `values` property of DTO classes that carry both `operator`
+ * and `values` fields (CohortEventFilterDto, CohortPropertyConditionDto).
+ */
+function ValuesMinSizeForOperator(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'valuesMinSizeForOperator',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const op = obj['operator'] as string | undefined;
+          const LIST_OPS = new Set(['in', 'not_in', 'contains_multi', 'not_contains_multi']);
+          if (op && LIST_OPS.has(op)) {
+            return Array.isArray(value) && value.length >= 1;
+          }
+          return true;
+        },
+        defaultMessage() {
+          return 'values must contain at least 1 element for in/not_in/contains_multi/not_contains_multi operators';
+        },
+      },
+    });
+  };
+}
+
+/**
+ * Validates that when the sibling `operator` field is `between` or `not_between`,
+ * `values` has exactly 2 elements and `values[0] <= values[1]` (ordered range).
+ *
+ * Applied to the `values` property of DTO classes that carry both `operator`
+ * and `values` fields (CohortEventFilterDto, CohortPropertyConditionDto).
+ */
+function BetweenValuesOrdered(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'betweenValuesOrdered',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const op = obj['operator'] as string | undefined;
+          if (op !== 'between' && op !== 'not_between') return true;
+          if (!Array.isArray(value) || value.length !== 2) return false;
+          const min = Number(value[0]);
+          const max = Number(value[1]);
+          if (isNaN(min) || isNaN(max)) return false;
+          return min <= max;
+        },
+        defaultMessage() {
+          return 'values[0] must be <= values[1] for between/not_between operators (values must be an ordered numeric range)';
+        },
+      },
+    });
+  };
+}
+
 const COHORT_OPERATORS = [
   'eq', 'neq', 'contains', 'not_contains', 'contains_multi', 'not_contains_multi',
   'is_set', 'is_not_set', 'gt', 'lt', 'gte', 'lte', 'regex', 'not_regex',
@@ -70,6 +135,8 @@ export class CohortEventFilterDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
+  @ValuesMinSizeForOperator()
+  @BetweenValuesOrdered()
   values?: string[];
 }
 
@@ -95,6 +162,8 @@ export class CohortPropertyConditionDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
+  @ValuesMinSizeForOperator()
+  @BetweenValuesOrdered()
   values?: string[];
 }
 
