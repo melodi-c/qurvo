@@ -1,5 +1,13 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 
+/**
+ * Escapes LIKE-wildcard characters (%, _, \) in a user-provided string
+ * so they are treated as literals in ClickHouse LIKE patterns.
+ */
+function escapeLikePattern(s: string): string {
+  return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
+}
+
 export const RESOLVED_PERSON =
   `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
@@ -62,10 +70,10 @@ export function buildOperatorClause(
       queryParams[pk] = value ?? '';
       return `${expr} != {${pk}:String}`;
     case 'contains':
-      queryParams[pk] = `%${value ?? ''}%`;
+      queryParams[pk] = `%${escapeLikePattern(value ?? '')}%`;
       return `${expr} LIKE {${pk}:String}`;
     case 'not_contains':
-      queryParams[pk] = `%${value ?? ''}%`;
+      queryParams[pk] = `%${escapeLikePattern(value ?? '')}%`;
       return `${expr} NOT LIKE {${pk}:String}`;
     case 'is_set':
       return `${expr} != ''`;
