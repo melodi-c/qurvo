@@ -486,8 +486,11 @@ async function buildUnorderedTtcSql(
   // users who skipped step-0, producing incorrect TTC sample sizes and durations.
   const anyStepNonEmpty = `length(t0_arr) > 0`;
 
+  // anchorFilter=true: restrict exclusion checks to (f, t) pairs where f >= first_step_ms
+  // (the anchor window). This prevents historical clean sessions outside the anchor window
+  // from masking tainted conversions within it — same fix as funnel-unordered.sql.ts (issue #497).
   const excludedUsersCTE = exclusions.length > 0
-    ? ',\n  ' + buildExcludedUsersCTE(exclusions)
+    ? ',\n  ' + buildExcludedUsersCTE(exclusions, true)
     : '';
 
   const exclAndCondition = exclusions.length > 0
@@ -524,6 +527,7 @@ async function buildUnorderedTtcSql(
         person_id,
         max_step,
         anchor_ms,
+        anchor_ms AS first_step_ms,
         toInt64(if(
           notEmpty(arrayFilter(tf -> tf >= anchor_ms AND tf <= anchor_ms + ${winExpr}, t${fromStep}_arr)),
           arrayMin(arrayFilter(tf -> tf >= anchor_ms AND tf <= anchor_ms + ${winExpr}, t${fromStep}_arr)),
