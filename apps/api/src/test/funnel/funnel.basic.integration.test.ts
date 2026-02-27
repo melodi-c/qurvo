@@ -74,6 +74,15 @@ describe('queryFunnel — non-breakdown', () => {
     expect(r.steps[0].conversion_rate).toBe(100);
     expect(r.steps[1].conversion_rate).toBe(50);
     expect(r.steps[2].conversion_rate).toBe(50);
+    // drop_off: step 0 has 2 users, next step has 1 → 1 dropped off
+    expect(r.steps[0].drop_off).toBe(1);
+    expect(r.steps[0].drop_off_rate).toBe(50);
+    // step 1 has 1 user, next step also has 1 → 0 dropped off
+    expect(r.steps[1].drop_off).toBe(0);
+    expect(r.steps[1].drop_off_rate).toBe(0);
+    // last step always has drop_off = 0 and drop_off_rate = 0
+    expect(r.steps[2].drop_off).toBe(0);
+    expect(r.steps[2].drop_off_rate).toBe(0);
   });
 
   it('respects conversion window — out-of-window events are not counted', async () => {

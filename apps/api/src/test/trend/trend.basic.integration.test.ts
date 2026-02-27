@@ -149,6 +149,27 @@ describe('queryTrend — events_per_user', () => {
   });
 });
 
+describe('queryTrend — empty result', () => {
+  it('returns empty series when no events match', async () => {
+    const projectId = randomUUID();
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'nonexistent_event_xyz', label: 'None' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(5),
+      date_to: daysAgo(3),
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(r.series).toHaveLength(1);
+    expect(sumSeriesValues(r.series[0].data)).toBe(0);
+  });
+});
+
 describe('queryTrend — week granularity', () => {
   it('buckets events by week (Monday-aligned) and returns correct counts per week', async () => {
     const projectId = randomUUID();

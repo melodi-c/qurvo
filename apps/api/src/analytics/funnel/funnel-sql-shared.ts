@@ -124,6 +124,35 @@ export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions
   return `windowFunnel({window:UInt64} * 1000)(toUInt64(toUnixTimestamp64Milli(timestamp)), ${stepConditions})`;
 }
 
+// ── Unordered funnel validation ───────────────────────────────────────────────
+
+/**
+ * Validates that no two steps in an unordered funnel share any event name.
+ *
+ * In unordered funnels each step is computed via `minIf(timestamp, stepCondition)`.
+ * When two steps share an event name, both receive the same earliest timestamp for
+ * that event — causing a single occurrence to satisfy both steps simultaneously and
+ * inflating the conversion count.
+ *
+ * This check applies to the full resolved set of event names per step (i.e. it
+ * respects OR-logic steps that carry multiple names in `event_names`).
+ */
+export function validateUnorderedSteps(steps: FunnelStep[]): void {
+  for (let i = 0; i < steps.length; i++) {
+    const namesA = new Set(resolveStepEventNames(steps[i]!));
+    for (let j = i + 1; j < steps.length; j++) {
+      const namesB = resolveStepEventNames(steps[j]!);
+      const overlap = namesB.filter((n) => namesA.has(n));
+      if (overlap.length > 0) {
+        throw new AppBadRequestException(
+          `Unordered funnel: steps ${i + 1} and ${j + 1} share event name(s) "${overlap.join('", "')}" — ` +
+          `duplicate event names across steps are not supported in unordered mode`,
+        );
+      }
+    }
+  }
+}
+
 // ── Exclusion helpers ────────────────────────────────────────────────────────
 
 export function validateExclusions(exclusions: FunnelExclusion[], numSteps: number): void {

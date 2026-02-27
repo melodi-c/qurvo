@@ -224,6 +224,13 @@ describe('queryRetention — week granularity', () => {
     // Each week had exactly 1 person
     expect(result.cohorts[0].cohort_size).toBe(1);
     expect(result.cohorts[1].cohort_size).toBe(1);
+    // personA appeared in week1 (3 weeks ago), and returned in week2 (2 weeks ago).
+    // dateDiff('week', week1Monday, week2Monday) = 1 → periods[1] = 1
+    expect(result.cohorts[0].periods[1]).toBe(1);
+    // cohort[1] (week2, ~2 weeks ago): personA was active in this cohort week (periods[0] = 1).
+    // week3Event = ts(1, 12) which is 1 day ago. dateDiff('week', week2Monday, ts(1)) = 2.
+    // So periods[2] = 1 (not periods[1] — the event lands 2 weeks after the cohort week).
+    expect(result.cohorts[1].periods[2]).toBe(1);
   });
 });
 
@@ -267,9 +274,10 @@ describe('queryRetention — month granularity', () => {
     // Only personA returned in the next month (period_1 = 1)
     expect(firstCohort.periods[1]).toBe(1);
 
-    // Second cohort (newer month): only personA (size=1)
+    // Second cohort (newer month): only personA (size=1), no further events → periods[1] = 0
     const secondCohort = result.cohorts[1];
     expect(secondCohort.cohort_size).toBe(1);
+    expect(secondCohort.periods[1]).toBe(0);
   });
 });
 
@@ -698,6 +706,114 @@ describe('queryRetention — extendedTo computed from truncTo, not date_to', () 
     expect(cohort.cohort_size).toBe(1);
     // period_offset = 1: event on 1st of month1 — within window with fix
     expect(cohort.periods[1]).toBe(1);
+  });
+});
+
+describe('queryRetention — return_event differs from target_event', () => {
+  it('tracks whether users who performed target_event later performed return_event', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    // personA: signup on day-5 (cohort), then purchases on day-4 (return event)
+    // personB: signup on day-5 (cohort), but no purchase (does not return)
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'signup', timestamp: ts(5, 12) }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'purchase', timestamp: ts(4, 12) }),
+      buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'signup', timestamp: ts(5, 12) }),
+    ]);
+
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'signup',
+      return_event: 'purchase',
+      retention_type: 'recurring',
+      granularity: 'day',
+      periods: 1,
+      date_from: daysAgo(5),
+      date_to: daysAgo(5),
+    });
+
+    expect(result.cohorts).toHaveLength(1);
+    const cohort = result.cohorts[0];
+    // Both persons signed up on day-5, BUT period 0 uses return_event=purchase, not signup.
+    // personA has a purchase on day-5? No — purchase is on day-4. So periods[0] = 0 for
+    // both (no purchases on the cohort day itself), and periods[1] = 1 (personA purchased day-4).
+    // cohort_size = periods[0].
+    expect(cohort.periods[0]).toBe(0);   // no one purchased on cohort day (day-5)
+    expect(cohort.periods[1]).toBe(1);   // only personA purchased on day-4
+  });
+});
+
+describe('queryRetention — first_time + cohort_filters', () => {
+  it('first_time retention scoped to an inline cohort', async () => {
+    const projectId = randomUUID();
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+
+    // Both users first perform 'signup' on day-5 and return on day-4.
+    // Only premiumUser matches the cohort filter (plan=premium).
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(5, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(4, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(5, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'signup',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(4, 12),
+      }),
+    ]);
+
+    const cohortFilter: CohortFilterInput = {
+      cohort_id: randomUUID(),
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }],
+      },
+      materialized: false,
+      is_static: false,
+    };
+
+    const result = await queryRetention(ctx.ch, {
+      project_id: projectId,
+      target_event: 'signup',
+      retention_type: 'first_time',
+      granularity: 'day',
+      periods: 1,
+      date_from: daysAgo(5),
+      date_to: daysAgo(5),
+      cohort_filters: [cohortFilter],
+    });
+
+    // Only premiumUser is in the cohort — freeUser is excluded
+    expect(result.cohorts).toHaveLength(1);
+    expect(result.cohorts[0].cohort_size).toBe(1);
+    // premiumUser returned on day-4 → period_1 = 1
+    expect(result.cohorts[0].periods[1]).toBe(1);
   });
 });
 

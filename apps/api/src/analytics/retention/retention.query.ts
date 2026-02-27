@@ -11,6 +11,8 @@ export type RetentionGranularity = 'day' | 'week' | 'month';
 export interface RetentionQueryParams {
   project_id: string;
   target_event: string;
+  /** Optional separate event to track as the return event. Defaults to target_event when omitted. */
+  return_event?: string;
   retention_type: RetentionType;
   granularity: RetentionGranularity;
   periods: number;
@@ -99,9 +101,12 @@ export async function queryRetention(
   params: RetentionQueryParams,
 ): Promise<RetentionQueryResult> {
   const hasTz = !!(params.timezone && params.timezone !== 'UTC');
+  // When return_event is specified, use it for the return CTE; otherwise default to target_event.
+  const returnEventName = params.return_event ?? params.target_event;
   const queryParams: Record<string, unknown> = {
     project_id: params.project_id,
     target_event: params.target_event,
+    return_event: returnEventName,
     periods: params.periods,
   };
   if (hasTz) queryParams['tz'] = params.timezone;
@@ -188,7 +193,7 @@ export async function queryRetention(
         WHERE project_id = {project_id:UUID}
           AND timestamp >= ${fromExpr}
           AND timestamp <= ${extendedToExpr}
-          AND event_name = {target_event:String}${cohortClause}${filterClause}
+          AND event_name = {return_event:String}${cohortClause}${filterClause}
         GROUP BY person_id, return_period
       ),
       retention_raw AS (

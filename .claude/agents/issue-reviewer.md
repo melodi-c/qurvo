@@ -14,6 +14,27 @@ tools: Read, Bash, Grep, Glob
 
 ---
 
+## Шаг 0: Загрузить правила из CLAUDE.md
+
+Для каждого app/package из `AFFECTED_APPS` прочитай его `CLAUDE.md` (если существует):
+
+```
+apps/api        → apps/api/CLAUDE.md
+apps/web        → apps/web/CLAUDE.md
+apps/ingest     → apps/ingest/CLAUDE.md
+apps/processor  → apps/processor/CLAUDE.md
+packages/@qurvo/db           → packages/@qurvo/db/CLAUDE.md
+packages/@qurvo/clickhouse   → packages/@qurvo/clickhouse/CLAUDE.md
+```
+
+Дополнительно прочитай корневой `CLAUDE.md` (всегда).
+
+Из прочитанных файлов извлеки **project-specific правила** — паттерны, антипаттерны, обязательные требования. Добавь их к стандартным проверкам Шага 2. Например:
+- Если в CLAUDE.md написано "не использовать `FROM events FINAL`" — это усиливает проверку 2.4
+- Если описан обязательный формат DTO или service-pattern — проверяй добавленный код на соответствие
+
+---
+
 ## Шаг 1: Получить diff
 
 ```bash

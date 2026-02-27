@@ -284,6 +284,40 @@ describe('queryStickiness — long periods (30+ days)', () => {
   });
 });
 
+describe('queryStickiness — user_properties event_filters', () => {
+  it('filters by user_properties.* in event_filters', async () => {
+    const projectId = randomUUID();
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+
+    // premiumUser fires events with user_properties.plan = 'premium' on 3 different days
+    // freeUser fires events with user_properties.plan = 'free' on 2 different days
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: premiumUser, distinct_id: 'prem', event_name: 'login', user_properties: JSON.stringify({ plan: 'premium' }), timestamp: ts(5, 12) }),
+      buildEvent({ project_id: projectId, person_id: premiumUser, distinct_id: 'prem', event_name: 'login', user_properties: JSON.stringify({ plan: 'premium' }), timestamp: ts(4, 12) }),
+      buildEvent({ project_id: projectId, person_id: premiumUser, distinct_id: 'prem', event_name: 'login', user_properties: JSON.stringify({ plan: 'premium' }), timestamp: ts(3, 12) }),
+      buildEvent({ project_id: projectId, person_id: freeUser, distinct_id: 'free', event_name: 'login', user_properties: JSON.stringify({ plan: 'free' }), timestamp: ts(5, 12) }),
+      buildEvent({ project_id: projectId, person_id: freeUser, distinct_id: 'free', event_name: 'login', user_properties: JSON.stringify({ plan: 'free' }), timestamp: ts(4, 12) }),
+    ]);
+
+    // Filter to premium users only via user_properties — freeUser must not appear
+    const result = await queryStickiness(ctx.ch, {
+      project_id: projectId,
+      target_event: 'login',
+      granularity: 'day',
+      date_from: daysAgo(5),
+      date_to: daysAgo(3),
+      event_filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
+    });
+
+    expect(result.granularity).toBe('day');
+    // Only premiumUser should appear with 3 active days
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].period_count).toBe(3);
+    expect(result.data[0].user_count).toBe(1);
+  });
+});
+
 describe('queryStickiness — event property filters', () => {
   it('restricts active period counting to events matching the filter', async () => {
     const projectId = randomUUID();

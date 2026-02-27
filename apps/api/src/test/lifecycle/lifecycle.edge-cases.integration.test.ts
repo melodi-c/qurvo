@@ -18,6 +18,74 @@ beforeAll(async () => {
   ctx = await getTestContext();
 }, 120_000);
 
+describe('queryLifecycle — user_properties event_filters', () => {
+  it('filters by user_properties.* in event_filters', async () => {
+    const projectId = randomUUID();
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+
+    // premiumUser fires events with user_properties.plan = 'premium' on day-3 and day-2
+    // freeUser fires events with user_properties.plan = 'free' on day-3 and day-2
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'action',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(3, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: premiumUser,
+        distinct_id: 'premium',
+        event_name: 'action',
+        user_properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(2, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'action',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(3, 12),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: freeUser,
+        distinct_id: 'free',
+        event_name: 'action',
+        user_properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(2, 12),
+      }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'action',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(2),
+      event_filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
+    });
+
+    // Only premiumUser's events satisfy the user_properties filter — freeUser must be excluded
+    expect(result.totals.new).toBe(1);
+    expect(result.totals.returning).toBe(1);
+
+    // Day -3: premiumUser is new (freeUser excluded)
+    const day3 = result.data.find((d) => d.bucket.startsWith(daysAgo(3)));
+    expect(day3).toBeDefined();
+    expect(day3!.new).toBe(1);
+
+    // Day -2: premiumUser is returning
+    const day2 = result.data.find((d) => d.bucket.startsWith(daysAgo(2)));
+    expect(day2).toBeDefined();
+    expect(day2!.returning).toBe(1);
+  });
+});
+
 describe('queryLifecycle — event property filters', () => {
   it('restricts lifecycle analysis to events matching the property filter', async () => {
     const projectId = randomUUID();
