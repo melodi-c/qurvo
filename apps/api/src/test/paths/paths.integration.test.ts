@@ -222,6 +222,74 @@ describe('queryPaths — exclusions', () => {
   });
 });
 
+describe('queryPaths — compact before slice', () => {
+  it('user with A×N → B → C is visible when step_limit < N+2', async () => {
+    // Regression: arrayCompact was applied AFTER arraySlice, so a user with
+    // A×3 → B → C and step_limit=3 would get sliced to [A,A,A] then
+    // compacted to [A] — a single-element path filtered by HAVING length >= 2.
+    // Fix: compact first, then slice → [A, B, C] survives step_limit=3.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'home', timestamp: msAgo(5000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'home', timestamp: msAgo(4000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'home', timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'pricing', timestamp: msAgo(2000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'checkout', timestamp: msAgo(1000) }),
+    ]);
+
+    // step_limit=3: after compact [home,pricing,checkout] has length 3
+    // → arraySlice(...,1,3) → [home,pricing,checkout] — should survive
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 3,
+    });
+
+    expect(result.transitions).toHaveLength(2);
+    expect(result.transitions[0].source).toBe('home');
+    expect(result.transitions[0].target).toBe('pricing');
+    expect(result.transitions[1].source).toBe('pricing');
+    expect(result.transitions[1].target).toBe('checkout');
+
+    expect(result.top_paths).toHaveLength(1);
+    expect(result.top_paths[0].path).toEqual(['home', 'pricing', 'checkout']);
+  });
+
+  it('step_limit limits the path length after compaction', async () => {
+    // After compact: [home, pricing, checkout, confirm]
+    // With step_limit=2 → [home, pricing] (2 elements), 1 transition
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'home', timestamp: msAgo(8000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'home', timestamp: msAgo(7000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'pricing', timestamp: msAgo(6000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'checkout', timestamp: msAgo(5000) }),
+      buildEvent({ project_id: projectId, person_id: person, distinct_id: 'x', event_name: 'confirm', timestamp: msAgo(4000) }),
+    ]);
+
+    const result = await queryPaths(ctx.ch, {
+      project_id: projectId,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      step_limit: 2,
+    });
+
+    // step_limit=2 → path truncated to [home, pricing], only 1 transition
+    expect(result.transitions).toHaveLength(1);
+    expect(result.transitions[0].source).toBe('home');
+    expect(result.transitions[0].target).toBe('pricing');
+
+    const allEvents = result.transitions.flatMap((t) => [t.source, t.target]);
+    expect(allEvents).not.toContain('checkout');
+    expect(allEvents).not.toContain('confirm');
+  });
+});
+
 describe('queryPaths — step limit', () => {
   it('respects step_limit parameter', async () => {
     const projectId = randomUUID();

@@ -149,9 +149,7 @@ export async function queryPaths(
     person_paths AS (
       SELECT
         pid,
-        arrayCompact(
-          arraySlice(groupArray(cleaned_name), 1, {step_limit:UInt16})
-        ) AS raw_path
+        arraySlice(arrayCompact(groupArray(cleaned_name)), 1, {step_limit:UInt16}) AS raw_path
       FROM ordered_events
       GROUP BY pid
       HAVING length(raw_path) >= 2
