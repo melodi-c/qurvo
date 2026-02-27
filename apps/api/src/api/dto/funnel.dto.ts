@@ -12,6 +12,9 @@ import {
   IsOptional,
   IsUUID,
   IsIn,
+  registerDecorator,
+  type ValidationOptions,
+  type ValidationArguments,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
@@ -19,6 +22,38 @@ import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
+
+/**
+ * Class-level decorator that enforces mutual exclusion between
+ * `breakdown_cohort_ids` and `breakdown_property`.
+ * Passing both simultaneously is ambiguous and returns HTTP 400.
+ */
+function BreakdownMutuallyExclusive(validationOptions?: ValidationOptions) {
+  return function (target: object) {
+    registerDecorator({
+      name: 'breakdownMutuallyExclusive',
+      target: target as new (...args: unknown[]) => unknown,
+      propertyName: 'breakdown_cohort_ids',
+      options: {
+        message: 'укажите только один тип breakdown: breakdown_cohort_ids или breakdown_property, но не оба одновременно',
+        ...validationOptions,
+      },
+      validator: {
+        validate(_value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const hasCohortIds =
+            Array.isArray(obj['breakdown_cohort_ids']) &&
+            (obj['breakdown_cohort_ids'] as unknown[]).length > 0;
+          const hasProperty =
+            typeof obj['breakdown_property'] === 'string' &&
+            obj['breakdown_property'].length > 0;
+          // Valid when at most one is provided
+          return !(hasCohortIds && hasProperty);
+        },
+      },
+    });
+  };
+}
 
 export class FunnelStepDto {
   @IsString()
@@ -101,6 +136,7 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   sampling_factor?: number;
 }
 
+@BreakdownMutuallyExclusive()
 export class FunnelQueryDto extends FunnelBaseQueryDto {
   @IsString()
   @IsOptional()
