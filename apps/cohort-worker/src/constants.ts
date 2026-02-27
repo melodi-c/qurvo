@@ -1,10 +1,11 @@
+// ── Cohort ───────────────────────────────────────────────────────────────
+export const COHORT_MEMBERSHIP_INTERVAL_MS = 10 * 60_000; // 10 minutes
+
 // ── Heartbeat ─────────────────────────────────────────────────────────────
 export const HEARTBEAT_PATH = '/tmp/cohort-worker.heartbeat';
 export const HEARTBEAT_INTERVAL_MS = 15_000;
-export const HEARTBEAT_LOOP_STALE_MS = 30_000;
-
-// ── Cohort ───────────────────────────────────────────────────────────────
-export const COHORT_MEMBERSHIP_INTERVAL_MS = 10 * 60_000; // 10 minutes
+// Cycle runs every 10min; allow up to 20min before considering the loop stale
+export const HEARTBEAT_LOOP_STALE_MS = 2 * COHORT_MEMBERSHIP_INTERVAL_MS; // 1_200_000
 // Must be > INTERVAL (to tolerate slow cycles), but < 2×INTERVAL (to avoid skipping).
 export const COHORT_STALE_THRESHOLD_MINUTES = 15;
 export const COHORT_ERROR_BACKOFF_BASE_MINUTES = 30;
