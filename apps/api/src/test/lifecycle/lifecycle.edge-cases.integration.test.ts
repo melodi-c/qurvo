@@ -10,6 +10,7 @@ import { getTestContext, type ContainerContext } from '../context';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
+import { truncateDate, shiftDate } from '../../utils/clickhouse-helpers';
 import { materializeCohort } from '../cohorts/helpers';
 
 let ctx: ContainerContext;
@@ -576,5 +577,158 @@ describe('queryLifecycle — new vs resurrecting with deep history', () => {
     expect(today).toBeDefined();
     expect(today!.new).toBe(1);
     expect(today!.resurrecting).toBe(0);
+  });
+});
+
+describe('queryLifecycle — unaligned date_from (issue #577)', () => {
+  it('week granularity: correct classification with unaligned date_from (Wednesday)', async () => {
+    // Regression test for issue #577.
+    // extendedFrom must be aligned to Monday, not to the raw (unaligned) date_from.
+    // Without the fix: shiftDate('Wednesday', -1, 'week') = 'previous Wednesday',
+    // which excludes events on Mon–Tue of the look-back week from person_buckets.
+    // With the fix: shiftDate(truncateDate('Wednesday', 'week'), -1, 'week') = 'previous Monday',
+    // ensuring the full look-back week is captured.
+    //
+    // Scenario (relative dates, week-based):
+    //   week0Monday = Monday of "last week"
+    //   week1Monday = Monday of "this week"  ← first visible bucket
+    //   date_from = Wednesday of week0 (unaligned)
+    //
+    //   returningUser fires on Monday of week0 (inside look-back window) and Monday of week1.
+    //   newUser fires only on Monday of week1.
+    //
+    //   week0Monday >= extendedFrom_buggy (Wednesday of week-1)? YES — so week0Monday is
+    //   captured in person_buckets even without the fix. The test verifies that classification
+    //   is correct (returning/new) with an unaligned date_from.
+
+    const projectId = randomUUID();
+    const returningUser = randomUUID();
+    const newUser = randomUUID();
+
+    const week0Monday = truncateDate(daysAgo(7), 'week');
+    const week1Monday = shiftDate(week0Monday, 1, 'week');
+    const dateFromWed = shiftDate(week0Monday, 2, 'day'); // Wednesday of week0
+
+    const week0MondayTs = new Date(`${week0Monday}T12:00:00Z`).getTime();
+    const week1MondayTs = new Date(`${week1Monday}T12:00:00Z`).getTime();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: returningUser,
+        distinct_id: 'returning',
+        event_name: 'action',
+        timestamp: new Date(week0MondayTs).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: returningUser,
+        distinct_id: 'returning',
+        event_name: 'action',
+        timestamp: new Date(week1MondayTs).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: newUser,
+        distinct_id: 'new-user',
+        event_name: 'action',
+        timestamp: new Date(week1MondayTs).toISOString(),
+      }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'action',
+      granularity: 'week',
+      date_from: dateFromWed, // unaligned: Wednesday of week0
+      date_to: daysAgo(0),
+    });
+
+    // week1Monday (>= dateFromWed) is the first visible bucket
+    const week1Bucket = result.data.find((d) => d.bucket.startsWith(week1Monday));
+    expect(week1Bucket).toBeDefined();
+    // returningUser was active in the look-back week (week0Monday) → returning
+    expect(week1Bucket!.returning).toBe(1);
+    // newUser has no prior history → new
+    expect(week1Bucket!.new).toBe(1);
+  });
+
+  it('month granularity: correct classification with unaligned mid-month date_from', async () => {
+    // Regression for issue #577 — month granularity variant.
+    // extendedFrom must be aligned to 1st of month, not the raw date_from.
+    // Without the fix: shiftDate('Jan 15', -1, 'month') = 'Dec 15',
+    // which excludes events from Dec 1–14 from person_buckets.
+    // With the fix: shiftDate(truncateDate('Jan 15', 'month'), -1, 'month') = 'Dec 1'.
+    //
+    // Scenario:
+    //   month1Ago = 1st of 1 month ago  (e.g. 2026-01-01)
+    //   month0    = 1st of this month   (e.g. 2026-02-01)  ← first visible bucket
+    //   dateFromMid = 15th of month1Ago (e.g. 2026-01-15) ← unaligned date_from
+    //
+    //   returningUser fires in month1Ago AND in month0.
+    //   newUser fires only in month0 (truly new).
+    //
+    //   month0 (Feb 1) >= dateFromMid (Jan 15) → visible.
+    //   has(buckets, prevBucket = month1Ago) with returningUser → returning.
+
+    const projectId = randomUUID();
+    const returningUser = randomUUID();
+    const newUser = randomUUID();
+
+    const month1Ago = truncateDate(daysAgo(35), 'month'); // 1st of last month
+    const month0 = shiftDate(month1Ago, 1, 'month');      // 1st of this month
+
+    // Guard: months must be distinct
+    if (month1Ago === month0) {
+      return;
+    }
+
+    // Unaligned date_from: 15th of month1Ago
+    const dateFromMid = shiftDate(month1Ago, 14, 'day'); // e.g. Jan 15
+
+    const month1AgoTs = new Date(`${month1Ago}T12:00:00Z`).getTime();
+    const month0Ts = new Date(`${month0}T12:00:00Z`).getTime();
+
+    await insertTestEvents(ctx.ch, [
+      // returningUser: active in month1Ago (look-back) AND month0 (visible)
+      buildEvent({
+        project_id: projectId,
+        person_id: returningUser,
+        distinct_id: 'ret',
+        event_name: 'ev',
+        timestamp: new Date(month1AgoTs).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: returningUser,
+        distinct_id: 'ret',
+        event_name: 'ev',
+        timestamp: new Date(month0Ts).toISOString(),
+      }),
+      // newUser: active only in month0
+      buildEvent({
+        project_id: projectId,
+        person_id: newUser,
+        distinct_id: 'new-u',
+        event_name: 'ev',
+        timestamp: new Date(month0Ts).toISOString(),
+      }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'ev',
+      granularity: 'month',
+      date_from: dateFromMid, // unaligned: 15th of month1Ago
+      date_to: daysAgo(0),
+    });
+
+    // month0 (1st of this month) >= dateFromMid (15th of month1Ago) → visible
+    const month0Bucket = result.data.find((d) => d.bucket.startsWith(month0));
+    expect(month0Bucket).toBeDefined();
+    // returningUser was active in month1Ago (prevBucket of month0) → returning
+    expect(month0Bucket!.returning).toBe(1);
+    // newUser has no prior history → new
+    expect(month0Bucket!.new).toBe(1);
   });
 });
