@@ -91,6 +91,11 @@ function buildGroupSubquery(
 
 /**
  * Builds a subquery from a CohortConditionGroup definition.
+ *
+ * @param dateTo - Optional datetime string (e.g. "2025-01-31 23:59:59") used
+ *   as the upper bound for behavioral conditions instead of `now()`.  Pass the
+ *   funnel/trend `date_to` value here to ensure historical queries are
+ *   reproducible and cache-coherent.
  */
 export function buildCohortSubquery(
   definition: CohortConditionGroup,
@@ -98,11 +103,13 @@ export function buildCohortSubquery(
   projectIdParam: string,
   queryParams: Record<string, unknown>,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
+  dateTo?: string,
 ): string {
   const ctx: BuildContext = {
     projectIdParam,
     queryParams,
     counter: { value: cohortIdx * 100 },
+    dateTo,
   };
   return buildGroupSubquery(definition, ctx, resolveCohortIsStatic);
 }
@@ -112,12 +119,17 @@ export function buildCohortSubquery(
 /**
  * Builds a WHERE clause fragment: `RESOLVED_PERSON IN (cohort subquery)`.
  * Uses pre-computed tables when materialized, inline subquery otherwise.
+ *
+ * @param dateTo - Optional datetime string used as the upper bound for
+ *   behavioral conditions instead of `now()`.  Pass the funnel/trend `date_to`
+ *   value here to ensure historical queries are reproducible.
  */
 export function buildCohortFilterClause(
   cohorts: CohortFilterInput[],
   projectIdParam: string,
   queryParams: Record<string, unknown>,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
+  dateTo?: string,
 ): string {
   if (cohorts.length === 0) return '';
 
@@ -138,7 +150,7 @@ export function buildCohortFilterClause(
         WHERE cohort_id = {${idParam}:UUID} AND project_id = {${projectIdParam}:UUID}
       )`;
     }
-    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic);
+    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo);
     return `${RESOLVED_PERSON} IN (${subquery})`;
   });
 

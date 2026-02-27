@@ -1,5 +1,5 @@
 import type { CohortAggregationType, CohortEventCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveEventPropertyExpr } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, resolveEventPropertyExpr, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 
 function buildAggregationExpr(type: CohortAggregationType | undefined, property: string | undefined): string {
@@ -48,6 +48,7 @@ export function buildEventConditionSubquery(
   const aggExpr = buildAggregationExpr(cond.aggregation_type, cond.aggregation_property);
   const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const thresholdType = isCount ? 'UInt64' : 'Float64';
+  const upperBound = resolveDateTo(ctx);
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
@@ -55,7 +56,7 @@ export function buildEventConditionSubquery(
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
       AND event_name = {${eventPk}:String}
-      AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} DAY${filterClause}
+      AND timestamp >= ${upperBound} - INTERVAL {${daysPk}:UInt32} DAY${filterClause}
     GROUP BY person_id
     HAVING ${aggExpr} ${countOp} {${countPk}:${thresholdType}}`;
 }

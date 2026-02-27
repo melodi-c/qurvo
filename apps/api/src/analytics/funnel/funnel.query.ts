@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortClause } from '../../utils/clickhouse-helpers';
+import { buildCohortClause, toChTs } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr } from '../../utils/property-filter';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
@@ -47,7 +47,7 @@ export async function queryFunnel(
   const queryParams = buildBaseQueryParams(params, allEventNames);
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
   const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
   const samplingResult = params.sampling_factor && params.sampling_factor < 1
     ? { sampling_factor: params.sampling_factor } : {};

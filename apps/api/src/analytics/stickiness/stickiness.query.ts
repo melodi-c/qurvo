@@ -85,7 +85,7 @@ export async function queryStickiness(
   const toExpr = tsExpr('to', 'tz', hasTz);
   const truncExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
 
   const eventFilterConditions = buildPropertyFilterConditions(params.event_filters ?? [], 'ef', queryParams);
   const eventFilterClause = buildFilterClause(eventFilterConditions);

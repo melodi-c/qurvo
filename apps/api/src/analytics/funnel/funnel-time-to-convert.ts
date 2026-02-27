@@ -105,7 +105,7 @@ export async function queryFunnelTimeToConvert(
     }
   });
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
 
   const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
 

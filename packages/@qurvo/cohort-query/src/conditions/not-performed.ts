@@ -1,5 +1,5 @@
 import type { CohortNotPerformedEventCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, resolveEventPropertyExpr, buildOperatorClause } from '../helpers';
+import { RESOLVED_PERSON, resolveEventPropertyExpr, buildOperatorClause, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildNotPerformedEventSubquery(
@@ -24,12 +24,14 @@ export function buildNotPerformedEventSubquery(
     }
   }
 
+  const upperBound = resolveDateTo(ctx);
+
   // Single-pass countIf: persons active in window but zero matching events
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
     FROM events
     WHERE project_id = {${ctx.projectIdParam}:UUID}
-      AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} DAY
+      AND timestamp >= ${upperBound} - INTERVAL {${daysPk}:UInt32} DAY
     GROUP BY person_id
     HAVING countIf(${countIfCond}) = 0`;
 }

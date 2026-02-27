@@ -1,5 +1,5 @@
 import type { CohortPerformedRegularlyCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 
 function periodBucketExpr(periodType: 'day' | 'week' | 'month'): string {
@@ -34,6 +34,7 @@ export function buildPerformedRegularlySubquery(
   const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const bucketExpr = periodBucketExpr(cond.period_type);
   const interval = periodIntervalExpr(cond.period_type, totalPk);
+  const upperBound = resolveDateTo(ctx);
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
@@ -41,7 +42,7 @@ export function buildPerformedRegularlySubquery(
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
       AND event_name = {${eventPk}:String}
-      AND timestamp >= now() - ${interval}${filterClause}
+      AND timestamp >= ${upperBound} - ${interval}${filterClause}
     GROUP BY person_id
     HAVING uniqExact(${bucketExpr}) >= {${minPk}:UInt32}`;
 }
