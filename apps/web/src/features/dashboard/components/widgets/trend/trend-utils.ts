@@ -13,7 +13,9 @@ export function isIncompleteBucket(bucket: string, granularity?: string): boolea
   const today = now.toISOString().slice(0, 10);
 
   if (granularity === 'hour') {
-    const currentHour = now.toISOString().slice(0, 13);
+    // Bucket format: "2026-02-27 14:00:00" (space separator, not ISO T).
+    // toISOString() produces "2026-02-27T14:..." — replace T with space to match.
+    const currentHour = now.toISOString().slice(0, 13).replace('T', ' ');
     return bucket.startsWith(currentHour);
   }
   if (granularity === 'day') return bucket === today;
