@@ -27,6 +27,14 @@ tools: Read, Bash, Grep
 | `i18n` | `chore` |
 | остальное | `chore` |
 
+**При неоднозначном prefix** (нет `fix(`/`feat(`/`refactor(` в title И labels не определяют тип однозначно) — уточни по diff:
+```bash
+git diff <commit_hash>^..<commit_hash> --stat
+```
+- Если основные изменения в `*.test.*` / `*.spec.*` → `test`
+- Если только новые файлы → скорее `feat`
+- Если только модификация существующих → скорее `fix` или `refactor`
+
 ---
 
 ## Шаг 2: Сформировать changelog
