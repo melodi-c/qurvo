@@ -23,6 +23,11 @@ git log --oneline -20 "$BASE_BRANCH"
 
 Из `MERGED_ISSUES` извлеки `merge_commit` каждого issue. Отсортируй в **обратном хронологическом порядке** (последний мерж откатывается первым).
 
+Запомни состояние до начала revert'ов:
+```bash
+BASE_BEFORE=$(git rev-parse "$BASE_BRANCH")
+```
+
 ---
 
 ## Шаг 2: Revert коммитов
@@ -39,7 +44,29 @@ git revert -m 1 --no-edit <MERGE_COMMIT>
 1. Попытайся разрешить автоматически (только тривиальные случаи)
 2. Если не получается — верни `UNRESOLVABLE`
 
-После всех revert'ов:
+---
+
+## Шаг 2.5: Проверка билда после revert
+
+Перед push'ем убедись, что revert не сломал билд:
+
+```bash
+cd "$REPO_ROOT"
+# Определи затронутые приложения из MERGED_ISSUES
+# (по title scope или labels — достаточно собрать уникальные apps)
+pnpm turbo build --filter=@qurvo/<app1> --filter=@qurvo/<app2>
+```
+
+- **Build OK** → переходи к Шагу 2.6 (push)
+- **Build FAILED** → откати revert'ы и верни UNRESOLVABLE:
+  ```bash
+  cd "$REPO_ROOT"
+  git reset --hard "$BASE_BEFORE"  # состояние до первого revert
+  ```
+
+---
+
+## Шаг 2.6: Push
 
 ```bash
 cd "$REPO_ROOT"
