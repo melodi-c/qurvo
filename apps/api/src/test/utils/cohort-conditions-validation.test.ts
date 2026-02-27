@@ -278,6 +278,123 @@ describe('CohortPerformedRegularlyConditionDto — min_periods <= total_periods'
   });
 });
 
+// ── CohortEventFilterDto — date operators require non-empty value ─────────────
+
+describe('CohortEventFilterDto — ValueNotEmptyForDateOperator', () => {
+  function buildFilter(operator: string, value: string | undefined) {
+    return plainToInstance(CohortEventFilterDto, {
+      property: 'properties.signup_date',
+      operator,
+      value,
+    });
+  }
+
+  it('fails: is_date_before with empty string value → valueNotEmptyForDateOperator', async () => {
+    const errors = await validate(buildFilter('is_date_before', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_after with empty string value → valueNotEmptyForDateOperator', async () => {
+    const errors = await validate(buildFilter('is_date_after', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_exact with empty string value → valueNotEmptyForDateOperator', async () => {
+    const errors = await validate(buildFilter('is_date_exact', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('passes: is_date_before with valid date value', async () => {
+    const errors = await validate(buildFilter('is_date_before', '2025-03-01'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: is_date_after with valid date value', async () => {
+    const errors = await validate(buildFilter('is_date_after', '2025-06-01'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: is_date_exact with valid date value', async () => {
+    const errors = await validate(buildFilter('is_date_exact', '2025-03-15'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: eq operator with empty value — validator skips non-date operators', async () => {
+    const errors = await validate(buildFilter('eq', ''));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: is_date_before with undefined value — @IsOptional wins (undefined skips custom validator)', async () => {
+    // Note: undefined is skipped by @IsOptional() before the custom validator runs.
+    // The guard in helpers.ts provides runtime defense. The DTO catches the empty string case.
+    const errors = await validate(buildFilter('is_date_before', undefined));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+});
+
+// ── CohortPropertyConditionDto — date operators require non-empty value ───────
+
+describe('CohortPropertyConditionDto — ValueNotEmptyForDateOperator', () => {
+  function buildCond(operator: string, value: string | undefined) {
+    return plainToInstance(CohortPropertyConditionDto, {
+      type: 'person_property',
+      property: 'user_properties.signup_date',
+      operator,
+      value,
+    });
+  }
+
+  it('fails: is_date_before with empty string value', async () => {
+    const errors = await validate(buildCond('is_date_before', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_after with empty string value', async () => {
+    const errors = await validate(buildCond('is_date_after', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_exact with empty string value', async () => {
+    const errors = await validate(buildCond('is_date_exact', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('passes: is_date_before with non-empty value', async () => {
+    const errors = await validate(buildCond('is_date_before', '2025-01-01'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+});
+
 // ── CohortPropertyConditionDto — same validators ─────────────────────────────
 
 describe('CohortPropertyConditionDto — ValuesMinSizeForOperator + BetweenValuesOrdered', () => {
