@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import type { Logger } from '@nestjs/common';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
-import { ANALYTICS_CACHE_TTL_SECONDS } from '../constants';
+import { ANALYTICS_CACHE_TTL_SECONDS, ANALYTICS_CACHE_KEY_PREFIX } from '../constants';
 
 /**
  * Produces a deterministic JSON string regardless of the insertion order of
@@ -30,7 +30,7 @@ export interface AnalyticsCacheResult<T> {
   from_cache: boolean;
 }
 
-export async function withAnalyticsCache<TParams, TResult>(opts: {
+export async function withAnalyticsCache<TParams extends { project_id: string }, TResult>(opts: {
   prefix: string;
   redis: Redis;
   ch: ClickHouseClient;
@@ -40,7 +40,7 @@ export async function withAnalyticsCache<TParams, TResult>(opts: {
   query: (ch: ClickHouseClient, params: TParams) => Promise<TResult>;
   logger: Logger;
 }): Promise<AnalyticsCacheResult<TResult>> {
-  const cacheKey = buildCacheKey(opts.prefix, opts.widgetId, opts.params);
+  const cacheKey = buildCacheKey(opts.prefix, opts.params.project_id, opts.widgetId, opts.params);
 
   if (!opts.force) {
     try {
@@ -69,12 +69,22 @@ export async function withAnalyticsCache<TParams, TResult>(opts: {
   return { data, cached_at, from_cache: false };
 }
 
-function buildCacheKey(prefix: string, widgetId: string | undefined, params: unknown): string {
+function buildCacheKey(prefix: string, projectId: string, widgetId: string | undefined, params: unknown): string {
   const configHash = createHash('sha256')
     .update(stableStringify(params))
     .digest('hex')
     .slice(0, 16);
-  return widgetId
+  const inner = widgetId
     ? `${prefix}_result:${widgetId}:${configHash}`
     : `${prefix}_result:anonymous:${configHash}`;
+  return `${ANALYTICS_CACHE_KEY_PREFIX}:${projectId}:${inner}`;
+}
+
+/**
+ * Returns the Redis glob pattern for all analytics cache entries belonging to
+ * a given project. Used by CohortsService to SCAN+DEL stale entries after a
+ * cohort definition update.
+ */
+export function analyticsProjectCachePattern(projectId: string): string {
+  return `${ANALYTICS_CACHE_KEY_PREFIX}:${projectId}:*`;
 }

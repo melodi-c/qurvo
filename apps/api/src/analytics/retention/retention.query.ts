@@ -71,16 +71,27 @@ function assembleResult(
     periods: cohortMap.get(key)!,
   }));
 
-  // Compute weighted average retention % (weighted by cohort size)
-  // sum(returned_at_offset) / sum(cohort_size) * 100
+  // Compute weighted average retention % (weighted by cohort size).
+  // Only cohorts that have had enough time to reach a given offset contribute
+  // to the denominator. A cohort with date D has "matured" to offset N when
+  // shiftDate(D, N, granularity) <= truncTo (the start of the date_to period).
+  // Including immature cohorts in the denominator systematically underreports
+  // retention because their cohort_size is counted against zero returns.
+  const truncTo = truncateDate(params.date_to, params.granularity);
   const average_retention: number[] = [];
   for (let offset = 0; offset <= params.periods; offset++) {
     let totalReturned = 0;
     let totalSize = 0;
     for (const cohort of cohorts) {
       if (cohort.cohort_size > 0) {
-        totalReturned += cohort.periods[offset];
-        totalSize += cohort.cohort_size;
+        // Check whether this cohort has reached offset N:
+        // the period at (cohort_date + N * granularity) must be <= date_to (truncated).
+        const cohortDateStr = cohort.cohort_date.slice(0, 10);
+        const periodDate = shiftDate(cohortDateStr, offset, params.granularity);
+        if (periodDate <= truncTo) {
+          totalReturned += cohort.periods[offset];
+          totalSize += cohort.cohort_size;
+        }
       }
     }
     average_retention.push(totalSize > 0 ? Math.round((totalReturned / totalSize) * 100 * 100) / 100 : 0);

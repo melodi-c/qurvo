@@ -293,16 +293,21 @@ export function buildExclusionColumns(
  *
  * @param exclusions - Exclusion definitions from the funnel query
  * @param anchorFilter - When true, restricts (f, t) pairs to only those where
- *   f >= first_step_ms (the anchor window). Required for unordered funnels to
- *   prevent historical clean sessions (outside the anchor window) from masking
- *   tainted conversions within the anchor window. For ordered funnels, this
- *   parameter should be false (the re-entry semantics handle window isolation).
+ *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
+ *   funnels to isolate the exclusion check to the specific anchor window that was
+ *   counted as the conversion. Without this, sessions outside the anchor window
+ *   (either before or after) can create false clean-path evidence that masks
+ *   tainted conversions within the anchor window — see issue #497.
+ *   For ordered funnels, this parameter should be false (the re-entry semantics
+ *   handle window isolation naturally via step-sequence ordering).
  */
 export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): string {
   const win = `toInt64({window:UInt64}) * 1000`;
-  // In unordered mode, restrict from-step timestamps to the anchor window so that
-  // historical clean sessions (f < first_step_ms) cannot mask tainted anchor-window attempts.
-  const anchorGuard = anchorFilter ? `f >= first_step_ms AND ` : '';
+  // In unordered mode, restrict from-step timestamps to the anchor window
+  // [first_step_ms, first_step_ms + WIN] so that only pairs within the anchor
+  // window are checked. Sessions before the anchor (historical clean sessions)
+  // cannot mask tainted conversions within the anchor window.
+  const anchorGuard = anchorFilter ? `f >= first_step_ms AND f <= first_step_ms + ${win} AND ` : '';
   const conditions = exclusions.map((_, i) => {
     // tainted_path: exists (f, t) pair within window with exclusion e in (f, t)
     const tainted = [
