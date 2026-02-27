@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { buildCohortClause } from '../../utils/clickhouse-helpers';
 import { resolvePropertyExpr } from '../../utils/property-filter';
+import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
   buildAllEventNames,
@@ -74,21 +75,55 @@ export async function queryFunnel(
   }
 
   // ── Property breakdown funnel ───────────────────────────────────────────
+  const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
+  queryParams.breakdown_limit = breakdownLimit;
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
   const sql = buildFunnelSQL(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams, breakdownExpr);
   const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
   const stepResults = computePropertyBreakdownResults(rows, steps, numSteps);
+  // Count unique breakdown values: if it equals the limit, some values may have been truncated.
+  const uniqueBreakdownValues = new Set(stepResults.map((r) => r.breakdown_value)).size;
+  const breakdown_truncated = uniqueBreakdownValues >= breakdownLimit;
   return {
     breakdown: true,
     breakdown_property: params.breakdown_property,
     steps: stepResults,
     aggregate_steps: computeAggregateSteps(stepResults, steps),
+    breakdown_truncated,
     ...samplingResult,
   };
 }
 
 // ── SQL assembly ─────────────────────────────────────────────────────────────
+
+/**
+ * Builds a top_breakdown_values CTE that limits property breakdown to top-N groups.
+ *
+ * The CTE selects breakdown values from funnel_per_user ordered by user count DESC
+ * (users who entered at least step 1), limited to {breakdown_limit:UInt16}.
+ * The exclFilter is incorporated so that excluded users don't inflate the top-N ranking.
+ *
+ * Returns the CTE SQL fragment (including leading comma) and a WHERE condition
+ * to filter the outer query. When exclFilter is non-empty it is already a full
+ * "WHERE ..." clause; here we need the inner condition only — so we extract it.
+ */
+function buildTopBreakdownCTE(exclFilter: string): { topCTE: string; breakdownFilter: string } {
+  // exclFilter is either '' or '\n      WHERE person_id NOT IN (SELECT person_id FROM excluded_users)'
+  const innerExclWhere = exclFilter
+    ? '\n      AND person_id NOT IN (SELECT person_id FROM excluded_users)'
+    : '';
+  const topCTE = `,\n      top_breakdown_values AS (
+        SELECT breakdown_value
+        FROM funnel_per_user
+        WHERE max_step >= 1${innerExclWhere}
+        GROUP BY breakdown_value
+        ORDER BY count() DESC
+        LIMIT {breakdown_limit:UInt16}
+      )`;
+  const breakdownFilter = '\n      AND breakdown_value IN (SELECT breakdown_value FROM top_breakdown_values)';
+  return { topCTE, breakdownFilter };
+}
 
 function buildFunnelSQL(
   orderType: 'ordered' | 'strict' | 'unordered',
@@ -128,14 +163,20 @@ function buildFunnelSQL(
     const { cte, excludedUsersCTE, exclFilter } = buildUnorderedFunnelCTEs({
       steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr,
     });
+    const { topCTE, breakdownFilter } = hasBreakdown
+      ? buildTopBreakdownCTE(exclFilter)
+      : { topCTE: '', breakdownFilter: '' };
+    // For unordered, exclFilter is already a full WHERE clause.
+    // When breakdown is active, we combine exclFilter (WHERE ...) with breakdownFilter (AND ...).
+    const whereClause = buildWhereClause(exclFilter, breakdownFilter);
     return `
-      WITH ${cte}${excludedUsersCTE}
+      WITH ${cte}${excludedUsersCTE}${topCTE}
       SELECT${breakdownSelect}
         step_num,
         countIf(max_step >= step_num) AS entered,
         countIf(max_step >= step_num + 1) AS next_step${avgTimeCols}
       FROM funnel_per_user
-      CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
+      CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${whereClause}
       GROUP BY ${breakdownGroupBy}step_num
       ORDER BY ${breakdownOrderBy}step_num`;
   }
@@ -153,15 +194,35 @@ function buildFunnelSQL(
     breakdownExpr,
     includeTimestampCols,
   });
+  const { topCTE, breakdownFilter } = hasBreakdown
+    ? buildTopBreakdownCTE(exclFilter)
+    : { topCTE: '', breakdownFilter: '' };
+  const whereClause = buildWhereClause(exclFilter, breakdownFilter);
   return `
     WITH
-      ${funnelPerUserCTE}${excludedUsersCTE}
+      ${funnelPerUserCTE}${excludedUsersCTE}${topCTE}
     SELECT${breakdownSelect}
       step_num,
       countIf(max_step >= step_num) AS entered,
       countIf(max_step >= step_num + 1) AS next_step${avgTimeCols}
     FROM funnel_per_user
-    CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
+    CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${whereClause}
     GROUP BY ${breakdownGroupBy}step_num
     ORDER BY ${breakdownOrderBy}step_num`;
+}
+
+/**
+ * Combines an existing WHERE clause (exclFilter) with an additional AND condition.
+ * exclFilter is either '' or '\n      WHERE person_id NOT IN (...)'.
+ * breakdownFilter is either '' or '\n      AND breakdown_value IN (...)'.
+ */
+function buildWhereClause(exclFilter: string, breakdownFilter: string): string {
+  if (!exclFilter && !breakdownFilter) return '';
+  if (exclFilter && !breakdownFilter) return exclFilter;
+  if (!exclFilter && breakdownFilter) {
+    // Convert the AND condition to a WHERE condition
+    return breakdownFilter.replace(/^\n(\s*)AND /, '\n$1WHERE ');
+  }
+  // Both present: exclFilter is already "WHERE ...", append "AND ..."
+  return exclFilter + breakdownFilter;
 }
