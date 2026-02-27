@@ -65,7 +65,6 @@ export type TrendQueryResult =
  * Dynamic keys added during query building:
  *   s{i}_event            — event name for series i (String)
  *   s{i}_f{j}_v           — filter value for series i, filter j
- *   all_event_names        — all event names for property breakdown path (Array(String))
  *   cohort_bd_{i}_{j}      — cohort ID for cohort breakdown (UUID)
  *   cohort_name_{i}_{j}    — cohort label for cohort breakdown (String)
  *   cohort_filter_*        — params injected by buildCohortClause / buildCohortFilterForBreakdown
@@ -279,8 +278,6 @@ async function executeTrendQuery(
 
   // Breakdown path
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property!);
-  const allEventNames = params.series.map((s) => s.event_name);
-  queryParams['all_event_names'] = allEventNames;
 
   const arms = params.series.map((s, idx) => {
     const cond = buildSeriesConditions(s, idx, queryParams);
@@ -301,17 +298,37 @@ async function executeTrendQuery(
       GROUP BY breakdown_value, bucket`;
   });
 
-  const sql = `
-    WITH top_values AS (
+  // top_values CTE: use UNION ALL of per-series conditions so that only events
+  // matching at least one series' full filter set are considered. This prevents
+  // breakdown values from unrelated events (that match no series filter) from
+  // occupying slots in the top-N list.
+  const topValuesArms = params.series.map((s, idx) => {
+    // buildSeriesConditions already populated queryParams for this series index,
+    // so we just need to reconstruct the condition string without re-mutating params.
+    const filterParts = buildPropertyFilterConditions(
+      s.filters ?? [],
+      `s${idx}`,
+      queryParams,
+    );
+    const cond = [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
+    return `
       SELECT ${breakdownExpr} AS breakdown_value
       FROM events
       WHERE
         project_id = {project_id:UUID}
         AND timestamp >= ${fromExpr}
         AND timestamp <= ${toExpr}
-        AND event_name IN ({all_event_names:Array(String)})${cohortClause}
+        AND ${cond}${cohortClause}`;
+  });
+
+  const sql = `
+    WITH top_values AS (
+      SELECT breakdown_value, count() AS cnt
+      FROM (
+        ${topValuesArms.join('\nUNION ALL\n')}
+      )
       GROUP BY breakdown_value
-      ORDER BY count() DESC
+      ORDER BY cnt DESC
       LIMIT ${MAX_BREAKDOWN_VALUES}
     )
     SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value

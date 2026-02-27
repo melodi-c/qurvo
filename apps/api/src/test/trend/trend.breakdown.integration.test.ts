@@ -146,6 +146,81 @@ describe('queryTrend — breakdown + cohort filter', () => {
   });
 });
 
+describe('queryTrend — breakdown + per-series filters', () => {
+  it('top_values only considers events matching series filters — no zero-value breakdown slots', async () => {
+    const projectId = randomUUID();
+
+    // series[0] filters plan = 'pro' → only 'Chrome' events satisfy this
+    // series[1] filters plan = 'free' → only 'Firefox' events satisfy this
+    // Insert many 'Safari' events with plan = 'trial' — they should NOT appear
+    // in the top_values for either series even though they are the most frequent.
+
+    await insertTestEvents(ctx.ch, [
+      // 1 pro/Chrome event
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'pro1', event_name: 'signup',
+        browser: 'Chrome', properties: JSON.stringify({ plan: 'pro' }), timestamp: msAgo(5000) }),
+      // 1 free/Firefox event
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'free1', event_name: 'signup',
+        browser: 'Firefox', properties: JSON.stringify({ plan: 'free' }), timestamp: msAgo(4000) }),
+      // 5 trial/Safari events — most frequent, but unrelated to either series filter
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'trial1', event_name: 'signup',
+        browser: 'Safari', properties: JSON.stringify({ plan: 'trial' }), timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'trial2', event_name: 'signup',
+        browser: 'Safari', properties: JSON.stringify({ plan: 'trial' }), timestamp: msAgo(2900) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'trial3', event_name: 'signup',
+        browser: 'Safari', properties: JSON.stringify({ plan: 'trial' }), timestamp: msAgo(2800) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'trial4', event_name: 'signup',
+        browser: 'Safari', properties: JSON.stringify({ plan: 'trial' }), timestamp: msAgo(2700) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'trial5', event_name: 'signup',
+        browser: 'Safari', properties: JSON.stringify({ plan: 'trial' }), timestamp: msAgo(2600) }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [
+        {
+          event_name: 'signup',
+          label: 'Pro signups',
+          filters: [{ property: 'properties.plan', operator: 'eq', value: 'pro' }],
+        },
+        {
+          event_name: 'signup',
+          label: 'Free signups',
+          filters: [{ property: 'properties.plan', operator: 'eq', value: 'free' }],
+        },
+      ],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: daysAgo(1),
+      date_to: daysAgo(0),
+      breakdown_property: 'browser',
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    // series[0] (pro): only Chrome should appear with value 1
+    const s0Chrome = rBd.series.find((s) => s.series_idx === 0 && s.breakdown_value === 'Chrome');
+    const s0Safari = rBd.series.find((s) => s.series_idx === 0 && s.breakdown_value === 'Safari');
+    const s0Firefox = rBd.series.find((s) => s.series_idx === 0 && s.breakdown_value === 'Firefox');
+    expect(s0Chrome).toBeDefined();
+    expect(sumSeriesValues(s0Chrome!.data)).toBe(1);
+    // Safari must NOT appear in series[0] — it only has trial events, not pro
+    expect(s0Safari).toBeUndefined();
+    expect(s0Firefox).toBeUndefined();
+
+    // series[1] (free): only Firefox should appear with value 1
+    const s1Firefox = rBd.series.find((s) => s.series_idx === 1 && s.breakdown_value === 'Firefox');
+    const s1Safari = rBd.series.find((s) => s.series_idx === 1 && s.breakdown_value === 'Safari');
+    const s1Chrome = rBd.series.find((s) => s.series_idx === 1 && s.breakdown_value === 'Chrome');
+    expect(s1Firefox).toBeDefined();
+    expect(sumSeriesValues(s1Firefox!.data)).toBe(1);
+    // Safari must NOT appear in series[1] — trial events don't match plan = 'free'
+    expect(s1Safari).toBeUndefined();
+    expect(s1Chrome).toBeUndefined();
+  });
+});
+
 describe('queryTrend — breakdown + compare combined', () => {
   it('returns breakdown series for both current and previous periods', async () => {
     const projectId = randomUUID();
