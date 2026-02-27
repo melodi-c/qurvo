@@ -87,5 +87,6 @@ export interface TimeToConvertParams {
   from_step: number;
   to_step: number;
   cohort_filters?: CohortFilterInput[];
+  exclusions?: FunnelExclusion[];
   sampling_factor?: number;
 }
