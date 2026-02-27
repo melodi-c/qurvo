@@ -13,6 +13,7 @@ import {
   buildExcludedUsersCTE,
   validateExclusions,
   validateUnorderedSteps,
+  funnelTsExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -86,10 +87,11 @@ export async function queryFunnelTimeToConvert(
 
   const allEventNames = buildAllEventNames(steps, exclusions);
 
+  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: TtcChQueryParams = {
     project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
+    from: toChTs(params.date_from, false, params.timezone),
+    to: toChTs(params.date_to, true, params.timezone),
     window: windowSeconds,
     num_steps: steps.length,
     all_event_names: allEventNames,
@@ -97,6 +99,7 @@ export async function queryFunnelTimeToConvert(
     to_step_num: toStep + 1,
     window_seconds: windowSeconds,
   };
+  if (hasTz) queryParams.tz = params.timezone;
   steps.forEach((s, i) => {
     const names = resolveStepEventNames(s);
     queryParams[`step_${i}`] = names[0];
@@ -208,14 +211,17 @@ export async function queryFunnelTimeToConvert(
   // so that windowFunnel('strict_order') can detect and reset on intervening events.
   // We pre-filter to users who have at least one funnel step event (same pattern as the
   // main ordered-funnel query).
+  const fromExpr = funnelTsExpr('from', queryParams);
+  const toExpr = funnelTsExpr('to', queryParams);
+
   const strictUserFilter = orderType === 'strict' ? [
     '',
     '                AND distinct_id IN (',
     '                  SELECT DISTINCT distinct_id',
     '                  FROM events',
     '                  WHERE project_id = {project_id:UUID}',
-    '                    AND timestamp >= {from:DateTime64(3)}',
-    '                    AND timestamp <= {to:DateTime64(3)}',
+    `                    AND timestamp >= ${fromExpr}`,
+    `                    AND timestamp <= ${toExpr}`,
     '                    AND event_name IN ({step_names:Array(String)})',
     '                )',
   ].join('\n') : `\n                AND event_name IN ({step_names:Array(String)})`;
@@ -229,8 +235,8 @@ export async function queryFunnelTimeToConvert(
       FROM events
       WHERE
         project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}${strictUserFilter}${cohortClause}${samplingClause}
+        AND timestamp >= ${fromExpr}
+        AND timestamp <= ${toExpr}${strictUserFilter}${cohortClause}${samplingClause}
       GROUP BY person_id
     ),
     funnel_per_user AS (
@@ -402,6 +408,9 @@ async function buildUnorderedTtcSql(
     ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
 
+  const fromExprU = funnelTsExpr('from', queryParams);
+  const toExprU = funnelTsExpr('to', queryParams);
+
   const sql = `
     WITH step_times AS (
       SELECT
@@ -410,8 +419,8 @@ async function buildUnorderedTtcSql(
       FROM events
       WHERE
         project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
+        AND timestamp >= ${fromExprU}
+        AND timestamp <= ${toExprU}
         AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
       GROUP BY person_id
     ),

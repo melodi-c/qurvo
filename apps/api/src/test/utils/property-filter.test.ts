@@ -309,6 +309,31 @@ describe('buildPropertyFilterConditions — nested dot-notation paths', () => {
     expect(Object.keys(params)).toHaveLength(0);
   });
 
+  it('properties.address.city is_set generates JSONHas(JSONExtractRaw(properties, address), city)', () => {
+    // Acceptance criteria: nested key with dot-notation must NOT use a literal dot key.
+    // JSONHas(properties, 'address.city') would always return false in ClickHouse because
+    // it looks for a top-level key named "address.city" (a string with a dot), not a nested path.
+    // Correct form: JSONHas(JSONExtractRaw(properties, 'address'), 'city')
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.address.city', operator: 'is_set' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(JSONExtractRaw(properties, 'address'), 'city')"]);
+    expect(Object.keys(params)).toHaveLength(0);
+  });
+
+  it('properties.city is_set (flat key) generates plain JSONHas(properties, city)', () => {
+    // Flat key must still use simple JSONHas without any JSONExtractRaw wrapping.
+    const params: Record<string, unknown> = {};
+    const filters: PropertyFilter[] = [
+      { property: 'properties.city', operator: 'is_set' },
+    ];
+    const result = buildPropertyFilterConditions(filters, 'p', params);
+    expect(result).toEqual(["JSONHas(properties, 'city')"]);
+    expect(Object.keys(params)).toHaveLength(0);
+  });
+
   it('is_not_set on nested path uses NOT JSONHas with parent traversal', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [

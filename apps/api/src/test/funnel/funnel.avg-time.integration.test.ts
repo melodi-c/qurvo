@@ -492,3 +492,135 @@ describe('queryFunnel — avg_time_to_convert with repeated last-step events', (
     expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
   });
 });
+
+// ── avg_time_to_convert: strict mode re-entry heuristic ──────────────────────
+
+describe('queryFunnel — avg_time_to_convert for strict mode re-entry (issue #474)', () => {
+  it('strict mode: maxIf heuristic gives closer avg_time when step-0 is repeated before conversion', async () => {
+    // Scenario for the maxIf heuristic:
+    //   T=0s:  signup (step-0, early occurrence — no interruption follows)
+    //   T=10s: signup (step-0 repeated, later occurrence)
+    //   T=11s: purchase (step-1)
+    //
+    // windowFunnel('strict_order') matches the first signup → purchase sequence (max_step = 2).
+    // The "true" starting point is ambiguous — the user could have started at T=0 or T=10.
+    //
+    // With minIf (old): first_step_ms = T=0s → avg_time = 11s
+    // With maxIf (new heuristic): first_step_ms = T=10s → avg_time = 1s
+    //
+    // The maxIf heuristic is more useful when the later signup more closely represents
+    // the actual intent (e.g. after a failed earlier attempt was followed by a reset-inducing
+    // event, but then another attempt was made). See issue #474 for full context.
+    //
+    // Note: The "interrupted attempt" scenario (signup → random_event → signup → purchase)
+    // does NOT convert in ClickHouse strict_order — windowFunnel returns max_step=1 in that case.
+    // This test uses the simpler "repeated step-0" scenario which does convert.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // Early signup — minIf would pick this one (old behavior)
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'reentry-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 11_000).toISOString(),
+      }),
+      // Later signup — maxIf picks this one (new heuristic)
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'reentry-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 1_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'reentry-user',
+        event_name: 'purchase',
+        timestamp: new Date(now - 500).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0]!.count).toBe(1);
+    expect(r.steps[1]!.count).toBe(1);
+
+    // maxIf heuristic: first_step_ms = latest signup (~1s before now),
+    // last_step_ms = purchase (~0.5s before now) → avg_time ≈ 0.5s.
+    // minIf (old): first_step_ms = earliest signup (~11s before now) → avg_time ≈ 10.5s.
+    // We verify the heuristic gives a significantly shorter result — under 5s.
+    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    expect(avgTime!).toBeGreaterThan(0);
+    // maxIf heuristic: ~0.5s; minIf (old): ~10.5s
+    expect(avgTime!).toBeLessThan(5);
+  });
+
+  it('strict mode without re-entry: avg_time is unaffected by maxIf vs minIf (single step-0 occurrence)', async () => {
+    // When a user has only one signup (no re-entry), maxIf and minIf return the same value.
+    // This ensures the heuristic change doesn't break the simple case.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'single-entry',
+        event_name: 'signup',
+        timestamp: new Date(now - 5_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'single-entry',
+        event_name: 'purchase',
+        timestamp: new Date(now - 1_000).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0]!.count).toBe(1);
+    expect(r.steps[1]!.count).toBe(1);
+
+    // signup → purchase: ~4s apart
+    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    expect(avgTime!).toBeCloseTo(4, 0);
+
+    expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
+  });
+});

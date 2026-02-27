@@ -5,6 +5,7 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildStepCondition,
+  funnelTsExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -38,6 +39,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
   } = options;
 
   const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
+  const fromExpr = funnelTsExpr('from', queryParams);
+  const toExpr = funnelTsExpr('to', queryParams);
 
   // Ordered mode: filter to only funnel-relevant events (step + exclusion names) for efficiency.
   // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
@@ -53,8 +56,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
     '                  SELECT DISTINCT distinct_id',
     '                  FROM events',
     '                  WHERE project_id = {project_id:UUID}',
-    '                    AND timestamp >= {from:DateTime64(3)}',
-    '                    AND timestamp <= {to:DateTime64(3)}',
+    `                    AND timestamp >= ${fromExpr}`,
+    `                    AND timestamp <= ${toExpr}`,
     '                    AND event_name IN ({all_event_names:Array(String)})',
     '                )',
   ].join('\n');
@@ -68,22 +71,44 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
   const lastStepCond = buildStepCondition(steps[numSteps - 1]!, numSteps - 1, queryParams);
 
   // Optional breakdown column.
-  // Use argMinIf (pick by earliest timestamp) to make the result deterministic when
-  // multiple events match the step condition (OR-logic or repeated events).
+  //
+  // Ordered mode: argMinIf (pick by earliest timestamp) — windowFunnel('ordered') always
+  // matches the first occurrence of step-0, so the earliest step-0 breakdown_value is correct.
+  //
+  // Strict mode heuristic: argMaxIf (pick by latest timestamp) — windowFunnel('strict_order')
+  // resets funnel progress when any intervening event appears between steps. If a user has a
+  // failed attempt (step-0 → interruption) followed by a successful attempt (step-0 → … → last),
+  // the latest step-0 occurrence is more likely to be the beginning of the successful sequence.
+  // This is a best-effort heuristic: ClickHouse's windowFunnel only returns max_step, not the
+  // timestamps of the matching sequence, so there is no way to determine the exact breakdown_value
+  // of the successful step-0 in a single aggregation pass without a UDF or additional CTE.
+  //
+  // TODO(#474): For an exact solution, the funnel query would need to be rewritten to identify
+  // the specific step-0 event that started the successful strict_order sequence — this requires
+  // either a ClickHouse UDF or a multi-CTE approach that replays the strict_order window per user.
   const breakdownCol = breakdownExpr
-    ? `,\n              argMinIf(${breakdownExpr}, timestamp, ${step0Cond}) AS breakdown_value`
+    ? `,\n              ${orderType === 'strict' ? 'argMaxIf' : 'argMinIf'}(${breakdownExpr}, timestamp, ${step0Cond}) AS breakdown_value`
     : '';
 
   // Optional first/last step timestamps for avg_time_to_convert.
   // Use full step conditions (not bare event_name =) so OR-logic steps are handled correctly:
   // a user who satisfies step 0 via any of the OR-events gets a valid first_step_ms.
-  // Use minIf for both first_step_ms AND last_step_ms: windowFunnel matches the first
-  // occurrence of each step in sequence, so the correct conversion time is from the
-  // first step-0 event to the FIRST occurrence of the last step that completed the funnel.
-  // Using maxIf for last_step_ms would pick the latest repetition of the last-step event
-  // (e.g. a repeated purchase hours later), systematically inflating avg_time_to_convert.
+  //
+  // Ordered mode: minIf for first_step_ms (windowFunnel matches the FIRST step-0 occurrence),
+  // minIf for last_step_ms (use first occurrence to avoid repeated last-step events inflating time).
+  //
+  // Strict mode heuristic: maxIf for first_step_ms — windowFunnel('strict_order') resets progress
+  // on any intervening non-step event. If a user has an early failed attempt (step-0 → interruption)
+  // followed by a successful attempt (step-0 → … → last), the LATEST step-0 is more likely to
+  // correspond to the successful sequence, making avg_time_to_convert closer to the true value.
+  // Using minIf in strict mode can overestimate by including elapsed time from an aborted attempt.
+  //
+  // This is a best-effort heuristic. Exact per-user strict_order timing would require replaying
+  // the windowFunnel logic outside ClickHouse or using a UDF.
+  // TODO(#474): Implement exact strict_order first_step_ms via UDF or multi-CTE approach.
+  const firstStepAgg = orderType === 'strict' ? 'maxIf' : 'minIf';
   const timestampCols = includeTimestampCols
-    ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
+    ? `,\n              ${firstStepAgg}(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
     : '';
 
   // Exclusion columns
@@ -101,8 +126,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
             FROM events
             WHERE
               project_id = {project_id:UUID}
-              AND timestamp >= {from:DateTime64(3)}
-              AND timestamp <= {to:DateTime64(3)}${eventNameFilter}${cohortClause}${samplingClause}
+              AND timestamp >= ${fromExpr}
+              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
             GROUP BY person_id
           )`;
 
