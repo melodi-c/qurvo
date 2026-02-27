@@ -17,7 +17,7 @@ import {
   type ValidationArguments,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
@@ -249,20 +249,23 @@ export class FunnelStepResultDto {
   conversion_rate: number;
   drop_off: number;
   drop_off_rate: number;
+  @ApiProperty({ type: Number, nullable: true })
   avg_time_to_convert_seconds: number | null;
   @ApiPropertyOptional() breakdown_value?: string;
 }
 
 export class FunnelResultDto {
+  @ApiProperty()
   breakdown: boolean;
   @ApiPropertyOptional() breakdown_property?: string;
   @ApiPropertyOptional({ description: 'Sampling factor used (if < 1.0, results are sampled)' })
   sampling_factor?: number;
   @ApiPropertyOptional({ description: 'True when the number of breakdown groups was truncated to breakdown_limit' })
   breakdown_truncated?: boolean;
+  @ApiProperty({ type: [FunnelStepResultDto] })
   @Type(() => FunnelStepResultDto)
   steps: FunnelStepResultDto[];
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [FunnelStepResultDto] })
   @Type(() => FunnelStepResultDto)
   aggregate_steps?: FunnelStepResultDto[];
 }
@@ -281,9 +284,12 @@ export class TimeToConvertBinDto {
 export class TimeToConvertResultDto {
   from_step: number;
   to_step: number;
+  @ApiProperty({ type: Number, nullable: true })
   average_seconds: number | null;
+  @ApiProperty({ type: Number, nullable: true })
   median_seconds: number | null;
   sample_size: number;
+  @ApiProperty({ type: [TimeToConvertBinDto] })
   @Type(() => TimeToConvertBinDto)
   bins: TimeToConvertBinDto[];
 }
