@@ -77,6 +77,7 @@ export function PersonSearchTable({ renderRowAction, renderFooter }: PersonSearc
             type="checkbox"
             checked={selected.has(row.id)}
             onChange={() => toggleSelect(row.id)}
+            aria-label={t('selectPerson', { id: row.displayId })}
             className="accent-primary h-4 w-4 cursor-pointer"
           />
         ),
