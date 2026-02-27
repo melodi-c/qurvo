@@ -33,10 +33,14 @@ export class PathCleaningRuleDto {
 export class WildcardGroupDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
+  @Matches(/^[^\x00-\x1f'\\]+$/, { message: 'Must not contain control characters, quotes, or backslashes' })
   pattern: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
+  @Matches(/^[^\x00-\x1f'\\]+$/, { message: 'Must not contain control characters, quotes, or backslashes' })
   alias: string;
 }
 
