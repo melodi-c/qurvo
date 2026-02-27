@@ -64,6 +64,8 @@ const UNIT_TO_SECONDS: Record<string, number> = {
   month: 2592000, // 30 days
 };
 
+const CONVERSION_WINDOW_DAYS_DEFAULT = 14;
+
 export function resolveWindowSeconds(params: {
   conversion_window_days: number;
   conversion_window_value?: number;
@@ -86,6 +88,13 @@ export function resolveWindowSeconds(params: {
   const MAX_WINDOW_SECONDS = 90 * 86400; // 90 days, same limit as conversion_window_days
 
   if (hasValue && hasUnit) {
+    // If the caller also provided a non-default conversion_window_days it is ambiguous
+    // which window should win. Reject early so the client can correct the request.
+    if (params.conversion_window_days !== CONVERSION_WINDOW_DAYS_DEFAULT) {
+      throw new AppBadRequestException(
+        'specify either conversion_window_days or conversion_window_value/unit, not both',
+      );
+    }
     const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit!] ?? 86400;
     const resolved = params.conversion_window_value! * multiplier;
     if (resolved > MAX_WINDOW_SECONDS) {

@@ -351,6 +351,53 @@ describe("FunnelQueryDto — breakdown_cohort_ids requires breakdown_type='cohor
   });
 });
 
+// ── FunnelQueryDto — conversion_window mutual exclusion ──────────────────────
+
+describe('FunnelQueryDto — conversion_window_days vs conversion_window_value/unit mutual exclusion', () => {
+  it('accepts when only conversion_window_days (non-default) is provided', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_days: 7 }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts when only conversion_window_value/unit is provided (days stays at default 14)', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ conversion_window_value: 30, conversion_window_unit: 'minute' }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts when neither conversion_window_days override nor value/unit is provided', async () => {
+    const errors = await validateFunnelQueryDto(minimalFunnelQueryDto());
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects when conversion_window_days=7 (non-default) and conversion_window_value/unit are both set', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        conversion_window_days: 7,
+        conversion_window_value: 30,
+        conversion_window_unit: 'minute',
+      }),
+    );
+    expect(
+      errors.some((msg) => msg.includes('conversion_window_days')),
+    ).toBe(true);
+  });
+
+  it('rejects when conversion_window_days=1 (minimum non-default) and value/unit set', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        conversion_window_days: 1,
+        conversion_window_value: 2,
+        conversion_window_unit: 'hour',
+      }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
 // ── FunnelTimeToConvertQueryDto — @ArrayMaxSize(5) on exclusions ──────────────
 
 async function validateFunnelTtcDto(data: Record<string, unknown>): Promise<string[]> {
