@@ -37,6 +37,7 @@ export interface FunnelChQueryParams {
   window: number;
   num_steps: number;
   all_event_names: string[];
+  breakdown_limit?: number;
   [key: string]: unknown;
 }
 
