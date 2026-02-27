@@ -214,10 +214,12 @@ export interface FunnelStep {
   event_names?: string[];
   event_name: string;
   label: string;
+  /** @maxItems 20 */
   filters?: StepFilter[];
 }
 
 export interface FunnelStepResult {
+  avg_time_to_convert_seconds: number | null;
   breakdown_value?: string;
   step: number;
   label: string;
@@ -226,18 +228,17 @@ export interface FunnelStepResult {
   conversion_rate: number;
   drop_off: number;
   drop_off_rate: number;
-  avg_time_to_convert_seconds: number | null;
 }
 
 export interface FunnelResult {
+  breakdown: boolean;
   breakdown_property?: string;
   /** Sampling factor used (if < 1.0, results are sampled) */
   sampling_factor?: number;
   /** True when the number of breakdown groups was truncated to breakdown_limit */
   breakdown_truncated?: boolean;
-  aggregate_steps?: FunnelStepResult[];
-  breakdown: boolean;
   steps: FunnelStepResult[];
+  aggregate_steps?: FunnelStepResult[];
 }
 
 export interface FunnelResponse {
@@ -253,12 +254,12 @@ export interface TimeToConvertBin {
 }
 
 export interface TimeToConvertResult {
-  from_step: number;
-  to_step: number;
   average_seconds: number | null;
   median_seconds: number | null;
-  sample_size: number;
   bins: TimeToConvertBin[];
+  from_step: number;
+  to_step: number;
+  sample_size: number;
 }
 
 export interface TimeToConvertResponse {
