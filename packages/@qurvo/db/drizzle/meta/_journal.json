@@ -302,6 +302,13 @@
       "when": 1775500000000,
       "tag": "0043_add_ai_conversation_tokens_cached",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1775600000000,
+      "tag": "0044_remove_project_slug",
+      "breakpoints": true
     }
   ]
 }

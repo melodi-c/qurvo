@@ -4,7 +4,6 @@ export default createTranslations({
   en: {
     title: 'Projects',
     name: 'Name',
-    slug: 'Slug',
     plan: 'Plan',
     memberCount: 'Members',
     createdAt: 'Created',
@@ -15,7 +14,6 @@ export default createTranslations({
   ru: {
     title: 'Проекты',
     name: 'Название',
-    slug: 'Slug',
     plan: 'План',
     memberCount: 'Участники',
     createdAt: 'Создан',

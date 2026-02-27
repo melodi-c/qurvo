@@ -1,0 +1,2 @@
+ALTER TABLE "projects" DROP CONSTRAINT IF EXISTS "projects_slug_unique";--> statement-breakpoint
+ALTER TABLE "projects" DROP COLUMN IF EXISTS "slug";

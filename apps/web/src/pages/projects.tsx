@@ -196,7 +196,6 @@ export default function ProjectsPage() {
                     </Button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">slug: {project.slug}</p>
               </CardHeader>
             </Card>
           ))}

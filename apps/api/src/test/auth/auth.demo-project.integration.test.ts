@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import { getTestContext, type ContainerContext } from '../context';
 import { eq } from 'drizzle-orm';
-import { projects, projectMembers, users } from '@qurvo/db';
+import { projects, projectMembers } from '@qurvo/db';
 import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { ProjectsService } from '../../projects/projects.service';
@@ -62,7 +62,6 @@ describe('Demo project creation on registration', () => {
       .select({
         id: projects.id,
         name: projects.name,
-        slug: projects.slug,
         is_demo: projects.is_demo,
         demo_scenario: projects.demo_scenario,
         role: projectMembers.role,
@@ -80,11 +79,10 @@ describe('Demo project creation on registration', () => {
     expect(demo.role).toBe('owner');
   });
 
-  it('creates a demo project for every registered user (no slug collision on concurrent registrations)', async () => {
+  it('creates a demo project for every registered user (no collision on concurrent registrations)', async () => {
     const authService = makeAuthService(ctx);
 
     // Register two users in parallel — both should get their own demo project
-    // without slug collision causing one of them to silently fail.
     const [result1, result2] = await Promise.all([
       authService.register({
         email: `demo-parallel-a-${randomUUID()}@example.com`,
@@ -100,12 +98,12 @@ describe('Demo project creation on registration', () => {
 
     const [projectsA, projectsB] = await Promise.all([
       ctx.db
-        .select({ id: projects.id, is_demo: projects.is_demo, slug: projects.slug })
+        .select({ id: projects.id, is_demo: projects.is_demo })
         .from(projectMembers)
         .innerJoin(projects, eq(projectMembers.project_id, projects.id))
         .where(eq(projectMembers.user_id, result1.user.id)),
       ctx.db
-        .select({ id: projects.id, is_demo: projects.is_demo, slug: projects.slug })
+        .select({ id: projects.id, is_demo: projects.is_demo })
         .from(projectMembers)
         .innerJoin(projects, eq(projectMembers.project_id, projects.id))
         .where(eq(projectMembers.user_id, result2.user.id)),
@@ -140,79 +138,35 @@ describe('Demo project creation on registration', () => {
     expect(list[0].name).toBe('LearnFlow (Demo)');
     expect(list[0].role).toBe('owner');
   });
-});
 
-// ---------------------------------------------------------------------------
-// ProjectsService.create — slug collision retry
-// ---------------------------------------------------------------------------
-
-describe('ProjectsService.create — slug collision retry', () => {
   it('creates two projects with the same name for different users without throwing', async () => {
     const projectsService = makeProjectsService(ctx);
 
-    // Insert two users directly
-    const userId1 = randomUUID();
-    const userId2 = randomUUID();
+    const authService = makeAuthService(ctx);
 
-    await ctx.db.insert(users).values([
-      {
-        id: userId1,
-        email: `slug-collision-a-${randomUUID()}@example.com`,
-        password_hash: 'not_used',
-        display_name: 'Slug A',
-      },
-      {
-        id: userId2,
-        email: `slug-collision-b-${randomUUID()}@example.com`,
-        password_hash: 'not_used',
-        display_name: 'Slug B',
-      },
+    const [result1, result2] = await Promise.all([
+      authService.register({
+        email: `same-name-a-${randomUUID()}@example.com`,
+        password: 'pass1',
+        display_name: 'User A',
+      }),
+      authService.register({
+        email: `same-name-b-${randomUUID()}@example.com`,
+        password: 'pass2',
+        display_name: 'User B',
+      }),
     ]);
 
-    // Create projects with identical names in parallel — this triggers the slug collision path
+    // Create projects with identical names in parallel — no slug collision anymore
     const [p1, p2] = await Promise.all([
-      projectsService.create(userId1, { name: 'Collision Name', is_demo: false }),
-      projectsService.create(userId2, { name: 'Collision Name', is_demo: false }),
+      projectsService.create(result1.user.id, { name: 'Same Name', is_demo: false }),
+      projectsService.create(result2.user.id, { name: 'Same Name', is_demo: false }),
     ]);
 
     expect(p1.id).toBeTruthy();
     expect(p2.id).toBeTruthy();
     expect(p1.id).not.toBe(p2.id);
-
-    // Slugs must be distinct — second one gets a random suffix
-    expect(p1.slug).not.toBe(p2.slug);
-    // Both slugs start with 'collision-name'
-    expect(p1.slug).toMatch(/^collision-name/);
-    expect(p2.slug).toMatch(/^collision-name/);
-  });
-
-  it('sequential projects with same name also get distinct slugs', async () => {
-    const projectsService = makeProjectsService(ctx);
-
-    const userId1 = randomUUID();
-    const userId2 = randomUUID();
-
-    await ctx.db.insert(users).values([
-      {
-        id: userId1,
-        email: `seq-slug-a-${randomUUID()}@example.com`,
-        password_hash: 'not_used',
-        display_name: 'Seq A',
-      },
-      {
-        id: userId2,
-        email: `seq-slug-b-${randomUUID()}@example.com`,
-        password_hash: 'not_used',
-        display_name: 'Seq B',
-      },
-    ]);
-
-    const p1 = await projectsService.create(userId1, { name: 'Sequential Dupe', is_demo: false });
-    const p2 = await projectsService.create(userId2, { name: 'Sequential Dupe', is_demo: false });
-
-    expect(p1.id).not.toBe(p2.id);
-    expect(p1.slug).not.toBe(p2.slug);
-    expect(p1.slug).toMatch(/^sequential-dupe/);
-    expect(p2.slug).toMatch(/^sequential-dupe/);
+    expect(p1.name).toBe('Same Name');
+    expect(p2.name).toBe('Same Name');
   });
 });

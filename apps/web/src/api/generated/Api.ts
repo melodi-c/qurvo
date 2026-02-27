@@ -136,7 +136,6 @@ export interface ProjectWithRole {
   role: ProjectWithRoleDtoRoleEnum;
   id: string;
   name: string;
-  slug: string;
   token: string;
   plan: string | null;
   is_demo: boolean;
@@ -157,7 +156,6 @@ export interface CreateProject {
 export interface Project {
   id: string;
   name: string;
-  slug: string;
   token: string;
   plan: string | null;
   is_demo: boolean;
@@ -178,7 +176,6 @@ export interface UpdateProject {
 export interface RotateTokenResponse {
   id: string;
   name: string;
-  slug: string;
   token: string;
   plan: string | null;
   is_demo: boolean;
@@ -897,7 +894,6 @@ export interface CreateInvite {
 export interface ProjectSummary {
   id: string;
   name: string;
-  slug: string;
 }
 
 export interface MyInvite {
@@ -925,6 +921,9 @@ export interface AiConversation {
   is_shared: boolean;
   id: string;
   title: string;
+  tokens_input: number;
+  tokens_output: number;
+  tokens_cached: number;
   created_at: string;
   updated_at: string;
 }
@@ -956,6 +955,9 @@ export interface AiConversationDetail {
   has_more: boolean;
   id: string;
   title: string;
+  tokens_input: number;
+  tokens_output: number;
+  tokens_cached: number;
   created_at: string;
   updated_at: string;
 }
@@ -1395,7 +1397,6 @@ export interface AdminUser {
 export interface AdminProjectListItem {
   id: string;
   name: string;
-  slug: string;
   plan_id: string | null;
   plan_name: string | null;
   member_count: number;
@@ -1414,7 +1415,6 @@ export interface AdminProjectDetail {
   members: AdminProjectMember[];
   id: string;
   name: string;
-  slug: string;
   token: string;
   plan_id: string | null;
   plan_name: string | null;
@@ -2376,7 +2376,7 @@ export interface IngestionWarningsControllerGetIngestionWarningsParams {
 }
 
 export interface DemoControllerResetParams {
-  projectSlug: string;
+  projectId: string;
 }
 
 export interface AiMonitorsControllerListParams {
@@ -4652,16 +4652,16 @@ export class Api<
      *
      * @tags Demo
      * @name DemoControllerReset
-     * @request POST:/api/projects/{projectSlug}/demo/reset
+     * @request POST:/api/projects/{projectId}/demo/reset
      * @secure
      */
     demoControllerReset: (
-      { projectSlug, ...query }: DemoControllerResetParams,
+      { projectId, ...query }: DemoControllerResetParams,
       data: ResetDemo,
       params: RequestParams = {},
     ) =>
       this.request<ResetDemoResponse, any>({
-        path: `/api/projects/${projectSlug}/demo/reset`,
+        path: `/api/projects/${projectId}/demo/reset`,
         method: "POST",
         body: data,
         secure: true,
