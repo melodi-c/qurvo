@@ -174,9 +174,9 @@ for app in "${ALL_APPS[@]}"; do
 done
 echo ""
 
-# ── Build & push ─────────────────────────────────────────────────────────────
+# ── Build & push (BuildKit, registry cache, build+push in one step) ──────────
 if [[ "$SKIP_BUILD" == false ]]; then
-  echo "==> Building: ${BUILD_APPS[*]}"
+  echo "==> Building & pushing: ${BUILD_APPS[*]}"
 
   PIDS=()
   for app in "${BUILD_APPS[@]}"; do
@@ -188,13 +188,16 @@ if [[ "$SKIP_BUILD" == false ]]; then
       BUILD_ARG="--build-arg APP=$app"
     fi
 
-    echo "    [$app] Starting build..."
-    docker build \
+    echo "    [$app] Starting build+push..."
+    docker buildx build \
       --platform "$PLATFORM" \
       --progress=plain \
       --target "$TARGET" \
       $BUILD_ARG \
+      --cache-from "type=registry,ref=$REGISTRY/cache:$app" \
+      --cache-to   "type=registry,ref=$REGISTRY/cache:$app,mode=max" \
       -t "$REGISTRY/$app:$TAG" \
+      --push \
       "$REPO_ROOT" > /tmp/docker-build-$app.log 2>&1 &
     PIDS+=("$!:$app")
   done
@@ -204,34 +207,13 @@ if [[ "$SKIP_BUILD" == false ]]; then
     pid="${entry%%:*}"
     app="${entry##*:}"
     if wait "$pid"; then
-      echo "    [$app] Built ✓"
+      echo "    [$app] Built & pushed ✓"
     else
       echo "    [$app] FAILED ✗  (see /tmp/docker-build-$app.log)"
       FAILED=true
     fi
   done
   [[ "$FAILED" == true ]] && { echo "ERROR: Build failed. Aborting."; exit 1; }
-
-  echo ""
-  echo "==> Pushing..."
-  PIDS=()
-  for app in "${BUILD_APPS[@]}"; do
-    docker push "$REGISTRY/$app:$TAG" > /tmp/docker-push-$app.log 2>&1 &
-    PIDS+=("$!:$app")
-  done
-
-  FAILED=false
-  for entry in "${PIDS[@]}"; do
-    pid="${entry%%:*}"
-    app="${entry##*:}"
-    if wait "$pid"; then
-      echo "    [$app] Pushed ✓"
-    else
-      echo "    [$app] FAILED ✗  (see /tmp/docker-push-$app.log)"
-      FAILED=true
-    fi
-  done
-  [[ "$FAILED" == true ]] && { echo "ERROR: Push failed. Aborting."; exit 1; }
 fi
 
 # ── Pre-deploy: fix stuck helm releases ─────────────────────────────────────
