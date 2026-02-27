@@ -8,7 +8,14 @@ import {
   CohortEventFilterDto,
   CohortPropertyConditionDto,
   CohortPerformedRegularlyConditionDto,
+  CohortEventConditionDto,
 } from '../../api/dto/cohort-conditions.dto';
+import {
+  CreateCohortDto,
+  UpdateCohortDto,
+  CreateStaticCohortDto,
+  StaticCohortMembersDto,
+} from '../../api/dto/cohorts.dto';
 
 // ── stopped_performing ───────────────────────────────────────────────────────
 
@@ -278,6 +285,123 @@ describe('CohortPerformedRegularlyConditionDto — min_periods <= total_periods'
   });
 });
 
+// ── CohortEventFilterDto — date operators require non-empty value ─────────────
+
+describe('CohortEventFilterDto — ValueNotEmptyForDateOperator', () => {
+  function buildFilter(operator: string, value: string | undefined) {
+    return plainToInstance(CohortEventFilterDto, {
+      property: 'properties.signup_date',
+      operator,
+      value,
+    });
+  }
+
+  it('fails: is_date_before with empty string value → valueNotEmptyForDateOperator', async () => {
+    const errors = await validate(buildFilter('is_date_before', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_after with empty string value → valueNotEmptyForDateOperator', async () => {
+    const errors = await validate(buildFilter('is_date_after', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_exact with empty string value → valueNotEmptyForDateOperator', async () => {
+    const errors = await validate(buildFilter('is_date_exact', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('passes: is_date_before with valid date value', async () => {
+    const errors = await validate(buildFilter('is_date_before', '2025-03-01'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: is_date_after with valid date value', async () => {
+    const errors = await validate(buildFilter('is_date_after', '2025-06-01'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: is_date_exact with valid date value', async () => {
+    const errors = await validate(buildFilter('is_date_exact', '2025-03-15'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: eq operator with empty value — validator skips non-date operators', async () => {
+    const errors = await validate(buildFilter('eq', ''));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+
+  it('passes: is_date_before with undefined value — @IsOptional wins (undefined skips custom validator)', async () => {
+    // Note: undefined is skipped by @IsOptional() before the custom validator runs.
+    // The guard in helpers.ts provides runtime defense. The DTO catches the empty string case.
+    const errors = await validate(buildFilter('is_date_before', undefined));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+});
+
+// ── CohortPropertyConditionDto — date operators require non-empty value ───────
+
+describe('CohortPropertyConditionDto — ValueNotEmptyForDateOperator', () => {
+  function buildCond(operator: string, value: string | undefined) {
+    return plainToInstance(CohortPropertyConditionDto, {
+      type: 'person_property',
+      property: 'user_properties.signup_date',
+      operator,
+      value,
+    });
+  }
+
+  it('fails: is_date_before with empty string value', async () => {
+    const errors = await validate(buildCond('is_date_before', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_after with empty string value', async () => {
+    const errors = await validate(buildCond('is_date_after', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('fails: is_date_exact with empty string value', async () => {
+    const errors = await validate(buildCond('is_date_exact', ''));
+    const valErrors = errors.filter((e) => e.property === 'value');
+    expect(valErrors.length).toBeGreaterThan(0);
+    expect(valErrors[0].constraints).toHaveProperty('valueNotEmptyForDateOperator');
+  });
+
+  it('passes: is_date_before with non-empty value', async () => {
+    const errors = await validate(buildCond('is_date_before', '2025-01-01'));
+    const valErrors = errors.filter(
+      (e) => e.property === 'value' && e.constraints?.['valueNotEmptyForDateOperator'],
+    );
+    expect(valErrors).toHaveLength(0);
+  });
+});
+
 // ── CohortPropertyConditionDto — same validators ─────────────────────────────
 
 describe('CohortPropertyConditionDto — ValuesMinSizeForOperator + BetweenValuesOrdered', () => {
@@ -314,5 +438,167 @@ describe('CohortPropertyConditionDto — ValuesMinSizeForOperator + BetweenValue
     const errors = await validate(buildCond('between', ['0', '50']));
     const valErrors = errors.filter((e) => e.property === 'values');
     expect(valErrors).toHaveLength(0);
+  });
+});
+
+// ── CohortEventConditionDto — IsInt for count ─────────────────────────────────
+
+describe('CohortEventConditionDto — count must be integer', () => {
+  function buildEvent(count: number) {
+    return plainToInstance(CohortEventConditionDto, {
+      type: 'event',
+      event_name: 'page_view',
+      count_operator: 'gte',
+      count,
+      time_window_days: 7,
+    });
+  }
+
+  it('passes: count is 0 (integer)', async () => {
+    const errors = await validate(buildEvent(0));
+    const countErrors = errors.filter((e) => e.property === 'count');
+    expect(countErrors).toHaveLength(0);
+  });
+
+  it('passes: count is positive integer', async () => {
+    const errors = await validate(buildEvent(5));
+    const countErrors = errors.filter((e) => e.property === 'count');
+    expect(countErrors).toHaveLength(0);
+  });
+
+  it('fails: count is 1.5 (non-integer)', async () => {
+    const errors = await validate(buildEvent(1.5));
+    const countErrors = errors.filter((e) => e.property === 'count');
+    expect(countErrors.length).toBeGreaterThan(0);
+    expect(countErrors[0].constraints).toHaveProperty('isInt');
+  });
+
+  it('fails: count is -0.5 (negative non-integer)', async () => {
+    const errors = await validate(buildEvent(-0.5));
+    const countErrors = errors.filter((e) => e.property === 'count');
+    expect(countErrors.length).toBeGreaterThan(0);
+  });
+});
+
+// ── CohortPerformedRegularlyConditionDto — total_periods Max(365) ─────────────
+
+describe('CohortPerformedRegularlyConditionDto — total_periods max 365', () => {
+  function buildRegularly(totalPeriods: number, minPeriods = 1) {
+    return plainToInstance(CohortPerformedRegularlyConditionDto, {
+      type: 'performed_regularly',
+      event_name: 'page_view',
+      period_type: 'day',
+      total_periods: totalPeriods,
+      min_periods: minPeriods,
+      time_window_days: 30,
+    });
+  }
+
+  it('passes: total_periods = 365', async () => {
+    const errors = await validate(buildRegularly(365));
+    const errors365 = errors.filter((e) => e.property === 'total_periods');
+    expect(errors365).toHaveLength(0);
+  });
+
+  it('fails: total_periods = 366 (over max)', async () => {
+    const errors = await validate(buildRegularly(366));
+    const totalErrors = errors.filter((e) => e.property === 'total_periods');
+    expect(totalErrors.length).toBeGreaterThan(0);
+    expect(totalErrors[0].constraints).toHaveProperty('max');
+  });
+
+  it('passes: min_periods = 365 when total_periods = 365', async () => {
+    const errors = await validate(buildRegularly(365, 365));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors).toHaveLength(0);
+  });
+
+  it('fails: min_periods = 366 (over max)', async () => {
+    const errors = await validate(buildRegularly(400, 366));
+    const periodErrors = errors.filter((e) => e.property === 'min_periods');
+    expect(periodErrors.length).toBeGreaterThan(0);
+    expect(periodErrors[0].constraints).toHaveProperty('max');
+  });
+});
+
+// ── CreateCohortDto / UpdateCohortDto / CreateStaticCohortDto — MaxLength ─────
+
+describe('CreateCohortDto — name and description MaxLength', () => {
+  it('passes: name with 200 chars', async () => {
+    const dto = plainToInstance(CreateCohortDto, { name: 'a'.repeat(200) });
+    const errors = await validate(dto);
+    expect(errors.filter((e) => e.property === 'name')).toHaveLength(0);
+  });
+
+  it('fails: name with 201 chars → maxLength', async () => {
+    const dto = plainToInstance(CreateCohortDto, { name: 'a'.repeat(201) });
+    const errors = await validate(dto);
+    const nameErrors = errors.filter((e) => e.property === 'name');
+    expect(nameErrors.length).toBeGreaterThan(0);
+    expect(nameErrors[0].constraints).toHaveProperty('maxLength');
+  });
+
+  it('passes: description with 1000 chars', async () => {
+    const dto = plainToInstance(CreateCohortDto, { name: 'valid', description: 'a'.repeat(1000) });
+    const errors = await validate(dto);
+    expect(errors.filter((e) => e.property === 'description')).toHaveLength(0);
+  });
+
+  it('fails: description with 1001 chars → maxLength', async () => {
+    const dto = plainToInstance(CreateCohortDto, { name: 'valid', description: 'a'.repeat(1001) });
+    const errors = await validate(dto);
+    const descErrors = errors.filter((e) => e.property === 'description');
+    expect(descErrors.length).toBeGreaterThan(0);
+    expect(descErrors[0].constraints).toHaveProperty('maxLength');
+  });
+});
+
+describe('UpdateCohortDto — name and description MaxLength', () => {
+  it('fails: name with 201 chars → maxLength', async () => {
+    const dto = plainToInstance(UpdateCohortDto, { name: 'a'.repeat(201) });
+    const errors = await validate(dto);
+    const nameErrors = errors.filter((e) => e.property === 'name');
+    expect(nameErrors.length).toBeGreaterThan(0);
+    expect(nameErrors[0].constraints).toHaveProperty('maxLength');
+  });
+
+  it('passes: name absent (optional field)', async () => {
+    const dto = plainToInstance(UpdateCohortDto, {});
+    const errors = await validate(dto);
+    expect(errors.filter((e) => e.property === 'name')).toHaveLength(0);
+  });
+});
+
+describe('CreateStaticCohortDto — name MaxLength', () => {
+  it('fails: name with 201 chars → maxLength', async () => {
+    const dto = plainToInstance(CreateStaticCohortDto, { name: 'a'.repeat(201) });
+    const errors = await validate(dto);
+    const nameErrors = errors.filter((e) => e.property === 'name');
+    expect(nameErrors.length).toBeGreaterThan(0);
+    expect(nameErrors[0].constraints).toHaveProperty('maxLength');
+  });
+});
+
+// ── StaticCohortMembersDto — ArrayMaxSize ─────────────────────────────────────
+
+describe('StaticCohortMembersDto — person_ids ArrayMaxSize(10000)', () => {
+  const validUuid = '00000000-0000-4000-8000-000000000000';
+
+  it('passes: exactly 10000 person_ids', async () => {
+    const dto = plainToInstance(StaticCohortMembersDto, {
+      person_ids: Array(10_000).fill(validUuid),
+    });
+    const errors = await validate(dto);
+    expect(errors.filter((e) => e.property === 'person_ids')).toHaveLength(0);
+  });
+
+  it('fails: 10001 person_ids → arrayMaxSize', async () => {
+    const dto = plainToInstance(StaticCohortMembersDto, {
+      person_ids: Array(10_001).fill(validUuid),
+    });
+    const errors = await validate(dto);
+    const idsErrors = errors.filter((e) => e.property === 'person_ids');
+    expect(idsErrors.length).toBeGreaterThan(0);
+    expect(idsErrors[0].constraints).toHaveProperty('arrayMaxSize');
   });
 });

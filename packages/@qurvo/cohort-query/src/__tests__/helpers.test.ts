@@ -259,6 +259,71 @@ describe('buildOperatorClause — LIKE wildcard escaping', () => {
   });
 });
 
+describe('buildOperatorClause — date operators guard against empty value and epoch false positives', () => {
+  it('is_date_before: throws when value is empty string', () => {
+    const params: Record<string, unknown> = {};
+    expect(() => buildOperatorClause('expr', 'is_date_before', 'p0', params, '')).toThrow(
+      'is_date_before requires a non-empty value',
+    );
+  });
+
+  it('is_date_before: throws when value is undefined', () => {
+    const params: Record<string, unknown> = {};
+    expect(() => buildOperatorClause('expr', 'is_date_before', 'p0', params, undefined)).toThrow(
+      'is_date_before requires a non-empty value',
+    );
+  });
+
+  it('is_date_after: throws when value is empty string', () => {
+    const params: Record<string, unknown> = {};
+    expect(() => buildOperatorClause('expr', 'is_date_after', 'p0', params, '')).toThrow(
+      'is_date_after requires a non-empty value',
+    );
+  });
+
+  it('is_date_exact: throws when value is empty string', () => {
+    const params: Record<string, unknown> = {};
+    expect(() => buildOperatorClause('expr', 'is_date_exact', 'p0', params, '')).toThrow(
+      'is_date_exact requires a non-empty value',
+    );
+  });
+
+  it('is_date_before: generates SQL with epoch exclusion guard when value is valid', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(argMax(user_properties, timestamp), 'signup_date')";
+    const clause = buildOperatorClause(expr, 'is_date_before', 'p0', params, '2025-03-01');
+    expect(params['p0']).toBe('2025-03-01');
+    // Must contain epoch guard: != toDateTime(0)
+    expect(clause).toContain('parseDateTimeBestEffortOrZero');
+    expect(clause).toContain('toDateTime(0)');
+    expect(clause).toContain('parseDateTimeBestEffort({p0:String})');
+    // Full expected SQL
+    expect(clause).toBe(
+      `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({p0:String}))`,
+    );
+  });
+
+  it('is_date_after: generates SQL with epoch exclusion guard when value is valid', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(argMax(user_properties, timestamp), 'signup_date')";
+    const clause = buildOperatorClause(expr, 'is_date_after', 'p0', params, '2025-03-01');
+    expect(params['p0']).toBe('2025-03-01');
+    expect(clause).toBe(
+      `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({p0:String}))`,
+    );
+  });
+
+  it('is_date_exact: generates SQL with epoch exclusion guard when value is valid', () => {
+    const params: Record<string, unknown> = {};
+    const expr = "JSONExtractString(argMax(user_properties, timestamp), 'signup_date')";
+    const clause = buildOperatorClause(expr, 'is_date_exact', 'p0', params, '2025-03-15');
+    expect(params['p0']).toBe('2025-03-15');
+    expect(clause).toBe(
+      `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({p0:String})))`,
+    );
+  });
+});
+
 describe('buildOperatorClause — is_set / is_not_set with JSON expressions use JSONExtractRaw', () => {
   // JSONExtractString returns '' for boolean/number JSON values, so is_set would
   // incorrectly return false for {"active": true} or {"score": 42}.
@@ -440,23 +505,23 @@ describe('buildOperatorClause — is_date_before / is_date_after / is_date_exact
     const expr = "JSONExtractString(properties, 'signup_date')";
     const clause = buildOperatorClause(expr, 'is_date_before', 'p0', params, '2024-01-01');
     expect(clause).toBe(
-      `parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({p0:String})`,
+      `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({p0:String}))`,
     );
     expect(params['p0']).toBe('2024-01-01');
   });
 
-  it('is_date_before: empty value returns always-false 1=0 clause and does NOT set queryParam', () => {
+  it('is_date_before: empty value throws an error', () => {
     const params: Record<string, unknown> = {};
-    const clause = buildOperatorClause('prop', 'is_date_before', 'p0', params, '');
-    expect(clause).toBe('1=0');
-    expect(params['p0']).toBeUndefined();
+    expect(() => buildOperatorClause('prop', 'is_date_before', 'p0', params, '')).toThrow(
+      'is_date_before requires a non-empty value',
+    );
   });
 
-  it('is_date_before: undefined value returns always-false 1=0 clause and does NOT set queryParam', () => {
+  it('is_date_before: undefined value throws an error', () => {
     const params: Record<string, unknown> = {};
-    const clause = buildOperatorClause('prop', 'is_date_before', 'p0', params, undefined);
-    expect(clause).toBe('1=0');
-    expect(params['p0']).toBeUndefined();
+    expect(() => buildOperatorClause('prop', 'is_date_before', 'p0', params, undefined)).toThrow(
+      'is_date_before requires a non-empty value',
+    );
   });
 
   it('is_date_after: produces epoch-guard AND comparison clause with value in params', () => {
@@ -464,23 +529,23 @@ describe('buildOperatorClause — is_date_before / is_date_after / is_date_exact
     const expr = "JSONExtractString(user_properties, 'last_login')";
     const clause = buildOperatorClause(expr, 'is_date_after', 'p0', params, '2025-06-01 00:00:00');
     expect(clause).toBe(
-      `parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({p0:String})`,
+      `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({p0:String}))`,
     );
     expect(params['p0']).toBe('2025-06-01 00:00:00');
   });
 
-  it('is_date_after: empty value returns always-false 1=0 clause and does NOT set queryParam', () => {
+  it('is_date_after: empty value throws an error', () => {
     const params: Record<string, unknown> = {};
-    const clause = buildOperatorClause('prop', 'is_date_after', 'p0', params, '');
-    expect(clause).toBe('1=0');
-    expect(params['p0']).toBeUndefined();
+    expect(() => buildOperatorClause('prop', 'is_date_after', 'p0', params, '')).toThrow(
+      'is_date_after requires a non-empty value',
+    );
   });
 
-  it('is_date_after: undefined value returns always-false 1=0 clause and does NOT set queryParam', () => {
+  it('is_date_after: undefined value throws an error', () => {
     const params: Record<string, unknown> = {};
-    const clause = buildOperatorClause('prop', 'is_date_after', 'p0', params, undefined);
-    expect(clause).toBe('1=0');
-    expect(params['p0']).toBeUndefined();
+    expect(() => buildOperatorClause('prop', 'is_date_after', 'p0', params, undefined)).toThrow(
+      'is_date_after requires a non-empty value',
+    );
   });
 
   it('is_date_exact: produces epoch-guard AND toDate comparison clause with value in params', () => {
@@ -488,7 +553,7 @@ describe('buildOperatorClause — is_date_before / is_date_after / is_date_exact
     const expr = "JSONExtractString(properties, 'event_date')";
     const clause = buildOperatorClause(expr, 'is_date_exact', 'p0', params, '2024-07-15');
     expect(clause).toBe(
-      `parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({p0:String}))`,
+      `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({p0:String})))`,
     );
     expect(params['p0']).toBe('2024-07-15');
   });
@@ -497,22 +562,22 @@ describe('buildOperatorClause — is_date_before / is_date_after / is_date_exact
     const params: Record<string, unknown> = {};
     const clause = buildOperatorClause('argMax(some_date_col, timestamp)', 'is_date_exact', 'p0', params, '2025-03-20');
     expect(clause).toBe(
-      'parseDateTimeBestEffortOrZero(argMax(some_date_col, timestamp)) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(argMax(some_date_col, timestamp))) = toDate(parseDateTimeBestEffort({p0:String}))',
+      '(parseDateTimeBestEffortOrZero(argMax(some_date_col, timestamp)) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(argMax(some_date_col, timestamp))) = toDate(parseDateTimeBestEffort({p0:String})))',
     );
     expect(params['p0']).toBe('2025-03-20');
   });
 
-  it('is_date_exact: empty value returns always-false 1=0 clause and does NOT set queryParam', () => {
+  it('is_date_exact: empty value throws an error', () => {
     const params: Record<string, unknown> = {};
-    const clause = buildOperatorClause('prop', 'is_date_exact', 'p0', params, '');
-    expect(clause).toBe('1=0');
-    expect(params['p0']).toBeUndefined();
+    expect(() => buildOperatorClause('prop', 'is_date_exact', 'p0', params, '')).toThrow(
+      'is_date_exact requires a non-empty value',
+    );
   });
 
-  it('is_date_exact: undefined value returns always-false 1=0 clause and does NOT set queryParam', () => {
+  it('is_date_exact: undefined value throws an error', () => {
     const params: Record<string, unknown> = {};
-    const clause = buildOperatorClause('prop', 'is_date_exact', 'p0', params, undefined);
-    expect(clause).toBe('1=0');
-    expect(params['p0']).toBeUndefined();
+    expect(() => buildOperatorClause('prop', 'is_date_exact', 'p0', params, undefined)).toThrow(
+      'is_date_exact requires a non-empty value',
+    );
   });
 });

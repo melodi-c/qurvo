@@ -624,3 +624,180 @@ describe('queryFunnel — avg_time_to_convert for strict mode re-entry (issue #4
     expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
   });
 });
+
+// ── avg_time_to_convert: strict mode inversion fix (issue #507) ───────────────
+
+describe('queryFunnel — strict mode avg_time_to_convert inversion fix (issue #507)', () => {
+  it('strict mode: user with multiple attempts not dropped when early last-step predates latest step-0', async () => {
+    // Counterexample from issue #507 — with the old maxIf/minIf approach:
+    //   T=100ms: signup (step-0, failed attempt — no purchase follows within window)
+    //   T=200ms: purchase (last-step, isolated old attempt — predates the successful step-0)
+    //   T=300ms: signup (step-0, successful attempt)
+    //   T=400ms: purchase (last-step, completes the successful attempt)
+    //
+    // Old (buggy): maxIf(step-0)=T300, minIf(last-step)=T200 → T300 > T200 → negative diff
+    //   → user dropped from avg_time_to_convert
+    //
+    // Fixed (two-CTE): last_step_ms = minIf(last-step globally) = T200
+    //   t0_arr = [T100, T300]
+    //   filter: t0 <= T200 AND T200 ∈ [t0, t0+window] → only T100 qualifies
+    //   first_step_ms = arrayMax([T100]) = T100 → diff = T200 - T100 = 100ms → positive → included
+    //
+    // NOTE: ClickHouse windowFunnel('strict_order') with events T100(signup),T200(purchase),
+    // T300(signup),T400(purchase) returns max_step=2 — the user DID convert (signup→purchase
+    // at T100→T200 without any intervening non-funnel events). The avg_time reflects that
+    // first successful sequence (100ms).
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'inversion-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 4_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'inversion-user',
+        event_name: 'purchase',
+        timestamp: new Date(now - 3_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'inversion-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 2_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'inversion-user',
+        event_name: 'purchase',
+        timestamp: new Date(now - 1_000).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+
+    // User converted — windowFunnel('strict_order') finds signup→purchase at T-4s→T-3s
+    expect(r.steps[0]!.count).toBe(1);
+    expect(r.steps[1]!.count).toBe(1);
+
+    // avg_time must be non-null — old bug dropped this user (null avg) because
+    // maxIf(step-0) > minIf(last-step) produced a negative difference
+    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    // The earliest valid conversion window is signup@T-4s → purchase@T-3s = 1s
+    expect(avgTime!).toBeGreaterThan(0);
+    expect(avgTime!).toBeLessThan(5);
+
+    expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
+  });
+
+  it('strict mode: user with multiple attempts counts in avg and is not dropped (two users)', async () => {
+    // userA: inversion scenario — T-4s signup, T-3s purchase, T-2s signup, T-1s purchase
+    //   windowFunnel converts at T-4s→T-3s, avg_time ≈ 1s
+    // userB: simple single attempt — T-5s signup, T-1s purchase, avg_time ≈ 4s
+    // Expected overall avg ≈ (1 + 4) / 2 = 2.5s
+    //
+    // With the old bug, userA was dropped → avg would be 4s (only userB counted)
+    const projectId = randomUUID();
+    const userA = randomUUID();
+    const userB = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      // userA: inversion scenario
+      buildEvent({
+        project_id: projectId,
+        person_id: userA,
+        distinct_id: 'user-a-inversion',
+        event_name: 'signup',
+        timestamp: new Date(now - 4_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: userA,
+        distinct_id: 'user-a-inversion',
+        event_name: 'purchase',
+        timestamp: new Date(now - 3_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: userA,
+        distinct_id: 'user-a-inversion',
+        event_name: 'signup',
+        timestamp: new Date(now - 2_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: userA,
+        distinct_id: 'user-a-inversion',
+        event_name: 'purchase',
+        timestamp: new Date(now - 1_000).toISOString(),
+      }),
+      // userB: single attempt
+      buildEvent({
+        project_id: projectId,
+        person_id: userB,
+        distinct_id: 'user-b-simple',
+        event_name: 'signup',
+        timestamp: new Date(now - 5_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: userB,
+        distinct_id: 'user-b-simple',
+        event_name: 'purchase',
+        timestamp: new Date(now - 1_000).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict',
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+
+    expect(r.steps[0]!.count).toBe(2);
+    expect(r.steps[1]!.count).toBe(2);
+
+    // avg should reflect both users — roughly (1 + 4) / 2 = 2.5s
+    // With the old bug, only userB counted → avg would be 4s
+    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    expect(avgTime!).toBeGreaterThan(1);
+    expect(avgTime!).toBeLessThan(4);
+
+    expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
+  });
+});

@@ -463,7 +463,10 @@ async function buildUnorderedTtcSql(
     ? ',\n        ' + exclColAliases.join(',\n        ')
     : '';
 
-  const anyStepNonEmpty = Array.from({ length: N }, (_, i) => `length(t${i}_arr) > 0`).join(' OR ');
+  // Guard on step-0 (anchor step) only — users without step-0 cannot enter the funnel,
+  // even if they have events for other steps. Using OR across all steps would include
+  // users who skipped step-0, producing incorrect TTC sample sizes and durations.
+  const anyStepNonEmpty = `length(t0_arr) > 0`;
 
   const excludedUsersCTE = exclusions.length > 0
     ? ',\n  ' + buildExcludedUsersCTE(exclusions)
