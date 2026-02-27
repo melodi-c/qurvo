@@ -113,10 +113,13 @@ export function buildSamplingClause(
 // ── windowFunnel expression ──────────────────────────────────────────────────
 
 export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: string): string {
+  // Use toUnixTimestamp64Milli(timestamp) (UInt64, milliseconds) instead of toDateTime(timestamp)
+  // (which truncates to second precision). windowFunnel supports UInt64 since ClickHouse 19.8.
+  // {window:UInt64} is in seconds; multiply by 1000 to get the window in milliseconds.
   if (orderType === 'strict') {
-    return `windowFunnel({window:UInt64}, 'strict_order')(toDateTime(timestamp), ${stepConditions})`;
+    return `windowFunnel({window:UInt64} * 1000, 'strict_order')(toUInt64(toUnixTimestamp64Milli(timestamp)), ${stepConditions})`;
   }
-  return `windowFunnel({window:UInt64})(toDateTime(timestamp), ${stepConditions})`;
+  return `windowFunnel({window:UInt64} * 1000)(toUInt64(toUnixTimestamp64Milli(timestamp)), ${stepConditions})`;
 }
 
 // ── Exclusion helpers ────────────────────────────────────────────────────────

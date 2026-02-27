@@ -44,7 +44,7 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
   @Transform(({ value }) => (value != null ? Number(value) : 5))
   @IsInt()
   @Min(3)
-  @Max(10)
+  @Max(1000)
   @IsOptional()
   step_limit?: number = 5;
 

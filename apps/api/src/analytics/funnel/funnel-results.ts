@@ -107,8 +107,8 @@ export function computeAggregateSteps(
       : 0;
     return {
       step: sn,
-      label: steps[idx]?.label ?? '',
-      event_name: steps[idx]?.event_name ?? '',
+      label: steps[sn - 1]?.label ?? '',
+      event_name: steps[sn - 1]?.event_name ?? '',
       count: total,
       conversion_rate: step1Total > 0 ? Math.round((total / step1Total) * 1000) / 10 : 0,
       drop_off: dropOff,
