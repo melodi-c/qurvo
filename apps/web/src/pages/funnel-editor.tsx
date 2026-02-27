@@ -153,7 +153,7 @@ export default function FunnelEditorPage() {
             </>
           ) : (
             <>
-              <Metric label={t('overallConversion')} value={`${overallConversion}%`} accent />
+              <Metric label={t('overallConversion')} value={overallConversion !== null ? `${overallConversion}%` : '\u2014'} accent />
               <MetricsDivider />
               <Metric label={t('enteredFunnel')} value={totalEntered?.toLocaleString() ?? '\u2014'} />
               <MetricsDivider />
