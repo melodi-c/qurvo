@@ -163,7 +163,7 @@ export class FunnelExclusionDto {
 class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Transform(makeJsonArrayTransform(FunnelStepDto))
   @IsArray()
-  @ArrayMinSize(1)
+  @ArrayMinSize(2)
   @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => FunnelStepDto)

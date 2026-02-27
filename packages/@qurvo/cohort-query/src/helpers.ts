@@ -121,10 +121,26 @@ export function buildOperatorClause(
     case 'not_contains':
       queryParams[pk] = `%${escapeLikePattern(value ?? '')}%`;
       return `${expr} NOT LIKE {${pk}:String}`;
-    case 'is_set':
+    case 'is_set': {
+      // JSONExtractString returns '' for boolean/number JSON values (e.g. true, 42),
+      // so `expr != ''` incorrectly returns false for properties like {"active": true}.
+      // JSONExtractRaw returns the raw token ('true', '42', '"hello"') or '' when the
+      // key is absent. Checking rawExpr NOT IN ('', 'null') correctly handles all types.
+      const rawIsSetExpr = toRawExpr(expr);
+      if (rawIsSetExpr) {
+        return `${rawIsSetExpr} NOT IN ('', 'null')`;
+      }
       return `${expr} != ''`;
-    case 'is_not_set':
+    }
+    case 'is_not_set': {
+      // Same reasoning as is_set — use JSONExtractRaw so boolean/number values
+      // are treated as "set" rather than "not set".
+      const rawIsNotSetExpr = toRawExpr(expr);
+      if (rawIsNotSetExpr) {
+        return `${rawIsNotSetExpr} IN ('', 'null')`;
+      }
       return `${expr} = ''`;
+    }
     case 'gt': {
       const numExpr = toNumericExpr(expr);
       queryParams[pk] = Number(value ?? 0);

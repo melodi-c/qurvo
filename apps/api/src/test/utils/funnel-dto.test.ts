@@ -398,6 +398,71 @@ describe('FunnelQueryDto — conversion_window_days vs conversion_window_value/u
   });
 });
 
+// ── FunnelQueryDto — @ArrayMinSize(2) on steps ───────────────────────────────
+
+describe('FunnelQueryDto — @ArrayMinSize(2) on steps', () => {
+  it('accepts steps with exactly 2 elements (minimum valid)', async () => {
+    const errors = await validateFunnelQueryDto(minimalFunnelQueryDto());
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts steps with 3 elements', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        steps: [
+          { event_name: 'signup', label: 'Sign up' },
+          { event_name: 'onboarding', label: 'Onboarding' },
+          { event_name: 'purchase', label: 'Purchase' },
+        ],
+      }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects steps with 1 element (below @ArrayMinSize(2))', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        steps: [{ event_name: 'signup', label: 'Sign up' }],
+      }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((msg) => msg.includes('at least 2'))).toBe(true);
+  });
+
+  it('rejects empty steps array', async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({ steps: [] }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+// ── FunnelTimeToConvertQueryDto — @ArrayMinSize(2) on steps ──────────────────
+
+describe('FunnelTimeToConvertQueryDto — @ArrayMinSize(2) on steps', () => {
+  it('accepts steps with exactly 2 elements (minimum valid)', async () => {
+    const errors = await validateFunnelTtcDto(minimalFunnelTtcDto());
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects steps with 1 element (below @ArrayMinSize(2))', async () => {
+    const errors = await validateFunnelTtcDto(
+      minimalFunnelTtcDto({
+        steps: [{ event_name: 'signup', label: 'Sign up' }],
+      }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some((msg) => msg.includes('at least 2'))).toBe(true);
+  });
+
+  it('rejects empty steps array', async () => {
+    const errors = await validateFunnelTtcDto(
+      minimalFunnelTtcDto({ steps: [] }),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
 // ── FunnelTimeToConvertQueryDto — @ArrayMaxSize(5) on exclusions ──────────────
 
 async function validateFunnelTtcDto(data: Record<string, unknown>): Promise<string[]> {
