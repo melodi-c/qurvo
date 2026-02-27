@@ -71,7 +71,14 @@ export function buildPropertyFilterConditions(
         break;
       case 'neq':
         queryParams[pk] = f.value ?? '';
-        parts.push(`${expr} != {${pk}:String}`);
+        // For JSON properties: require the key to be present before comparing.
+        // JSONExtractString returns '' for missing keys, so '' != 'target' would be true,
+        // incorrectly including users who never had this property.
+        if (source) {
+          parts.push(`JSONHas(${source.jsonColumn}, '${source.key}') AND ${expr} != {${pk}:String}`);
+        } else {
+          parts.push(`${expr} != {${pk}:String}`);
+        }
         break;
       case 'contains':
         queryParams[pk] = `%${escapeLikePattern(f.value ?? '')}%`;
@@ -79,7 +86,14 @@ export function buildPropertyFilterConditions(
         break;
       case 'not_contains':
         queryParams[pk] = `%${escapeLikePattern(f.value ?? '')}%`;
-        parts.push(`${expr} NOT LIKE {${pk}:String}`);
+        // For JSON properties: require the key to be present before comparing.
+        // JSONExtractString returns '' for missing keys, so '' NOT LIKE '%target%' would be true,
+        // incorrectly including users who never had this property.
+        if (source) {
+          parts.push(`JSONHas(${source.jsonColumn}, '${source.key}') AND ${expr} NOT LIKE {${pk}:String}`);
+        } else {
+          parts.push(`${expr} NOT LIKE {${pk}:String}`);
+        }
         break;
       case 'is_set':
         // For JSON columns use JSONHas() so that boolean false and 0 are treated as set.
