@@ -8,9 +8,11 @@ export const useRetentionData = createTargetEventHook<RetentionWidgetConfig, Ret
   extraHash: (config) => ({
     retention_type: config.retention_type,
     periods: config.periods,
+    return_event: config.return_event,
   }),
   extraParams: (config) => ({
     retention_type: config.retention_type,
     periods: config.periods,
+    return_event: config.return_event,
   }),
 });

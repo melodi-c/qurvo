@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { TargetEventQueryPanel } from '../shared/TargetEventQueryPanel';
+import { EventNameCombobox } from '@/components/EventNameCombobox';
 import translations from './RetentionQueryPanel.translations';
 import type { RetentionWidgetConfig } from '@/api/generated/Api';
 
@@ -27,27 +28,41 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
       onChange={onChange}
       eventIcon={CalendarCheck}
       extraDisplayContent={
-        <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">{t('retentionType')}</span>
-            <InfoTooltip content={t('retentionTypeTooltip')} />
+        <>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">{t('retentionType')}</span>
+              <InfoTooltip content={t('retentionTypeTooltip')} />
+            </div>
+            <Select
+              value={config.retention_type}
+              onValueChange={(v) => onChange({ ...config, retention_type: v as RetentionWidgetConfig['retention_type'] })}
+            >
+              <SelectTrigger size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {retentionTypeOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value} description={o.desc}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select
-            value={config.retention_type}
-            onValueChange={(v) => onChange({ ...config, retention_type: v as RetentionWidgetConfig['retention_type'] })}
-          >
-            <SelectTrigger size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {retentionTypeOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value} description={o.desc}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">{t('returnEvent')}</span>
+              <InfoTooltip content={t('returnEventTooltip')} />
+            </div>
+            <EventNameCombobox
+              value={config.return_event ?? ''}
+              onChange={(v) => onChange({ ...config, return_event: v || undefined })}
+              placeholder={t('returnEventPlaceholder')}
+              className="h-9 rounded-md border-border px-3"
+            />
+          </div>
+        </>
       }
       granularityAdjacentContent={
         <div className="space-y-1">

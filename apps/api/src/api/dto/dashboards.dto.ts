@@ -118,6 +118,7 @@ export class RetentionWidgetConfigDto {
   periods: number;
   date_from: string;
   date_to: string;
+  @ApiPropertyOptional() return_event?: string;
   @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
