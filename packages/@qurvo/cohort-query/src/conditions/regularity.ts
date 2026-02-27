@@ -42,7 +42,8 @@ export function buildPerformedRegularlySubquery(
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
       AND event_name = {${eventPk}:String}
-      AND timestamp >= ${upperBound} - ${interval}${filterClause}
+      AND timestamp >= ${upperBound} - ${interval}
+      AND timestamp <= ${upperBound}${filterClause}
     GROUP BY person_id
     HAVING uniqExact(${bucketExpr}) >= {${minPk}:UInt32}`;
 }
