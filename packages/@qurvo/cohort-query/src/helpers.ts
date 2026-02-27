@@ -37,6 +37,22 @@ function toNumericExpr(expr: string): string {
   return expr.replace(/\bJSONExtractString\b/g, 'JSONExtractRaw');
 }
 
+/**
+ * Returns a corresponding JSONExtractRaw expression for a JSONExtractString expression,
+ * or null if the expression is not a JSONExtractString call.
+ *
+ * Used to build OR conditions for eq/neq operators so that boolean/number JSON values
+ * (e.g. `true`, `false`, `42`) are correctly matched.
+ *
+ * JSONExtractString returns '' for boolean/number values, so `= 'true'` never matches
+ * `{"active": true}`. JSONExtractRaw returns the raw token ('true'), so an OR with the
+ * raw comparison covers both string and boolean/number cases.
+ */
+function toRawExpr(expr: string): string | null {
+  if (!expr.includes('JSONExtractString')) return null;
+  return expr.replace(/\bJSONExtractString\b/g, 'JSONExtractRaw');
+}
+
 function extractJsonKey(property: string): { column: 'properties' | 'user_properties'; key: string } {
   if (property.startsWith('properties.')) {
     return { column: 'properties', key: escapeJsonKey(property.slice('properties.'.length)) };
@@ -80,12 +96,25 @@ export function buildOperatorClause(
   values?: string[],
 ): string {
   switch (operator) {
-    case 'eq':
+    case 'eq': {
       queryParams[pk] = value ?? '';
+      const rawEqExpr = toRawExpr(expr);
+      if (rawEqExpr) {
+        // JSONExtractString returns '' for boolean/number values (e.g. true, false, 42).
+        // JSONExtractRaw returns the raw token ('true', 'false', '42').
+        // OR-ing both ensures string values and boolean/number values are both matched.
+        return `(${expr} = {${pk}:String} OR toString(${rawEqExpr}) = {${pk}:String})`;
+      }
       return `${expr} = {${pk}:String}`;
-    case 'neq':
+    }
+    case 'neq': {
       queryParams[pk] = value ?? '';
+      const rawNeqExpr = toRawExpr(expr);
+      if (rawNeqExpr) {
+        return `(${expr} != {${pk}:String} AND toString(${rawNeqExpr}) != {${pk}:String})`;
+      }
       return `${expr} != {${pk}:String}`;
+    }
     case 'contains':
       queryParams[pk] = `%${escapeLikePattern(value ?? '')}%`;
       return `${expr} LIKE {${pk}:String}`;
