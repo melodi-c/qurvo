@@ -36,7 +36,7 @@ export const useFunnelData = createWidgetDataHook<FunnelWidgetConfig, FunnelResp
   isEnabled: (config) =>
     config.steps.length >= 2 &&
     config.steps.every((s) => s.event_name.trim() !== '' && s.label.trim() !== ''),
-  buildParams: (config, projectId, widgetUuid) => ({
+  buildParams: (config, projectId, widgetUuid, timezone) => ({
     project_id: projectId,
     steps: cleanSteps(config),
     conversion_window_days: config.conversion_window_days,
@@ -44,6 +44,7 @@ export const useFunnelData = createWidgetDataHook<FunnelWidgetConfig, FunnelResp
     ...(config.conversion_window_unit ? { conversion_window_unit: config.conversion_window_unit } : {}),
     date_from: config.date_from,
     date_to: config.date_to,
+    ...(timezone && timezone !== 'UTC' ? { timezone } : {}),
     ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
     ...(config.breakdown_type ? { breakdown_type: config.breakdown_type } : {}),
     ...(config.breakdown_cohort_ids?.length ? { breakdown_cohort_ids: config.breakdown_cohort_ids } : {}),

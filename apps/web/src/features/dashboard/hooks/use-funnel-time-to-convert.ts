@@ -36,7 +36,7 @@ export const useFunnelTimeToConvertData = createWidgetDataHook<
     config.steps.length >= 2 &&
     config.steps.every((s) => s.event_name.trim() !== '' && s.label.trim() !== '') &&
     config.from_step < config.to_step,
-  buildParams: (config, projectId, widgetUuid) => ({
+  buildParams: (config, projectId, widgetUuid, timezone) => ({
     project_id: projectId,
     steps: cleanSteps(config),
     conversion_window_days: config.conversion_window_days,
@@ -44,6 +44,7 @@ export const useFunnelTimeToConvertData = createWidgetDataHook<
     ...(config.conversion_window_unit ? { conversion_window_unit: config.conversion_window_unit } : {}),
     date_from: config.date_from,
     date_to: config.date_to,
+    ...(timezone && timezone !== 'UTC' ? { timezone } : {}),
     from_step: config.from_step,
     to_step: config.to_step,
     ...(widgetUuid ? { widget_id: widgetUuid } : {}),

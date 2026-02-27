@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useProjectStore } from '@/stores/project';
 import translations from './RetentionTable.translations';
 import type { RetentionResult } from '@/api/generated/Api';
 import { formatDateWithGranularity } from '@/lib/formatting';
@@ -27,6 +28,7 @@ function heatmapColor(pct: number): string {
 export function RetentionTable({ result, compact = false }: RetentionTableProps) {
   const { cohorts, average_retention, granularity } = result;
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
 
   const maxPeriods = compact
     ? Math.min(average_retention.length, 7)
@@ -81,7 +83,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
           return (
             <TableRow key={cohort.cohort_date}>
               <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
-                {formatDateWithGranularity(cohort.cohort_date, granularity)}
+                {formatDateWithGranularity(cohort.cohort_date, granularity, timezone)}
               </TableCell>
               <TableCell className="sticky left-[100px] bg-background z-10 text-right text-xs tabular-nums">
                 {cohort.cohort_size.toLocaleString()}
