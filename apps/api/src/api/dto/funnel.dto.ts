@@ -192,6 +192,11 @@ export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   @Min(1)
   to_step: number;
 
+  @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
+  @IsIn(['ordered', 'strict', 'unordered'])
+  @IsOptional()
+  funnel_order_type?: 'ordered' | 'strict' | 'unordered';
+
   @ApiPropertyOptional({ type: [FunnelExclusionDto] })
   @Transform(makeJsonArrayTransform(FunnelExclusionDto))
   @IsArray()

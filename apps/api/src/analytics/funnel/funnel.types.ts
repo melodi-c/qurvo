@@ -91,4 +91,5 @@ export interface TimeToConvertParams {
   cohort_filters?: CohortFilterInput[];
   exclusions?: FunnelExclusion[];
   sampling_factor?: number;
+  funnel_order_type?: FunnelOrderType;
 }

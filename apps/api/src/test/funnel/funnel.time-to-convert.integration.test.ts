@@ -596,3 +596,199 @@ describe('queryFunnelTimeToConvert — exclusions', () => {
     expect(ttcWith.sample_size).toBe(1);
   });
 });
+
+// ── funnel_order_type consistency ────────────────────────────────────────────
+
+describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
+  it('strict mode: sample_size TTC matches steps[to_step].count in main funnel', async () => {
+    // Scenario: a 2-step funnel in strict mode.
+    // personClean: signup → purchase (no intervening events) — converts in strict mode.
+    // personInterrupted: signup → pageview → purchase (pageview resets strict_order) — does NOT convert.
+    //
+    // Main funnel strict: steps[1].count = 1 (only personClean)
+    // TTC strict: sample_size must equal 1 (matches main funnel)
+    // TTC ordered (wrong): would return sample_size = 2 (both users counted)
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personInterrupted = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: signup → purchase (clean)
+      buildEvent({
+        project_id: projectId, person_id: personClean, distinct_id: 'strict-clean',
+        event_name: 'signup', timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personClean, distinct_id: 'strict-clean',
+        event_name: 'purchase', timestamp: msAgo(3000),
+      }),
+      // personInterrupted: signup → pageview → purchase (pageview breaks strict_order)
+      buildEvent({
+        project_id: projectId, person_id: personInterrupted, distinct_id: 'strict-interrupted',
+        event_name: 'signup', timestamp: msAgo(9000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personInterrupted, distinct_id: 'strict-interrupted',
+        event_name: 'pageview', timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personInterrupted, distinct_id: 'strict-interrupted',
+        event_name: 'purchase', timestamp: msAgo(3000),
+      }),
+    ]);
+
+    const sharedParams = {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict' as const,
+    };
+
+    const funnelResult = await queryFunnel(ctx.ch, sharedParams);
+    expect(funnelResult.breakdown).toBe(false);
+    const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
+    // Only personClean converts in strict mode
+    expect(funnelSteps[1]!.count).toBe(1);
+
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      ...sharedParams,
+      from_step: 0,
+      to_step: 1,
+    });
+
+    // sample_size must match main funnel steps[1].count
+    expect(ttcResult.sample_size).toBe(funnelSteps[1]!.count);
+    expect(ttcResult.sample_size).toBe(1);
+
+    // Bins total should match sample_size
+    const totalBinCount = ttcResult.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(ttcResult.sample_size);
+  });
+
+  it('unordered mode: sample_size TTC matches steps[to_step].count in main funnel', async () => {
+    // Scenario: a 2-step funnel in unordered mode.
+    // personA: purchase → signup (steps in reverse order) — converts in unordered mode.
+    // personB: signup → purchase (in-order) — also converts in unordered mode.
+    // personC: signup only — does NOT complete step 2.
+    //
+    // Main funnel unordered: steps[1].count = 2 (personA and personB)
+    // TTC unordered: sample_size must equal 2 (matches main funnel)
+    // TTC ordered (wrong): would return sample_size = 1 (only personB, in-order)
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+    const personC = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personA: reverse order — purchase first, then signup
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'unordered-a',
+        event_name: 'purchase', timestamp: msAgo(8000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'unordered-a',
+        event_name: 'signup', timestamp: msAgo(4000),
+      }),
+      // personB: in-order signup → purchase
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'unordered-b',
+        event_name: 'signup', timestamp: msAgo(7000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'unordered-b',
+        event_name: 'purchase', timestamp: msAgo(3000),
+      }),
+      // personC: signup only
+      buildEvent({
+        project_id: projectId, person_id: personC, distinct_id: 'unordered-c',
+        event_name: 'signup', timestamp: msAgo(5000),
+      }),
+    ]);
+
+    const sharedParams = {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered' as const,
+    };
+
+    const funnelResult = await queryFunnel(ctx.ch, sharedParams);
+    expect(funnelResult.breakdown).toBe(false);
+    const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
+    // personA and personB both complete 2 steps (in any order)
+    expect(funnelSteps[1]!.count).toBe(2);
+
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      ...sharedParams,
+      from_step: 0,
+      to_step: 1,
+    });
+
+    // sample_size must match main funnel steps[to_step].count
+    expect(ttcResult.sample_size).toBe(funnelSteps[1]!.count);
+    expect(ttcResult.sample_size).toBe(2);
+
+    // Both conversions should have valid durations
+    expect(ttcResult.average_seconds).not.toBeNull();
+    expect(ttcResult.average_seconds).toBeGreaterThan(0);
+
+    // Bins total should match sample_size
+    const totalBinCount = ttcResult.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(ttcResult.sample_size);
+  });
+
+  it('default (no funnel_order_type) uses ordered mode — reverse-order user is NOT counted', async () => {
+    // Verifies that the default behaviour (ordered) is unchanged.
+    // personA: purchase → signup (reverse order) — does NOT convert in ordered mode.
+    // personB: signup → purchase (in-order) — converts.
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'default-a',
+        event_name: 'purchase', timestamp: msAgo(8000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personA, distinct_id: 'default-a',
+        event_name: 'signup', timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'default-b',
+        event_name: 'signup', timestamp: msAgo(7000),
+      }),
+      buildEvent({
+        project_id: projectId, person_id: personB, distinct_id: 'default-b',
+        event_name: 'purchase', timestamp: msAgo(3000),
+      }),
+    ]);
+
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+      // no funnel_order_type → defaults to ordered
+    });
+
+    // Only personB converts (in-order); personA reverse-order is NOT counted in ordered mode
+    expect(ttcResult.sample_size).toBe(1);
+  });
+});
