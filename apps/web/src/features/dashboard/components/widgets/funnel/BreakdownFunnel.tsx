@@ -55,7 +55,7 @@ export function BreakdownFunnel({
           const prev = sm.get(sNums[i - 1])?.get(gv);
           const curr = sm.get(sn)?.get(gv);
           if (!prev || !curr) return null;
-          return prev.count > 0 ? Math.round((curr.count / prev.count) * 1000) / 10 : 0;
+          return prev.count > 0 ? Math.round((curr.count / prev.count) * 1000) / 10 : null;
         }),
       );
     }
