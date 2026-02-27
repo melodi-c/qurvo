@@ -80,6 +80,88 @@ describe('queryFunnel — with breakdown', () => {
 
 // ── P1: Funnel order types ──────────────────────────────────────────────────
 
+describe('queryFunnel — aggregate_steps labels with property breakdown', () => {
+  it('aggregate_steps carries correct label and event_name for each step even when some breakdown values have zero entrants at intermediate steps', async () => {
+    const projectId = randomUUID();
+
+    // Chrome: 3 users reach step 1 (page_view), 2 reach step 2 (signup), 0 reach step 3 (purchase)
+    // Firefox: 2 users reach step 1 (page_view), 0 reach step 2 (signup), 0 reach step 3 (purchase)
+    // The aggregate stepTotals will have entries for steps 1, 2, 3 (all with counts >= 0).
+    // This test ensures aggregate_steps[i].label is driven by step NUMBER (sn - 1 index),
+    // not by position idx in the sorted stepNums array.
+    const chromeUser1 = randomUUID();
+    const chromeUser2 = randomUUID();
+    const chromeUser3 = randomUUID();
+    const firefoxUser1 = randomUUID();
+    const firefoxUser2 = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Chrome user 1: all 3 steps
+      buildEvent({ project_id: projectId, person_id: chromeUser1, distinct_id: 'c1', event_name: 'page_view', browser: 'Chrome', timestamp: msAgo(9000) }),
+      buildEvent({ project_id: projectId, person_id: chromeUser1, distinct_id: 'c1', event_name: 'signup', browser: 'Chrome', timestamp: msAgo(8000) }),
+      buildEvent({ project_id: projectId, person_id: chromeUser1, distinct_id: 'c1', event_name: 'purchase', browser: 'Chrome', timestamp: msAgo(7000) }),
+      // Chrome user 2: steps 1 + 2 only
+      buildEvent({ project_id: projectId, person_id: chromeUser2, distinct_id: 'c2', event_name: 'page_view', browser: 'Chrome', timestamp: msAgo(6000) }),
+      buildEvent({ project_id: projectId, person_id: chromeUser2, distinct_id: 'c2', event_name: 'signup', browser: 'Chrome', timestamp: msAgo(5000) }),
+      // Chrome user 3: step 1 only
+      buildEvent({ project_id: projectId, person_id: chromeUser3, distinct_id: 'c3', event_name: 'page_view', browser: 'Chrome', timestamp: msAgo(4000) }),
+      // Firefox user 1: step 1 only
+      buildEvent({ project_id: projectId, person_id: firefoxUser1, distinct_id: 'f1', event_name: 'page_view', browser: 'Firefox', timestamp: msAgo(3000) }),
+      // Firefox user 2: step 1 only
+      buildEvent({ project_id: projectId, person_id: firefoxUser2, distinct_id: 'f2', event_name: 'page_view', browser: 'Firefox', timestamp: msAgo(2000) }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'page_view', label: 'Page View' },
+        { event_name: 'signup', label: 'Sign Up' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'browser',
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    // Verify per-breakdown counts
+    const chromeStep1 = rBd.steps.find((s) => s.breakdown_value === 'Chrome' && s.step === 1);
+    const chromeStep2 = rBd.steps.find((s) => s.breakdown_value === 'Chrome' && s.step === 2);
+    const chromeStep3 = rBd.steps.find((s) => s.breakdown_value === 'Chrome' && s.step === 3);
+    expect(chromeStep1?.count).toBe(3);
+    expect(chromeStep2?.count).toBe(2);
+    expect(chromeStep3?.count).toBe(1);
+
+    const firefoxStep1 = rBd.steps.find((s) => s.breakdown_value === 'Firefox' && s.step === 1);
+    const firefoxStep2 = rBd.steps.find((s) => s.breakdown_value === 'Firefox' && s.step === 2);
+    expect(firefoxStep1?.count).toBe(2);
+    expect(firefoxStep2?.count).toBe(0);
+
+    // Verify aggregate_steps labels are mapped by step NUMBER, not by position
+    expect(rBd.aggregate_steps).toBeDefined();
+    const aggStep1 = rBd.aggregate_steps.find((s) => s.step === 1);
+    const aggStep2 = rBd.aggregate_steps.find((s) => s.step === 2);
+    const aggStep3 = rBd.aggregate_steps.find((s) => s.step === 3);
+
+    expect(aggStep1?.label).toBe('Page View');
+    expect(aggStep1?.event_name).toBe('page_view');
+    expect(aggStep1?.count).toBe(5); // 3 Chrome + 2 Firefox
+
+    expect(aggStep2?.label).toBe('Sign Up');
+    expect(aggStep2?.event_name).toBe('signup');
+    expect(aggStep2?.count).toBe(2); // 2 Chrome + 0 Firefox
+
+    expect(aggStep3?.label).toBe('Purchase');
+    expect(aggStep3?.event_name).toBe('purchase');
+    expect(aggStep3?.count).toBe(1); // 1 Chrome + 0 Firefox
+  });
+});
+
+// ── P1: Funnel order types ──────────────────────────────────────────────────
+
 describe('queryFunnel — strict order', () => {
   it('requires events in strict consecutive order (no interleaved events)', async () => {
     const projectId = randomUUID();
