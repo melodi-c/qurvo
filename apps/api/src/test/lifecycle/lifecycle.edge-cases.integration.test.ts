@@ -86,6 +86,96 @@ describe('queryLifecycle — event property filters', () => {
   });
 });
 
+describe('queryLifecycle — prior_active ignores eventFilterClause', () => {
+  it('classifies as resurrecting (not new) a user who had prior events not matching the filter', async () => {
+    // Regression test for issue #430:
+    // prior_active CTE was applying eventFilterClause, causing users with old events
+    // that don't match the filter to be misclassified as 'new' instead of 'resurrecting'.
+    //
+    // Scenario:
+    //   - The query has event_filter: properties.plan = 'premium'
+    //   - The user fired the target event with plan='free' 10 days ago (before the range)
+    //   - During the visible range the user fires the event with plan='premium'
+    //
+    // Expected: user should be classified as 'resurrecting' because they have prior
+    // history (regardless of the filter). With the bug, prior_active only sees events
+    // that match the filter, so the old 'free' event is invisible and the user appears
+    // as 'new'.
+    const projectId = randomUUID();
+    const user = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Event before date_from with plan='free' — doesn't match the filter but proves prior existence
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'u',
+        event_name: 'purchase',
+        properties: JSON.stringify({ plan: 'free' }),
+        timestamp: ts(10, 12),
+      }),
+      // Event within the visible range with plan='premium' — matches the filter
+      buildEvent({
+        project_id: projectId,
+        person_id: user,
+        distinct_id: 'u',
+        event_name: 'purchase',
+        properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(1, 12),
+      }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'purchase',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(0),
+      event_filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
+    });
+
+    // The user should appear once (day-1) with plan='premium' matching the filter
+    const day1 = result.data.find((d) => d.bucket.startsWith(daysAgo(1)));
+    expect(day1).toBeDefined();
+
+    // CRITICAL: must be resurrecting, not new — user fired the event (as 'free') before the range
+    expect(day1!.resurrecting).toBe(1);
+    expect(day1!.new).toBe(0);
+  });
+
+  it('still classifies as new a user whose first event (matching filter) is within the range and has no prior events at all', async () => {
+    // When a user has truly never fired the target event before, they should still
+    // be classified as 'new' even when an event_filter is active.
+    const projectId = randomUUID();
+    const brandNewUser = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: brandNewUser,
+        distinct_id: 'brand-new',
+        event_name: 'purchase',
+        properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: ts(1, 12),
+      }),
+    ]);
+
+    const result = await queryLifecycle(ctx.ch, {
+      project_id: projectId,
+      target_event: 'purchase',
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(0),
+      event_filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
+    });
+
+    const day1 = result.data.find((d) => d.bucket.startsWith(daysAgo(1)));
+    expect(day1).toBeDefined();
+    expect(day1!.new).toBe(1);
+    expect(day1!.resurrecting).toBe(0);
+  });
+});
+
 describe('queryLifecycle — multiple resurrection cycles', () => {
   it('correctly classifies a user who resurrects more than once', async () => {
     const projectId = randomUUID();

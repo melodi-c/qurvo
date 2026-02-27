@@ -145,12 +145,15 @@ export async function queryLifecycle(
       ),
       -- Users who have ANY matching event strictly before extended_from.
       -- A user in this set has prior history and must never be classified as 'new'.
+      -- NOTE: eventFilterClause is intentionally NOT applied here. A user who fired
+      -- the target event before the range (even without matching property filters) is
+      -- considered "previously active" and must be classified as 'resurrecting', not 'new'.
       prior_active AS (
         SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
         FROM events
         WHERE project_id = {project_id:UUID}
           AND event_name = {target_event:String}
-          AND timestamp < ${extendedFromExpr}${cohortClause}${eventFilterClause}
+          AND timestamp < ${extendedFromExpr}${cohortClause}
       )
     SELECT
       toString(ts_bucket) AS period,
