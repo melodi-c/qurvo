@@ -194,14 +194,17 @@ export function buildOperatorClause(
       return `(toFloat64OrZero(${numExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${numExpr}) > {${maxPk}:Float64})`;
     }
     case 'is_date_before':
-      queryParams[pk] = value ?? '';
-      return `parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String})`;
+      if (!value) return '1=0';
+      queryParams[pk] = value;
+      return `parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String})`;
     case 'is_date_after':
-      queryParams[pk] = value ?? '';
-      return `parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String})`;
+      if (!value) return '1=0';
+      queryParams[pk] = value;
+      return `parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String})`;
     case 'is_date_exact':
-      queryParams[pk] = value ?? '';
-      return `toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`;
+      if (!value) return '1=0';
+      queryParams[pk] = value;
+      return `parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`;
     case 'contains_multi':
       queryParams[pk] = values ?? [];
       return `multiSearchAny(${expr}, {${pk}:Array(String)})`;

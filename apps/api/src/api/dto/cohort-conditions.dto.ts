@@ -67,6 +67,41 @@ function IsLessThan(property: string, validationOptions?: ValidationOptions) {
 }
 
 /**
+ * Validates that `value` is a non-empty string when the sibling `operator`
+ * field is a date operator (`is_date_before`, `is_date_after`, `is_date_exact`).
+ *
+ * An empty or absent `value` for these operators would cause ClickHouse to throw
+ * an exception when calling `parseDateTimeBestEffort('')`.
+ *
+ * Applied to the `value` property of DTO classes that carry both `operator`
+ * and `value` fields (CohortEventFilterDto, CohortPropertyConditionDto).
+ */
+function ValueRequiredForDateOperator(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'valueRequiredForDateOperator',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const op = obj['operator'] as string | undefined;
+          const DATE_OPS = new Set(['is_date_before', 'is_date_after', 'is_date_exact']);
+          if (op && DATE_OPS.has(op)) {
+            return typeof value === 'string' && value.trim().length > 0;
+          }
+          return true;
+        },
+        defaultMessage() {
+          return 'value must be a non-empty date string for is_date_before/is_date_after/is_date_exact operators';
+        },
+      },
+    });
+  };
+}
+
+/**
  * Validates that `values` is a non-empty array when the sibling `operator`
  * field requires a list: `in`, `not_in`, `contains_multi`, `not_contains_multi`.
  *
@@ -153,6 +188,7 @@ export class CohortEventFilterDto {
 
   @IsString()
   @IsOptional()
+  @ValueRequiredForDateOperator()
   value?: string;
 
   @IsArray()
@@ -180,6 +216,7 @@ export class CohortPropertyConditionDto {
 
   @IsString()
   @IsOptional()
+  @ValueRequiredForDateOperator()
   value?: string;
 
   @IsArray()
