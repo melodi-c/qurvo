@@ -166,7 +166,7 @@ export async function queryPaths(
       SELECT
         pid,
         ${params.end_event
-          ? `if(has(p1, {end_event:String}), arraySlice(p1, 1, indexOf(p1, {end_event:String})), []) AS path`
+          ? `if(has(p1, {end_event:String}), arraySlice(p1, 1, indexOf(p1, {end_event:String}) - 1), []) AS path`
           : 'p1 AS path'}
       FROM trimmed_paths
       WHERE length(p1) >= 2
