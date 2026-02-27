@@ -1,5 +1,6 @@
-import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { AppForbiddenException } from '../exceptions/app-forbidden.exception';
+import { ScenarioNotFoundException } from './exceptions/scenario-not-found.exception';
 import { eq, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
@@ -35,7 +36,7 @@ export class DemoSeedService {
   async seed(projectId: string, scenarioName: string, userId: string): Promise<void> {
     const scenario = this.scenarioRegistry.get(scenarioName);
     if (!scenario) {
-      throw new NotFoundException(
+      throw new ScenarioNotFoundException(
         `Demo scenario '${scenarioName}' not found. Available: ${this.scenarioRegistry.list().join(', ') || 'none'}`,
       );
     }
@@ -317,7 +318,7 @@ export class DemoSeedService {
     await this.clear(projectId);
     const scenario = this.scenarioRegistry.get(scenarioName);
     if (!scenario) {
-      throw new NotFoundException(
+      throw new ScenarioNotFoundException(
         `Demo scenario '${scenarioName}' not found. Available: ${this.scenarioRegistry.list().join(', ') || 'none'}`,
       );
     }

@@ -1,10 +1,11 @@
-import { IsOptional, IsDateString } from 'class-validator';
+import { IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIsoDatetime } from './shared/is-iso-datetime.decorator';
 
 // ── Request DTOs ─────────────────────────────────────────────────────────────
 
 export class CreateShareTokenDto {
-  @IsDateString()
+  @IsIsoDatetime()
   @IsOptional()
   @ApiPropertyOptional({ description: 'ISO 8601 datetime when the token expires. If omitted, token never expires.' })
   expires_at?: string;

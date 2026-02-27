@@ -126,3 +126,8 @@ export class CohortHistoryPointDto {
   date: string;
   count: number;
 }
+
+export class ImportCsvResponseDto {
+  imported: number;
+  total_lines: number;
+}

@@ -8,6 +8,7 @@ import { RequireRole } from '../decorators/require-role.decorator';
 import {
   CohortDto,
   CreateStaticCohortDto,
+  ImportCsvResponseDto,
   StaticCohortMembersDto,
   UploadCsvDto,
 } from '../dto/cohorts.dto';
@@ -46,8 +47,8 @@ export class StaticCohortsController {
     @Param('projectId') projectId: string,
     @Param('cohortId', ParseUUIDPipe) cohortId: string,
     @Body() body: UploadCsvDto,
-  ): Promise<{ imported: number; total_lines: number }> {
-    return this.staticCohortsService.importStaticCohortCsv(projectId, cohortId, body.csv_content);
+  ): Promise<ImportCsvResponseDto> {
+    return this.staticCohortsService.importStaticCohortCsv(projectId, cohortId, body.csv_content) as any;
   }
 
   @RequireRole('editor')

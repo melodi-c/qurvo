@@ -105,6 +105,7 @@ export class EventNamesQueryDto {
 }
 
 export class EventNamesResponseDto {
+  @ApiProperty({ type: [String] })
   event_names: string[];
 }
 
