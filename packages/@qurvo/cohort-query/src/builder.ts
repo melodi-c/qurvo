@@ -67,7 +67,7 @@ function buildGroupSubquery(
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): string {
   if (group.values.length === 0) {
-    return `SELECT '' AS person_id WHERE 0`;
+    return `SELECT toUUID('00000000-0000-0000-0000-000000000000') AS person_id WHERE 0`;
   }
 
   const subqueries: string[] = [];
