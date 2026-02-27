@@ -12,15 +12,17 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { parseJsonArray } from './shared/transforms';
+import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
+import { IsValidRegex } from './shared/is-valid-regex.decorator';
 
 export class PathCleaningRuleDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)
   @Matches(/^[^\x00-\x1f'\\]+$/, { message: 'Must not contain control characters, quotes, or backslashes' })
+  @IsValidRegex()
   regex: string;
 
   @IsString()
@@ -74,7 +76,7 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
   min_persons?: number;
 
   @ApiPropertyOptional({ type: [PathCleaningRuleDto] })
-  @Transform(parseJsonArray)
+  @Transform(makeJsonArrayTransform(PathCleaningRuleDto))
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PathCleaningRuleDto)
@@ -82,7 +84,7 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
   path_cleaning_rules?: PathCleaningRuleDto[];
 
   @ApiPropertyOptional({ type: [WildcardGroupDto] })
-  @Transform(parseJsonArray)
+  @Transform(makeJsonArrayTransform(WildcardGroupDto))
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => WildcardGroupDto)
