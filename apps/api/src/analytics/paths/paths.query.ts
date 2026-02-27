@@ -120,7 +120,7 @@ export async function queryPaths(
   }
 
   // Cohort filter
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
 
   if (params.start_event) {
     queryParams['start_event'] = params.start_event;
