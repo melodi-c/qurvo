@@ -9,6 +9,28 @@ import { AiContextService } from './ai-context.service';
 import { STATIC_SYSTEM_PROMPT, buildContextMessage } from './system-prompt';
 import { AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_TOOL_RESULT_MAX_CHARS } from '../constants';
 
+/**
+ * Returns the index of the first message that is safe to include in the
+ * messages array sent to the LLM.
+ *
+ * When summarization trims history to the most-recent N messages, the slice
+ * may start with one or more role:'tool' messages whose preceding
+ * role:'assistant'+tool_calls was cut off.  DeepSeek Reasoner (and OpenAI)
+ * reject such sequences with HTTP 400: "Messages with role 'tool' must be a
+ * response to a preceding message with 'tool_calls'".
+ *
+ * The function advances past all leading tool messages so that the first
+ * message in the resulting slice is always either user, assistant, or system.
+ */
+export function findSafeStartIndex(msgs: ReadonlyArray<{ role: string }>): number {
+  let startIndex = 0;
+  for (let i = 0; i < msgs.length; i++) {
+    if (msgs[i].role !== 'tool') break;
+    startIndex = i + 1;
+  }
+  return startIndex;
+}
+
 @Injectable()
 export class AiMessageHistoryBuilder {
   constructor(
@@ -108,7 +130,7 @@ export class AiMessageHistoryBuilder {
     messages: ChatCompletionMessageParam[],
     msgs: Awaited<ReturnType<AiChatService['getMessages']>>['messages'],
   ): void {
-    for (const msg of msgs) {
+    for (const msg of msgs.slice(findSafeStartIndex(msgs))) {
       if (msg.role === 'user') {
         messages.push({ role: 'user', content: msg.content ?? '' });
       } else if (msg.role === 'assistant') {
