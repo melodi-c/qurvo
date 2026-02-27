@@ -754,4 +754,131 @@ describe('cohort membership', () => {
     addBulkSpy.mockRestore();
     recordErrorSpy.mockRestore();
   });
+
+  it('rejected job from Promise.allSettled triggers recordError with cohort_id (Bug a)', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+    const uniquePlan = `rejected_test_${randomUUID().slice(0, 8)}`;
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: personId,
+        distinct_id: `coh-rejected-${randomUUID()}`,
+        event_name: 'page_view',
+        user_properties: JSON.stringify({ plan: uniquePlan }),
+        timestamp: ts(1),
+      }),
+    ]);
+
+    const cohortId = await createCohort(projectId, testProject.userId, 'Rejected Test', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: uniquePlan }],
+    });
+
+    // Inject a fake job whose waitUntilFinished rejects with a non-timeout error
+    // (e.g. framework-level Bull/Redis failure). The inner .catch only handles timeouts,
+    // so this rejection propagates to Promise.allSettled as a rejected result.
+    const queue = workerApp.get<Queue>(getQueueToken(COHORT_COMPUTE_QUEUE));
+    const addBulkSpy = vi.spyOn(queue, 'addBulk').mockResolvedValueOnce([
+      {
+        id: 'fake-rejected-id',
+        name: 'compute',
+        data: { cohortId, projectId, definition: {} as never },
+        waitUntilFinished: () => Promise.reject(new Error('Redis connection lost')),
+      } as never,
+    ]);
+
+    const recordErrorSpy = vi.spyOn(computation, 'recordError');
+
+    await ctx.redis.del(COHORT_LOCK_KEY);
+    await expect(svc.runCycle()).resolves.toBeUndefined();
+
+    // recordError must have been called for the rejected cohort (not silently ignored)
+    expect(recordErrorSpy).toHaveBeenCalledWith(
+      cohortId,
+      expect.objectContaining({ message: 'Redis connection lost' }),
+    );
+
+    addBulkSpy.mockRestore();
+    recordErrorSpy.mockRestore();
+  });
+
+  it('lock.extend() returning false aborts remaining levels (Bug b)', async () => {
+    const projectId = testProject.projectId;
+
+    // Create two cohorts with a dependency so they end up in different levels.
+    // baseCohort → level 0, dependentCohort (ref to baseCohort) → level 1.
+    const baseCohortId = await createCohort(projectId, testProject.userId, 'Lock Extend Base', {
+      type: 'AND',
+      values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: `lock_extend_base_${randomUUID().slice(0, 8)}` }],
+    });
+
+    const dependentCohortId = await createCohort(projectId, testProject.userId, 'Lock Extend Dependent', {
+      type: 'AND',
+      values: [{ type: 'cohort', cohort_id: baseCohortId, negated: false }],
+    });
+
+    // Spy on lock.extend: succeed for level 0, fail for level 1
+    const lock = (svc as any).lock;
+    let extendCallCount = 0;
+    const extendSpy = vi.spyOn(lock, 'extend').mockImplementation(async () => {
+      extendCallCount++;
+      // First call (level 0) succeeds, second call (level 1) fails = lock lost
+      return extendCallCount <= 1;
+    });
+
+    const computeSpy = vi.spyOn(computation, 'computeMembership');
+
+    await ctx.redis.del(COHORT_LOCK_KEY);
+    await svc.runCycle();
+
+    // computeMembership should have been called for level 0 cohorts only.
+    // Level 1 (dependentCohort) should NOT have been computed because lock was lost.
+    const computedCohortIds = computeSpy.mock.calls.map((c) => c[0]);
+    expect(computedCohortIds).toContain(baseCohortId);
+    expect(computedCohortIds).not.toContain(dependentCohortId);
+
+    extendSpy.mockRestore();
+    computeSpy.mockRestore();
+  });
+
+  it('gcOrphanedMemberships with 0 dynamic cohorts does not delete all rows (Bug c)', async () => {
+    const projectId = testProject.projectId;
+    const personId = randomUUID();
+    const cohortId = randomUUID();
+
+    // Insert a row into cohort_members directly (simulating freshly computed membership)
+    await ctx.ch.insert({
+      table: 'cohort_members',
+      values: [
+        {
+          cohort_id: cohortId,
+          project_id: projectId,
+          person_id: personId,
+          version: Date.now(),
+        },
+      ],
+      format: 'JSONEachRow',
+      clickhouse_settings: { async_insert: 0 },
+    });
+
+    // Delete ALL dynamic cohorts from PG so allDynamicIds = []
+    await ctx.db.delete(cohorts).where(eq(cohorts.is_static, false));
+
+    // Call GC — with the fix, it should skip (not delete all rows)
+    await computation.gcOrphanedMemberships();
+
+    // The row should still be in cohort_members (not deleted)
+    const members = await getCohortMembers(ctx.ch, projectId, cohortId);
+    expect(members).toContain(personId);
+
+    // Restore: re-create a dummy dynamic cohort so subsequent tests don't break
+    await ctx.db.insert(cohorts).values({
+      project_id: projectId,
+      created_by: testProject.userId,
+      name: 'Dummy Restore',
+      definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'dummy' }] },
+    });
+  });
 });
