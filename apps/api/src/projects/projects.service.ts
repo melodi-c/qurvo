@@ -10,6 +10,7 @@ import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { ProjectNotFoundException } from './exceptions/project-not-found.exception';
 import { InsufficientPermissionsException } from '../exceptions/insufficient-permissions.exception';
 import { ProjectNameConflictException } from './exceptions/project-name-conflict.exception';
+import { isPgUniqueViolation } from '../utils/pg-errors';
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -72,35 +73,56 @@ export class ProjectsService {
   }
 
   async create(userId: string, input: { name: string; is_demo?: boolean; demo_scenario?: string }) {
-    const slug = slugify(input.name);
-    const project = await this.db.transaction(async (tx) => {
-      const freePlan = await tx
-        .select({ id: plans.id })
-        .from(plans)
-        .where(eq(plans.slug, 'free'))
-        .limit(1);
+    const baseSlug = slugify(input.name);
 
-      const token = crypto.randomBytes(24).toString('base64url');
+    const freePlan = await this.db
+      .select({ id: plans.id })
+      .from(plans)
+      .where(eq(plans.slug, 'free'))
+      .limit(1);
+    const planId = freePlan[0]?.id ?? null;
 
-      const [created] = await tx.insert(projects).values({
-        name: input.name,
-        slug,
-        token,
-        plan_id: freePlan[0]?.id ?? null,
-        is_demo: input.is_demo ?? false,
-        demo_scenario: input.demo_scenario ?? null,
-      }).returning();
+    // Retry with a random suffix on slug collision (e.g. two users both creating
+    // a "LearnFlow (Demo)" project at registration time).
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${crypto.randomBytes(3).toString('hex')}`;
+      try {
+        const project = await this.db.transaction(async (tx) => {
+          const token = crypto.randomBytes(24).toString('base64url');
 
-      await tx.insert(projectMembers).values({
-        project_id: created.id,
-        user_id: userId,
-        role: 'owner',
-      });
+          const [created] = await tx.insert(projects).values({
+            name: input.name,
+            slug,
+            token,
+            plan_id: planId,
+            is_demo: input.is_demo ?? false,
+            demo_scenario: input.demo_scenario ?? null,
+          }).returning();
 
-      return created;
-    });
-    this.logger.log({ projectId: project.id, userId }, 'Project created');
-    return this.getById(userId, project.id);
+          await tx.insert(projectMembers).values({
+            project_id: created.id,
+            user_id: userId,
+            role: 'owner',
+          });
+
+          return created;
+        });
+        this.logger.log({ projectId: project.id, userId }, 'Project created');
+        return this.getById(userId, project.id);
+      } catch (err) {
+        if (isPgUniqueViolation(err) && attempt < 4) {
+          // slug collision — retry with a different suffix
+          continue;
+        }
+        if (isPgUniqueViolation(err)) {
+          throw new ProjectNameConflictException();
+        }
+        throw err;
+      }
+    }
+
+    // unreachable — for-loop always returns or throws
+    throw new ProjectNameConflictException();
   }
 
   async update(userId: string, projectId: string, input: { name?: string }) {
