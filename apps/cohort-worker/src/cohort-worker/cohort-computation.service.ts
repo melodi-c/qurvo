@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { eq, and, or, isNull, sql } from 'drizzle-orm';
+import { eq, and, or, isNull, lt, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
@@ -100,10 +100,11 @@ export class CohortComputationService {
 
   /** Update PG tracking columns + reset error state. Separated from computeMembership
    *  so that a transient PG failure doesn't trigger error backoff for a successful CH write.
-   *  Returns false if PG update failed (caller should skip recordSizeHistory). */
+   *  Returns false if PG update failed or if a newer version already exists (caller should
+   *  skip deleteOldVersions + recordSizeHistory in both cases). */
   async markComputationSuccess(cohortId: string, version: number): Promise<boolean> {
     try {
-      await this.db
+      const rows = await this.db
         .update(cohorts)
         .set({
           membership_version: version,
@@ -112,7 +113,22 @@ export class CohortComputationService {
           last_error_at: null,
           last_error_message: null,
         })
-        .where(eq(cohorts.id, cohortId));
+        .where(
+          and(
+            eq(cohorts.id, cohortId),
+            or(isNull(cohorts.membership_version), lt(cohorts.membership_version, version)),
+          ),
+        )
+        .returning({ id: cohorts.id });
+
+      if (rows.length === 0) {
+        this.logger.warn(
+          { cohortId, version },
+          'markComputationSuccess skipped: a newer membership_version already exists (stale write from older worker instance)',
+        );
+        return false;
+      }
+
       return true;
     } catch (err) {
       this.logger.warn(
