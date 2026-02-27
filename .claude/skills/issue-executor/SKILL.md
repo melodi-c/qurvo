@@ -265,7 +265,11 @@ Parent issue **не передаётся** в issue-solver — он являет
      git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
      git -C "$REPO_ROOT" branch -D "fix/issue-<NUMBER>" 2>/dev/null || true
      ```
-  6. Проверь что целевая ветка продвинулась (`BASE_BEFORE != BASE_AFTER`) — если нет, считай FAILED.
+  6. **ВАЖНО**: после `worktree remove` перейди в `$REPO_ROOT` перед любыми `gh` командами — иначе `gh` внутри вызывает `git` с CWD удалённой директории и падает с `fatal: Unable to read current working directory`:
+     ```bash
+     cd "$REPO_ROOT"
+     ```
+  7. Проверь что целевая ветка продвинулась (`BASE_BEFORE != BASE_AFTER`) — если нет, считай FAILED.
 - `STATUS: NEEDS_USER_INPUT | <причина>` — два случая:
   - **Причина содержит "слишком большой"** → запусти `issue-decomposer` в foreground:
     ```
