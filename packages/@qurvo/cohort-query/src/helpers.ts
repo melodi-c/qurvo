@@ -1,5 +1,13 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 
+/**
+ * Escapes LIKE-wildcard characters (%, _, \) in a user-provided string
+ * so they are treated as literals in ClickHouse LIKE patterns.
+ */
+function escapeLikePattern(s: string): string {
+  return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
+}
+
 export const RESOLVED_PERSON =
   `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
@@ -8,14 +16,18 @@ export const TOP_LEVEL_COLUMNS = new Set([
   'browser_version', 'os', 'os_version', 'language',
 ]);
 
+function escapeJsonKey(key: string): string {
+  return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 function extractJsonKey(property: string): { column: 'properties' | 'user_properties'; key: string } {
   if (property.startsWith('properties.')) {
-    return { column: 'properties', key: property.slice('properties.'.length).replace(/'/g, "\\'") };
+    return { column: 'properties', key: escapeJsonKey(property.slice('properties.'.length)) };
   }
-  const key = property.startsWith('user_properties.')
+  const rawKey = property.startsWith('user_properties.')
     ? property.slice('user_properties.'.length)
     : property;
-  return { column: 'user_properties', key: key.replace(/'/g, "\\'") };
+  return { column: 'user_properties', key: escapeJsonKey(rawKey) };
 }
 
 export function resolvePropertyExpr(property: string): string {
@@ -58,10 +70,10 @@ export function buildOperatorClause(
       queryParams[pk] = value ?? '';
       return `${expr} != {${pk}:String}`;
     case 'contains':
-      queryParams[pk] = `%${value ?? ''}%`;
+      queryParams[pk] = `%${escapeLikePattern(value ?? '')}%`;
       return `${expr} LIKE {${pk}:String}`;
     case 'not_contains':
-      queryParams[pk] = `%${value ?? ''}%`;
+      queryParams[pk] = `%${escapeLikePattern(value ?? '')}%`;
       return `${expr} NOT LIKE {${pk}:String}`;
     case 'is_set':
       return `${expr} != ''`;

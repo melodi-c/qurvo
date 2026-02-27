@@ -23,12 +23,16 @@ export const DIRECT_COLUMNS = new Set([
  * Resolves a property name to its JSON source ('properties' or 'user_properties')
  * and the extracted key. Returns null for direct columns.
  */
+function escapeJsonKey(key: string): string {
+  return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 function resolvePropertySource(prop: string): { jsonColumn: string; key: string } | null {
   if (prop.startsWith('properties.')) {
-    return { jsonColumn: 'properties', key: prop.slice('properties.'.length).replace(/'/g, "\\'") };
+    return { jsonColumn: 'properties', key: escapeJsonKey(prop.slice('properties.'.length)) };
   }
   if (prop.startsWith('user_properties.')) {
-    return { jsonColumn: 'user_properties', key: prop.slice('user_properties.'.length).replace(/'/g, "\\'") };
+    return { jsonColumn: 'user_properties', key: escapeJsonKey(prop.slice('user_properties.'.length)) };
   }
   return null;
 }

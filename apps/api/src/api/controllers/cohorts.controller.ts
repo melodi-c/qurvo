@@ -85,6 +85,7 @@ export class CohortsController {
     return { count };
   }
 
+  @RequireRole('editor')
   @Post('preview-count')
   async previewCount(
     @Param('projectId') projectId: string,
