@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
-import { createTestProject, insertTestEvents, buildEvent, msAgo, pollUntil } from '@qurvo/testing';
+import { createTestProject, insertTestEvents, buildEvent, msAgo, pollUntil, dateOffset } from '@qurvo/testing';
 import { eq } from 'drizzle-orm';
 import { cohorts } from '@qurvo/db';
 import { getTestContext, type ContainerContext } from '../context';
@@ -9,6 +9,7 @@ import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { materializeCohort, insertStaticCohortMembers } from './helpers';
+import { queryTrend } from '../../analytics/trend/trend.query';
 
 let ctx: ContainerContext;
 let service: CohortsService;
@@ -783,6 +784,108 @@ describe('CohortsService.list — project isolation and ordering', () => {
     const { projectId } = await createTestProject(ctx.db);
     const listed = await service.list(projectId);
     expect(listed).toEqual([]);
+  });
+});
+
+// ── resolveCohortBreakdowns: enrichDefinition stamps is_static on nested cohort refs (issue #589) ──
+// When a breakdown cohort's definition contains a nested { type: 'cohort' }
+// reference to a static cohort, resolveCohortBreakdowns must call enrichDefinition
+// so that is_static is stamped on the nested condition.  Without this stamp the
+// ClickHouse cohort-ref handler defaults to cohort_members (empty for static
+// cohorts) instead of person_static_cohort — producing an always-empty result.
+
+describe('CohortsService.resolveCohortBreakdowns — enrichDefinition stamps is_static on nested cohort refs', () => {
+  it('breakdown cohort referencing a nested static cohort returns non-empty results', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const today = dateOffset(0);
+
+    const premiumUser = randomUUID();
+    const freeUser = randomUUID();
+
+    // Insert events so that both users are visible in ClickHouse
+    await insertTestEvents(ctx.ch, [
+      buildEvent({ project_id: projectId, person_id: premiumUser, distinct_id: 'premium', event_name: 'page_view', user_properties: JSON.stringify({ plan: 'premium' }), timestamp: msAgo(3000) }),
+      buildEvent({ project_id: projectId, person_id: freeUser, distinct_id: 'free', event_name: 'page_view', user_properties: JSON.stringify({ plan: 'free' }), timestamp: msAgo(3000) }),
+    ]);
+
+    // Create a static cohort and populate it with only the premium user
+    const staticCohort = await service.create(userId, projectId, {
+      name: 'Static Premium Members',
+      is_static: true,
+    });
+    await insertStaticCohortMembers(ctx.ch, projectId, staticCohort.id, [premiumUser]);
+
+    // Create a dynamic cohort whose definition is a nested ref to the static cohort.
+    // Before the fix, resolveCohortBreakdowns would return this definition without
+    // is_static stamped → cohort-ref handler reads cohort_members (empty) → 0 results.
+    const breakdownCohort = await service.create(userId, projectId, {
+      name: 'Dynamic referencing static',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'cohort', cohort_id: staticCohort.id, negated: false }],
+      },
+    });
+
+    // Resolve breakdowns via the service under test
+    const breakdowns = await service.resolveCohortBreakdowns(projectId, [breakdownCohort.id]);
+
+    expect(breakdowns).toHaveLength(1);
+
+    // The nested cohort condition must have is_static=true stamped by enrichDefinition
+    const nestedCondition = breakdowns[0].definition.values[0] as { type: string; cohort_id: string; is_static?: boolean };
+    expect(nestedCondition.type).toBe('cohort');
+    expect(nestedCondition.cohort_id).toBe(staticCohort.id);
+    expect(nestedCondition.is_static).toBe(true);
+
+    // Also verify end-to-end: the breakdown must produce a non-empty trend result
+    // for premiumUser only (the sole member of the static cohort).
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'page_view', label: 'Views' }],
+      metric: 'total_events',
+      granularity: 'day',
+      date_from: today,
+      date_to: today,
+      breakdown_cohort_ids: breakdowns,
+    });
+
+    const r = result as Extract<typeof result, { compare: false; breakdown: true }>;
+    const series = r.series.find((s) => s.breakdown_value === breakdownCohort.id);
+    expect(series).toBeDefined();
+    // Only premiumUser is in the static cohort → exactly 1 event in this series
+    expect(series!.data[0]?.value).toBe(1);
+  });
+
+  it('resolveCohortBreakdowns: is_static=false is NOT stamped for dynamic nested cohort refs', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+
+    // Create a plain dynamic cohort
+    const innerDynamic = await service.create(userId, projectId, {
+      name: 'Inner Dynamic',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'pro' }],
+      },
+    });
+
+    // Create outer cohort referencing the inner dynamic cohort
+    const outerCohort = await service.create(userId, projectId, {
+      name: 'Outer referencing inner dynamic',
+      definition: {
+        type: 'AND',
+        values: [{ type: 'cohort', cohort_id: innerDynamic.id, negated: false }],
+      },
+    });
+
+    const breakdowns = await service.resolveCohortBreakdowns(projectId, [outerCohort.id]);
+
+    expect(breakdowns).toHaveLength(1);
+
+    const nestedCondition = breakdowns[0].definition.values[0] as { type: string; cohort_id: string; is_static?: boolean };
+    expect(nestedCondition.type).toBe('cohort');
+    expect(nestedCondition.cohort_id).toBe(innerDynamic.id);
+    // Dynamic cohort → is_static must be false (not true)
+    expect(nestedCondition.is_static).toBe(false);
   });
 });
 

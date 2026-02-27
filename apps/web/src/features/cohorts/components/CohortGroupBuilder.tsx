@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PropertyConditionRow } from './PropertyConditionRow';
 import { EventConditionRow } from './EventConditionRow';
 import { CohortConditionRow } from './CohortConditionRow';
@@ -19,6 +20,9 @@ import { RestartedPerformingRow } from './RestartedPerformingRow';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
 import { createDefaultCondition, conditionKey, type CohortCondition, type CohortConditionGroup } from '../types';
+
+/** Maximum number of OR groups allowed in the cohort builder */
+const MAX_GROUPS = 10;
 
 /** Horizontal divider with a centered label and optional subtext, used between OR groups and AND conditions */
 function ConditionDivider({ label, subtext, variant }: { label: string; subtext?: string; variant: 'or' | 'and' }) {
@@ -58,7 +62,10 @@ interface CohortGroupBuilderProps {
 export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: CohortGroupBuilderProps) {
   const { t } = useLocalTranslation(translations);
 
+  const atMaxGroups = groups.length >= MAX_GROUPS;
+
   const addGroup = useCallback(() => {
+    if (groups.length >= MAX_GROUPS) return;
     onChange([...groups, { type: 'AND', values: [], _key: conditionKey() }]);
   }, [groups, onChange]);
 
@@ -87,15 +94,27 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
         </div>
       ))}
 
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full text-xs h-7 border-dashed"
-        onClick={addGroup}
-      >
-        <Plus className="h-3 w-3 mr-1" />
-        {t('addOrGroup')}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="w-full" tabIndex={atMaxGroups ? 0 : undefined}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-7 border-dashed"
+              onClick={addGroup}
+              disabled={atMaxGroups}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              {t('addOrGroup')}
+            </Button>
+          </span>
+        </TooltipTrigger>
+        {atMaxGroups && (
+          <TooltipContent>
+            {t('maxGroupsReached', { max: String(MAX_GROUPS) })}
+          </TooltipContent>
+        )}
+      </Tooltip>
     </div>
   );
 }
@@ -117,7 +136,7 @@ function AndGroupCard({
   const { t } = useLocalTranslation(translations);
   const conditions = group.values as CohortCondition[];
 
-  const groupLabel = String.fromCharCode(65 + groupIndex);
+  const groupLabel = String(groupIndex + 1);
 
   const addCondition = useCallback((type: CohortCondition['type']) => {
     onUpdate({ ...group, values: [...conditions, createDefaultCondition(type)] });
@@ -150,7 +169,7 @@ function AndGroupCard({
 
   return (
     <div className="relative rounded-lg border border-border bg-muted/10 p-3 space-y-2.5">
-      {/* Group label badge (A, B, C...) */}
+      {/* Group label badge (1, 2, 3...) */}
       <div className="absolute top-2 left-2 flex items-center justify-center h-4 w-4 rounded-sm bg-muted text-[10px] font-bold text-muted-foreground select-none">
         {groupLabel}
       </div>

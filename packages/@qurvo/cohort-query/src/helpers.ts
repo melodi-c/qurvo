@@ -18,7 +18,13 @@ export const TOP_LEVEL_COLUMNS = new Set([
 ]);
 
 function escapeJsonKey(key: string): string {
-  return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return key
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    .replace(/\0/g, '\\0')
+    .replace(/'/g, "\\'");
 }
 
 /**
@@ -188,14 +194,19 @@ export function buildOperatorClause(
       return `(toFloat64OrZero(${numExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${numExpr}) > {${maxPk}:Float64})`;
     }
     case 'is_date_before':
-      queryParams[pk] = value ?? '';
-      return `parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String})`;
+      if (!value) throw new Error(`is_date_before requires a non-empty value (got: ${JSON.stringify(value)})`);
+      queryParams[pk] = value;
+      // parseDateTimeBestEffortOrZero returns epoch (1970-01-01) for non-date strings (e.g. "premium").
+      // We exclude epoch results so that users with non-date property values are never matched.
+      return `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String}))`;
     case 'is_date_after':
-      queryParams[pk] = value ?? '';
-      return `parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String})`;
+      if (!value) throw new Error(`is_date_after requires a non-empty value (got: ${JSON.stringify(value)})`);
+      queryParams[pk] = value;
+      return `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String}))`;
     case 'is_date_exact':
-      queryParams[pk] = value ?? '';
-      return `toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String}))`;
+      if (!value) throw new Error(`is_date_exact requires a non-empty value (got: ${JSON.stringify(value)})`);
+      queryParams[pk] = value;
+      return `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String})))`;
     case 'contains_multi':
       queryParams[pk] = values ?? [];
       return `multiSearchAny(${expr}, {${pk}:Array(String)})`;

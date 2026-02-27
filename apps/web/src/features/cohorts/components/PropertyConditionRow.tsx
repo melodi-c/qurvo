@@ -113,6 +113,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
           values={condition.values ?? []}
           onChange={(values) => onChange({ ...condition, values })}
           placeholder={t('valuesPlaceholder')}
+          removeValueLabel={(v) => t('removeValue', { value: v })}
         />
       )}
 
@@ -153,10 +154,12 @@ function MultiValueInput({
   values,
   onChange,
   placeholder,
+  removeValueLabel,
 }: {
   values: string[];
   onChange: (values: string[]) => void;
   placeholder: string;
+  removeValueLabel: (value: string) => string;
 }) {
   const [inputValue, setInputValue] = useState('');
 
@@ -198,6 +201,7 @@ function MultiValueInput({
           <button
             type="button"
             onClick={() => removeValue(i)}
+            aria-label={removeValueLabel(v)}
             className="text-muted-foreground/50 hover:text-destructive ml-0.5"
           >
             <X className="h-2.5 w-2.5" />

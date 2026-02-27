@@ -2,10 +2,12 @@ import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, type QueueEvents } from 'bullmq';
+import Redis from 'ioredis';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
 import { Heartbeat } from '@qurvo/heartbeat';
 import { topologicalSortCohorts, groupCohortsByLevel } from '@qurvo/cohort-query';
 import { type DistributedLock } from '@qurvo/distributed-lock';
+import { REDIS } from '@qurvo/nestjs-infra';
 import {
   COHORT_MEMBERSHIP_INTERVAL_MS,
   COHORT_ERROR_BACKOFF_BASE_MINUTES,
@@ -17,6 +19,7 @@ import {
   HEARTBEAT_PATH,
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_LOOP_STALE_MS,
+  COHORT_GC_CYCLE_REDIS_KEY,
 } from '../constants';
 import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
@@ -29,7 +32,6 @@ import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processo
 export class CohortMembershipService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
   protected readonly intervalMs = COHORT_MEMBERSHIP_INTERVAL_MS;
   protected readonly initialDelayMs = COHORT_INITIAL_DELAY_MS;
-  private gcCycleCounter = 0;
   private readonly heartbeat: Heartbeat;
 
   constructor(
@@ -40,6 +42,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
     protected readonly logger: PinoLogger,
     private readonly computation: CohortComputationService,
     private readonly metrics: MetricsService,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {
     super();
     this.heartbeat = new Heartbeat({
@@ -120,12 +123,15 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
         // Extend lock TTL before processing each level
         await this.lock.extend().catch(() => {});
 
-        // Enqueue all cohorts in this level for parallel computation
+        // Enqueue all cohorts in this level for parallel computation.
+        // Use cohortId-based job IDs to avoid collisions when multiple cohorts
+        // are enqueued within the same millisecond (Bug 1 fix).
         const jobs = await this.computeQueue.addBulk(
           level.map((c) => {
             const cohort = cohortById.get(c.id)!;
             return {
               name: 'compute',
+              opts: { jobId: `${cohort.id}-${Date.now()}` },
               data: {
                 cohortId: cohort.id,
                 projectId: cohort.project_id,
@@ -177,9 +183,8 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
           .catch((err) => this.logger.error({ err }, 'Batch deletion of old cohort versions failed'));
       }
     } finally {
-      // ── 6. GC orphaned memberships (every N cycles, skips the first) ──
+      // ── 6. GC orphaned memberships (every N cycles, persisted in Redis) ──
       await this.runGcIfDue();
-      this.gcCycleCounter++;
 
       stopTimer();
       this.metrics.cyclesTotal.inc();
@@ -207,7 +212,10 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
   }
 
   private async runGcIfDue(): Promise<void> {
-    if (this.gcCycleCounter === 0 || this.gcCycleCounter % COHORT_GC_EVERY_N_CYCLES !== 0) return;
+    // Increment counter in Redis so it survives worker restarts (Bug 2 fix).
+    // INCR returns the new value after increment (1-based).
+    const counter = await this.redis.incr(COHORT_GC_CYCLE_REDIS_KEY);
+    if (counter % COHORT_GC_EVERY_N_CYCLES !== 0) return;
     await this.computation
       .gcOrphanedMemberships()
       .catch((err) => this.logger.error({ err }, 'Orphan GC failed'));

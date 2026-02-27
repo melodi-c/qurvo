@@ -2,6 +2,10 @@ import { createTranslations } from '@/i18n/types';
 
 export default createTranslations({
   en: {
+    currentMembersTitle: 'Current Members',
+    currentMembersDescription: 'All persons currently in this cohort',
+    noMembersDescription: 'This cohort has no members yet',
+    loadMembersFailed: 'Failed to load members',
     addMembersTitle: 'Add Members',
     addMembersDescription: 'Search for persons and add them to this cohort',
     searchPlaceholder: 'Search by name, email or ID...',
@@ -30,8 +34,13 @@ export default createTranslations({
     uploadCsvSuccess: 'CSV imported successfully',
     uploadCsvFailed: 'Failed to import CSV',
     uploadCsvInvalidFormat: 'Invalid file format — only .csv files are accepted',
+    selectPerson: 'Select {{id}}',
   },
   ru: {
+    currentMembersTitle: 'Текущие участники',
+    currentMembersDescription: 'Все пользователи, входящие в эту когорту',
+    noMembersDescription: 'В этой когорте пока нет участников',
+    loadMembersFailed: 'Не удалось загрузить участников',
     addMembersTitle: 'Добавить участников',
     addMembersDescription: 'Найдите пользователей и добавьте их в когорту',
     searchPlaceholder: 'Поиск по имени, email или ID...',
@@ -60,5 +69,6 @@ export default createTranslations({
     uploadCsvSuccess: 'CSV импортирован успешно',
     uploadCsvFailed: 'Не удалось импортировать CSV',
     uploadCsvInvalidFormat: 'Неверный формат файла — принимаются только файлы .csv',
+    selectPerson: 'Выбрать {{id}}',
   },
 });
