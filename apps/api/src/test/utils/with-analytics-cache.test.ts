@@ -49,6 +49,15 @@ describe('stableStringify', () => {
     expect(stableStringify([1, 'two', null])).toBe('[1,"two",null]');
   });
 
+  it('treats undefined values the same as missing keys', () => {
+    expect(stableStringify({ a: 1 })).toBe(stableStringify({ a: 1, b: undefined }));
+    expect(stableStringify({ a: 1, b: undefined })).toBe('{"a":1}');
+    // nested undefined values are also stripped
+    expect(stableStringify({ x: { y: 2, z: undefined } })).toBe(
+      stableStringify({ x: { y: 2 } }),
+    );
+  });
+
   it('produces different output for semantically different objects', () => {
     const a = { property: 'plan', value: 'pro' };
     const b = { property: 'plan', value: 'starter' };

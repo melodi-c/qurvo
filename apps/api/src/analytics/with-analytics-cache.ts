@@ -18,6 +18,7 @@ export function stableStringify(value: unknown): string {
     return '[' + value.map(stableStringify).join(',') + ']';
   }
   const sorted = Object.keys(value as Record<string, unknown>)
+    .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
     .sort()
     .map((key) => JSON.stringify(key) + ':' + stableStringify((value as Record<string, unknown>)[key]))
     .join(',');
