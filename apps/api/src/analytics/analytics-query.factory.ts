@@ -42,8 +42,12 @@ export function createAnalyticsQueryProvider<
           const mutableParams = queryParams as Record<string, unknown>;
 
           if (cohort_ids?.length) {
-            mutableParams.cohort_filters =
-              await cohortsService.resolveCohortFilters(params.project_id, cohort_ids);
+            // Merge resolved cohort_ids filters with any directly-passed cohort_filters.
+            // Both sources are applied with AND semantics: a person must satisfy all
+            // active cohort constraints to be included in the query result.
+            const resolved = await cohortsService.resolveCohortFilters(params.project_id, cohort_ids);
+            const existing = (mutableParams.cohort_filters as unknown[] | undefined) ?? [];
+            mutableParams.cohort_filters = [...existing, ...resolved];
           }
 
           if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {
