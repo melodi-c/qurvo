@@ -1,5 +1,14 @@
 # Web App — UI Design System
 
+## Commands
+
+```bash
+pnpm --filter @qurvo/web dev                # dev-режим (port 5173)
+pnpm --filter @qurvo/web build              # production сборка
+pnpm --filter @qurvo/web storybook          # dev-режим Storybook (port 6006)
+pnpm --filter @qurvo/web build-storybook    # production билд Storybook
+```
+
 ## Theme & Tokens
 
 Dark-only theme defined in `src/index.css` via Tailwind v4 `@theme`. Key tokens:
@@ -288,6 +297,12 @@ Use this workflow whenever you change a UI component — especially for complex 
    Then read `/tmp/story.png` (Claude has vision).
 
 3. Fix any visual bugs, re-take the screenshot, repeat until correct before committing.
+
+4. After adding or modifying `.stories.tsx` files — run a production Storybook build to ensure there are no compile errors:
+   ```bash
+   pnpm --filter @qurvo/web build-storybook
+   ```
+   A successful build is required before committing story changes.
 
 ### Temporary Stories for Component Composition
 

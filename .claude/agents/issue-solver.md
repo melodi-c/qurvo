@@ -132,6 +132,12 @@ fi
 cd "$WORKTREE_PATH" && pnpm turbo build --filter=@qurvo/<app>
 ```
 
+Storybook build — только если `AFFECTED_APPS` содержит `apps/web` и issue затрагивает `.stories.tsx` файлы:
+```bash
+cd "$WORKTREE_PATH" && pnpm --filter @qurvo/web build-storybook
+```
+Успешный билд обязателен — он проверяет что stories компилируются без ошибок.
+
 Docker build — только если issue имеет тип `feat` или является эпиком (заголовок начинается с `feat(`):
 ```bash
 # Для каждого app из AFFECTED_APPS
