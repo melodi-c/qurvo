@@ -315,15 +315,15 @@ function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): Time
 /**
  * Builds and executes the TTC query for unordered funnels.
  *
- * Uses the same anchor-based minIf logic as the unordered main funnel:
- *   - t_i_ms = minIf(timestamp, stepCondition) per step
- *   - anchor_ms = least(t_0_ms, ..., t_n_ms)   (earliest qualifying step)
- *   - max_step  = count of steps where t_i_ms is within anchor + window
+ * Uses the same groupArrayIf + arrayExists anchor logic as funnel-unordered.sql.ts:
+ *   - Collects all timestamps per step as arrays via groupArrayIf.
+ *   - Tries every timestamp from every step array as a candidate anchor.
+ *   - max_step = maximum steps coverable from any candidate anchor.
+ *   - anchor_ms = first anchor (tried t_fromStep_arr first) that achieves full coverage.
  *
- * Duration = |t_{to_step}_ms - t_{from_step}_ms|
- * This mirrors the unordered funnel's semantics: steps can complete in any
- * order, so TTC may be positive or negative depending on which step fired
- * first. We take abs() so that duration_seconds is always non-negative.
+ * Duration = |t_{to_step}_first_in_window - anchor_ms|
+ * This matches the corrected unordered funnel semantics: the duration is measured
+ * from the anchor of the successful conversion window.
  */
 async function buildUnorderedTtcSql(
   ch: ClickHouseClient,
@@ -336,33 +336,63 @@ async function buildUnorderedTtcSql(
   cohortClause: string,
   samplingClause: string,
 ): Promise<TimeToConvertResult> {
-  const sentinel = 'toInt64(9007199254740992)';
-  const numSteps = stepConds.length;
+  const N = stepConds.length;
+  const winExpr = `toInt64({window:UInt64}) * 1000`;
 
-  // minIf per step: smallest timestamp matching the step condition (0 if no match)
-  const minIfCols = stepConds.map(
-    (cond, i) => `toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${cond})) AS t${i}_ms`,
+  // Collect all timestamps per step as arrays.
+  const groupArrayCols = stepConds.map(
+    (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS t${i}_arr`,
   ).join(',\n        ');
 
-  // Exclusion array columns (same as ordered path)
+  // Exclusion array columns.
   const exclColsSQL = exclColumns.length > 0
     ? ',\n        ' + exclColumns.join(',\n        ')
     : '';
 
-  // anchor_ms = earliest non-zero step (same as funnel-unordered.sql)
-  const anchorArgs = Array.from({ length: numSteps }, (_, i) => `if(t${i}_ms > 0, t${i}_ms, ${sentinel})`).join(', ');
+  // coverage(anchorVar) = number of steps covered by the given anchor.
+  const coverageExpr = (anchorVar: string): string =>
+    stepConds.map((_, j) =>
+      `if(arrayExists(t${j} -> t${j} >= ${anchorVar} AND t${j} <= ${anchorVar} + ${winExpr}, t${j}_arr), 1, 0)`,
+    ).join(' + ');
 
-  // max_step = count of steps that fired within the anchor window
-  const stepCountParts = Array.from(
-    { length: numSteps },
-    (_, i) => `if(t${i}_ms > 0 AND t${i}_ms >= anchor_ms AND t${i}_ms <= anchor_ms + (toInt64({window:UInt64}) * 1000), 1, 0)`,
-  ).join(' + ');
+  // max_step: best coverage from any candidate anchor across all step arrays.
+  const maxFromEachStep = stepConds.map((_, i) =>
+    `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
+  );
+  const maxStepExpr = maxFromEachStep.length === 1
+    ? maxFromEachStep[0]!
+    : `greatest(${maxFromEachStep.join(', ')})`;
 
-  // Pass-through exclusion aliases from step_times to funnel_per_user
+  // anchor_ms: first anchor (tried fromStep first, then toStep, then rest) achieving full coverage.
+  // This makes the TTC measurement start from the from-step when possible.
+  const fullCovPred = (i: number): string =>
+    `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
+  // Build priority order: fromStep first, toStep second, rest in order.
+  const orderedStepIndices = [
+    fromStep,
+    ...Array.from({ length: N }, (_, i) => i).filter((i) => i !== fromStep),
+  ];
+  const firsts = orderedStepIndices.map((i) =>
+    `arrayFirst(${fullCovPred(i)}, t${i}_arr)`,
+  );
+  let anchorMsExpr: string;
+  if (N === 1) {
+    anchorMsExpr = `if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))`;
+  } else {
+    let expr = `toInt64(0)`;
+    for (let k = firsts.length - 1; k >= 0; k--) {
+      expr = `if(toInt64(${firsts[k]}) != 0, toInt64(${firsts[k]}), ${expr})`;
+    }
+    anchorMsExpr = expr;
+  }
+
+  // Pass-through exclusion aliases from step_times to anchor_per_user.
   const exclColAliases = exclColumns.map(col => col.split(' AS ')[1]!);
   const exclColsForward = exclColAliases.length > 0
     ? ',\n        ' + exclColAliases.join(',\n        ')
     : '';
+
+  const anyStepNonEmpty = Array.from({ length: N }, (_, i) => `length(t${i}_arr) > 0`).join(' OR ');
 
   const excludedUsersCTE = exclusions.length > 0
     ? ',\n  ' + buildExcludedUsersCTE(exclusions)
@@ -372,13 +402,11 @@ async function buildUnorderedTtcSql(
     ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
 
-  // Duration = abs(t_{to}_ms - t_{from}_ms) / 1000.0
-  // abs() ensures duration is non-negative regardless of which step fired first.
   const sql = `
     WITH step_times AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
-        ${minIfCols}${exclColsSQL}
+        ${groupArrayCols}${exclColsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
@@ -387,23 +415,39 @@ async function buildUnorderedTtcSql(
         AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
       GROUP BY person_id
     ),
+    anchor_per_user AS (
+      SELECT
+        person_id,
+        toInt64(${maxStepExpr}) AS max_step,
+        toInt64(${anchorMsExpr}) AS anchor_ms${exclColsForward},
+        ${Array.from({ length: N }, (_, i) => `t${i}_arr`).join(', ')}
+      FROM step_times
+      WHERE ${anyStepNonEmpty}
+    ),
     funnel_per_user AS (
       SELECT
         person_id,
-        least(${anchorArgs}) AS anchor_ms,
-        (${stepCountParts}) AS max_step,
-        t${fromStep}_ms,
-        t${toStep}_ms${exclColsForward}
-      FROM step_times
-      WHERE least(${anchorArgs}) < ${sentinel}
+        max_step,
+        anchor_ms,
+        toInt64(if(
+          notEmpty(arrayFilter(tf -> tf >= anchor_ms AND tf <= anchor_ms + ${winExpr}, t${fromStep}_arr)),
+          arrayMin(arrayFilter(tf -> tf >= anchor_ms AND tf <= anchor_ms + ${winExpr}, t${fromStep}_arr)),
+          toInt64(0)
+        )) AS from_step_ms,
+        toInt64(if(
+          notEmpty(arrayFilter(tv -> tv >= anchor_ms AND tv <= anchor_ms + ${winExpr}, t${toStep}_arr)),
+          arrayMin(arrayFilter(tv -> tv >= anchor_ms AND tv <= anchor_ms + ${winExpr}, t${toStep}_arr)),
+          toInt64(0)
+        )) AS to_step_ms${exclColsForward}
+      FROM anchor_per_user
     )${excludedUsersCTE},
     converted AS (
       SELECT
-        abs(t${toStep}_ms - t${fromStep}_ms) / 1000.0 AS duration_seconds
+        abs(to_step_ms - from_step_ms) / 1000.0 AS duration_seconds
       FROM funnel_per_user
       WHERE max_step >= {to_step_num:UInt64}
-        AND t${fromStep}_ms > 0
-        AND t${toStep}_ms > 0${exclAndCondition}
+        AND from_step_ms > 0
+        AND to_step_ms > 0${exclAndCondition}
     )
     SELECT
       avgIf(duration_seconds, duration_seconds > 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
