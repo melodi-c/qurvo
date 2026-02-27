@@ -122,9 +122,13 @@ Each package has its own `CLAUDE.md` with detailed docs.
 ```bash
 # Per-app
 pnpm --filter @qurvo/api exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/ingest exec vitest run --config vitest.integration.config.ts
 pnpm --filter @qurvo/processor exec vitest run --config vitest.integration.config.ts
 pnpm --filter @qurvo/cohort-worker exec vitest run --config vitest.integration.config.ts
-pnpm --filter @qurvo/ingest exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/billing-worker exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/insights-worker exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/monitor-worker exec vitest run --config vitest.integration.config.ts
+pnpm --filter @qurvo/scheduled-jobs-worker exec vitest run --config vitest.integration.config.ts
 ```
 
 Each app uses `createGlobalSetup()` from `@qurvo/testing` in its `globalSetup`. This starts **3 shared containers** (PG, Redis, CH) once in the main process, then vitest forks (up to `maxForks: 4`) each create isolated databases (`qurvo_worker_N`) and Redis DB N. No `singleFork` — tests run in parallel across forks.
