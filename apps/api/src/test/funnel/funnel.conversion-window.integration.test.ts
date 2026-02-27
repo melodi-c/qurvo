@@ -22,8 +22,9 @@ describe('queryFunnel — sub-second conversion window (millisecond precision)',
    * second precision. Two events within the same second were treated as simultaneous,
    * breaking ordered/strict funnels with tight windows.
    *
-   * Fix: use toDateTime64(timestamp, 3) with {window:UInt64} * 1000 so windowFunnel
-   * receives a millisecond-precision timestamp and the window in milliseconds.
+   * Fix: use toUInt64(toUnixTimestamp64Milli(timestamp)) with {window:UInt64} * 1000
+   * so windowFunnel receives a millisecond-precision UInt64 timestamp and the window
+   * in milliseconds. windowFunnel supports UInt64 since ClickHouse 19.8.
    */
 
   it('ordered funnel: counts conversion when two steps occur within 1 second (200ms apart)', async () => {
