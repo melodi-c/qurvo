@@ -134,9 +134,12 @@ describe('FunnelQueryDto — breakdown_cohort_ids / breakdown_property mutual ex
     expect(errors).toHaveLength(0);
   });
 
-  it('accepts when only breakdown_cohort_ids is provided', async () => {
+  it("accepts when only breakdown_cohort_ids is provided together with breakdown_type='cohort'", async () => {
     const errors = await validateFunnelQueryDto(
-      minimalFunnelQueryDto({ breakdown_cohort_ids: JSON.stringify([randomUUID()]) }),
+      minimalFunnelQueryDto({
+        breakdown_cohort_ids: JSON.stringify([randomUUID()]),
+        breakdown_type: 'cohort',
+      }),
     );
     expect(errors).toHaveLength(0);
   });
@@ -294,6 +297,57 @@ describe('FunnelQueryDto — @ArrayMaxSize(5) on exclusions', () => {
       minimalFunnelQueryDto({ exclusions: JSON.stringify(exclusions) }),
     );
     expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+// ── FunnelQueryDto — breakdown_cohort_ids requires breakdown_type='cohort' ────
+
+describe("FunnelQueryDto — breakdown_cohort_ids requires breakdown_type='cohort'", () => {
+  it("accepts when breakdown_cohort_ids provided with breakdown_type='cohort'", async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        breakdown_cohort_ids: JSON.stringify([randomUUID()]),
+        breakdown_type: 'cohort',
+      }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts when breakdown_cohort_ids is absent (no breakdown_type required)', async () => {
+    const errors = await validateFunnelQueryDto(minimalFunnelQueryDto());
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects when breakdown_cohort_ids provided without breakdown_type (missing)", async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        breakdown_cohort_ids: JSON.stringify([randomUUID()]),
+      }),
+    );
+    expect(
+      errors.some((msg) => msg.includes('breakdown_type')),
+    ).toBe(true);
+  });
+
+  it("rejects when breakdown_cohort_ids provided with breakdown_type='property'", async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        breakdown_cohort_ids: JSON.stringify([randomUUID()]),
+        breakdown_type: 'property',
+      }),
+    );
+    expect(
+      errors.some((msg) => msg.includes('breakdown_type')),
+    ).toBe(true);
+  });
+
+  it("accepts when breakdown_cohort_ids is an empty array (no type constraint needed)", async () => {
+    const errors = await validateFunnelQueryDto(
+      minimalFunnelQueryDto({
+        breakdown_cohort_ids: JSON.stringify([]),
+      }),
+    );
+    expect(errors).toHaveLength(0);
   });
 });
 

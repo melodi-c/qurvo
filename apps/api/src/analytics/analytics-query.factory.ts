@@ -6,6 +6,7 @@ import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
 import { CohortsService } from '../cohorts/cohorts.service';
 import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-cache';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
 export interface AnalyticsQueryService<TParams, TResult> {
   query(
@@ -48,6 +49,12 @@ export function createAnalyticsQueryProvider<
             const resolved = await cohortsService.resolveCohortFilters(params.project_id, cohort_ids);
             const existing = (mutableParams.cohort_filters as unknown[] | undefined) ?? [];
             mutableParams.cohort_filters = [...existing, ...resolved];
+          }
+
+          if (breakdown_cohort_ids?.length && breakdown_type !== 'cohort') {
+            throw new AppBadRequestException(
+              "при передаче breakdown_cohort_ids поле breakdown_type должно быть равно 'cohort'",
+            );
           }
 
           if (breakdown_type === 'cohort' && breakdown_cohort_ids?.length) {

@@ -55,6 +55,35 @@ function BreakdownMutuallyExclusive(validationOptions?: ValidationOptions) {
   };
 }
 
+/**
+ * Class-level decorator that requires `breakdown_type='cohort'` when
+ * `breakdown_cohort_ids` is provided. Passing cohort IDs without the
+ * matching breakdown_type silently ignores them, so we reject early.
+ */
+function BreakdownCohortIdsRequiresCohortType(validationOptions?: ValidationOptions) {
+  return function (target: object) {
+    registerDecorator({
+      name: 'breakdownCohortIdsRequiresCohortType',
+      target: target as new (...args: unknown[]) => unknown,
+      propertyName: 'breakdown_cohort_ids',
+      options: {
+        message: "при передаче breakdown_cohort_ids поле breakdown_type должно быть равно 'cohort'",
+        ...validationOptions,
+      },
+      validator: {
+        validate(_value: unknown, args: ValidationArguments) {
+          const obj = args.object as Record<string, unknown>;
+          const hasCohortIds =
+            Array.isArray(obj['breakdown_cohort_ids']) &&
+            (obj['breakdown_cohort_ids'] as unknown[]).length > 0;
+          if (!hasCohortIds) return true;
+          return obj['breakdown_type'] === 'cohort';
+        },
+      },
+    });
+  };
+}
+
 export class FunnelStepDto {
   @IsString()
   @IsNotEmpty()
@@ -141,6 +170,7 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
 }
 
 @BreakdownMutuallyExclusive()
+@BreakdownCohortIdsRequiresCohortType()
 export class FunnelQueryDto extends FunnelBaseQueryDto {
   @IsString()
   @IsOptional()
