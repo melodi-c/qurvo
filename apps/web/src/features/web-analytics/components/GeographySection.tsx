@@ -8,6 +8,15 @@ import { TabNav } from '@/components/ui/tab-nav';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import {
+  MAP_COLOR_EMPTY,
+  MAP_COLOR_FROM,
+  MAP_COLOR_TO,
+  MAP_STROKE_COLOR,
+  MAP_HOVER_WITH_DATA_COLOR,
+  MAP_HOVER_NO_DATA_COLOR,
+  interpolateMapColor,
+} from '@/lib/chart-colors';
 import { isoNumericToAlpha2 } from '../lib/iso-numeric-to-alpha2';
 import translations from './GeographySection.translations';
 
@@ -32,14 +41,6 @@ interface GeographySectionProps {
   isError?: boolean;
 }
 
-function interpolateColor(t: number): string {
-  const r0 = 0x27, g0 = 0x27, b0 = 0x2a;
-  const r1 = 0x81, g1 = 0x8c, b1 = 0xf8;
-  const r = Math.round(r0 + (r1 - r0) * t);
-  const g = Math.round(g0 + (g1 - g0) * t);
-  const b = Math.round(b0 + (b1 - b0) * t);
-  return `rgb(${r},${g},${b})`;
-}
 
 export function GeographySection({
   countries,
@@ -100,11 +101,11 @@ export function GeographySection({
   const getFillColor = useCallback(
     (isoA2: string): string => {
       const entry = dataMap.get(isoA2.toUpperCase());
-      if (!entry) return '#27272a';
+      if (!entry) return MAP_COLOR_EMPTY;
       const value = entry[mapMetric];
-      if (!value) return '#27272a';
+      if (!value) return MAP_COLOR_EMPTY;
       const normalized = Math.pow(value / maxValue, 0.4);
-      return interpolateColor(normalized);
+      return interpolateMapColor(normalized);
     },
     [dataMap, mapMetric, maxValue],
   );
@@ -188,7 +189,7 @@ export function GeographySection({
                         key={geo.rsmKey}
                         geography={geo}
                         fill={fill}
-                        stroke="#09090b"
+                        stroke={MAP_STROKE_COLOR}
                         strokeWidth={0.5}
                         style={{
                           default: {
@@ -197,7 +198,7 @@ export function GeographySection({
                           },
                           hover: {
                             outline: 'none',
-                            fill: hasData ? '#a5b4fc' : '#3f3f46',
+                            fill: hasData ? MAP_HOVER_WITH_DATA_COLOR : MAP_HOVER_NO_DATA_COLOR,
                             cursor: hasData ? 'pointer' : 'default',
                           },
                           pressed: { outline: 'none' },
@@ -218,7 +219,7 @@ export function GeographySection({
               <div
                 className="h-2 flex-1 rounded-sm"
                 style={{
-                  background: 'linear-gradient(to right, #27272a, #818cf8)',
+                  background: `linear-gradient(to right, ${MAP_COLOR_FROM}, ${MAP_COLOR_TO})`,
                 }}
               />
               <span className="text-[10px] text-muted-foreground">{t('legendMax')}</span>

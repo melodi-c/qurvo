@@ -91,3 +91,29 @@ export const FUNNEL_LEGEND_COLORS = {
   conversion: 'text-emerald-500',
   dropOff: 'text-red-400',
 } as const;
+
+/** World map choropleth colors. */
+/** Country fill when no data is present, and gradient start (t=0) — zinc-800 (#27272a). */
+export const MAP_COLOR_EMPTY = '#27272a';
+export const MAP_COLOR_FROM = MAP_COLOR_EMPTY;
+/** Gradient end color (t=1) — indigo-400 (#818cf8). */
+export const MAP_COLOR_TO = '#818cf8';
+/** Stroke color for country borders — zinc-950 (#09090b). */
+export const MAP_STROKE_COLOR = '#09090b';
+/** Hover fill color for countries with data — indigo-300 (#a5b4fc). */
+export const MAP_HOVER_WITH_DATA_COLOR = '#a5b4fc';
+/** Hover fill color for countries without data — zinc-700 (#3f3f46). */
+export const MAP_HOVER_NO_DATA_COLOR = '#3f3f46';
+
+/**
+ * Interpolates between MAP_COLOR_FROM and MAP_COLOR_TO by factor `t` (0–1).
+ * Used for choropleth fill colors in WorldMapChart and GeographySection.
+ */
+export function interpolateMapColor(t: number): string {
+  const r0 = 0x27, g0 = 0x27, b0 = 0x2a;
+  const r1 = 0x81, g1 = 0x8c, b1 = 0xf8;
+  const r = Math.round(r0 + (r1 - r0) * t);
+  const g = Math.round(g0 + (g1 - g0) * t);
+  const b = Math.round(b0 + (b1 - b0) * t);
+  return `rgb(${r},${g},${b})`;
+}
