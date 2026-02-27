@@ -106,7 +106,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): {
   //   first_step_ms = Jan1 (global minIf), last_step_ms = Feb3 → 33 days instead of 2 days.
   //
   // Fix (ordered mode): collect step_0 timestamps as an array, then in a second CTE derive
-  //   first_step_ms = latest step_0 where last_step_ms falls within [step_0, step_0 + window].
+  //   first_step_ms = earliest step_0 where last_step_ms falls within [step_0, step_0 + window].
   //   This identifies the specific attempt that windowFunnel('ordered') matched.
   //
   // Strict mode: keep the existing maxIf heuristic (documented as best-effort in #474).
