@@ -66,6 +66,7 @@ export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @ApiPropertyOptional({ type: [String] })
   @Transform(parseJsonArray)
   @IsArray()
+  @ArrayMaxSize(10)
   @IsUUID('4', { each: true })
   @IsOptional()
   breakdown_cohort_ids?: string[];

@@ -1,5 +1,6 @@
 import {
   IsArray,
+  ArrayMaxSize,
   IsOptional,
   IsUUID,
   IsBoolean,
@@ -35,6 +36,7 @@ export class BaseAnalyticsQueryDto extends CoreQueryDto {
   @ApiPropertyOptional({ type: [String] })
   @Transform(parseJsonArray)
   @IsArray()
+  @ArrayMaxSize(20)
   @IsUUID('4', { each: true })
   @IsOptional()
   cohort_ids?: string[];
