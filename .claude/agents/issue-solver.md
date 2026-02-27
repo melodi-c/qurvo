@@ -224,17 +224,22 @@ cd "$WORKTREE_PATH" && git commit -m "<осмысленное сообщение
 
 ### 4.7.1 Code Review
 
-Запусти подагента `issue-reviewer` в **foreground**:
+Запусти подагента `issue-reviewer` через **Task tool в foreground** (`run_in_background: false`):
 
 ```
-WORKTREE_PATH: <путь к worktree>
-ISSUE_NUMBER: <номер>
-AFFECTED_APPS: <список>
-BASE_BRANCH: <ветка>
+subagent_type: "issue-reviewer"
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree, результат git rev-parse --show-toplevel>
+  ISSUE_NUMBER: <номер>
+  AFFECTED_APPS: <список, например "apps/api, apps/web">
+  BASE_BRANCH: <ветка, например "main">
 ```
 
-- Если вернул `APPROVE` → переходи к 4.8
-- Если вернул `REQUEST_CHANGES` → исправь все перечисленные проблемы, сделай дополнительный коммит, запусти reviewer повторно
+Дождись завершения агента и прочитай его ответ:
+
+- Если последняя строка `APPROVE` → переходи к 4.8
+- Если последняя строка `REQUEST_CHANGES` → исправь все перечисленные проблемы, сделай дополнительный коммит, запусти reviewer повторно
 - Максимум 2 итерации исправлений. Если после 2-й итерации всё ещё `REQUEST_CHANGES` → верни `STATUS: NEEDS_USER_INPUT | Review не пройден после 2 итераций: <список проблем>`
 
 ### 4.8 Финальная проверка с актуальным BASE_BRANCH

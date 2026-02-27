@@ -50,18 +50,20 @@ export class FunnelExclusionDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  @Max(9)
   funnel_from_step: number;
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(9)
   funnel_to_step: number;
 }
 
 class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @Transform(makeJsonArrayTransform(FunnelStepDto))
   @IsArray()
-  @ArrayMinSize(2)
+  @ArrayMinSize(1)
   @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => FunnelStepDto)
@@ -71,6 +73,7 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
   @IsInt()
   @Min(1)
   @Max(90)
+  @IsOptional()
   conversion_window_days: number = 14;
 
   @ApiPropertyOptional()
@@ -136,6 +139,14 @@ export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   @IsInt()
   @Min(1)
   to_step: number;
+
+  @ApiPropertyOptional({ type: [FunnelExclusionDto] })
+  @Transform(makeJsonArrayTransform(FunnelExclusionDto))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FunnelExclusionDto)
+  @IsOptional()
+  exclusions?: FunnelExclusionDto[];
 }
 
 // breakdown_value присутствует только у breakdown-шагов, поэтому optional

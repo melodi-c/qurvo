@@ -316,3 +316,84 @@ describe('queryFunnel — unordered', () => {
     expect(rUnord.steps[2].count).toBe(2); // forward + reverse did all 3
   });
 });
+
+describe('queryFunnel — property breakdown empty string vs null', () => {
+  it('empty string breakdown_value maps to (none), not a separate group', async () => {
+    // JSONExtractString returns '' both for missing properties and explicitly-empty ones.
+    // Both should collapse to '(none)', while non-empty values remain distinct.
+    const projectId = randomUUID();
+
+    const userPremium = randomUUID();
+    const userNoPlan = randomUUID();
+    const userNoPlan2 = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Premium user: completes both steps
+      buildEvent({
+        project_id: projectId,
+        person_id: userPremium,
+        distinct_id: 'premium',
+        event_name: 'signup',
+        properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: userPremium,
+        distinct_id: 'premium',
+        event_name: 'checkout',
+        properties: JSON.stringify({ plan: 'premium' }),
+        timestamp: msAgo(4000),
+      }),
+      // User without plan (empty string from JSONExtractString): step 1 only
+      buildEvent({
+        project_id: projectId,
+        person_id: userNoPlan,
+        distinct_id: 'noplan',
+        event_name: 'signup',
+        properties: JSON.stringify({}),
+        timestamp: msAgo(3000),
+      }),
+      // Another user without plan: step 1 only
+      buildEvent({
+        project_id: projectId,
+        person_id: userNoPlan2,
+        distinct_id: 'noplan2',
+        event_name: 'signup',
+        properties: JSON.stringify({}),
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'properties.plan',
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    // 'premium' group: 1 user entered step 1, 1 user reached step 2
+    const premiumStep1 = rBd.steps.find((s) => s.breakdown_value === 'premium' && s.step === 1);
+    const premiumStep2 = rBd.steps.find((s) => s.breakdown_value === 'premium' && s.step === 2);
+    expect(premiumStep1?.count).toBe(1);
+    expect(premiumStep2?.count).toBe(1);
+
+    // '(none)' group: 2 users entered step 1, 0 reached step 2
+    const noneStep1 = rBd.steps.find((s) => s.breakdown_value === '(none)' && s.step === 1);
+    const noneStep2 = rBd.steps.find((s) => s.breakdown_value === '(none)' && s.step === 2);
+    expect(noneStep1?.count).toBe(2);
+    expect(noneStep2?.count).toBe(0);
+
+    // No group with breakdown_value === '' should exist
+    const emptyStringSteps = rBd.steps.filter((s) => s.breakdown_value === '');
+    expect(emptyStringSteps).toHaveLength(0);
+  });
+});

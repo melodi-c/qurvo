@@ -7,7 +7,7 @@ import {
   msAgo,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import { queryFunnelTimeToConvert } from '../../analytics/funnel/funnel.query';
+import { queryFunnel, queryFunnelTimeToConvert } from '../../analytics/funnel/funnel.query';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 
 let ctx: ContainerContext;
@@ -242,5 +242,188 @@ describe('queryFunnelTimeToConvert', () => {
         to_step: 0,
       }),
     ).rejects.toThrow(AppBadRequestException);
+  });
+});
+
+// ── P1: TTC exclusions ───────────────────────────────────────────────────────
+
+describe('queryFunnelTimeToConvert — exclusions', () => {
+  it('sample_size in TTC matches converted count (step 1 entered) in main funnel with exclusion', async () => {
+    // Scenario: 3 users enter the funnel.
+    // personClean: signup → purchase (clean, converts)
+    // personExcluded: signup → cancel → purchase (excluded from entire funnel by exclusion rule)
+    // personNoConvert: signup only (enters step 0 but does not reach step 1)
+    //
+    // With exclusion applied:
+    //   - main funnel step 0 count = 2 (personClean + personNoConvert; personExcluded is removed)
+    //   - main funnel step 1 count = 1 (only personClean converts)
+    //   - TTC sample_size must equal main funnel step 1 count = 1 (only personClean)
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+    const personNoConvert = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: signup → purchase (no cancel between) → converts
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'signup',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'purchase',
+        timestamp: msAgo(3000),
+      }),
+      // personExcluded: signup → cancel → purchase → excluded from funnel entirely
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded',
+        event_name: 'signup',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded',
+        event_name: 'cancel',
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded',
+        event_name: 'purchase',
+        timestamp: msAgo(3000),
+      }),
+      // personNoConvert: signup only, no purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personNoConvert,
+        distinct_id: 'no-convert',
+        event_name: 'signup',
+        timestamp: msAgo(5000),
+      }),
+    ]);
+
+    const exclusions = [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }];
+    const steps = [
+      { event_name: 'signup', label: 'Signup' },
+      { event_name: 'purchase', label: 'Purchase' },
+    ];
+    const dateParams = {
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    };
+
+    // Main funnel with exclusion
+    const funnelResult = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps,
+      ...dateParams,
+      exclusions,
+    });
+
+    expect(funnelResult.breakdown).toBe(false);
+    const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
+    // personExcluded is removed by exclusion; personClean and personNoConvert enter step 0
+    expect(funnelSteps[0].count).toBe(2);
+    // Only personClean completes the funnel (step 1)
+    expect(funnelSteps[1].count).toBe(1);
+
+    const convertedCount = funnelSteps[1].count; // 1
+
+    // TTC with same exclusion — sample_size must match convertedCount
+    const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps,
+      ...dateParams,
+      from_step: 0,
+      to_step: 1,
+      exclusions,
+    });
+
+    expect(ttcResult.sample_size).toBe(convertedCount);
+    expect(ttcResult.sample_size).toBe(1);
+
+    // Bins total should match sample_size
+    const totalBinCount = ttcResult.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(ttcResult.sample_size);
+  });
+
+  it('sample_size is 2 without exclusion (includes excluded user) and 1 with exclusion', async () => {
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: signup → purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean2',
+        event_name: 'signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean2',
+        event_name: 'purchase',
+        timestamp: msAgo(4000),
+      }),
+      // personExcluded: signup → cancel → purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded2',
+        event_name: 'signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded2',
+        event_name: 'cancel',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded2',
+        event_name: 'purchase',
+        timestamp: msAgo(4000),
+      }),
+    ]);
+
+    const baseParams = {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    };
+
+    // Without exclusion: both persons convert → sample_size = 2
+    const ttcWithout = await queryFunnelTimeToConvert(ctx.ch, baseParams);
+    expect(ttcWithout.sample_size).toBe(2);
+
+    // With exclusion: only personClean converts → sample_size = 1
+    const ttcWith = await queryFunnelTimeToConvert(ctx.ch, {
+      ...baseParams,
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+    expect(ttcWith.sample_size).toBe(1);
   });
 });

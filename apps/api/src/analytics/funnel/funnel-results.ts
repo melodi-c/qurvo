@@ -68,7 +68,7 @@ export function computePropertyBreakdownResults(
 ): FunnelBreakdownStepResult[] {
   const grouped = new Map<string, RawBreakdownRow[]>();
   for (const row of rows) {
-    const bv = row.breakdown_value || '(none)';
+    const bv = (row.breakdown_value != null && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
     if (!grouped.has(bv)) grouped.set(bv, []);
     grouped.get(bv)!.push(row);
   }
