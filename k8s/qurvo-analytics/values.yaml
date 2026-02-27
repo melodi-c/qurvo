@@ -47,9 +47,7 @@ secrets:
   openaiApiKey: ""
   smtpUser: ""
   smtpPass: ""
-  # Bearer token for the service account used by scheduled-jobs-worker to call
-  # the internal AI API. Must be a valid unexpired session token for a user that
-  # has access to all projects whose scheduled jobs will be executed.
+  # Bearer token for service-to-service AI API calls (e.g. chat).
   internalApiToken: ""
 
 # ==============================================================================
@@ -152,70 +150,6 @@ billing-worker:
     limits:
       cpu: "200m"
       memory: "256Mi"
-
-# ==============================================================================
-# Monitor Worker
-# ==============================================================================
-monitor-worker:
-  enabled: true
-  image:
-    repository: "monitor-worker"
-    tag: ""
-  replicas: 1
-  resources:
-    requests:
-      cpu: "50m"
-      memory: "128Mi"
-    limits:
-      cpu: "200m"
-      memory: "256Mi"
-  env:
-    SMTP_HOST: ""
-    SMTP_PORT: ""
-    SMTP_SECURE: ""
-    SMTP_FROM: ""
-
-# ==============================================================================
-# Insights Worker
-# ==============================================================================
-insights-worker:
-  enabled: true
-  image:
-    repository: "insights-worker"
-    tag: ""
-  replicas: 1
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
-
-# ==============================================================================
-# Scheduled Jobs Worker
-# ==============================================================================
-scheduled-jobs-worker:
-  enabled: true
-  image:
-    repository: "scheduled-jobs-worker"
-    tag: ""
-  replicas: 1
-  resources:
-    requests:
-      cpu: "50m"
-      memory: "128Mi"
-    limits:
-      cpu: "200m"
-      memory: "256Mi"
-  env:
-    SMTP_HOST: ""
-    SMTP_PORT: ""
-    SMTP_SECURE: ""
-    SMTP_FROM: ""
-    # Internal API URL for AI chat calls (e.g. "http://qurvo-api:3000").
-    # Leave empty to disable AI integration (jobs will be skipped with a warning).
-    INTERNAL_API_URL: ""
 
 # ==============================================================================
 # Web
