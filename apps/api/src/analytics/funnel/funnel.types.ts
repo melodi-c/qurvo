@@ -39,7 +39,7 @@ export interface FunnelBreakdownStepResult extends FunnelStepResult {
 
 export type FunnelQueryResult =
   | { breakdown: false; steps: FunnelStepResult[]; sampling_factor?: number }
-  | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[]; aggregate_steps: FunnelStepResult[]; sampling_factor?: number };
+  | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[]; aggregate_steps: FunnelStepResult[]; breakdown_truncated?: boolean; sampling_factor?: number };
 
 // ── Query param types ────────────────────────────────────────────────────────
 
@@ -57,6 +57,8 @@ export interface FunnelQueryParams {
   funnel_order_type?: FunnelOrderType;
   exclusions?: FunnelExclusion[];
   sampling_factor?: number;
+  /** Max number of breakdown groups to return (property breakdown only). Default: MAX_BREAKDOWN_VALUES. */
+  breakdown_limit?: number;
 }
 
 // ── Time to Convert types ────────────────────────────────────────────────────

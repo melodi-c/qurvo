@@ -332,3 +332,163 @@ describe('queryFunnel — avg_time_to_convert for OR-logic steps (ordered funnel
     expect(r.steps[2].avg_time_to_convert_seconds).toBeNull();
   });
 });
+
+// ── avg_time_to_convert: repeated last-step events ───────────────────────────
+
+describe('queryFunnel — avg_time_to_convert with repeated last-step events', () => {
+  it('uses first occurrence of last step, not latest, so repeated purchases do not inflate avg_time', async () => {
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+
+    // personA: signup@T0(-90s), checkout@T1(-60s), purchase@T2(-30s), purchase@T3(-5s)
+    //   windowFunnel sees conversion T0→T1→T2
+    //   correct conversion time = 60s (T0 to T2)
+    //   with maxIf bug: last_step_ms = T3 → inflated to ~85s
+    // personB: signup@T0(-60s), checkout@T1(-40s), purchase@T2(-20s) (no repeat)
+    //   correct conversion time = 40s
+    // Expected avg: (60 + 40) / 2 = 50s
+    await insertTestEvents(ctx.ch, [
+      // personA
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'signup',
+        timestamp: msAgo(90_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'checkout',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'purchase',
+        timestamp: msAgo(30_000),
+      }),
+      // personA repeats the last step an hour later — must not affect avg_time
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'purchase',
+        timestamp: msAgo(5_000),
+      }),
+      // personB (no repeat)
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'signup',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'checkout',
+        timestamp: msAgo(40_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'purchase',
+        timestamp: msAgo(20_000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(2);
+    expect(r.steps[1].count).toBe(2);
+    expect(r.steps[2].count).toBe(2);
+
+    // avg conversion time should be 50s (personA=60s, personB=40s).
+    // If maxIf bug were present, personA would show ~85s → avg ~62.5s.
+    const step1Avg = r.steps[0].avg_time_to_convert_seconds;
+    expect(step1Avg).not.toBeNull();
+    expect(step1Avg!).toBeCloseTo(50, 0);
+
+    // Also check step 2 (penultimate before last) — same total conversion time
+    const step2Avg = r.steps[1].avg_time_to_convert_seconds;
+    expect(step2Avg).not.toBeNull();
+    expect(step2Avg!).toBeCloseTo(50, 0);
+
+    // Last step always returns null
+    expect(r.steps[2].avg_time_to_convert_seconds).toBeNull();
+  });
+
+  it('avg_time is not affected by a repeated first-step event (minIf still picks earliest)', async () => {
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    // Person fires signup twice, then purchase once.
+    // First signup at -60s, repeated signup at -30s, purchase at -10s.
+    // Correct conversion time = 50s (first signup to purchase).
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'u',
+        event_name: 'signup',
+        timestamp: msAgo(60_000),
+      }),
+      // Repeated first step — minIf should still pick the earlier one
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'u',
+        event_name: 'signup',
+        timestamp: msAgo(30_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'u',
+        event_name: 'purchase',
+        timestamp: msAgo(10_000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+
+    // Conversion time = 50s (earliest signup to first purchase)
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
+    expect(avgTime).not.toBeNull();
+    expect(avgTime!).toBeCloseTo(50, 0);
+
+    expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
+  });
+});
