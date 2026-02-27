@@ -136,15 +136,26 @@ export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclus
 
 // ── Sampling ─────────────────────────────────────────────────────────────────
 
-/** WHERE-based sampling: deterministic per distinct_id, no SAMPLE BY needed on table. */
+/**
+ * WHERE-based sampling: deterministic per person_id (after identity merge), no SAMPLE BY needed.
+ *
+ * Sampling is applied on `RESOLVED_PERSON` (person_id) so that users with multiple
+ * distinct_ids (e.g. anonymous pre-login + identified post-login) are either entirely
+ * included or entirely excluded. Using `distinct_id` here would split a merged user:
+ * some of their events would pass the hash check while others would not, causing
+ * partial event sets per person and systematically underreporting conversion on later steps.
+ *
+ * Guard: returns '' (no sampling) when samplingFactor is null, undefined, NaN, or >= 1.
+ * Previously `!samplingFactor` returned true for 0, silently treating it as "no sampling".
+ */
 export function buildSamplingClause(
   samplingFactor: number | undefined,
   queryParams: FunnelChQueryParams,
 ): string {
-  if (!samplingFactor || samplingFactor >= 1) return '';
+  if (samplingFactor == null || isNaN(samplingFactor) || samplingFactor >= 1) return '';
   const pct = Math.round(samplingFactor * 100);
   queryParams.sample_pct = pct;
-  return '\n                AND sipHash64(distinct_id) % 100 < {sample_pct:UInt8}';
+  return `\n                AND sipHash64(toString(${RESOLVED_PERSON})) % 100 < {sample_pct:UInt8}`;
 }
 
 // ── windowFunnel expression ──────────────────────────────────────────────────

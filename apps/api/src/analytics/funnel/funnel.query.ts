@@ -49,8 +49,11 @@ export async function queryFunnel(
 
   const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
   const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
-  const samplingResult = params.sampling_factor && params.sampling_factor < 1
-    ? { sampling_factor: params.sampling_factor } : {};
+  // Mirror the same guard used in buildSamplingClause: sampling is active only when
+  // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
+  const sf = params.sampling_factor;
+  const samplingResult = sf != null && !isNaN(sf) && sf < 1
+    ? { sampling_factor: sf } : {};
 
   // ── Cohort breakdown ────────────────────────────────────────────────────
   if (params.breakdown_cohort_ids?.length) {
