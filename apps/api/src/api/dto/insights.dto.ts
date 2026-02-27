@@ -1,6 +1,7 @@
-import { IsString, IsOptional, IsNotEmpty, IsIn, IsObject, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsIn, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto, PathsWidgetConfigDto } from './dashboards.dto';
+import { IsInsightConfig } from './shared/is-insight-config.decorator';
 
 type AnyInsightConfig = FunnelWidgetConfigDto | TrendWidgetConfigDto | RetentionWidgetConfigDto | LifecycleWidgetConfigDto | StickinessWidgetConfigDto | PathsWidgetConfigDto;
 
@@ -56,7 +57,7 @@ export class CreateInsightDto {
   @MaxLength(1000)
   description?: string;
 
-  @IsObject()
+  @IsInsightConfig()
   @ApiProperty(insightConfigSchema())
   config: AnyInsightConfig;
 }
@@ -73,7 +74,7 @@ export class UpdateInsightDto {
   @MaxLength(1000)
   description?: string;
 
-  @IsObject()
+  @IsInsightConfig()
   @IsOptional()
   @ApiPropertyOptional(insightConfigSchema())
   config?: AnyInsightConfig;
