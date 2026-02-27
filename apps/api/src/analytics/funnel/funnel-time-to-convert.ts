@@ -128,8 +128,15 @@ export async function queryFunnelTimeToConvert(
   // Per-step timestamp arrays — collect all timestamps per step in a single scan.
   // We use groupArrayIf to get all occurrences so we can find the first one
   // that comes after the previous step (i.e. matches the windowFunnel sequence).
-  // Step 0 always uses the global minimum. For step i > 0 we derive the
+  // Step 0 uses an anchor-aware formula (see seq_step_0 below). For step i > 0 we derive the
   // "sequence-aware" timestamp in the step_timestamps CTE.
+  //
+  // Also collect last_step_prelim_ms = global min of step_{toStep} timestamps.
+  // This is used in seq_step_0 to identify the correct step_0 anchor for the successful
+  // conversion window — matching the approach used in funnel-ordered.sql.ts for first_step_ms.
+  // Without this, step_0_ms = arrayMin(step_0_arr) could pick an early step_0 that is outside
+  // the conversion window of the later step_toStep, causing TTC to be overstated or the user
+  // to be wrongly excluded by the duration_seconds <= window_seconds filter (issue #498).
   const stepArrayCols = stepConds.map(
     (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_arr`,
   ).join(',\n            ');
@@ -163,8 +170,8 @@ export async function queryFunnelTimeToConvert(
   // to the previous step's column alias — giving O(n) SQL size regardless of step count.
   //
   // CTE chain structure:
-  //   funnel_raw       — per-person windowFunnel + per-step timestamp arrays (one full scan)
-  //   seq_step_0       — step_0_ms = arrayMin of step_0_arr (no predecessor constraint)
+  //   funnel_raw       — per-person windowFunnel + per-step timestamp arrays + last_step_prelim_ms (one full scan)
+  //   seq_step_0       — step_0_ms = anchor-aware formula using last_step_prelim_ms (issue #498)
   //   seq_step_1       — step_1_ms = first step_1_arr element >= step_0_ms
   //   seq_step_i       — step_i_ms = first step_i_arr element >= step_{i-1}_ms
   //   funnel_per_user  — selects all step_{i}_ms columns + max_step from the last seq CTE
@@ -172,16 +179,31 @@ export async function queryFunnelTimeToConvert(
   // Each seq_step CTE adds exactly one column (O(1) text). References to the previous
   // step use a simple alias name ("step_{i-1}_ms"), not an inline expression.
   //
-  // Step 0 uses arrayMin (earliest occurrence — no predecessor to sequence against).
+  // Step 0 uses an anchor-aware formula instead of a bare arrayMin (issue #498):
+  //   step_0_ms = earliest step_0 whose distance to last_step_prelim_ms is <= window.
+  //   This matches the anchor that windowFunnel('ordered') actually used for the successful
+  //   conversion sequence. Without this, when a user has multiple step_0 events and only
+  //   a later step_0 can anchor a valid chain, arrayMin would pick the earlier step_0,
+  //   making the computed TTC exceed the window and wrongly excluding the user from stats.
+  //
+  // last_step_prelim_ms is the global minIf of step_{toStep} timestamps collected in
+  //   funnel_raw. Using the global min (without sequencing) mirrors the approach in
+  //   funnel-ordered.sql.ts (first_step_ms fix for issue #493) and is correct because:
+  //   windowFunnel picks the earliest step_0 from which the chain reaches the last step —
+  //   filtering step_0 by window distance to the earliest last-step timestamp gives exactly
+  //   the set of valid anchors, and arrayMin selects the one windowFunnel used.
+  //
   // Steps i > 0 use: if(notEmpty(filtered), arrayMin(filtered), 0)
   //   where filtered = arrayFilter(t -> t >= step_{i-1}_ms, step_i_arr)
   //   The filtered array is computed once per lambda call, eliminating the duplication.
+  const winMsExpr = `toInt64({window:UInt64}) * 1000`;
   const seqStepCTEs: string[] = [];
   for (let i = 0; i < numSteps; i++) {
     const prevCTE = i === 0 ? 'funnel_raw' : `seq_step_${i - 1}`;
     const passThrough = [
       'person_id',
       'max_step',
+      'last_step_prelim_ms',
       // pass through all step arrays
       ...Array.from({ length: numSteps }, (_, j) => `step_${j}_arr`),
       // pass through previously computed step_ms columns
@@ -192,7 +214,19 @@ export async function queryFunnelTimeToConvert(
 
     let stepMsExpr: string;
     if (i === 0) {
-      stepMsExpr = `if(notEmpty(step_0_arr), arrayMin(step_0_arr), 0) AS step_0_ms`;
+      // Anchor-aware step_0_ms: find the earliest step_0 that is within window of
+      // last_step_prelim_ms (the global minIf of step_{toStep} timestamps).
+      //
+      // This is the same approach used for first_step_ms in funnel-ordered.sql.ts (issue #493):
+      //   filter t0_arr to t0 <= last_step_ms AND last_step_ms - t0 <= window
+      //   then take arrayMin of the filtered set.
+      //
+      // Example (window=30s): step_0@T=0 (failed: step_1@T=35s > window), step_0@T=25s (ok)
+      //   last_step_prelim_ms = 35s, step_0_arr = [0ms, 25000ms]
+      //   filtered = [25000ms] (0ms excluded: 35000-0 = 35000 > 30000)
+      //   step_0_ms = 25000ms ✓  (not 0ms, which would give TTC=35s, wrongly excluded)
+      stepMsExpr =
+        `if(\n          notEmpty(arrayFilter(t0 -> t0 <= last_step_prelim_ms AND last_step_prelim_ms - t0 <= ${winMsExpr} AND last_step_prelim_ms > 0, step_0_arr)),\n          toInt64(arrayMin(arrayFilter(t0 -> t0 <= last_step_prelim_ms AND last_step_prelim_ms - t0 <= ${winMsExpr} AND last_step_prelim_ms > 0, step_0_arr))),\n          toInt64(0)\n        ) AS step_0_ms`;
     } else {
       // Reference to step_{i-1}_ms is a simple column alias from the previous CTE —
       // O(1) text per step regardless of chain depth. The double arrayFilter here
@@ -214,10 +248,10 @@ export async function queryFunnelTimeToConvert(
   // Single query: scan events once, compute both stats and raw durations.
   //
   // CTE chain structure (linear SQL growth — O(n) not O(2^n)):
-  //   funnel_raw    — per-person windowFunnel + per-step arrays (one full scan)
-  //   seq_step_0    — add step_0_ms = arrayMin(step_0_arr)
+  //   funnel_raw    — per-person windowFunnel + per-step arrays + last_step_prelim_ms (one full scan)
+  //   seq_step_0    — add step_0_ms = anchor-aware formula using last_step_prelim_ms (issue #498)
   //   seq_step_i    — add step_i_ms = min(step_i_arr elements >= step_{i-1}_ms)
-  //   funnel_per_user — select step_*_ms + max_step from last seq CTE
+  //   funnel_per_user — select step_*_ms + max_step from last seq CTE (drops last_step_prelim_ms)
   //   converted     — filter to users who completed to_step; compute duration
   //   final SELECT  — aggregates stats + collects durations for histogram binning in JS
   //
@@ -252,7 +286,8 @@ export async function queryFunnelTimeToConvert(
       SELECT
         ${RESOLVED_PERSON} AS person_id,
         ${buildWindowFunnelExpr(orderType, stepConditions)} AS max_step,
-        ${stepArrayCols}${exclColumnsSQL}
+        ${stepArrayCols},
+        toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]!})) AS last_step_prelim_ms${exclColumnsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}

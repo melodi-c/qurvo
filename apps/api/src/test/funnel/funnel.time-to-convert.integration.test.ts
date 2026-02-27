@@ -1027,3 +1027,195 @@ describe('queryFunnelTimeToConvert — 8/9/10-step funnel SQL size', () => {
     expect(result.average_seconds!).toBeLessThan(25);
   });
 });
+
+// ── Multiple step_0 attempts — TTC anchor fix (issue #498) ───────────────────
+
+describe('queryFunnelTimeToConvert — ordered TTC with multiple step_0 attempts (issue #498)', () => {
+  it('uses the windowFunnel anchor step_0, not the earliest step_0, when first attempt is outside window', async () => {
+    // Scenario (window = 30 seconds):
+    //   step_0 @ T-60s  (failed attempt: step_1 @ T-5s is 55s away — outside 30s window)
+    //   step_0 @ T-10s  (successful attempt: step_1 @ T-5s is 5s away — inside 30s window)
+    //   step_1 @ T-5s
+    //
+    // windowFunnel uses T-10s as anchor (T-60s fails because step_1 is 55s away > window).
+    // Correct TTC = 5 seconds (T-10s → T-5s).
+    //
+    // Bug (before fix): step_0_ms = arrayMin([T-60s, T-10s]) = T-60s
+    //                   step_1_ms = min(step_1 >= T-60s) = T-5s
+    //                   TTC = 55s > 30s → user wrongly EXCLUDED from sample_size.
+    //
+    // After fix: step_0_ms = earliest step_0 with step_1 within window = T-10s
+    //            TTC = 5s ≤ 30s → user INCLUDED, avg_seconds ≈ 5.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+    const step0Early = new Date(now - 60_000).toISOString();  // T-60s: early, failed attempt
+    const step0Late  = new Date(now - 10_000).toISOString();  // T-10s: anchor for windowFunnel
+    const step1      = new Date(now -  5_000).toISOString();  // T-5s:  5s after late step_0
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'retry-user',
+        event_name: 'signup',
+        timestamp: step0Early,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'retry-user',
+        event_name: 'signup',
+        timestamp: step0Late,
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'retry-user',
+        event_name: 'purchase',
+        timestamp: step1,
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 14,
+      conversion_window_value: 30,
+      conversion_window_unit: 'second',
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    // User must be counted (was wrongly excluded by the bug)
+    expect(result.sample_size).toBe(1);
+
+    // TTC must be ≈ 5 seconds (T-10s → T-5s), not ≈ 55 seconds (T-60s → T-5s)
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeGreaterThan(0);
+    expect(result.average_seconds!).toBeLessThanOrEqual(30); // within window
+    expect(result.average_seconds!).toBeLessThan(20);        // close to 5s, not 55s
+
+    // Bins must contain exactly 1 conversion
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
+
+  it('user with single step_0 is not affected by the fix', async () => {
+    // Regression guard: users with exactly one step_0 must still compute TTC correctly.
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'single-step0-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 20_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'single-step0-user',
+        event_name: 'purchase',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(result.sample_size).toBe(1);
+    // TTC ≈ 10 seconds (signup at T-20s, purchase at T-10s)
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeGreaterThan(5);
+    expect(result.average_seconds!).toBeLessThan(20);
+
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
+
+  it('both step_0 within window: uses earliest valid anchor (TTC from first step_0)', async () => {
+    // When BOTH step_0 occurrences can anchor a valid chain, windowFunnel uses the first one.
+    // The fix must preserve this behaviour — arrayMin of the filtered set returns the earliest.
+    //
+    // Scenario (window = 60 seconds):
+    //   step_0 @ T-50s  (first; step_1 @ T-5s is 45s away — within 60s window)
+    //   step_0 @ T-10s  (second; step_1 @ T-5s is 5s away — also within 60s window)
+    //   step_1 @ T-5s
+    //
+    // Both step_0 events are valid anchors. windowFunnel picks the earliest (T-50s).
+    // TTC should be ≈ 45 seconds (T-50s → T-5s).
+    const projectId = randomUUID();
+    const person = randomUUID();
+
+    const now = Date.now();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'both-valid-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 50_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'both-valid-user',
+        event_name: 'signup',
+        timestamp: new Date(now - 10_000).toISOString(),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: person,
+        distinct_id: 'both-valid-user',
+        event_name: 'purchase',
+        timestamp: new Date(now -  5_000).toISOString(),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 14,
+      conversion_window_value: 60,
+      conversion_window_unit: 'second',
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+    });
+
+    expect(result.sample_size).toBe(1);
+    // TTC ≈ 45 seconds (earliest step_0 at T-50s to step_1 at T-5s)
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeGreaterThan(30); // closer to 45s than to 5s
+    expect(result.average_seconds!).toBeLessThanOrEqual(60);
+
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
+});
