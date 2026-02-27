@@ -23,9 +23,11 @@ export { RESOLVED_PERSON };
  *   step_{i}             — primary event name for step i (String)
  *   step_{i}_names       — all event names for step i when using OR-logic (Array(String))
  *   step_{i}_{prefix}_f{j}_v — filter value for step i, filter j
- *   excl_{i}_name        — exclusion event name (String)
- *   excl_{i}_from_step_name — from-step event name for exclusion i (String)
- *   excl_{i}_to_step_name   — to-step event name for exclusion i (String)
+ *   excl_{i}_name             — exclusion event name (String)
+ *   excl_{i}_from_step_name   — from-step event name for exclusion i, single-event steps (String)
+ *   excl_{i}_from_step_names  — from-step event names for exclusion i, OR-logic steps (Array(String))
+ *   excl_{i}_to_step_name     — to-step event name for exclusion i, single-event steps (String)
+ *   excl_{i}_to_step_names    — to-step event names for exclusion i, OR-logic steps (Array(String))
  *   sample_pct           — sampling percentage 0-100 (UInt8), present only when sampling
  */
 export interface FunnelChQueryParams {
@@ -147,6 +149,11 @@ export function validateExclusions(exclusions: FunnelExclusion[], numSteps: numb
  * exclusion checks: a user is excluded only when ALL their valid conversion window attempts
  * contain an exclusion event. This prevents false positives (exclusion in a different
  * session) and false negatives (user re-enters the funnel after an exclusion).
+ *
+ * Supports OR-logic steps: when a funnel step has multiple event_names, uses
+ * `event_name IN ({param:Array(String)})` instead of `event_name = {param:String}`
+ * so that users who entered via an alternative OR-event are correctly identified
+ * as anchor participants and subjected to exclusion filtering.
  */
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
@@ -156,12 +163,31 @@ export function buildExclusionColumns(
   const lines: string[] = [];
   for (const [i, excl] of exclusions.entries()) {
     queryParams[`excl_${i}_name`] = excl.event_name;
-    queryParams[`excl_${i}_from_step_name`] = steps[excl.funnel_from_step]!.event_name;
-    queryParams[`excl_${i}_to_step_name`] = steps[excl.funnel_to_step]!.event_name;
+
+    const fromNames = resolveStepEventNames(steps[excl.funnel_from_step]!);
+    const toNames = resolveStepEventNames(steps[excl.funnel_to_step]!);
+
+    let fromCond: string;
+    if (fromNames.length === 1) {
+      queryParams[`excl_${i}_from_step_name`] = fromNames[0];
+      fromCond = `event_name = {excl_${i}_from_step_name:String}`;
+    } else {
+      queryParams[`excl_${i}_from_step_names`] = fromNames;
+      fromCond = `event_name IN ({excl_${i}_from_step_names:Array(String)})`;
+    }
+
+    let toCond: string;
+    if (toNames.length === 1) {
+      queryParams[`excl_${i}_to_step_name`] = toNames[0];
+      toCond = `event_name = {excl_${i}_to_step_name:String}`;
+    } else {
+      queryParams[`excl_${i}_to_step_names`] = toNames;
+      toCond = `event_name IN ({excl_${i}_to_step_names:Array(String)})`;
+    }
 
     lines.push(
-      `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_from_step_name:String}) AS excl_${i}_from_arr`,
-      `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_to_step_name:String}) AS excl_${i}_to_arr`,
+      `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${fromCond}) AS excl_${i}_from_arr`,
+      `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${toCond}) AS excl_${i}_to_arr`,
       `groupArrayIf(toUnixTimestamp64Milli(timestamp), event_name = {excl_${i}_name:String}) AS excl_${i}_arr`,
     );
   }

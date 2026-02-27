@@ -224,6 +224,279 @@ describe('queryFunnel — exclusion steps', () => {
   });
 });
 
+// ── P2: OR-logic steps in exclusion anchors ──────────────────────────────────
+
+describe('queryFunnel — OR-logic steps as exclusion anchors', () => {
+  it('blocks conversion of a user who entered via an alternative OR-event in the from-step anchor', async () => {
+    // Scenario: from-step is OR(signup_click, signup_submit).
+    // User A enters via signup_click (primary), does cancel (exclusion), then purchases.
+    // User B enters via signup_submit (alternative OR-event), does cancel, then purchases.
+    // Both should be excluded. Before the fix, User B was not excluded because
+    // buildExclusionColumns only matched event_name = 'signup_click', missing 'signup_submit'.
+    const projectId = randomUUID();
+    const personA = randomUUID(); // enters via primary OR-event → should be excluded
+    const personB = randomUUID(); // enters via alternative OR-event → should be excluded (was broken)
+    const personClean = randomUUID(); // enters via primary, no exclusion → should convert
+
+    await insertTestEvents(ctx.ch, [
+      // Person A: signup_click → cancel → purchase (primary OR-event, should be excluded)
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'signup_click',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'cancel',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+      // Person B: signup_submit → cancel → purchase (alternative OR-event, should be excluded)
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'signup_submit',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'cancel',
+        timestamp: msAgo(3000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+      // Person Clean: signup_click → purchase, no cancel (should convert)
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'signup_click',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'purchase',
+        timestamp: msAgo(1000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        {
+          event_name: 'signup_click',
+          event_names: ['signup_click', 'signup_submit'],
+          label: 'Any Signup',
+        },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personA and personB are both excluded (all their paths are tainted by cancel).
+    // Only personClean enters and converts → step counts are 1.
+    expect(r.steps[0].count).toBe(1); // only clean user (personA + personB fully excluded)
+    expect(r.steps[1].count).toBe(1); // clean user converts
+  });
+
+  it('blocks conversion of a user who entered via an alternative OR-event in the to-step anchor', async () => {
+    // Scenario: to-step is OR(checkout, checkout_express).
+    // The exclusion is anchored from step 0 → to-step (OR step).
+    // User A completes to-step via checkout (primary) but has a cancel → excluded.
+    // User B completes to-step via checkout_express (alternative) but has a cancel → excluded.
+    // User Clean: step0 → checkout_express, no cancel → should convert.
+    const projectId = randomUUID();
+    const personA = randomUUID();
+    const personB = randomUUID();
+    const personClean = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // Person A: view → cancel → checkout (excluded via primary to-step name)
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'page_view',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'cancel',
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personA,
+        distinct_id: 'a',
+        event_name: 'checkout',
+        timestamp: msAgo(2000),
+      }),
+      // Person B: view → cancel → checkout_express (excluded via alternative to-step name)
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'page_view',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'cancel',
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personB,
+        distinct_id: 'b',
+        event_name: 'checkout_express',
+        timestamp: msAgo(2000),
+      }),
+      // Person Clean: view → checkout_express, no cancel → should convert
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'page_view',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'checkout_express',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'page_view', label: 'Page View' },
+        {
+          event_name: 'checkout',
+          event_names: ['checkout', 'checkout_express'],
+          label: 'Any Checkout',
+        },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personA and personB are both excluded. Only personClean converts.
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+  });
+
+  it('correctly handles exclusion when both from-step and to-step are OR-logic steps', async () => {
+    // Both anchors are OR-logic steps. The exclusion event is between them.
+    // User who enters via alternative OR-event on from-step AND exits via alternative
+    // OR-event on to-step must still be correctly excluded.
+    const projectId = randomUUID();
+    const personExcluded = randomUUID(); // alt from + cancel + alt to → excluded
+    const personClean = randomUUID();     // alt from + alt to, no cancel → converts
+
+    await insertTestEvents(ctx.ch, [
+      // Excluded: signup_submit → cancel → checkout_express (both alternate OR events)
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excl',
+        event_name: 'signup_submit',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excl',
+        event_name: 'cancel',
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excl',
+        event_name: 'checkout_express',
+        timestamp: msAgo(2000),
+      }),
+      // Clean: signup_submit → checkout_express, no cancel
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'signup_submit',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean',
+        event_name: 'checkout_express',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        {
+          event_name: 'signup_click',
+          event_names: ['signup_click', 'signup_submit'],
+          label: 'Any Signup',
+        },
+        {
+          event_name: 'checkout',
+          event_names: ['checkout', 'checkout_express'],
+          label: 'Any Checkout',
+        },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personExcluded is fully excluded (cancel between OR from-step and OR to-step)
+    // personClean converts
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+  });
+});
+
 // ── P1: Granular conversion window ──────────────────────────────────────────
 
 describe('queryFunnel — conversion window units', () => {
