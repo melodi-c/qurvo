@@ -108,7 +108,7 @@ export async function queryRetention(
 
   const truncFrom = truncateDate(params.date_from, params.granularity);
   const truncTo = truncateDate(params.date_to, params.granularity);
-  const extendedTo = shiftDate(params.date_to, params.periods, params.granularity);
+  const extendedTo = shiftDate(truncTo, params.periods, params.granularity);
 
   queryParams['from'] = toChTs(truncFrom, false, params.timezone);
   queryParams['to'] = toChTs(truncTo, true, params.timezone);
