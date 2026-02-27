@@ -23,11 +23,15 @@ export async function withAnalyticsCache<TParams, TResult>(opts: {
   const cacheKey = buildCacheKey(opts.prefix, opts.widgetId, opts.params);
 
   if (!opts.force) {
-    const cached = await opts.redis.get(cacheKey);
-    if (cached) {
-      opts.logger.debug({ cacheKey, widgetId: opts.widgetId }, `${opts.prefix} cache hit`);
-      const entry = JSON.parse(cached) as { data: TResult; cached_at: string };
-      return { ...entry, from_cache: true };
+    try {
+      const cached = await opts.redis.get(cacheKey);
+      if (cached) {
+        opts.logger.debug({ cacheKey, widgetId: opts.widgetId }, `${opts.prefix} cache hit`);
+        const entry = JSON.parse(cached) as { data: TResult; cached_at: string };
+        return { ...entry, from_cache: true };
+      }
+    } catch (err) {
+      opts.logger.error({ err, cacheKey }, `${opts.prefix} Redis read error — falling back to ClickHouse`);
     }
   }
 
@@ -36,7 +40,11 @@ export async function withAnalyticsCache<TParams, TResult>(opts: {
   const data = await opts.query(opts.ch, opts.params);
   const cached_at = new Date().toISOString();
 
-  await opts.redis.set(cacheKey, JSON.stringify({ data, cached_at }), 'EX', ANALYTICS_CACHE_TTL_SECONDS);
+  try {
+    await opts.redis.set(cacheKey, JSON.stringify({ data, cached_at }), 'EX', ANALYTICS_CACHE_TTL_SECONDS);
+  } catch (err) {
+    opts.logger.error({ err, cacheKey }, `${opts.prefix} Redis write error — returning data without caching`);
+  }
 
   return { data, cached_at, from_cache: false };
 }
