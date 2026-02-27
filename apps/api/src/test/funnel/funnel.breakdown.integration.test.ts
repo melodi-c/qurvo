@@ -398,6 +398,162 @@ describe('queryFunnel — property breakdown empty string vs null', () => {
   });
 });
 
+describe('queryFunnel — aggregate_steps with sparse breakdown_property', () => {
+  it('aggregate_steps[0].count equals total users even when breakdown_property is only filled for 60% of users', async () => {
+    // Regression test for issue #487.
+    // When breakdown_property is sparse, the SQL query for property breakdown rows
+    // only includes users in top-N (by breakdown value). Previously, aggregate_steps
+    // was computed by summing those top-N rows — underreporting total users by the
+    // fraction with no breakdown value. The fix runs a separate no-breakdown aggregate
+    // query so that ALL users are counted regardless of breakdown_property fill rate.
+    const projectId = randomUUID();
+
+    // 10 total users enter step 1 (signup).
+    // 6 of them have browser set (will form top-N groups).
+    // 4 of them have no browser (breakdown_value = '(none)').
+    // With breakdown_limit: 2, the (none) group is still shown but
+    // aggregate_steps[0].count must be 10, not 6 (old buggy behaviour).
+    const usersWithBrowser = Array.from({ length: 6 }, () => ({ id: randomUUID(), browser: 'Chrome' }));
+    const usersWithoutBrowser = Array.from({ length: 4 }, () => ({ id: randomUUID() }));
+
+    const eventsToInsert = [
+      ...usersWithBrowser.map((u, i) =>
+        buildEvent({
+          project_id: projectId,
+          person_id: u.id,
+          distinct_id: `wb-${i}`,
+          event_name: 'signup',
+          browser: u.browser,
+          timestamp: msAgo(5000 + i * 100),
+        }),
+      ),
+      ...usersWithoutBrowser.map((u, i) =>
+        buildEvent({
+          project_id: projectId,
+          person_id: u.id,
+          distinct_id: `wob-${i}`,
+          event_name: 'signup',
+          // No browser property — breakdown_value will be '' → '(none)'
+          timestamp: msAgo(4000 + i * 100),
+        }),
+      ),
+    ];
+
+    await insertTestEvents(ctx.ch, eventsToInsert);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'browser',
+      breakdown_limit: 1,
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+
+    // Steps should be limited to top-1 (Chrome) + (none)
+    const breakdownValues = new Set(rBd.steps.map((s) => s.breakdown_value));
+    expect(breakdownValues.has('Chrome')).toBe(true);
+    expect(breakdownValues.has('(none)')).toBe(true);
+
+    // aggregate_steps[0].count MUST be 10 (all users), not 6 (only Chrome users)
+    const aggStep1 = rBd.aggregate_steps.find((s) => s.step === 1);
+    expect(aggStep1?.count).toBe(10);
+  });
+
+  it('aggregate_steps matches no-breakdown query with unordered funnel and sparse property', async () => {
+    const projectId = randomUUID();
+
+    // 8 users: 5 with plan set (top-N), 3 without plan
+    const usersWithPlan = Array.from({ length: 5 }, (_, i) => ({
+      id: randomUUID(),
+      plan: i < 3 ? 'pro' : 'starter',
+    }));
+    const usersWithoutPlan = Array.from({ length: 3 }, () => ({ id: randomUUID() }));
+
+    const eventsToInsert = [
+      ...usersWithPlan.flatMap((u, i) => [
+        buildEvent({
+          project_id: projectId,
+          person_id: u.id,
+          distinct_id: `wp-${i}`,
+          event_name: 'step_a',
+          properties: JSON.stringify({ plan: u.plan }),
+          timestamp: msAgo(5000 + i * 100),
+        }),
+        buildEvent({
+          project_id: projectId,
+          person_id: u.id,
+          distinct_id: `wp-${i}`,
+          event_name: 'step_b',
+          properties: JSON.stringify({ plan: u.plan }),
+          timestamp: msAgo(4000 + i * 100),
+        }),
+      ]),
+      ...usersWithoutPlan.flatMap((u, i) => [
+        buildEvent({
+          project_id: projectId,
+          person_id: u.id,
+          distinct_id: `wop-${i}`,
+          event_name: 'step_a',
+          timestamp: msAgo(3000 + i * 100),
+        }),
+        buildEvent({
+          project_id: projectId,
+          person_id: u.id,
+          distinct_id: `wop-${i}`,
+          event_name: 'step_b',
+          timestamp: msAgo(2000 + i * 100),
+        }),
+      ]),
+    ];
+
+    await insertTestEvents(ctx.ch, eventsToInsert);
+
+    const bdResult = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'Step A' },
+        { event_name: 'step_b', label: 'Step B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'properties.plan',
+      breakdown_limit: 1,
+      funnel_order_type: 'unordered',
+    });
+
+    const plainResult = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'step_a', label: 'Step A' },
+        { event_name: 'step_b', label: 'Step B' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'unordered',
+    });
+
+    expect(bdResult.breakdown).toBe(true);
+    expect(plainResult.breakdown).toBe(false);
+
+    const bdAgg = bdResult as Extract<typeof bdResult, { breakdown: true }>;
+    const plain = plainResult as Extract<typeof plainResult, { breakdown: false }>;
+
+    // aggregate_steps from breakdown query must match plain no-breakdown query
+    expect(bdAgg.aggregate_steps[0]?.count).toBe(plain.steps[0]?.count); // 8
+    expect(bdAgg.aggregate_steps[1]?.count).toBe(plain.steps[1]?.count); // 8
+  });
+});
+
 describe('queryFunnel — breakdown groups ordered by popularity', () => {
   it('returns groups sorted by step-1 entered count descending', async () => {
     const projectId = randomUUID();

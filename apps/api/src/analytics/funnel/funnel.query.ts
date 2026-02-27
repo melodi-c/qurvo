@@ -90,11 +90,22 @@ export async function queryFunnel(
   // breakdown_truncated is true only when the total exceeds the limit (real truncation).
   const totalBdCount = rows.length > 0 ? Number(rows[0]!.total_bd_count ?? 0) : 0;
   const breakdown_truncated = totalBdCount > breakdownLimit;
+
+  // Run a separate no-breakdown query for aggregate_steps.
+  // aggregate_steps must count ALL users who entered the funnel, regardless of whether their
+  // breakdown_property value falls in the top-N. Without this, aggregate_steps[0].count would
+  // be up to (100 - fill_rate)% lower than the real total when breakdown_property is sparse.
+  const aggregateQueryParams = { ...queryParams };
+  const aggregateSql = buildFunnelSQL(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, aggregateQueryParams);
+  const aggregateResult = await ch.query({ query: aggregateSql, query_params: aggregateQueryParams, format: 'JSONEachRow' });
+  const aggregateRows = await aggregateResult.json<RawFunnelRow>();
+  const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
+
   return {
     breakdown: true,
     breakdown_property: params.breakdown_property,
     steps: stepResults,
-    aggregate_steps: computeAggregateSteps(stepResults, steps),
+    aggregate_steps: aggregateSteps,
     breakdown_truncated,
     ...samplingResult,
   };
