@@ -17,7 +17,7 @@ import {
   type ValidationArguments,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
@@ -240,7 +240,7 @@ export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   exclusions?: FunnelExclusionDto[];
 }
 
-// breakdown_value присутствует только у breakdown-шагов, поэтому optional
+// Base step result — used for no-breakdown responses and as aggregate_steps in breakdown responses.
 export class FunnelStepResultDto {
   step: number;
   label: string;
@@ -251,21 +251,47 @@ export class FunnelStepResultDto {
   drop_off_rate: number;
   @ApiProperty({ type: Number, nullable: true })
   avg_time_to_convert_seconds: number | null;
-  @ApiPropertyOptional() breakdown_value?: string;
 }
 
+// Breakdown step result — breakdown_value is REQUIRED (always present when breakdown: true).
+export class FunnelBreakdownStepResultDto extends FunnelStepResultDto {
+  @ApiProperty({ description: 'Breakdown group value. Always present when breakdown is true.' })
+  breakdown_value: string;
+}
+
+@ApiExtraModels(FunnelBreakdownStepResultDto)
 export class FunnelResultDto {
   @ApiProperty()
   breakdown: boolean;
-  @ApiPropertyOptional() breakdown_property?: string;
+  @ApiPropertyOptional({ description: 'Breakdown property name (present for property breakdown)' })
+  breakdown_property?: string;
   @ApiPropertyOptional({ description: 'Sampling factor used (if < 1.0, results are sampled)' })
   sampling_factor?: number;
-  @ApiPropertyOptional({ description: 'True when the number of breakdown groups was truncated to breakdown_limit' })
+  @ApiPropertyOptional({
+    description:
+      'True when the number of property breakdown groups exceeded breakdown_limit and was truncated. ' +
+      'Only set for breakdown_type="property"; never set for cohort breakdown.',
+  })
   breakdown_truncated?: boolean;
-  @ApiProperty({ type: [FunnelStepResultDto] })
-  @Type(() => FunnelStepResultDto)
-  steps: FunnelStepResultDto[];
-  @ApiPropertyOptional({ type: [FunnelStepResultDto] })
+  /**
+   * Step results. When breakdown=false: FunnelStepResult[].
+   * When breakdown=true: FunnelBreakdownStepResult[] — each element has a required breakdown_value.
+   */
+  @ApiProperty({
+    oneOf: [
+      { $ref: getSchemaPath(FunnelStepResultDto) },
+      { $ref: getSchemaPath(FunnelBreakdownStepResultDto) },
+    ],
+    isArray: true,
+    description:
+      'Step results. When breakdown=false each element is FunnelStepResult (no breakdown_value). ' +
+      'When breakdown=true each element is FunnelBreakdownStepResult with a required breakdown_value.',
+  })
+  steps: FunnelStepResultDto[] | FunnelBreakdownStepResultDto[];
+  @ApiPropertyOptional({
+    type: [FunnelStepResultDto],
+    description: 'Aggregate step totals across all breakdown groups. Only present when breakdown=true.',
+  })
   @Type(() => FunnelStepResultDto)
   aggregate_steps?: FunnelStepResultDto[];
 }

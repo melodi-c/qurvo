@@ -218,9 +218,21 @@ export interface FunnelStep {
   filters?: StepFilter[];
 }
 
+export interface FunnelBreakdownStepResult {
+  avg_time_to_convert_seconds: number | null;
+  /** Breakdown group value. Always present when breakdown is true. */
+  breakdown_value: string;
+  step: number;
+  label: string;
+  event_name: string;
+  count: number;
+  conversion_rate: number;
+  drop_off: number;
+  drop_off_rate: number;
+}
+
 export interface FunnelStepResult {
   avg_time_to_convert_seconds: number | null;
-  breakdown_value?: string;
   step: number;
   label: string;
   event_name: string;
@@ -232,12 +244,15 @@ export interface FunnelStepResult {
 
 export interface FunnelResult {
   breakdown: boolean;
+  /** Breakdown property name (present for property breakdown) */
   breakdown_property?: string;
   /** Sampling factor used (if < 1.0, results are sampled) */
   sampling_factor?: number;
-  /** True when the number of breakdown groups was truncated to breakdown_limit */
+  /** True when the number of property breakdown groups exceeded breakdown_limit and was truncated. Only set for breakdown_type="property"; never set for cohort breakdown. */
   breakdown_truncated?: boolean;
-  steps: FunnelStepResult[];
+  /** Step results. When breakdown=false each element is FunnelStepResult (no breakdown_value). When breakdown=true each element is FunnelBreakdownStepResult with a required breakdown_value. */
+  steps: (FunnelStepResult | FunnelBreakdownStepResult)[];
+  /** Aggregate step totals across all breakdown groups. Only present when breakdown=true. */
   aggregate_steps?: FunnelStepResult[];
 }
 

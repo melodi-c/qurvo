@@ -3,7 +3,7 @@ import { YAxis, GridLines, Bar } from './FunnelBar';
 import { BarTooltip } from './FunnelTooltip';
 import { StepLegend } from './FunnelStepLegend';
 import { SERIES_COLORS, BAR_AREA_H_FULL, BAR_AREA_H_COMPACT, barWidthPx } from './funnel-chart-utils';
-import type { FunnelStepResult } from '@/api/generated/Api';
+import type { FunnelStepResult, FunnelBreakdownStepResult } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './BreakdownFunnel.translations';
 
@@ -13,7 +13,7 @@ export function BreakdownFunnel({
   compact,
   relative,
 }: {
-  steps: FunnelStepResult[];
+  steps: (FunnelStepResult | FunnelBreakdownStepResult)[];
   aggregateSteps: FunnelStepResult[];
   compact: boolean;
   relative: boolean;
@@ -25,11 +25,12 @@ export function BreakdownFunnel({
   const noneLabel = t('noneLabel');
 
   const { stepMap, stepNums, step1Map, groups, groupConvs, bw } = useMemo(() => {
-    // Build: step_num → breakdown_value → FunnelStepResult
-    const sm = new Map<number, Map<string, FunnelStepResult>>();
+    // Build: step_num → breakdown_value → FunnelBreakdownStepResult
+    // At runtime when breakdown=true all steps are FunnelBreakdownStepResult (have breakdown_value).
+    const sm = new Map<number, Map<string, FunnelBreakdownStepResult>>();
     const insertOrder: string[] = [];
 
-    for (const s of steps) {
+    for (const s of steps as FunnelBreakdownStepResult[]) {
       const bv = s.breakdown_value ?? noneLabel;
       if (!sm.has(s.step)) sm.set(s.step, new Map());
       sm.get(s.step)!.set(bv, s);
