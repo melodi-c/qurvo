@@ -8,6 +8,58 @@ const steps = [
   { event_name: 'purchase', label: 'Purchase' },
 ];
 
+describe('computeStepResults — avg_time_to_convert_seconds zero handling', () => {
+  it('returns null when avg_time_seconds is "0" (ClickHouse avgIf over empty set)', () => {
+    // ClickHouse avgIf() returns 0.0 (not NULL) when no rows satisfy the condition.
+    // This happens when no user completed the full funnel. The "0" string must
+    // map to null, not 0, so the frontend shows "no data" instead of "0 s".
+    const rows = [
+      { step_num: '1', entered: '5', next_step: '0', avg_time_seconds: '0' },
+      { step_num: '2', entered: '0', next_step: '0', avg_time_seconds: null },
+    ];
+    const twoSteps = [
+      { event_name: 'signup', label: 'Sign Up' },
+      { event_name: 'purchase', label: 'Purchase' },
+    ];
+
+    const result = computeStepResults(rows, twoSteps, 2);
+
+    expect(result[0].avg_time_to_convert_seconds).toBeNull();
+    expect(result[1].avg_time_to_convert_seconds).toBeNull();
+  });
+
+  it('returns null when avg_time_seconds is "0.0" (alternate zero representation)', () => {
+    const rows = [
+      { step_num: '1', entered: '3', next_step: '0', avg_time_seconds: '0.0' },
+      { step_num: '2', entered: '0', next_step: '0', avg_time_seconds: null },
+    ];
+    const twoSteps = [
+      { event_name: 'signup', label: 'Sign Up' },
+      { event_name: 'purchase', label: 'Purchase' },
+    ];
+
+    const result = computeStepResults(rows, twoSteps, 2);
+
+    expect(result[0].avg_time_to_convert_seconds).toBeNull();
+  });
+
+  it('returns the rounded value when avg_time_seconds is a positive number string', () => {
+    const rows = [
+      { step_num: '1', entered: '10', next_step: '4', avg_time_seconds: '42.7' },
+      { step_num: '2', entered: '4', next_step: '0', avg_time_seconds: null },
+    ];
+    const twoSteps = [
+      { event_name: 'signup', label: 'Sign Up' },
+      { event_name: 'purchase', label: 'Purchase' },
+    ];
+
+    const result = computeStepResults(rows, twoSteps, 2);
+
+    expect(result[0].avg_time_to_convert_seconds).toBe(43);
+    expect(result[1].avg_time_to_convert_seconds).toBeNull();
+  });
+});
+
 describe('computeAggregateSteps', () => {
   it('last step drop_off is 0 (same semantics as computeStepResults)', () => {
     // Both computeStepResults and computeAggregateSteps: last step drop_off = 0, drop_off_rate = 0
