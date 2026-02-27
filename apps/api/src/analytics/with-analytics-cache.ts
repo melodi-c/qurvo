@@ -4,6 +4,26 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { ANALYTICS_CACHE_TTL_SECONDS } from '../constants';
 
+/**
+ * Produces a deterministic JSON string regardless of the insertion order of
+ * object keys. Arrays preserve their element order (sorting arrays would change
+ * semantics — e.g. funnel steps must stay in order). Only plain object keys are
+ * sorted, recursively throughout the value tree.
+ */
+export function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return '[' + value.map(stableStringify).join(',') + ']';
+  }
+  const sorted = Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((key) => JSON.stringify(key) + ':' + stableStringify((value as Record<string, unknown>)[key]))
+    .join(',');
+  return '{' + sorted + '}';
+}
+
 export interface AnalyticsCacheResult<T> {
   data: T;
   cached_at: string;
@@ -51,7 +71,7 @@ export async function withAnalyticsCache<TParams, TResult>(opts: {
 
 function buildCacheKey(prefix: string, widgetId: string | undefined, params: unknown): string {
   const configHash = createHash('sha256')
-    .update(JSON.stringify(params))
+    .update(stableStringify(params))
     .digest('hex')
     .slice(0, 16);
   return widgetId
