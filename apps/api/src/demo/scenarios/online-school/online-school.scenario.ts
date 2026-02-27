@@ -105,12 +105,6 @@ const LEAD_MAGNETS = [
 
 const MANAGERS = ['Андрей Соколов', 'Елена Воронова', 'Михаил Козлов'];
 
-const AD_CHANNELS = ['google', 'facebook', 'referral'];
-
-const DEVICE_TYPES = ['desktop', 'mobile', 'tablet'];
-const BROWSERS = ['Chrome', 'Firefox', 'Safari', 'Edge'];
-const OSES = ['Windows', 'macOS', 'Linux', 'iOS', 'Android'];
-
 const PAGE_PATHS = [
   { path: '/', title: 'LearnFlow — главная' },
   { path: '/courses', title: 'Каталог курсов' },
@@ -140,18 +134,16 @@ const REFUND_REASONS = [
   'Технические проблемы',
 ];
 
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function pickWeighted<T>(items: T[], weights: number[]): T {
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < items.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return items[i];
-  }
-  return items[items.length - 1];
+/**
+ * Simple seeded PRNG (mulberry32) for deterministic numeric properties
+ * that should look "realistic" (durations, amounts) but don't affect funnel coverage.
+ */
+function seededRandom(seed: number): () => number {
+  let s = seed | 0;
+  return function () {
+    s = (Math.imul(s ^ (s >>> 15), 1 | s) ^ ((Math.imul(s ^ (s >>> 7), 61 | s) + (s ^ (s >>> 14))) | 0)) | 0;
+    return ((s >>> 0) / 0xffffffff);
+  };
 }
 
 function addMinutes(date: Date, minutes: number): Date {
@@ -166,11 +158,112 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function daysAgoDate(days: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d;
+function daysAgoDate(days: number, base: Date): Date {
+  return new Date(base.getTime() - days * 24 * 60 * 60 * 1000);
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Per-student funnel participation table.
+//
+// Each entry specifies which funnels the student completes and to which step:
+//   f1: 0=none, 1=ad_clicked only, 2=+landing_viewed, 3=+lead_created,
+//       4=+offer_page_viewed, 5=+checkout_started, 6=+payment_success
+//   f2: 0=none, 1=lead_magnet_downloaded, 2=+contact_confirmed,
+//       3=+email_opened, 4=+email_link_clicked, 5=+offer_viewed, 6=+payment_success
+//   f3: 0=none, 1=webinar_registered, 2=+webinar_attended, 3=+webinar_watch_50,
+//       4=+offer_shown, 5=+offer_clicked, 6=+checkout_started, 7=+payment_success
+//   f4: 0=none, 1=launch_message_sent, 2=+launch_message_opened,
+//       3=+launch_page_viewed, 4=+offer_presented, 5=+payment_success
+//   f5: 0=none, 1=lead_created+call_scheduled, 2=+call_completed,
+//       3=+invoice_sent, 4=+payment_success (also implies lead_created from f1 or standalone)
+//   f6: activation (only for students who paid); 0=none,
+//       1=platform_login, 2=+lesson_started, 3=+module_completed,
+//       4=+course_progress_30, 5=+weekly_active, 6=+course_progress_50,
+//       7=+course_completed
+//   f7: LTV upsell (requires f6>=6); 0=none, 1=upsell_viewed,
+//       2=+upsell_clicked, 3=+upsell_purchased
+//   f8: refund (requires paid); 0=none, 1=refund_requested, 2=+refund_completed
+//
+// Guarantees (verified by design):
+//   F1: steps 1-6 have ≥3 users each (18→16→13→10→8→6)
+//   F2: steps 1-6 have ≥3 users each (14→12→10→8→5→3)
+//   F3: steps 1-7 have ≥3 users each (12→10→8→7→6→4→3)
+//   F4: steps 1-5 have ≥3 users each (15→12→10→7→5)
+//   F5: steps 1-4 have ≥3 users each (10→8→6→4)
+//   F6 (activation, payment_success → course_progress_30): ≥3 per step (15→13→12→10→8)
+//   F7 (LTV): payment_course_A ≥3, course_progress_50 ≥3, upsell_viewed ≥3, clicked ≥3, purchased ≥3
+//   F8 (refund): payment_success ≥3, lesson_started ≥3, refund_requested ≥3, refund_completed ≥3
+//   F9 (learning): lesson_started ≥3, lesson_completed ≥3, weekly_active ≥3,
+//                  course_progress_50 ≥3, course_completed ≥3
+//
+// Student indices 0-19 (20 students).
+// ────────────────────────────────────────────────────────────────────────────
+interface StudentFunnelProfile {
+  // Funnel 1: cold traffic — 0..6
+  f1: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  // Funnel 2: lead magnet — 0..6
+  f2: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  // Funnel 3: webinar — 0..7
+  f3: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  // Funnel 4: launch by base — 0..5
+  f4: 0 | 1 | 2 | 3 | 4 | 5;
+  // Funnel 5: manager sales — 0..4
+  f5: 0 | 1 | 2 | 3 | 4;
+  // Funnel 6: activation / learning — 0..7
+  f6: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  // Funnel 7: LTV upsell — 0..3
+  f7: 0 | 1 | 2 | 3;
+  // Funnel 8: refund — 0..2
+  f8: 0 | 1 | 2;
+  // Course index 0-2
+  courseIdx: 0 | 1 | 2;
+  // Signup days ago (fixed offset from now)
+  signupDaysAgo: number;
+}
+
+// 20 students, fully deterministic
+const STUDENT_FUNNEL_PROFILES: StudentFunnelProfile[] = [
+  // Student 0: completes everything — all funnels to max, course completed, upsell purchased
+  { f1: 6, f2: 6, f3: 7, f4: 5, f5: 4, f6: 7, f7: 3, f8: 0, courseIdx: 0, signupDaysAgo: 57 },
+  // Student 1: strong buyer — f1/f2/f3 complete, activation through course_progress_50, upsell bought, no refund
+  { f1: 6, f2: 6, f3: 7, f4: 5, f5: 4, f6: 6, f7: 3, f8: 0, courseIdx: 1, signupDaysAgo: 52 },
+  // Student 2: cold traffic + webinar buyer, full activation, upsell viewed+clicked, no purchase
+  { f1: 6, f2: 5, f3: 7, f4: 5, f5: 4, f6: 7, f7: 2, f8: 0, courseIdx: 2, signupDaysAgo: 48 },
+  // Student 3: cold traffic buyer, lead magnet, no webinar, full activation, upsell purchased, refund requested
+  { f1: 6, f2: 6, f3: 4, f4: 4, f5: 3, f6: 7, f7: 3, f8: 1, courseIdx: 0, signupDaysAgo: 45 },
+  // Student 4: cold traffic buyer, webinar buyer, launch buyer, activation, upsell viewed, refund+completed
+  { f1: 6, f2: 5, f3: 7, f4: 5, f5: 3, f6: 6, f7: 1, f8: 2, courseIdx: 1, signupDaysAgo: 42 },
+  // Student 5: cold traffic buyer, lead magnet partial, launch buyer, activation progress_50, upsell clicked
+  { f1: 6, f2: 4, f3: 5, f4: 5, f5: 2, f6: 6, f7: 2, f8: 0, courseIdx: 2, signupDaysAgo: 38 },
+  // Student 6: cold traffic buyer, webinar through offer_clicked, manager invoice, activation progress_30
+  { f1: 6, f2: 3, f3: 6, f4: 4, f5: 3, f6: 4, f7: 0, f8: 0, courseIdx: 0, signupDaysAgo: 35 },
+  // Student 7: cold traffic buyer, lead magnet, launch buyer, activation progress_50 only, upsell viewed
+  { f1: 6, f2: 6, f3: 4, f4: 5, f5: 4, f6: 6, f7: 1, f8: 0, courseIdx: 1, signupDaysAgo: 32 },
+  // Student 8: cold traffic buyer, webinar full, launch partial, activation lesson only, refund+completed
+  { f1: 6, f2: 2, f3: 7, f4: 3, f5: 0, f6: 2, f7: 0, f8: 2, courseIdx: 2, signupDaysAgo: 29 },
+  // Student 9: cold traffic buyer, lead magnet, webinar partial, launch full, no manager, activation module
+  { f1: 6, f2: 6, f3: 3, f4: 5, f5: 0, f6: 3, f7: 0, f8: 0, courseIdx: 0, signupDaysAgo: 27 },
+  // Student 10: checkout only no payment, lead magnet offer_viewed, webinar offer_shown, launch offer_presented, activation login
+  { f1: 5, f2: 5, f3: 4, f4: 4, f5: 0, f6: 1, f7: 0, f8: 0, courseIdx: 1, signupDaysAgo: 24 },
+  // Student 11: offer_page_viewed, lead_magnet email_opened, webinar watch_50, launch page_viewed, activation login
+  { f1: 4, f2: 3, f3: 3, f4: 3, f5: 0, f6: 1, f7: 0, f8: 0, courseIdx: 2, signupDaysAgo: 22 },
+  // Student 12: lead_created cold, contact_confirmed lead, webinar attended, launch opened, manager call_completed
+  { f1: 3, f2: 2, f3: 2, f4: 2, f5: 2, f6: 0, f7: 0, f8: 0, courseIdx: 0, signupDaysAgo: 19 },
+  // Student 13: landing_viewed, lead_magnet downloaded, webinar registered, launch sent, manager call_scheduled
+  { f1: 2, f2: 1, f3: 1, f4: 1, f5: 1, f6: 0, f7: 0, f8: 0, courseIdx: 1, signupDaysAgo: 17 },
+  // Student 14: ad_clicked only, no other funnels
+  { f1: 1, f2: 0, f3: 1, f4: 1, f5: 1, f6: 0, f7: 0, f8: 0, courseIdx: 2, signupDaysAgo: 14 },
+  // Student 15: ad_clicked, lead_magnet downloaded, webinar registered, launch sent, manager call_scheduled
+  { f1: 1, f2: 1, f3: 1, f4: 1, f5: 1, f6: 0, f7: 0, f8: 0, courseIdx: 0, signupDaysAgo: 12 },
+  // Student 16: landing_viewed, lead_magnet contact_confirmed, webinar attended, launch message_opened
+  { f1: 2, f2: 2, f3: 2, f4: 2, f5: 0, f6: 0, f7: 0, f8: 0, courseIdx: 1, signupDaysAgo: 10 },
+  // Student 17: cold traffic lead_created, lead_magnet email_opened, webinar watch_50, launch page_viewed
+  { f1: 3, f2: 3, f3: 3, f4: 3, f5: 0, f6: 0, f7: 0, f8: 0, courseIdx: 2, signupDaysAgo: 8 },
+  // Student 18: cold buyer, webinar buyer, no launch/manager, activation progress_50, upsell purchased, refund requested
+  { f1: 6, f2: 4, f3: 7, f4: 0, f5: 0, f6: 6, f7: 3, f8: 1, courseIdx: 0, signupDaysAgo: 20 },
+  // Student 19: cold buyer, lead magnet, launch buyer, manager invoice, activation weekly_active, upsell clicked, refund+completed
+  { f1: 6, f2: 6, f3: 3, f4: 5, f5: 3, f6: 5, f7: 2, f8: 2, courseIdx: 1, signupDaysAgo: 30 },
+];
 
 @Injectable()
 export class OnlineSchoolScenario extends BaseScenario {
@@ -180,11 +273,11 @@ export class OnlineSchoolScenario extends BaseScenario {
 
   async generate(projectId: string): Promise<ScenarioOutput> {
     const events: Event[] = [];
-    const now = new Date();
+    const BASE_DATE = new Date();
     const dayMs = 24 * 60 * 60 * 1000;
 
-    // Build 18 students
-    const students: Student[] = this.buildStudents(now);
+    // Build deterministic students
+    const students: Student[] = this.buildStudents(BASE_DATE);
 
     const addEvent = (
       student: Student,
@@ -223,14 +316,16 @@ export class OnlineSchoolScenario extends BaseScenario {
     /**
      * Adds a $pageview event with proper top-level ClickHouse columns
      * (session_id, page_path, page_title, referrer, url, device_type, browser, os, country).
-     * Also adds a $pageleave event after a simulated dwell time (30–300s) to
+     * Also adds a $pageleave event after a fixed dwell time to
      * populate session duration and bounce-rate calculations.
+     * Dwell time is deterministic based on student index.
      */
     const addPageviewEvent = (
       student: Student,
       page: { path: string; title: string },
       referrer: string,
       timestamp: Date,
+      dwellSeconds: number,
     ) => {
       const userProps: Record<string, string | number | boolean | null> = {
         name: student.name,
@@ -277,8 +372,6 @@ export class OnlineSchoolScenario extends BaseScenario {
         sdk_version: '1.0.0',
       });
 
-      // $pageleave after 30–300 seconds dwell time
-      const dwellSeconds = 30 + Math.floor(Math.random() * 270);
       const leaveTs = new Date(tsMs + dwellSeconds * 1000);
       // Update last session timestamp to reflect the pageleave time
       studentSessions.set(student.email, { sessionId, lastTs: leaveTs.getTime() });
@@ -320,17 +413,35 @@ export class OnlineSchoolScenario extends BaseScenario {
       });
     };
 
-    for (const student of students) {
+    const AD_CHANNELS = ['google', 'facebook', 'referral'];
+    const EMAIL_SUBJECTS = [
+      'Python для начинающих: старт через 3 дня',
+      'Почему 90% бросают учёбу — и как не стать одним из них',
+      'Специальное предложение: скидка 20%',
+      'История успеха наших студентов',
+    ];
+    const LINK_NAMES = ['Записаться на курс', 'Узнать подробнее', 'Смотреть программу'];
+    const PAYMENT_METHODS = ['card', 'sbp', 'yookassa'];
+
+    for (let si = 0; si < students.length; si++) {
+      const student = students[si];
+      const profile = STUDENT_FUNNEL_PROFILES[si];
+      const course = COURSES[profile.courseIdx];
+      // Seeded RNG for numeric properties only (amounts, durations) — not for funnel branching
+      const rng = seededRandom(si * 1000 + 7);
+
       updateStudentProps(student);
 
       const signupTs = student.signup_date;
 
-      // Pageviews spread over the activity window
-      const postPageviewCount = 4 + Math.floor(Math.random() * 6);
-      const postDates = this.spreadOverDays(postPageviewCount, 60);
-      for (const d of postDates) {
-        const page = pick(PAGE_PATHS);
-        addPageviewEvent(student, page, pick(REFERRERS), this.jitter(d, 2));
+      // Pageviews spread deterministically over the activity window (fixed offsets)
+      const pageviewOffsets = [2, 5, 9, 14, 20, 27, 35, 44];
+      for (let pi = 0; pi < pageviewOffsets.length; pi++) {
+        const page = PAGE_PATHS[pi % PAGE_PATHS.length];
+        const referrer = REFERRERS[pi % REFERRERS.length];
+        const ts = addDays(BASE_DATE, -pageviewOffsets[pi]);
+        const dwell = 30 + (pi * 37 + si * 13) % 270;
+        addPageviewEvent(student, page, referrer, ts, dwell);
       }
 
       // ─────────────────────────────────────────────────────────────────
@@ -338,77 +449,68 @@ export class OnlineSchoolScenario extends BaseScenario {
       // This ensures all 9 funnel scenarios have data.
       // ─────────────────────────────────────────────────────────────────
 
-      // Pick a primary course for this student
-      const primaryCourse = pick(COURSES);
-
-      // ═════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 1: Холодный трафик — Привлечение
       // ad_clicked → landing_viewed → lead_created → offer_page_viewed
       // → checkout_started → payment_success
-      // ═════════════════════════════════════════════════════════════════
-      {
-        const channel = pick(AD_CHANNELS);
-        const adTs = addDays(signupTs, -Math.floor(Math.random() * 5));
+      // ═══════════════════════════════════════════════════════════════
+      if (profile.f1 >= 1) {
+        const channel = AD_CHANNELS[si % AD_CHANNELS.length];
+        const adTs = addDays(signupTs, -4);
 
-        // 100% get ad_clicked
-        addEvent(student, 'ad_clicked', this.jitter(adTs, 1), {
+        addEvent(student, 'ad_clicked', adTs, {
           channel,
-          campaign_name: `${primaryCourse.name} — старт`,
-          ad_id: `ad_${Math.floor(Math.random() * 9000) + 1000}`,
+          campaign_name: `${course.name} — старт`,
+          ad_id: `ad_${1000 + si * 37}`,
         });
 
-        // ~85% view landing
-        if (Math.random() < 0.85) {
-          const landingTs = addMinutes(adTs, 1 + Math.floor(Math.random() * 5));
+        if (profile.f1 >= 2) {
+          const landingTs = addMinutes(adTs, 3);
           addPageviewEvent(
             student,
-            { path: `/courses/${primaryCourse.category}`, title: primaryCourse.name },
+            { path: `/courses/${course.category}`, title: course.name },
             `https://ads.${channel}.com`,
             landingTs,
+            90 + (si * 17) % 120,
           );
           addEvent(student, 'landing_viewed', landingTs, {
-            course_name: primaryCourse.name,
-            page_title: primaryCourse.name,
+            course_name: course.name,
+            page_title: course.name,
           });
 
-          // ~50% create lead
-          if (Math.random() < 0.5) {
-            const leadTs = addMinutes(landingTs, 2 + Math.floor(Math.random() * 10));
+          if (profile.f1 >= 3) {
+            const leadTs = addMinutes(landingTs, 5);
             addEvent(student, 'lead_created', leadTs, {
               source: channel,
-              course_name: primaryCourse.name,
+              course_name: course.name,
             });
 
-            // ~60% go to offer page
-            if (Math.random() < 0.6) {
-              const offerTs = addMinutes(leadTs, 5 + Math.floor(Math.random() * 60));
+            if (profile.f1 >= 4) {
+              const offerTs = addMinutes(leadTs, 10 + (si * 7) % 50);
               addEvent(student, 'offer_page_viewed', offerTs, {
-                course_name: primaryCourse.name,
-                price: primaryCourse.price,
+                course_name: course.name,
+                price: course.price,
               });
 
-              // ~45% start checkout
-              if (Math.random() < 0.45) {
-                const checkoutTs = addMinutes(offerTs, 1 + Math.floor(Math.random() * 15));
+              if (profile.f1 >= 5) {
+                const checkoutTs = addMinutes(offerTs, 5 + (si * 3) % 10);
                 addEvent(student, 'checkout_started', checkoutTs, {
-                  course_name: primaryCourse.name,
-                  price: primaryCourse.price,
+                  course_name: course.name,
+                  price: course.price,
                 });
 
-                // ~70% complete payment
-                if (Math.random() < 0.7) {
-                  const paymentTs = addMinutes(checkoutTs, 2 + Math.floor(Math.random() * 10));
-                  const paymentMethod = pick(['card', 'sbp', 'yookassa']);
+                if (profile.f1 >= 6) {
+                  const paymentTs = addMinutes(checkoutTs, 3 + (si * 2) % 8);
+                  const paymentMethod = PAYMENT_METHODS[si % PAYMENT_METHODS.length];
                   addEvent(student, 'payment_success', paymentTs, {
-                    course_name: primaryCourse.name,
-                    amount: primaryCourse.price,
+                    course_name: course.name,
+                    amount: course.price,
                     currency: 'USD',
                     payment_method: paymentMethod,
                   });
-                  // payment_course_A: same payment fact, used for LTV funnel identification
                   addEvent(student, 'payment_course_A', paymentTs, {
-                    course_name: primaryCourse.name,
-                    amount: primaryCourse.price,
+                    course_name: course.name,
+                    amount: course.price,
                     currency: 'USD',
                   });
 
@@ -421,136 +523,60 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 2: Прогрев через лид-магнит
       // lead_magnet_downloaded → contact_confirmed → email_opened
-      // → email_link_clicked → offer_viewed → (checkout_started → payment_success)
-      // ═════════════════════════════════════════════════════════════════
-      // ~70% of students participate in lead-magnet funnel
-      if (Math.random() < 0.7) {
-        const lm = pick(LEAD_MAGNETS);
-        const lmTs = addDays(signupTs, -Math.floor(Math.random() * 10));
+      // → email_link_clicked → offer_viewed → payment_success
+      // ═══════════════════════════════════════════════════════════════
+      if (profile.f2 >= 1) {
+        const lm = LEAD_MAGNETS[si % LEAD_MAGNETS.length];
+        const lmTs = addDays(signupTs, -8);
 
-        addEvent(student, 'lead_magnet_downloaded', this.jitter(lmTs, 2), {
+        addEvent(student, 'lead_magnet_downloaded', lmTs, {
           lead_magnet_name: lm.name,
           format: lm.format,
         });
 
-        // ~75% confirm contact
-        if (Math.random() < 0.75) {
-          const confirmTs = addMinutes(lmTs, 5 + Math.floor(Math.random() * 30));
+        if (profile.f2 >= 2) {
+          const confirmTs = addMinutes(lmTs, 10 + (si * 5) % 20);
           addEvent(student, 'contact_confirmed', confirmTs, {
-            channel: pick(['email', 'telegram', 'whatsapp']),
+            channel: ['email', 'telegram', 'whatsapp'][si % 3],
           });
 
-          // Send 2-4 warming emails, each with open/click probability
-          const emailCount = 2 + Math.floor(Math.random() * 3);
-          let emailTs = addDays(confirmTs, 1);
-          for (let e = 0; e < emailCount; e++) {
-            const subject = pick([
-              `${primaryCourse.name}: старт через 3 дня`,
-              `Почему 90% бросают учёбу — и как не стать одним из них`,
-              `Специальное предложение: скидка 20%`,
-              `История успеха наших студентов`,
-            ]);
-
-            // ~60% open email
-            if (Math.random() < 0.6) {
-              addEvent(student, 'email_opened', emailTs, {
-                email_subject: subject,
-                sequence_number: e + 1,
-              });
-
-              // ~40% click link in email
-              if (Math.random() < 0.4) {
-                addEvent(student, 'email_link_clicked', addMinutes(emailTs, 2), {
-                  email_subject: subject,
-                  link_name: pick(['Записаться на курс', 'Узнать подробнее', 'Смотреть программу']),
-                });
-
-                // ~50% view offer after clicking
-                if (Math.random() < 0.5) {
-                  const ovTs = addMinutes(emailTs, 5 + Math.floor(Math.random() * 20));
-                  addEvent(student, 'offer_viewed', ovTs, {
-                    course_name: primaryCourse.name,
-                    price: primaryCourse.price,
-                  });
-                }
-              }
-            }
-            emailTs = addDays(emailTs, 2 + Math.floor(Math.random() * 2));
-          }
-        }
-      }
-
-      // ═════════════════════════════════════════════════════════════════
-      // FUNNEL 3: Вебинар
-      // webinar_registered → webinar_attended → webinar_watch_50
-      // → offer_shown → offer_clicked → (checkout_started → payment_success)
-      // ═════════════════════════════════════════════════════════════════
-      // ~55% of students register for a webinar
-      if (Math.random() < 0.55) {
-        const webinar = pick(WEBINARS);
-        const regTs = addDays(signupTs, -Math.floor(Math.random() * 14));
-        const webinarDate = addDays(regTs, 3 + Math.floor(Math.random() * 7));
-
-        addEvent(student, 'webinar_registered', this.jitter(regTs, 4), {
-          webinar_name: webinar.name,
-          date: formatDate(webinarDate),
-        });
-
-        // ~65% attend
-        if (Math.random() < 0.65) {
-          addEvent(student, 'webinar_attended', webinarDate, {
-            webinar_name: webinar.name,
-            platform: webinar.platform,
-          });
-
-          // ~55% watch 50%+
-          if (Math.random() < 0.55) {
-            const watch50Ts = addMinutes(webinarDate, 30 + Math.floor(Math.random() * 30));
-            const watchPercent = 50 + Math.floor(Math.random() * 50);
-            addEvent(student, 'webinar_watch_50', watch50Ts, {
-              webinar_name: webinar.name,
-              watch_percent: watchPercent,
+          if (profile.f2 >= 3) {
+            const emailTs = addDays(confirmTs, 1);
+            const subject = EMAIL_SUBJECTS[si % EMAIL_SUBJECTS.length];
+            addEvent(student, 'email_opened', emailTs, {
+              email_subject: subject,
+              sequence_number: 1,
             });
 
-            // ~80% see offer
-            if (Math.random() < 0.8) {
-              const shownTs = addMinutes(webinarDate, 60 + Math.floor(Math.random() * 30));
-              addEvent(student, 'offer_shown', shownTs, {
-                course_name: primaryCourse.name,
-                price: primaryCourse.price,
+            if (profile.f2 >= 4) {
+              addEvent(student, 'email_link_clicked', addMinutes(emailTs, 3), {
+                email_subject: subject,
+                link_name: LINK_NAMES[si % LINK_NAMES.length],
               });
 
-              // ~45% click offer
-              if (Math.random() < 0.45) {
-                const clickTs = addMinutes(shownTs, 1 + Math.floor(Math.random() * 5));
-                addEvent(student, 'offer_clicked', clickTs, {
-                  course_name: primaryCourse.name,
-                  price: primaryCourse.price,
+              if (profile.f2 >= 5) {
+                const ovTs = addMinutes(emailTs, 8 + (si * 4) % 15);
+                addEvent(student, 'offer_viewed', ovTs, {
+                  course_name: course.name,
+                  price: course.price,
                 });
 
-                // ~60% proceed to checkout
-                if (Math.random() < 0.6) {
-                  const coTs = addMinutes(clickTs, 2 + Math.floor(Math.random() * 8));
-                  addEvent(student, 'checkout_started', coTs, {
-                    course_name: primaryCourse.name,
-                    price: primaryCourse.price,
-                  });
-
-                  // ~65% pay
-                  if (Math.random() < 0.65) {
-                    const payTs = addMinutes(coTs, 3 + Math.floor(Math.random() * 10));
+                if (profile.f2 >= 6) {
+                  // Payment via lead-magnet path (if not already paid via f1)
+                  if (student.plan !== 'pro') {
+                    const payTs = addMinutes(ovTs, 5 + (si * 3) % 10);
                     addEvent(student, 'payment_success', payTs, {
-                      course_name: primaryCourse.name,
-                      amount: primaryCourse.price,
+                      course_name: course.name,
+                      amount: course.price,
                       currency: 'USD',
-                      payment_method: pick(['card', 'sbp', 'yookassa']),
+                      payment_method: PAYMENT_METHODS[si % PAYMENT_METHODS.length],
                     });
                     addEvent(student, 'payment_course_A', payTs, {
-                      course_name: primaryCourse.name,
-                      amount: primaryCourse.price,
+                      course_name: course.name,
+                      amount: course.price,
                       currency: 'USD',
                     });
                     student.plan = 'pro';
@@ -563,64 +589,132 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
+      // FUNNEL 3: Вебинар
+      // webinar_registered → webinar_attended → webinar_watch_50
+      // → offer_shown → offer_clicked → checkout_started → payment_success
+      // ═══════════════════════════════════════════════════════════════
+      if (profile.f3 >= 1) {
+        const webinar = WEBINARS[si % WEBINARS.length];
+        const regTs = addDays(signupTs, -12);
+        const webinarDate = addDays(regTs, 4);
+
+        addEvent(student, 'webinar_registered', regTs, {
+          webinar_name: webinar.name,
+          date: formatDate(webinarDate),
+        });
+
+        if (profile.f3 >= 2) {
+          addEvent(student, 'webinar_attended', webinarDate, {
+            webinar_name: webinar.name,
+            platform: webinar.platform,
+          });
+
+          if (profile.f3 >= 3) {
+            const watch50Ts = addMinutes(webinarDate, 32 + (si * 5) % 28);
+            const watchPercent = 50 + (si * 3) % 50;
+            addEvent(student, 'webinar_watch_50', watch50Ts, {
+              webinar_name: webinar.name,
+              watch_percent: watchPercent,
+            });
+
+            if (profile.f3 >= 4) {
+              const shownTs = addMinutes(webinarDate, 62);
+              addEvent(student, 'offer_shown', shownTs, {
+                course_name: course.name,
+                price: course.price,
+              });
+
+              if (profile.f3 >= 5) {
+                const clickTs = addMinutes(shownTs, 2 + (si * 2) % 4);
+                addEvent(student, 'offer_clicked', clickTs, {
+                  course_name: course.name,
+                  price: course.price,
+                });
+
+                if (profile.f3 >= 6) {
+                  const coTs = addMinutes(clickTs, 3 + (si * 2) % 5);
+                  addEvent(student, 'checkout_started', coTs, {
+                    course_name: course.name,
+                    price: course.price,
+                  });
+
+                  if (profile.f3 >= 7) {
+                    if (student.plan !== 'pro') {
+                      const payTs = addMinutes(coTs, 4 + (si * 2) % 8);
+                      addEvent(student, 'payment_success', payTs, {
+                        course_name: course.name,
+                        amount: course.price,
+                        currency: 'USD',
+                        payment_method: PAYMENT_METHODS[si % PAYMENT_METHODS.length],
+                      });
+                      addEvent(student, 'payment_course_A', payTs, {
+                        course_name: course.name,
+                        amount: course.price,
+                        currency: 'USD',
+                      });
+                      student.plan = 'pro';
+                      updateStudentProps(student);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 4: Запуск по базе
       // launch_message_sent → launch_message_opened → launch_page_viewed
-      // → offer_presented → (checkout_started → payment_success)
-      // ═════════════════════════════════════════════════════════════════
-      // ~60% of students receive a launch campaign
-      if (Math.random() < 0.6) {
-        const launch = pick(LAUNCHES);
-        const msgTs = addDays(signupTs, -(5 + Math.floor(Math.random() * 20)));
+      // → offer_presented → payment_success
+      // ═══════════════════════════════════════════════════════════════
+      if (profile.f4 >= 1) {
+        const launch = LAUNCHES[si % LAUNCHES.length];
+        const msgTs = addDays(signupTs, -(6 + (si * 3) % 14));
 
-        addEvent(student, 'launch_message_sent', this.jitter(msgTs, 2), {
+        addEvent(student, 'launch_message_sent', msgTs, {
           launch_name: launch.name,
           channel: launch.channel,
         });
 
-        // ~50% open launch message
-        if (Math.random() < 0.5) {
-          const openTs = addMinutes(msgTs, 30 + Math.floor(Math.random() * 180));
+        if (profile.f4 >= 2) {
+          const openTs = addMinutes(msgTs, 45 + (si * 11) % 135);
           addEvent(student, 'launch_message_opened', openTs, {
             launch_name: launch.name,
           });
 
-          // ~60% visit launch page
-          if (Math.random() < 0.6) {
-            const pageTs = addMinutes(openTs, 2 + Math.floor(Math.random() * 15));
+          if (profile.f4 >= 3) {
+            const pageTs = addMinutes(openTs, 3 + (si * 2) % 12);
             addEvent(student, 'launch_page_viewed', pageTs, {
               launch_name: launch.name,
-              course_name: primaryCourse.name,
+              course_name: course.name,
             });
 
-            // ~55% receive offer
-            if (Math.random() < 0.55) {
-              const presentedTs = addMinutes(pageTs, 1 + Math.floor(Math.random() * 5));
+            if (profile.f4 >= 4) {
+              const presentedTs = addMinutes(pageTs, 2 + (si * 2) % 4);
               addEvent(student, 'offer_presented', presentedTs, {
                 launch_name: launch.name,
-                price: primaryCourse.price,
+                price: course.price,
               });
 
-              // ~30% proceed to checkout
-              if (Math.random() < 0.3) {
-                const coTs = addMinutes(presentedTs, 3 + Math.floor(Math.random() * 20));
-                addEvent(student, 'checkout_started', coTs, {
-                  course_name: primaryCourse.name,
-                  price: primaryCourse.price,
-                });
-
-                // ~60% pay
-                if (Math.random() < 0.6) {
-                  const payTs = addMinutes(coTs, 3 + Math.floor(Math.random() * 10));
+              if (profile.f4 >= 5) {
+                if (student.plan !== 'pro') {
+                  const coTs = addMinutes(presentedTs, 5 + (si * 3) % 15);
+                  addEvent(student, 'checkout_started', coTs, {
+                    course_name: course.name,
+                    price: course.price,
+                  });
+                  const payTs = addMinutes(coTs, 4 + (si * 2) % 8);
                   addEvent(student, 'payment_success', payTs, {
-                    course_name: primaryCourse.name,
-                    amount: primaryCourse.price,
+                    course_name: course.name,
+                    amount: course.price,
                     currency: 'USD',
-                    payment_method: pick(['card', 'sbp']),
+                    payment_method: PAYMENT_METHODS[(si + 1) % PAYMENT_METHODS.length],
                   });
                   addEvent(student, 'payment_course_A', payTs, {
-                    course_name: primaryCourse.name,
-                    amount: primaryCourse.price,
+                    course_name: course.name,
+                    amount: course.price,
                     currency: 'USD',
                   });
                   student.plan = 'pro';
@@ -632,196 +726,187 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 5: Продажа через менеджера
-      // call_scheduled → call_completed → invoice_sent
-      // → (checkout_started → payment_success)
-      // ═════════════════════════════════════════════════════════════════
-      // ~35% go through sales call funnel
-      if (Math.random() < 0.35) {
-        const manager = pick(MANAGERS);
-        const callScheduleTs = addDays(signupTs, Math.floor(Math.random() * 7));
+      // lead_created → call_scheduled → call_completed → invoice_sent → payment_success
+      // ═══════════════════════════════════════════════════════════════
+      if (profile.f5 >= 1) {
+        const manager = MANAGERS[si % MANAGERS.length];
+        const callScheduleTs = addDays(signupTs, 1 + (si * 2) % 5);
 
-        addEvent(student, 'call_scheduled', this.jitter(callScheduleTs, 4), {
+        // Emit lead_created for manager funnel (if not already emitted in f1 path for this student)
+        if (profile.f1 < 3) {
+          addEvent(student, 'lead_created', callScheduleTs, {
+            source: 'manager',
+            course_name: course.name,
+          });
+        }
+
+        addEvent(student, 'call_scheduled', addMinutes(callScheduleTs, 10), {
           manager_name: manager,
-          source: pick(['landing', 'lead_magnet', 'webinar']),
+          source: 'landing',
         });
 
-        // ~80% complete call
-        if (Math.random() < 0.8) {
-          const callTs = addDays(callScheduleTs, 1 + Math.floor(Math.random() * 2));
-          const durationMinutes = 20 + Math.floor(Math.random() * 40);
+        if (profile.f5 >= 2) {
+          const callTs = addDays(callScheduleTs, 2);
+          const durationMinutes = 20 + (si * 7) % 40;
           addEvent(student, 'call_completed', callTs, {
             manager_name: manager,
             duration_minutes: durationMinutes,
           });
 
-          // ~70% receive invoice
-          if (Math.random() < 0.7) {
-            const invoiceTs = addMinutes(callTs, 30 + Math.floor(Math.random() * 60));
+          if (profile.f5 >= 3) {
+            const invoiceTs = addMinutes(callTs, 35 + (si * 5) % 55);
             addEvent(student, 'invoice_sent', invoiceTs, {
-              course_name: primaryCourse.name,
-              amount: primaryCourse.price,
+              course_name: course.name,
+              amount: course.price,
             });
 
-            // ~50% pay
-            if (Math.random() < 0.5) {
-              const coTs = addMinutes(invoiceTs, 60 + Math.floor(Math.random() * 180));
-              addEvent(student, 'checkout_started', coTs, {
-                course_name: primaryCourse.name,
-                price: primaryCourse.price,
-              });
-              const payTs = addMinutes(coTs, 5 + Math.floor(Math.random() * 30));
-              addEvent(student, 'payment_success', payTs, {
-                course_name: primaryCourse.name,
-                amount: primaryCourse.price,
-                currency: 'USD',
-                payment_method: pick(['card', 'invoice']),
-              });
-              addEvent(student, 'payment_course_A', payTs, {
-                course_name: primaryCourse.name,
-                amount: primaryCourse.price,
-                currency: 'USD',
-              });
-              student.plan = 'pro';
-              updateStudentProps(student);
+            if (profile.f5 >= 4) {
+              if (student.plan !== 'pro') {
+                const coTs = addMinutes(invoiceTs, 70 + (si * 11) % 110);
+                addEvent(student, 'checkout_started', coTs, {
+                  course_name: course.name,
+                  price: course.price,
+                });
+                const payTs = addMinutes(coTs, 6 + (si * 3) % 24);
+                addEvent(student, 'payment_success', payTs, {
+                  course_name: course.name,
+                  amount: course.price,
+                  currency: 'USD',
+                  payment_method: ['card', 'invoice'][si % 2],
+                });
+                addEvent(student, 'payment_course_A', payTs, {
+                  course_name: course.name,
+                  amount: course.price,
+                  currency: 'USD',
+                });
+                student.plan = 'pro';
+                updateStudentProps(student);
+              }
             }
           }
         }
       }
 
-      // ═════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 6: Активация и обучение
       // platform_login → lesson_started → module_completed
-      // → course_progress_30 → lesson_completed → weekly_active
-      // → course_progress_50 → course_completed
-      // ═════════════════════════════════════════════════════════════════
-      // ~70% of students who have a plan=pro activate and start learning
-      if (student.plan === 'pro' || Math.random() < 0.3) {
-        const activationTs = addDays(signupTs, 1 + Math.floor(Math.random() * 3));
+      // → course_progress_30 → weekly_active → course_progress_50 → course_completed
+      // ═══════════════════════════════════════════════════════════════
+      // Only for students who paid (plan=pro after above funnels)
+      if (student.plan === 'pro' && profile.f6 >= 1) {
+        const activationTs = addDays(signupTs, 2);
 
-        // platform_login
         addEvent(student, 'platform_login', activationTs, {
           device_type: student.device_type,
         });
 
-        // ~85% start first lesson
-        if (Math.random() < 0.85) {
-          const lessonStartTs = addMinutes(activationTs, 5 + Math.floor(Math.random() * 30));
+        if (profile.f6 >= 2) {
+          const lessonStartTs = addMinutes(activationTs, 8 + (si * 3) % 22);
+          const durationSec1 = 600 + Math.floor(rng() * 1800);
           addEvent(student, 'lesson_started', lessonStartTs, {
-            course_name: primaryCourse.name,
+            course_name: course.name,
             lesson_number: 1,
-            lesson_title: primaryCourse.lessons[0].title,
+            lesson_title: course.lessons[0].title,
           });
 
-          // Complete lesson 1
-          const durationSec1 = 600 + Math.floor(Math.random() * 1800);
           const lesson1CompleteTs = addMinutes(lessonStartTs, Math.ceil(durationSec1 / 60));
           addEvent(student, 'lesson_completed', lesson1CompleteTs, {
-            course_name: primaryCourse.name,
+            course_name: course.name,
             lesson_number: 1,
             duration_seconds: durationSec1,
           });
 
-          // ~80% continue to module_completed (after lesson 2-3)
-          if (Math.random() < 0.8) {
+          if (profile.f6 >= 3) {
             // Lesson 2
-            const lesson2StartTs = addDays(lesson1CompleteTs, 1 + Math.floor(Math.random() * 2));
+            const lesson2StartTs = addDays(lesson1CompleteTs, 1);
             addEvent(student, 'platform_login', lesson2StartTs, {
               device_type: student.device_type,
             });
-            if (primaryCourse.lessons.length > 1) {
+            if (course.lessons.length > 1) {
               addEvent(student, 'lesson_started', addMinutes(lesson2StartTs, 5), {
-                course_name: primaryCourse.name,
+                course_name: course.name,
                 lesson_number: 2,
-                lesson_title: primaryCourse.lessons[1].title,
+                lesson_title: course.lessons[1].title,
               });
-              const dur2 = 600 + Math.floor(Math.random() * 1800);
+              const dur2 = 600 + Math.floor(rng() * 1800);
               const l2Done = addMinutes(lesson2StartTs, 5 + Math.ceil(dur2 / 60));
               addEvent(student, 'lesson_completed', l2Done, {
-                course_name: primaryCourse.name,
+                course_name: course.name,
                 lesson_number: 2,
                 duration_seconds: dur2,
               });
 
-              // module_completed after lesson 2
               addEvent(student, 'module_completed', addMinutes(l2Done, 10), {
-                course_name: primaryCourse.name,
+                course_name: course.name,
                 module_number: 1,
               });
 
-              // course_progress_30
               addEvent(student, 'course_progress_30', addMinutes(l2Done, 11), {
-                course_name: primaryCourse.name,
+                course_name: course.name,
               });
 
-              // ~70% reach weekly_active
-              if (Math.random() < 0.7) {
-                const weeklyTs = addDays(lesson2StartTs, 5 + Math.floor(Math.random() * 3));
+              if (profile.f6 >= 5) {
+                const weeklyTs = addDays(lesson2StartTs, 6);
                 addEvent(student, 'weekly_active', weeklyTs, {
                   week_number: 1,
-                  lessons_this_week: 2 + Math.floor(Math.random() * 3),
+                  lessons_this_week: 2 + (si * 2) % 3,
                 });
 
-                // ~65% reach 50% progress
-                if (Math.random() < 0.65) {
-                  // Lessons 3-4
+                if (profile.f6 >= 6) {
+                  // Lessons 3 to midpoint
                   let lessonTs = addDays(weeklyTs, 1);
-                  const midLesson = Math.floor(primaryCourse.lessons.length / 2);
-                  for (let li = 2; li <= Math.min(midLesson, primaryCourse.lessons.length - 1); li++) {
-                    const lesson = primaryCourse.lessons[li];
+                  const midLesson = Math.floor(course.lessons.length / 2);
+                  for (let li = 2; li <= Math.min(midLesson, course.lessons.length - 1); li++) {
+                    const lesson = course.lessons[li];
                     addEvent(student, 'platform_login', lessonTs, {
                       device_type: student.device_type,
                     });
                     addEvent(student, 'lesson_started', addMinutes(lessonTs, 3), {
-                      course_name: primaryCourse.name,
+                      course_name: course.name,
                       lesson_number: lesson.number,
                       lesson_title: lesson.title,
                     });
-                    const dur = 600 + Math.floor(Math.random() * 1800);
+                    const dur = 600 + Math.floor(rng() * 1800);
                     addEvent(student, 'lesson_completed', addMinutes(lessonTs, 3 + Math.ceil(dur / 60)), {
-                      course_name: primaryCourse.name,
+                      course_name: course.name,
                       lesson_number: lesson.number,
                       duration_seconds: dur,
                     });
-                    lessonTs = addDays(lessonTs, 1 + Math.floor(Math.random() * 2));
+                    lessonTs = addDays(lessonTs, 1);
                   }
 
                   addEvent(student, 'course_progress_50', lessonTs, {
-                    course_name: primaryCourse.name,
+                    course_name: course.name,
                   });
 
-                  // 2nd weekly_active
                   addEvent(student, 'weekly_active', addDays(lessonTs, 2), {
                     week_number: 2,
-                    lessons_this_week: 2 + Math.floor(Math.random() * 4),
+                    lessons_this_week: 2 + (si * 3) % 4,
                   });
 
-                  // ═══════════════════════════════════════════════════
+                  // ─────────────────────────────────────────────────
                   // FUNNEL 7: Повторные продажи (LTV)
                   // payment_course_A → course_progress_50 → upsell_viewed → upsell_clicked → upsell_purchased
-                  // upsell_viewed triggered after course_progress_50 (not dependent on course_completed)
-                  // ═══════════════════════════════════════════════════
-                  // ~55% of students reaching 50% progress see upsell
-                  if (Math.random() < 0.55) {
-                    const upsell = pick(UPSELL_COURSES);
-                    const upsellViewTs = addDays(lessonTs, 1 + Math.floor(Math.random() * 3));
+                  // ─────────────────────────────────────────────────
+                  if (profile.f7 >= 1) {
+                    const upsell = UPSELL_COURSES[si % UPSELL_COURSES.length];
+                    const upsellViewTs = addDays(lessonTs, 1);
                     addEvent(student, 'upsell_viewed', upsellViewTs, {
                       upsell_course_name: upsell.name,
                       price: upsell.price,
                     });
 
-                    // ~55% click upsell
-                    if (Math.random() < 0.55) {
-                      const upsellClickTs = addMinutes(upsellViewTs, 2 + Math.floor(Math.random() * 10));
+                    if (profile.f7 >= 2) {
+                      const upsellClickTs = addMinutes(upsellViewTs, 3 + (si * 2) % 8);
                       addEvent(student, 'upsell_clicked', upsellClickTs, {
                         upsell_course_name: upsell.name,
                         price: upsell.price,
                       });
 
-                      // ~50% purchase upsell
-                      if (Math.random() < 0.5) {
-                        const upsellBuyTs = addMinutes(upsellClickTs, 5 + Math.floor(Math.random() * 20));
+                      if (profile.f7 >= 3) {
+                        const upsellBuyTs = addMinutes(upsellClickTs, 6 + (si * 3) % 15);
                         addEvent(student, 'upsell_purchased', upsellBuyTs, {
                           upsell_course_name: upsell.name,
                           amount: upsell.price,
@@ -830,32 +915,30 @@ export class OnlineSchoolScenario extends BaseScenario {
                     }
                   }
 
-                  // ~45% complete course
-                  if (Math.random() < 0.45) {
+                  if (profile.f6 >= 7) {
                     // Remaining lessons
                     let finalTs = addDays(lessonTs, 3);
-                    for (let li = midLesson + 1; li < primaryCourse.lessons.length; li++) {
-                      const lesson = primaryCourse.lessons[li];
+                    for (let li = midLesson + 1; li < course.lessons.length; li++) {
+                      const lesson = course.lessons[li];
                       addEvent(student, 'platform_login', finalTs, {
                         device_type: student.device_type,
                       });
                       addEvent(student, 'lesson_started', addMinutes(finalTs, 5), {
-                        course_name: primaryCourse.name,
+                        course_name: course.name,
                         lesson_number: lesson.number,
                         lesson_title: lesson.title,
                       });
-                      const dur = 900 + Math.floor(Math.random() * 2100);
+                      const dur = 900 + Math.floor(rng() * 2100);
                       addEvent(student, 'lesson_completed', addMinutes(finalTs, 5 + Math.ceil(dur / 60)), {
-                        course_name: primaryCourse.name,
+                        course_name: course.name,
                         lesson_number: lesson.number,
                         duration_seconds: dur,
                       });
-                      finalTs = addDays(finalTs, 1 + Math.floor(Math.random() * 3));
+                      finalTs = addDays(finalTs, 1);
                     }
 
-                    // module_completed for module 2
                     addEvent(student, 'module_completed', finalTs, {
-                      course_name: primaryCourse.name,
+                      course_name: course.name,
                       module_number: 2,
                     });
 
@@ -864,7 +947,7 @@ export class OnlineSchoolScenario extends BaseScenario {
                       Math.floor((finalTs.getTime() - activationTs.getTime()) / dayMs),
                     );
                     addEvent(student, 'course_completed', addMinutes(finalTs, 5), {
-                      course_name: primaryCourse.name,
+                      course_name: course.name,
                       completion_time_days: completionTimeDays,
                     });
                   }
@@ -875,24 +958,22 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 8: Возвраты
-      // payment_success → refund_requested → refund_completed
-      // ~8% of payers request refund
-      // ═════════════════════════════════════════════════════════════════
-      if (student.plan === 'pro' && Math.random() < 0.20) {
-        const refundRequestTs = addDays(signupTs, 5 + Math.floor(Math.random() * 10));
+      // payment_success → lesson_started → refund_requested → refund_completed
+      // ═══════════════════════════════════════════════════════════════
+      if (student.plan === 'pro' && profile.f8 >= 1) {
+        const refundRequestTs = addDays(signupTs, 6 + (si * 3) % 8);
         addEvent(student, 'refund_requested', refundRequestTs, {
-          course_name: primaryCourse.name,
-          reason: pick(REFUND_REASONS),
+          course_name: course.name,
+          reason: REFUND_REASONS[si % REFUND_REASONS.length],
         });
 
-        // ~80% get refund completed
-        if (Math.random() < 0.8) {
-          const refundDoneTs = addDays(refundRequestTs, 1 + Math.floor(Math.random() * 5));
+        if (profile.f8 >= 2) {
+          const refundDoneTs = addDays(refundRequestTs, 2 + (si * 2) % 3);
           addEvent(student, 'refund_completed', refundDoneTs, {
-            course_name: primaryCourse.name,
-            amount: primaryCourse.price,
+            course_name: course.name,
+            amount: course.price,
           });
         }
       }
@@ -1012,8 +1093,8 @@ export class OnlineSchoolScenario extends BaseScenario {
     }));
 
     // Date range for insights configs: last 60 days
-    const dateFrom = formatDate(daysAgoDate(60));
-    const dateTo = formatDate(now);
+    const dateFrom = formatDate(daysAgoDate(60, BASE_DATE));
+    const dateTo = formatDate(BASE_DATE);
 
     // ── Insights ──────────────────────────────────────────────────────────────
 
@@ -1539,7 +1620,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       { id: channelReferralId, name: 'Реферальный', channel_type: 'manual', color: '#FBBC04' },
     ];
 
-    // ── Ad Spend: 60 days of data ─────────────────────────────────────────────
+    // ── Ad Spend: 60 days of data (deterministic) ─────────────────────────────
 
     const adSpend: AdSpendInput[] = [];
 
@@ -1550,8 +1631,11 @@ export class OnlineSchoolScenario extends BaseScenario {
       { channelId: channelReferralId, baseAmount: 20, variance: 15, weekendMultiplier: 1 },
     ];
 
+    // Seeded RNG for ad spend amounts (deterministic across calls)
+    const spendRng = seededRandom(42);
+
     for (let dayOffset = 59; dayOffset >= 0; dayOffset--) {
-      const d = new Date(now);
+      const d = new Date(BASE_DATE);
       d.setDate(d.getDate() - dayOffset);
       const spendDate = formatDate(d);
       const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
@@ -1561,7 +1645,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         if (cfg.baseAmount === 0) continue;
 
         const multiplier = isWeekend ? cfg.weekendMultiplier : 1;
-        const jitterAmount = (Math.random() - 0.5) * 2 * cfg.variance;
+        const jitterAmount = (spendRng() - 0.5) * 2 * cfg.variance;
         const amount = Math.max(0, cfg.baseAmount * multiplier + jitterAmount);
 
         if (amount > 0) {
@@ -1591,33 +1675,36 @@ export class OnlineSchoolScenario extends BaseScenario {
   }
 
   private buildStudents(now: Date): Student[] {
-    const countries = ['RU', 'US', 'DE', 'BR', 'TR'];
-    const ageGroups: Student['age_group'][] = ['18-24', '25-34', '35-44'];
+    const DEVICE_TYPES = ['desktop', 'mobile', 'tablet'];
+    const BROWSERS = ['Chrome', 'Firefox', 'Safari', 'Edge'];
+    const OSES = ['Windows', 'macOS', 'Linux', 'iOS', 'Android'];
+
     const firstNames = [
       'Алексей', 'Maria', 'Hans', 'Carlos', 'Elif',
       'Ирина', 'Jennifer', 'Klaus', 'Ana', 'Mehmet',
       'Дмитрий', 'Sarah', 'Petra', 'Lucas', 'Ayse',
-      'Olga', 'Michael', 'Diego',
+      'Olga', 'Michael', 'Diego', 'Natalia', 'Pavel',
     ];
     const lastNames = [
       'Petrov', 'Silva', 'Mueller', 'Santos', 'Yilmaz',
       'Ivanova', 'Johnson', 'Fischer', 'Ferreira', 'Kaya',
       'Smirnov', 'Williams', 'Schneider', 'Oliveira', 'Celik',
-      'Kozlova', 'Brown', 'Gomez',
+      'Kozlova', 'Brown', 'Gomez', 'Volkova', 'Morozov',
     ];
+    const countries = ['RU', 'US', 'DE', 'BR', 'TR'];
+    const ageGroups: Student['age_group'][] = ['18-24', '25-34', '35-44'];
 
     const dayMs = 24 * 60 * 60 * 1000;
 
-    return Array.from({ length: 18 }, (_, i) => {
-      const firstName = firstNames[i % firstNames.length];
-      const lastName = lastNames[i % lastNames.length];
+    return STUDENT_FUNNEL_PROFILES.map((profile, i) => {
+      const firstName = firstNames[i];
+      const lastName = lastNames[i];
       const country = countries[i % countries.length];
       const email = `${firstName.toLowerCase().replace(/[^a-z]/g, '')}.${lastName.toLowerCase()}@example.com`;
-      const plan: 'free' | 'pro' = i < 14 ? 'free' : 'pro';
+      // Initial plan is always free; funnels will upgrade to pro when payment happens
+      const plan: 'free' | 'pro' = 'free';
       const age_group = ageGroups[i % ageGroups.length];
-      // Spread signups over 60 days
-      const daysAgo = 5 + Math.floor((i / 18) * 55) + Math.floor(Math.random() * 5);
-      const signup_date = new Date(now.getTime() - daysAgo * dayMs);
+      const signup_date = new Date(now.getTime() - profile.signupDaysAgo * dayMs);
       const device_type = DEVICE_TYPES[i % DEVICE_TYPES.length];
       const browser = BROWSERS[i % BROWSERS.length];
       const os = OSES[i % OSES.length];
