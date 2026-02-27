@@ -1,7 +1,9 @@
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON, tsExpr } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
+
+export { tsExpr };
 
 export { RESOLVED_PERSON };
 
@@ -34,11 +36,21 @@ export interface FunnelChQueryParams {
   project_id: string;
   from: string;
   to: string;
+  /** IANA timezone name, present only when the query is timezone-aware (tz != 'UTC'). */
+  tz?: string;
   window: number;
   num_steps: number;
   all_event_names: string[];
   breakdown_limit?: number;
   [key: string]: unknown;
+}
+
+/**
+ * Returns the SQL expression to compare `timestamp` against the {from} or {to} parameter.
+ * When the query params include a `tz` value, wraps the string param with toDateTime64(..., tz).
+ */
+export function funnelTsExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): string {
+  return tsExpr(paramName, 'tz', !!queryParams.tz);
 }
 
 // ── Conversion window ────────────────────────────────────────────────────────
@@ -301,12 +313,17 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[]): string {
 /**
  * Builds and returns the base ClickHouse query params shared by all funnel paths.
  * Returns a typed FunnelChQueryParams that callers can extend with dynamic keys.
+ *
+ * When `params.timezone` is provided and is not 'UTC', the `tz` field is set in
+ * the returned params so that `funnelTsExpr()` generates timezone-aware expressions
+ * (e.g. `toDateTime64({from:String}, 3, {tz:String})` instead of `{from:DateTime64(3)}`).
  */
 export function buildBaseQueryParams(
   params: {
     project_id: string;
     date_from: string;
     date_to: string;
+    timezone?: string;
     conversion_window_days: number;
     conversion_window_value?: number;
     conversion_window_unit?: string;
@@ -315,14 +332,16 @@ export function buildBaseQueryParams(
   allEventNames: string[],
 ): FunnelChQueryParams {
   const windowSeconds = resolveWindowSeconds(params);
+  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: FunnelChQueryParams = {
     project_id: params.project_id,
-    from: toChTs(params.date_from),
-    to: toChTs(params.date_to, true),
+    from: toChTs(params.date_from, false, params.timezone),
+    to: toChTs(params.date_to, true, params.timezone),
     window: windowSeconds,
     num_steps: params.steps.length,
     all_event_names: allEventNames,
   };
+  if (hasTz) queryParams.tz = params.timezone;
   params.steps.forEach((s, i) => {
     const names = resolveStepEventNames(s);
     queryParams[`step_${i}`] = names[0];
