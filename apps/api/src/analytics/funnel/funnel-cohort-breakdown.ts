@@ -61,7 +61,14 @@ export async function runFunnelCohortBreakdown(
       });
       sql = `
           WITH ${cte}${excludedUsersCTE}
-          SELECT step_num, countIf(max_step >= step_num) AS entered, countIf(max_step >= step_num + 1) AS next_step
+          SELECT
+            step_num,
+            countIf(max_step >= step_num) AS entered,
+            countIf(max_step >= step_num + 1) AS next_step,
+            avgIf(
+              (last_step_ms - first_step_ms) / 1000.0,
+              max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+            ) AS avg_time_seconds
           FROM funnel_per_user
           CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
           GROUP BY step_num ORDER BY step_num`;
@@ -75,6 +82,7 @@ export async function runFunnelCohortBreakdown(
         samplingClause,
         numSteps,
         queryParams: cbQueryParams,
+        includeTimestampCols: true,
       });
       sql = `
           WITH
@@ -82,7 +90,11 @@ export async function runFunnelCohortBreakdown(
           SELECT
             step_num,
             countIf(max_step >= step_num) AS entered,
-            countIf(max_step >= step_num + 1) AS next_step
+            countIf(max_step >= step_num + 1) AS next_step,
+            avgIf(
+              (last_step_ms - first_step_ms) / 1000.0,
+              max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+            ) AS avg_time_seconds
           FROM funnel_per_user
           CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
           GROUP BY step_num
@@ -112,7 +124,14 @@ export async function runFunnelCohortBreakdown(
     });
     aggregateSql = `
         WITH ${cte}${excludedUsersCTE}
-        SELECT step_num, countIf(max_step >= step_num) AS entered, countIf(max_step >= step_num + 1) AS next_step
+        SELECT
+          step_num,
+          countIf(max_step >= step_num) AS entered,
+          countIf(max_step >= step_num + 1) AS next_step,
+          avgIf(
+            (last_step_ms - first_step_ms) / 1000.0,
+            max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+          ) AS avg_time_seconds
         FROM funnel_per_user
         CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
         GROUP BY step_num ORDER BY step_num`;
@@ -126,6 +145,7 @@ export async function runFunnelCohortBreakdown(
       samplingClause,
       numSteps,
       queryParams: aggregateQueryParams,
+      includeTimestampCols: true,
     });
     aggregateSql = `
         WITH
@@ -133,7 +153,11 @@ export async function runFunnelCohortBreakdown(
         SELECT
           step_num,
           countIf(max_step >= step_num) AS entered,
-          countIf(max_step >= step_num + 1) AS next_step
+          countIf(max_step >= step_num + 1) AS next_step,
+          avgIf(
+            (last_step_ms - first_step_ms) / 1000.0,
+            max_step >= {num_steps:UInt64} AND last_step_ms > first_step_ms
+          ) AS avg_time_seconds
         FROM funnel_per_user
         CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
         GROUP BY step_num

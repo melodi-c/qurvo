@@ -557,16 +557,19 @@ describe('queryFunnel — cohort breakdown with exclusions', () => {
     expect(freeSteps.find((s) => s.step === 1)?.count).toBe(1);
     expect(freeSteps.find((s) => s.step === 2)?.count).toBe(1);
 
-    // avg_time_to_convert_seconds must be null for all breakdown steps (breakdown disables it)
-    for (const step of r.steps) {
-      expect(step.avg_time_to_convert_seconds).toBeNull();
-    }
+    // avg_time_to_convert_seconds: non-last steps with converters are non-null
+    // (cohort breakdown now includes avgIf in SQL)
+    const premiumStep1After = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
+    const premiumStep2After = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 2);
+    expect(premiumStep1After?.avg_time_to_convert_seconds).not.toBeNull();
+    expect(premiumStep1After?.avg_time_to_convert_seconds).toBeGreaterThan(0);
+    expect(premiumStep2After?.avg_time_to_convert_seconds).toBeNull(); // last step always null
   });
 });
 
 // ── avg_time_to_convert_seconds = null in all breakdown modes ─────────────────
 
-describe('queryFunnel — avg_time_to_convert_seconds always null in breakdown queries', () => {
+describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () => {
   it('is null for all steps in a property breakdown funnel', async () => {
     const projectId = randomUUID();
     const personA = randomUUID();
@@ -636,13 +639,13 @@ describe('queryFunnel — avg_time_to_convert_seconds always null in breakdown q
     }
   });
 
-  it('is null for all steps in a cohort breakdown funnel', async () => {
+  it('is non-null for non-last steps in a cohort breakdown funnel (cohort breakdown supports avg_time)', async () => {
     const projectId = randomUUID();
     const premiumUser = randomUUID();
     const freeUser = randomUUID();
 
     await insertTestEvents(ctx.ch, [
-      // premiumUser: signup → purchase
+      // premiumUser: signup → purchase, 3s apart
       buildEvent({
         project_id: projectId,
         person_id: premiumUser,
@@ -659,7 +662,7 @@ describe('queryFunnel — avg_time_to_convert_seconds always null in breakdown q
         user_properties: JSON.stringify({ plan: 'premium' }),
         timestamp: msAgo(1000),
       }),
-      // freeUser: signup → purchase
+      // freeUser: signup → purchase, 2.5s apart
       buildEvent({
         project_id: projectId,
         person_id: freeUser,
@@ -715,16 +718,25 @@ describe('queryFunnel — avg_time_to_convert_seconds always null in breakdown q
     expect(result.breakdown).toBe(true);
     const r = result as Extract<typeof result, { breakdown: true }>;
 
-    // cohort breakdown uses a separate SQL without avg_time columns
-    // avg_time_to_convert_seconds must be null for every step in every cohort breakdown
-    for (const step of r.steps) {
-      expect(step.avg_time_to_convert_seconds).toBeNull();
-    }
+    // cohort breakdown now includes avg_time columns — non-last steps with converters are non-null
+    const premiumStep1 = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 1);
+    const premiumStep2 = r.steps.find((s) => s.breakdown_value === 'Premium' && s.step === 2);
+    expect(premiumStep1?.avg_time_to_convert_seconds).not.toBeNull();
+    expect(premiumStep1?.avg_time_to_convert_seconds).toBeGreaterThan(0);
+    expect(premiumStep2?.avg_time_to_convert_seconds).toBeNull(); // last step always null
 
-    // aggregate_steps (computed by computeAggregateSteps) also always null
-    for (const step of r.aggregate_steps) {
-      expect(step.avg_time_to_convert_seconds).toBeNull();
-    }
+    const freeStep1 = r.steps.find((s) => s.breakdown_value === 'Free' && s.step === 1);
+    const freeStep2 = r.steps.find((s) => s.breakdown_value === 'Free' && s.step === 2);
+    expect(freeStep1?.avg_time_to_convert_seconds).not.toBeNull();
+    expect(freeStep1?.avg_time_to_convert_seconds).toBeGreaterThan(0);
+    expect(freeStep2?.avg_time_to_convert_seconds).toBeNull(); // last step always null
+
+    // aggregate_steps now also carry avg_time (from the aggregate query)
+    const aggStep1 = r.aggregate_steps.find((s) => s.step === 1);
+    const aggStep2 = r.aggregate_steps.find((s) => s.step === 2);
+    expect(aggStep1?.avg_time_to_convert_seconds).not.toBeNull();
+    expect(aggStep1?.avg_time_to_convert_seconds).toBeGreaterThan(0);
+    expect(aggStep2?.avg_time_to_convert_seconds).toBeNull(); // last step always null
   });
 
   it('cohort breakdown aggregate_steps count equals unique users (not sum of per-cohort counts)', async () => {
