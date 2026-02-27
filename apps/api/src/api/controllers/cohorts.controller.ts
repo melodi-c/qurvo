@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe, HttpCode,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CohortsService } from '../../cohorts/cohorts.service';
@@ -123,6 +123,7 @@ export class CohortsController {
   }
 
   @Post('preview-count')
+  @HttpCode(200)
   async previewCount(
     @Param('projectId') projectId: string,
     @Body() body: CohortPreviewDto,

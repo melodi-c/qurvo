@@ -196,17 +196,17 @@ export function buildOperatorClause(
       return `(toFloat64OrZero(${numExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${numExpr}) > {${maxPk}:Float64})`;
     }
     case 'is_date_before':
-      if (!value) throw new Error(`is_date_before requires a non-empty value (got: ${JSON.stringify(value)})`);
+      if (!value) return '1 = 0';
       queryParams[pk] = value;
       // parseDateTimeBestEffortOrZero returns epoch (1970-01-01) for non-date strings (e.g. "premium").
       // We exclude epoch results so that users with non-date property values are never matched.
       return `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) < parseDateTimeBestEffort({${pk}:String}))`;
     case 'is_date_after':
-      if (!value) throw new Error(`is_date_after requires a non-empty value (got: ${JSON.stringify(value)})`);
+      if (!value) return '1 = 0';
       queryParams[pk] = value;
       return `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${expr}) > parseDateTimeBestEffort({${pk}:String}))`;
     case 'is_date_exact':
-      if (!value) throw new Error(`is_date_exact requires a non-empty value (got: ${JSON.stringify(value)})`);
+      if (!value) return '1 = 0';
       queryParams[pk] = value;
       return `(parseDateTimeBestEffortOrZero(${expr}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${expr})) = toDate(parseDateTimeBestEffort({${pk}:String})))`;
     case 'contains_multi':

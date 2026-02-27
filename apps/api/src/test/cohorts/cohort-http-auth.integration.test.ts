@@ -230,7 +230,9 @@ afterAll(async () => {
 
 const VALID_DEFINITION = {
   type: 'AND',
-  values: [],
+  values: [
+    { type: 'person_property', property: 'email', operator: 'is_set' },
+  ],
 };
 
 // ────────────────────────────────────────────────────────────────────────────
