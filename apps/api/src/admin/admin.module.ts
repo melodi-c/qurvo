@@ -1,12 +1,9 @@
 import { Module } from '@nestjs/common';
 import { IsStaffGuard } from './guards/is-staff.guard';
-import { AdminStatsController } from './controllers/admin-stats.controller';
-import { AdminUsersController } from './controllers/admin-users.controller';
-import { AdminProjectsController } from './controllers/admin-projects.controller';
-import { AdminPlansController } from './controllers/admin-plans.controller';
+import { AdminService } from './admin.service';
 
 @Module({
-  controllers: [AdminStatsController, AdminUsersController, AdminProjectsController, AdminPlansController],
-  providers: [IsStaffGuard],
+  providers: [IsStaffGuard, AdminService],
+  exports: [IsStaffGuard, AdminService],
 })
 export class AdminModule {}

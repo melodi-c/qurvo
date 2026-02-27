@@ -22,6 +22,7 @@ import { AiScheduledJobsModule } from '../ai-scheduled-jobs/ai-scheduled-jobs.mo
 import { AnnotationsModule } from '../annotations/annotations.module';
 import { ShareTokensModule } from '../share-tokens/share-tokens.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AdminModule } from '../admin/admin.module';
 import { AuthController } from './controllers/auth.controller';
 import { ProjectsController } from './controllers/projects.controller';
 import { FunnelController } from './controllers/funnel.controller';
@@ -50,6 +51,10 @@ import { AiScheduledJobsController } from './controllers/ai-scheduled-jobs.contr
 import { AnnotationsController } from './controllers/annotations.controller';
 import { PublicController } from './controllers/public.controller';
 import { NotificationsController } from './controllers/notifications.controller';
+import { AdminStatsController } from './controllers/admin-stats.controller';
+import { AdminUsersController } from './controllers/admin-users.controller';
+import { AdminProjectsController } from './controllers/admin-projects.controller';
+import { AdminPlansController } from './controllers/admin-plans.controller';
 import { createHttpFilter } from './filters/create-http-filter';
 import { TooManyRequestsFilter } from './filters/too-many-requests.filter';
 import { VerificationCooldownFilter } from './filters/verification-cooldown.filter';
@@ -95,6 +100,7 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     AnnotationsModule,
     ShareTokensModule,
     NotificationsModule,
+    AdminModule,
   ],
   controllers: [
     AuthController,
@@ -127,6 +133,10 @@ const UnprocessableEntityFilter = createHttpFilter(HttpStatus.UNPROCESSABLE_ENTI
     AnnotationsController,
     PublicController,
     NotificationsController,
+    AdminStatsController,
+    AdminUsersController,
+    AdminProjectsController,
+    AdminPlansController,
   ],
   providers: [
     { provide: APP_FILTER, useClass: NotFoundFilter },
