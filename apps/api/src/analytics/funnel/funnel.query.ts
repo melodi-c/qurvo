@@ -8,6 +8,7 @@ import {
   buildSamplingClause,
   buildStepCondition,
   validateExclusions,
+  validateUnorderedSteps,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
@@ -36,6 +37,10 @@ export async function queryFunnel(
   const numSteps = steps.length;
 
   validateExclusions(exclusions, numSteps);
+
+  if (orderType === 'unordered') {
+    validateUnorderedSteps(steps);
+  }
 
   const allEventNames = buildAllEventNames(steps, exclusions);
   const queryParams = buildBaseQueryParams(params, allEventNames);
