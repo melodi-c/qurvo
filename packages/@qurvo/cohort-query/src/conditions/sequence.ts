@@ -1,5 +1,5 @@
 import type { CohortEventSequenceCondition } from '@qurvo/db';
-import { RESOLVED_PERSON } from '../helpers';
+import { RESOLVED_PERSON, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -8,6 +8,7 @@ export function buildEventSequenceSubquery(
   ctx: BuildContext,
 ): string {
   const { pattern, stepConditions, daysPk } = buildSequenceCore(cond, ctx);
+  const upperBound = resolveDateTo(ctx);
 
   return `
     SELECT person_id
@@ -21,7 +22,7 @@ export function buildEventSequenceSubquery(
       FROM events
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
-        AND timestamp >= now() - INTERVAL {${daysPk}:UInt32} DAY
+        AND timestamp >= ${upperBound} - INTERVAL {${daysPk}:UInt32} DAY
       GROUP BY person_id
     )
     WHERE seq_match = 1`;

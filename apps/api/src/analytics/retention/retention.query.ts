@@ -125,7 +125,7 @@ export async function queryRetention(
   const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const unit = params.granularity;
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
 
   // Build event property filter conditions.
   // recurring: applied to both initial and return events.

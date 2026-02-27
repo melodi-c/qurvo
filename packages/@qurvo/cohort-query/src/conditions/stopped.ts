@@ -1,5 +1,5 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildStoppedPerformingSubquery(
@@ -22,6 +22,7 @@ export function buildStoppedPerformingSubquery(
   ctx.queryParams[histPk] = cond.historical_window_days;
 
   const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const upperBound = resolveDateTo(ctx);
 
   // Historical performers NOT IN recent performers
   return `
@@ -30,8 +31,8 @@ export function buildStoppedPerformingSubquery(
     WHERE
       project_id = {${ctx.projectIdParam}:UUID}
       AND event_name = {${eventPk}:String}
-      AND timestamp >= now() - INTERVAL {${histPk}:UInt32} DAY
-      AND timestamp < now() - INTERVAL {${recentPk}:UInt32} DAY${filterClause}
+      AND timestamp >= ${upperBound} - INTERVAL {${histPk}:UInt32} DAY
+      AND timestamp < ${upperBound} - INTERVAL {${recentPk}:UInt32} DAY${filterClause}
     GROUP BY person_id
     HAVING person_id NOT IN (
       SELECT ${RESOLVED_PERSON}
@@ -39,6 +40,6 @@ export function buildStoppedPerformingSubquery(
       WHERE
         project_id = {${ctx.projectIdParam}:UUID}
         AND event_name = {${eventPk}:String}
-        AND timestamp >= now() - INTERVAL {${recentPk}:UInt32} DAY${filterClause}
+        AND timestamp >= ${upperBound} - INTERVAL {${recentPk}:UInt32} DAY${filterClause}
     )`;
 }

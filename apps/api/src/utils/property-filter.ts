@@ -21,32 +21,87 @@ export const DIRECT_COLUMNS = new Set([
 
 /**
  * Resolves a property name to its JSON source ('properties' or 'user_properties')
- * and the extracted key. Returns null for direct columns.
+ * and the path segments. Returns null for direct columns.
+ *
+ * Dot notation in the key is interpreted as nested JSON path:
+ *   'properties.address.city' → { jsonColumn: 'properties', segments: ['address', 'city'] }
+ * Flat keys (no dot) produce a single-element segments array:
+ *   'properties.plan' → { jsonColumn: 'properties', segments: ['plan'] }
  */
-function escapeJsonKey(key: string): string {
-  return key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+function escapeJsonKey(segment: string): string {
+  return segment.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-function resolvePropertySource(prop: string): { jsonColumn: string; key: string } | null {
+function resolvePropertySource(prop: string): { jsonColumn: string; segments: string[] } | null {
+  let rawKey: string;
+  let jsonColumn: string;
   if (prop.startsWith('properties.')) {
-    return { jsonColumn: 'properties', key: escapeJsonKey(prop.slice('properties.'.length)) };
+    jsonColumn = 'properties';
+    rawKey = prop.slice('properties.'.length);
+  } else if (prop.startsWith('user_properties.')) {
+    jsonColumn = 'user_properties';
+    rawKey = prop.slice('user_properties.'.length);
+  } else {
+    return null;
   }
-  if (prop.startsWith('user_properties.')) {
-    return { jsonColumn: 'user_properties', key: escapeJsonKey(prop.slice('user_properties.'.length)) };
+  // Split by '.' to support nested JSON paths (dot notation).
+  // Each segment is escaped individually to prevent SQL injection.
+  const segments = rawKey.split('.').map(escapeJsonKey);
+  return { jsonColumn, segments };
+}
+
+/**
+ * Builds a SQL fragment to extract a string value from a JSON column.
+ * Supports nested paths via variadic JSONExtractString:
+ *   segments = ['a'] → JSONExtractString(col, 'a')
+ *   segments = ['a', 'b'] → JSONExtractString(col, 'a', 'b')
+ */
+function buildJsonExtractString(jsonColumn: string, segments: string[]): string {
+  const args = segments.map((s) => `'${s}'`).join(', ');
+  return `JSONExtractString(${jsonColumn}, ${args})`;
+}
+
+/**
+ * Builds a SQL fragment to extract a raw JSON value from a JSON column.
+ * For nested paths wraps all but the last segment in JSONExtractRaw calls.
+ *   segments = ['price'] → JSONExtractRaw(col, 'price')
+ *   segments = ['a', 'b'] → JSONExtractRaw(JSONExtractRaw(col, 'a'), 'b')
+ */
+function buildJsonExtractRaw(jsonColumn: string, segments: string[]): string {
+  // JSONExtractRaw does not accept variadic path arguments in ClickHouse,
+  // so for nested paths we chain the calls manually.
+  let expr = jsonColumn;
+  for (const seg of segments) {
+    expr = `JSONExtractRaw(${expr}, '${seg}')`;
   }
-  return null;
+  return expr;
+}
+
+/**
+ * Builds a SQL fragment for JSONHas existence check.
+ * For nested paths descends into the object with JSONExtractRaw before the final JSONHas:
+ *   segments = ['plan'] → JSONHas(col, 'plan')
+ *   segments = ['address', 'city'] → JSONHas(JSONExtractRaw(col, 'address'), 'city')
+ */
+function buildJsonHas(jsonColumn: string, segments: string[]): string {
+  if (segments.length === 1) {
+    return `JSONHas(${jsonColumn}, '${segments[0]}')`;
+  }
+  // Navigate to the parent object, then check the last key.
+  const parentExpr = buildJsonExtractRaw(jsonColumn, segments.slice(0, -1));
+  return `JSONHas(${parentExpr}, '${segments[segments.length - 1]}')`;
 }
 
 export function resolvePropertyExpr(prop: string): string {
   const source = resolvePropertySource(prop);
-  if (source) return `JSONExtractString(${source.jsonColumn}, '${source.key}')`;
+  if (source) return buildJsonExtractString(source.jsonColumn, source.segments);
   if (DIRECT_COLUMNS.has(prop)) return prop;
   throw new AppBadRequestException(`Unknown filter property: ${prop}`);
 }
 
 export function resolveNumericPropertyExpr(prop: string): string {
   const source = resolvePropertySource(prop);
-  if (source) return `toFloat64OrZero(JSONExtractRaw(${source.jsonColumn}, '${source.key}'))`;
+  if (source) return `toFloat64OrZero(${buildJsonExtractRaw(source.jsonColumn, source.segments)})`;
   throw new AppBadRequestException(`Unknown metric property: ${prop}`);
 }
 
@@ -75,7 +130,7 @@ export function buildPropertyFilterConditions(
         // JSONExtractString returns '' for missing keys, so '' != 'target' would be true,
         // incorrectly including users who never had this property.
         if (source) {
-          parts.push(`JSONHas(${source.jsonColumn}, '${source.key}') AND ${expr} != {${pk}:String}`);
+          parts.push(`${buildJsonHas(source.jsonColumn, source.segments)} AND ${expr} != {${pk}:String}`);
         } else {
           parts.push(`${expr} != {${pk}:String}`);
         }
@@ -90,7 +145,7 @@ export function buildPropertyFilterConditions(
         // JSONExtractString returns '' for missing keys, so '' NOT LIKE '%target%' would be true,
         // incorrectly including users who never had this property.
         if (source) {
-          parts.push(`JSONHas(${source.jsonColumn}, '${source.key}') AND ${expr} NOT LIKE {${pk}:String}`);
+          parts.push(`${buildJsonHas(source.jsonColumn, source.segments)} AND ${expr} NOT LIKE {${pk}:String}`);
         } else {
           parts.push(`${expr} NOT LIKE {${pk}:String}`);
         }
@@ -99,7 +154,7 @@ export function buildPropertyFilterConditions(
         // For JSON columns use JSONHas() so that boolean false and 0 are treated as set.
         // For direct columns (plain String) fall back to != '' check.
         if (source) {
-          parts.push(`JSONHas(${source.jsonColumn}, '${source.key}')`);
+          parts.push(buildJsonHas(source.jsonColumn, source.segments));
         } else {
           parts.push(`${expr} != ''`);
         }
@@ -108,7 +163,7 @@ export function buildPropertyFilterConditions(
         // For JSON columns use NOT JSONHas() so that boolean false and 0 are not treated as unset.
         // For direct columns (plain String) fall back to = '' check.
         if (source) {
-          parts.push(`NOT JSONHas(${source.jsonColumn}, '${source.key}')`);
+          parts.push(`NOT ${buildJsonHas(source.jsonColumn, source.segments)}`);
         } else {
           parts.push(`${expr} = ''`);
         }

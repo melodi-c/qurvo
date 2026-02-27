@@ -1,4 +1,5 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
+import type { BuildContext } from './types';
 
 /**
  * Escapes LIKE-wildcard characters (%, _, \) in a user-provided string
@@ -135,6 +136,27 @@ export function buildOperatorClause(
       throw new Error(`Unhandled operator: ${_exhaustive}`);
     }
   }
+}
+
+/**
+ * Returns the SQL expression to use as the "current time" upper bound for
+ * behavioral cohort conditions.
+ *
+ * When `ctx.dateTo` is set, the value is stored in `queryParams` under the
+ * key `"coh_date_to"` (idempotent — same value written on every call) and the
+ * function returns the parameterised expression `{coh_date_to:DateTime64(3)}`.
+ * This makes the subquery deterministic for any fixed `date_to`, which is
+ * essential for both historical correctness and Redis cache coherence.
+ *
+ * When `ctx.dateTo` is absent (e.g. cohort-worker recomputation, AI tool),
+ * the function returns `now()` — preserving the previous behaviour.
+ */
+export function resolveDateTo(ctx: BuildContext): string {
+  if (ctx.dateTo !== undefined) {
+    ctx.queryParams['coh_date_to'] = ctx.dateTo;
+    return '{coh_date_to:DateTime64(3)}';
+  }
+  return 'now()';
 }
 
 /**

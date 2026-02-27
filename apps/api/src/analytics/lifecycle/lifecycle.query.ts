@@ -120,7 +120,7 @@ export async function queryLifecycle(
   const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const interval = granularityInterval(params.granularity);
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams);
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true));
 
   const eventFilterParts = buildPropertyFilterConditions(params.event_filters ?? [], 'lc', queryParams);
   const eventFilterClause = buildFilterClause(eventFilterParts);
