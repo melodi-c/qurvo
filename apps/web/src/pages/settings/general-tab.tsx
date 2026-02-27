@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { InlineEditField } from '@/components/ui/inline-edit-field';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -26,7 +27,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name: string }) => api.projectsControllerUpdate({ id: projectId }, data),
+    mutationFn: (data: { name?: string; timezone?: string }) => api.projectsControllerUpdate({ id: projectId }, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -54,6 +55,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
   if (isLoading) return <ListSkeleton count={1} height="h-32" />;
 
   const isOwner = project?.role === 'owner';
+  const isEditor = project?.role === 'owner' || project?.role === 'editor';
 
   return (
     <div className="space-y-6 max-w-lg">
@@ -81,6 +83,26 @@ export function GeneralTab({ projectId }: { projectId: string }) {
             {/* Role */}
             <DefinitionListRow label={t('yourRole')}>
               <span className="capitalize">{project?.role}</span>
+            </DefinitionListRow>
+
+            {/* Timezone */}
+            <DefinitionListRow label={t('timezone')}>
+              <Select
+                value={project?.timezone ?? 'UTC'}
+                onValueChange={(tz) => updateMutation.mutate({ timezone: tz })}
+                disabled={!isEditor}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Intl.supportedValuesOf('timeZone').map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </DefinitionListRow>
           </DefinitionList>
         </CardContent>
