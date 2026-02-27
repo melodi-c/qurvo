@@ -11,6 +11,8 @@ export interface RawFunnelRow {
 
 export interface RawBreakdownRow extends RawFunnelRow {
   breakdown_value: string;
+  /** Total count of distinct non-empty breakdown values (from breakdown_total CTE, no LIMIT). */
+  total_bd_count?: string;
 }
 
 // ── Step result computation ──────────────────────────────────────────────────
@@ -75,6 +77,10 @@ export function computeCohortBreakdownStepResults(
 
 /**
  * Groups property breakdown rows by breakdown_value and computes results per group.
+ *
+ * Groups are sorted by step-1 entered count descending (most popular first),
+ * with '(none)' always placed last among all groups. Within each group, rows
+ * are ordered by step number ascending.
  */
 export function computePropertyBreakdownResults(
   rows: RawBreakdownRow[],
@@ -88,14 +94,26 @@ export function computePropertyBreakdownResults(
     grouped.get(bv)!.push(row);
   }
 
-  const results: FunnelBreakdownStepResult[] = [];
+  // Compute step results per group and track the step-1 entered count for sorting.
+  const groupEntries: Array<{ bv: string; step1Count: number; stepResults: FunnelBreakdownStepResult[] }> = [];
   for (const [bv, bvRows] of grouped) {
     const stepResults = computeStepResults(bvRows, steps, numSteps);
-    for (const sr of stepResults) {
-      results.push({ ...sr, breakdown_value: bv });
-    }
+    const step1Count = stepResults.find((r) => r.step === 1)?.count ?? 0;
+    groupEntries.push({
+      bv,
+      step1Count,
+      stepResults: stepResults.map((sr) => ({ ...sr, breakdown_value: bv })),
+    });
   }
-  return results;
+
+  // Sort groups: (none) always last, then by step-1 entered count descending.
+  groupEntries.sort((a, b) => {
+    if (a.bv === '(none)' && b.bv !== '(none)') return 1;
+    if (a.bv !== '(none)' && b.bv === '(none)') return -1;
+    return b.step1Count - a.step1Count;
+  });
+
+  return groupEntries.flatMap((g) => g.stepResults);
 }
 
 /**

@@ -141,6 +141,84 @@ describe('queryFunnel — breakdown_limit', () => {
     expect(rBd.breakdown_truncated).toBe(false);
   });
 
+  it('does not set breakdown_truncated when result count equals limit (off-by-one fix)', async () => {
+    const projectId = randomUUID();
+
+    // Exactly 5 distinct browser values with breakdown_limit: 5 — not truncated.
+    const browsers = ['Chrome', 'Firefox', 'Safari', 'Edge', 'Opera'];
+    const events = browsers.map((browser) =>
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: `user-${browser}`,
+        event_name: 'pageview',
+        browser,
+        timestamp: msAgo(5000),
+      }),
+    );
+
+    await insertTestEvents(ctx.ch, events);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'pageview', label: 'Page View' },
+        { event_name: 'signup', label: 'Signup' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'browser',
+      breakdown_limit: 5,
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+    const uniqueValues = new Set(rBd.steps.map((s) => s.breakdown_value)).size;
+    // Exactly 5 real groups == limit 5 — not truncated (no values were cut off).
+    expect(uniqueValues).toBe(5);
+    expect(rBd.breakdown_truncated).toBe(false);
+  });
+
+  it('sets breakdown_truncated when result count exceeds limit', async () => {
+    const projectId = randomUUID();
+
+    // 6 distinct browser values with breakdown_limit: 5 — one must be truncated.
+    const browsers = ['Chrome', 'Firefox', 'Safari', 'Edge', 'Opera', 'Brave'];
+    const events = browsers.map((browser) =>
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: `user-${browser}`,
+        event_name: 'pageview',
+        browser,
+        timestamp: msAgo(5000),
+      }),
+    );
+
+    await insertTestEvents(ctx.ch, events);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'pageview', label: 'Page View' },
+        { event_name: 'signup', label: 'Signup' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      breakdown_property: 'browser',
+      breakdown_limit: 5,
+    });
+
+    expect(result.breakdown).toBe(true);
+    const rBd = result as Extract<typeof result, { breakdown: true }>;
+    const uniqueValues = new Set(rBd.steps.map((s) => s.breakdown_value)).size;
+    // 6 real groups > limit 5 — one was cut off, so truncated.
+    expect(uniqueValues).toBe(5);
+    expect(rBd.breakdown_truncated).toBe(true);
+  });
+
   it('respects breakdown_limit with unordered funnel', async () => {
     const projectId = randomUUID();
 
