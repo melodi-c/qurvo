@@ -640,10 +640,13 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
       expect(step.avg_time_to_convert_seconds).toBeNull();
     }
 
-    // aggregate_steps also use computeAggregateSteps which always sets null
-    for (const step of r.aggregate_steps) {
-      expect(step.avg_time_to_convert_seconds).toBeNull();
-    }
+    // aggregate_steps are now computed from a separate no-breakdown query (fix for #487).
+    // That query includes timestamp columns, so avg_time_to_convert_seconds is non-null
+    // for non-last steps (when there are completions). The last step is always null.
+    const aggStep1 = r.aggregate_steps.find((s) => s.step === 1);
+    const aggStep2 = r.aggregate_steps.find((s) => s.step === 2);
+    expect(aggStep1?.avg_time_to_convert_seconds).not.toBeNull(); // 2 users completed — avg non-null
+    expect(aggStep2?.avg_time_to_convert_seconds).toBeNull(); // last step always null
   });
 
   it('is non-null for non-last steps in a cohort breakdown funnel (cohort breakdown supports avg_time)', async () => {
