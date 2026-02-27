@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsIn,
   IsInt,
-  IsNumber,
   Min,
   Max,
   IsArray,
@@ -204,7 +203,7 @@ export class CohortEventConditionDto {
   count_operator: 'gte' | 'lte' | 'eq';
 
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(0)
   count: number;
 
@@ -350,11 +349,13 @@ export class CohortPerformedRegularlyConditionDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(365)
   total_periods: number;
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(365)
   @IsLessOrEqualTo('total_periods', { message: 'min_periods must be \u2264 total_periods' })
   min_periods: number;
 

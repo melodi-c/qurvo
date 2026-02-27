@@ -4,3 +4,4 @@ export { extractCohortReferences, detectCircularDependency } from './validation'
 export { topologicalSortCohorts, groupCohortsByLevel } from './toposort';
 export type { CohortForSort, ToposortResult } from './toposort';
 export type { CohortFilterInput, BuildContext } from './types';
+export { CohortQueryValidationError } from './errors';
