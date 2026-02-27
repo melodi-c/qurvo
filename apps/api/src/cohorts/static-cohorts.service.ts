@@ -135,6 +135,62 @@ export class StaticCohortsService {
     return { imported: personIds.length, total_lines: ids.length };
   }
 
+  async getStaticMembers(
+    projectId: string,
+    cohortId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ data: { person_id: string; user_properties: Record<string, unknown> }[]; total: number }> {
+    const cohort = await this.cohortsService.getById(projectId, cohortId);
+    if (!cohort.is_static) {
+      throw new AppBadRequestException('Cannot list members of a dynamic cohort');
+    }
+
+    // Count total members in this static cohort
+    const countResult = await this.ch.query({
+      query: `
+        SELECT count() AS total
+        FROM person_static_cohort FINAL
+        WHERE project_id = {project_id:UUID}
+          AND cohort_id = {cohort_id:UUID}`,
+      query_params: { project_id: projectId, cohort_id: cohortId },
+      format: 'JSONEachRow',
+    });
+    const countRows = await countResult.json<{ total: string }>();
+    const total = parseInt(countRows[0]?.total ?? '0', 10);
+
+    // Fetch paginated member details — join against events to get latest user_properties
+    const dataResult = await this.ch.query({
+      query: `
+        SELECT
+          toString(e.person_id) AS person_id,
+          argMax(e.user_properties, e.timestamp) AS user_properties
+        FROM events AS e
+        WHERE e.project_id = {project_id:UUID}
+          AND e.person_id IN (
+            SELECT person_id
+            FROM person_static_cohort FINAL
+            WHERE project_id = {project_id:UUID}
+              AND cohort_id = {cohort_id:UUID}
+            LIMIT {limit:UInt32} OFFSET {offset:UInt32}
+          )
+        GROUP BY e.person_id
+        LIMIT {limit:UInt32}`,
+      query_params: { project_id: projectId, cohort_id: cohortId, limit, offset },
+      format: 'JSONEachRow',
+    });
+    const rows = await dataResult.json<{ person_id: string; user_properties: string | Record<string, unknown> }>();
+
+    const data = rows.map((r) => ({
+      person_id: r.person_id,
+      user_properties: typeof r.user_properties === 'string'
+        ? (JSON.parse(r.user_properties) as Record<string, unknown>)
+        : (r.user_properties as Record<string, unknown>),
+    }));
+
+    return { data, total };
+  }
+
   // ── Private helpers ──────────────────────────────────────────────────────
 
   private async resolveDistinctIdsToPersonIds(projectId: string, distinctIds: string[]): Promise<string[]> {

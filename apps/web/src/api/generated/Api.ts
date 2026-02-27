@@ -837,6 +837,16 @@ export interface ImportCsvResponse {
   total_lines: number;
 }
 
+export interface StaticCohortMember {
+  user_properties: Record<string, any>;
+  person_id: string;
+}
+
+export interface StaticCohortMembersResponse {
+  data: StaticCohortMember[];
+  total: number;
+}
+
 export interface StaticCohortMembers {
   person_ids: string[];
 }
@@ -2140,6 +2150,24 @@ export interface StaticCohortsControllerDuplicateAsStaticParams {
 }
 
 export interface StaticCohortsControllerUploadCsvParams {
+  projectId: string;
+  cohortId: string;
+}
+
+export interface StaticCohortsControllerGetMembersParams {
+  /**
+   * Max number of members per page (default 50, max 500)
+   * @min 1
+   * @max 500
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * Number of members to skip (default 0)
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
   projectId: string;
   cohortId: string;
 }
@@ -3871,6 +3899,31 @@ export class Api<
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cohorts
+     * @name StaticCohortsControllerGetMembers
+     * @request GET:/api/projects/{projectId}/cohorts/{cohortId}/members
+     * @secure
+     */
+    staticCohortsControllerGetMembers: (
+      {
+        projectId,
+        cohortId,
+        ...query
+      }: StaticCohortsControllerGetMembersParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<StaticCohortMembersResponse, any>({
+        path: `/api/projects/${projectId}/cohorts/${cohortId}/members`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),
