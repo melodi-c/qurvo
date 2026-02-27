@@ -79,7 +79,7 @@ export async function queryFunnelTimeToConvert(
     throw new AppBadRequestException(`to_step ${toStep} out of range (max ${numSteps - 1})`);
   }
 
-  validateExclusions(exclusions, numSteps);
+  validateExclusions(exclusions, numSteps, steps);
 
   if (orderType === 'unordered') {
     validateUnorderedSteps(steps);

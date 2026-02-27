@@ -100,6 +100,13 @@ export class FunnelExclusionDto {
   @Min(1)
   @Max(9)
   funnel_to_step: number;
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  @IsOptional()
+  filters?: StepFilterDto[];
 }
 
 @ConversionWindowMutuallyExclusive()

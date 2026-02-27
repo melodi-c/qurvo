@@ -18,6 +18,8 @@ export interface FunnelExclusion {
   event_name: string;
   funnel_from_step: number;
   funnel_to_step: number;
+  /** Optional property filters that must all match for this exclusion to apply. */
+  filters?: StepFilter[];
 }
 
 // ── Result types ─────────────────────────────────────────────────────────────
