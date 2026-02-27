@@ -101,8 +101,9 @@ export function computeAggregateSteps(
     const total = stepTotals.get(sn) ?? 0;
     const isLast = idx === stepNums.length - 1;
     const nextTotal = isLast ? 0 : (stepTotals.get(stepNums[idx + 1]) ?? 0);
-    const dropOff = isLast ? 0 : total - nextTotal;
-    const dropOffRate = !isLast && total > 0
+    const converted = isLast ? 0 : nextTotal;
+    const dropOff = total - converted;
+    const dropOffRate = total > 0
       ? Math.round((dropOff / total) * 1000) / 10
       : 0;
     return {
