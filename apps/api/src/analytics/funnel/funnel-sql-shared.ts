@@ -290,14 +290,24 @@ export function buildExclusionColumns(
  * This means a user who re-enters the funnel after an exclusion event (e.g.
  * step1 → exclusion → step1 → step2) is NOT excluded, because the second
  * window attempt (step1 → step2) is clean.
+ *
+ * @param exclusions - Exclusion definitions from the funnel query
+ * @param anchorFilter - When true, restricts (f, t) pairs to only those where
+ *   f >= first_step_ms (the anchor window). Required for unordered funnels to
+ *   prevent historical clean sessions (outside the anchor window) from masking
+ *   tainted conversions within the anchor window. For ordered funnels, this
+ *   parameter should be false (the re-entry semantics handle window isolation).
  */
-export function buildExcludedUsersCTE(exclusions: FunnelExclusion[]): string {
+export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): string {
   const win = `toInt64({window:UInt64}) * 1000`;
+  // In unordered mode, restrict from-step timestamps to the anchor window so that
+  // historical clean sessions (f < first_step_ms) cannot mask tainted anchor-window attempts.
+  const anchorGuard = anchorFilter ? `f >= first_step_ms AND ` : '';
   const conditions = exclusions.map((_, i) => {
     // tainted_path: exists (f, t) pair within window with exclusion e in (f, t)
     const tainted = [
       `arrayExists(`,
-      `        f -> arrayExists(`,
+      `        f -> ${anchorGuard}arrayExists(`,
       `          t -> t > f AND t <= f + ${win} AND`,
       `               arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
       `          excl_${i}_to_arr`,
@@ -309,7 +319,7 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[]): string {
     // clean_path: exists (f, t) pair within window with NO exclusion in (f, t)
     const clean = [
       `arrayExists(`,
-      `        f -> arrayExists(`,
+      `        f -> ${anchorGuard}arrayExists(`,
       `          t -> t > f AND t <= f + ${win} AND`,
       `               NOT arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
       `          excl_${i}_to_arr`,

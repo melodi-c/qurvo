@@ -171,8 +171,11 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
       FROM anchor_per_user
     )`;
 
+  // anchorFilter=true: restrict exclusion checks to (f, t) pairs where f >= first_step_ms
+  // (the anchor window). This prevents historical clean sessions outside the anchor window
+  // from masking tainted conversions within it — see issue #497 for the full scenario.
   const excludedUsersCTE = exclusions.length > 0
-    ? ',\n      ' + buildExcludedUsersCTE(exclusions)
+    ? ',\n      ' + buildExcludedUsersCTE(exclusions, true)
     : '';
 
   const exclFilter = exclusions.length > 0
