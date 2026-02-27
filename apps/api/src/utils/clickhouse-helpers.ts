@@ -204,3 +204,51 @@ export function granularityInterval(granularity: 'day' | 'week' | 'month'): stri
     }
   }
 }
+
+/**
+ * Returns a DST-safe ClickHouse expression for the neighbor bucket (bucket shifted by ±1 period).
+ *
+ * Problem: for week and month granularities with a non-UTC timezone, simple DateTime arithmetic
+ * (bucket ± INTERVAL 7 DAY / INTERVAL 1 MONTH) operates in UTC seconds, not in local time.
+ * At DST transitions, adjacent week buckets have different UTC offsets, so the arithmetic
+ * shifts the bucket by the wrong number of seconds (e.g. 7*24 hours instead of the correct
+ * local-time distance between two Monday midnights).
+ *
+ * Fix: after adding/subtracting the raw interval, re-snap to the start of the local
+ * week/month using the same toStartOfWeek/toStartOfMonth + toDateTime pattern that
+ * granularityTruncExpr uses. For day granularity (INTERVAL 1 DAY) there is no DST
+ * issue because daily buckets don't have sub-day offsets that differ between adjacent days.
+ *
+ * @param granularity - query granularity
+ * @param bucketExpr  - SQL expression for the current bucket (a DateTime column/alias)
+ * @param direction   - +1 for the next period, -1 for the previous period
+ * @param tz          - IANA timezone string (e.g. 'America/New_York'); undefined or 'UTC' = UTC mode
+ */
+export function granularityNeighborExpr(
+  granularity: 'day' | 'week' | 'month',
+  bucketExpr: string,
+  direction: 1 | -1,
+  tz?: string,
+): string {
+  const hasTz = !!(tz && tz !== 'UTC');
+  const interval = granularityInterval(granularity);
+  const shifted = direction === 1 ? `${bucketExpr} + ${interval}` : `${bucketExpr} - ${interval}`;
+
+  if (!hasTz || granularity === 'day') {
+    // Day granularity: INTERVAL 1 DAY arithmetic is DST-safe (no sub-day offsets).
+    // No timezone: UTC arithmetic is exact.
+    return shifted;
+  }
+
+  // Week/month with timezone: re-snap to local-time boundary after the shift.
+  switch (granularity) {
+    case 'week':
+      return `toDateTime(toStartOfWeek(${shifted}, 1, '${tz}'), '${tz}')`;
+    case 'month':
+      return `toDateTime(toStartOfMonth(${shifted}, '${tz}'), '${tz}')`;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
+  }
+}
