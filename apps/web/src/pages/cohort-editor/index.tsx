@@ -46,6 +46,7 @@ export default function CohortEditorPage() {
     groups,
     setGroups,
     hasValidConditions,
+    canPreview,
     previewMutation,
     listPath,
     isSaving,
@@ -113,7 +114,14 @@ export default function CohortEditorPage() {
   }
 
   let previewContent: React.ReactNode;
-  if (!hasValidConditions) {
+  if (!canPreview) {
+    previewContent = (
+      <EmptyState
+        icon={UsersRound}
+        description={t('viewerNoPreview')}
+      />
+    );
+  } else if (!hasValidConditions) {
     previewContent = (
       <div className="text-center space-y-3">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
@@ -226,12 +234,12 @@ export default function CohortEditorPage() {
             {activeTab === 'overview' && (
               <>
                 <div className="border-b px-6 py-6 text-center">
-                  {previewMutation.isPending ? (
+                  {canPreview && previewMutation.isPending ? (
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-sm">{t('calculating')}</span>
                     </div>
-                  ) : previewMutation.data ? (
+                  ) : canPreview && previewMutation.data ? (
                     <>
                       <p className="text-4xl font-bold tabular-nums text-primary">
                         {previewMutation.data.count.toLocaleString()}
