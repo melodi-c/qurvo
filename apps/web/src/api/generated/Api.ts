@@ -191,9 +191,15 @@ export interface RotateTokenResponse {
 
 export interface FunnelExclusion {
   event_name: string;
-  /** @min 0 */
+  /**
+   * @min 0
+   * @max 9
+   */
   funnel_from_step: number;
-  /** @min 1 */
+  /**
+   * @min 1
+   * @max 9
+   */
   funnel_to_step: number;
 }
 
@@ -227,6 +233,8 @@ export interface FunnelResult {
   breakdown_property?: string;
   /** Sampling factor used (if < 1.0, results are sampled) */
   sampling_factor?: number;
+  /** True when the number of breakdown groups was truncated to breakdown_limit */
+  breakdown_truncated?: boolean;
   aggregate_steps?: FunnelStepResult[];
   breakdown: boolean;
   steps: FunnelStepResult[];
@@ -435,7 +443,15 @@ export interface PathCleaningRule {
 }
 
 export interface WildcardGroup {
+  /**
+   * @maxLength 500
+   * @pattern /^[^\x00-\x1f'\\]+$/
+   */
   pattern: string;
+  /**
+   * @maxLength 500
+   * @pattern /^[^\x00-\x1f'\\]+$/
+   */
   alias: string;
 }
 
@@ -734,7 +750,10 @@ export interface PersonEventRow {
 
 export interface CohortConditionGroup {
   type: CohortConditionGroupDtoTypeEnum;
-  /** @minItems 1 */
+  /**
+   * @maxItems 20
+   * @minItems 1
+   */
   values: object[];
 }
 
@@ -1663,8 +1682,12 @@ export interface ProjectsControllerRotateTokenParams {
 
 export interface FunnelControllerGetFunnelParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
-  /** @min 1 */
+  /**
+   * @min 1
+   * @max 365
+   */
   conversion_window_value?: number;
   conversion_window_unit?: ConversionWindowUnitEnum;
   /**
@@ -1674,9 +1697,16 @@ export interface FunnelControllerGetFunnelParams {
    */
   sampling_factor?: number;
   breakdown_type?: BreakdownTypeEnum;
+  /** @maxItems 10 */
   breakdown_cohort_ids?: string[];
   funnel_order_type?: FunnelOrderTypeEnum;
   exclusions?: FunnelExclusion[];
+  /**
+   * Max number of breakdown groups to return for property breakdown (2–25). Default: 25.
+   * @min 2
+   * @max 25
+   */
+  breakdown_limit?: number;
   breakdown_property?: string;
   steps: FunnelStep[];
   /**
@@ -1725,8 +1755,12 @@ export type FunnelControllerGetFunnelParams1FunnelOrderTypeEnum =
 
 export interface FunnelControllerGetFunnelTimeToConvertParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
-  /** @min 1 */
+  /**
+   * @min 1
+   * @max 365
+   */
   conversion_window_value?: number;
   conversion_window_unit?: ConversionWindowUnitEnum1;
   /**
@@ -1735,6 +1769,8 @@ export interface FunnelControllerGetFunnelTimeToConvertParams {
    * @max 1
    */
   sampling_factor?: number;
+  funnel_order_type?: FunnelOrderTypeEnum1;
+  exclusions?: FunnelExclusion[];
   /** @min 0 */
   from_step: number;
   /** @min 1 */
@@ -1763,6 +1799,8 @@ export type ConversionWindowUnitEnum1 =
   | "week"
   | "month";
 
+export type FunnelOrderTypeEnum1 = "ordered" | "strict" | "unordered";
+
 export type FunnelControllerGetFunnelTimeToConvertParams1ConversionWindowUnitEnum =
   | "second"
   | "minute"
@@ -1770,6 +1808,11 @@ export type FunnelControllerGetFunnelTimeToConvertParams1ConversionWindowUnitEnu
   | "day"
   | "week"
   | "month";
+
+export type FunnelControllerGetFunnelTimeToConvertParams1FunnelOrderTypeEnum =
+  | "ordered"
+  | "strict"
+  | "unordered";
 
 export interface EventsControllerGetEventsParams {
   event_name?: string;
@@ -1811,10 +1854,12 @@ export interface EventsControllerGetEventPropertyNamesParams {
 
 export interface TrendControllerGetTrendParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
   metric: TrendMetric;
   granularity: TrendGranularity;
   breakdown_type?: BreakdownTypeEnum1;
+  /** @maxItems 10 */
   breakdown_cohort_ids?: string[];
   series: TrendSeries[];
   metric_property?: string;
@@ -1837,6 +1882,7 @@ export type TrendControllerGetTrendParams1BreakdownTypeEnum =
 
 export interface RetentionControllerGetRetentionParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
   retention_type: RetentionType;
   granularity: Granularity;
@@ -1858,6 +1904,7 @@ export interface RetentionControllerGetRetentionParams {
 
 export interface LifecycleControllerGetLifecycleParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
   granularity: Granularity;
   target_event: string;
@@ -1872,6 +1919,7 @@ export interface LifecycleControllerGetLifecycleParams {
 
 export interface StickinessControllerGetStickinessParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
   granularity: Granularity;
   target_event: string;
@@ -1886,6 +1934,7 @@ export interface StickinessControllerGetStickinessParams {
 
 export interface PathsControllerGetPathsParams {
   timezone?: string;
+  /** @maxItems 20 */
   cohort_ids?: string[];
   exclusions?: string[];
   path_cleaning_rules?: PathCleaningRule[];
