@@ -28,15 +28,15 @@ export interface UnorderedCTEOptions {
  *   3. `funnel_per_user`: final shape expected by the outer query
  *      (max_step, first_step_ms, last_step_ms, breakdown_value, excl arrays).
  *
- * Key correctness fix over the old minIf + least() approach:
- *   The old code picked a single anchor = min(all step timestamps). A user who made
- *   step-0 at T1, step-1 at T1+8d (out of 7d window), then step-0 again at T2,
- *   step-1 at T2+1d — would have anchor = T1 and fail conversion despite the second
- *   attempt succeeding. The new approach tries ALL timestamps from ALL steps as potential
- *   anchors and takes the one that maximises the number of steps covered.
+ * Key correctness:
+ *   Only step-0 timestamps are valid funnel anchors. This ensures users without the
+ *   entry event are never counted as funnel entrants. A user who made step-0 at T1,
+ *   step-1 at T1+8d (out of 7d window), then step-0 again at T2, step-1 at T2+1d —
+ *   will use T2 as the anchor and correctly convert. Users with step-1/step-2 but no
+ *   step-0 are excluded by the WHERE guard (length(t0_arr) > 0).
  *
  * For avg_time_to_convert:
- *   - anchor_ms  = first timestamp across all step arrays that covers all N steps.
+ *   - anchor_ms  = first step-0 timestamp that covers all N steps within the window.
  *   - last_step_ms = latest step timestamp in [anchor_ms, anchor_ms + window].
  *
  * Returns the three SQL fragments that the caller wraps in
@@ -71,6 +71,9 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
   // ── Step 3: max_step — best coverage achievable from any candidate anchor ──
   // For each step i: arrayMax(lambda, arr) returns the maximum lambda(element).
   // Returns 0 when the array is empty.
+  // Anchors are still tried from all step arrays to support out-of-order entry
+  // (e.g. user does step-1 before step-0). The WHERE guard below (t0_arr non-empty)
+  // ensures users without ANY step-0 event are excluded before this computation.
   const maxFromEachStep = steps.map((_, i) =>
     `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
   );
@@ -81,6 +84,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
   // ── Step 4: anchor_ms — first anchor achieving full coverage (all N steps) ──
   // arrayFirst(pred, arr): returns first element where pred(element) != 0; returns 0 if none.
   // We try each step array in turn and take the first non-zero result.
+  // The WHERE guard (t0_arr non-empty) already ensures step-0 is present.
   let anchorMsExpr: string;
   if (N === 1) {
     // Single step: anchor = the minimum timestamp in the array (any event qualifies).
@@ -131,8 +135,8 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): {
     : `greatest(${stepLastInWindow.join(', ')})`;
 
   // ── WHERE guard on step_times ─────────────────────────────────────────────
-  // At least one step array must be non-empty (the user has seen at least one funnel event).
-  const anyStepNonEmpty = steps.map((_, i) => `length(t${i}_arr) > 0`).join(' OR ');
+  // Step-0 must be present: a user without the entry event cannot enter the funnel.
+  const anyStepNonEmpty = `length(t0_arr) > 0`;
 
   // The query is split into two CTEs:
   //   anchor_per_user:  step_times + max_step + anchor_ms (can be used by last_step_ms)
