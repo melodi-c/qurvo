@@ -797,6 +797,39 @@ export class OnlineSchoolScenario extends BaseScenario {
                     lessons_this_week: 2 + Math.floor(Math.random() * 4),
                   });
 
+                  // ═══════════════════════════════════════════════════
+                  // FUNNEL 7: Повторные продажи (LTV)
+                  // payment_course_A → course_progress_50 → upsell_viewed → upsell_clicked → upsell_purchased
+                  // upsell_viewed triggered after course_progress_50 (not dependent on course_completed)
+                  // ═══════════════════════════════════════════════════
+                  // ~55% of students reaching 50% progress see upsell
+                  if (Math.random() < 0.55) {
+                    const upsell = pick(UPSELL_COURSES);
+                    const upsellViewTs = addDays(lessonTs, 1 + Math.floor(Math.random() * 3));
+                    addEvent(student, 'upsell_viewed', upsellViewTs, {
+                      upsell_course_name: upsell.name,
+                      price: upsell.price,
+                    });
+
+                    // ~55% click upsell
+                    if (Math.random() < 0.55) {
+                      const upsellClickTs = addMinutes(upsellViewTs, 2 + Math.floor(Math.random() * 10));
+                      addEvent(student, 'upsell_clicked', upsellClickTs, {
+                        upsell_course_name: upsell.name,
+                        price: upsell.price,
+                      });
+
+                      // ~50% purchase upsell
+                      if (Math.random() < 0.5) {
+                        const upsellBuyTs = addMinutes(upsellClickTs, 5 + Math.floor(Math.random() * 20));
+                        addEvent(student, 'upsell_purchased', upsellBuyTs, {
+                          upsell_course_name: upsell.name,
+                          amount: upsell.price,
+                        });
+                      }
+                    }
+                  }
+
                   // ~45% complete course
                   if (Math.random() < 0.45) {
                     // Remaining lessons
@@ -834,38 +867,6 @@ export class OnlineSchoolScenario extends BaseScenario {
                       course_name: primaryCourse.name,
                       completion_time_days: completionTimeDays,
                     });
-
-                    // ═══════════════════════════════════════════════════
-                    // FUNNEL 7: Повторные продажи (LTV)
-                    // payment_course_A → upsell_viewed → upsell_clicked → upsell_purchased
-                    // ═══════════════════════════════════════════════════
-                    // ~40% of completers see upsell
-                    if (Math.random() < 0.4) {
-                      const upsell = pick(UPSELL_COURSES);
-                      const upsellViewTs = addDays(finalTs, 1 + Math.floor(Math.random() * 3));
-                      addEvent(student, 'upsell_viewed', upsellViewTs, {
-                        upsell_course_name: upsell.name,
-                        price: upsell.price,
-                      });
-
-                      // ~55% click upsell
-                      if (Math.random() < 0.55) {
-                        const upsellClickTs = addMinutes(upsellViewTs, 2 + Math.floor(Math.random() * 10));
-                        addEvent(student, 'upsell_clicked', upsellClickTs, {
-                          upsell_course_name: upsell.name,
-                          price: upsell.price,
-                        });
-
-                        // ~50% purchase upsell
-                        if (Math.random() < 0.5) {
-                          const upsellBuyTs = addMinutes(upsellClickTs, 5 + Math.floor(Math.random() * 20));
-                          addEvent(student, 'upsell_purchased', upsellBuyTs, {
-                            upsell_course_name: upsell.name,
-                            amount: upsell.price,
-                          });
-                        }
-                      }
-                    }
                   }
                 }
               }
@@ -879,7 +880,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       // payment_success → refund_requested → refund_completed
       // ~8% of payers request refund
       // ═════════════════════════════════════════════════════════════════
-      if (student.plan === 'pro' && Math.random() < 0.08) {
+      if (student.plan === 'pro' && Math.random() < 0.20) {
         const refundRequestTs = addDays(signupTs, 5 + Math.floor(Math.random() * 10));
         addEvent(student, 'refund_requested', refundRequestTs, {
           course_name: primaryCourse.name,
@@ -1062,13 +1063,13 @@ export class OnlineSchoolScenario extends BaseScenario {
         id: insightRevenueId,
         type: 'trend',
         name: 'Выручка (payment_success)',
-        description: 'Суммарный объём платежей за неделю',
+        description: 'Суммарный объём платежей по дням',
         config: {
           type: 'trend',
           series: [{ event_name: 'payment_success', label: 'Выручка' }],
           metric: 'property_sum',
           metric_property: 'properties.amount',
-          granularity: 'week',
+          granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,
           date_to: dateTo,
@@ -1080,7 +1081,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         id: insightLessonActivityId,
         type: 'trend',
         name: 'Активность по урокам',
-        description: 'Начатые и завершённые уроки за неделю',
+        description: 'Начатые и завершённые уроки по дням',
         config: {
           type: 'trend',
           series: [
@@ -1088,7 +1089,7 @@ export class OnlineSchoolScenario extends BaseScenario {
             { event_name: 'lesson_completed', label: 'Завершено уроков' },
           ],
           metric: 'total_events',
-          granularity: 'week',
+          granularity: 'day',
           chart_type: 'line',
           date_from: dateFrom,
           date_to: dateTo,
@@ -1115,12 +1116,12 @@ export class OnlineSchoolScenario extends BaseScenario {
         id: insightWebinarRegId,
         type: 'trend',
         name: 'Вебинарные регистрации',
-        description: 'Количество регистраций на вебинары по неделям',
+        description: 'Количество регистраций на вебинары по дням',
         config: {
           type: 'trend',
           series: [{ event_name: 'webinar_registered', label: 'Регистрации на вебинар' }],
           metric: 'total_events',
-          granularity: 'week',
+          granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,
           date_to: dateTo,
@@ -1131,12 +1132,12 @@ export class OnlineSchoolScenario extends BaseScenario {
         id: insightRefundsId,
         type: 'trend',
         name: 'Возвраты',
-        description: 'Количество запросов на возврат по неделям',
+        description: 'Количество запросов на возврат по дням',
         config: {
           type: 'trend',
           series: [{ event_name: 'refund_requested', label: 'Запросы возврата' }],
           metric: 'total_events',
-          granularity: 'week',
+          granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,
           date_to: dateTo,
@@ -1220,7 +1221,6 @@ export class OnlineSchoolScenario extends BaseScenario {
             { event_name: 'launch_message_sent', label: 'Сообщение отправлено' },
             { event_name: 'launch_message_opened', label: 'Сообщение открыто' },
             { event_name: 'launch_page_viewed', label: 'Страница запуска' },
-            { event_name: 'webinar_registered', label: 'Регистрация на вебинар' },
             { event_name: 'offer_presented', label: 'Оффер показан' },
             { event_name: 'payment_success', label: 'Оплата' },
           ],
@@ -1403,32 +1403,26 @@ export class OnlineSchoolScenario extends BaseScenario {
     // ── Widgets ───────────────────────────────────────────────────────────────
 
     const widgets: WidgetInput[] = [
-      // Overview dashboard
+      // Overview dashboard (5 key widgets)
       { dashboardId: dashboardOverviewId, insightId: insightDauId, layout: { x: 0, y: 0, w: 6, h: 4 } },
       { dashboardId: dashboardOverviewId, insightId: insightRevenueId, layout: { x: 6, y: 0, w: 6, h: 4 } },
-      { dashboardId: dashboardOverviewId, insightId: insightLessonActivityId, layout: { x: 0, y: 4, w: 6, h: 4 } },
-      { dashboardId: dashboardOverviewId, insightId: insightNewLeadsId, layout: { x: 6, y: 4, w: 6, h: 4 } },
-      { dashboardId: dashboardOverviewId, insightId: insightActivationFunnelId, layout: { x: 0, y: 8, w: 6, h: 5 } },
-      { dashboardId: dashboardOverviewId, insightId: insightRetentionId, layout: { x: 6, y: 8, w: 6, h: 5 } },
-      { dashboardId: dashboardOverviewId, insightId: insightWebinarRegId, layout: { x: 0, y: 13, w: 6, h: 4 } },
-      { dashboardId: dashboardOverviewId, insightId: insightRefundsId, layout: { x: 6, y: 13, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightNewLeadsId, layout: { x: 0, y: 4, w: 6, h: 4 } },
+      { dashboardId: dashboardOverviewId, insightId: insightActivationFunnelId, layout: { x: 6, y: 4, w: 6, h: 5 } },
+      { dashboardId: dashboardOverviewId, insightId: insightRetentionId, layout: { x: 0, y: 8, w: 12, h: 5 } },
 
-      // Funnels dashboard
+      // Funnels dashboard (5 key funnels)
       { dashboardId: dashboardFunnelsId, insightId: insightAcquisitionFunnelId, layout: { x: 0, y: 0, w: 12, h: 5 } },
       { dashboardId: dashboardFunnelsId, insightId: insightWebinarFunnelId, layout: { x: 0, y: 5, w: 6, h: 5 } },
       { dashboardId: dashboardFunnelsId, insightId: insightLeadMagnetFunnelId, layout: { x: 6, y: 5, w: 6, h: 5 } },
       { dashboardId: dashboardFunnelsId, insightId: insightLaunchFunnelId, layout: { x: 0, y: 10, w: 6, h: 5 } },
-      { dashboardId: dashboardFunnelsId, insightId: insightManagerFunnelId, layout: { x: 6, y: 10, w: 6, h: 5 } },
-      { dashboardId: dashboardFunnelsId, insightId: insightLtvFunnelId, layout: { x: 0, y: 15, w: 6, h: 5 } },
-      { dashboardId: dashboardFunnelsId, insightId: insightRefundFunnelId, layout: { x: 6, y: 15, w: 6, h: 5 } },
+      { dashboardId: dashboardFunnelsId, insightId: insightLtvFunnelId, layout: { x: 6, y: 10, w: 6, h: 5 } },
 
-      // Learning & Retention dashboard
+      // Learning & Retention dashboard (5 widgets)
       { dashboardId: dashboardLearningId, insightId: insightLearningFunnelId, layout: { x: 0, y: 0, w: 12, h: 5 } },
       { dashboardId: dashboardLearningId, insightId: insightRetentionId, layout: { x: 0, y: 5, w: 12, h: 5 } },
       { dashboardId: dashboardLearningId, insightId: insightLifecycleId, layout: { x: 0, y: 10, w: 6, h: 4 } },
       { dashboardId: dashboardLearningId, insightId: insightStickinessId, layout: { x: 6, y: 10, w: 6, h: 4 } },
-      { dashboardId: dashboardLearningId, insightId: insightLessonActivityId, layout: { x: 0, y: 14, w: 6, h: 4 } },
-      { dashboardId: dashboardLearningId, insightId: insightPathsId, layout: { x: 6, y: 14, w: 6, h: 4 } },
+      { dashboardId: dashboardLearningId, insightId: insightLessonActivityId, layout: { x: 0, y: 14, w: 12, h: 4 } },
     ];
 
     // ── Cohorts ───────────────────────────────────────────────────────────────
