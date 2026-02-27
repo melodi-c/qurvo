@@ -12,14 +12,18 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(getLocale());
 }
 
-/** Format an ISO date string with granularity context (month: "Jan 2024", other: "Jan 15"). Uses UTC to avoid timezone shifts. */
-export function formatDateWithGranularity(iso: string, granularity: string): string {
+/** Format an ISO date string with granularity context (month: "Jan 2024", other: "Jan 15").
+ * Uses the provided timezone (or UTC) to avoid browser-local offset shifts. */
+export function formatDateWithGranularity(iso: string, granularity: string, timezone?: string): string {
   const locale = getLocale();
-  const d = new Date(iso);
+  const displayTz = timezone || 'UTC';
+  // Normalise ClickHouse bucket format to UTC ISO 8601
+  const utcStr = normaliseBucketToUtc(iso);
+  const d = new Date(utcStr);
   if (granularity === 'month') {
-    return d.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return d.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: displayTz });
   }
-  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: displayTz });
 }
 
 /** Format a short date range from two ISO strings. Extracts MM-DD portion (e.g. "03-15 – 04-20"). Returns null if either value is not a string. */
@@ -45,6 +49,15 @@ export function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString(locale);
 }
 
+/** Normalise a ClickHouse bucket string to a UTC ISO 8601 string parseable by `new Date()`.
+ * ClickHouse returns "YYYY-MM-DD HH:MM:SS" (space, no tz) or "YYYY-MM-DD" (date-only).
+ * Already-normalised strings (containing 'T' or 'Z') are returned as-is. */
+function normaliseBucketToUtc(bucket: string): string {
+  if (bucket.includes('T') || bucket.includes('Z')) return bucket; // already ISO
+  if (bucket.includes(' ')) return bucket.replace(' ', 'T') + 'Z'; // "YYYY-MM-DD HH:MM:SS"
+  return bucket + 'T00:00:00Z';                                     // "YYYY-MM-DD"
+}
+
 /** Return a badge variant for a given event name. */
 export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 'outline' {
   if (eventName === '$pageview') return 'default';
@@ -55,24 +68,40 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
   return 'outline';
 }
 
-/** Format a time bucket string for chart axes. When compact=true, produces shorter labels for small spaces. */
-export function formatBucket(bucket: string, granularity: string, compact?: boolean): string {
+/** Format a time bucket string for chart axes. When compact=true, produces shorter labels for small spaces.
+ * Bucket strings from ClickHouse are always UTC — normalise to ISO 8601 with 'Z' suffix before parsing.
+ * When timezone is provided, display dates in that timezone rather than browser-local time. */
+export function formatBucket(bucket: string, granularity: string, compact?: boolean, timezone?: string): string {
   if (!bucket) return '';
   const locale = getLocale();
-  const d = new Date(bucket);
+  const d = new Date(normaliseBucketToUtc(bucket));
+  // For display: use the project's timezone when provided, else UTC (avoids browser-local offset shifts).
+  const displayTz = timezone || 'UTC';
   if (granularity === 'hour') {
-    if (compact) return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}h`;
-    return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric' });
+    if (compact) {
+      const parts = new Intl.DateTimeFormat(locale, {
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        timeZone: displayTz,
+      }).formatToParts(d);
+      const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+      return `${get('month')}/${get('day')} ${get('hour')}h`;
+    }
+    return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric', timeZone: displayTz });
   }
   if (granularity === 'week') {
-    return `W${getISOWeek(d)} ${d.toLocaleString(locale, { month: 'short' })}`;
+    // Compute the ISO week number from the date adjusted to displayTz
+    const localDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: displayTz }).format(d);
+    const weekDate = new Date(localDateStr + 'T00:00:00Z');
+    return `W${getISOWeek(weekDate)} ${d.toLocaleString(locale, { month: 'short', timeZone: displayTz })}`;
   }
   if (granularity === 'month') {
-    return d.toLocaleString(locale, { month: 'short', year: '2-digit' });
+    return d.toLocaleString(locale, { month: 'short', year: '2-digit', timeZone: displayTz });
   }
   // day (default)
-  if (compact) return d.toLocaleString(locale, { month: 'numeric', day: 'numeric' });
-  return d.toLocaleString(locale, { month: 'short', day: 'numeric' });
+  if (compact) return d.toLocaleString(locale, { month: 'numeric', day: 'numeric', timeZone: displayTz });
+  return d.toLocaleString(locale, { month: 'short', day: 'numeric', timeZone: displayTz });
 }
 
 /** Format seconds into a human-readable duration. Locale-aware suffixes (e.g. "30с", "5м", "2ч", "3д" in Russian). Supports days. */

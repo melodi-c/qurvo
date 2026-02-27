@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useProjectStore } from '@/stores/project';
 import { WEB_METRIC_COLORS, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { formatBucket } from '@/lib/formatting';
 import translations from './WebTimeseriesChart.translations';
@@ -37,6 +38,7 @@ export function WebTimeseriesChart({
   onMetricChange,
 }: WebTimeseriesChartProps) {
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
 
   const metricOptions: { label: string; value: MetricKey }[] = useMemo(() => [
     { label: t('visitors'), value: 'unique_visitors' },
@@ -48,9 +50,9 @@ export function WebTimeseriesChart({
     if (!data) return [];
     return data.map((d) => ({
       ...d,
-      label: formatBucket(d.bucket, granularity),
+      label: formatBucket(d.bucket, granularity, false, timezone),
     }));
-  }, [data, granularity]);
+  }, [data, granularity, timezone]);
 
   return (
     <Card>

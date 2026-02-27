@@ -32,6 +32,7 @@ export default function Layout() {
     pendingInvitesCount,
     currentProjectName,
     currentProjectIsDemo,
+    currentProjectTimezone,
     hasProjects,
     shouldRedirectToProjects,
     isActive,
@@ -41,6 +42,7 @@ export default function Layout() {
   } = useLayoutData();
 
   const setLastProjectId = useProjectStore((s) => s.setLastProjectId);
+  const setProjectTimezone = useProjectStore((s) => s.setProjectTimezone);
 
   // Persist the last visited project ID so sidebar links work on project-less pages
   useEffect(() => {
@@ -48,6 +50,13 @@ export default function Layout() {
       setLastProjectId(currentProject);
     }
   }, [currentProject, setLastProjectId]);
+
+  // Sync project timezone into the store so analytics hooks can read it
+  useEffect(() => {
+    if (currentProjectTimezone) {
+      setProjectTimezone(currentProjectTimezone);
+    }
+  }, [currentProjectTimezone, setProjectTimezone]);
 
   useEffect(() => {
     if (sidebar.isOpen) {

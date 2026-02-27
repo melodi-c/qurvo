@@ -1662,6 +1662,7 @@ export interface ProjectsControllerRotateTokenParams {
 }
 
 export interface FunnelControllerGetFunnelParams {
+  timezone?: string;
   cohort_ids?: string[];
   /** @min 1 */
   conversion_window_value?: number;
@@ -1723,6 +1724,7 @@ export type FunnelControllerGetFunnelParams1FunnelOrderTypeEnum =
   | "unordered";
 
 export interface FunnelControllerGetFunnelTimeToConvertParams {
+  timezone?: string;
   cohort_ids?: string[];
   /** @min 1 */
   conversion_window_value?: number;
@@ -1808,6 +1810,7 @@ export interface EventsControllerGetEventPropertyNamesParams {
 }
 
 export interface TrendControllerGetTrendParams {
+  timezone?: string;
   cohort_ids?: string[];
   metric: TrendMetric;
   granularity: TrendGranularity;
@@ -1833,6 +1836,7 @@ export type TrendControllerGetTrendParams1BreakdownTypeEnum =
   | "cohort";
 
 export interface RetentionControllerGetRetentionParams {
+  timezone?: string;
   cohort_ids?: string[];
   retention_type: RetentionType;
   granularity: Granularity;
@@ -1853,6 +1857,7 @@ export interface RetentionControllerGetRetentionParams {
 }
 
 export interface LifecycleControllerGetLifecycleParams {
+  timezone?: string;
   cohort_ids?: string[];
   granularity: Granularity;
   target_event: string;
@@ -1866,6 +1871,7 @@ export interface LifecycleControllerGetLifecycleParams {
 }
 
 export interface StickinessControllerGetStickinessParams {
+  timezone?: string;
   cohort_ids?: string[];
   granularity: Granularity;
   target_event: string;
@@ -1879,6 +1885,7 @@ export interface StickinessControllerGetStickinessParams {
 }
 
 export interface PathsControllerGetPathsParams {
+  timezone?: string;
   cohort_ids?: string[];
   exclusions?: string[];
   path_cleaning_rules?: PathCleaningRule[];
@@ -2325,6 +2332,7 @@ export interface PropertyDefinitionsControllerRemoveParams {
 }
 
 export interface WebAnalyticsControllerGetOverviewParams {
+  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2334,6 +2342,7 @@ export interface WebAnalyticsControllerGetOverviewParams {
 }
 
 export interface WebAnalyticsControllerGetPathsParams {
+  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2343,6 +2352,7 @@ export interface WebAnalyticsControllerGetPathsParams {
 }
 
 export interface WebAnalyticsControllerGetSourcesParams {
+  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2352,6 +2362,7 @@ export interface WebAnalyticsControllerGetSourcesParams {
 }
 
 export interface WebAnalyticsControllerGetDevicesParams {
+  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2361,6 +2372,7 @@ export interface WebAnalyticsControllerGetDevicesParams {
 }
 
 export interface WebAnalyticsControllerGetGeographyParams {
+  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;

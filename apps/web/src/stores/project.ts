@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware';
 interface ProjectState {
   lastProjectId: string;
   setLastProjectId: (projectId: string) => void;
+  projectTimezone: string;
+  setProjectTimezone: (tz: string) => void;
 }
 
 export const useProjectStore = create<ProjectState>()(
@@ -11,6 +13,8 @@ export const useProjectStore = create<ProjectState>()(
     (set) => ({
       lastProjectId: '',
       setLastProjectId: (projectId) => set({ lastProjectId: projectId }),
+      projectTimezone: 'UTC',
+      setProjectTimezone: (tz) => set({ projectTimezone: tz }),
     }),
     {
       name: 'qurvo-project',
