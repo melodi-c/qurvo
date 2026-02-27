@@ -20,6 +20,29 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+function IsLessOrEqualTo(property: string, validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isLessOrEqualTo',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      constraints: [property],
+      options: validationOptions,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const [relatedPropertyName] = args.constraints as [string];
+          const relatedValue = (args.object as Record<string, unknown>)[relatedPropertyName];
+          return typeof value === 'number' && typeof relatedValue === 'number' && value <= relatedValue;
+        },
+        defaultMessage(args: ValidationArguments) {
+          const [relatedPropertyName] = args.constraints as [string];
+          return `${args.property} must be less than or equal to ${relatedPropertyName}`;
+        },
+      },
+    });
+  };
+}
+
 function IsLessThan(property: string, validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
@@ -332,6 +355,7 @@ export class CohortPerformedRegularlyConditionDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @IsLessOrEqualTo('total_periods', { message: 'min_periods must be \u2264 total_periods' })
   min_periods: number;
 
   @Type(() => Number)
