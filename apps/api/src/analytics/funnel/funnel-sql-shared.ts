@@ -1,17 +1,15 @@
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import {
-  toChTs,
-  RESOLVED_PERSON,
   rawWithParams,
   raw,
   select,
   col,
   compileExprToSql,
   CompilerContext,
-  propertyFilters,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
+import { toChTs, RESOLVED_PERSON, propertyFilters } from '../query-helpers';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
 
 export { RESOLVED_PERSON, toChTs, CompilerContext };

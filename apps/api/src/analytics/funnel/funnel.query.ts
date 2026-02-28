@@ -20,12 +20,11 @@ import {
   literal,
   subquery,
   add,
-  resolvePropertyExpr,
-  cohortFilter,
   type Expr,
   type SelectNode,
   type CompiledQuery,
 } from '@qurvo/ch-query';
+import { resolvePropertyExpr, cohortFilter } from '../query-helpers';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
