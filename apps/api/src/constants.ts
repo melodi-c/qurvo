@@ -76,3 +76,6 @@ export const THROTTLE_MEDIUM_LIMIT = 300;
 export const MAX_BREAKDOWN_VALUES = 25;
 export const MAX_PATH_NODES = 20;
 export const MAX_METRIC_SEGMENTS = 20;
+
+/** ClickHouse formatDateTime pattern for ISO-8601 timestamps (UTC, milliseconds always `.000`). */
+export const FORMAT_DATETIME_ISO = `%Y-%m-%dT%H:%i:%S.000Z`;

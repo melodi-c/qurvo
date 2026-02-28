@@ -1,5 +1,17 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { resolvePropertyExprStr } from '../analytics/query-helpers';
+import {
+  alias,
+  compile,
+  select,
+  raw,
+  count,
+  neq,
+} from '@qurvo/ch-query';
+import {
+  resolvePropertyExpr,
+  projectIs,
+  eventIs,
+} from '../analytics/query-helpers';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
 export interface PropertyValueRow {
@@ -18,39 +30,34 @@ export async function queryEventPropertyValues(
   ch: ClickHouseClient,
   params: EventPropertyValuesParams,
 ): Promise<PropertyValueRow[]> {
-  let propExpr: string;
+  let propExpr;
   try {
-    propExpr = resolvePropertyExprStr(params.property_name);
+    propExpr = resolvePropertyExpr(params.property_name);
   } catch {
     throw new AppBadRequestException(`Unknown property: ${params.property_name}`);
   }
 
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    limit: params.limit ?? 50,
-  };
+  const limit = params.limit ?? 50;
 
-  const conditions: string[] = [`project_id = {project_id:UUID}`];
+  const builder = select(
+    alias(propExpr, 'value'),
+    count().as('count'),
+  )
+    .from('events')
+    .where(
+      projectIs(params.project_id),
+      params.event_name ? eventIs(params.event_name) : undefined,
+      neq(propExpr, raw("''")),
+    )
+    .groupBy(raw('value'))
+    .orderBy(raw('count'), 'DESC')
+    .limit(limit);
 
-  if (params.event_name) {
-    queryParams['event_name'] = params.event_name;
-    conditions.push(`event_name = {event_name:String}`);
-  }
-
-  const query = `
-    SELECT
-      ${propExpr} AS value,
-      count() AS count
-    FROM events
-    WHERE ${conditions.join(' AND ')}
-      AND ${propExpr} != ''
-    GROUP BY value
-    ORDER BY count DESC
-    LIMIT {limit:UInt32}
-  `;
+  const node = builder.build();
+  const { sql, params: queryParams } = compile(node);
 
   const result = await ch.query({
-    query,
+    query: sql,
     query_params: queryParams,
     format: 'JSONEachRow',
   });

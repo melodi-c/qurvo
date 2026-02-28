@@ -4,7 +4,13 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { toChTs, RESOLVED_PERSON, buildPropertyFilterConditions, type PropertyFilter } from '../../analytics/query-helpers';
+import { compile, select } from '@qurvo/ch-query';
+import {
+  analyticsWhere,
+  baseMetricColumns,
+  toChTs,
+  type PropertyFilter,
+} from '../../analytics/query-helpers';
 import { computeMetricValue } from './metric.utils';
 
 const argsSchema = z.object({
@@ -38,8 +44,8 @@ const tool = defineTool({
 });
 
 interface RawRow {
-  raw_count: string;
-  uniq_count: string;
+  raw_value: string;
+  uniq_value: string;
 }
 
 async function querySegment(
@@ -49,37 +55,25 @@ async function querySegment(
   dateFrom: string,
   dateTo: string,
   filters: PropertyFilter[],
-  segmentPrefix: string,
 ): Promise<{ raw: number; uniq: number }> {
-  const queryParams: Record<string, unknown> = {
-    project_id: projectId,
-    event_name: eventName,
-    date_from: toChTs(dateFrom),
-    date_to: toChTs(dateTo, true),
-  };
+  const node = select(...baseMetricColumns())
+    .from('events')
+    .where(
+      analyticsWhere({
+        projectId,
+        from: dateFrom,
+        to: toChTs(dateTo, true),
+        eventName,
+        filters,
+      }),
+    )
+    .build();
 
-  const filterConditions = buildPropertyFilterConditions(filters, segmentPrefix, queryParams);
-  const whereFilters = filterConditions.length > 0
-    ? ' AND ' + filterConditions.join(' AND ')
-    : '';
-
-  const sql = `
-    SELECT
-      count() AS raw_count,
-      uniqExact(${RESOLVED_PERSON}) AS uniq_count
-    FROM events
-    WHERE
-      project_id = {project_id:UUID}
-      AND event_name = {event_name:String}
-      AND timestamp >= {date_from:DateTime64(3)}
-      AND timestamp <= {date_to:DateTime64(3)}
-      ${whereFilters}
-  `;
-
-  const res = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const { sql, params } = compile(node);
+  const res = await ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
   const rows = await res.json<RawRow>();
-  const row = rows[0] ?? { raw_count: '0', uniq_count: '0' };
-  return { raw: Number(row.raw_count), uniq: Number(row.uniq_count) };
+  const row = rows[0] ?? { raw_value: '0', uniq_value: '0' };
+  return { raw: Number(row.raw_value), uniq: Number(row.uniq_value) };
 }
 
 @Injectable()
@@ -106,8 +100,8 @@ export class SegmentCompareTool implements AiTool {
     } = args;
 
     const [segmentA, segmentB] = await Promise.all([
-      querySegment(this.ch, projectId, eventName, dateFrom, dateTo, segmentAFilters as PropertyFilter[], 'seg_a'),
-      querySegment(this.ch, projectId, eventName, dateFrom, dateTo, segmentBFilters as PropertyFilter[], 'seg_b'),
+      querySegment(this.ch, projectId, eventName, dateFrom, dateTo, segmentAFilters as PropertyFilter[]),
+      querySegment(this.ch, projectId, eventName, dateFrom, dateTo, segmentBFilters as PropertyFilter[]),
     ]);
 
     const valueA = computeMetricValue(metric, segmentA.raw, segmentA.uniq);

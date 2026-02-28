@@ -4,7 +4,9 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
+import { compile } from '@qurvo/ch-query';
 import { toChTs, RESOLVED_PERSON } from '../../analytics/query-helpers';
+import { firstEventCte } from './first-event-cte';
 import type { FunnelGapToolOutput } from '@qurvo/ai-types';
 
 const argsSchema = z.object({
@@ -37,17 +39,11 @@ interface RawGapRow {
 
 export interface FunnelGapItem {
   event_name: string;
-  /** Users who performed this intermediate event */
   saw_count: number;
-  /** Conversion rate among users who saw the event (0–1) */
   saw_conversion_rate: number;
-  /** Users who did NOT perform this intermediate event */
   no_saw_count: number;
-  /** Conversion rate among users who did NOT see the event (0–1) */
   no_saw_conversion_rate: number;
-  /** Relative lift: (saw_rate - no_saw_rate) / no_saw_rate. Positive = helps, negative = hurts. */
   relative_lift: number;
-  /** Sample size of the smaller group (used to indicate statistical confidence) */
   min_sample_size: number;
 }
 
@@ -64,43 +60,42 @@ export class FunnelGapsTool implements AiTool {
 
   run = tool.createRun(async (args, _userId, projectId) => {
     const maxResults = args.max_results ?? 10;
+    const fromTs = toChTs(args.date_from);
+    const toTs = toChTs(args.date_to, true);
 
+    // Build the "entrants" CTE via the shared firstEventCte helper
+    const entrantsNode = firstEventCte({
+      projectId,
+      eventName: args.start_event,
+      from: fromTs,
+      to: toTs,
+    });
+    const entrantsCompiled = compile(entrantsNode);
+
+    // Manual params for the remaining CTEs (no collisions with auto-generated p_N names)
     const queryParams: Record<string, unknown> = {
+      ...entrantsCompiled.params,
       project_id: projectId,
-      from: toChTs(args.date_from),
-      to: toChTs(args.date_to, true),
+      to: toTs,
       start_event: args.start_event,
       end_event: args.end_event,
       min_sample: 30,
+      max_results: maxResults,
     };
 
     // Strategy:
-    // 1. Find all users who fired start_event in the date range → "entrants"
-    // 2. Among entrants, find who also fired end_event AFTER start_event → "converters"
-    // 3. For each intermediate event (not start/end), find which entrants fired it
-    //    between their first start_event and either their conversion or end of window
-    // 4. Compute conversion rate for saw vs no-saw groups
-    // 5. Filter by min_sample >= 30 in both groups, rank by |lift|
+    // 1. entrants CTE (shared helper): first occurrence of start_event per user
+    // 2. converters: entrants who also fired end_event AFTER start_event
+    // 3. intermediate: distinct events per entrant between start_ts and window end
+    // 4. per_event: saw counts and conversion counts per intermediate event
+    // 5. Filter by min_sample >= 30, rank by |lift|
     //
     // ClickHouse note: CTEs are not materialised (inlined like views).
     // We avoid multi-CTE references by using subqueries or IN/NOT IN patterns.
 
     const sql = `
       WITH
-        -- Step 1: Per-user first occurrence of start_event in date range
-        entrants AS (
-          SELECT
-            ${RESOLVED_PERSON} AS pid,
-            min(timestamp) AS start_ts
-          FROM events
-          WHERE
-            project_id = {project_id:UUID}
-            AND event_name = {start_event:String}
-            AND timestamp >= {from:DateTime64(3)}
-            AND timestamp <= {to:DateTime64(3)}
-          GROUP BY pid
-        ),
-        -- Step 2: Among entrants, those who fired end_event AFTER their start_ts
+        entrants AS (${entrantsCompiled.sql}),
         converters AS (
           SELECT DISTINCT ${RESOLVED_PERSON} AS pid
           FROM events
@@ -111,8 +106,6 @@ export class FunnelGapsTool implements AiTool {
             AND timestamp > entrants.start_ts
             AND timestamp <= {to:DateTime64(3)}
         ),
-        -- Step 3: All intermediate events per entrant (between start_ts and end of window)
-        -- Exclude start_event and end_event themselves
         intermediate AS (
           SELECT DISTINCT
             e.event_name,
@@ -126,11 +119,9 @@ export class FunnelGapsTool implements AiTool {
             AND e.timestamp > entrants.start_ts
             AND e.timestamp <= {to:DateTime64(3)}
         ),
-        -- Step 4: Total entrant count (materialise as scalar)
         total_entrants AS (
           SELECT uniqExact(pid) AS n FROM entrants
         ),
-        -- Step 5: Per intermediate event: saw counts and conversion counts
         per_event AS (
           SELECT
             i.event_name,
@@ -160,8 +151,6 @@ export class FunnelGapsTool implements AiTool {
       LIMIT {max_results:UInt32}
     `;
 
-    queryParams['max_results'] = maxResults;
-
     const res = await this.ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
     const rows = await res.json<RawGapRow>();
 
@@ -174,8 +163,6 @@ export class FunnelGapsTool implements AiTool {
       const sawRate = sawCount > 0 ? sawConverted / sawCount : 0;
       const noSawRate = noSawCount > 0 ? noSawConverted / noSawCount : 0;
 
-      // Relative lift: (saw_rate - no_saw_rate) / no_saw_rate
-      // Guard against division by zero when baseline rate is 0
       const relativeLift = noSawRate > 0
         ? (sawRate - noSawRate) / noSawRate
         : sawRate > 0 ? 1 : 0;
@@ -191,8 +178,6 @@ export class FunnelGapsTool implements AiTool {
       };
     });
 
-    // Sort final result by |lift| descending (ClickHouse ORDER BY already does this,
-    // but we re-sort in JS to guarantee order after numeric conversion)
     items.sort((a, b) => Math.abs(b.relative_lift) - Math.abs(a.relative_lift));
 
     return {
