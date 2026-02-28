@@ -1,12 +1,12 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import type { AliasExpr, Expr, SelectNode } from '@qurvo/ch-query';
+import type { AliasExpr, Expr } from '@qurvo/ch-query';
 import {
   compile,
   select,
   unionAll,
   col,
-  raw,
+  literal,
   func,
   and,
   eq,
@@ -183,7 +183,7 @@ export async function queryLifecycle(
     .where(and(
       projectIs(params.project_id),
       eventIs(params.target_event),
-      lt(raw('timestamp'), tsParam(extendedFrom, tz)),
+      lt(col('timestamp'), tsParam(extendedFrom, tz)),
       cohortFilter(
         params.cohort_filters,
         params.project_id,
@@ -212,14 +212,14 @@ export async function queryLifecycle(
             eq(col('bucket'), col('first_bucket')),
             notInSubquery(col('person_id'), priorActiveRef),
           ),
-          result: raw("'new'"),
+          result: literal('new'),
         },
         {
           condition: func('has', col('buckets'), prevBucketExpr),
-          result: raw("'returning'"),
+          result: literal('returning'),
         },
       ],
-      raw("'resurrecting'"),
+      literal('resurrecting'),
     ).as('status'),
   )
     .from('person_buckets')
@@ -231,7 +231,7 @@ export async function queryLifecycle(
   const dormant = select(
     col('person_id'),
     alias(nextBucketExpr, 'ts_bucket'),
-    raw("'dormant'").as('status'),
+    literal('dormant').as('status'),
   )
     .from('person_buckets')
     .arrayJoin(col('buckets'), 'bucket')
@@ -250,9 +250,7 @@ export async function queryLifecycle(
   )
     .with('person_buckets', personBuckets)
     .with('prior_active', priorActive)
-    // Cast: compiler.compileQuery() handles UnionAllNode correctly in FROM position;
-    // the SelectNode type constraint on .from() is narrower than what the runtime supports.
-    .from(unionAll(activeStatuses, dormant) as unknown as SelectNode)
+    .from(unionAll(activeStatuses, dormant))
     .groupBy(col('ts_bucket'), col('status'))
     .orderBy(col('ts_bucket'))
     .orderBy(col('status'))
