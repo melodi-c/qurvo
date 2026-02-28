@@ -1,9 +1,9 @@
+import { useEffect, useRef, type ElementType } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QurvoLogo } from '@/components/qurvo-logo';
-import type { ElementType } from 'react';
 
 interface SidebarSection {
   title: string;
@@ -35,8 +35,54 @@ export function SidebarNav({
   closeNavLabel,
   children,
 }: SidebarNavProps) {
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  // Focus trap: cycle Tab within sidebar when open on mobile
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+
+    const FOCUSABLE =
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      const focusable = Array.from(
+        sidebar.querySelectorAll<HTMLElement>(FOCUSABLE),
+      ).filter((el) => el.offsetParent !== null);
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    // Move focus into sidebar on open
+    const firstFocusable = sidebar.querySelector<HTMLElement>(FOCUSABLE);
+    firstFocusable?.focus();
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   return (
     <aside
+      ref={sidebarRef}
       role={isOpen ? 'dialog' : undefined}
       aria-modal={isOpen ? true : undefined}
       aria-label={navigationLabel}
