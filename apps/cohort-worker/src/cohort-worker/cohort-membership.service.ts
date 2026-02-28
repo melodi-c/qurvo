@@ -23,6 +23,7 @@ import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
 import { CohortComputationService } from './cohort-computation.service';
 import { filterByBackoff } from './backoff';
 import { MetricsService } from './metrics.service';
+import type { CohortConditionGroup } from '@qurvo/db';
 import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processor';
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
 
   private async processLevel(
     level: Array<{ id: string }>,
-    cohortById: Map<string, { id: string; project_id: string; definition: Record<string, unknown> }>,
+    cohortById: Map<string, { id: string; project_id: string; definition: CohortConditionGroup }>,
     stats: { computed: number; pgFailed: number },
     pendingDeletions: Array<{ cohortId: string; version: number }>,
   ): Promise<void> {
@@ -179,7 +180,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
 
   private async collectResults(
     results: PromiseSettledResult<ComputeJobResult>[],
-    jobs: Array<{ id: string | undefined; data: ComputeJobData }>,
+    jobs: Array<{ id?: string; data: ComputeJobData }>,
     stats: { computed: number; pgFailed: number },
     pendingDeletions: Array<{ cohortId: string; version: number }>,
   ): Promise<void> {
@@ -207,7 +208,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
 
   private async handleRejectedResult(
     reason: unknown,
-    job: { id: string | undefined; data: ComputeJobData },
+    job: { id?: string; data: ComputeJobData },
   ): Promise<void> {
     this.logger.error({ err: reason, cohortId: job.data.cohortId, jobId: job.id }, 'Cohort compute job rejected unexpectedly');
     await this.computation.recordError(job.data.cohortId, reason).catch(() => {});

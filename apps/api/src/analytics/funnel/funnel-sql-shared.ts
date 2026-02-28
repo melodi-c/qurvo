@@ -98,7 +98,7 @@ export function resolveWindowSeconds(params: {
   if (hasValue && hasUnit) {
     const unit = params.conversion_window_unit ?? '';
     const multiplier = UNIT_TO_SECONDS[unit] ?? 86400;
-    const resolved = params.conversion_window_value * multiplier;
+    const resolved = (params.conversion_window_value ?? 0) * multiplier;
     if (resolved > MAX_WINDOW_SECONDS) {
       throw new AppBadRequestException(
         `conversion_window_value * conversion_window_unit exceeds the maximum allowed window of 90 days (${MAX_WINDOW_SECONDS} seconds). Got ${resolved} seconds.`,
