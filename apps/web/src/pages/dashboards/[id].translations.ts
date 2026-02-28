@@ -10,6 +10,7 @@ export default createTranslations({
     addWidget: 'Add Widget',
     cancel: 'Cancel',
     edit: 'Edit',
+    saveFailed: 'Failed to save dashboard',
   },
   ru: {
     selectProject: 'Сначала выберите проект',
@@ -20,5 +21,6 @@ export default createTranslations({
     addWidget: 'Добавить виджет',
     cancel: 'Отмена',
     edit: 'Редактировать',
+    saveFailed: 'Не удалось сохранить дашборд',
   },
 });

@@ -86,7 +86,11 @@ export function useRemoveWidget() {
   });
 }
 
-/** Saves the entire dashboard state: name + widget layouts. */
+/** Saves the entire dashboard state: name + widget layouts.
+ *  Operations run sequentially (add → update → remove) so that a failure
+ *  in an earlier phase does not leave the dashboard in an inconsistent state
+ *  (e.g. widgets removed but new ones not yet created).
+ *  On any error the query cache is invalidated to re-sync with the server. */
 export function useSaveDashboard(dashboardId: string) {
   const projectId = useProjectId();
   const qc = useQueryClient();
@@ -117,26 +121,38 @@ export function useSaveDashboard(dashboardId: string) {
   const save = async (params: { name: string; widgets: Widget[]; serverWidgets: Widget[] }) => {
     const { name, widgets, serverWidgets } = params;
 
-    // 1. Update dashboard name
-    await updateName.mutateAsync(name);
-
     const serverIds = new Set(serverWidgets.map((w) => w.id));
     const localIds = new Set(widgets.map((w) => w.id));
 
-    // 2. Add new widgets (client-side temp IDs not in server)
     const toAdd = widgets.filter((w) => !serverIds.has(w.id));
-    // 3. Update existing widgets
     const toUpdate = widgets.filter((w) => serverIds.has(w.id));
-    // 4. Remove deleted widgets
     const toRemove = serverWidgets.filter((w) => !localIds.has(w.id));
 
-    await Promise.all([
-      ...toAdd.map((w) => addWidget.mutateAsync(w)),
-      ...toUpdate.map((w) => updateWidget.mutateAsync(w)),
-      ...toRemove.map((w) => removeWidget.mutateAsync(w.id)),
-    ]);
+    try {
+      // 1. Update dashboard name
+      await updateName.mutateAsync(name);
 
-    qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      // 2. Add new widgets first — safest to do before removals
+      for (const w of toAdd) {
+        await addWidget.mutateAsync(w);
+      }
+
+      // 3. Update existing widgets
+      for (const w of toUpdate) {
+        await updateWidget.mutateAsync(w);
+      }
+
+      // 4. Remove deleted widgets last — minimises data loss on partial failure
+      for (const w of toRemove) {
+        await removeWidget.mutateAsync(w.id);
+      }
+
+      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+    } catch (err) {
+      // Re-sync with server state so the UI is not stale
+      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      throw err;
+    }
   };
 
   return {
