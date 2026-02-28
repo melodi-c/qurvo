@@ -1,11 +1,14 @@
 import type { CohortFirstTimeEventCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClausesStr, resolveDateToStr } from '../helpers';
+import type { SelectNode } from '../../ast';
+import { select, raw } from '../../builders';
+import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { compileExprToSql } from '../../compiler';
 import type { BuildContext } from '../types';
 
 export function buildFirstTimeEventSubquery(
   cond: CohortFirstTimeEventCondition,
   ctx: BuildContext,
-): string {
+): SelectNode {
   const condIdx = ctx.counter.value++;
   const eventPk = `coh_${condIdx}_event`;
   const daysPk = `coh_${condIdx}_days`;
@@ -13,17 +16,19 @@ export function buildFirstTimeEventSubquery(
   ctx.queryParams[eventPk] = cond.event_name;
   ctx.queryParams[daysPk] = cond.time_window_days;
 
-  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const upperBound = resolveDateTo(ctx);
+  const upperSql = compileExprToSql(upperBound).sql;
 
-  const upperBound = resolveDateToStr(ctx);
-
-  return `
-    SELECT ${RESOLVED_PERSON} AS person_id
-    FROM events
-    WHERE
-      project_id = {${ctx.projectIdParam}:UUID}
-      AND event_name = {${eventPk}:String}
-      AND timestamp <= ${upperBound}${filterClause}
-    GROUP BY person_id
-    HAVING min(timestamp) >= ${upperBound} - INTERVAL {${daysPk}:UInt32} DAY`;
+  return select(raw(RESOLVED_PERSON).as('person_id'))
+    .from('events')
+    .where(
+      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
+      raw(`event_name = {${eventPk}:String}`),
+      raw(`timestamp <= ${upperSql}`),
+      filterExpr,
+    )
+    .groupBy(raw('person_id'))
+    .having(raw(`min(timestamp) >= ${upperSql} - INTERVAL {${daysPk}:UInt32} DAY`))
+    .build();
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildEventConditionSubquery } from '../../cohort/conditions/event';
+import { compile } from '../../compiler';
 import type { BuildContext } from '../../cohort/types';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
@@ -11,10 +12,15 @@ function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   };
 }
 
+/** Compile SelectNode to SQL string */
+function toSql(ctx: BuildContext, ...args: Parameters<typeof buildEventConditionSubquery>): string {
+  return compile(buildEventConditionSubquery(...args)).sql;
+}
+
 describe('buildEventConditionSubquery — event_filters: [] (empty array)', () => {
   it('produces valid SQL without any filter clause when event_filters is empty', () => {
     const ctx = makeCtx({ dateTo: '2025-03-01 23:59:59' });
-    const sql = buildEventConditionSubquery(
+    const sql = toSql(ctx,
       {
         type: 'event',
         event_name: 'pageview',
@@ -48,8 +54,8 @@ describe('buildEventConditionSubquery — event_filters: [] (empty array)', () =
       count: 2,
       time_window_days: 14,
     };
-    const sqlWithEmpty = buildEventConditionSubquery({ ...base, event_filters: [] }, ctxA);
-    const sqlWithout = buildEventConditionSubquery({ ...base }, ctxB);
+    const sqlWithEmpty = compile(buildEventConditionSubquery({ ...base, event_filters: [] }, ctxA)).sql;
+    const sqlWithout = compile(buildEventConditionSubquery({ ...base }, ctxB)).sql;
     expect(sqlWithEmpty).toBe(sqlWithout);
   });
 });
@@ -57,10 +63,10 @@ describe('buildEventConditionSubquery — event_filters: [] (empty array)', () =
 describe('buildEventConditionSubquery — upper bound constraint', () => {
   it('includes timestamp <= upperBound to exclude post-period events (with dateTo)', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59' });
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'purchase', count_operator: 'gte', count: 1, time_window_days: 30 },
       ctx,
-    );
+    )).sql;
     // Must contain both lower and upper bounds on timestamp
     expect(sql).toContain('timestamp >=');
     expect(sql).toContain('timestamp <=');
@@ -72,17 +78,17 @@ describe('buildEventConditionSubquery — upper bound constraint', () => {
 
   it('includes timestamp <= now64(3) when dateTo is absent', () => {
     const ctx = makeCtx();
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'signup', count_operator: 'gte', count: 1, time_window_days: 7 },
       ctx,
-    );
+    )).sql;
     expect(sql).toContain('timestamp <= now64(3)');
     expect(sql).toContain('timestamp >= now64(3) - INTERVAL');
   });
 
   it('upper bound appears before filterClause (event_filters not duplicated)', () => {
     const ctx = makeCtx({ dateTo: '2025-06-30 23:59:59' });
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       {
         type: 'event',
         event_name: 'purchase',
@@ -92,7 +98,7 @@ describe('buildEventConditionSubquery — upper bound constraint', () => {
         event_filters: [{ property: 'properties.category', operator: 'eq', value: 'electronics' }],
       },
       ctx,
-    );
+    )).sql;
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
     // Ensure the filter clause is still appended after the upper bound
     expect(sql).toContain("JSONExtractString(properties, 'category')");
@@ -102,12 +108,12 @@ describe('buildEventConditionSubquery — upper bound constraint', () => {
 describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)', () => {
   it('uses countIf absence pattern instead of HAVING count() = 0 when count_operator=eq and count=0', () => {
     const ctx = makeCtx();
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'purchase', count_operator: 'eq', count: 0, time_window_days: 30 },
       ctx,
-    );
+    )).sql;
     // Must NOT filter by event_name in the WHERE clause (that would exclude users with 0 events)
-    expect(sql).not.toContain('AND event_name = {coh_0_event:String}');
+    expect(sql).not.toContain('event_name = {coh_0_event:String}' + '\n');
     // Must use countIf to count matching events in the HAVING clause
     expect(sql).toContain('HAVING countIf(event_name = {coh_0_event:String}) = 0');
     // Must still have time window bounds
@@ -117,10 +123,10 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
 
   it('rolling-window mode (no dateFrom): uses now64(3) as upper bound', () => {
     const ctx = makeCtx();
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'signup', count_operator: 'eq', count: 0, time_window_days: 90 },
       ctx,
-    );
+    )).sql;
     expect(sql).toContain('timestamp <= now64(3)');
     expect(sql).toContain('timestamp >= now64(3) - INTERVAL {coh_0_days:UInt32} DAY');
     expect(ctx.queryParams['coh_0_event']).toBe('signup');
@@ -129,10 +135,10 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
 
   it('rolling-window mode (with dateTo): uses dateTo param as upper bound', () => {
     const ctx = makeCtx({ dateTo: '2025-03-31 23:59:59' });
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'purchase', count_operator: 'eq', count: 0, time_window_days: 30 },
       ctx,
-    );
+    )).sql;
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
     expect(sql).toContain('timestamp >= {coh_date_to:DateTime64(3)} - INTERVAL {coh_0_days:UInt32} DAY');
     expect(ctx.queryParams['coh_date_to']).toBe('2025-03-31 23:59:59');
@@ -140,10 +146,10 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
 
   it('fixed-window mode (dateFrom + dateTo): uses exact [dateFrom, dateTo] range', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'checkout', count_operator: 'eq', count: 0, time_window_days: 30 },
       ctx,
-    );
+    )).sql;
     expect(sql).toContain('timestamp >= {coh_date_from:DateTime64(3)}');
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
     expect(ctx.queryParams['coh_date_from']).toBe('2025-01-01 00:00:00');
@@ -152,7 +158,7 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
 
   it('with event_filters: includes filter conditions inside countIf', () => {
     const ctx = makeCtx();
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       {
         type: 'event',
         event_name: 'purchase',
@@ -162,33 +168,31 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
         event_filters: [{ property: 'properties.category', operator: 'eq', value: 'electronics' }],
       },
       ctx,
-    );
+    )).sql;
     // countIf must include both the event_name check and the filter
     expect(sql).toContain('HAVING countIf(event_name = {coh_0_event:String}');
     expect(sql).toContain("JSONExtractString(properties, 'category')");
     // event_name should NOT appear in WHERE (only in countIf)
-    expect(sql).not.toContain('AND event_name = {coh_0_event:String}\n');
+    const whereSection = sql.slice(sql.indexOf('WHERE'), sql.indexOf('GROUP BY'));
+    expect(whereSection).not.toContain('event_name = {coh_0_event:String}');
   });
 
   it('eq + count > 0 still uses standard HAVING count() = N path', () => {
     const ctx = makeCtx();
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       { type: 'event', event_name: 'purchase', count_operator: 'eq', count: 3, time_window_days: 30 },
       ctx,
-    );
+    )).sql;
     // Should filter event_name in WHERE (standard path)
-    expect(sql).toContain('AND event_name = {coh_0_event:String}');
+    expect(sql).toContain('event_name = {coh_0_event:String}');
     // Should use standard HAVING with count()
     expect(sql).toContain('HAVING count() = {coh_0_count:UInt64}');
     expect(ctx.queryParams['coh_0_count']).toBe(3);
   });
 
   it('eq + count=0 with aggregation_type (non-count) still uses standard HAVING path', () => {
-    // Aggregation-based zero (e.g. "sum of purchase_value = 0") is theoretically valid
-    // via HAVING since aggregation values can be 0 for users who did make a purchase but
-    // with a zero-value field. The special case only applies to count aggregation.
     const ctx = makeCtx();
-    const sql = buildEventConditionSubquery(
+    const sql = compile(buildEventConditionSubquery(
       {
         type: 'event',
         event_name: 'purchase',
@@ -199,9 +203,9 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
         aggregation_property: 'properties.value',
       },
       ctx,
-    );
+    )).sql;
     // Should use standard HAVING path (not the zero-count special case)
-    expect(sql).toContain('AND event_name = {coh_0_event:String}');
+    expect(sql).toContain('event_name = {coh_0_event:String}');
     expect(sql).toContain('HAVING sum(');
     expect(sql).toContain('= {coh_0_count:Float64}');
   });
