@@ -1,4 +1,4 @@
-import type { Expr } from '../ast';
+import type { Expr } from '@qurvo/ch-query';
 import {
   and,
   eq,
@@ -12,11 +12,9 @@ import {
   param,
   raw,
   rawWithParams,
-} from '../builders';
+} from '@qurvo/ch-query';
 import { timeRange } from './time';
 import { resolvedPerson } from './resolved-person';
-import { buildCohortFilterClause } from '../cohort/builder';
-import type { CohortFilterInput } from '../cohort/types';
 
 // ── Types ──
 
@@ -229,15 +227,20 @@ export function cohortFilter(
   dateFrom?: string,
 ): Expr | undefined {
   if (!inputs?.length) return undefined;
+  // Dynamically import to avoid hard dependency at module level.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { buildCohortFilterClause } = require('@qurvo/cohort-query') as typeof import('@qurvo/cohort-query');
 
   // Collect params populated by buildCohortFilterClause into a local object.
   // These will be embedded into the RawWithParamsExpr and merged during compilation.
   const cohortParams: Record<string, unknown> = {};
   cohortParams['project_id'] = projectId;
 
-  // CohortFilterInputLike is structurally compatible with CohortFilterInput.
-  // The cast is safe because buildCohortFilterClause only reads `definition`
-  // to pass it to buildCohortSubquery which handles unknown shapes.
+  // CohortFilterInputLike is structurally compatible with CohortFilterInput
+  // but uses `unknown` for the `definition` field to avoid pulling @qurvo/db
+  // types into ch-query. The cast is safe because buildCohortFilterClause only
+  // reads `definition` to pass it to buildCohortSubquery which handles unknown shapes.
+  type CohortFilterInput = Parameters<typeof buildCohortFilterClause>[0][number];
   const clause = buildCohortFilterClause(
     inputs as CohortFilterInput[],
     'project_id',
@@ -251,8 +254,8 @@ export function cohortFilter(
 }
 
 /**
- * Minimal type for cohort filter inputs — avoids importing the full @qurvo/db types
- * into the ch-query package. Compatible with CohortFilterInput from @qurvo/cohort-query.
+ * Minimal type for cohort filter inputs -- avoids importing the full @qurvo/db types
+ * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/cohort-query.
  */
 export interface CohortFilterInputLike {
   cohort_id: string;

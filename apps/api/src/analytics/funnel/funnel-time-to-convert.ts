@@ -1,5 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { compileExprToSql, CompilerContext, cohortFilter } from '@qurvo/ch-query';
+import { compileExprToSql, CompilerContext } from '@qurvo/ch-query';
+import { cohortFilter } from '../query-helpers';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
 import {

@@ -1,5 +1,5 @@
-import type { AliasExpr, RawExpr } from '../ast';
-import { raw } from '../builders';
+import type { AliasExpr, RawExpr } from '@qurvo/ch-query';
+import { raw } from '@qurvo/ch-query';
 
 /**
  * The raw SQL expression for resolving a person's canonical ID via the

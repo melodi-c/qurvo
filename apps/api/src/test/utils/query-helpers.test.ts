@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { compile } from '../compiler';
-import { col, count, select, uniqExact, and, raw, param } from '../builders';
+import { compile, col, count, select, uniqExact, raw } from '@qurvo/ch-query';
+import type { Expr } from '@qurvo/ch-query';
 import {
   toChTs,
   shiftDate,
@@ -11,8 +11,6 @@ import {
   bucket,
   neighborBucket,
   bucketOfMin,
-} from '../analytics/time';
-import {
   projectIs,
   eventIs,
   eventIn,
@@ -22,11 +20,13 @@ import {
   analyticsWhere,
   resolvePropertyExpr,
   resolveNumericPropertyExpr,
-} from '../analytics/filters';
-import type { CohortFilterInputLike } from '../analytics/filters';
-import { resolvedPerson, RESOLVED_PERSON } from '../analytics/resolved-person';
-import { baseMetricColumns, aggColumn, numericProperty } from '../analytics/aggregations';
-import type { Expr } from '../ast';
+  resolvedPerson,
+  RESOLVED_PERSON,
+  baseMetricColumns,
+  aggColumn,
+  numericProperty,
+  type CohortFilterInputLike,
+} from '../../analytics/query-helpers';
 
 // Helper to compile a single expression within a SELECT for inspection
 function compileExpr(expr: Expr): { sql: string; params: Record<string, unknown> } {
@@ -99,12 +99,10 @@ describe('analytics/time', () => {
     });
 
     test('week truncation snaps to Monday', () => {
-      // 2026-01-15 is Thursday -> Monday is 2026-01-12
       expect(truncateDate('2026-01-15', 'week')).toBe('2026-01-12');
     });
 
     test('week truncation on Sunday', () => {
-      // 2026-01-18 is Sunday -> Monday is 2026-01-12
       expect(truncateDate('2026-01-18', 'week')).toBe('2026-01-12');
     });
 
@@ -284,7 +282,6 @@ describe('analytics/filters', () => {
         });
         const { sql, params } = compileWhere(expr);
         expect(sql).toContain("JSONExtractString(properties, 'plan') = {p_0:String}");
-        // eq with OR creates two param refs — p_0 for JSONExtractString, p_1 for toString(JSONExtractRaw)
         expect(sql).toContain("toString(JSONExtractRaw(properties, 'plan')) = {p_1:String}");
         expect(sql).toContain(' OR ');
         expect(params.p_0).toBe('pro');
@@ -323,7 +320,6 @@ describe('analytics/filters', () => {
         const { sql } = compileWhere(expr);
         expect(sql).toContain("JSONHas(properties, 'plan')");
         expect(sql).toContain("JSONExtractString(properties, 'plan') != {p_0:String}");
-        // neq creates separate params for JSONExtractString and toString(JSONExtractRaw)
         expect(sql).toContain("toString(JSONExtractRaw(properties, 'plan')) != {p_1:String}");
       });
 
@@ -513,7 +509,6 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-      // Compile it and verify cohort params flow through
       const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('cohort_members');
       expect(sql).toContain('{coh_mid_0:UUID}');
@@ -553,9 +548,7 @@ describe('analytics/filters', () => {
         }],
       });
       const { sql, params } = compileWhere(expr);
-      // Standard analytics params
       expect(params.p_0).toBe('pid-123');
-      // Cohort params must be present (not lost)
       expect(params.coh_mid_0).toBe('cohort-abc');
       expect(params.project_id).toBe('pid-123');
       expect(sql).toContain('cohort_members');
@@ -570,7 +563,6 @@ describe('analytics/filters', () => {
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
       expect(params.p_0).toBe('pid-123');
-      // No cohort params
       expect(params.coh_mid_0).toBeUndefined();
     });
   });
@@ -609,7 +601,6 @@ describe('analytics/filters', () => {
         eventName: 'page_view',
       });
       const { sql } = compileWhere(expr);
-      // p_0=projectId, p_1=from, p_2=to, p_3=eventName
       expect(sql).toContain('event_name = {p_3:String}');
     });
 
@@ -621,7 +612,6 @@ describe('analytics/filters', () => {
         eventNames: ['page_view', 'click'],
       });
       const { sql } = compileWhere(expr);
-      // p_0=projectId, p_1=from, p_2=to, p_3=eventNames
       expect(sql).toContain('event_name IN ({p_3:Array(String)})');
     });
 
@@ -635,7 +625,6 @@ describe('analytics/filters', () => {
         ],
       });
       const { sql } = compileWhere(expr);
-      // p_0=projectId, p_1=from, p_2=to, p_3=browser filter value
       expect(sql).toContain('browser = {p_3:String}');
     });
   });
@@ -787,29 +776,18 @@ describe('analytics integration: real-world stickiness query', () => {
 
     const { sql, params } = compile(q);
 
-    // CTE structure
     expect(sql).toContain('WITH');
     expect(sql).toContain('person_active_periods AS (');
-
-    // Resolved person
     expect(sql).toContain('dictGetOrNull');
     expect(sql).toContain('AS person_id');
-
-    // Bucket
     expect(sql).toContain("toStartOfDay(timestamp, 'Europe/Moscow')");
-
-    // WHERE clauses
     expect(sql).toContain('project_id = {p_0:UUID}');
     expect(sql).toContain('toDateTime64(');
     expect(sql).toContain("event_name = ");
     expect(sql).toContain('browser = ');
-
-    // Outer query
     expect(sql).toContain('FROM person_active_periods');
     expect(sql).toContain('GROUP BY active_periods');
     expect(sql).toContain('ORDER BY active_periods');
-
-    // Params populated
     expect(params.p_0).toBe('test-project-id');
   });
 });

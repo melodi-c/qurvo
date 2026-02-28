@@ -22,8 +22,9 @@ disable-model-invocation: true
 - Запускать тесты/build напрямую
 - Разрешать merge-конфликты самостоятельно
 - **Вызывать TaskOutput** — система САМА уведомляет о завершении background-агентов. TaskOutput не нужен и тратит время впустую
+- **Вызывать EnterWorktree** — executor работает ТОЛЬКО в основном репо. Worktree создаются автоматически при запуске подагентов с `isolation: "worktree"`
 - **Выполнять `git diff`, `git log`, `git show`** для анализа изменений подагентов — это работа ревьюера, не оркестратора
-- **Прямые git-операции**: `git checkout`, `git switch`, `git cherry-pick`, `git rebase`, `git merge`, `git reset --hard`, `git stash` — ЗАПРЕЩЕНЫ (заблокированы хуком `restrict-executor.sh`). Git-операции выполняются ТОЛЬКО через скрипты `.claude/scripts/` или подагентами
+- **Прямые git-операции**: `git checkout`, `git switch`, `git cherry-pick`, `git rebase`, `git merge`, `git reset --hard`, `git stash`, `git push` — ЗАПРЕЩЕНЫ (заблокированы хуком `restrict-executor.sh`). Git-операции и создание PR выполняются ТОЛЬКО через скрипты `.claude/scripts/` или подагентами. **Никогда не обходи merge-worktree.sh** при ошибках — используй обработку exit code
 
 Единственные файлы, которые ты читаешь:
 - `.claude/results/*.json` и `/tmp/claude-results/*.json`
@@ -516,7 +517,10 @@ COMMIT_HASH=$(echo "$MERGE_RESULT" | grep -o 'COMMIT_HASH=[^ ]*' | cut -d= -f2)
 PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
 ```
 
+**ВАЖНО**: при любом ненулевом exit code — НЕ обходи скрипт. Не делай `git push`, `gh pr create` или другие git-операции вручную. Только обработка по таблице ниже.
+
 Обработка ошибок по exit code:
+- **exit 0** (успех) → продолжай к close-merged-issue.sh
 - **exit 1** (merge conflict) → запусти `conflict-resolver`:
   ```
   subagent_type: "conflict-resolver"
@@ -530,12 +534,19 @@ PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
     ISSUE_B_TITLE: <issue что уже в base branch>
     RESULT_FILE: <WORKTREE_PATH>/.claude/results/conflict-<NUMBER>.json
   ```
-  Прочитай `RESULT_FILE`: `RESOLVED` → повтори мерж. `UNRESOLVABLE` → считай FAILED.
-- **exit 2** (pre-merge build failed) → считай FAILED
-- **exit 3** (push failed) → retry 1 раз
-- **exit 4** (PR create failed) → retry 1 раз
+  Прочитай `RESULT_FILE`: `RESOLVED` → повтори мерж. `UNRESOLVABLE` → считай FAILED (см. ниже).
+- **exit 2** (pre-merge build failed) → FAILED (см. ниже)
+- **exit 3** (push failed) → retry мерж-скрипт 1 раз. Если снова 3 → FAILED
+- **exit 4** (PR create failed) → retry мерж-скрипт 1 раз. Если снова 4 → FAILED
 
-Закрой issue через `close-merged-issue.sh`:
+**FAILED при мерже** означает:
+```bash
+bash "$SM" issue-status <N> MERGE_FAILED
+gh issue edit <N> --remove-label "in-progress" --add-label "merge-failed"
+```
+Добавь issue в итоговый отчёт как failed. Переходи к следующему issue.
+
+**Только при exit 0** закрой issue через `close-merged-issue.sh`:
 ```bash
 bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
   "<NUMBER>" "$PR_URL" "$COMMIT_HASH" "$BASE_BRANCH"

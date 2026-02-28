@@ -15,12 +15,14 @@ import {
   rawWithParams,
   select,
   uniqExact,
+} from '@qurvo/ch-query';
+import {
   projectIs,
   timeRange,
   resolvedPerson,
   cohortFilter,
   toChTs,
-} from '@qurvo/ch-query';
+} from '../query-helpers';
 import { MAX_PATH_NODES } from '../../constants';
 
 // ── Public types ──────────────────────────────────────────────────────────────

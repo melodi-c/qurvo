@@ -14,7 +14,8 @@ import {
   lte,
   uniqExact,
   toString as chToString,
-  // analytics helpers
+} from '@qurvo/ch-query';
+import {
   resolvedPerson,
   bucket,
   bucketOfMin,
@@ -28,7 +29,7 @@ import {
   cohortFilter,
   propertyFilters,
   type PropertyFilter,
-} from '@qurvo/ch-query';
+} from '../query-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

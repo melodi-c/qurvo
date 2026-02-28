@@ -2,9 +2,11 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import {
   select, col, count, uniqExact, compile,
+} from '@qurvo/ch-query';
+import {
   analyticsWhere, bucket, resolvedPerson,
   type PropertyFilter,
-} from '@qurvo/ch-query';
+} from '../query-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

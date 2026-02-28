@@ -2,14 +2,14 @@ import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr } from '../ast';
 import { and, raw, rawWithParams } from '../builders';
 import { compileExprToSql } from '../compiler';
-import { RESOLVED_PERSON as RESOLVED_PERSON_SQL } from '../analytics/resolved-person';
 import type { BuildContext } from './types';
 
 /**
- * Re-export the canonical RESOLVED_PERSON SQL string from analytics/resolved-person.ts.
- * This eliminates the duplicated constant that previously lived in cohort-query.
+ * The raw SQL expression for resolving a person's canonical ID via the
+ * person_overrides_dict dictionary.
  */
-export { RESOLVED_PERSON_SQL as RESOLVED_PERSON };
+export const RESOLVED_PERSON =
+  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 
 export const TOP_LEVEL_COLUMNS = new Set([
   'country', 'region', 'city', 'device_type', 'browser',
