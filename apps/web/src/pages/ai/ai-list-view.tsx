@@ -35,7 +35,7 @@ export function AiListView({ projectId }: { projectId: string }) {
       await deleteMutation.mutateAsync(itemId);
       toast.success(t('deleted'));
     } catch {
-      toast.error(t('deleteFailed'));
+      // onError toast is handled by the hook
     }
   }, [itemId, deleteMutation, t]);
 
