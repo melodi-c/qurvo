@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { LayoutDashboard } from 'lucide-react';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
@@ -16,6 +17,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { RequireProject } from '@/components/require-project';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './[id].translations';
 
 export default function DashboardBuilderPage() {
@@ -70,12 +72,16 @@ export default function DashboardBuilderPage() {
       };
     });
 
-    await save({
-      name: localName,
-      widgets: mergedWidgets,
-      serverWidgets: dashboard?.widgets || [],
-    });
-    exitEditModeAfterSave();
+    try {
+      await save({
+        name: localName,
+        widgets: mergedWidgets,
+        serverWidgets: dashboard?.widgets || [],
+      });
+      exitEditModeAfterSave();
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, t('saveFailed')));
+    }
   };
 
   const handleDiscard = () => {
