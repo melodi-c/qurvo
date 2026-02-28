@@ -480,7 +480,8 @@ describe('queryFunnel — avg_time_to_convert for OR-logic steps (ordered funnel
     expect(step2Avg).not.toBeNull();
     // Both should be the same (total conversion time)
     expect(step1Avg).toBeCloseTo(step2Avg!, 0);
-    expect(step1Avg!).toBeGreaterThan(0);
+    // Verify the concrete expected value: avg = (60 + 90) / 2 = 75s
+    expect(step1Avg!).toBeCloseTo(75, 0);
 
     // Last step always null
     expect(r.steps[2].avg_time_to_convert_seconds).toBeNull();

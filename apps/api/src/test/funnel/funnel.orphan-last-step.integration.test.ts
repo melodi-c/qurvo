@@ -117,14 +117,12 @@ describe('queryFunnel — orphan last-step event does not pollute avg_time_to_co
     // Only userB's 2-day conversion contributes.
     // Without the fix, the avg would be astronomical (epoch timestamp / 1000).
     const avgTime = r.steps[0].avg_time_to_convert_seconds;
-    // avgTime should be reasonable (under 10 days in seconds)
-    // If bug were present, it would be ~1.7 billion seconds
-    if (avgTime !== null) {
-      expect(avgTime).toBeLessThan(10 * DAY_MS / 1000);
-      expect(avgTime).toBeGreaterThan(0);
-    }
-    // It's also acceptable for avgTime to be null if only userB's 2d is counted
-    // (the test verifies no garbage value)
+    // userB has a clean 2-day conversion, so avgTime MUST be non-null.
+    // The conditional `if (avgTime !== null)` was hiding potential regressions.
+    expect(avgTime).not.toBeNull();
+    // Expected: ~2 days = 172800s. Allow range [1 day .. 3 days] for timing jitter.
+    expect(avgTime!).toBeGreaterThan(DAY_MS / 1000);       // > 1 day
+    expect(avgTime!).toBeLessThan(3 * DAY_MS / 1000);      // < 3 days
 
     expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
   });
@@ -264,11 +262,11 @@ describe('queryFunnel — orphan last-step event does not pollute avg_time_to_co
 
     // avg_time should be reasonable (not billions of seconds).
     // If the bug were present, userA's orphan would contribute epoch-level garbage.
+    // userB has a clean 30s conversion, so avgTime MUST be non-null.
     const avgTime = r.steps[0].avg_time_to_convert_seconds;
-    if (avgTime !== null) {
-      expect(avgTime).toBeLessThan(100); // should be at most tens of seconds
-      expect(avgTime).toBeGreaterThan(0);
-    }
+    expect(avgTime).not.toBeNull();
+    expect(avgTime!).toBeGreaterThan(0);
+    expect(avgTime!).toBeLessThan(100); // should be at most tens of seconds
 
     expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
   });

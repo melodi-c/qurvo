@@ -1534,3 +1534,192 @@ describe('queryFunnelTimeToConvert — ordered TTC with multiple step_0 attempts
     expect(totalBinCount).toBe(1);
   });
 });
+
+// ── TTC with exclusions ─────────────────────────────────────────────────────
+
+describe('queryFunnelTimeToConvert — with exclusions', () => {
+  it('excludes users who performed an exclusion event from TTC distribution (ordered)', async () => {
+    // 2-step funnel: signup → purchase, exclusion: cancel between steps 0 and 1
+    //
+    // personClean: signup (T-60s) → purchase (T-30s), TTC = 30s
+    // personExcluded: signup (T-60s) → cancel (T-40s) → purchase (T-20s)
+    //   Has cancel between signup and purchase → excluded from TTC
+    // personClean2: signup (T-50s) → purchase (T-40s), TTC = 10s
+    //
+    // Expected: sample_size = 2 (only clean users), avg = (30 + 10) / 2 = 20s
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+    const personClean2 = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: 30s conversion
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'ttc-excl-clean',
+        event_name: 'signup',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'ttc-excl-clean',
+        event_name: 'purchase',
+        timestamp: msAgo(30_000),
+      }),
+      // personExcluded: cancel between signup and purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl-excluded',
+        event_name: 'signup',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl-excluded',
+        event_name: 'cancel',
+        timestamp: msAgo(40_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl-excluded',
+        event_name: 'purchase',
+        timestamp: msAgo(20_000),
+      }),
+      // personClean2: 10s conversion
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean2,
+        distinct_id: 'ttc-excl-clean2',
+        event_name: 'signup',
+        timestamp: msAgo(50_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean2,
+        distinct_id: 'ttc-excl-clean2',
+        event_name: 'purchase',
+        timestamp: msAgo(40_000),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+
+    // Only personClean (30s) and personClean2 (10s) should be in the distribution
+    expect(result.sample_size).toBe(2);
+    expect(result.average_seconds).not.toBeNull();
+    // avg = (30 + 10) / 2 = 20s
+    expect(result.average_seconds!).toBeCloseTo(20, 0);
+
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(2);
+  });
+
+  it('excludes users from TTC distribution with exclusion between non-zero steps (3-step funnel)', async () => {
+    // 3-step funnel: signup → checkout → purchase
+    // Exclusion: cancel between steps 1 (checkout) and 2 (purchase)
+    // TTC is measured from step 0 to step 2.
+    //
+    // personClean: signup (T-90s) → checkout (T-60s) → purchase (T-30s), TTC = 60s
+    // personExcluded: signup (T-90s) → checkout (T-60s) → cancel (T-45s) → purchase (T-20s)
+    //   cancel between checkout and purchase → excluded
+    //
+    // Expected: sample_size = 1 (only personClean), avg = 60s
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: clean 3-step conversion (60s total)
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'ttc-excl2-clean',
+        event_name: 'signup',
+        timestamp: msAgo(90_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'ttc-excl2-clean',
+        event_name: 'checkout',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'ttc-excl2-clean',
+        event_name: 'purchase',
+        timestamp: msAgo(30_000),
+      }),
+      // personExcluded: cancel between checkout and purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl2-excluded',
+        event_name: 'signup',
+        timestamp: msAgo(90_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl2-excluded',
+        event_name: 'checkout',
+        timestamp: msAgo(60_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl2-excluded',
+        event_name: 'cancel',
+        timestamp: msAgo(45_000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'ttc-excl2-excluded',
+        event_name: 'purchase',
+        timestamp: msAgo(20_000),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 2,
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 1, funnel_to_step: 2 }],
+    });
+
+    // Only personClean contributes (60s conversion)
+    expect(result.sample_size).toBe(1);
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeCloseTo(60, 0);
+
+    const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
+    expect(totalBinCount).toBe(1);
+  });
+});
