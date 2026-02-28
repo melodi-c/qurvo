@@ -39,8 +39,8 @@ export function BillingTab({ projectId }: { projectId: string }) {
   const periodStart = data ? formatDate(data.period_start) : '';
   const periodEnd = data ? formatDate(data.period_end) : '';
 
-  const features = data?.features as Record<string, boolean> | undefined;
-  const featureLabels: Record<string, string> = {
+  const features = data?.features;
+  const featureLabels: Record<keyof NonNullable<typeof features>, string> = {
     cohorts: t('cohorts'),
     lifecycle: t('lifecycle'),
     stickiness: t('stickiness'),
@@ -126,8 +126,8 @@ export function BillingTab({ projectId }: { projectId: string }) {
           </CardHeader>
           <CardContent className="p-0">
             <DefinitionList>
-              {Object.entries(featureLabels).map(([key, label]) => (
-                <DefinitionListRow key={key} label={label}>
+              {(Object.keys(featureLabels) as (keyof typeof featureLabels)[]).map((key) => (
+                <DefinitionListRow key={key} label={featureLabels[key]}>
                   {features[key] ? (
                     <Check className={`h-4 w-4 ${STATUS_COLORS.success}`} />
                   ) : (
