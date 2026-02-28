@@ -1,16 +1,18 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import { buildCohortClause, RESOLVED_PERSON, toChTs } from '../../utils/clickhouse-helpers';
+import { buildCohortClause } from '../../utils/clickhouse-helpers';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
 import {
+  RESOLVED_PERSON,
+  toChTs,
   resolveWindowSeconds,
   resolveStepEventNames,
   buildStepCondition,
-  buildSamplingClause,
+  buildSamplingClauseRaw,
   buildWindowFunnelExpr,
   buildAllEventNames,
   buildExclusionColumns,
-  buildExcludedUsersCTE,
+  buildExcludedUsersCTERaw,
   validateExclusions,
   validateUnorderedSteps,
   funnelTsExpr,
@@ -92,8 +94,8 @@ export async function queryFunnelTimeToConvert(
   const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: TtcChQueryParams = {
     project_id,
-    from: toChTs(params.date_from, false, params.timezone),
-    to: toChTs(params.date_to, true, params.timezone),
+    from: toChTs(params.date_from),
+    to: toChTs(params.date_to, true),
     window: windowSeconds,
     num_steps: steps.length,
     all_event_names: allEventNames,
@@ -110,9 +112,9 @@ export async function queryFunnelTimeToConvert(
     }
   });
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
 
-  const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
+  const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
 
   // Build step conditions once and reuse
   const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams));
@@ -159,7 +161,7 @@ export async function queryFunnelTimeToConvert(
     ? ',\n      ' + exclColumnAliases.join(',\n      ')
     : '';
   const excludedUsersCTE = exclusions.length > 0
-    ? buildExcludedUsersCTE(exclusions) + ',\n  '
+    ? buildExcludedUsersCTERaw(exclusions) + ',\n  '
     : '';
   // Extra AND condition appended to the WHERE clause in the `converted` CTE
   const exclAndCondition = exclusions.length > 0
@@ -493,7 +495,7 @@ async function buildUnorderedTtcSql(
   // (the anchor window). This prevents historical clean sessions outside the anchor window
   // from masking tainted conversions within it — same fix as funnel-unordered.sql.ts (issue #497).
   const excludedUsersCTE = exclusions.length > 0
-    ? ',\n  ' + buildExcludedUsersCTE(exclusions, true)
+    ? ',\n  ' + buildExcludedUsersCTERaw(exclusions, true)
     : '';
 
   const exclAndCondition = exclusions.length > 0

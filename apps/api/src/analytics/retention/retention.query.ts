@@ -1,7 +1,34 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, granularityTruncMinExpr, buildCohortClause, shiftDate, truncateDate, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
+import {
+  select,
+  unionAll,
+  compile,
+  col,
+  raw,
+  param,
+  func,
+  and,
+  eq,
+  gte,
+  lte,
+  uniqExact,
+  toString as chToString,
+  // analytics helpers
+  resolvedPerson,
+  bucket,
+  bucketOfMin,
+  tsParam,
+  toChTs,
+  shiftDate,
+  truncateDate,
+  analyticsWhere,
+  projectIs,
+  eventIs,
+  cohortFilter,
+  propertyFilters,
+  type PropertyFilter,
+} from '@qurvo/ch-query';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -123,134 +150,147 @@ export async function queryRetention(
   ch: ClickHouseClient,
   params: RetentionQueryParams,
 ): Promise<RetentionQueryResult> {
-  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
-  // When return_event is specified, use it for the return CTE; otherwise default to target_event.
+  const tz = params.timezone && params.timezone !== 'UTC' ? params.timezone : undefined;
   const returnEventName = params.return_event ?? params.target_event;
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    target_event: params.target_event,
-    return_event: returnEventName,
-    periods: params.periods,
-  };
-  if (hasTz) queryParams['tz'] = params.timezone;
 
   const truncFrom = truncateDate(params.date_from, params.granularity);
   const truncTo = truncateDate(params.date_to, params.granularity);
   const extendedTo = shiftDate(truncTo, params.periods, params.granularity);
 
-  queryParams['from'] = toChTs(truncFrom, false, params.timezone);
-  queryParams['to'] = toChTs(truncTo, true, params.timezone);
-  queryParams['extended_to'] = toChTs(extendedTo, true, params.timezone);
+  const truncFromTs = toChTs(truncFrom);
+  const truncToTs = toChTs(truncTo, true);
+  const extendedToTs = toChTs(extendedTo, true);
 
-  const fromExpr = tsExpr('from', 'tz', hasTz);
-  const toExpr = tsExpr('to', 'tz', hasTz);
-  const extendedToExpr = tsExpr('extended_to', 'tz', hasTz);
-  const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const unit = params.granularity;
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
+  // ── initial_events CTE ──
+  // Depends on retention_type: recurring vs first_time
 
-  // Build event property filter conditions.
-  // recurring: applied to both initial and return events.
-  // first_time: applied to return events only — initial event search is unfiltered
-  //   so that "first occurrence" means the true first event, not the first matching one.
-  const filterParts = buildPropertyFilterConditions(params.filters ?? [], 'ret', queryParams);
-  const filterClause = buildFilterClause(filterParts);
-
-  let initialCte: string;
+  let initialCte;
 
   if (params.retention_type === 'recurring') {
     // Recurring: each period the person is active counts as an initial event
-    initialCte = `
-      SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS cohort_period
-      FROM events
-      WHERE project_id = {project_id:UUID}
-        AND timestamp >= ${fromExpr}
-        AND timestamp <= ${toExpr}
-        AND event_name = {target_event:String}${cohortClause}${filterClause}
-      GROUP BY person_id, cohort_period`;
+    initialCte = select(
+      resolvedPerson().as('person_id'),
+      bucket(params.granularity, 'timestamp', tz).as('cohort_period'),
+    )
+      .from('events')
+      .where(analyticsWhere({
+        projectId: params.project_id,
+        from: truncFromTs,
+        to: truncToTs,
+        tz,
+        eventName: params.target_event,
+        filters: params.filters,
+        cohortFilters: params.cohort_filters,
+        dateTo: toChTs(params.date_to, true),
+        dateFrom: toChTs(params.date_from),
+      }))
+      .groupBy(col('person_id'), col('cohort_period'))
+      .build();
   } else {
     // First-time: only the first ever occurrence of the event counts as the cohort date.
     // Property filters are NOT applied here — the cohort date is the true first event,
-    // regardless of its properties. Filters are applied only to return_events (see below).
+    // regardless of its properties. Filters are applied only to return_events.
     //
     // Performance note: we cannot safely add a lower-bound timestamp filter to this scan.
     // A user whose very first event predates date_from must be EXCLUDED from the cohort
-    // (their min(timestamp) < date_from → the outer HAVING filters them out). But adding
-    // `AND timestamp >= date_from` to the WHERE clause would hide their pre-date_from events,
-    // making min(timestamp) appear to be >= date_from — which would incorrectly include
-    // them as "new" users. The full history scan is therefore semantically necessary.
+    // (their min(timestamp) < date_from → the outer HAVING filters them out).
     //
-    // Optimisation path: migration 0008 adds an aggregate projection
-    // `events_person_min_timestamp (project_id, event_name, person_id, min(timestamp))`.
-    // The HAVING clause uses `min(timestamp)` directly (rather than filtering on the
-    // computed granularity bucket) so ClickHouse can read precomputed per-person
-    // minimums from the projection instead of scanning all rows.
-    // `cohort_period` is expressed as `granExpr(min(timestamp))` — equivalent to
-    // `min(granExpr(timestamp))` by monotonicity of all supported truncation functions.
-    //
-    // Caveat: when RESOLVED_PERSON (coalesce(dictGetOrNull(..., distinct_id), person_id))
-    // is used as the GROUP BY key, ClickHouse's optimizer may not automatically recognise
-    // it as equivalent to the raw `person_id` column used in the projection key. The
-    // projection still eliminates the per-row read by compressing many events into a single
-    // aggregate row per (project_id, event_name, person_id), improving I/O significantly
-    // even when full equivalence detection is unavailable.
-    const granMinExpr = granularityTruncMinExpr(params.granularity, 'timestamp', params.timezone);
-    initialCte = `
-      SELECT ${RESOLVED_PERSON} AS person_id,
-             ${granMinExpr} AS cohort_period
-      FROM events
-      WHERE project_id = {project_id:UUID}
-        AND event_name = {target_event:String}${cohortClause}
-      GROUP BY person_id
-      HAVING min(timestamp) >= ${fromExpr}
-         AND min(timestamp) <= ${toExpr}`;
+    // Optimisation path: migration 0008 adds an aggregate projection. The HAVING clause
+    // uses `min(timestamp)` directly so ClickHouse can read precomputed per-person minimums.
+    initialCte = select(
+      resolvedPerson().as('person_id'),
+      bucketOfMin(params.granularity, 'timestamp', tz).as('cohort_period'),
+    )
+      .from('events')
+      .where(and(
+        projectIs(params.project_id),
+        eventIs(params.target_event),
+        cohortFilter(
+          params.cohort_filters,
+          params.project_id,
+          toChTs(params.date_to, true),
+          toChTs(params.date_from),
+        ),
+      ))
+      .groupBy(col('person_id'))
+      .having(and(
+        gte(func('min', col('timestamp')), tsParam(truncFromTs, tz)),
+        lte(func('min', col('timestamp')), tsParam(truncToTs, tz)),
+      ))
+      .build();
   }
 
-  const sql = `
-    WITH
-      initial_events AS (${initialCte}),
-      return_events AS (
-        SELECT ${RESOLVED_PERSON} AS person_id, ${granExpr} AS return_period
-        FROM events
-        WHERE project_id = {project_id:UUID}
-          AND timestamp >= ${fromExpr}
-          AND timestamp <= ${extendedToExpr}
-          AND event_name = {return_event:String}${cohortClause}${filterClause}
-        GROUP BY person_id, return_period
+  // ── return_events CTE ──
+  const returnCte = select(
+    resolvedPerson().as('person_id'),
+    bucket(params.granularity, 'timestamp', tz).as('return_period'),
+  )
+    .from('events')
+    .where(analyticsWhere({
+      projectId: params.project_id,
+      from: truncFromTs,
+      to: extendedToTs,
+      tz,
+      eventName: returnEventName,
+      filters: params.filters,
+      cohortFilters: params.cohort_filters,
+      dateTo: toChTs(params.date_to, true),
+      dateFrom: toChTs(params.date_from),
+    }))
+    .groupBy(col('person_id'), col('return_period'))
+    .build();
+
+  // ── retention_raw CTE ── INNER JOIN initial × return
+  const retentionRaw = select(
+    col('i.cohort_period'),
+    col('i.person_id'),
+    func('dateDiff', raw(`'${unit}'`), col('i.cohort_period'), col('r.return_period')).as('period_offset'),
+  )
+    .from('initial_events', 'i')
+    .innerJoin('return_events', 'r', eq(col('i.person_id'), col('r.person_id')))
+    .where(
+      gte(col('r.return_period'), col('i.cohort_period')),
+      lte(
+        func('dateDiff', raw(`'${unit}'`), col('i.cohort_period'), col('r.return_period')),
+        param('UInt32', params.periods),
       ),
-      retention_raw AS (
-        SELECT i.cohort_period,
-               i.person_id,
-               dateDiff('${unit}', i.cohort_period, r.return_period) AS period_offset
-        FROM initial_events i
-        INNER JOIN return_events r ON i.person_id = r.person_id
-        WHERE r.return_period >= i.cohort_period
-          AND dateDiff('${unit}', i.cohort_period, r.return_period) <= {periods:UInt32}
-      )
-    -- Cohort size rows (sentinel period_offset = -1): true count of persons in
-    -- initial_events per cohort_period, independent of the return_events JOIN.
-    -- This is critical when return_event != target_event — periods[0] only counts
-    -- users who performed the return_event on their cohort day, not the cohort size.
-    SELECT
-      toString(cohort_period) AS cohort_period,
-      toInt32(-1) AS period_offset,
-      uniqExact(person_id) AS user_count
-    FROM initial_events
-    GROUP BY cohort_period
+    )
+    .build();
 
-    UNION ALL
+  // ── Sentinel rows (cohort size, period_offset = -1) ──
+  const sentinelQuery = select(
+    chToString(col('cohort_period')).as('cohort_period'),
+    raw('toInt32(-1)').as('period_offset'),
+    uniqExact(col('person_id')).as('user_count'),
+  )
+    .from('initial_events')
+    .groupBy(col('cohort_period'))
+    .build();
 
-    -- Retention period rows (period_offset >= 0)
-    SELECT
-      toString(cohort_period) AS cohort_period,
-      period_offset,
-      uniqExact(person_id) AS user_count
-    FROM retention_raw
-    GROUP BY cohort_period, period_offset
-    ORDER BY cohort_period ASC, period_offset ASC`;
+  // ── Retention period rows (period_offset >= 0) ──
+  const retentionQuery = select(
+    chToString(col('cohort_period')).as('cohort_period'),
+    col('period_offset'),
+    uniqExact(col('person_id')).as('user_count'),
+  )
+    .from('retention_raw')
+    .groupBy(col('cohort_period'), col('period_offset'))
+    .orderBy(col('cohort_period'))
+    .orderBy(col('period_offset'))
+    .build();
 
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  // ── Final query with CTEs and UNION ALL ──
+  const query = select(col('cohort_period'), col('period_offset'), col('user_count'))
+    .with('initial_events', initialCte)
+    .with('return_events', returnCte)
+    .with('retention_raw', retentionRaw)
+    .from(unionAll(sentinelQuery, retentionQuery))
+    .build();
+
+  const compiled = compile(query);
+  const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawRetentionRow>();
   return assembleResult(rows, params);
 }

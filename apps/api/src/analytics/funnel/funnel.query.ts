@@ -1,5 +1,24 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildCohortClause, toChTs } from '../../utils/clickhouse-helpers';
+import {
+  compile,
+  select,
+  col,
+  raw,
+  rawWithParams,
+  countIf,
+  avgIf,
+  and,
+  gte,
+  gt,
+  or,
+  notInSubquery,
+  inSubquery,
+  eq,
+  literal,
+  type Expr,
+  type SelectNode,
+  type CompiledQuery,
+} from '@qurvo/ch-query';
 import { resolvePropertyExpr } from '../../utils/property-filter';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
@@ -7,7 +26,9 @@ import {
   buildAllEventNames,
   buildBaseQueryParams,
   buildSamplingClause,
+  buildSamplingClauseRaw,
   buildStepCondition,
+  toChTs,
   validateExclusions,
   validateUnorderedSteps,
   type FunnelChQueryParams,
@@ -22,6 +43,7 @@ import {
   type RawFunnelRow,
   type RawBreakdownRow,
 } from './funnel-results';
+import { buildCohortClause } from '../../utils/clickhouse-helpers';
 
 // Re-export public API for consumers (funnel.service.ts, integration tests, etc.)
 export * from './funnel.types';
@@ -47,8 +69,9 @@ export async function queryFunnel(
   const queryParams = buildBaseQueryParams(params, allEventNames);
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
-  const samplingClause = buildSamplingClause(params.sampling_factor, queryParams);
+  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
+  // Raw sampling clause for CTE body builders (string-based escape hatch)
+  const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
   // Mirror the same guard used in buildSamplingClause: sampling is active only when
   // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
   const sf = params.sampling_factor;
@@ -71,8 +94,8 @@ export async function queryFunnel(
 
   // ── Non-breakdown funnel ────────────────────────────────────────────────
   if (!params.breakdown_property) {
-    const sql = buildFunnelSQL(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams);
-    const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+    const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams);
+    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
     const rows = await result.json<RawFunnelRow>();
     return { breakdown: false, steps: computeStepResults(rows, steps, numSteps), ...samplingResult };
   }
@@ -81,23 +104,17 @@ export async function queryFunnel(
   const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
   queryParams.breakdown_limit = breakdownLimit;
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
-  const sql = buildFunnelSQL(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams, breakdownExpr);
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams, breakdownExpr);
+  const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
   const stepResults = computePropertyBreakdownResults(rows, steps, numSteps);
-  // total_bd_count is the count of ALL distinct non-empty breakdown values (no LIMIT applied),
-  // returned as a constant on every row from the breakdown_total CTE.
-  // breakdown_truncated is true only when the total exceeds the limit (real truncation).
   const totalBdCount = rows.length > 0 ? Number(rows[0]!.total_bd_count ?? 0) : 0;
   const breakdown_truncated = totalBdCount > breakdownLimit;
 
   // Run a separate no-breakdown query for aggregate_steps.
-  // aggregate_steps must count ALL users who entered the funnel, regardless of whether their
-  // breakdown_property value falls in the top-N. Without this, aggregate_steps[0].count would
-  // be up to (100 - fill_rate)% lower than the real total when breakdown_property is sparse.
   const aggregateQueryParams = { ...queryParams };
-  const aggregateSql = buildFunnelSQL(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, aggregateQueryParams);
-  const aggregateResult = await ch.query({ query: aggregateSql, query_params: aggregateQueryParams, format: 'JSONEachRow' });
+  const aggregateCompiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, aggregateQueryParams);
+  const aggregateResult = await ch.query({ query: aggregateCompiled.sql, query_params: aggregateCompiled.params, format: 'JSONEachRow' });
   const aggregateRows = await aggregateResult.json<RawFunnelRow>();
   const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
 
@@ -111,57 +128,9 @@ export async function queryFunnel(
   };
 }
 
-// ── SQL assembly ─────────────────────────────────────────────────────────────
+// ── SQL assembly using ch-query builder ──────────────────────────────────────
 
-/**
- * Builds CTEs for property breakdown top-N selection.
- *
- * Two CTEs are emitted:
- * - `top_breakdown_values` — selects the top-N non-empty breakdown values by user count DESC.
- *   Excludes empty string ('') so that (none) users never displace real property values from top-N.
- *   Stores `count() AS bd_count` for use in ORDER BY.
- * - `breakdown_total` — counts all distinct non-empty breakdown values (without LIMIT) so that the
- *   caller can accurately determine whether results were truncated.
- *
- * The `breakdownFilter` allows both real top-N values AND empty-string (none) users through,
- * ensuring (none) always appears in results without consuming a top-N slot.
- *
- * Returns CTE SQL fragments (with leading comma) and the WHERE condition for the outer query.
- */
-function buildTopBreakdownCTE(exclFilter: string): {
-  topCTE: string;
-  breakdownFilter: string;
-} {
-  // exclFilter is either '' or '\n      WHERE person_id NOT IN (SELECT person_id FROM excluded_users)'
-  const innerExclWhere = exclFilter
-    ? '\n      AND person_id NOT IN (SELECT person_id FROM excluded_users)'
-    : '';
-  // Exclude '' from top-N ranking so (none) does not displace real values.
-  // `bd_count` is stored for ORDER BY use in the outer query.
-  const topCTE = `,\n      top_breakdown_values AS (
-        SELECT breakdown_value, count() AS bd_count
-        FROM funnel_per_user
-        WHERE max_step >= 1 AND breakdown_value != ''${innerExclWhere}
-        GROUP BY breakdown_value
-        ORDER BY bd_count DESC
-        LIMIT {breakdown_limit:UInt16}
-      ),
-      breakdown_total AS (
-        SELECT count() AS total
-        FROM (
-          SELECT breakdown_value
-          FROM funnel_per_user
-          WHERE max_step >= 1 AND breakdown_value != ''${innerExclWhere}
-          GROUP BY breakdown_value
-        )
-      )`;
-  // Allow real top-N values OR empty-string (none) users to pass through.
-  const breakdownFilter =
-    '\n      AND (breakdown_value IN (SELECT breakdown_value FROM top_breakdown_values) OR breakdown_value = \'\')';
-  return { topCTE, breakdownFilter };
-}
-
-function buildFunnelSQL(
+function buildFunnelQuery(
   orderType: 'ordered' | 'strict' | 'unordered',
   steps: FunnelQueryParams['steps'],
   exclusions: NonNullable<FunnelQueryParams['exclusions']>,
@@ -171,100 +140,172 @@ function buildFunnelSQL(
   numSteps: number,
   queryParams: FunnelChQueryParams,
   breakdownExpr?: string,
-): string {
+): CompiledQuery {
   const hasBreakdown = !!breakdownExpr;
-  const breakdownSelect = hasBreakdown ? '\n        breakdown_value,' : '';
-  // Include total_bd_count from the breakdown_total CTE so that the caller can determine
-  // whether results were truncated (total > breakdownLimit).
-  const totalBdCountSelect = hasBreakdown
-    ? ',\n        (SELECT total FROM breakdown_total) AS total_bd_count'
-    : '';
-  const breakdownGroupBy = hasBreakdown ? 'breakdown_value, ' : '';
-  // Groups are returned by step_num only — TypeScript sorts groups by popularity after receipt.
-  const breakdownOrderBy = '';
   const includeTimestampCols = !hasBreakdown;
 
-  // Time columns for avg_time_to_convert (only for non-breakdown).
-  //
-  // Semantics: avg time from first step completion to last step completion, measured over
-  // users who completed ALL N steps (max_step >= num_steps AND first_step_ms > 0 AND last_step_ms > first_step_ms).
-  // The aggregate value is identical for every step_num in the CROSS JOIN — this is intentional:
-  // each non-last step shows "the average full-funnel conversion time for users who completed
-  // the entire funnel". The last step is set to null by computeStepResults (isLast check).
-  //
-  // For unordered funnels: first_step_ms = earliest step timestamp (anchor),
-  // last_step_ms = latest qualifying step timestamp. Same total-conversion-time semantics apply.
-  const avgTimeCols = includeTimestampCols
-    ? `,\n          avgIf(
-            (last_step_ms - first_step_ms) / 1000.0,
-            max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
-          ) AS avg_time_seconds`
-    : '';
+  // Build CTEs from the appropriate strategy
+  let cteResult: { ctes: Array<{ name: string; query: import('@qurvo/ch-query').QueryNode }>; hasExclusions: boolean };
 
   if (orderType === 'unordered') {
-    const { cte, excludedUsersCTE, exclFilter } = buildUnorderedFunnelCTEs({
+    cteResult = buildUnorderedFunnelCTEs({
       steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr,
     });
-    const { topCTE, breakdownFilter } = hasBreakdown
-      ? buildTopBreakdownCTE(exclFilter)
-      : { topCTE: '', breakdownFilter: '' };
-    // For unordered, exclFilter is already a full WHERE clause.
-    // When breakdown is active, we combine exclFilter (WHERE ...) with breakdownFilter (AND ...).
-    const whereClause = buildWhereClause(exclFilter, breakdownFilter);
-    return `
-      WITH ${cte}${excludedUsersCTE}${topCTE}
-      SELECT${breakdownSelect}
-        step_num,
-        countIf(max_step >= step_num) AS entered,
-        countIf(max_step >= step_num + 1) AS next_step${avgTimeCols}${totalBdCountSelect}
-      FROM funnel_per_user
-      CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${whereClause}
-      GROUP BY ${breakdownGroupBy}step_num
-      ORDER BY ${breakdownOrderBy}step_num`;
+  } else {
+    cteResult = buildOrderedFunnelCTEs({
+      steps,
+      orderType,
+      stepConditions,
+      exclusions,
+      cohortClause,
+      samplingClause,
+      numSteps,
+      queryParams,
+      breakdownExpr,
+      includeTimestampCols,
+    });
   }
 
-  // Ordered / Strict
-  const { funnelPerUserCTE, excludedUsersCTE, exclFilter } = buildOrderedFunnelCTEs({
-    steps,
-    orderType,
-    stepConditions,
-    exclusions,
-    cohortClause,
-    samplingClause,
-    numSteps,
-    queryParams,
-    breakdownExpr,
-    includeTimestampCols,
-  });
-  const { topCTE, breakdownFilter } = hasBreakdown
-    ? buildTopBreakdownCTE(exclFilter)
-    : { topCTE: '', breakdownFilter: '' };
-  const whereClause = buildWhereClause(exclFilter, breakdownFilter);
-  return `
-    WITH
-      ${funnelPerUserCTE}${excludedUsersCTE}${topCTE}
-    SELECT${breakdownSelect}
-      step_num,
-      countIf(max_step >= step_num) AS entered,
-      countIf(max_step >= step_num + 1) AS next_step${avgTimeCols}${totalBdCountSelect}
-    FROM funnel_per_user
-    CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${whereClause}
-    GROUP BY ${breakdownGroupBy}step_num
-    ORDER BY ${breakdownOrderBy}step_num`;
+  // Build SELECT columns
+  const selectColumns: Expr[] = [];
+
+  if (hasBreakdown) {
+    selectColumns.push(col('breakdown_value'));
+  }
+
+  selectColumns.push(col('step_num'));
+  selectColumns.push(
+    countIf(gte(col('max_step'), col('step_num'))).as('entered'),
+  );
+  selectColumns.push(
+    countIf(gte(col('max_step'), raw('step_num + 1'))).as('next_step'),
+  );
+
+  // Time columns for avg_time_to_convert (only for non-breakdown).
+  if (includeTimestampCols) {
+    selectColumns.push(
+      avgIf(
+        raw('(last_step_ms - first_step_ms) / 1000.0'),
+        and(
+          gte(col('max_step'), raw('{num_steps:UInt64}')),
+          gt(raw('first_step_ms'), literal(0)),
+          gt(col('last_step_ms'), raw('first_step_ms')),
+        ),
+      ).as('avg_time_seconds'),
+    );
+  }
+
+  // total_bd_count from breakdown_total CTE (for truncation detection)
+  if (hasBreakdown) {
+    selectColumns.push(
+      raw('(SELECT total FROM breakdown_total)').as('total_bd_count'),
+    );
+  }
+
+  // Build the CROSS JOIN subquery for step numbers
+  const stepsSubquery = select(
+    raw('number + 1').as('step_num'),
+  )
+    .from('numbers({num_steps:UInt64})')
+    .build();
+
+  // Build WHERE conditions
+  const whereConditions: (Expr | undefined)[] = [];
+
+  if (cteResult.hasExclusions) {
+    const excludedRef = select(col('person_id')).from('excluded_users').build();
+    whereConditions.push(notInSubquery(col('person_id'), excludedRef));
+  }
+
+  if (hasBreakdown) {
+    const topRef = select(col('breakdown_value')).from('top_breakdown_values').build();
+    whereConditions.push(
+      or(
+        inSubquery(col('breakdown_value'), topRef),
+        eq(col('breakdown_value'), literal('')),
+      ),
+    );
+  }
+
+  // Build the outer SELECT query
+  const builder = select(...selectColumns)
+    .withAll(cteResult.ctes)
+    .from('funnel_per_user')
+    .crossJoin(stepsSubquery, 'steps');
+
+  // Add breakdown CTEs if needed
+  if (hasBreakdown) {
+    const { topCTE, totalCTE } = buildTopBreakdownCTEs(cteResult.hasExclusions, queryParams);
+    builder.with('top_breakdown_values', topCTE);
+    builder.with('breakdown_total', totalCTE);
+  }
+
+  // Apply WHERE clause
+  const filteredConditions = whereConditions.filter((c): c is Expr => c !== undefined);
+  if (filteredConditions.length > 0) {
+    builder.where(...filteredConditions);
+  }
+
+  // GROUP BY
+  const groupByExprs: Expr[] = [];
+  if (hasBreakdown) groupByExprs.push(col('breakdown_value'));
+  groupByExprs.push(col('step_num'));
+  builder.groupBy(...groupByExprs);
+
+  // ORDER BY
+  builder.orderBy(col('step_num'));
+
+  return compile(builder.build());
 }
 
+// ── Breakdown CTEs ───────────────────────────────────────────────────────────
+
 /**
- * Combines an existing WHERE clause (exclFilter) with an additional AND condition.
- * exclFilter is either '' or '\n      WHERE person_id NOT IN (...)'.
- * breakdownFilter is either '' or '\n      AND breakdown_value IN (...)'.
+ * Builds the top_breakdown_values and breakdown_total CTEs as QueryNodes.
+ *
+ * - top_breakdown_values: top-N non-empty breakdown values by user count DESC
+ * - breakdown_total: count of all distinct non-empty breakdown values (for truncation detection)
  */
-function buildWhereClause(exclFilter: string, breakdownFilter: string): string {
-  if (!exclFilter && !breakdownFilter) return '';
-  if (exclFilter && !breakdownFilter) return exclFilter;
-  if (!exclFilter && breakdownFilter) {
-    // Convert the AND condition to a WHERE condition
-    return breakdownFilter.replace(/^\n(\s*)AND /, '\n$1WHERE ');
+function buildTopBreakdownCTEs(
+  hasExclusions: boolean,
+  queryParams: FunnelChQueryParams,
+): { topCTE: SelectNode; totalCTE: SelectNode } {
+  // Base conditions: max_step >= 1 and non-empty breakdown_value
+  const baseConditions: Expr[] = [
+    gte(col('max_step'), literal(1)),
+    raw("breakdown_value != ''"),
+  ];
+
+  // Add exclusion filter if applicable
+  if (hasExclusions) {
+    const excludedRef = select(col('person_id')).from('excluded_users').build();
+    baseConditions.push(notInSubquery(col('person_id'), excludedRef));
   }
-  // Both present: exclFilter is already "WHERE ...", append "AND ..."
-  return exclFilter + breakdownFilter;
+
+  // top_breakdown_values: top-N by count DESC
+  const topCTE = select(
+    col('breakdown_value'),
+    raw('count()').as('bd_count'),
+  )
+    .from('funnel_per_user')
+    .where(and(...baseConditions))
+    .groupBy(col('breakdown_value'))
+    .orderBy(raw('bd_count'), 'DESC')
+    .limit(queryParams.breakdown_limit ?? MAX_BREAKDOWN_VALUES)
+    .build();
+
+  // breakdown_total: count of all distinct non-empty breakdown values
+  const innerQuery = select(col('breakdown_value'))
+    .from('funnel_per_user')
+    .where(and(...baseConditions))
+    .groupBy(col('breakdown_value'))
+    .build();
+
+  const totalCTE = select(
+    raw('count()').as('total'),
+  )
+    .from(innerQuery)
+    .build();
+
+  return { topCTE, totalCTE };
 }

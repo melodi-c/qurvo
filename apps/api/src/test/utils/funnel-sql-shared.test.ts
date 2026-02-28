@@ -5,7 +5,17 @@ import {
   RESOLVED_PERSON,
   type FunnelChQueryParams,
 } from '../../analytics/funnel/funnel-sql-shared';
+import { compile, select, raw, type Expr } from '@qurvo/ch-query';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
+
+/**
+ * Helper: compile a sampling Expr into its SQL string for assertion.
+ * Wraps the Expr in a trivial SELECT and extracts the compiled SQL.
+ */
+function compileSamplingExpr(expr: Expr): string {
+  const node = select(raw('1')).from('t').where(expr).build();
+  return compile(node).sql;
+}
 
 // ── buildSamplingClause ───────────────────────────────────────────────────────
 
@@ -19,48 +29,46 @@ describe('buildSamplingClause', () => {
     all_event_names: ['a'],
   });
 
-  it('returns empty string when samplingFactor is undefined', () => {
+  it('returns undefined when samplingFactor is undefined', () => {
     const qp = makeParams();
-    expect(buildSamplingClause(undefined, qp)).toBe('');
+    expect(buildSamplingClause(undefined, qp)).toBeUndefined();
     expect(qp.sample_pct).toBeUndefined();
   });
 
-  it('returns empty string when samplingFactor is 1 (full scan)', () => {
+  it('returns undefined when samplingFactor is 1 (full scan)', () => {
     const qp = makeParams();
-    expect(buildSamplingClause(1, qp)).toBe('');
+    expect(buildSamplingClause(1, qp)).toBeUndefined();
     expect(qp.sample_pct).toBeUndefined();
   });
 
-  it('returns empty string when samplingFactor > 1', () => {
+  it('returns undefined when samplingFactor > 1', () => {
     const qp = makeParams();
-    expect(buildSamplingClause(2, qp)).toBe('');
+    expect(buildSamplingClause(2, qp)).toBeUndefined();
     expect(qp.sample_pct).toBeUndefined();
   });
 
-  it('returns empty string when samplingFactor is NaN (not silently a full scan)', () => {
+  it('returns undefined when samplingFactor is NaN (not silently a full scan)', () => {
     const qp = makeParams();
-    expect(buildSamplingClause(NaN, qp)).toBe('');
+    expect(buildSamplingClause(NaN, qp)).toBeUndefined();
     expect(qp.sample_pct).toBeUndefined();
   });
 
-  it('returns WHERE clause with pct=0 when samplingFactor is 0 (empty sample)', () => {
-    // Regression: previously `!samplingFactor` was true for 0, skipping sampling entirely.
-    // Now 0 is treated as a valid sampling factor producing an impossible WHERE condition
-    // (sipHash64(...) % 100 < 0), which returns no rows — correct for 0% sampling.
+  it('returns Expr with pct=0 when samplingFactor is 0 (empty sample)', () => {
     const qp = makeParams();
-    const clause = buildSamplingClause(0, qp);
-    expect(clause).not.toBe('');
+    const expr = buildSamplingClause(0, qp);
+    expect(expr).toBeDefined();
     expect(qp.sample_pct).toBe(0);
-    expect(clause).toContain('{sample_pct:UInt8}');
+    const sql = compileSamplingExpr(expr!);
+    expect(sql).toContain('{sample_pct:UInt8}');
   });
 
-  it('produces a clause referencing RESOLVED_PERSON (person_id), not distinct_id', () => {
-    // Regression: sampling used to be on sipHash64(distinct_id), which splits merged users.
-    // Now it must use RESOLVED_PERSON so each person is fully in or fully out.
+  it('produces an Expr referencing RESOLVED_PERSON (person_id), not bare distinct_id', () => {
     const qp = makeParams();
-    const clause = buildSamplingClause(0.5, qp);
-    expect(clause).toContain(RESOLVED_PERSON);
-    expect(clause).not.toContain('distinct_id');
+    const expr = buildSamplingClause(0.5, qp);
+    expect(expr).toBeDefined();
+    const sql = compileSamplingExpr(expr!);
+    expect(sql).toContain(RESOLVED_PERSON);
+    expect(sql).not.toContain('sipHash64(toString(distinct_id))');
   });
 
   it('sets sample_pct to rounded percentage for 0.5', () => {
@@ -77,9 +85,11 @@ describe('buildSamplingClause', () => {
 
   it('returns a valid ClickHouse WHERE fragment for 10% sampling', () => {
     const qp = makeParams();
-    const clause = buildSamplingClause(0.1, qp);
+    const expr = buildSamplingClause(0.1, qp);
     expect(qp.sample_pct).toBe(10);
-    expect(clause).toContain('% 100 < {sample_pct:UInt8}');
+    expect(expr).toBeDefined();
+    const sql = compileSamplingExpr(expr!);
+    expect(sql).toContain('% 100 < {sample_pct:UInt8}');
   });
 });
 
@@ -200,7 +210,6 @@ describe('resolveWindowSeconds', () => {
     });
 
     it('accepts value=3, unit=month (3 months = 90 days = exactly 90)', () => {
-      // 3 * 2_592_000 = 7_776_000 = 90 days
       const result = resolveWindowSeconds({
         conversion_window_days: 14,
         conversion_window_value: 3,
@@ -210,7 +219,6 @@ describe('resolveWindowSeconds', () => {
     });
 
     it('accepts large value with small unit (value=86400, unit=second = 1 day)', () => {
-      // 86400 seconds = exactly 1 day — well within limit
       const result = resolveWindowSeconds({
         conversion_window_days: 14,
         conversion_window_value: 86400,
@@ -222,8 +230,6 @@ describe('resolveWindowSeconds', () => {
 
   describe('value/unit takes precedence over conversion_window_days', () => {
     it('uses value/unit when conversion_window_days=7 (non-default) and value/unit are both set', () => {
-      // conversion_window_days is a required field in FunnelQueryParams, so callers always
-      // provide it. When value/unit is also provided, value/unit wins — no conflict error.
       const result = resolveWindowSeconds({
         conversion_window_days: 7,
         conversion_window_value: 30,

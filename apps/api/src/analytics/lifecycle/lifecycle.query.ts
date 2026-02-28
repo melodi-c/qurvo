@@ -1,7 +1,37 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, shiftDate, truncateDate, granularityNeighborExpr, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
+import type { AliasExpr, Expr, SelectNode } from '@qurvo/ch-query';
+import {
+  compile,
+  select,
+  unionAll,
+  col,
+  raw,
+  func,
+  and,
+  eq,
+  gte,
+  lt,
+  lte,
+  not,
+  multiIf,
+  uniqExact,
+  toString,
+  notInSubquery,
+  arraySort,
+  resolvedPerson,
+  analyticsWhere,
+  projectIs,
+  eventIs,
+  cohortFilter,
+  tsParam,
+  toChTs,
+  shiftDate,
+  truncateDate,
+  bucket,
+  neighborBucket,
+} from '@qurvo/ch-query';
+import type { PropertyFilter } from '@qurvo/ch-query';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -55,11 +85,11 @@ function assembleLifecycleResult(
   const bucketMap = new Map<string, LifecycleDataPoint>();
 
   for (const row of rows) {
-    const bucket = row.period;
-    if (!bucketMap.has(bucket)) {
-      bucketMap.set(bucket, { bucket, new: 0, returning: 0, resurrecting: 0, dormant: 0 });
+    const b = row.period;
+    if (!bucketMap.has(b)) {
+      bucketMap.set(b, { bucket: b, new: 0, returning: 0, resurrecting: 0, dormant: 0 });
     }
-    const point = bucketMap.get(bucket)!;
+    const point = bucketMap.get(b)!;
     const count = Number(row.count);
     const status = row.status as LifecycleStatus;
     if (status === 'dormant') {
@@ -69,7 +99,7 @@ function assembleLifecycleResult(
     }
   }
 
-  const data = [...bucketMap.values()].sort((a, b) => a.bucket.localeCompare(b.bucket));
+  const data = [...bucketMap.values()].sort((a, c) => a.bucket.localeCompare(c.bucket));
 
   const totals = { new: 0, returning: 0, resurrecting: 0, dormant: 0 };
   for (const point of data) {
@@ -80,6 +110,12 @@ function assembleLifecycleResult(
   }
 
   return { granularity, data, totals };
+}
+
+// ── Alias helper ─────────────────────────────────────────────────────────────
+
+function alias(expr: Expr, name: string): AliasExpr {
+  return { type: 'alias', expr, alias: name };
 }
 
 // ── Core query ───────────────────────────────────────────────────────────────
@@ -102,89 +138,132 @@ export async function queryLifecycle(
   ch: ClickHouseClient,
   params: LifecycleQueryParams,
 ): Promise<LifecycleQueryResult> {
-  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    target_event: params.target_event,
-  };
-  if (hasTz) queryParams['tz'] = params.timezone;
+  const tz = params.timezone;
+  const extendedFrom = shiftDate(
+    truncateDate(params.date_from, params.granularity),
+    -1,
+    params.granularity,
+  );
 
-  const extendedFrom = shiftDate(truncateDate(params.date_from, params.granularity), -1, params.granularity);
-  queryParams['extended_from'] = toChTs(extendedFrom, false, params.timezone);
-  queryParams['from'] = toChTs(params.date_from, false, params.timezone);
-  queryParams['to'] = toChTs(params.date_to, true, params.timezone);
+  const bucketExpr = bucket(params.granularity, 'timestamp', tz);
+  const prevBucketExpr = neighborBucket(params.granularity, col('bucket'), -1, tz);
+  const nextBucketExpr = neighborBucket(params.granularity, col('bucket'), 1, tz);
 
-  const extendedFromExpr = tsExpr('extended_from', 'tz', hasTz);
-  const fromExpr = tsExpr('from', 'tz', hasTz);
-  const toExpr = tsExpr('to', 'tz', hasTz);
-  const granExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
-  const prevBucket = granularityNeighborExpr(params.granularity, 'bucket', -1, params.timezone);
-  const nextBucket = granularityNeighborExpr(params.granularity, 'bucket', 1, params.timezone);
-
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
-
-  const eventFilterParts = buildPropertyFilterConditions(params.event_filters ?? [], 'lc', queryParams);
-  const eventFilterClause = buildFilterClause(eventFilterParts);
-
-  const sql = `
-    WITH
-      -- Collect per-person active buckets within [extended_from, to].
-      -- extended_from is 1 period before date_from, giving the returning classifier
-      -- access to the previous period.  first_bucket is the earliest bucket in this
-      -- window; it is used together with prior_active to decide 'new' vs 'resurrecting'.
-      person_buckets AS (
-        SELECT
-          ${RESOLVED_PERSON} AS person_id,
-          arraySort(groupUniqArray(${granExpr})) AS buckets,
-          min(${granExpr}) AS first_bucket
-        FROM events
-        WHERE project_id = {project_id:UUID}
-          AND event_name = {target_event:String}
-          AND timestamp >= ${extendedFromExpr}
-          AND timestamp <= ${toExpr}${cohortClause}${eventFilterClause}
-        GROUP BY person_id
-      ),
-      -- Users who have ANY matching event strictly before extended_from.
-      -- A user in this set has prior history and must never be classified as 'new'.
-      -- NOTE: eventFilterClause is intentionally NOT applied here. A user who fired
-      -- the target event before the range (even without matching property filters) is
-      -- considered "previously active" and must be classified as 'resurrecting', not 'new'.
-      prior_active AS (
-        SELECT DISTINCT ${RESOLVED_PERSON} AS person_id
-        FROM events
-        WHERE project_id = {project_id:UUID}
-          AND event_name = {target_event:String}
-          AND timestamp < ${extendedFromExpr}${cohortClause}
-      )
-    SELECT
-      toString(ts_bucket) AS period,
-      status,
-      uniqExact(person_id) AS count
-    FROM (
-      SELECT person_id, bucket AS ts_bucket,
-        multiIf(
-          -- 'new': first appearance in the extended window AND no prior history at all
-          bucket = first_bucket AND person_id NOT IN (SELECT person_id FROM prior_active), 'new',
-          has(buckets, ${prevBucket}), 'returning',
-          'resurrecting'
-        ) AS status
-      FROM person_buckets
-      ARRAY JOIN buckets AS bucket
-      WHERE bucket >= ${fromExpr}
-
-      UNION ALL
-
-      SELECT person_id, ${nextBucket} AS ts_bucket, 'dormant' AS status
-      FROM person_buckets
-      ARRAY JOIN buckets AS bucket
-      WHERE NOT has(buckets, ${nextBucket})
-        AND ${nextBucket} >= ${fromExpr}
-        AND ${nextBucket} <= ${toExpr}
+  // CTE: person_buckets — per-person sorted bucket array over [extended_from, to]
+  const personBuckets = select(
+    resolvedPerson().as('person_id'),
+    arraySort(func('groupUniqArray', bucketExpr)).as('buckets'),
+    func('min', bucketExpr).as('first_bucket'),
+  )
+    .from('events')
+    .where(
+      analyticsWhere({
+        projectId: params.project_id,
+        from: extendedFrom,
+        to: params.date_to,
+        tz,
+        eventName: params.target_event,
+        filters: params.event_filters,
+        cohortFilters: params.cohort_filters,
+        dateTo: toChTs(params.date_to, true),
+        dateFrom: toChTs(params.date_from),
+      }),
     )
-    GROUP BY ts_bucket, status
-    ORDER BY ts_bucket ASC, status ASC`;
+    .groupBy(col('person_id'))
+    .build();
 
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  // CTE: prior_active — users with any matching event strictly before extended_from.
+  // NOTE: eventFilterClause is intentionally NOT applied here. A user who fired
+  // the target event before the range (even without matching property filters) is
+  // considered "previously active" and must be classified as 'resurrecting', not 'new'.
+  const priorActive = select(
+    resolvedPerson().as('person_id'),
+  )
+    .from('events')
+    .where(and(
+      projectIs(params.project_id),
+      eventIs(params.target_event),
+      lt(raw('timestamp'), tsParam(extendedFrom, tz)),
+      cohortFilter(
+        params.cohort_filters,
+        params.project_id,
+        toChTs(params.date_to, true),
+        toChTs(params.date_from),
+      ),
+    ))
+    .groupBy(col('person_id'))
+    .build();
+
+  // Active statuses: ARRAY JOIN buckets → classify via multiIf
+  const fromParam = tsParam(params.date_from, tz);
+  const toParam = tsParam(toChTs(params.date_to, true), tz);
+
+  // Reference the prior_active CTE by name for the NOT IN subquery
+  const priorActiveRef = select(col('person_id')).from('prior_active').build();
+
+  const activeStatuses = select(
+    col('person_id'),
+    col('bucket').as('ts_bucket'),
+    multiIf(
+      [
+        {
+          // 'new': first appearance in the extended window AND no prior history at all
+          condition: and(
+            eq(col('bucket'), col('first_bucket')),
+            notInSubquery(col('person_id'), priorActiveRef),
+          ),
+          result: raw("'new'"),
+        },
+        {
+          condition: func('has', col('buckets'), prevBucketExpr),
+          result: raw("'returning'"),
+        },
+      ],
+      raw("'resurrecting'"),
+    ).as('status'),
+  )
+    .from('person_buckets')
+    .arrayJoin(col('buckets'), 'bucket')
+    .where(gte(col('bucket'), fromParam))
+    .build();
+
+  // Dormant: users active in period N but not in period N+1
+  const dormant = select(
+    col('person_id'),
+    alias(nextBucketExpr, 'ts_bucket'),
+    raw("'dormant'").as('status'),
+  )
+    .from('person_buckets')
+    .arrayJoin(col('buckets'), 'bucket')
+    .where(and(
+      not(func('has', col('buckets'), nextBucketExpr)),
+      gte(nextBucketExpr, fromParam),
+      lte(nextBucketExpr, toParam),
+    ))
+    .build();
+
+  // Outer query: aggregate by bucket + status
+  const query = select(
+    toString(col('ts_bucket')).as('period'),
+    col('status'),
+    uniqExact(col('person_id')).as('count'),
+  )
+    .with('person_buckets', personBuckets)
+    .with('prior_active', priorActive)
+    // Cast: compiler.compileQuery() handles UnionAllNode correctly in FROM position;
+    // the SelectNode type constraint on .from() is narrower than what the runtime supports.
+    .from(unionAll(activeStatuses, dormant) as unknown as SelectNode)
+    .groupBy(col('ts_bucket'), col('status'))
+    .orderBy(col('ts_bucket'))
+    .orderBy(col('status'))
+    .build();
+
+  const compiled = compile(query);
+  const result = await ch.query({
+    query: compiled.sql,
+    query_params: compiled.params,
+    format: 'JSONEachRow',
+  });
   const rows = await result.json<RawLifecycleRow>();
   return assembleLifecycleResult(rows, params.granularity);
 }
