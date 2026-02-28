@@ -31,6 +31,7 @@ export default function DashboardsPage() {
     const result = await createMutation.mutateAsync(value.trim());
     setShowCreate(false);
     setName('');
+    toast.success(t('created'));
     go.dashboards.detail(result.id);
   };
 

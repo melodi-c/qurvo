@@ -8,6 +8,7 @@ export default createTranslations({
     avgDuration: 'Avg Duration',
     bounceRate: 'Bounce Rate',
     loadError: 'Failed to load metrics',
+    retry: 'Retry',
   },
   ru: {
     uniqueVisitors: 'Уникальные посетители',
@@ -16,5 +17,6 @@ export default createTranslations({
     avgDuration: 'Средняя длительность',
     bounceRate: 'Показатель отказов',
     loadError: 'Не удалось загрузить метрики',
+    retry: 'Повторить',
   },
 });

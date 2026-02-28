@@ -13,6 +13,7 @@ export default createTranslations({
     typeIllegalDistinctId: 'Illegal distinct ID',
     typeUnknown: 'Unknown',
     loadError: 'Failed to load ingestion warnings',
+    retry: 'Retry',
   },
   ru: {
     title: 'Предупреждения приёма',
@@ -26,5 +27,6 @@ export default createTranslations({
     typeIllegalDistinctId: 'Недопустимый distinct ID',
     typeUnknown: 'Неизвестно',
     loadError: 'Не удалось загрузить предупреждения',
+    retry: 'Повторить',
   },
 });

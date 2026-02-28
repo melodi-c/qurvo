@@ -1,6 +1,7 @@
 import type { WebAnalyticsKPIs } from '@/api/generated/Api';
 import { WebKpiCard } from './WebKpiCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './WebKpiRow.translations';
 
@@ -26,15 +27,21 @@ interface WebKpiRowProps {
   previous?: WebAnalyticsKPIs;
   isLoading: boolean;
   isError?: boolean;
+  onRetry?: () => void;
 }
 
-export function WebKpiRow({ current, previous, isLoading, isError }: WebKpiRowProps) {
+export function WebKpiRow({ current, previous, isLoading, isError, onRetry }: WebKpiRowProps) {
   const { t } = useLocalTranslation(translations);
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-6 text-center text-sm text-destructive/80">
-        {t('loadError')}
+      <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-6 flex flex-col items-center gap-3 text-sm text-destructive/80">
+        <span>{t('loadError')}</span>
+        {onRetry && (
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            {t('retry')}
+          </Button>
+        )}
       </div>
     );
   }

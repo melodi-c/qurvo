@@ -12,7 +12,7 @@ export function useEvents(filterState: EventsFilterState, page: number) {
 
   const { debounced: debouncedFilters, hash: filtersHash } = useDebouncedHash(filterState, 400);
 
-  const { data: events, isLoading, isError } = useQuery({
+  const { data: events, isLoading, isError, refetch } = useQuery({
     queryKey: ['events', projectId, filtersHash, page],
     queryFn: () => {
       const validFilters = debouncedFilters.filters.filter(isValidFilter);
@@ -34,6 +34,7 @@ export function useEvents(filterState: EventsFilterState, page: number) {
     events,
     isLoading,
     isError,
+    refetch,
     limit: LIMIT,
   };
 }

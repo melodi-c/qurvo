@@ -1,6 +1,7 @@
 import { AlertTriangle, List } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EventTable } from '@/components/event-table';
 import { RequireProject } from '@/components/require-project';
@@ -22,7 +23,7 @@ export default function EventsPage() {
     handleFiltersChange,
   } = useEventsFilters();
 
-  const { projectId, events, isLoading, isError, limit } = useEvents(filterState, page);
+  const { projectId, events, isLoading, isError, refetch, limit } = useEvents(filterState, page);
 
   return (
     <div className="space-y-6">
@@ -42,7 +43,15 @@ export default function EventsPage() {
         {isLoading && <ListSkeleton count={8} height="h-9" className="space-y-2" />}
 
         {!isLoading && isError && (
-          <EmptyState icon={AlertTriangle} description={t('errorLoading')} />
+          <EmptyState
+            icon={AlertTriangle}
+            description={t('errorLoading')}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t('retry')}
+              </Button>
+            }
+          />
         )}
 
         {!isLoading && !isError && (events ?? []).length === 0 && (
