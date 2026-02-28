@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -45,15 +45,36 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
     [maxPeriods, granularity, getPeriodLabel],
   );
 
+  const firstColRef = useRef<HTMLTableCellElement>(null);
+  const [secondColLeft, setSecondColLeft] = useState(0);
+
+  useEffect(() => {
+    const el = firstColRef.current;
+    if (!el) return;
+
+    setSecondColLeft(el.offsetWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setSecondColLeft(entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width);
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   if (cohorts.length === 0) return null;
+
+  const secondColStyle = { left: secondColLeft } as React.CSSProperties;
 
   return (
     <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="sticky left-0 bg-background z-20 min-w-[100px]">{t('cohort')}</TableHead>
-          <TableHead className="sticky left-[100px] bg-background z-20 text-right min-w-[60px]">{t('users')}</TableHead>
+          <TableHead ref={firstColRef} className="sticky left-0 bg-background z-20">{t('cohort')}</TableHead>
+          <TableHead className="sticky bg-background z-20 text-right" style={secondColStyle}>{t('users')}</TableHead>
           {periodHeaders.map((h) => (
             <TableHead key={h} className="text-center min-w-[70px] text-xs">{h}</TableHead>
           ))}
@@ -65,7 +86,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
           <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground">
             {t('average')}
           </TableCell>
-          <TableCell className="sticky left-[100px] bg-background z-10" />
+          <TableCell className="sticky bg-background z-10" style={secondColStyle} />
           {average_retention.slice(0, maxPeriods).map((pct, i) => (
             <TableCell
               key={i}
@@ -85,7 +106,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
               <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
                 {formatDateWithGranularity(cohort.cohort_date, granularity, timezone)}
               </TableCell>
-              <TableCell className="sticky left-[100px] bg-background z-10 text-right text-xs tabular-nums">
+              <TableCell className="sticky bg-background z-10 text-right text-xs tabular-nums" style={secondColStyle}>
                 {cohort.cohort_size.toLocaleString()}
               </TableCell>
               {periods.map((count, i) => {
