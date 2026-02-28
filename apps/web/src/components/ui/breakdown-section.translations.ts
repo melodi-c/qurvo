@@ -16,6 +16,7 @@ export default createTranslations({
     presetBrowser: 'Browser',
     presetOs: 'OS',
     presetDeviceType: 'Device type',
+    clearBreakdown: 'Clear breakdown',
   },
   ru: {
     breakdown: 'Разбивка',
@@ -32,5 +33,6 @@ export default createTranslations({
     presetBrowser: 'Браузер',
     presetOs: 'ОС',
     presetDeviceType: 'Тип устройства',
+    clearBreakdown: 'Убрать разбивку',
   },
 });

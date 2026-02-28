@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+import { SlidersHorizontal, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
@@ -51,6 +52,10 @@ export function BreakdownSection({
 
   const resolvedTooltip = tooltip ?? t('defaultTooltip');
 
+  const handleClear = useCallback(() => {
+    onChange('');
+  }, [onChange]);
+
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-1">
@@ -68,22 +73,37 @@ export function BreakdownSection({
 
       {breakdownType === 'property' ? (
         <>
-          {propertyNames !== undefined ? (
-            <PropertyNameCombobox
-              value={value}
-              onChange={onChange}
-              propertyNames={propertyNames}
-              descriptions={propertyDescriptions}
-              className="h-8"
-            />
-          ) : (
-            <Input
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={t('propertyPlaceholder')}
-              className="h-8 text-sm"
-            />
-          )}
+          <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+              {propertyNames !== undefined ? (
+                <PropertyNameCombobox
+                  value={value}
+                  onChange={onChange}
+                  propertyNames={propertyNames}
+                  descriptions={propertyDescriptions}
+                  className="h-8"
+                />
+              ) : (
+                <Input
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  placeholder={t('propertyPlaceholder')}
+                  className="h-8 text-sm"
+                />
+              )}
+            </div>
+            {value && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={handleClear}
+                aria-label={t('clearBreakdown')}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </Button>
+            )}
+          </div>
 
           {/* Device & Geo presets */}
           <div className="space-y-1.5">
