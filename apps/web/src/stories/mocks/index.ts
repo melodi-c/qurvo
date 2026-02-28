@@ -6,4 +6,3 @@ export * from './stickiness.mock';
 export * from './paths.mock';
 export * from './web-analytics.mock';
 export * from './annotations.mock';
-export * from './insights.mock';
