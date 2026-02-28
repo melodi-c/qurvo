@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { FolderOpen } from 'lucide-react';
@@ -22,7 +23,7 @@ export default function AdminProjectsPage() {
     queryFn: () => apiClient.admin.adminProjectsControllerListProjects(),
   });
 
-  const columns: Column<AdminProjectListItem>[] = [
+  const columns: Column<AdminProjectListItem>[] = useMemo(() => [
     {
       key: 'name',
       header: t('name'),
@@ -54,7 +55,7 @@ export default function AdminProjectsPage() {
       ),
       hideOnMobile: true,
     },
-  ];
+  ], [t]);
 
   return (
     <div className="space-y-6">
