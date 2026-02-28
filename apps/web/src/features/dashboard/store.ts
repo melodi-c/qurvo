@@ -51,6 +51,7 @@ interface DashboardStore {
   setWidgetMeta: (widgetId: string, meta: Partial<LocalWidgetMeta>) => void;
   autoLayout: () => void;
   addTextTile: (content: string) => void;
+  replaceWidgetId: (oldId: string, newId: string) => void;
   focusedTextTile: string | null;
   requestTextFocus: (widgetId: string) => void;
   clearTextFocus: () => void;
@@ -217,6 +218,38 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     set((s) => ({
       localLayout: computeAutoLayout(s.localLayout),
       isDirty: true,
+    })),
+
+  replaceWidgetId: (oldId, newId) =>
+    set((s) => ({
+      localWidgets: s.localWidgets.map((w) =>
+        w.id === oldId ? { ...w, id: newId } : w,
+      ),
+      localLayout: s.localLayout.map((l) =>
+        l.i === oldId ? { ...l, i: newId } : l,
+      ),
+      widgetMeta: Object.fromEntries(
+        Object.entries(s.widgetMeta).map(([k, v]) =>
+          k === oldId ? [newId, v] : [k, v],
+        ),
+      ),
+      // Also update the snapshot so that cancelEditMode reflects the server IDs
+      snapshot: s.snapshot
+        ? {
+            ...s.snapshot,
+            widgets: s.snapshot.widgets.map((w) =>
+              w.id === oldId ? { ...w, id: newId } : w,
+            ),
+            layout: s.snapshot.layout.map((l) =>
+              l.i === oldId ? { ...l, i: newId } : l,
+            ),
+            widgetMeta: Object.fromEntries(
+              Object.entries(s.snapshot.widgetMeta).map(([k, v]) =>
+                k === oldId ? [newId, v] : [k, v],
+              ),
+            ),
+          }
+        : null,
     })),
 
   addTextTile: (content) =>

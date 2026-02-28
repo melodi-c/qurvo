@@ -56,6 +56,16 @@ export default function DashboardBuilderPage() {
   // store has already moved to a different dashboard (race on fast navigation).
   useEffect(() => () => cancelEditMode(id), [id, cancelEditMode]);
 
+  // Warn on tab close / navigation away when there are unsaved changes
+  useEffect(() => {
+    if (!isEditing || !isDirty) {return;}
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isEditing, isDirty]);
+
   const handleSave = async () => {
     // Read latest state imperatively — avoids subscribing to frequent layout/widget updates
     const { localWidgets, localLayout, localName, widgetMeta } = useDashboardStore.getState();

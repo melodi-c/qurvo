@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
+import { useDashboardStore } from '../store';
 import type { CreateWidget, Widget } from '@/api/generated/Api';
 
 export function useDashboardList() {
@@ -143,9 +144,14 @@ export function useSaveDashboard(dashboardId: string) {
       // 1. Update dashboard name
       await updateName.mutateAsync(name);
 
-      // 2. Add new widgets first — safest to do before removals
+      // 2. Add new widgets first — safest to do before removals.
+      //    Replace local temp IDs with server-assigned IDs so that a retry
+      //    after partial failure does not duplicate already-created widgets.
       for (const w of toAdd) {
-        await addWidget.mutateAsync(w);
+        const created = await addWidget.mutateAsync(w);
+        if (created.id !== w.id) {
+          useDashboardStore.getState().replaceWidgetId(w.id, created.id);
+        }
       }
 
       // 3. Update existing widgets
