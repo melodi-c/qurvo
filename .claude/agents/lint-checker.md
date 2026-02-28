@@ -69,8 +69,7 @@ git diff "$BASE_BRANCH"...HEAD
 ```json
 {
   "status": "PASS",
-  "issues": [],
-  "human_summary": "Проверено N файлов. Lint-проблем не обнаружено."
+  "issues": []
 }
 ```
 
@@ -82,9 +81,21 @@ git diff "$BASE_BRANCH"...HEAD
   "issues": [
     {"file": "apps/web/src/foo.tsx", "line": 42, "check": "console.log", "message": "console.log в production-коде"},
     {"file": "apps/api/src/bar.service.ts", "line": 10, "check": "injectable", "message": "BarService без @Injectable()"}
-  ],
-  "human_summary": "Найдено 2 проблемы: console.log в foo.tsx, отсутствующий @Injectable() в bar.service.ts."
+  ]
 }
 ```
 
-Последняя строка — ТОЛЬКО `PASS` или `FAIL`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

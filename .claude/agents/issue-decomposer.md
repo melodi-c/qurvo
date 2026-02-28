@@ -143,3 +143,18 @@ Issue затрагивает только один app, но изменения 
 
 `depends_on` — индекс в массиве `sub_issues` (0-based) или `null`.
 Labels — из: `bug`, `enhancement`, `refactor`, `ux/ui`, `architecture`, `web`, `api`, `security`, `billing`, `ai`, `i18n`, `good first issue`, `has-migrations`, `size:xs`, `size:s`, `size:m`, `size:l`.
+
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

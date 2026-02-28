@@ -79,9 +79,21 @@ gh issue comment <FIRST_ISSUE_NUMBER> --body "<CHANGELOG>"
 {
   "status": "DONE",
   "changelog": "## Changelog\n\n### Features\n- **api**: add CSV export (#42)\n\n### Bug Fixes\n- **web**: fix button alignment (#43)\n",
-  "issues_count": 3,
-  "human_summary": "Changelog сгенерирован для 3 issues: 1 feat, 2 fix."
+  "issues_count": 3
 }
 ```
 
-Последняя строка — ТОЛЬКО `DONE`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

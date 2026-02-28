@@ -133,7 +133,7 @@ git diff "$BASE_BRANCH"...HEAD
 APPROVE (или REQUEST_CHANGES)
 ```
 
-При **REQUEST_CHANGES** — добавь JSON блок с массивом `fixes` для точечного исправления solver'ом:
+При **REQUEST_CHANGES** — JSON с массивом `fixes`:
 
 ```json
 {
@@ -146,17 +146,8 @@ APPROVE (или REQUEST_CHANGES)
       "action": "REPLACE",
       "description": "Хардкод строки 'Save' — нужен t('save')",
       "suggested_code": "t('save')"
-    },
-    {
-      "file": "apps/web/src/bar.translations.ts",
-      "line": null,
-      "severity": "MAJOR",
-      "action": "ADD",
-      "description": "Добавить ключ 'save' в translations",
-      "suggested_code": "save: { en: 'Save', ru: 'Сохранить' }"
     }
-  ],
-  "human_summary": "REQUEST_CHANGES: 1 MAJOR (i18n в bar.tsx). Acceptance criteria: 2/2 PASS."
+  ]
 }
 ```
 
@@ -165,11 +156,23 @@ APPROVE (или REQUEST_CHANGES)
 ```json
 {
   "status": "APPROVE",
-  "fixes": [],
-  "human_summary": "APPROVE: все acceptance criteria выполнены, архитектура соответствует паттернам проекта."
+  "fixes": []
 }
 ```
 
-Последняя строка — ТОЛЬКО `APPROVE` или `REQUEST_CHANGES`.
-
 **Правило**: возвращай только реальные проблемы с высокой уверенностью. Не придирайся к стилю, форматированию, именованию. CRITICAL и MAJOR → REQUEST_CHANGES. Только WARNING → APPROVE с предупреждениями.
+
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

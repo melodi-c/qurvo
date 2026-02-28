@@ -1164,6 +1164,62 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     const totalBinCount = result.bins.reduce((sum, b) => sum + b.count, 0);
     expect(totalBinCount).toBe(1);
   });
+
+  it('unordered mode: two step-0 events — uses latest anchor (deterministic via arrayMax, issue #659)', async () => {
+    // Regression for issue #659: arrayFirst is order-dependent because
+    // groupArrayIf does not guarantee element order. The fix replaces
+    // arrayFirst with arrayMax(arrayFilter(...)) for deterministic
+    // latest-anchor selection, matching funnel-unordered.sql.ts (issue #545).
+    //
+    // Timeline (2-step funnel, window = 7 days):
+    //   personX: signup at t=-120s, signup at t=-20s, purchase at t=-10s
+    //   Both signup events cover both steps within the window.
+    //   With arrayMax (latest anchor): anchor = t=-20s → TTC = 10s
+    //   With arrayFirst (order-dependent): could pick t=-120s → TTC = 110s (non-deterministic)
+    //
+    // We assert TTC is ~10s (latest anchor), not ~110s.
+    const projectId = randomUUID();
+    const personX = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personX: early signup (t=-120s)
+      buildEvent({
+        project_id: projectId, person_id: personX, distinct_id: 'dup-step0',
+        event_name: 'signup', timestamp: msAgo(120_000),
+      }),
+      // personX: late signup (t=-20s) — should be the anchor
+      buildEvent({
+        project_id: projectId, person_id: personX, distinct_id: 'dup-step0',
+        event_name: 'signup', timestamp: msAgo(20_000),
+      }),
+      // personX: purchase (t=-10s)
+      buildEvent({
+        project_id: projectId, person_id: personX, distinct_id: 'dup-step0',
+        event_name: 'purchase', timestamp: msAgo(10_000),
+      }),
+    ]);
+
+    const result = await queryFunnelTimeToConvert(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      from_step: 0,
+      to_step: 1,
+      funnel_order_type: 'unordered' as const,
+    });
+
+    expect(result.sample_size).toBe(1);
+    // Latest anchor (t=-20s) to purchase (t=-10s) → ~10s
+    // NOT early anchor (t=-120s) to purchase (t=-10s) → ~110s
+    expect(result.average_seconds).not.toBeNull();
+    expect(result.average_seconds!).toBeLessThanOrEqual(15);
+    expect(result.average_seconds!).toBeGreaterThanOrEqual(5);
+  });
 });
 
 // ── P1: 8-10 step SQL size regression ────────────────────────────────────────

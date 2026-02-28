@@ -112,8 +112,7 @@ gh issue comment <ISSUE_NUMBER> --body "⚠️ **Issue требует уточн
   "issue_number": 42,
   "estimated_size": "s",
   "warnings": [],
-  "blockers": [],
-  "human_summary": "Issue #42 готов к выполнению. Размер: s. Дубликатов и блокеров нет."
+  "blockers": []
 }
 ```
 
@@ -125,8 +124,7 @@ gh issue comment <ISSUE_NUMBER> --body "⚠️ **Issue требует уточн
   "issue_number": 42,
   "estimated_size": "m",
   "warnings": ["Потенциальный дубликат #38 (закрыт 2 дня назад)"],
-  "blockers": ["Зависимость #40 ещё не закрыта (OPEN)"],
-  "human_summary": "Issue #42 заблокирован: зависимость #40 не закрыта."
+  "blockers": ["Зависимость #40 ещё не закрыта (OPEN)"]
 }
 ```
 
@@ -138,9 +136,21 @@ gh issue comment <ISSUE_NUMBER> --body "⚠️ **Issue требует уточн
   "issue_number": 42,
   "estimated_size": "m",
   "warnings": [],
-  "reasons": ["Нет секции Acceptance Criteria", "Описание слишком короткое (45 символов)"],
-  "human_summary": "Issue #42 требует уточнения: нет acceptance criteria, описание < 100 символов."
+  "reasons": ["Нет секции Acceptance Criteria", "Описание слишком короткое (45 символов)"]
 }
 ```
 
-Последняя строка — ТОЛЬКО `READY`, `BLOCKED` или `NEEDS_CLARIFICATION`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

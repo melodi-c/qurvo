@@ -102,8 +102,7 @@ COMMENT
 {
   "status": "REVERTED",
   "reverted_commits": ["abc1234", "def5678"],
-  "reopened_issues": [42, 43],
-  "human_summary": "Откачены 2 мерж-коммита из-за регрессии в integration tests apps/api. Issues #42, #43 переоткрыты с label regression."
+  "reopened_issues": [42, 43]
 }
 ```
 
@@ -115,9 +114,21 @@ COMMENT
   "reverted_commits": ["abc1234"],
   "failed_revert": "def5678",
   "reason": "Конфликт при revert — ручное вмешательство необходимо",
-  "reopened_issues": [],
-  "human_summary": "Откачен 1 из 2 коммитов. Revert def5678 вызвал конфликт — нужно ручное разрешение."
+  "reopened_issues": []
 }
 ```
 
-Последняя строка — ТОЛЬКО `REVERTED` или `UNRESOLVABLE`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

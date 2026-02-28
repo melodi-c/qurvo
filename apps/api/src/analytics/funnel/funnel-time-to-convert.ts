@@ -452,25 +452,23 @@ async function buildUnorderedTtcSql(
     ? maxFromEachStep[0]!
     : `greatest(${maxFromEachStep.join(', ')})`;
 
-  // anchor_ms: first anchor (tried fromStep first, then toStep, then rest) achieving full coverage.
-  // This makes the TTC measurement start from the from-step when possible.
+  // anchor_ms: latest anchor achieving full coverage (all N steps) — deterministic
+  // regardless of groupArrayIf element order (issue #545 / #659).
+  // arrayMax(arrayFilter(pred, arr)) returns the maximum (latest) element satisfying
+  // the predicate, independent of array order. arrayMax of an empty array returns 0.
   const fullCovPred = (i: number): string =>
     `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
-  // Build priority order: fromStep first, toStep second, rest in order.
-  const orderedStepIndices = [
-    fromStep,
-    ...Array.from({ length: N }, (_, i) => i).filter((i) => i !== fromStep),
-  ];
-  const firsts = orderedStepIndices.map((i) =>
-    `arrayFirst(${fullCovPred(i)}, t${i}_arr)`,
-  );
   let anchorMsExpr: string;
   if (N === 1) {
     anchorMsExpr = `if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))`;
   } else {
+    const maxes = stepConds.map((_, i) =>
+      `arrayMax(arrayFilter(${fullCovPred(i)}, t${i}_arr))`,
+    );
+    // Nested if/else: if(x0 != 0, x0, if(x1 != 0, x1, ... 0))
     let expr = `toInt64(0)`;
-    for (let k = firsts.length - 1; k >= 0; k--) {
-      expr = `if(toInt64(${firsts[k]}) != 0, toInt64(${firsts[k]}), ${expr})`;
+    for (let i = maxes.length - 1; i >= 0; i--) {
+      expr = `if(toInt64(${maxes[i]}) != 0, toInt64(${maxes[i]}), ${expr})`;
     }
     anchorMsExpr = expr;
   }

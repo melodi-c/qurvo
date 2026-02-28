@@ -82,8 +82,7 @@ pnpm turbo build --filter=@qurvo/<затронутые apps>
   "status": "RESOLVED",
   "files_resolved": ["apps/api/src/foo.ts", "packages/@qurvo/db/schema.ts"],
   "strategy": "Объединены imports и функции из обеих сторон",
-  "build": "ok",
-  "human_summary": "Разрешены конфликты в 2 файлах: объединены imports и функции. Build OK."
+  "build": "ok"
 }
 ```
 
@@ -93,9 +92,21 @@ pnpm turbo build --filter=@qurvo/<затронутые apps>
 {
   "status": "UNRESOLVABLE",
   "files": ["apps/api/src/foo.ts"],
-  "reason": "Обе стороны фундаментально меняют одну структуру данных — нужно ручное решение",
-  "human_summary": "Конфликт в foo.ts неразрешим автоматически: обе стороны меняют одну структуру данных."
+  "reason": "Обе стороны фундаментально меняют одну структуру данных — нужно ручное решение"
 }
 ```
 
-Последняя строка — ТОЛЬКО `RESOLVED` или `UNRESOLVABLE`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

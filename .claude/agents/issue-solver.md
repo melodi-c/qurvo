@@ -10,6 +10,14 @@ hooks:
       hooks:
         - type: command
           command: "bash $CLAUDE_PROJECT_DIR/.claude/hooks/restrict-solver.sh"
+    - matcher: "Edit"
+      hooks:
+        - type: command
+          command: "bash $CLAUDE_PROJECT_DIR/.claude/hooks/restrict-solver-writes.sh"
+    - matcher: "Write"
+      hooks:
+        - type: command
+          command: "bash $CLAUDE_PROJECT_DIR/.claude/hooks/restrict-solver-writes.sh"
 ---
 
 # Issue Solver — Автономный Разработчик
@@ -260,30 +268,29 @@ Worktree при ошибке НЕ удаляй — оркестратор раз
 
 ---
 
-## Формат финального ответа
+## Запись результата
 
-Последние строки ОБЯЗАТЕЛЬНО должны быть структурированным JSON + статусной строкой:
+Перед финальным ответом **запиши результат в файл** `RESULT_FILE` (путь получен из промпта):
 
-```json
-{"status": "READY_FOR_REVIEW", "branch": "fix/issue-<NUMBER>", "files_changed": <N>, "tests_passed": <N>, "tests_failed": <N>, "build": "ok"}
-```
-```
-BRANCH: fix/issue-<NUMBER>
-STATUS: READY_FOR_REVIEW
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+{"status": "READY_FOR_REVIEW", "branch": "fix/issue-<NUMBER>", "files_changed": <N>, "tests_passed": <N>, "tests_failed": <N>, "build": "ok", "worktree_path": "<WORKTREE_PATH>"}
+RESULT_JSON
 ```
 
 Для ошибок:
-```json
-{"status": "FAILED", "branch": "fix/issue-<NUMBER>", "reason": "<причина>"}
-```
-```
-STATUS: FAILED | <причина>
+```bash
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+{"status": "FAILED", "branch": "fix/issue-<NUMBER>", "reason": "<причина>", "worktree_path": "<WORKTREE_PATH>"}
+RESULT_JSON
 ```
 
 Для input:
-```json
-{"status": "NEEDS_USER_INPUT", "branch": "fix/issue-<NUMBER>", "reason": "<причина>", "worktree_path": "<path>"}
+```bash
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+{"status": "NEEDS_USER_INPUT", "branch": "fix/issue-<NUMBER>", "reason": "<причина>", "worktree_path": "<WORKTREE_PATH>"}
+RESULT_JSON
 ```
-```
-STATUS: NEEDS_USER_INPUT | <причина>
-```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

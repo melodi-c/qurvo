@@ -78,23 +78,32 @@ grep -rn "functionName" apps/ packages/ --include='*.ts' -l
     "42": {
       "title": "fix(web): button alignment",
       "affected": ["apps/web"],
-      "affected_files": ["apps/web/src/components/Button.tsx"],
       "has_migrations": false
     },
     "43": {
       "title": "feat(api): add export endpoint",
       "affected": ["apps/api", "packages/@qurvo/db"],
-      "affected_files": ["apps/api/src/export/export.controller.ts"],
       "has_migrations": true
     }
   },
   "parallel_groups": [[42, 44], [43], [45, 46]],
-  "reasoning": "Issues #42 и #44 не пересекаются (web vs processor). #43 имеет миграции — изолирован. #45 и #46 оба в api но разные модули — допустимо параллельно, т.к. затрагивают разные сервисы.",
   "conflicts": [
     {"issues": [43, 45], "resource": "packages/@qurvo/db", "reason": "обе issues меняют DB schema"}
-  ],
-  "human_summary": "4 issues → 3 группы. #42 и #44 параллельно (web vs processor). #43 изолирован (миграции). Конфликт: #43 и #45 пересекаются в @qurvo/db."
+  ]
 }
 ```
 
-Последняя строка — ТОЛЬКО JSON (начиная с `{`).
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.
