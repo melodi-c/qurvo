@@ -1,5 +1,5 @@
 import type { CohortNotPerformedEventSequenceCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom } from '../helpers';
+import { RESOLVED_PERSON, resolveDateToStr, resolveDateFromStr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -8,8 +8,8 @@ export function buildNotPerformedEventSequenceSubquery(
   ctx: BuildContext,
 ): string {
   const { stepIndexExpr, seqMatchExpr, daysPk } = buildSequenceCore(cond, ctx);
-  const upperBound = resolveDateTo(ctx);
-  const lowerBound = resolveDateFrom(ctx);
+  const upperBound = resolveDateToStr(ctx);
+  const lowerBound = resolveDateFromStr(ctx);
 
   /**
    * Time-range semantics for the absence check — mirrors not-performed.ts:

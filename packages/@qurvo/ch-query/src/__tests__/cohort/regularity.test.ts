@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildPerformedRegularlySubquery } from '../conditions/regularity';
-import type { BuildContext } from '../types';
+import { buildPerformedRegularlySubquery } from '../../cohort/conditions/regularity';
+import type { BuildContext } from '../../cohort/types';
 
 function makeCtx(dateTo?: string): BuildContext {
   return {

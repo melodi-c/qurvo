@@ -1,5 +1,5 @@
 import type { CohortEventFilter } from '@qurvo/db';
-import { buildEventFilterClauses } from '../helpers';
+import { buildEventFilterClausesStr } from '../helpers';
 import type { BuildContext } from '../types';
 
 interface SequenceCondition {
@@ -48,7 +48,7 @@ export function buildSequenceCore(
 
     let filterExpr = `event_name = {${stepEventPk}:String}`;
     if (step.event_filters && step.event_filters.length > 0) {
-      filterExpr += buildEventFilterClauses(
+      filterExpr += buildEventFilterClausesStr(
         step.event_filters,
         `coh_${condIdx}_s${i}`,
         ctx.queryParams,

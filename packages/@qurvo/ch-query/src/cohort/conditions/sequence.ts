@@ -1,5 +1,5 @@
 import type { CohortEventSequenceCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, resolveDateToStr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -8,7 +8,7 @@ export function buildEventSequenceSubquery(
   ctx: BuildContext,
 ): string {
   const { stepIndexExpr, seqMatchExpr, daysPk } = buildSequenceCore(cond, ctx);
-  const upperBound = resolveDateTo(ctx);
+  const upperBound = resolveDateToStr(ctx);
 
   return `
     SELECT person_id

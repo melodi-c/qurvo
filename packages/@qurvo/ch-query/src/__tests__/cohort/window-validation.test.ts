@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildStoppedPerformingSubquery } from '../conditions/stopped';
-import { buildRestartedPerformingSubquery } from '../conditions/restarted';
-import { CohortQueryValidationError } from '../errors';
-import type { BuildContext } from '../types';
+import { buildStoppedPerformingSubquery } from '../../cohort/conditions/stopped';
+import { buildRestartedPerformingSubquery } from '../../cohort/conditions/restarted';
+import { CohortQueryValidationError } from '../../cohort/errors';
+import type { BuildContext } from '../../cohort/types';
 
 function makeCtx(): BuildContext {
   return {

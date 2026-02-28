@@ -1,10 +1,10 @@
 import type { CohortAggregationType, CohortEventCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses, buildOperatorClause, resolveEventPropertyExpr, resolveDateTo, resolveDateFrom } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClausesStr, buildOperatorClauseStr, resolveEventPropertyExprStr, resolveDateToStr, resolveDateFromStr } from '../helpers';
 import type { BuildContext } from '../types';
 
 function buildAggregationExpr(type: CohortAggregationType | undefined, property: string | undefined): string {
   if (!type || type === 'count') return 'count()';
-  const prop = resolveEventPropertyExpr(property ?? '');
+  const prop = resolveEventPropertyExprStr(property ?? '');
   const numExpr = `toFloat64OrZero(${prop})`;
   switch (type) {
     case 'sum': return `sum(${numExpr})`;
@@ -40,19 +40,19 @@ function buildEventZeroCountSubquery(
   const eventPk = `coh_${condIdx}_event`;
   const daysPk = `coh_${condIdx}_days`;
 
-  const upperBound = resolveDateTo(ctx);
-  const lowerBound = resolveDateFrom(ctx);
+  const upperBound = resolveDateToStr(ctx);
+  const lowerBound = resolveDateFromStr(ctx);
   const lowerBoundExpr = lowerBound ?? `${upperBound} - INTERVAL {${daysPk}:UInt32} DAY`;
 
   // Build the countIf condition: event_name match + optional event filters.
-  // Uses buildOperatorClause (same as not-performed.ts) so all operators are correctly handled.
+  // Uses buildOperatorClauseStr (same as not-performed.ts) so all operators are correctly handled.
   let countIfCond = `event_name = {${eventPk}:String}`;
   if (cond.event_filters && cond.event_filters.length > 0) {
     for (let i = 0; i < cond.event_filters.length; i++) {
       const f = cond.event_filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
-      const expr = resolveEventPropertyExpr(f.property);
-      countIfCond += ` AND ${buildOperatorClause(expr, f.operator, pk, ctx.queryParams, f.value, f.values)}`;
+      const expr = resolveEventPropertyExprStr(f.property);
+      countIfCond += ` AND ${buildOperatorClauseStr(expr, f.operator, pk, ctx.queryParams, f.value, f.values)}`;
     }
   }
 
@@ -97,9 +97,9 @@ export function buildEventConditionSubquery(
   }
 
   const aggExpr = buildAggregationExpr(cond.aggregation_type, cond.aggregation_property);
-  const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const thresholdType = isCount ? 'UInt64' : 'Float64';
-  const upperBound = resolveDateTo(ctx);
+  const upperBound = resolveDateToStr(ctx);
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id
