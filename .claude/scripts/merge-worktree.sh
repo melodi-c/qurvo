@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Мерж ветки из worktree в целевую ветку через PR с pre-merge verification.
-# Использование: bash merge-worktree.sh <WORKTREE_PATH> <BRANCH> <BASE_BRANCH> <REPO_ROOT> <ISSUE_TITLE> [AFFECTED_APPS] [ISSUE_NUMBER] [AUTO_MERGE]
+# Использование: bash merge-worktree.sh <WORKTREE_PATH> <BRANCH> <BASE_BRANCH> <REPO_ROOT> <ISSUE_TITLE> [AFFECTED_APPS] [ISSUE_NUMBER] [AUTO_MERGE] [QUIET]
 # AFFECTED_APPS: опционально, через запятую (например "api,web"). Если указан — запускает build перед PR.
 # ISSUE_NUMBER: опционально, для "Closes #N" в PR body.
 # AUTO_MERGE: "true" (default) — мержит PR автоматически. "false" — создаёт PR но не мержит.
+# QUIET: "true" — подавить stderr (для экономии контекста executor). По умолчанию "false".
 # Вывод (stdout): COMMIT_HASH=<hash> и PR_URL=<url> при успехе.
 # Exit codes: 0 = success, 1 = merge failed, 2 = pre-merge verification failed, 3 = push failed, 4 = PR create failed.
 set -euo pipefail
@@ -16,6 +17,12 @@ ISSUE_TITLE="${5:-}"
 AFFECTED_APPS="${6:-}"
 ISSUE_NUMBER="${7:-}"
 AUTO_MERGE="${8:-true}"
+QUIET="${9:-false}"
+
+# Подавление stderr при QUIET=true
+if [[ "$QUIET" == "true" ]]; then
+  exec 2>/dev/null
+fi
 
 cd "$REPO_ROOT"
 

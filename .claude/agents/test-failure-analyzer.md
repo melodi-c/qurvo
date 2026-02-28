@@ -84,9 +84,21 @@ tools: Read, Bash, Grep, Glob
     }
   ],
   "summary": "2 теста упали: 1 логическая ошибка в cohorts.service.ts (нужен fix), 1 flaky setup (retry).",
-  "actionable_fixes": 1,
-  "human_summary": "Логическая ошибка в cohorts.service.ts:87 — новый фильтр не обрабатывает пустой массив. Fix: добавить early return для пустых фильтров."
+  "actionable_fixes": 1
 }
 ```
 
-Последняя строка — ТОЛЬКО `ANALYZED`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

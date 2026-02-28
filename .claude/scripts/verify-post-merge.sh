@@ -12,10 +12,6 @@ MERGED_ISSUES="${2:-}"
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
-echo "Verifying main at $(git rev-parse --short HEAD)"
-echo "Affected apps: $AFFECTED_APPS"
-echo "Merged issues: $MERGED_ISSUES"
-
 IFS=',' read -ra APPS <<< "$AFFECTED_APPS"
 
 BUILD_OK=true
@@ -24,57 +20,46 @@ TEST_SUMMARY=""
 TEST_OK=true
 FLAKY_TESTS=""
 
-# ── Build ────────────────────────────────────────────────────────────
+# ── Build (вывод в лог-файлы) ────────────────────────────────────────
 for APP in "${APPS[@]}"; do
   APP=$(echo "$APP" | xargs)  # trim whitespace
-  echo ""
-  echo "=== Building @qurvo/$APP ==="
-  if pnpm turbo build --filter="@qurvo/$APP" 2>&1; then
-    echo "Build @qurvo/$APP: OK"
+  BUILD_LOG="/tmp/post-merge-build-${APP}.log"
+  if pnpm turbo build --filter="@qurvo/$APP" > "$BUILD_LOG" 2>&1; then
+    :
   else
     BUILD_OK=false
     BUILD_ERRORS="${BUILD_ERRORS}@qurvo/$APP "
-    echo "Build @qurvo/$APP: FAILED"
   fi
 done
 
 if [[ "$BUILD_OK" == "false" ]]; then
-  echo ""
   echo "REGRESSION"
   echo "Build: error in $BUILD_ERRORS"
   echo "Tests: skipped (build failed)"
-
-  # Определить виновный коммит
-  echo ""
-  echo "Recent commits:"
-  git log --oneline -10
   exit 1
 fi
 
-# ── Integration Tests ────────────────────────────────────────────────
+# ── Integration Tests (вывод в лог-файлы) ────────────────────────────
 for APP in "${APPS[@]}"; do
   APP=$(echo "$APP" | xargs)
   CONF="vitest.integration.config.ts"
 
   # Проверить наличие конфига
   if [[ ! -f "apps/$APP/$CONF" ]]; then
-    TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: no integration config, skipped\n"
+    TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: skipped\n"
     continue
   fi
 
-  echo ""
-  echo "=== Testing @qurvo/$APP ==="
-  OUTPUT_FILE="/tmp/post-merge-${APP}.txt"
+  OUTPUT_FILE="/tmp/post-merge-test-${APP}.log"
 
-  if pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" 2>&1 | tee "$OUTPUT_FILE"; then
+  if pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
     SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "passed")
     TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY}\n"
   else
     # Retry once for flaky tests
-    echo "First run failed, retrying once..."
-    if pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" 2>&1 | tee "$OUTPUT_FILE"; then
+    if pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
       SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "passed on retry")
-      TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY} (flaky, passed on retry)\n"
+      TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY} (flaky)\n"
       FLAKY_TESTS="${FLAKY_TESTS}@qurvo/$APP "
     else
       SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "failed")
@@ -84,11 +69,9 @@ for APP in "${APPS[@]}"; do
   fi
 done
 
-# ── Результат ────────────────────────────────────────────────────────
-echo ""
+# ── Результат (только ключевые строки в stdout) ──────────────────────
 if [[ "$TEST_OK" == "true" ]]; then
   echo "ALL_GREEN"
-  echo "Build: ok"
   printf "Tests: %b" "$TEST_SUMMARY"
   if [[ -n "$FLAKY_TESTS" ]]; then
     echo "Flaky: $FLAKY_TESTS"
@@ -96,10 +79,6 @@ if [[ "$TEST_OK" == "true" ]]; then
   exit 0
 else
   echo "REGRESSION"
-  echo "Build: ok"
   printf "Tests: %b" "$TEST_SUMMARY"
-  echo ""
-  echo "Recent commits (probable cause):"
-  git log --oneline -10
   exit 1
 fi

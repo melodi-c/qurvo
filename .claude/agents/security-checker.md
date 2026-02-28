@@ -104,8 +104,7 @@ git diff "$BASE_BRANCH"...HEAD -- '*.controller.ts' | grep -E "^\+.*@(Get|Post|P
 ```json
 {
   "status": "PASS",
-  "issues": [],
-  "human_summary": "Проверено 15 добавленных файлов. Проблем безопасности не обнаружено."
+  "issues": []
 }
 ```
 
@@ -116,11 +115,22 @@ git diff "$BASE_BRANCH"...HEAD -- '*.controller.ts' | grep -E "^\+.*@(Get|Post|P
   "status": "FAIL",
   "issues": [
     {"file": "apps/api/src/events/events.service.ts", "line": 42, "check": "sql-injection", "severity": "CRITICAL", "message": "Интерполяция ${userId} в SQL без параметризации"},
-    {"file": "apps/web/src/components/Preview.tsx", "line": 15, "check": "xss", "severity": "CRITICAL", "message": "dangerouslySetInnerHTML с несанитизированным значением"},
-    {"file": "apps/api/src/export/export.controller.ts", "line": 8, "check": "auth-guard", "severity": "MAJOR", "message": "Новый endpoint @Get('export') без @UseGuards(AuthGuard)"}
-  ],
-  "human_summary": "Найдено 3 проблемы безопасности: SQL injection в events.service.ts, XSS в Preview.tsx, отсутствующий AuthGuard в export.controller.ts."
+    {"file": "apps/web/src/components/Preview.tsx", "line": 15, "check": "xss", "severity": "CRITICAL", "message": "dangerouslySetInnerHTML с несанитизированным значением"}
+  ]
 }
 ```
 
-Последняя строка — ТОЛЬКО `PASS` или `FAIL`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.

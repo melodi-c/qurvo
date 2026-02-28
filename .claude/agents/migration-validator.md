@@ -105,8 +105,7 @@ NEW_FILES=$(git diff "$BASE_BRANCH"...HEAD --name-only -- 'packages/@qurvo/db/dr
     "files": []
   },
   "warnings": [],
-  "errors": [],
-  "human_summary": "1 PG миграция (0042_add_export_table.sql): нумерация OK, обратная совместимость OK. CH миграций нет."
+  "errors": []
 }
 ```
 
@@ -127,9 +126,21 @@ NEW_FILES=$(git diff "$BASE_BRANCH"...HEAD --name-only -- 'packages/@qurvo/db/dr
     "projections_ok": false
   },
   "warnings": ["DROP COLUMN email в 0042 — проверь что column не используется"],
-  "errors": ["NOT NULL без DEFAULT на существующей колонке name"],
-  "human_summary": "FAIL: NOT NULL без DEFAULT в PG миграции. CH миграция ломает projections в events."
+  "errors": ["NOT NULL без DEFAULT на существующей колонке name"]
 }
 ```
 
-Последняя строка — ТОЛЬКО `PASS`, `WARN` или `FAIL`.
+---
+
+## Запись результата
+
+Перед финальным ответом запиши результат в файл `RESULT_FILE` (путь получен из промпта):
+
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<'RESULT_JSON'
+<твой JSON>
+RESULT_JSON
+```
+
+Твой **ФИНАЛЬНЫЙ ответ** — ТОЛЬКО слово `DONE`.
