@@ -223,7 +223,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     set((s) => {
       const id = `text-${crypto.randomUUID()}`;
       const maxY = s.localLayout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
-      const layout = { x: 0, y: maxY, w: 3, h: 2 };
+      const layout = { x: 0, y: maxY, w: 6, h: 2 };
       const newWidget: Widget = {
         id,
         dashboard_id: s.dashboardId ?? '',

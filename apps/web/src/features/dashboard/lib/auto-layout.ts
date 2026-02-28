@@ -1,6 +1,6 @@
 import type { RglItem } from '../store';
 
-const COLS = 12;
+const COLS = 24;
 
 export function computeAutoLayout(items: RglItem[]): RglItem[] {
   const sorted = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
