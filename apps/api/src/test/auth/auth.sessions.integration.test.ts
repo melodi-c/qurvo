@@ -6,7 +6,7 @@ import { users, sessions } from '@qurvo/db';
 import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { ProjectsService } from '../../projects/projects.service';
-import { DemoSeedService } from '../../demo/demo-seed.service';
+import type { DemoSeedService } from '../../demo/demo-seed.service';
 import { InvalidCredentialsException } from '../../auth/exceptions/invalid-credentials.exception';
 import { TooManyRequestsException } from '../../exceptions/too-many-requests.exception';
 import { hashToken } from '../../utils/hash';

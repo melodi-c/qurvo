@@ -29,7 +29,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
     onChange([...steps, { event_name: '', label: t('stepN', { n: String(steps.length + 1) }) }]);
 
   const removeStep = (i: number) => {
-    if (steps.length <= 2) return;
+    if (steps.length <= 2) {return;}
     onChange(steps.filter((_, idx) => idx !== i));
   };
 

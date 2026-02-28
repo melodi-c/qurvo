@@ -40,7 +40,7 @@ export function InsightCardViz({ widget, configOverride }: InsightCardVizProps) 
 
   // Insight tile — apply config override if present
   const effectiveWidget: Widget = configOverride
-    ? { ...widget, insight: { ...widget.insight!, config: configOverride } }
+    ? { ...widget, insight: { ...widget.insight, config: configOverride } }
     : widget;
 
   const Component = WIDGET_MAP[widget.insight.type];

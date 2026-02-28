@@ -9,14 +9,14 @@ import { defineTool } from '../../ai/tools/ai-tool.interface';
  */
 describe('defineTool $ref normalization', () => {
   function collectRefs(node: unknown, refs: string[] = []): string[] {
-    if (!node || typeof node !== 'object') return refs;
+    if (!node || typeof node !== 'object') {return refs;}
     if (Array.isArray(node)) {
-      for (const item of node) collectRefs(item, refs);
+      for (const item of node) {collectRefs(item, refs);}
       return refs;
     }
     const obj = node as Record<string, unknown>;
-    if (typeof obj['$ref'] === 'string') refs.push(obj['$ref'] as string);
-    for (const val of Object.values(obj)) collectRefs(val, refs);
+    if (typeof obj['$ref'] === 'string') {refs.push(obj['$ref']);}
+    for (const val of Object.values(obj)) {collectRefs(val, refs);}
     return refs;
   }
 

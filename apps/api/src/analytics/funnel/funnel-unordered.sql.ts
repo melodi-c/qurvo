@@ -1,4 +1,5 @@
-import { rawWithParams, select, raw, CompilerContext, type QueryNode } from '@qurvo/ch-query';
+import type { CompilerContext} from '@qurvo/ch-query';
+import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -70,7 +71,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
   );
   const maxStepExpr = maxFromEachStep.length === 1
-    ? maxFromEachStep[0]!
+    ? maxFromEachStep[0]
     : `greatest(${maxFromEachStep.join(', ')})`;
 
   // ── Step 4: anchor_ms — latest anchor achieving full coverage (all N steps) ──
@@ -106,7 +107,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   // ── Forward columns from step_times into anchor_per_user ─────────────────
   const breakdownArrForward = breakdownExpr ? ',\n        t0_bv_arr' : '';
   const exclColsForward = exclColumns.length > 0
-    ? ',\n        ' + exclColumns.map(c => c.split(' AS ')[1]!).join(',\n        ')
+    ? ',\n        ' + exclColumns.map(c => c.split(' AS ')[1]).join(',\n        ')
     : '';
 
   const breakdownValueExpr = breakdownExpr
@@ -118,7 +119,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     `arrayMax(lt${j} -> if(lt${j} >= anchor_ms AND lt${j} <= anchor_ms + ${winExpr}, lt${j}, toInt64(0)), t${j}_arr)`,
   );
   const lastStepMsExpr = stepLastInWindow.length === 1
-    ? stepLastInWindow[0]!
+    ? stepLastInWindow[0]
     : `greatest(${stepLastInWindow.join(', ')})`;
 
   // ── WHERE guard on step_times ─────────────────────────────────────────────

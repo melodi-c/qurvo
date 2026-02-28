@@ -9,9 +9,7 @@ import type Redis from 'ioredis';
 import {
   cohorts,
   isConditionGroup,
-  type CohortCondition,
   type CohortConditionGroup,
-  type CohortCohortCondition,
   type Database,
 } from '@qurvo/db';
 import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/cohort-query';
@@ -46,7 +44,7 @@ export class CohortsService {
       .from(cohorts)
       .where(and(eq(cohorts.project_id, projectId), eq(cohorts.id, cohortId)));
 
-    if (rows.length === 0) throw new CohortNotFoundException();
+    if (rows.length === 0) {throw new CohortNotFoundException();}
     return rows[0];
   }
 
@@ -109,7 +107,7 @@ export class CohortsService {
       .from(cohorts)
       .where(and(eq(cohorts.project_id, projectId), eq(cohorts.id, cohortId)));
 
-    if (existing.length === 0) throw new CohortNotFoundException();
+    if (existing.length === 0) {throw new CohortNotFoundException();}
 
     const definition = input.definition;
 
@@ -194,7 +192,7 @@ export class CohortsService {
       .where(and(eq(cohorts.project_id, projectId), eq(cohorts.id, cohortId)))
       .returning({ id: cohorts.id, is_static: cohorts.is_static });
 
-    if (rows.length === 0) throw new CohortNotFoundException();
+    if (rows.length === 0) {throw new CohortNotFoundException();}
 
     // Fire-and-forget: clean up materialized membership rows
     this.ch.command({
@@ -287,7 +285,7 @@ export class CohortsService {
   // ── Private helpers ──────────────────────────────────────────────────────
 
   private async getByIds(projectId: string, cohortIds: string[]) {
-    if (cohortIds.length === 0) return [];
+    if (cohortIds.length === 0) {return [];}
 
     const uniqueIds = [...new Set(cohortIds)];
 
@@ -321,8 +319,8 @@ export class CohortsService {
     for (const val of group.values) {
       if (isConditionGroup(val)) {
         CohortsService.collectCohortRefIds(val, result);
-      } else if ((val as CohortCondition).type === 'cohort') {
-        result.add((val as CohortCohortCondition).cohort_id);
+      } else if ((val).type === 'cohort') {
+        result.add((val).cohort_id);
       }
     }
     return result;
@@ -341,8 +339,8 @@ export class CohortsService {
     for (const val of group.values) {
       if (isConditionGroup(val)) {
         CohortsService.stampStaticFlags(val, staticMap);
-      } else if ((val as CohortCondition).type === 'cohort') {
-        const cond = val as CohortCohortCondition;
+      } else if ((val).type === 'cohort') {
+        const cond = val;
         cond.is_static = staticMap.get(cond.cohort_id) ?? false;
       }
     }
@@ -358,7 +356,7 @@ export class CohortsService {
     definition: CohortConditionGroup,
   ): Promise<Map<string, boolean>> {
     const refIds = CohortsService.collectCohortRefIds(definition);
-    if (refIds.size === 0) return new Map();
+    if (refIds.size === 0) {return new Map();}
 
     const rows = await this.db
       .select({ id: cohorts.id, is_static: cohorts.is_static })
@@ -398,7 +396,7 @@ export class CohortsService {
           const refCohort = await this.getById(projectId, refId);
           return refCohort.definition;
         } catch (err) {
-          if (err instanceof CohortNotFoundException) return null;
+          if (err instanceof CohortNotFoundException) {return null;}
           throw err;
         }
       },

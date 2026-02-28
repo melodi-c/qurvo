@@ -31,7 +31,7 @@ export function useCreateAnnotation() {
     mutationFn: (data: CreateAnnotation) =>
       api.annotationsControllerCreate({ projectId }, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
     },
   });
 }
@@ -44,7 +44,7 @@ export function useUpdateAnnotation() {
     mutationFn: ({ id, data }: { id: string; data: UpdateAnnotation }) =>
       api.annotationsControllerUpdate({ projectId, id }, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
     },
   });
 }
@@ -57,7 +57,7 @@ export function useDeleteAnnotation() {
     mutationFn: (id: string) =>
       api.annotationsControllerRemove({ projectId, id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
     },
   });
 }

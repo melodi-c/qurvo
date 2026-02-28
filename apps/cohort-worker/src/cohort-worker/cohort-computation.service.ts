@@ -83,7 +83,7 @@ export class CohortComputationService {
   }
 
   async deleteOldVersions(deletions: Array<{ cohortId: string; version: number }>): Promise<void> {
-    if (deletions.length === 0) return;
+    if (deletions.length === 0) {return;}
 
     const conditions = deletions.map((_, i) => {
       return `(cohort_id = {del_cid_${i}:UUID} AND version < {del_ver_${i}:UInt64})`;

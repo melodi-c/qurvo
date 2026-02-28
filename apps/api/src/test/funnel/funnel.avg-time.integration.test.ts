@@ -715,14 +715,14 @@ describe('queryFunnel — avg_time_to_convert for strict mode re-entry (issue #4
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(1);
-    expect(r.steps[1]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
 
     // maxIf heuristic: first_step_ms = latest signup (~1s before now),
     // last_step_ms = purchase (~0.5s before now) → avg_time ≈ 0.5s.
     // minIf (old): first_step_ms = earliest signup (~11s before now) → avg_time ≈ 10.5s.
     // We verify the heuristic gives a significantly shorter result — under 5s.
-    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
     expect(avgTime).not.toBeNull();
     expect(avgTime!).toBeGreaterThan(0);
     // maxIf heuristic: ~0.5s; minIf (old): ~10.5s
@@ -768,15 +768,15 @@ describe('queryFunnel — avg_time_to_convert for strict mode re-entry (issue #4
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(1);
-    expect(r.steps[1]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
 
     // signup → purchase: ~4s apart
-    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
     expect(avgTime).not.toBeNull();
     expect(avgTime!).toBeCloseTo(4, 0);
 
-    expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
+    expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
   });
 });
 
@@ -854,18 +854,18 @@ describe('queryFunnel — strict mode avg_time_to_convert inversion fix (issue #
     const r = result as Extract<typeof result, { breakdown: false }>;
 
     // User converted — windowFunnel('strict_order') finds signup→purchase at T-4s→T-3s
-    expect(r.steps[0]!.count).toBe(1);
-    expect(r.steps[1]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
 
     // avg_time must be non-null — old bug dropped this user (null avg) because
     // maxIf(step-0) > minIf(last-step) produced a negative difference
-    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
     expect(avgTime).not.toBeNull();
     // The earliest valid conversion window is signup@T-4s → purchase@T-3s = 1s
     expect(avgTime!).toBeGreaterThan(0);
     expect(avgTime!).toBeLessThan(5);
 
-    expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
+    expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
   });
 
   it('strict mode: user with multiple attempts counts in avg and is not dropped (two users)', async () => {
@@ -943,16 +943,16 @@ describe('queryFunnel — strict mode avg_time_to_convert inversion fix (issue #
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
 
-    expect(r.steps[0]!.count).toBe(2);
-    expect(r.steps[1]!.count).toBe(2);
+    expect(r.steps[0].count).toBe(2);
+    expect(r.steps[1].count).toBe(2);
 
     // avg should reflect both users — roughly (1 + 4) / 2 = 2.5s
     // With the old bug, only userB counted → avg would be 4s
-    const avgTime = r.steps[0]!.avg_time_to_convert_seconds;
+    const avgTime = r.steps[0].avg_time_to_convert_seconds;
     expect(avgTime).not.toBeNull();
     expect(avgTime!).toBeGreaterThan(1);
     expect(avgTime!).toBeLessThan(4);
 
-    expect(r.steps[1]!.avg_time_to_convert_seconds).toBeNull();
+    expect(r.steps[1].avg_time_to_convert_seconds).toBeNull();
   });
 });

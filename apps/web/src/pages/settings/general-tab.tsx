@@ -29,8 +29,8 @@ export function GeneralTab({ projectId }: { projectId: string }) {
   const updateMutation = useMutation({
     mutationFn: (data: { name?: string; timezone?: string }) => api.projectsControllerUpdate({ id: projectId }, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(t('updated'));
     },
     onError: () => toast.error(t('updateFailed')),
@@ -39,8 +39,8 @@ export function GeneralTab({ projectId }: { projectId: string }) {
   const deleteMutation = useMutation({
     mutationFn: () => api.projectsControllerRemove({ id: projectId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      navigate(routes.projects());
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void navigate(routes.projects());
       toast.success(t('deleted'));
     },
     onError: () => toast.error(t('deleteFailed')),
@@ -52,7 +52,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     return <EmptyState icon={Settings} description={t('selectProject')} />;
   }
 
-  if (isLoading) return <ListSkeleton count={1} height="h-32" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-32" />;}
 
   const isOwner = project?.role === 'owner';
   const isEditor = project?.role === 'owner' || project?.role === 'editor';

@@ -29,14 +29,14 @@ export class EventsService {
 
   async getEventDetail(projectId: string, eventId: string, timestamp: string): Promise<EventDetailRow> {
     const row = await queryEventDetail(this.ch, { project_id: projectId, event_id: eventId, timestamp });
-    if (!row) throw new EventNotFoundException();
+    if (!row) {throw new EventNotFoundException();}
     return row;
   }
 
   async getEventNames(projectId: string): Promise<string[]> {
     const cacheKey = REDIS_KEY.eventNames(projectId);
     const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached) as string[];
+    if (cached) {return JSON.parse(cached) as string[];}
 
     const rows = await this.db
       .select({ event_name: eventDefinitions.event_name })

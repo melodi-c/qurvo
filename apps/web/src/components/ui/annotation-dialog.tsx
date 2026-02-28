@@ -55,7 +55,7 @@ export function AnnotationDialog({
   }, [open, annotation, initialDate]);
 
   const handleSave = useCallback(async () => {
-    if (!date || !label.trim()) return;
+    if (!date || !label.trim()) {return;}
     setIsPending(true);
     try {
       await onSave({ date, label: label.trim(), description: description.trim() || undefined, color });

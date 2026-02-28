@@ -48,8 +48,8 @@ export function InlineEditField({
   };
 
   const save = () => {
-    if (!localValue.trim() || isPending) return;
-    onSave(localValue);
+    if (!localValue.trim() || isPending) {return;}
+    void onSave(localValue);
   };
 
   if (isEditing) {
@@ -61,8 +61,8 @@ export function InlineEditField({
           className={cn('h-7 w-48 text-sm', inputClassName)}
           autoFocus
           onKeyDown={(e) => {
-            if (e.key === 'Enter') save();
-            if (e.key === 'Escape') cancelEditing();
+            if (e.key === 'Enter') {save();}
+            if (e.key === 'Escape') {cancelEditing();}
           }}
         />
         <Button

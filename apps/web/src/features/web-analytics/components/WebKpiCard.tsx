@@ -14,7 +14,7 @@ interface WebKpiCardProps {
 }
 
 function defaultFormatDelta(current: number, previous: number): string {
-  if (previous === 0) return current > 0 ? '+100%' : '0%';
+  if (previous === 0) {return current > 0 ? '+100%' : '0%';}
   const pct = ((current - previous) / previous) * 100;
   const sign = pct >= 0 ? '+' : '';
   return `${sign}${pct.toFixed(1)}%`;

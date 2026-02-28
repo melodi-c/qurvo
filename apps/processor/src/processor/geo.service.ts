@@ -27,6 +27,7 @@ export class GeoService implements OnModuleInit {
     private readonly logger: PinoLogger,
   ) {}
 
+  // eslint-disable-next-line complexity -- MMDB download with age check, retry, and fallback
   async onModuleInit() {
     try {
       if (existsSync(MMDB_PATH)) {
@@ -69,18 +70,20 @@ export class GeoService implements OnModuleInit {
           throw new Error(`HTTP ${res.status} ${res.statusText}`);
         }
         await pipeline(
+          // eslint-disable-next-line no-restricted-syntax -- Node.js Readable.fromWeb requires ReadableStream cast
           Readable.fromWeb(res.body as unknown as ReadableStream<Uint8Array>),
           createWriteStream(MMDB_PATH),
         );
         return;
       } catch (err) {
-        if (attempt >= GEO_DOWNLOAD_MAX_ATTEMPTS) throw err;
+        if (attempt >= GEO_DOWNLOAD_MAX_ATTEMPTS) {throw err;}
         this.logger.warn({ err, attempt }, 'MMDB download failed, retrying');
         await new Promise((r) => setTimeout(r, GEO_DOWNLOAD_RETRY_DELAY_MS * attempt));
       }
     }
   }
 
+  // eslint-disable-next-line complexity -- IP validation + geo lookup with error handling
   lookupCountry(ip: string): string {
     if (!ip || LOOPBACK.has(ip) || !this.reader) {
       return '';

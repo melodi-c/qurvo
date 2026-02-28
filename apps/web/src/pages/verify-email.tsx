@@ -34,7 +34,7 @@ export default function VerifyEmailPage() {
   // Handle ?token= — verify via API client (public endpoint)
   useEffect(() => {
     const token = searchParams.get('token');
-    if (!token || tokenHandled.current) return;
+    if (!token || tokenHandled.current) {return;}
     tokenHandled.current = true;
     setTokenVerifying(true);
 
@@ -43,7 +43,7 @@ export default function VerifyEmailPage() {
         setVerified(true);
         // If we have a session, refresh auth state so redirect works
         if (getAuthHeaders().Authorization) {
-          checkAuth();
+          void checkAuth();
         }
       })
       .catch(() => {
@@ -54,12 +54,12 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (user && !pendingVerification) {
-      navigate(routes.home());
+      void navigate(routes.home());
     }
   }, [user, pendingVerification, navigate]);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
+    if (cooldown <= 0) {return;}
     const id = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
     return () => clearInterval(id);
   }, [cooldown]);
@@ -70,7 +70,7 @@ export default function VerifyEmailPage() {
     setLoading(true);
     try {
       await verifyByCode(code);
-      navigate(routes.home());
+      void navigate(routes.home());
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, t('verificationError')));
     } finally {

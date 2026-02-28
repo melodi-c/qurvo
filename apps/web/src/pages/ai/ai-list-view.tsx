@@ -30,7 +30,7 @@ export function AiListView({ projectId }: { projectId: string }) {
   const { isOpen, itemId, itemName, requestDelete, close } = useConfirmDelete();
 
   const handleDelete = useCallback(async () => {
-    if (!itemId) return;
+    if (!itemId) {return;}
     try {
       await deleteMutation.mutateAsync(itemId);
       toast.success(t('deleted'));

@@ -15,14 +15,11 @@ export function createScheduledLoop(
   let timer: NodeJS.Timeout | null = null;
 
   function schedule(): NodeJS.Timeout | null {
-    if (stopped) return null;
-    timer = setTimeout(async () => {
-      try {
-        await fn();
-      } catch (err) {
-        onError(err);
-      }
-      schedule();
+    if (stopped) {return null;}
+    timer = setTimeout(() => {
+      fn()
+        .catch((err) => onError(err))
+        .finally(() => schedule());
     }, intervalMs);
     return timer;
   }

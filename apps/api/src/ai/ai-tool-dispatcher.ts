@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
+import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { REDIS } from '../providers/redis.provider';
@@ -30,7 +31,7 @@ function isAiSafeError(err: unknown): err is Error & { isSafeForAi: true } {
 export class AiToolDispatcher {
   private readonly logger = new Logger(AiToolDispatcher.name);
   readonly toolMap: Map<string, AiTool>;
-  readonly toolDefinitions: import('openai/resources/chat/completions').ChatCompletionTool[];
+  readonly toolDefinitions: ChatCompletionTool[];
 
   constructor(
     @Inject(AI_TOOLS) tools: AiTool[],
@@ -61,7 +62,7 @@ export class AiToolDispatcher {
       try {
         const args = parsedArgs;
         const tool = this.toolMap.get(tc.function.name);
-        if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
+        if (!tool) {throw new Error(`Unknown tool: ${tc.function.name}`);}
 
         if (tool.cacheable === true) {
           const cacheKey = this.buildToolCacheKey(tc.function.name, args, projectId);

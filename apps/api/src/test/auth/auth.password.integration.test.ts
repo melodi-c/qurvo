@@ -5,7 +5,7 @@ import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { AccountService } from '../../auth/account.service';
 import { ProjectsService } from '../../projects/projects.service';
-import { DemoSeedService } from '../../demo/demo-seed.service';
+import type { DemoSeedService } from '../../demo/demo-seed.service';
 import { InvalidCredentialsException } from '../../auth/exceptions/invalid-credentials.exception';
 import { WrongPasswordException } from '../../auth/exceptions/wrong-password.exception';
 import type { EmailProvider } from '../../email/email.provider.interface';

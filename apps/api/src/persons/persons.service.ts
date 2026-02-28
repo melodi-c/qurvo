@@ -41,7 +41,7 @@ export class PersonsService {
 
   async getPersonById(projectId: string, personId: string): Promise<PersonRow> {
     const person = await queryPersonById(this.db, projectId, personId);
-    if (!person) throw new PersonNotFoundException();
+    if (!person) {throw new PersonNotFoundException();}
     return person;
   }
 
@@ -62,7 +62,7 @@ export class PersonsService {
   async getPersonPropertyNames(projectId: string): Promise<string[]> {
     const cacheKey = `person_property_names:${projectId}`;
     const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached) as string[];
+    if (cached) {return JSON.parse(cached) as string[];}
     const names = await queryPersonPropertyNames(this.db, projectId);
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', PROPERTY_NAMES_CACHE_TTL_SECONDS);
     return names;

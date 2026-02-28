@@ -25,11 +25,11 @@ export class SessionCleanupService implements OnApplicationBootstrap, OnApplicat
   }
 
   onApplicationBootstrap() {
-    this.timer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL_MS);
+    this.timer = setInterval(() => void this.cleanup(), CLEANUP_INTERVAL_MS);
   }
 
   onApplicationShutdown() {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) {clearInterval(this.timer);}
   }
 
   private async cleanup() {

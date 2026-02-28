@@ -35,7 +35,7 @@ export default function InsightsPage() {
   );
 
   const filtered = useMemo((): Insight[] => {
-    if (!insights) return [];
+    if (!insights) {return [];}
 
     let result = insights;
 
@@ -60,7 +60,7 @@ export default function InsightsPage() {
     return result;
   }, [insights, filters]);
 
-  const isEmpty = !isLoading && !isError && insights && insights.length === 0;
+  const isEmpty = !isLoading && !isError && insights?.length === 0;
   const noResults = !isLoading && !isError && insights && insights.length > 0 && filtered.length === 0;
 
   return (

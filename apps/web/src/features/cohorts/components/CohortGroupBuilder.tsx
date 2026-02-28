@@ -65,7 +65,7 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
   const atMaxGroups = groups.length >= MAX_GROUPS;
 
   const addGroup = useCallback(() => {
-    if (groups.length >= MAX_GROUPS) return;
+    if (groups.length >= MAX_GROUPS) {return;}
     onChange([...groups, { type: 'AND', values: [], _key: conditionKey() }]);
   }, [groups, onChange]);
 

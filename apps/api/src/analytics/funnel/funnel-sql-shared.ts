@@ -79,7 +79,7 @@ export function resolveWindowSeconds(params: {
   conversion_window_value?: number;
   conversion_window_unit?: string;
 }): number {
-  const hasValue = params.conversion_window_value != null;
+  const hasValue = params.conversion_window_value !== null && params.conversion_window_value !== undefined;
   const hasUnit = !!params.conversion_window_unit;
 
   if (hasValue && !hasUnit) {
@@ -96,8 +96,9 @@ export function resolveWindowSeconds(params: {
   const MAX_WINDOW_SECONDS = 90 * 86400; // 90 days, same limit as conversion_window_days
 
   if (hasValue && hasUnit) {
-    const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit!] ?? 86400;
-    const resolved = params.conversion_window_value! * multiplier;
+    const unit = params.conversion_window_unit ?? '';
+    const multiplier = UNIT_TO_SECONDS[unit] ?? 86400;
+    const resolved = (params.conversion_window_value ?? 0) * multiplier;
     if (resolved > MAX_WINDOW_SECONDS) {
       throw new AppBadRequestException(
         `conversion_window_value * conversion_window_unit exceeds the maximum allowed window of 90 days (${MAX_WINDOW_SECONDS} seconds). Got ${resolved} seconds.`,
@@ -112,7 +113,7 @@ export function resolveWindowSeconds(params: {
 
 /** Returns all event names for a step (supports OR-logic via event_names). */
 export function resolveStepEventNames(step: FunnelStep): string[] {
-  if (step.event_names?.length) return step.event_names;
+  if (step.event_names?.length) {return step.event_names;}
   return [step.event_name];
 }
 
@@ -134,7 +135,7 @@ export function buildStepCondition(
     : `event_name IN ({step_${idx}_names:Array(String)})`;
 
   const filtersExpr = propertyFilters(step.filters ?? []);
-  if (!filtersExpr) return eventCond;
+  if (!filtersExpr) {return eventCond;}
 
   const { sql: filterSql } = compileExprToSql(filtersExpr, queryParams, ctx);
   return `${eventCond} AND ${filterSql}`;
@@ -144,9 +145,9 @@ export function buildStepCondition(
 export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclusion[] = []): string[] {
   const names = new Set<string>();
   for (const s of steps) {
-    for (const n of resolveStepEventNames(s)) names.add(n);
+    for (const n of resolveStepEventNames(s)) {names.add(n);}
   }
-  for (const e of exclusions) names.add(e.event_name);
+  for (const e of exclusions) {names.add(e.event_name);}
   return Array.from(names);
 }
 
@@ -165,7 +166,7 @@ export function buildSamplingClause(
   samplingFactor: number | undefined,
   queryParams: FunnelChQueryParams,
 ): Expr | undefined {
-  if (samplingFactor == null || isNaN(samplingFactor) || samplingFactor >= 1) return undefined;
+  if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return undefined;}
   const pct = Math.round(samplingFactor * 100);
   queryParams.sample_pct = pct;
   return rawWithParams(
@@ -183,7 +184,7 @@ export function buildSamplingClauseRaw(
   samplingFactor: number | undefined,
   queryParams: FunnelChQueryParams,
 ): string {
-  if (samplingFactor == null || isNaN(samplingFactor) || samplingFactor >= 1) return '';
+  if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return '';}
   const pct = Math.round(samplingFactor * 100);
   queryParams.sample_pct = pct;
   return `\n                AND sipHash64(toString(${RESOLVED_PERSON})) % 100 < {sample_pct:UInt8}`;
@@ -202,9 +203,9 @@ export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions
 
 export function validateUnorderedSteps(steps: FunnelStep[]): void {
   for (let i = 0; i < steps.length; i++) {
-    const namesA = new Set(resolveStepEventNames(steps[i]!));
+    const namesA = new Set(resolveStepEventNames(steps[i]));
     for (let j = i + 1; j < steps.length; j++) {
-      const namesB = resolveStepEventNames(steps[j]!);
+      const namesB = resolveStepEventNames(steps[j]);
       const overlap = namesB.filter((n) => namesA.has(n));
       if (overlap.length > 0) {
         throw new AppBadRequestException(
@@ -265,8 +266,8 @@ export function buildExclusionColumns(
   for (const [i, excl] of exclusions.entries()) {
     queryParams[`excl_${i}_name`] = excl.event_name;
 
-    const fromNames = resolveStepEventNames(steps[excl.funnel_from_step]!);
-    const toNames = resolveStepEventNames(steps[excl.funnel_to_step]!);
+    const fromNames = resolveStepEventNames(steps[excl.funnel_from_step]);
+    const toNames = resolveStepEventNames(steps[excl.funnel_to_step]);
 
     let fromCond: string;
     if (fromNames.length === 1) {
@@ -416,7 +417,7 @@ export function buildBaseQueryParams(
     num_steps: params.steps.length,
     all_event_names: allEventNames,
   };
-  if (hasTz) queryParams.tz = params.timezone;
+  if (hasTz) {queryParams.tz = params.timezone;}
   params.steps.forEach((s, i) => {
     const names = resolveStepEventNames(s);
     queryParams[`step_${i}`] = names[0];

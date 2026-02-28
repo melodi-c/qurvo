@@ -1,4 +1,5 @@
-import { registerDecorator, ValidationArguments, ValidationOptions } from 'class-validator';
+import type { ValidationArguments, ValidationOptions } from 'class-validator';
+import { registerDecorator } from 'class-validator';
 
 const UUID_ARRAY_FIELDS = ['cohort_ids', 'breakdown_cohort_ids'] as const;
 
@@ -23,7 +24,7 @@ function validateInsightConfig(value: unknown): string | null {
 
   for (const field of UUID_ARRAY_FIELDS) {
     const arr = config[field];
-    if (arr === undefined || arr === null) continue;
+    if (arr === undefined || arr === null) {continue;}
     if (!Array.isArray(arr)) {
       return `config.${field} must be an array`;
     }

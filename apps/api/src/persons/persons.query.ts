@@ -39,6 +39,7 @@ interface PersonsCountParams {
  * Two-step query: first fetch person rows via index scan (no JOIN),
  * then fetch distinct_ids only for the found persons.
  */
+// eslint-disable-next-line complexity -- dynamic query builder with optional filters
 export async function queryPersons(db: Database, params: PersonsQueryParams): Promise<PersonRow[]> {
   // Step A: fetch person rows with index scan
   const conditions: SQL[] = [eq(persons.project_id, params.project_id)];

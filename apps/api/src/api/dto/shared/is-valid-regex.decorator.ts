@@ -1,4 +1,5 @@
-import { registerDecorator, ValidationOptions } from 'class-validator';
+import type { ValidationOptions } from 'class-validator';
+import { registerDecorator } from 'class-validator';
 
 export function IsValidRegex(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
@@ -12,7 +13,7 @@ export function IsValidRegex(validationOptions?: ValidationOptions) {
       },
       validator: {
         validate(value: unknown) {
-          if (typeof value !== 'string') return false;
+          if (typeof value !== 'string') {return false;}
           try {
             new RegExp(value);
             return true;

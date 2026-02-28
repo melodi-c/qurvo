@@ -32,7 +32,7 @@ export function StickinessWidget({ widget }: StickinessWidgetProps) {
   );
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(stickinessToCsv(result), 'stickiness.csv');
   }, [result]);
 

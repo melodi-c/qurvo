@@ -215,7 +215,7 @@ describe('queryFunnel — sampling', () => {
     // 0% sample: funnel_per_user has no rows, so CROSS JOIN returns no rows either.
     // The result is an empty steps array — not the full 20-user scan.
     // (If the bug were present and sampling were skipped, steps[0].count would be 1.)
-    expect(r.steps.length === 0 || r.steps[0]!.count === 0).toBe(true);
+    expect(r.steps.length === 0 || r.steps[0].count === 0).toBe(true);
   });
 
   it('sampling_factor=1 returns same result as no sampling', async () => {

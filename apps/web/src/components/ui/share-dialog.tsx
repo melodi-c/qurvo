@@ -53,7 +53,7 @@ function ShareTokenRow({
   const url = buildShareUrl(resourceType, token.token);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(url).then(() => {
+    void navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -135,7 +135,7 @@ export function ShareDialog({
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
       toast.success(t('toastCreated'));
     },
     onError: () => {
@@ -151,7 +151,7 @@ export function ShareDialog({
       return api.savedInsightsControllerRevokeShareToken({ projectId, insightId: resourceId, tokenId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
       toast.success(t('toastRevoked'));
       setRevokeTarget(null);
     },
@@ -191,7 +191,7 @@ export function ShareDialog({
               <p className="text-sm text-muted-foreground text-center py-4">{t('error')}</p>
             )}
 
-            {!isLoading && !isError && tokens && tokens.length === 0 && (
+            {!isLoading && !isError && tokens?.length === 0 && (
               <EmptyState
                 icon={Link2}
                 description={t('noTokensDescription')}
@@ -227,7 +227,7 @@ export function ShareDialog({
 
       <ConfirmDialog
         open={revokeTarget !== null}
-        onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}
+        onOpenChange={(open) => { if (!open) {setRevokeTarget(null);} }}
         title={t('revokeConfirmTitle')}
         description={t('revokeConfirmDescription')}
         confirmLabel={t('revokeConfirmLabel')}

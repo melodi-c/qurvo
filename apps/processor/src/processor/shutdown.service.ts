@@ -10,6 +10,7 @@ import { WarningsBufferService } from './warnings-buffer.service';
 
 @Injectable()
 export class ShutdownService implements OnApplicationShutdown {
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,

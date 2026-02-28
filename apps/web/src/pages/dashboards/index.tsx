@@ -27,12 +27,12 @@ export default function DashboardsPage() {
   const confirmDelete = useConfirmDelete();
 
   const handleCreate = async (value: string) => {
-    if (!value.trim()) return;
+    if (!value.trim()) {return;}
     const result = await createMutation.mutateAsync(value.trim());
     setShowCreate(false);
     setName('');
     toast.success(t('created'));
-    go.dashboards.detail(result.id);
+    void go.dashboards.detail(result.id);
   };
 
   const handleDelete = async () => {

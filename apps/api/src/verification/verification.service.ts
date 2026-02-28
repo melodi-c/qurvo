@@ -146,6 +146,6 @@ export class VerificationService {
   private async incrementAttempts(userId: string): Promise<void> {
     const attemptsKey = `verify_attempts:${userId}`;
     const count = await this.redis.incr(attemptsKey);
-    if (count === 1) await this.redis.expire(attemptsKey, VERIFICATION_ATTEMPTS_WINDOW_SECONDS);
+    if (count === 1) {await this.redis.expire(attemptsKey, VERIFICATION_ATTEMPTS_WINDOW_SECONDS);}
   }
 }

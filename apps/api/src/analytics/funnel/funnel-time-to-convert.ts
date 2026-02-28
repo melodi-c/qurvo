@@ -104,7 +104,7 @@ export async function queryFunnelTimeToConvert(
     to_step_num: toStep + 1,
     window_seconds: windowSeconds,
   };
-  if (hasTz) queryParams.tz = params.timezone;
+  if (hasTz) {queryParams.tz = params.timezone;}
   steps.forEach((s, i) => {
     const names = resolveStepEventNames(s);
     queryParams[`step_${i}`] = names[0];
@@ -158,7 +158,7 @@ export async function queryFunnelTimeToConvert(
   // Pass-through aliases for funnel_per_user (e.g. "excl_0_from_arr")
   const exclColumnAliases = exclColumns.map((expr) => {
     const match = /AS (\w+)$/.exec(expr.trim());
-    return match ? match[1]! : expr;
+    return match ? match[1] : expr;
   });
   const exclAliasSQL = exclColumnAliases.length > 0
     ? ',\n      ' + exclColumnAliases.join(',\n      ')
@@ -294,7 +294,7 @@ export async function queryFunnelTimeToConvert(
         ${RESOLVED_PERSON} AS person_id,
         ${buildWindowFunnelExpr(orderType, stepConditions)} AS max_step,
         ${stepArrayCols},
-        toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]!})) AS last_step_prelim_ms${exclColumnsSQL}
+        toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]})) AS last_step_prelim_ms${exclColumnsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
@@ -350,13 +350,13 @@ export interface TtcAggRow {
  * bins derived from the same `durations` array.
  */
 function exactMedian(values: number[]): number | null {
-  if (values.length === 0) return null;
+  if (values.length === 0) {return null;}
   const sorted = values.slice().sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   if (sorted.length % 2 === 1) {
-    return sorted[mid]!;
+    return sorted[mid];
   }
-  return (sorted[mid - 1]! + sorted[mid]!) / 2;
+  return (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 /** @internal Exported for unit testing only. */
@@ -368,10 +368,10 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
     return { from_step: fromStep, to_step: toStep, average_seconds: null, median_seconds: null, sample_size: 0, bins: [] };
   }
 
-  const avgSeconds = row.avg_seconds != null ? Math.round(Number(row.avg_seconds)) : null;
+  const avgSeconds = row.avg_seconds !== null && row.avg_seconds !== undefined ? Math.round(Number(row.avg_seconds)) : null;
   const durations: number[] = row.durations ?? [];
   const rawMedian = exactMedian(durations);
-  const medianSeconds = rawMedian != null ? Math.round(rawMedian) : null;
+  const medianSeconds = rawMedian !== null && rawMedian !== undefined ? Math.round(rawMedian) : null;
   const minVal = Number(row.min_seconds ?? 0);
   const maxVal = Number(row.max_seconds ?? 0);
 
@@ -459,7 +459,7 @@ async function buildUnorderedTtcSql(
     `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
   );
   const maxStepExpr = maxFromEachStep.length === 1
-    ? maxFromEachStep[0]!
+    ? maxFromEachStep[0]
     : `greatest(${maxFromEachStep.join(', ')})`;
 
   // anchor_ms: latest anchor achieving full coverage (all N steps) — deterministic
@@ -484,7 +484,7 @@ async function buildUnorderedTtcSql(
   }
 
   // Pass-through exclusion aliases from step_times to anchor_per_user.
-  const exclColAliases = exclColumns.map(col => col.split(' AS ')[1]!);
+  const exclColAliases = exclColumns.map(col => col.split(' AS ')[1]);
   const exclColsForward = exclColAliases.length > 0
     ? ',\n        ' + exclColAliases.join(',\n        ')
     : '';

@@ -7,7 +7,7 @@ type TFunc = (key: ChannelTranslationKey) => string;
  * to be defined in the caller's translation map.
  */
 export function getChannelTypeLabel(channelType: string, t: TFunc): string {
-  if (channelType === 'slack') return t('channelSlack');
-  if (channelType === 'telegram') return t('channelTelegram');
+  if (channelType === 'slack') {return t('channelSlack');}
+  if (channelType === 'telegram') {return t('channelTelegram');}
   return t('channelEmail');
 }

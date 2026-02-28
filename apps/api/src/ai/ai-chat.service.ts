@@ -123,7 +123,7 @@ export class AiChatService {
       .limit(limit + 1);
 
     const hasMore = rows.length > limit;
-    if (hasMore) rows.pop();
+    if (hasMore) {rows.pop();}
 
     return { messages: rows.reverse(), hasMore };
   }
@@ -283,8 +283,8 @@ export class AiChatService {
     beforeSequence?: number,
   ) {
     const conv = await this.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    if (!conv) {throw new ConversationNotFoundException();}
+    if (conv.project_id !== projectId) {throw new ConversationNotFoundException();}
     const { messages, hasMore } = await this.getMessages(conversationId, limit, beforeSequence);
     return { ...conv, messages, has_more: hasMore };
   }
@@ -296,16 +296,16 @@ export class AiChatService {
     beforeSequence?: number,
   ) {
     const conv = await this.getConversationByProject(conversationId, projectId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (!conv.is_shared) throw new ConversationNotFoundException();
+    if (!conv) {throw new ConversationNotFoundException();}
+    if (!conv.is_shared) {throw new ConversationNotFoundException();}
     const { messages, hasMore } = await this.getMessages(conversationId, limit, beforeSequence);
     return { ...conv, messages, has_more: hasMore };
   }
 
   async deleteConversationAuthorized(userId: string, conversationId: string, projectId: string) {
     const conv = await this.getConversation(conversationId, userId);
-    if (!conv) throw new ConversationNotFoundException();
-    if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+    if (!conv) {throw new ConversationNotFoundException();}
+    if (conv.project_id !== projectId) {throw new ConversationNotFoundException();}
     await this.deleteConversation(conversationId, userId);
   }
 
@@ -321,8 +321,8 @@ export class AiChatService {
         .from(aiConversations)
         .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
         .limit(1);
-      if (!conv) throw new ConversationNotFoundException();
-      if (conv.project_id !== projectId) throw new ConversationNotFoundException();
+      if (!conv) {throw new ConversationNotFoundException();}
+      if (conv.project_id !== projectId) {throw new ConversationNotFoundException();}
 
       const setFields = buildConditionalUpdate(updates, ['title', 'is_shared']);
       return tx
@@ -331,7 +331,7 @@ export class AiChatService {
         .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.user_id, userId)))
         .returning();
     });
-    if (!row) throw new ConversationNotFoundException();
+    if (!row) {throw new ConversationNotFoundException();}
     return row;
   }
 }

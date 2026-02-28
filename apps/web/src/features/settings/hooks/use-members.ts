@@ -37,7 +37,7 @@ export function useMembers(projectId: string) {
     mutationFn: ({ email, role }: { email: string; role: 'editor' | 'viewer' }) =>
       api.invitesControllerCreateInvite({ projectId }, { email, role }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invites', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['invites', projectId] });
       toast.success(t('inviteSent'));
     },
     onError: (err) => {
@@ -56,7 +56,7 @@ export function useMembers(projectId: string) {
     onMutate: ({ memberId }) => setUpdatingRoleId(memberId),
     onSettled: () => setUpdatingRoleId(null),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['members', projectId] });
       toast.success(t('roleUpdated'));
     },
     onError: () => toast.error(t('roleUpdateFailed')),
@@ -66,7 +66,7 @@ export function useMembers(projectId: string) {
   const removeMutation = useMutation({
     mutationFn: (memberId: string) => api.membersControllerRemoveMember({ projectId, memberId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['members', projectId] });
       toast.success(t('removed'));
     },
     onError: () => toast.error(t('removeFailed')),
@@ -80,7 +80,7 @@ export function useMembers(projectId: string) {
     onMutate: (inviteId) => setCancellingInviteId(inviteId),
     onSettled: () => setCancellingInviteId(null),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invites', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['invites', projectId] });
       toast.success(t('inviteCancelled'));
     },
     onError: () => toast.error(t('cancelFailed')),

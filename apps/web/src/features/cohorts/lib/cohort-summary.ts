@@ -3,7 +3,7 @@ import { isGroup, type CohortCondition, type CohortConditionGroup } from '@/feat
 export function conditionsSummary(definition: unknown, noConditionsLabel: string): string {
   try {
     const root = definition as CohortConditionGroup;
-    if (!root || !root.values) return noConditionsLabel;
+    if (!root?.values) {return noConditionsLabel;}
     return groupSummary(root) || noConditionsLabel;
   } catch {
     return noConditionsLabel;
@@ -12,8 +12,8 @@ export function conditionsSummary(definition: unknown, noConditionsLabel: string
 
 export function groupSummary(group: CohortConditionGroup): string {
   const parts = group.values.map((v) => {
-    if (isGroup(v)) return `(${groupSummary(v)})`;
-    return condSummary(v as CohortCondition);
+    if (isGroup(v)) {return `(${groupSummary(v)})`;}
+    return condSummary(v);
   });
   const joiner = group.type === 'AND' ? ' AND ' : ' OR ';
   return parts.filter(Boolean).join(joiner);

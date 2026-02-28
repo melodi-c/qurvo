@@ -11,20 +11,13 @@ import {
   col,
   literal,
   param,
-  raw,
   rawWithParams,
   count,
-  uniqExact,
   inArray,
   inSubquery,
-  and,
 } from '@qurvo/ch-query';
 import {
   analyticsWhere,
-  eventIs,
-  propertyFilters,
-  cohortFilter,
-  resolvedPerson,
   resolvePropertyExpr,
   bucket,
   toChTs,
@@ -99,9 +92,9 @@ interface RawBreakdownRow extends RawTrendRow {
 // ── Result assembly ───────────────────────────────────────────────────────────
 
 function assembleValue(metric: TrendMetric, rawVal: string, uniq: string, agg: string): number {
-  if (metric.startsWith('property_')) return Number(agg);
-  if (metric === 'total_events') return Number(rawVal);
-  if (metric === 'unique_users') return Number(uniq);
+  if (metric.startsWith('property_')) {return Number(agg);}
+  if (metric === 'total_events') {return Number(rawVal);}
+  if (metric === 'unique_users') {return Number(uniq);}
   // events_per_user
   const u = Number(uniq);
   return u > 0 ? Math.round((Number(rawVal) / u) * 100) / 100 : 0;
@@ -115,11 +108,12 @@ function assembleNonBreakdown(
   const grouped = new Map<number, TrendDataPoint[]>();
   for (const row of rows) {
     const idx = Number(row.series_idx);
-    if (!grouped.has(idx)) grouped.set(idx, []);
-    grouped.get(idx)!.push({
-      bucket: row.bucket,
-      value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
-    });
+    const existing = grouped.get(idx);
+    if (existing) {
+      existing.push({ bucket: row.bucket, value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value) });
+    } else {
+      grouped.set(idx, [{ bucket: row.bucket, value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value) }]);
+    }
   }
   return seriesMeta.map((s, idx) => ({
     series_idx: idx,
@@ -139,20 +133,26 @@ function assembleBreakdown(
   const keyMeta = new Map<string, { series_idx: number; breakdown_value: string }>();
   for (const row of rows) {
     const idx = Number(row.series_idx);
-    const bv = (row.breakdown_value != null && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
+    const bv = (row.breakdown_value !== null && row.breakdown_value !== undefined && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
     const key = `${idx}::${bv}`;
-    if (!grouped.has(key)) {
-      grouped.set(key, []);
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.push({
+        bucket: row.bucket,
+        value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
+      });
+    } else {
+      grouped.set(key, [{
+        bucket: row.bucket,
+        value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
+      }]);
       keyMeta.set(key, { series_idx: idx, breakdown_value: bv });
     }
-    grouped.get(key)!.push({
-      bucket: row.bucket,
-      value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
-    });
   }
   const results: TrendSeriesResult[] = [];
   for (const [key, data] of grouped) {
-    const meta = keyMeta.get(key)!;
+    const meta = keyMeta.get(key);
+    if (!meta) { continue; }
     const s = seriesMeta[meta.series_idx];
     const breakdownLabel = cohortLabelMap?.get(meta.breakdown_value);
     results.push({
@@ -233,7 +233,7 @@ async function executeTrendQuery(
 
   // ── Branch 1: Cohort breakdown ──
   if (hasCohortBreakdown) {
-    const cohortBreakdowns = params.breakdown_cohort_ids!;
+    const cohortBreakdowns = params.breakdown_cohort_ids ?? [];
     const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
 
     // Cohort breakdown uses rawWithParams for the cohort filter predicates
@@ -316,7 +316,7 @@ async function executeTrendQuery(
   }
 
   // ── Branch 3: Property breakdown ──
-  const breakdownExpr = resolvePropertyExpr(params.breakdown_property!);
+  const breakdownExpr = resolvePropertyExpr(params.breakdown_property ?? '');
 
   const arms = params.series.map((s, idx) =>
     select(
@@ -401,7 +401,7 @@ export async function queryTrend(
     return {
       compare: false,
       breakdown: true,
-      breakdown_property: breakdownLabel!,
+      breakdown_property: breakdownLabel ?? '',
       series: currentSeries,
     };
   }
@@ -453,7 +453,7 @@ export async function queryTrend(
   return {
     compare: true,
     breakdown: true,
-    breakdown_property: breakdownLabel!,
+    breakdown_property: breakdownLabel ?? '',
     series: currentSeries,
     series_previous: previousSeries,
   };

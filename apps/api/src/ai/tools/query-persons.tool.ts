@@ -126,7 +126,7 @@ export class QueryPersonsTool implements AiTool {
     const persons: PersonRow[] = rows.map((r) => {
       const rawProps: Record<string, unknown> = typeof r.user_properties === 'string'
         ? (JSON.parse(r.user_properties) as Record<string, unknown>)
-        : (r.user_properties as Record<string, unknown>);
+        : (r.user_properties);
       return {
         person_id: r.person_id,
         user_properties: truncateUserProperties(rawProps),

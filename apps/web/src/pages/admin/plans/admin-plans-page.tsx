@@ -29,7 +29,7 @@ import translations from './admin-plans-page.translations';
 // ---------------------------------------------------------------------------
 
 function formatLimit(value: number | null | undefined, unlimited: string): string {
-  if (value === null || value === undefined || value === -1) return unlimited;
+  if (value === null || value === undefined || value === -1) {return unlimited;}
   return value.toLocaleString();
 }
 
@@ -111,7 +111,7 @@ function planToFormValues(plan: AdminPlan): PlanFormValues {
 
 function parseOptionalInt(value: string): number | null {
   const trimmed = value.trim();
-  if (trimmed === '') return null;
+  if (trimmed === '') {return null;}
   const parsed = parseInt(trimmed, 10);
   return isNaN(parsed) ? null : parsed;
 }
@@ -362,7 +362,7 @@ export default function AdminPlansPage() {
     mutationFn: (id: string) => api.adminPlansControllerDeletePlan({ id }),
     onSuccess: () => {
       toast.success(t('deleteSuccess'));
-      queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
       confirmDelete.close();
     },
     onError: (error: unknown) => {
@@ -381,7 +381,7 @@ export default function AdminPlansPage() {
   }, [confirmDelete.itemId, deleteMutation]);
 
   const handleSuccess = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
   }, [queryClient]);
 
   const columns: Column<AdminPlan>[] = [
@@ -437,7 +437,7 @@ export default function AdminPlansPage() {
       header: t('features'),
       render: (row) => {
         const enabled = FEATURE_KEYS.filter((k) => row.features[k]);
-        if (enabled.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+        if (enabled.length === 0) {return <span className="text-muted-foreground text-xs">—</span>;}
         return (
           <div className="flex flex-wrap gap-1">
             {enabled.map((k) => (
@@ -486,7 +486,7 @@ export default function AdminPlansPage() {
 
       {isLoading && <ListSkeleton count={4} />}
 
-      {!isLoading && plans && plans.length === 0 && (
+      {!isLoading && plans?.length === 0 && (
         <EmptyState
           icon={CreditCard}
           title={t('noPlans')}
@@ -509,7 +509,7 @@ export default function AdminPlansPage() {
       {editPlan && (
         <PlanDialog
           open={!!editPlan}
-          onOpenChange={(open) => { if (!open) setEditPlan(null); }}
+          onOpenChange={(open) => { if (!open) {setEditPlan(null);} }}
           plan={editPlan}
           onSuccess={handleSuccess}
         />

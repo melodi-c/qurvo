@@ -30,7 +30,7 @@ export function useUpsertEventDefinition() {
         data,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: eventDefinitionsKey(projectId) });
+      void qc.invalidateQueries({ queryKey: eventDefinitionsKey(projectId) });
     },
   });
 }

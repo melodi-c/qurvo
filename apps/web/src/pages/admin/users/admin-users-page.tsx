@@ -25,7 +25,7 @@ export default function AdminUsersPage() {
 
   const handleStaffToggle = async () => {
     const user = (users ?? []).find((u) => u.id === confirmAction.itemId);
-    if (!user) return;
+    if (!user) {return;}
     await patchMutation.mutateAsync({ id: user.id, is_staff: !user.is_staff });
   };
 
@@ -121,7 +121,7 @@ export default function AdminUsersPage() {
 
       {isLoading && <ListSkeleton count={5} />}
 
-      {!isLoading && !isError && users && users.length === 0 && (
+      {!isLoading && !isError && users?.length === 0 && (
         <EmptyState icon={Users} description={t('noUsers')} />
       )}
 

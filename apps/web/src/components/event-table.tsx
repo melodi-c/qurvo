@@ -71,7 +71,7 @@ export function EventTable({
         headerClassName: 'px-0',
         render: (row) => {
           const urlDisplay = (() => {
-            if (!row.url) return row.page_path || '';
+            if (!row.url) {return row.page_path || '';}
             try { return new URL(row.url).pathname || row.url; } catch { return row.url; }
           })();
           const desc = eventDescriptions[row.event_name];

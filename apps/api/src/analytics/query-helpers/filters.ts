@@ -2,7 +2,6 @@ import type { Expr } from '@qurvo/ch-query';
 import {
   and,
   eq,
-  func,
   inArray,
   like,
   neq,
@@ -16,7 +15,6 @@ import {
 } from '@qurvo/ch-query';
 import { buildCohortFilterClause } from '@qurvo/cohort-query';
 import { timeRange } from './time';
-import { resolvedPerson } from './resolved-person';
 
 // ── Types ──
 
@@ -111,8 +109,8 @@ function buildJsonHasExpr(jsonColumn: string, segments: string[]): string {
 
 function resolvePropertyColumnExpr(prop: string): string {
   const source = resolvePropertySource(prop);
-  if (source) return buildJsonExtractStringExpr(source.jsonColumn, source.segments);
-  if (DIRECT_COLUMNS.has(prop)) return prop;
+  if (source) {return buildJsonExtractStringExpr(source.jsonColumn, source.segments);}
+  if (DIRECT_COLUMNS.has(prop)) {return prop;}
   throw new Error(`Unknown filter property: ${prop}`);
 }
 
@@ -208,7 +206,7 @@ export function propertyFilter(filter: PropertyFilter): Expr {
  * Returns undefined for empty arrays (allowing and() to skip it).
  */
 export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
-  if (filters.length === 0) return undefined;
+  if (filters.length === 0) {return undefined;}
   return and(...filters.map(propertyFilter));
 }
 
@@ -228,7 +226,7 @@ export function cohortFilter(
   dateTo?: string,
   dateFrom?: string,
 ): Expr | undefined {
-  if (!inputs?.length) return undefined;
+  if (!inputs?.length) {return undefined;}
 
   // Collect params populated by buildCohortFilterClause into a local object.
   // These will be embedded into the RawWithParamsExpr and merged during compilation.
@@ -248,7 +246,7 @@ export function cohortFilter(
     dateTo,
     dateFrom,
   );
-  if (!expr) return undefined;
+  if (!expr) {return undefined;}
 
   // Compile the Expr to SQL and wrap with rawWithParams so that ClickHouse
   // named parameters (e.g. {coh_mid_0:UUID}) are carried through the outer AST.

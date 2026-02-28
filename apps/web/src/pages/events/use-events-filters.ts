@@ -15,14 +15,14 @@ export interface EventsFilterState {
 function serializeEventsFilters(state: EventsFilterState, prev: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams(prev);
 
-  if (state.eventName) next.set('event', state.eventName);
-  else next.delete('event');
+  if (state.eventName) {next.set('event', state.eventName);}
+  else {next.delete('event');}
 
   next.set('from', state.dateFrom);
   next.set('to', state.dateTo);
 
-  if (state.filters.length > 0) next.set('filters', JSON.stringify(state.filters));
-  else next.delete('filters');
+  if (state.filters.length > 0) {next.set('filters', JSON.stringify(state.filters));}
+  else {next.delete('filters');}
 
   return next;
 }

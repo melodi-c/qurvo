@@ -8,11 +8,11 @@ function makeLogger() {
 function makeRedis({ getResult, setResult }: { getResult?: string | null | Error; setResult?: Error } = {}) {
   return {
     get: vi.fn().mockImplementation(() => {
-      if (getResult instanceof Error) return Promise.reject(getResult);
+      if (getResult instanceof Error) {return Promise.reject(getResult);}
       return Promise.resolve(getResult ?? null);
     }),
     set: vi.fn().mockImplementation(() => {
-      if (setResult instanceof Error) return Promise.reject(setResult);
+      if (setResult instanceof Error) {return Promise.reject(setResult);}
       return Promise.resolve('OK');
     }),
   } as any;

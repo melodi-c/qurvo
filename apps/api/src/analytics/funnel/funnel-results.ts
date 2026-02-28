@@ -57,7 +57,7 @@ export function computeStepResults(
       drop_off: dropOff,
       drop_off_rate: isLast ? 0 : (entered > 0 ? Math.round((dropOff / entered) * 1000) / 10 : 0),
       avg_time_to_convert_seconds:
-        !isLast && row.avg_time_seconds != null && Number(row.avg_time_seconds) >= 0
+        !isLast && row.avg_time_seconds !== null && row.avg_time_seconds !== undefined && Number(row.avg_time_seconds) >= 0
           ? Math.round(Number(row.avg_time_seconds))
           : null,
     };
@@ -99,9 +99,13 @@ export function computePropertyBreakdownResults(
 ): FunnelBreakdownStepResult[] {
   const grouped = new Map<string, RawBreakdownRow[]>();
   for (const row of rows) {
-    const bv = (row.breakdown_value != null && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
-    if (!grouped.has(bv)) grouped.set(bv, []);
-    grouped.get(bv)!.push(row);
+    const bv = (row.breakdown_value !== null && row.breakdown_value !== undefined && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
+    const existing = grouped.get(bv);
+    if (existing) {
+      existing.push(row);
+    } else {
+      grouped.set(bv, [row]);
+    }
   }
 
   // Compute step results per group and track the step-1 entered count for sorting.
@@ -118,8 +122,8 @@ export function computePropertyBreakdownResults(
 
   // Sort groups: (none) always last, then by step-1 entered count descending.
   groupEntries.sort((a, b) => {
-    if (a.bv === '(none)' && b.bv !== '(none)') return 1;
-    if (a.bv !== '(none)' && b.bv === '(none)') return -1;
+    if (a.bv === '(none)' && b.bv !== '(none)') {return 1;}
+    if (a.bv !== '(none)' && b.bv === '(none)') {return -1;}
     return b.step1Count - a.step1Count;
   });
 

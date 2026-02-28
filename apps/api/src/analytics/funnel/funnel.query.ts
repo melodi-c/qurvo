@@ -23,6 +23,7 @@ import {
   type Expr,
   type SelectNode,
   type CompiledQuery,
+  type QueryNode,
 } from '@qurvo/ch-query';
 import { resolvePropertyExpr, cohortFilter } from '../query-helpers';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
@@ -30,7 +31,6 @@ import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
   buildAllEventNames,
   buildBaseQueryParams,
-  buildSamplingClause,
   buildSamplingClauseRaw,
   buildStepCondition,
   toChTs,
@@ -44,7 +44,6 @@ import { runFunnelCohortBreakdown } from './funnel-cohort-breakdown';
 import {
   computeStepResults,
   computePropertyBreakdownResults,
-  computeAggregateSteps,
   type RawFunnelRow,
   type RawBreakdownRow,
 } from './funnel-results';
@@ -81,7 +80,7 @@ export async function queryFunnel(
   // Mirror the same guard used in buildSamplingClause: sampling is active only when
   // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
   const sf = params.sampling_factor;
-  const samplingResult = sf != null && !isNaN(sf) && sf < 1
+  const samplingResult = sf !== null && sf !== undefined && !isNaN(sf) && sf < 1
     ? { sampling_factor: sf } : {};
 
   // ── Cohort breakdown ────────────────────────────────────────────────────
@@ -114,7 +113,7 @@ export async function queryFunnel(
   const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
   const stepResults = computePropertyBreakdownResults(rows, steps, numSteps);
-  const totalBdCount = rows.length > 0 ? Number(rows[0]!.total_bd_count ?? 0) : 0;
+  const totalBdCount = rows.length > 0 ? Number(rows[0].total_bd_count ?? 0) : 0;
   const breakdown_truncated = totalBdCount > breakdownLimit;
 
   // Run a separate no-breakdown query for aggregate_steps.
@@ -152,7 +151,7 @@ function buildFunnelQuery(
   const includeTimestampCols = !hasBreakdown;
 
   // Build CTEs from the appropriate strategy
-  let cteResult: { ctes: Array<{ name: string; query: import('@qurvo/ch-query').QueryNode }>; hasExclusions: boolean };
+  let cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean };
 
   if (orderType === 'unordered') {
     cteResult = buildUnorderedFunnelCTEs({
@@ -256,7 +255,7 @@ function buildFunnelQuery(
 
   // GROUP BY
   const groupByExprs: Expr[] = [];
-  if (hasBreakdown) groupByExprs.push(col('breakdown_value'));
+  if (hasBreakdown) {groupByExprs.push(col('breakdown_value'));}
   groupByExprs.push(col('step_num'));
   builder.groupBy(...groupByExprs);
 

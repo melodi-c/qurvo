@@ -63,7 +63,7 @@ export default function AdminProjectsPage() {
 
       {isLoading && <ListSkeleton count={5} />}
 
-      {!isLoading && projects && projects.length === 0 && (
+      {!isLoading && projects?.length === 0 && (
         <EmptyState
           icon={FolderOpen}
           title={t('noProjects')}

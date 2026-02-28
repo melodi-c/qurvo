@@ -64,7 +64,7 @@ export function DemoBanner({ projectId, isDemo }: DemoBannerProps) {
   }
 
   function handleConnectSdk() {
-    navigate(routes.keys(projectId));
+    void navigate(routes.keys(projectId));
   }
 
   return (

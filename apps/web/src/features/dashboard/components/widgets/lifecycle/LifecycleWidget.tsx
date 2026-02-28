@@ -34,7 +34,7 @@ export function LifecycleWidget({ widget }: LifecycleWidgetProps) {
   );
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(lifecycleToCsv(result), 'lifecycle.csv');
   }, [result]);
 

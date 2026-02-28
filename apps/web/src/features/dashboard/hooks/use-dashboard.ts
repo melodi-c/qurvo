@@ -28,7 +28,7 @@ export function useCreateDashboard() {
     mutationFn: (name: string) =>
       api.dashboardsControllerCreate({ projectId }, { name }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
+      void qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
     },
   });
 }
@@ -40,7 +40,7 @@ export function useDeleteDashboard() {
     mutationFn: (dashboardId: string) =>
       api.dashboardsControllerRemove({ projectId, dashboardId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
+      void qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
     },
   });
 }
@@ -52,7 +52,7 @@ export function useUpdateDashboardName() {
     mutationFn: ({ dashboardId, name }: { dashboardId: string; name: string }) =>
       api.dashboardsControllerUpdate({ projectId, dashboardId }, { name }),
     onSuccess: (_data, { dashboardId }) => {
-      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
   });
 }
@@ -69,7 +69,7 @@ export function useAddWidget() {
       widget: CreateWidget;
     }) => api.dashboardsControllerAddWidget({ projectId, dashboardId }, widget),
     onSuccess: (_data, { dashboardId }) => {
-      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
   });
 }
@@ -81,7 +81,7 @@ export function useRemoveWidget() {
     mutationFn: ({ dashboardId, widgetId }: { dashboardId: string; widgetId: string }) =>
       api.dashboardsControllerRemoveWidget({ projectId, dashboardId, widgetId }),
     onSuccess: (_data, { dashboardId }) => {
-      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
   });
 }
@@ -147,10 +147,10 @@ export function useSaveDashboard(dashboardId: string) {
         await removeWidget.mutateAsync(w.id);
       }
 
-      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     } catch (err) {
       // Re-sync with server state so the UI is not stale
-      qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
       throw err;
     }
   };

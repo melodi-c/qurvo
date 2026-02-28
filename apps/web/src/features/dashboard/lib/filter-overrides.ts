@@ -43,7 +43,7 @@ export function applyFilterOverrides<T extends OverridableConfig>(
   config: T,
   overrides: DashboardFilterOverrides,
 ): T {
-  if (!hasActiveOverrides(overrides)) return config;
+  if (!hasActiveOverrides(overrides)) {return config;}
 
   return {
     ...config,

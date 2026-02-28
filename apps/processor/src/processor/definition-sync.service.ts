@@ -72,6 +72,7 @@ export class DefinitionSyncService {
    * A9: Skips service properties ($set, $set_once, $unset, $group_*, $groups) for event type.
    * A6: Skips property names longer than MAX_NAME_LENGTH.
    */
+  // eslint-disable-next-line complexity -- property extraction with validation checks
   private extractProps(
     bag: Record<string, unknown>,
     type: 'event' | 'person',
@@ -80,10 +81,10 @@ export class DefinitionSyncService {
   ): void {
     for (const [k, v] of Object.entries(bag)) {
       // A9: Skip service properties for event type only
-      if (type === 'event' && SKIP_EVENT_PROPERTIES.has(k)) continue;
+      if (type === 'event' && SKIP_EVENT_PROPERTIES.has(k)) {continue;}
 
       // A6: Skip properties with names longer than 200 chars
-      if (k.length > MAX_NAME_LENGTH) continue;
+      if (k.length > MAX_NAME_LENGTH) {continue;}
 
       const property_name = `${prefix}${k}`;
       const detected = detectValueType(k, v);
@@ -102,6 +103,7 @@ export class DefinitionSyncService {
     }
   }
 
+  // eslint-disable-next-line complexity -- batch sync orchestrates multiple DB operations
   async syncFromBatch(events: Event[]): Promise<void> {
     const flooredMs = floorToHourMs(Date.now());
     const now = new Date(flooredMs);
@@ -115,7 +117,7 @@ export class DefinitionSyncService {
 
     for (const e of events) {
       // A6: Skip events with names longer than 200 chars
-      if (e.event_name.length > MAX_NAME_LENGTH) continue;
+      if (e.event_name.length > MAX_NAME_LENGTH) {continue;}
 
       // Parse properties early to check count before collecting anything
       let parsedProps: Record<string, unknown> | null = null;
@@ -260,6 +262,7 @@ export class DefinitionSyncService {
     );
   }
 
+  // eslint-disable-next-line complexity -- cache invalidation across multiple dimensions
   private async invalidateCaches(
     eventKeys: Map<string, { project_id: string; event_name: string }>,
     propMap: Map<string, PropEntry>,

@@ -27,7 +27,6 @@ import {
   projectIs,
   eventIs,
   cohortFilter,
-  propertyFilters,
   type PropertyFilter,
 } from '../query-helpers';
 
@@ -99,7 +98,8 @@ function assembleResult(
       cohortMap.set(key, new Array(params.periods + 1).fill(0));
     }
     if (offset >= 0 && offset <= params.periods) {
-      cohortMap.get(key)![offset] = Number(row.user_count);
+      const periods = cohortMap.get(key);
+      if (periods) { periods[offset] = Number(row.user_count); }
     }
   }
 
@@ -107,8 +107,8 @@ function assembleResult(
   const sortedKeys = [...cohortMap.keys()].sort();
   const cohorts: RetentionCohort[] = sortedKeys.map((key) => ({
     cohort_date: key,
-    cohort_size: cohortSizeMap.get(key) ?? cohortMap.get(key)![0],
-    periods: cohortMap.get(key)!,
+    cohort_size: cohortSizeMap.get(key) ?? (cohortMap.get(key)?.[0] ?? 0),
+    periods: cohortMap.get(key) ?? [],
   }));
 
   // Compute weighted average retention % (weighted by cohort size).

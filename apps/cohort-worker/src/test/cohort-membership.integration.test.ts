@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import type { INestApplicationContext } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
@@ -8,9 +8,9 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { Queue } from 'bullmq';
+import type { Queue } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';
 import { getTestContext } from './context';
 import { getCohortMembers } from './helpers/ch';
@@ -272,7 +272,7 @@ describe('cohort membership', () => {
         format: 'JSONEachRow',
       });
       physicalCount = Number((await res.json<{ cnt: string }>())[0].cnt);
-      if (physicalCount <= 1) break;
+      if (physicalCount <= 1) {break;}
       await new Promise((r) => setTimeout(r, 500));
     }
 
@@ -318,7 +318,7 @@ describe('cohort membership', () => {
     const deadline = Date.now() + 15_000;
     while (Date.now() < deadline) {
       members = await getCohortMembers(ctx.ch, projectId, cohortId);
-      if (!members.includes(personId)) break;
+      if (!members.includes(personId)) {break;}
       await new Promise((r) => setTimeout(r, 500));
     }
     expect(members).not.toContain(personId);
@@ -408,7 +408,7 @@ describe('cohort membership', () => {
       });
       const total = Number((await res.json<{ cnt: string }>())[0].cnt);
       // 2 cohorts × 1 person each = 2 rows after dedup
-      if (total <= 2) break;
+      if (total <= 2) {break;}
       await new Promise((r) => setTimeout(r, 500));
     }
 
@@ -1275,7 +1275,7 @@ describe('cohort membership', () => {
     let extendCallCount = 0;
     const extendSpy = vi.spyOn(lock, 'extend').mockImplementation(async () => {
       extendCallCount++;
-      if (extendCallCount > 1) throw new Error('Redis connection lost during extend');
+      if (extendCallCount > 1) {throw new Error('Redis connection lost during extend');}
       return true;
     });
 

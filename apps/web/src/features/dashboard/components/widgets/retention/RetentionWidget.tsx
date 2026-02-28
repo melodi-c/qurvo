@@ -24,7 +24,7 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
   const result = query.data?.data;
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(retentionToCsv(result), 'retention.csv');
   }, [result]);
 

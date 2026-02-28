@@ -6,7 +6,7 @@ export function useCopyToClipboard(timeout = 2000, onError?: () => void) {
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {clearTimeout(timerRef.current);}
     };
   }, []);
 
@@ -14,7 +14,7 @@ export function useCopyToClipboard(timeout = 2000, onError?: () => void) {
     async (text: string) => {
       try {
         await navigator.clipboard.writeText(text);
-        if (timerRef.current) clearTimeout(timerRef.current);
+        if (timerRef.current) {clearTimeout(timerRef.current);}
         setCopied(true);
         timerRef.current = setTimeout(() => setCopied(false), timeout);
       } catch {

@@ -10,12 +10,12 @@ export function useDragReorder<T>(items: T[], onChange: (items: T[]) => void) {
     dragNode.current = e.currentTarget;
     e.dataTransfer.effectAllowed = 'move';
     requestAnimationFrame(() => {
-      if (dragNode.current) dragNode.current.style.opacity = '0.4';
+      if (dragNode.current) {dragNode.current.style.opacity = '0.4';}
     });
   };
 
   const handleDragEnd = () => {
-    if (dragNode.current) dragNode.current.style.opacity = '1';
+    if (dragNode.current) {dragNode.current.style.opacity = '1';}
     if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
       const next = [...items];
       const [moved] = next.splice(dragIdx, 1);
@@ -36,7 +36,7 @@ export function useDragReorder<T>(items: T[], onChange: (items: T[]) => void) {
   };
 
   const handleDragLeave = (i: number) => {
-    if (overIdx === i) setOverIdx(null);
+    if (overIdx === i) {setOverIdx(null);}
   };
 
   return {

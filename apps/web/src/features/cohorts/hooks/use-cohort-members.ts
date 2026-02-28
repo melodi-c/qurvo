@@ -24,8 +24,8 @@ export function useAddCohortMembers(cohortId: string, messages: MutationMessages
         { person_ids: personIds },
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'count'] });
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'count'] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
       toast.success(messages.success);
     },
     onError: (err) => {
@@ -45,8 +45,8 @@ export function useRemoveCohortMembers(cohortId: string, messages: MutationMessa
         { person_ids: personIds },
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'count'] });
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'count'] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
       toast.success(messages.success);
     },
     onError: (err) => {
@@ -89,7 +89,7 @@ export function useStaticCohortMembers(cohortId: string, page: number) {
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
+    void qc.invalidateQueries({ queryKey: ['cohorts', projectId, cohortId, 'members'] });
   };
 
   return { ...query, invalidate };

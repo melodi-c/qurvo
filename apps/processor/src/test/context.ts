@@ -24,7 +24,7 @@ let cached: Promise<TestContext> | null = null;
  * Safe to call from every test file — only the first call does the actual work.
  */
 export function getTestContext(): Promise<TestContext> {
-  if (cached) return cached;
+  if (cached) {return cached;}
   cached = bootstrap();
   return cached;
 }
@@ -44,7 +44,7 @@ async function bootstrap(): Promise<TestContext> {
   try {
     await ctx.redis.xgroup('CREATE', REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, '0', 'MKSTREAM');
   } catch (err: unknown) {
-    if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) throw err;
+    if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) {throw err;}
   }
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
@@ -57,7 +57,7 @@ async function bootstrap(): Promise<TestContext> {
  * Called once at the very end (setupFiles afterAll teardown).
  */
 export async function closeTestContext(): Promise<void> {
-  if (!cached) return;
+  if (!cached) {return;}
   const { app } = await cached;
   cached = null;
   try {

@@ -42,7 +42,7 @@ export class AuthController {
   @HttpCode(200)
   async logout(@Headers('authorization') auth: string): Promise<void> {
     const token = auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
-    if (!token) return;
+    if (!token) {return;}
     await this.authService.logout(token);
   }
 

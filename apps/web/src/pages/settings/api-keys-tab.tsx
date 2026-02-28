@@ -19,7 +19,7 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
     enabled: !!projectId,
   });
 
-  if (isLoading) return <ListSkeleton count={1} height="h-20" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-20" />;}
 
   const token = project?.token;
 

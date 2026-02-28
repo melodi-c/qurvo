@@ -904,7 +904,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     expect(funnelResult.breakdown).toBe(false);
     const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
     // Only personClean converts in strict mode
-    expect(funnelSteps[1]!.count).toBe(1);
+    expect(funnelSteps[1].count).toBe(1);
 
     const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
       ...sharedParams,
@@ -913,7 +913,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     });
 
     // sample_size must match main funnel steps[1].count
-    expect(ttcResult.sample_size).toBe(funnelSteps[1]!.count);
+    expect(ttcResult.sample_size).toBe(funnelSteps[1].count);
     expect(ttcResult.sample_size).toBe(1);
 
     // Bins total should match sample_size
@@ -979,7 +979,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
     expect(funnelResult.breakdown).toBe(false);
     const funnelSteps = (funnelResult as Extract<typeof funnelResult, { breakdown: false }>).steps;
     // personA and personB both complete 2 steps (in any order) in the main funnel
-    expect(funnelSteps[1]!.count).toBe(2);
+    expect(funnelSteps[1].count).toBe(2);
 
     const ttcResult = await queryFunnelTimeToConvert(ctx.ch, {
       ...sharedParams,

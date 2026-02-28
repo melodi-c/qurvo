@@ -1,12 +1,13 @@
-import {
-  registerDecorator,
+import type {
   ValidationArguments,
-  ValidationOptions,
+  ValidationOptions} from 'class-validator';
+import {
+  registerDecorator
 } from 'class-validator';
 import { isSlackConfig, isEmailConfig } from '@qurvo/nestjs-infra';
 
 function isValidTelegramConfig(config: unknown): boolean {
-  if (typeof config !== 'object' || config === null) return false;
+  if (typeof config !== 'object' || config === null) {return false;}
   const c = config as Record<string, unknown>;
   return (
     typeof c.bot_token === 'string' &&

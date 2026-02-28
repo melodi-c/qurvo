@@ -14,7 +14,7 @@ export function useSidebar() {
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const handler = (e: MediaQueryListEvent) => {
-      if (e.matches) setIsOpen(false);
+      if (e.matches) {setIsOpen(false);}
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -28,9 +28,9 @@ export function useSidebar() {
 
   // Close on Escape key
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {return;}
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') {setIsOpen(false);}
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);

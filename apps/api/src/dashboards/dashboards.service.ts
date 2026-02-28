@@ -30,7 +30,7 @@ export class DashboardsService {
       .from(dashboards)
       .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .limit(1);
-    if (!dashboard) throw new DashboardNotFoundException();
+    if (!dashboard) {throw new DashboardNotFoundException();}
 
     const widgetRows = await this.db
       .select({
@@ -66,7 +66,7 @@ export class DashboardsService {
       .set({ ...buildConditionalUpdate(input, ['name']), updated_at: new Date() })
       .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .returning();
-    if (!updated) throw new DashboardNotFoundException();
+    if (!updated) {throw new DashboardNotFoundException();}
     this.logger.log({ dashboardId, projectId }, 'Dashboard updated');
     return updated;
   }
@@ -76,7 +76,7 @@ export class DashboardsService {
       .delete(dashboards)
       .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .returning({ id: dashboards.id });
-    if (!deleted) throw new DashboardNotFoundException();
+    if (!deleted) {throw new DashboardNotFoundException();}
     this.logger.log({ dashboardId, projectId }, 'Dashboard deleted');
   }
 
@@ -90,7 +90,7 @@ export class DashboardsService {
       .from(dashboards)
       .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .limit(1);
-    if (!dashboard) throw new DashboardNotFoundException();
+    if (!dashboard) {throw new DashboardNotFoundException();}
 
     const [widget] = await this.db
       .insert(widgets)
@@ -121,7 +121,7 @@ export class DashboardsService {
       .set({ updated_at: new Date(), ...buildConditionalUpdate(input, ['insight_id', 'layout', 'content']) })
       .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId), exists(dashboardSubquery)))
       .returning();
-    if (!updated) throw new WidgetNotFoundException();
+    if (!updated) {throw new WidgetNotFoundException();}
     this.logger.log({ widgetId, dashboardId, projectId }, 'Widget updated');
     return updated;
   }
@@ -136,7 +136,7 @@ export class DashboardsService {
       .delete(widgets)
       .where(and(eq(widgets.id, widgetId), eq(widgets.dashboard_id, dashboardId), exists(dashboardSubquery)))
       .returning({ id: widgets.id });
-    if (!deleted) throw new WidgetNotFoundException();
+    if (!deleted) {throw new WidgetNotFoundException();}
     this.logger.log({ widgetId, dashboardId, projectId }, 'Widget removed');
   }
 }

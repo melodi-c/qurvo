@@ -23,7 +23,7 @@ export default function AdminUserDetailPage() {
   const { user, isLoading, isError, refetch, patchMutation } = useAdminUserDetail(id);
 
   const handleStaffToggle = async () => {
-    if (!user) return;
+    if (!user) {return;}
     await patchMutation.mutateAsync(!user.is_staff);
     setConfirmOpen(false);
   };
@@ -67,7 +67,7 @@ export default function AdminUserDetailPage() {
     );
   }
 
-  if (!user) return null;
+  if (!user) {return null;}
 
   return (
     <div className="space-y-6">

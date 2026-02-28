@@ -16,7 +16,7 @@ export type Granularity = 'hour' | 'day' | 'week' | 'month';
  */
 export function toChTs(iso: string, endOfDay = false): string {
   if (iso.length === 10) {
-    if (endOfDay) return `${iso} 23:59:59`;
+    if (endOfDay) {return `${iso} 23:59:59`;}
     return `${iso} 00:00:00`;
   }
   const hasTimezone = iso.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(iso);

@@ -208,7 +208,7 @@ export function InsightEditorLayout({
       {unsavedGuard && (
         <ConfirmDialog
           open={unsavedGuard.showDialog}
-          onOpenChange={(open) => { if (!open) unsavedGuard.cancelNavigation(); }}
+          onOpenChange={(open) => { if (!open) {unsavedGuard.cancelNavigation();} }}
           title={tGuard('title')}
           description={tGuard('description')}
           confirmLabel={tGuard('confirm')}

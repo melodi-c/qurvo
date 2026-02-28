@@ -20,7 +20,7 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
   const result = query.data?.data;
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(pathsToCsv(result), 'paths.csv');
   }, [result]);
 

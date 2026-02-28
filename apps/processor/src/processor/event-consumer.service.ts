@@ -41,6 +41,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private readonly heartbeat: Heartbeat;
   private readonly pipelineCtx: PipelineContext;
 
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     private readonly flushService: FlushService,
@@ -72,7 +73,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
       .then(() => {
         this.logger.info({ consumer: this.consumerName }, 'Processor started');
         this.loopPromise = this.startLoop();
-        this.pendingTimer = setInterval(() => this.claimPendingMessages(), PENDING_CLAIM_INTERVAL_MS);
+        this.pendingTimer = setInterval(() => void this.claimPendingMessages(), PENDING_CLAIM_INTERVAL_MS);
         this.heartbeat.start();
       })
       .catch((err) => this.logger.error({ err }, 'Failed to initialize consumer group'));
@@ -80,7 +81,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
   async shutdown() {
     this.running = false;
-    if (this.pendingTimer) clearInterval(this.pendingTimer);
+    if (this.pendingTimer) {clearInterval(this.pendingTimer);}
     this.heartbeat.stop();
     await this.loopPromise;
   }
@@ -90,7 +91,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
       await this.redis.xgroup('CREATE', REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, '0', 'MKSTREAM');
       this.logger.info('Consumer group created');
     } catch (err: unknown) {
-      if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) throw err;
+      if (!(err instanceof Error) || !err.message.includes('BUSYGROUP')) {throw err;}
     }
   }
 
@@ -118,7 +119,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
 
         this.heartbeat.touch();
 
-        if (!results || results.length === 0) continue;
+        if (!results || results.length === 0) {continue;}
 
         await this.processMessages(results.flatMap(([, msgs]) => msgs));
         // Fix: only reset after successful processMessages, not on empty XREADGROUP
@@ -140,6 +141,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
   }
 
+  // eslint-disable-next-line complexity -- Redis PEL claim with multiple error paths
   private async claimPendingMessages() {
     try {
       // Sample PEL size for observability
@@ -154,7 +156,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     try {
       let cursor = '0-0';
       do {
-        if (!this.running) break;
+        if (!this.running) {break;}
 
         const result = await this.redis.call(
           'XAUTOCLAIM',
@@ -166,7 +168,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
           'COUNT', String(XREAD_COUNT),
         ) as [string, [string, string[]][], string[]];
 
-        if (!result || !result[1] || result[1].length === 0) break;
+        if (!result?.[1] || result[1].length === 0) {break;}
 
         const deletedIds = result[2];
         if (deletedIds && deletedIds.length > 0) {
@@ -197,7 +199,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     if (invalidIds.length > 0) {
       await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
     }
-    if (valid.length === 0) return;
+    if (valid.length === 0) {return;}
 
     // Step 3: Prefetch person IDs
     const personCache = await prefetchPersons(valid, this.pipelineCtx);

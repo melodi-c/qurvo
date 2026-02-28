@@ -1642,7 +1642,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
       for (const cfg of channelSpendConfig) {
-        if (cfg.baseAmount === 0) continue;
+        if (cfg.baseAmount === 0) {continue;}
 
         const multiplier = isWeekend ? cfg.weekendMultiplier : 1;
         const jitterAmount = (spendRng() - 0.5) * 2 * cfg.variance;

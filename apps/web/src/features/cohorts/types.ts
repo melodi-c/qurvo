@@ -182,7 +182,7 @@ export function isConditionValid(cond: CohortCondition): boolean {
     case 'person_property':
       return cond.property.trim() !== '';
     case 'event':
-      if (cond.aggregation_type && cond.aggregation_type !== 'count' && !cond.aggregation_property?.trim()) return false;
+      if (cond.aggregation_type && cond.aggregation_type !== 'count' && !cond.aggregation_property?.trim()) {return false;}
       return cond.event_name.trim() !== '';
     case 'first_time_event':
     case 'not_performed_event':

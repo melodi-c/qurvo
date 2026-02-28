@@ -6,11 +6,11 @@ export function useTimeToConvertState(stepCount: number) {
 
   useEffect(() => {
     const maxIdx = stepCount - 1;
-    if (maxIdx < 1) return;
+    if (maxIdx < 1) {return;}
     const clampedFrom = Math.min(fromStep, maxIdx - 1);
     const clampedTo = Math.max(Math.min(toStep, maxIdx), clampedFrom + 1);
-    if (clampedFrom !== fromStep) setFromStep(clampedFrom);
-    if (clampedTo !== toStep) setToStep(clampedTo);
+    if (clampedFrom !== fromStep) {setFromStep(clampedFrom);}
+    if (clampedTo !== toStep) {setToStep(clampedTo);}
   }, [stepCount, fromStep, toStep]);
 
   return { fromStep, setFromStep, toStep, setToStep };

@@ -55,7 +55,7 @@ export class AiController {
       });
 
       for await (const chunk of stream) {
-        if (reply.raw.destroyed) break;
+        if (reply.raw.destroyed) {break;}
         reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
     } catch (err) {
@@ -105,7 +105,7 @@ export class AiController {
     try {
       return await this.chatService.getConversationAuthorized(user.user_id, id, query.project_id, query.limit, query.before_sequence) as any;
     } catch (err) {
-      if (!(err instanceof ConversationNotFoundException)) throw err;
+      if (!(err instanceof ConversationNotFoundException)) {throw err;}
       // Any project member can view shared conversations (read-only)
       return this.chatService.getSharedConversationAuthorized(id, query.project_id, query.limit, query.before_sequence) as any;
     }

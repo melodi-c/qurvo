@@ -60,7 +60,7 @@ describe('MembersService.createInvite', () => {
   it('throws AlreadyMemberException when user is already a member', async () => {
     const { projectId, userId } = await createTestProject(ctx.db);
     // The owner user is already a member — get their email
-    const [ownerUser] = await ctx.db
+    await ctx.db
       .select({ email: users.email })
       .from(users)
       .where((ctx.db as any).dialect ? undefined : undefined);

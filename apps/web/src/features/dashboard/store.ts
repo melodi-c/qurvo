@@ -123,7 +123,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
     set((s) => {
       const source = s.localWidgets.find((w) => w.id === widgetId);
       const sourceLayout = s.localLayout.find((l) => l.i === widgetId);
-      if (!source || !sourceLayout) return s;
+      if (!source || !sourceLayout) {return s;}
 
       const newId = crypto.randomUUID();
       const maxY = s.localLayout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
@@ -176,7 +176,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       if (forDashboardId && s.dashboardId !== forDashboardId) {
         return {};
       }
-      if (!s.snapshot) return { isEditing: false, isDirty: false };
+      if (!s.snapshot) {return { isEditing: false, isDirty: false };}
       return {
         isEditing: false,
         isDirty: false,

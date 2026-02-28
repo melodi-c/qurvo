@@ -32,7 +32,7 @@ export default function StickinessEditorPage() {
   const result = data?.data;
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(stickinessToCsv(result), 'stickiness.csv');
   }, [result]);
 

@@ -2,13 +2,13 @@ import type { TrendSeriesResult } from '@/api/generated/Api';
 
 /** Build a display key for a series, including breakdown value when present. */
 export function seriesKey(s: TrendSeriesResult): string {
-  if (s.breakdown_value) return `${s.label} (${s.breakdown_value})`;
+  if (s.breakdown_value) {return `${s.label} (${s.breakdown_value})`;}
   return s.label;
 }
 
 /** Detect if a bucket falls in the current (incomplete) period. */
 export function isIncompleteBucket(bucket: string, granularity?: string): boolean {
-  if (!granularity) return false;
+  if (!granularity) {return false;}
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
@@ -18,7 +18,7 @@ export function isIncompleteBucket(bucket: string, granularity?: string): boolea
     const currentHour = now.toISOString().slice(0, 13).replace('T', ' ');
     return bucket.startsWith(currentHour);
   }
-  if (granularity === 'day') return bucket === today;
+  if (granularity === 'day') {return bucket === today;}
   if (granularity === 'week') {
     const bucketDate = new Date(bucket.slice(0, 10));
     const diffDays = (now.getTime() - bucketDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -37,7 +37,7 @@ export function buildDataPoints(
 ): Record<string, string | number>[] {
   const bucketSet = new Set<string>();
   for (const s of series) {
-    for (const dp of s.data) bucketSet.add(dp.bucket);
+    for (const dp of s.data) {bucketSet.add(dp.bucket);}
   }
   const buckets = Array.from(bucketSet).sort();
 

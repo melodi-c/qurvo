@@ -6,7 +6,7 @@ import { users, emailVerificationCodes } from '@qurvo/db';
 import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { ProjectsService } from '../../projects/projects.service';
-import { DemoSeedService } from '../../demo/demo-seed.service';
+import type { DemoSeedService } from '../../demo/demo-seed.service';
 import { TooManyRequestsException } from '../../exceptions/too-many-requests.exception';
 import { VerificationCooldownException } from '../../verification/exceptions/verification-cooldown.exception';
 import { InvalidVerificationCodeException } from '../../verification/exceptions/invalid-verification-code.exception';
