@@ -170,6 +170,8 @@ export function useAiChat(projectId: string) {
   const abortRef = useRef<AbortController | null>(null);
   const oldestSequenceRef = useRef<number | undefined>(undefined);
   const conversationIdRef = useRef<string | null>(null);
+  const isLoadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(false);
 
   // Keep a ref in sync so sendMessage/editMessage can read it without stale closures
   useEffect(() => {
@@ -268,6 +270,7 @@ export function useAiChat(projectId: string) {
     try {
       const data = await api.aiControllerGetConversation({ id: convId, limit: PAGE_SIZE, project_id: projectId });
 
+      hasMoreRef.current = data.has_more ?? false;
       setState({
         messages: mapMessages(data.messages ?? []),
         conversationId: convId,
@@ -281,30 +284,37 @@ export function useAiChat(projectId: string) {
     } catch (err: unknown) {
       setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : 'Failed to load conversation' }));
     }
-  }, []);
+  }, [projectId]);
 
-  // Keep oldest sequence ref in sync without causing callback rebuilds
+  // Keep refs in sync without causing callback rebuilds
   useEffect(() => {
     oldestSequenceRef.current = state.messages[0]?.sequence;
   }, [state.messages]);
 
+  useEffect(() => {
+    hasMoreRef.current = state.hasMore;
+  }, [state.hasMore]);
+
   const loadMoreMessages = useCallback(async () => {
-    if (!state.conversationId || state.isLoadingMore || !state.hasMore) return;
+    const convId = conversationIdRef.current;
+    if (!convId || isLoadingMoreRef.current || !hasMoreRef.current) return;
 
     const oldestSeq = oldestSequenceRef.current;
     if (!oldestSeq) return;
 
+    isLoadingMoreRef.current = true;
     setState((prev) => ({ ...prev, isLoadingMore: true }));
 
     try {
       const data = await api.aiControllerGetConversation({
-        id: state.conversationId!,
+        id: convId,
         limit: PAGE_SIZE,
         before_sequence: oldestSeq,
         project_id: projectId,
       });
 
       const older = mapMessages(data.messages ?? []);
+      hasMoreRef.current = data.has_more ?? false;
       setState((prev) => ({
         ...prev,
         messages: [...older, ...prev.messages],
@@ -313,8 +323,10 @@ export function useAiChat(projectId: string) {
       }));
     } catch (err: unknown) {
       setState((prev) => ({ ...prev, isLoadingMore: false, error: err instanceof Error ? err.message : 'Failed to load messages' }));
+    } finally {
+      isLoadingMoreRef.current = false;
     }
-  }, [state.conversationId, state.isLoadingMore, state.hasMore]);
+  }, [projectId]);
 
   const startNewConversation = useCallback(() => {
     abortRef.current?.abort();
