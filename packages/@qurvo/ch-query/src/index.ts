@@ -23,7 +23,7 @@ export type {
 } from './ast';
 
 // Compiler
-export { compile, compileExprToSql } from './compiler';
+export { compile, compileExprToSql, CompilerContext } from './compiler';
 export type { CompiledQuery } from './compiler';
 
 // Builders — expression factories

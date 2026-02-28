@@ -7,13 +7,14 @@ import {
   select,
   col,
   compileExprToSql,
+  CompilerContext,
   propertyFilters,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
 
-export { RESOLVED_PERSON, toChTs };
+export { RESOLVED_PERSON, toChTs, CompilerContext };
 
 // ── ClickHouse query parameter types ─────────────────────────────────────────
 
@@ -117,11 +118,17 @@ export function resolveStepEventNames(step: FunnelStep): string[] {
   return [step.event_name];
 }
 
-/** Builds the windowFunnel condition for one step, injecting filter params into queryParams. */
+/** Builds the windowFunnel condition for one step, injecting filter params into queryParams.
+ *
+ * An optional `ctx` (CompilerContext) can be passed to share the param counter across
+ * multiple buildStepCondition / buildExclusionColumns calls for the same query —
+ * prevents p_0 collisions when each call would otherwise start its own counter.
+ */
 export function buildStepCondition(
   step: FunnelStep,
   idx: number,
   queryParams: FunnelChQueryParams,
+  ctx?: CompilerContext,
 ): string {
   const names = resolveStepEventNames(step);
   const eventCond = names.length === 1
@@ -131,7 +138,7 @@ export function buildStepCondition(
   const filtersExpr = propertyFilters(step.filters ?? []);
   if (!filtersExpr) return eventCond;
 
-  const { sql: filterSql } = compileExprToSql(filtersExpr, queryParams);
+  const { sql: filterSql } = compileExprToSql(filtersExpr, queryParams, ctx);
   return `${eventCond} AND ${filterSql}`;
 }
 
@@ -246,11 +253,15 @@ export function validateExclusions(
 
 /**
  * Builds per-user array columns for exclusion checking.
+ *
+ * An optional `ctx` (CompilerContext) can be passed to share the param counter across
+ * multiple buildStepCondition / buildExclusionColumns calls for the same query.
  */
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
   steps: FunnelStep[],
   queryParams: FunnelChQueryParams,
+  ctx?: CompilerContext,
 ): string[] {
   const lines: string[] = [];
   for (const [i, excl] of exclusions.entries()) {
@@ -280,7 +291,7 @@ export function buildExclusionColumns(
     const exclFiltersExpr = propertyFilters(excl.filters ?? []);
     let exclCond = `event_name = {excl_${i}_name:String}`;
     if (exclFiltersExpr) {
-      const { sql: exclFilterSql } = compileExprToSql(exclFiltersExpr, queryParams);
+      const { sql: exclFilterSql } = compileExprToSql(exclFiltersExpr, queryParams, ctx);
       exclCond += ` AND ${exclFilterSql}`;
     }
 
