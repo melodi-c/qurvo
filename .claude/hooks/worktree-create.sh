@@ -12,8 +12,10 @@ mkdir -p "$WORKTREES_BASE" >&2
 
 TARGET="$WORKTREES_BASE/$NAME"
 
-# Create git worktree at custom location; redirect all output to stderr
-git -C "$CWD" worktree add "$TARGET" -b "$NAME" HEAD >&2
+# Always create worktree from main, not HEAD.
+# HEAD can point to a feature branch or mid-merge state if executor
+# is running merge-worktree.sh concurrently.
+git -C "$CWD" worktree add "$TARGET" -b "$NAME" main >&2
 
 # Print path to stdout — this is what Claude Code reads
 echo "$TARGET"

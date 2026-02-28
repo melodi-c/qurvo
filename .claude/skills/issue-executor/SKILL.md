@@ -21,6 +21,7 @@ disable-model-invocation: true
 - Читать исходный код (Read для .ts/.tsx/.js и т.д.)
 - Запускать тесты/build напрямую
 - Разрешать merge-конфликты самостоятельно
+- **Прямые git-операции**: `git checkout`, `git switch`, `git cherry-pick`, `git rebase`, `git merge`, `git reset --hard`, `git stash` — ЗАПРЕЩЕНЫ (заблокированы хуком `restrict-executor.sh`). Git-операции выполняются ТОЛЬКО через скрипты `.claude/scripts/` или подагентами
 
 Единственные файлы, которые ты читаешь:
 - `.claude/results/*.json` и `/tmp/claude-results/*.json`
