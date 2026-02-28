@@ -63,11 +63,13 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   const updateMutation = useUpdateInsight();
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const [saveError, setSaveError] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   const listPath = link.insights.list();
 
   const handleSave = useCallback(async () => {
-    if (!name.trim() || isSaving) return;
+    if (!name.trim() || savingRef.current) return;
+    savingRef.current = true;
     setSaveError(null);
 
     try {
@@ -86,8 +88,10 @@ export function useInsightEditor<T extends CreateInsight['config']>({
       go.insights.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      savingRef.current = false;
     }
-  }, [name, description, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn, unsavedGuard]);
+  }, [name, description, config, isNew, insightId, type, go, createMutation, updateMutation, cleanFn, unsavedGuard]);
 
   const previewId = isNew ? `${type}-new` : insightId!;
   const isConfigValid = isConfigValidFn ? isConfigValidFn(config) : true;
