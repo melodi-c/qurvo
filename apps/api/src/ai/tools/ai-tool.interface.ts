@@ -13,7 +13,7 @@ export const propertyFilterSchema = z.object({
     'or direct columns: url, referrer, page_title, page_path, device_type, browser, os, country, region, city',
   ),
   operator: z.enum(['eq', 'neq', 'contains', 'not_contains', 'is_set', 'is_not_set']).describe('Filter operator'),
-  value: z.string().optional().describe('Value to compare against (not needed for is_set/is_not_set)'),
+  value: z.string().nullish().describe('Value to compare against (not needed for is_set/is_not_set)'),
 });
 
 /** Common interface consumed by AiService */
@@ -96,6 +96,36 @@ export function normalizeJsonSchema(
 }
 
 /**
+ * Recursively strips `null` from every property in a type, replacing it with
+ * `undefined`. This aligns `.nullish()` Zod output (`T | null | undefined`)
+ * with downstream service types that expect `T | undefined`.
+ */
+type StripNulls<T> =
+  T extends null ? undefined :
+  T extends (infer U)[] ? StripNulls<U>[] :
+  T extends object ? { [K in keyof T]: StripNulls<T[K]> } :
+  T;
+
+/**
+ * Recursively converts `null` values to `undefined` in a plain object.
+ * OpenAI Structured Outputs requires `.nullish()` (= `.optional().nullable()`)
+ * on optional Zod fields, but downstream service types expect `T | undefined`,
+ * not `T | null`. This bridge normalises the parsed result.
+ */
+export function stripNulls<T>(obj: T): StripNulls<T> {
+  if (obj === null) return undefined as StripNulls<T>;
+  if (Array.isArray(obj)) return obj.map(stripNulls) as StripNulls<T>;
+  if (typeof obj === 'object' && obj !== null) {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      result[key] = stripNulls(val);
+    }
+    return result as StripNulls<T>;
+  }
+  return obj as StripNulls<T>;
+}
+
+/**
  * Creates cached tool definition + run method builder.
  * Centralises zodFunction call, Zod parse, and ToolCallResult wrapping.
  */
@@ -129,10 +159,10 @@ export function defineTool<T extends z.ZodType>(config: {
     name: config.name,
     definition: def as ChatCompletionTool,
     createRun(
-      execute: (args: z.infer<T>, userId: string, projectId: string) => Promise<unknown>,
+      execute: (args: StripNulls<z.infer<T>>, userId: string, projectId: string) => Promise<unknown>,
     ): AiTool['run'] {
       return async (rawArgs, userId, projectId) => {
-        const args = config.schema.parse(rawArgs);
+        const args = stripNulls(config.schema.parse(rawArgs));
         const result = await execute(args, userId, projectId);
         return config.visualizationType
           ? { result, visualization_type: config.visualizationType }

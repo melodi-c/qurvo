@@ -11,14 +11,14 @@ const trendParamsSchema = z.object({
   series: z.array(z.object({
     event_name: z.string().describe('Name of the event to track'),
     label: z.string().describe('Display label for this series'),
-    filters: z.array(propertyFilterSchema).optional().describe('Optional filters to narrow down events by property values'),
+    filters: z.array(propertyFilterSchema).nullish().describe('Optional filters to narrow down events by property values'),
   })).min(1).max(5).describe('Event series to query'),
   metric: z.enum(['total_events', 'unique_users', 'events_per_user']).describe('Aggregation metric'),
   granularity: z.enum(['hour', 'day', 'week', 'month']).describe('Time bucket granularity'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  breakdown_property: z.string().optional().describe('Optional event property to break down by'),
-  compare: z.boolean().optional().describe('Whether to compare with the previous period'),
+  breakdown_property: z.string().nullish().describe('Optional event property to break down by'),
+  compare: z.boolean().nullish().describe('Whether to compare with the previous period'),
 });
 
 const funnelParamsSchema = z.object({
@@ -26,12 +26,12 @@ const funnelParamsSchema = z.object({
   steps: z.array(z.object({
     event_name: z.string().describe('Event name for this funnel step'),
     label: z.string().describe('Display label for this step'),
-    filters: z.array(propertyFilterSchema).optional().describe('Optional filters to narrow down events by property values'),
+    filters: z.array(propertyFilterSchema).nullish().describe('Optional filters to narrow down events by property values'),
   })).min(2).max(10).describe('Ordered funnel steps'),
-  conversion_window_days: z.number().min(1).max(90).optional().describe('Max days allowed for conversion (1-90). Default: 14'),
+  conversion_window_days: z.number().min(1).max(90).nullish().describe('Max days allowed for conversion (1-90). Default: 14'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  breakdown_property: z.string().optional().describe('Optional property to break down by'),
+  breakdown_property: z.string().nullish().describe('Optional property to break down by'),
 });
 
 const retentionParamsSchema = z.object({
@@ -39,7 +39,7 @@ const retentionParamsSchema = z.object({
   target_event: z.string().describe('Event to track retention for'),
   retention_type: z.enum(['first_time', 'recurring']).describe('first_time = cohort by first event; recurring = any repeat'),
   granularity: z.enum(['day', 'week', 'month']).describe('Period granularity'),
-  periods: z.number().min(1).max(30).optional().describe('Number of periods to show (1-30). Default: 11'),
+  periods: z.number().min(1).max(30).nullish().describe('Number of periods to show (1-30). Default: 11'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
 });
@@ -64,16 +64,16 @@ const pathsParamsSchema = z.object({
   type: z.literal('paths'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  step_limit: z.number().int().min(3).max(10).optional().describe('Maximum number of steps in the path (3-10, default 5)'),
-  start_event: z.string().optional().describe('Anchor start point — only show paths starting from this event'),
-  end_event: z.string().optional().describe('Anchor end point — only show paths ending at this event'),
-  exclusions: z.array(z.string()).optional().describe('Event names to exclude from paths'),
-  min_persons: z.number().int().min(1).optional().describe('Minimum person count per transition (default 1)'),
+  step_limit: z.number().int().min(3).max(10).nullish().describe('Maximum number of steps in the path (3-10, default 5)'),
+  start_event: z.string().nullish().describe('Anchor start point — only show paths starting from this event'),
+  end_event: z.string().nullish().describe('Anchor end point — only show paths ending at this event'),
+  exclusions: z.array(z.string()).nullish().describe('Event names to exclude from paths'),
+  min_persons: z.number().int().min(1).nullish().describe('Minimum person count per transition (default 1)'),
 });
 
 const argsSchema = z.object({
   name: z.string().min(1).max(200).describe('Insight title'),
-  description: z.string().max(1000).optional().describe('Optional description of what this insight shows'),
+  description: z.string().max(1000).nullish().describe('Optional description of what this insight shows'),
   query_params: z.discriminatedUnion('type', [
     trendParamsSchema,
     funnelParamsSchema,
