@@ -134,7 +134,7 @@ export interface JoinClause {
 export interface SelectNode {
   type: 'select';
   columns: Expr[];
-  from?: string | SelectNode;
+  from?: string | QueryNode;
   fromAlias?: string;
   joins?: JoinClause[];
   where?: Expr;

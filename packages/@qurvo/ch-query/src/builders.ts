@@ -258,7 +258,7 @@ export class SelectBuilder {
     this.node = { type: 'select', columns };
   }
 
-  from(table: string | SelectNode, alias?: string): this {
+  from(table: string | QueryNode, alias?: string): this {
     this.node.from = table;
     if (alias) this.node.fromAlias = alias;
     return this;

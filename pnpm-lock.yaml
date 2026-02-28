@@ -38,6 +38,9 @@ importers:
       '@qurvo/ai-types':
         specifier: workspace:*
         version: link:../../packages/@qurvo/ai-types
+      '@qurvo/ch-query':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/ch-query
       '@qurvo/clickhouse':
         specifier: workspace:*
         version: link:../../packages/@qurvo/clickhouse

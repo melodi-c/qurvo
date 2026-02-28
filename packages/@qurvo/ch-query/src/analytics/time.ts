@@ -1,5 +1,7 @@
-import type { Expr } from '../ast';
+import type { AliasExpr, Expr } from '../ast';
 import { and, func, gte, lte, param, raw } from '../builders';
+
+type WithAs = Expr & { as(alias: string): AliasExpr };
 
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
@@ -120,7 +122,7 @@ export function timeRange(from: string, to: string, tz?: string): Expr {
  * - week: toDateTime(toStartOfWeek(col, 1 [, tz]) [, tz])  -- toStartOfWeek returns Date
  * - month: toDateTime(toStartOfMonth(col [, tz]) [, tz])    -- toStartOfMonth returns Date
  */
-export function bucket(granularity: Granularity, column: string, tz?: string): Expr {
+export function bucket(granularity: Granularity, column: string, tz?: string): WithAs {
   const hasTz = !!(tz && tz !== 'UTC');
   const colExpr = raw(column);
 
@@ -188,7 +190,7 @@ export function neighborBucket(
  * Granularity truncation of min(col) — for projection optimization.
  * min(toStartOfDay(t)) == toStartOfDay(min(t))
  */
-export function bucketOfMin(granularity: Granularity, column: string, tz?: string): Expr {
+export function bucketOfMin(granularity: Granularity, column: string, tz?: string): WithAs {
   return bucket(granularity, `min(${column})`, tz);
 }
 
