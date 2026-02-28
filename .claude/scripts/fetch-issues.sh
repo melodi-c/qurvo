@@ -4,6 +4,7 @@
 #   bash fetch-issues.sh --label ready
 #   bash fetch-issues.sh --numbers 42,43,44
 #   bash fetch-issues.sh --label ready --label api
+#   bash fetch-issues.sh --numbers 698,699 --data-only   # only write issue-N.json, skip state init
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -50,17 +51,17 @@ extract_labels_csv() {
   echo "$JSON" | jq -r '[.labels[]?.name // empty] | join(",")' 2>/dev/null || echo ""
 }
 
-# --- init ---
-rm -rf "$RESULTS_DIR" && mkdir -p "$RESULTS_DIR"
-bash "$SM" init "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
 # --- parse args ---
 MODE=""
 NUMBERS=""
+DATA_ONLY=false
 GH_ARGS=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --data-only)
+      DATA_ONLY=true
+      shift ;;
     --numbers)
       MODE="numbers"
       NUMBERS="$2"
@@ -73,6 +74,14 @@ while [ $# -gt 0 ]; do
       shift ;;
   esac
 done
+
+# --- init ---
+if [ "$DATA_ONLY" = false ]; then
+  rm -rf "$RESULTS_DIR" && mkdir -p "$RESULTS_DIR"
+  bash "$SM" init "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+else
+  mkdir -p "$RESULTS_DIR"
+fi
 
 # --- fetch issues ---
 ISSUES_JSON="[]"
@@ -135,8 +144,10 @@ for i in $(seq 0 $((COUNT - 1))); do
   echo "$ISSUE" | jq --arg topology "$TOPOLOGY" --argjson sub_issues "$SUB_ISSUES_JSON" \
     '. + {topology: $topology, sub_issues: $sub_issues}' > "$RESULTS_DIR/issue-${NUMBER}.json"
 
-  # Add to state
-  bash "$SM" issue-add "$NUMBER" "$TITLE" "$GROUP"
+  # Add to state (skip in data-only mode)
+  if [ "$DATA_ONLY" = false ]; then
+    bash "$SM" issue-add "$NUMBER" "$TITLE" "$GROUP"
+  fi
 
   # Build manifest entry
   MANIFEST=$(echo "$MANIFEST" | jq --argjson n "$NUMBER" --arg t "$TITLE" \

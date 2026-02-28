@@ -130,7 +130,7 @@ MANIFEST: /tmp/claude-results/issues-manifest.json
 - **standalone** — мержится в `main`
 - **parent** — имеет sub-issues → feature branch `feature/issue-N`; sub-issues мержатся в неё
 
-Если parent issue в списке, но его sub-issues нет — добавь их вручную через `gh issue view` и `fetch-issues.sh --numbers`.
+Если parent issue в списке, но его sub-issues нет — добавь их через `fetch-issues.sh --numbers <N1,N2> --data-only` (флаг `--data-only` записывает только data-файлы, не сбрасывая state и `/tmp/claude-results`).
 
 ---
 
@@ -235,12 +235,11 @@ Sub-issues одного parent запускаются РАНЬШЕ осталь�
    ```bash
    bash "$CLAUDE_PROJECT_DIR/.claude/scripts/start-group.sh" <GROUP_INDEX> "<ISSUE_NUMBERS_CSV>"
    ```
-2. Запусти всех подагентов группы **одновременно** (`run_in_background: true`, `subagent_type: "issue-solver"`, **`isolation: "worktree"`**)
-3. Дождись завершения ВСЕХ подагентов текущей группы
-4. **Обработай результаты** (Шаг 6) — мерж + retry при FAILED
-5. **Dependency watcher** (Шаг 6.3) — проверь разблокированные issues
-6. `bash "$SM" prune-merged` — очисти MERGED issues из state
-7. Только после этого запусти следующую группу
+2. Запусти всех подагентов группы **одновременно** (`run_in_background: true`, `subagent_type: "issue-solver"`, **`isolation: "worktree"`**). Запомни `task_id` каждого.
+3. **НЕ жди завершения всех.** По мере завершения каждого background-подагента (система уведомит автоматически) — **немедленно** начинай его review pipeline (Шаг 6: lint → migration → review+security → merge). Issues в одной группе не пересекаются (гарантия intersection-analyzer), поэтому review и мерж безопасны параллельно.
+4. После обработки **ВСЕХ** issues группы → **Dependency watcher** (Шаг 6.3) + post-merge verification (Шаг 6.5)
+5. `bash "$SM" prune-merged` — очисти MERGED issues из state
+6. Только после этого запусти следующую группу
 
 ### Промпт для каждого issue-solver подагента
 
@@ -270,7 +269,10 @@ RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
 
 **Определение WEBVIZIO_UUID**: при чтении `/tmp/claude-results/issue-<N>.json` найди `<!-- WEBVIZIO: <UUID> -->` в `.body`. Если есть — передай UUID solver'у.
 
-**Важно**: `RESULT_FILE` передаётся в промпте. После запуска подагента запомни `WORKTREE_PATH` из TaskOutput (он содержит путь к worktree). Обнови state: `bash "$SM" issue-status <N> SOLVING worktree_path=<path>`
+**Важно**: `RESULT_FILE` передаётся в промпте. После запуска подагента запомни `WORKTREE_PATH` из TaskOutput (он содержит путь к worktree) и `task_id`. Обнови state, сохранив `base_branch` для использования при review/merge:
+```bash
+bash "$SM" issue-status <N> SOLVING worktree_path=<path> base_branch=<main или feature/issue-PARENT>
+```
 
 ### 5.3 Финализация parent issue
 
@@ -300,7 +302,7 @@ gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализован
 
 ## Шаг 6: Обработка результатов + Review Loop
 
-После завершения каждого background подагента:
+По мере завершения каждого background solver'а (не жди остальных):
 
 1. TaskOutput вернёт "DONE" (или ошибку)
 2. Прочитай `RESULT_FILE` через Read tool
@@ -472,7 +474,10 @@ RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
     REPO_ROOT: $REPO_ROOT
     RESULT_FILE: /tmp/claude-results/decomposer-<NUMBER>.json
   ```
-  Прочитай `RESULT_FILE`. Если `"atomic": true` → эскалируй пользователю. Если вернул sub_issues → создай через `gh issue create`, привяжи к оригинальному issue.
+  Прочитай `RESULT_FILE`. Если `"atomic": true` → эскалируй пользователю. Если вернул sub_issues → создай через `gh issue create`, привяжи к оригинальному issue. Затем скачай data-файлы для новых sub-issues:
+  ```bash
+  bash "$CLAUDE_PROJECT_DIR/.claude/scripts/fetch-issues.sh" --numbers <SUB_N1,SUB_N2,...> --data-only
+  ```
 - **Любая другая причина** → сообщи пользователю. При ответе — перезапусти подагента с дополненным промптом + `WORKTREE_PATH`.
 
 ### STATUS не найден
@@ -491,6 +496,8 @@ bash "$SM" issue-status <NUMBER> <NEW_STATUS>
 Обнови state: `bash "$SM" batch "issue-status <N> MERGING" "phase MERGING"`
 
 Определи AUTO_MERGE: если issue имеет label `size:l` или `needs-review` → `AUTO_MERGE="false"`.
+
+Возьми `WORKTREE_PATH`, `BRANCH`, `BASE_BRANCH` из state issue (`bash "$SM" read-active` → `.issues["<N>"]`).
 
 ```bash
 cd "$REPO_ROOT"
