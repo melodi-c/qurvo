@@ -11,6 +11,7 @@ import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-defi
 import { EventTypeIcon } from '@/components/EventTypeIcon';
 import { PropsTable, PropsTableGrouped } from '@/components/event-props-table';
 import type { PropEntry } from '@/components/event-props-table';
+import { formatDateTime } from '@/lib/formatting';
 import translations from './event-detail.translations';
 
 export interface EventLike {
@@ -199,7 +200,7 @@ export function EventDetail({ event, projectId }: { event: EventLike; projectId?
           <span className="text-xs font-medium">{event.event_name}</span>
         )}
         <span className="text-xs text-muted-foreground">·</span>
-        <span className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</span>
+        <span className="text-xs text-muted-foreground">{formatDateTime(event.timestamp)}</span>
       </div>
 
       {/* Tab bar */}
