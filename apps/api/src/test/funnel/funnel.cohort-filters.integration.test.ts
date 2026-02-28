@@ -7,7 +7,7 @@ import {
   msAgo,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import type { CohortFilterInput } from '@qurvo/ch-query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { queryFunnel } from '../../analytics/funnel/funnel.query';
 
 let ctx: ContainerContext;

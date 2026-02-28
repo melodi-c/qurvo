@@ -87,33 +87,3 @@ export {
 
 // Builders — select builder & set operations
 export { select, unionAll, intersect, unionDistinct, SelectBuilder } from './builders';
-
-// Cohort — cohort query builder, validation, helpers
-export {
-  buildCohortSubquery,
-  buildCohortFilterClause,
-  extractCohortReferences,
-  detectCircularDependency,
-  countLeafConditions,
-  measureNestingDepth,
-  validateDefinitionComplexity,
-  MAX_TOTAL_CONDITIONS,
-  MAX_NESTING_DEPTH,
-  topologicalSortCohorts,
-  groupCohortsByLevel,
-  CohortQueryValidationError,
-  buildOperatorClause as cohortBuildOperatorClause,
-  buildEventFilterClauses as cohortBuildEventFilterClauses,
-  resolveDateTo as cohortResolveDateTo,
-  resolveDateFrom as cohortResolveDateFrom,
-  resolvePropertyExpr as cohortResolvePropertyExpr,
-  resolveEventPropertyExpr as cohortResolveEventPropertyExpr,
-  TOP_LEVEL_COLUMNS,
-  RESOLVED_PERSON,
-} from './cohort';
-export type {
-  CohortForSort,
-  ToposortResult,
-  CohortFilterInput,
-  BuildContext,
-} from './cohort';

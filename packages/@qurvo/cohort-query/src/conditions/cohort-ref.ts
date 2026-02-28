@@ -1,8 +1,8 @@
 import type { CohortCohortCondition } from '@qurvo/db';
-import type { Expr, SelectNode } from '../../ast';
-import { select, raw, notInSubquery } from '../../builders';
+import type { Expr, SelectNode } from '@qurvo/ch-query';
+import { select, raw, notInSubquery } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom } from '../helpers';
-import { compileExprToSql } from '../../compiler';
+import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
 export function buildCohortRefConditionSubquery(

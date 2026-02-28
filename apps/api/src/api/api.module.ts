@@ -58,7 +58,7 @@ import { AppBadRequestException } from '../exceptions/app-bad-request.exception'
 import { AiNotConfiguredException } from '../ai/exceptions/ai-not-configured.exception';
 import { AiQuotaExceededException } from '../ai/exceptions/ai-quota-exceeded.exception';
 import { AppUnprocessableEntityException } from '../exceptions/app-unprocessable-entity.exception';
-import { CohortQueryValidationError } from '@qurvo/ch-query';
+import { CohortQueryValidationError } from '@qurvo/cohort-query';
 
 const NotFoundFilter = createHttpFilter(HttpStatus.NOT_FOUND, AppNotFoundException);
 const ConflictFilter = createHttpFilter(HttpStatus.CONFLICT, AppConflictException);

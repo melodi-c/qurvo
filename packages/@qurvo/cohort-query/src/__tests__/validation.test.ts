@@ -7,8 +7,8 @@ import {
   MAX_TOTAL_CONDITIONS,
   MAX_NESTING_DEPTH,
   detectCircularDependency,
-} from '../../cohort/validation';
-import { CohortQueryValidationError } from '../../cohort/errors';
+} from '../validation';
+import { CohortQueryValidationError } from '../errors';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

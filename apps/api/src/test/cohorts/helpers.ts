@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery, compile } from '@qurvo/ch-query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 
 export async function materializeCohort(
   ch: ClickHouseClient,

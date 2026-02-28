@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildStoppedPerformingSubquery } from '../../cohort/conditions/stopped';
-import { buildRestartedPerformingSubquery } from '../../cohort/conditions/restarted';
-import { compile } from '../../compiler';
-import { CohortQueryValidationError } from '../../cohort/errors';
-import type { BuildContext } from '../../cohort/types';
+import { buildStoppedPerformingSubquery } from '../conditions/stopped';
+import { buildRestartedPerformingSubquery } from '../conditions/restarted';
+import { compile } from '@qurvo/ch-query';
+import { CohortQueryValidationError } from '../errors';
+import type { BuildContext } from '../types';
 
 function makeCtx(): BuildContext {
   return {

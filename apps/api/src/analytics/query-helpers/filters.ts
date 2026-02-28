@@ -12,9 +12,9 @@ import {
   param,
   raw,
   rawWithParams,
-  buildCohortFilterClause,
   compileExprToSql,
 } from '@qurvo/ch-query';
+import { buildCohortFilterClause } from '@qurvo/cohort-query';
 import { timeRange } from './time';
 import { resolvedPerson } from './resolved-person';
 
@@ -215,7 +215,7 @@ export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
 /**
  * Cohort filter: RESOLVED_PERSON IN (subquery).
  *
- * Delegates to `@qurvo/ch-query`'s `buildCohortFilterClause()` which returns
+ * Delegates to `@qurvo/cohort-query`'s `buildCohortFilterClause()` which returns
  * an Expr (ANDed IN-subquery predicates), then compiles it to SQL and wraps
  * in a `rawWithParams` so that ClickHouse named parameters (populated via
  * side effects into `cohortParams`) flow through the AST compilation pipeline.
@@ -258,7 +258,7 @@ export function cohortFilter(
 
 /**
  * Minimal type for cohort filter inputs -- avoids importing the full @qurvo/db types
- * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/ch-query.
+ * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/cohort-query.
  */
 export interface CohortFilterInputLike {
   cohort_id: string;

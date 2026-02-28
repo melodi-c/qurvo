@@ -1,7 +1,7 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
-import type { Expr } from '../ast';
-import { and, raw, rawWithParams } from '../builders';
-import { compileExprToSql } from '../compiler';
+import type { Expr } from '@qurvo/ch-query';
+import { and, raw, rawWithParams } from '@qurvo/ch-query';
+import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
 /**

@@ -1,5 +1,5 @@
 {
-  "name": "@qurvo/ch-query",
+  "name": "@qurvo/cohort-query",
   "version": "0.0.1",
   "private": true,
   "main": "dist/index.js",
@@ -9,7 +9,10 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist .turbo"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@qurvo/ch-query": "workspace:*",
+    "@qurvo/db": "workspace:*"
+  },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
     "typescript": "^5.7.0",
