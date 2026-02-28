@@ -224,6 +224,127 @@ describe('queryFunnel — exclusion steps', () => {
   });
 });
 
+// ── P2: Exclusion with funnel_from_step > 0 ──────────────────────────────────
+
+describe('queryFunnel — exclusion between non-zero steps', () => {
+  it('excludes users who performed an exclusion event between steps 1 and 2 in a 3-step funnel', async () => {
+    // 3-step funnel: signup → checkout → purchase
+    // Exclusion: "cancel" between step 1 (checkout) and step 2 (purchase)
+    //
+    // personClean: signup → checkout → purchase (no cancel between checkout and purchase) → converts
+    // personExcluded: signup → checkout → cancel → purchase (cancel between steps 1 and 2) → excluded
+    // personEarlyCancel: signup → cancel → checkout → purchase (cancel before step 1, not between 1-2) → converts
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+    const personEarlyCancel = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: clean path through all 3 steps
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean-3step',
+        event_name: 'signup',
+        timestamp: msAgo(9000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean-3step',
+        event_name: 'checkout',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'clean-3step',
+        event_name: 'purchase',
+        timestamp: msAgo(3000),
+      }),
+      // personExcluded: cancel between checkout and purchase
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded-3step',
+        event_name: 'signup',
+        timestamp: msAgo(9000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded-3step',
+        event_name: 'checkout',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded-3step',
+        event_name: 'cancel',
+        timestamp: msAgo(4000), // between checkout (6s ago) and purchase (2s ago)
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'excluded-3step',
+        event_name: 'purchase',
+        timestamp: msAgo(2000),
+      }),
+      // personEarlyCancel: cancel between signup and checkout (not between steps 1-2)
+      buildEvent({
+        project_id: projectId,
+        person_id: personEarlyCancel,
+        distinct_id: 'early-cancel-3step',
+        event_name: 'signup',
+        timestamp: msAgo(10000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personEarlyCancel,
+        distinct_id: 'early-cancel-3step',
+        event_name: 'cancel',
+        timestamp: msAgo(8000), // between signup and checkout — not scoped by from_step:1
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personEarlyCancel,
+        distinct_id: 'early-cancel-3step',
+        event_name: 'checkout',
+        timestamp: msAgo(5000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personEarlyCancel,
+        distinct_id: 'early-cancel-3step',
+        event_name: 'purchase',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'checkout', label: 'Checkout' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 1, funnel_to_step: 2 }],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personClean and personEarlyCancel enter and convert.
+    // personExcluded is excluded (cancel between checkout and purchase).
+    expect(r.steps[0].count).toBe(2); // personClean + personEarlyCancel (personExcluded removed from all steps)
+    expect(r.steps[1].count).toBe(2); // both reach checkout
+    expect(r.steps[2].count).toBe(2); // both reach purchase
+  });
+});
+
 // ── P2: OR-logic steps in exclusion anchors ──────────────────────────────────
 
 describe('queryFunnel — OR-logic steps as exclusion anchors', () => {

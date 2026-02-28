@@ -334,6 +334,104 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
     expect(r.steps[1]!.conversion_rate).toBe(50);
   });
 
+  it('strict + exclusion: excludes user who performed exclusion event between steps (no intervening events)', async () => {
+    // Combines strict mode with exclusion steps.
+    // personClean: signup → purchase (no cancel, no intervening events) → converts
+    // personExcluded: signup → cancel → purchase
+    //   In strict mode, cancel between signup and purchase ALSO resets the funnel
+    //   (strict_order resets on any intervening non-step event). So the user both
+    //   fails strict and gets excluded. Either way: does not convert.
+    // personStrictFail: signup → pageview → purchase (strict fail, no exclusion event)
+    //   Strict_order resets on pageview → does not convert. Not excluded by cancel exclusion.
+    const projectId = randomUUID();
+    const personClean = randomUUID();
+    const personExcluded = randomUUID();
+    const personStrictFail = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      // personClean: clean strict path
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'strict-excl-clean',
+        event_name: 'signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personClean,
+        distinct_id: 'strict-excl-clean',
+        event_name: 'purchase',
+        timestamp: msAgo(3000),
+      }),
+      // personExcluded: cancel between steps (both strict-fail AND exclusion)
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'strict-excl-excluded',
+        event_name: 'signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'strict-excl-excluded',
+        event_name: 'cancel',
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personExcluded,
+        distinct_id: 'strict-excl-excluded',
+        event_name: 'purchase',
+        timestamp: msAgo(2000),
+      }),
+      // personStrictFail: pageview between steps (strict fail only, not excluded by cancel)
+      buildEvent({
+        project_id: projectId,
+        person_id: personStrictFail,
+        distinct_id: 'strict-excl-strictfail',
+        event_name: 'signup',
+        timestamp: msAgo(6000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personStrictFail,
+        distinct_id: 'strict-excl-strictfail',
+        event_name: 'pageview',
+        timestamp: msAgo(4000),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: personStrictFail,
+        distinct_id: 'strict-excl-strictfail',
+        event_name: 'purchase',
+        timestamp: msAgo(2000),
+      }),
+    ]);
+
+    const result = await queryFunnel(ctx.ch, {
+      project_id: projectId,
+      steps: [
+        { event_name: 'signup', label: 'Signup' },
+        { event_name: 'purchase', label: 'Purchase' },
+      ],
+      conversion_window_days: 7,
+      date_from: dateOffset(-1),
+      date_to: dateOffset(1),
+      funnel_order_type: 'strict',
+      exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
+    });
+
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { breakdown: false }>;
+    // personExcluded is excluded by the cancel exclusion (removed from all steps)
+    // personStrictFail entered signup but fails strict (pageview interrupts), not excluded by exclusion
+    // personClean converts
+    expect(r.steps[0].count).toBe(2); // personClean + personStrictFail (personExcluded excluded from all steps)
+    expect(r.steps[1].count).toBe(1); // only personClean converts (personStrictFail fails strict)
+  });
+
   it('3-step strict funnel: user with interruption between steps 2 and 3 stops at step 2', async () => {
     // A→B→C→D funnel in strict mode.
     // personA: A → B → C (clean, no interruption) — full conversion
