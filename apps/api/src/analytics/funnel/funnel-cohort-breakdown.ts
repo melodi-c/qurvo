@@ -1,4 +1,18 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import {
+  compile,
+  select,
+  col,
+  raw,
+  countIf,
+  avgIf,
+  and,
+  gte,
+  gt,
+  literal,
+  notInSubquery,
+  type Expr,
+} from '@qurvo/ch-query';
 import type {
   FunnelQueryParams,
   FunnelBreakdownStepResult,
@@ -12,12 +26,56 @@ import {
   type RawFunnelRow,
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
-import type { FunnelChQueryParams } from './funnel-sql-shared';
-import { toChTs } from '../../utils/clickhouse-helpers';
+import { toChTs, type FunnelChQueryParams } from './funnel-sql-shared';
 
 interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];
   aggregate_steps: FunnelStepResult[];
+}
+
+/**
+ * Builds a compiled cohort funnel query from CTEs.
+ * Shared between per-cohort and aggregate paths.
+ */
+function buildCohortFunnelCompiled(
+  cteResult: { ctes: Array<{ name: string; query: import('@qurvo/ch-query').QueryNode }>; hasExclusions: boolean },
+): { sql: string; params: Record<string, unknown> } {
+  const stepsSubquery = select(raw('number + 1').as('step_num'))
+    .from('numbers({num_steps:UInt64})')
+    .build();
+
+  const whereConditions: Expr[] = [];
+  if (cteResult.hasExclusions) {
+    const excludedRef = select(col('person_id')).from('excluded_users').build();
+    whereConditions.push(notInSubquery(col('person_id'), excludedRef));
+  }
+
+  const builder = select(
+    col('step_num'),
+    countIf(gte(col('max_step'), col('step_num'))).as('entered'),
+    countIf(gte(col('max_step'), raw('step_num + 1'))).as('next_step'),
+    avgIf(
+      raw('(last_step_ms - first_step_ms) / 1000.0'),
+      and(
+        gte(col('max_step'), raw('{num_steps:UInt64}')),
+        gt(raw('first_step_ms'), literal(0)),
+        gt(col('last_step_ms'), raw('first_step_ms')),
+      ),
+    ).as('avg_time_seconds'),
+  )
+    .withAll(cteResult.ctes)
+    .from('funnel_per_user')
+    .crossJoin(stepsSubquery, 'steps');
+
+  if (whereConditions.length > 0) {
+    builder.where(...whereConditions);
+  }
+
+  builder
+    .groupBy(col('step_num'))
+    .orderBy(col('step_num'));
+
+  return compile(builder.build());
 }
 
 /**
@@ -50,31 +108,18 @@ export async function runFunnelCohortBreakdown(
     );
     const cohortFilter = ` AND ${cohortFilterPredicate}`;
 
-    let sql: string;
+    let cteResult;
 
     if (orderType === 'unordered') {
-      const { cte, excludedUsersCTE, exclFilter } = buildUnorderedFunnelCTEs({
+      cteResult = buildUnorderedFunnelCTEs({
         steps,
         exclusions,
         cohortClause: `${cohortClause}${cohortFilter}`,
         samplingClause,
         queryParams: cbQueryParams,
       });
-      sql = `
-          WITH ${cte}${excludedUsersCTE}
-          SELECT
-            step_num,
-            countIf(max_step >= step_num) AS entered,
-            countIf(max_step >= step_num + 1) AS next_step,
-            avgIf(
-              (last_step_ms - first_step_ms) / 1000.0,
-              max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
-            ) AS avg_time_seconds
-          FROM funnel_per_user
-          CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
-          GROUP BY step_num ORDER BY step_num`;
     } else {
-      const { funnelPerUserCTE, excludedUsersCTE, exclFilter } = buildOrderedFunnelCTEs({
+      cteResult = buildOrderedFunnelCTEs({
         steps,
         orderType,
         stepConditions,
@@ -85,24 +130,10 @@ export async function runFunnelCohortBreakdown(
         queryParams: cbQueryParams,
         includeTimestampCols: true,
       });
-      sql = `
-          WITH
-            ${funnelPerUserCTE}${excludedUsersCTE}
-          SELECT
-            step_num,
-            countIf(max_step >= step_num) AS entered,
-            countIf(max_step >= step_num + 1) AS next_step,
-            avgIf(
-              (last_step_ms - first_step_ms) / 1000.0,
-              max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
-            ) AS avg_time_seconds
-          FROM funnel_per_user
-          CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
-          GROUP BY step_num
-          ORDER BY step_num`;
     }
 
-    const result = await ch.query({ query: sql, query_params: cbQueryParams, format: 'JSONEachRow' });
+    const compiled = buildCohortFunnelCompiled(cteResult);
+    const result = await ch.query({ query: compiled.sql, query_params: { ...cbQueryParams, ...compiled.params }, format: 'JSONEachRow' });
     const rows = await result.json<RawFunnelRow>();
     perCohortResults.push(computeCohortBreakdownStepResults(rows, steps, numSteps, cb.cohort_id, cb.name));
   }
@@ -110,34 +141,19 @@ export async function runFunnelCohortBreakdown(
   const allBreakdownSteps = perCohortResults.flat();
 
   // Run a separate no-breakdown query for aggregate_steps.
-  // Summing per-cohort counts would double-count users who belong to multiple cohorts.
-  // The no-breakdown query counts each unique user exactly once, regardless of cohort membership.
   const aggregateQueryParams = { ...baseQueryParams };
-  let aggregateSql: string;
+  let aggregateCteResult;
 
   if (orderType === 'unordered') {
-    const { cte, excludedUsersCTE, exclFilter } = buildUnorderedFunnelCTEs({
+    aggregateCteResult = buildUnorderedFunnelCTEs({
       steps,
       exclusions,
       cohortClause,
       samplingClause,
       queryParams: aggregateQueryParams,
     });
-    aggregateSql = `
-        WITH ${cte}${excludedUsersCTE}
-        SELECT
-          step_num,
-          countIf(max_step >= step_num) AS entered,
-          countIf(max_step >= step_num + 1) AS next_step,
-          avgIf(
-            (last_step_ms - first_step_ms) / 1000.0,
-            max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
-          ) AS avg_time_seconds
-        FROM funnel_per_user
-        CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
-        GROUP BY step_num ORDER BY step_num`;
   } else {
-    const { funnelPerUserCTE, excludedUsersCTE, exclFilter } = buildOrderedFunnelCTEs({
+    aggregateCteResult = buildOrderedFunnelCTEs({
       steps,
       orderType,
       stepConditions,
@@ -148,26 +164,12 @@ export async function runFunnelCohortBreakdown(
       queryParams: aggregateQueryParams,
       includeTimestampCols: true,
     });
-    aggregateSql = `
-        WITH
-          ${funnelPerUserCTE}${excludedUsersCTE}
-        SELECT
-          step_num,
-          countIf(max_step >= step_num) AS entered,
-          countIf(max_step >= step_num + 1) AS next_step,
-          avgIf(
-            (last_step_ms - first_step_ms) / 1000.0,
-            max_step >= {num_steps:UInt64} AND first_step_ms > 0 AND last_step_ms > first_step_ms
-          ) AS avg_time_seconds
-        FROM funnel_per_user
-        CROSS JOIN (SELECT number + 1 AS step_num FROM numbers({num_steps:UInt64})) AS steps${exclFilter}
-        GROUP BY step_num
-        ORDER BY step_num`;
   }
 
+  const aggregateCompiled = buildCohortFunnelCompiled(aggregateCteResult);
   const aggregateResult = await ch.query({
-    query: aggregateSql,
-    query_params: aggregateQueryParams,
+    query: aggregateCompiled.sql,
+    query_params: { ...aggregateQueryParams, ...aggregateCompiled.params },
     format: 'JSONEachRow',
   });
   const aggregateRows = await aggregateResult.json<RawFunnelRow>();

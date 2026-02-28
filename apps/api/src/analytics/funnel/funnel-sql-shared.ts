@@ -1,11 +1,18 @@
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import { toChTs, RESOLVED_PERSON, tsExpr } from '../../utils/clickhouse-helpers';
+import {
+  toChTs,
+  RESOLVED_PERSON,
+  rawWithParams,
+  raw,
+  select,
+  col,
+  type Expr,
+  type SelectNode,
+} from '@qurvo/ch-query';
 import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
 
-export { tsExpr };
-
-export { RESOLVED_PERSON };
+export { RESOLVED_PERSON, toChTs };
 
 // ── ClickHouse query parameter types ─────────────────────────────────────────
 
@@ -50,7 +57,10 @@ export interface FunnelChQueryParams {
  * When the query params include a `tz` value, wraps the string param with toDateTime64(..., tz).
  */
 export function funnelTsExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): string {
-  return tsExpr(paramName, 'tz', !!queryParams.tz);
+  const hasTz = !!queryParams.tz;
+  return hasTz
+    ? `toDateTime64({${paramName}:String}, 3, {tz:String})`
+    : `{${paramName}:DateTime64(3)}`;
 }
 
 // ── Conversion window ────────────────────────────────────────────────────────
@@ -63,8 +73,6 @@ const UNIT_TO_SECONDS: Record<string, number> = {
   week: 604800,
   month: 2592000, // 30 days
 };
-
-const CONVERSION_WINDOW_DAYS_DEFAULT = 14;
 
 export function resolveWindowSeconds(params: {
   conversion_window_days: number;
@@ -88,12 +96,6 @@ export function resolveWindowSeconds(params: {
   const MAX_WINDOW_SECONDS = 90 * 86400; // 90 days, same limit as conversion_window_days
 
   if (hasValue && hasUnit) {
-    // conversion_window_value/unit takes precedence over conversion_window_days.
-    // conversion_window_days is a required field (non-optional in FunnelQueryParams),
-    // so callers always provide it — even when they intend to use value/unit.
-    // We only reject if the caller explicitly set conversion_window_days to a
-    // non-default value that would also produce a different window than value/unit,
-    // but in practice this is not actionable: value/unit is the more specific intent.
     const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit!] ?? 86400;
     const resolved = params.conversion_window_value! * multiplier;
     if (resolved > MAX_WINDOW_SECONDS) {
@@ -149,14 +151,29 @@ export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclus
  *
  * Sampling is applied on `RESOLVED_PERSON` (person_id) so that users with multiple
  * distinct_ids (e.g. anonymous pre-login + identified post-login) are either entirely
- * included or entirely excluded. Using `distinct_id` here would split a merged user:
- * some of their events would pass the hash check while others would not, causing
- * partial event sets per person and systematically underreporting conversion on later steps.
+ * included or entirely excluded.
  *
- * Guard: returns '' (no sampling) when samplingFactor is null, undefined, NaN, or >= 1.
- * Previously `!samplingFactor` returned true for 0, silently treating it as "no sampling".
+ * Guard: returns undefined (no sampling) when samplingFactor is null, undefined, NaN, or >= 1.
  */
 export function buildSamplingClause(
+  samplingFactor: number | undefined,
+  queryParams: FunnelChQueryParams,
+): Expr | undefined {
+  if (samplingFactor == null || isNaN(samplingFactor) || samplingFactor >= 1) return undefined;
+  const pct = Math.round(samplingFactor * 100);
+  queryParams.sample_pct = pct;
+  return rawWithParams(
+    `sipHash64(toString(${RESOLVED_PERSON})) % 100 < {sample_pct:UInt8}`,
+    { sample_pct: pct },
+  );
+}
+
+/**
+ * Returns the raw SQL string for sampling clause, for use in raw CTE body strings.
+ * Returns '' when sampling is inactive, or the AND clause when active.
+ * This is the "escape hatch" version for complex CTE bodies that are built as raw strings.
+ */
+export function buildSamplingClauseRaw(
   samplingFactor: number | undefined,
   queryParams: FunnelChQueryParams,
 ): string {
@@ -169,9 +186,6 @@ export function buildSamplingClause(
 // ── windowFunnel expression ──────────────────────────────────────────────────
 
 export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: string): string {
-  // Use toUnixTimestamp64Milli(timestamp) (UInt64, milliseconds) instead of toDateTime(timestamp)
-  // (which truncates to second precision). windowFunnel supports UInt64 since ClickHouse 19.8.
-  // {window:UInt64} is in seconds; multiply by 1000 to get the window in milliseconds.
   if (orderType === 'strict') {
     return `windowFunnel({window:UInt64} * 1000, 'strict_order')(toUInt64(toUnixTimestamp64Milli(timestamp)), ${stepConditions})`;
   }
@@ -180,17 +194,6 @@ export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions
 
 // ── Unordered funnel validation ───────────────────────────────────────────────
 
-/**
- * Validates that no two steps in an unordered funnel share any event name.
- *
- * In unordered funnels each step is computed via `minIf(timestamp, stepCondition)`.
- * When two steps share an event name, both receive the same earliest timestamp for
- * that event — causing a single occurrence to satisfy both steps simultaneously and
- * inflating the conversion count.
- *
- * This check applies to the full resolved set of event names per step (i.e. it
- * respects OR-logic steps that carry multiple names in `event_names`).
- */
 export function validateUnorderedSteps(steps: FunnelStep[]): void {
   for (let i = 0; i < steps.length; i++) {
     const namesA = new Set(resolveStepEventNames(steps[i]!));
@@ -225,9 +228,6 @@ export function validateExclusions(
         `Exclusion "${excl.event_name}": funnel_to_step ${excl.funnel_to_step} out of range (max ${numSteps - 1})`,
       );
     }
-    // Reject exclusions that share an event_name with a funnel step but have no
-    // property filters to distinguish them. Without filters the exclusion will collect
-    // timestamps from step events and falsely exclude users who completed the step.
     if (steps) {
       for (const step of steps) {
         const stepNames = resolveStepEventNames(step);
@@ -245,17 +245,6 @@ export function validateExclusions(
 
 /**
  * Builds per-user array columns for exclusion checking.
- *
- * Uses groupArrayIf to collect timestamps of the from-step, to-step, and exclusion event
- * per person. These arrays are used by buildExcludedUsersCTE to perform per-window
- * exclusion checks: a user is excluded only when ALL their valid conversion window attempts
- * contain an exclusion event. This prevents false positives (exclusion in a different
- * session) and false negatives (user re-enters the funnel after an exclusion).
- *
- * Supports OR-logic steps: when a funnel step has multiple event_names, uses
- * `event_name IN ({param:Array(String)})` instead of `event_name = {param:String}`
- * so that users who entered via an alternative OR-event are correctly identified
- * as anchor participants and subjected to exclusion filtering.
  */
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
@@ -287,8 +276,6 @@ export function buildExclusionColumns(
       toCond = `event_name IN ({excl_${i}_to_step_names:Array(String)})`;
     }
 
-    // Build the exclusion event condition: event_name match + optional property filters.
-    // Using a dedicated prefix "excl_{i}_excl" to avoid collision with from/to-step params.
     const exclFilterParts = buildPropertyFilterConditions(
       excl.filters ?? [],
       `excl_${i}_excl`,
@@ -306,7 +293,7 @@ export function buildExclusionColumns(
 }
 
 /**
- * Builds the excluded_users CTE using per-window exclusion logic.
+ * Builds the excluded_users CTE as a QueryNode.
  *
  * A user is placed in excluded_users if, for exclusion i:
  *  - There exists at least one (from_ts, to_ts) conversion window attempt
@@ -314,29 +301,14 @@ export function buildExclusionColumns(
  *  - AND there does NOT exist any "clean" (from_ts, to_ts) pair without an
  *    exclusion event in between
  *
- * This means a user who re-enters the funnel after an exclusion event (e.g.
- * step1 → exclusion → step1 → step2) is NOT excluded, because the second
- * window attempt (step1 → step2) is clean.
- *
- * @param exclusions - Exclusion definitions from the funnel query
  * @param anchorFilter - When true, restricts (f, t) pairs to only those where
  *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
- *   funnels to isolate the exclusion check to the specific anchor window that was
- *   counted as the conversion. Without this, sessions outside the anchor window
- *   (either before or after) can create false clean-path evidence that masks
- *   tainted conversions within the anchor window — see issue #497.
- *   For ordered funnels, this parameter should be false (the re-entry semantics
- *   handle window isolation naturally via step-sequence ordering).
+ *   funnels (issue #497).
  */
-export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): string {
+export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): SelectNode {
   const win = `toInt64({window:UInt64}) * 1000`;
-  // In unordered mode, restrict from-step timestamps to the anchor window
-  // [first_step_ms, first_step_ms + WIN] so that only pairs within the anchor
-  // window are checked. Sessions before the anchor (historical clean sessions)
-  // cannot mask tainted conversions within the anchor window.
   const anchorGuard = anchorFilter ? `f >= first_step_ms AND f <= first_step_ms + ${win} AND ` : '';
   const conditions = exclusions.map((_, i) => {
-    // tainted_path: exists (f, t) pair within window with exclusion e in (f, t)
     const tainted = [
       `arrayExists(`,
       `        f -> ${anchorGuard}arrayExists(`,
@@ -348,7 +320,46 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
       `      ) = 1`,
     ].join('\n      ');
 
-    // clean_path: exists (f, t) pair within window with NO exclusion in (f, t)
+    const clean = [
+      `arrayExists(`,
+      `        f -> ${anchorGuard}arrayExists(`,
+      `          t -> t > f AND t <= f + ${win} AND`,
+      `               NOT arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
+      `          excl_${i}_to_arr`,
+      `        ) = 1,`,
+      `        excl_${i}_from_arr`,
+      `      ) = 0`,
+    ].join('\n      ');
+
+    return `(${tainted}\n      AND ${clean})`;
+  });
+
+  return select(col('person_id'))
+    .from('funnel_per_user')
+    .where(raw(conditions.join('\n      OR ')))
+    .build();
+}
+
+/**
+ * Returns the excluded_users CTE body as a raw SQL string.
+ * Used by funnel-time-to-convert.ts where the entire query is built as raw SQL.
+ * Same logic as buildExcludedUsersCTE but returns string instead of SelectNode.
+ */
+export function buildExcludedUsersCTERaw(exclusions: FunnelExclusion[], anchorFilter = false): string {
+  const win = `toInt64({window:UInt64}) * 1000`;
+  const anchorGuard = anchorFilter ? `f >= first_step_ms AND f <= first_step_ms + ${win} AND ` : '';
+  const conditions = exclusions.map((_, i) => {
+    const tainted = [
+      `arrayExists(`,
+      `        f -> ${anchorGuard}arrayExists(`,
+      `          t -> t > f AND t <= f + ${win} AND`,
+      `               arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
+      `          excl_${i}_to_arr`,
+      `        ) = 1,`,
+      `        excl_${i}_from_arr`,
+      `      ) = 1`,
+    ].join('\n      ');
+
     const clean = [
       `arrayExists(`,
       `        f -> ${anchorGuard}arrayExists(`,
@@ -372,14 +383,6 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
 
 // ── Base query params builder ────────────────────────────────────────────────
 
-/**
- * Builds and returns the base ClickHouse query params shared by all funnel paths.
- * Returns a typed FunnelChQueryParams that callers can extend with dynamic keys.
- *
- * When `params.timezone` is provided and is not 'UTC', the `tz` field is set in
- * the returned params so that `funnelTsExpr()` generates timezone-aware expressions
- * (e.g. `toDateTime64({from:String}, 3, {tz:String})` instead of `{from:DateTime64(3)}`).
- */
 export function buildBaseQueryParams(
   params: {
     project_id: string;
@@ -397,8 +400,8 @@ export function buildBaseQueryParams(
   const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: FunnelChQueryParams = {
     project_id: params.project_id,
-    from: toChTs(params.date_from, false, params.timezone),
-    to: toChTs(params.date_to, true, params.timezone),
+    from: toChTs(params.date_from),
+    to: toChTs(params.date_to, true),
     window: windowSeconds,
     num_steps: params.steps.length,
     all_event_names: allEventNames,
