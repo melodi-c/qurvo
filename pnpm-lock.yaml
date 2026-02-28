@@ -114,6 +114,9 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
+      '@qurvo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/eslint-config
       '@qurvo/testing':
         specifier: workspace:*
         version: link:../../packages/@qurvo/testing
@@ -126,6 +129,9 @@ importers:
       '@types/nodemailer':
         specifier: ^7.0.11
         version: 7.0.11
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -190,6 +196,9 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
+      '@qurvo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/eslint-config
       '@qurvo/testing':
         specifier: workspace:*
         version: link:../../packages/@qurvo/testing
@@ -202,6 +211,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.11
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -278,6 +290,9 @@ importers:
       '@nestjs/cli':
         specifier: ^11.0.0
         version: 11.0.16(@swc/core@1.15.11)(@types/node@22.19.11)
+      '@qurvo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/eslint-config
       '@qurvo/testing':
         specifier: workspace:*
         version: link:../../packages/@qurvo/testing
@@ -290,6 +305,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.11
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -369,6 +387,9 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
+      '@qurvo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/eslint-config
       '@qurvo/testing':
         specifier: workspace:*
         version: link:../../packages/@qurvo/testing
@@ -381,6 +402,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.11
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -500,6 +524,9 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.0
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(@nestjs/platform-express@11.1.14)
+      '@qurvo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/@qurvo/eslint-config
       '@qurvo/testing':
         specifier: workspace:*
         version: link:../../packages/@qurvo/testing
@@ -512,6 +539,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.11
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3

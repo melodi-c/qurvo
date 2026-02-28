@@ -7,7 +7,8 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "clean": "rm -rf dist .turbo",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "lint": "eslint src/"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
@@ -33,6 +34,8 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@qurvo/testing": "workspace:*",
+    "eslint": "^9.0.0",
+    "@qurvo/eslint-config": "workspace:*",
     "@qurvo/tsconfig": "workspace:*",
     "@swc/core": "^1.10.0",
     "@types/node": "^22.0.0",
