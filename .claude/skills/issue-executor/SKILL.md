@@ -251,6 +251,7 @@ ISSUE_DATA_FILE: /tmp/claude-results/issue-{ISSUE_NUMBER}.json
 AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 RELATED_ISSUES: {номера и заголовки других issues в этой группе}
 RECENT_CHANGES: {git log --oneline -5 -- <AFFECTED_APPS paths> — кратко что менялось недавно}
+WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в body, иначе опусти}
 RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 
@@ -262,8 +263,11 @@ ISSUE_DATA_FILE: /tmp/claude-results/issue-{ISSUE_NUMBER}.json
 AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 BASE_BRANCH: feature/issue-{PARENT_NUMBER}
 RELATED_ISSUES: {другие sub-issues этого parent}
+WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в body, иначе опусти}
 RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
+
+**Определение WEBVIZIO_UUID**: при чтении `/tmp/claude-results/issue-<N>.json` найди `<!-- WEBVIZIO: <UUID> -->` в `.body`. Если есть — передай UUID solver'у.
 
 **Важно**: `RESULT_FILE` передаётся в промпте. После запуска подагента запомни `WORKTREE_PATH` из TaskOutput (он содержит путь к worktree). Обнови state: `bash "$SM" issue-status <N> SOLVING worktree_path=<path>`
 

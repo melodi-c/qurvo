@@ -23,20 +23,33 @@ tools: Read, Write, Bash
 Вызови MCP tools **параллельно**:
 
 1. `get_task_description(uuid)` → HTML описание
-2. `get_task_action_logs(uuid)` → repro steps
-3. `get_task_console_logs(uuid)` → console logs
-4. `get_task_network_logs(uuid)` → network logs
-5. `get_task_error_logs(uuid)` → JS errors
+2. `get_task_screenshot(uuid)` → скриншот (multimodal image)
+3. `get_task_action_logs(uuid)` → repro steps
+4. `get_task_console_logs(uuid)` → console logs
+5. `get_task_network_logs(uuid)` → network logs
+6. `get_task_error_logs(uuid)` → JS errors
 
 ---
 
 ## Шаг 2: Transform
 
-### 2.1 Описание
+### 2.1 Анализ скриншота
+
+`get_task_screenshot` возвращает изображение (multimodal). Проанализируй его и составь **screenshot_description** — детальное описание того, что видно на скриншоте:
+
+- Какая страница/экран открыта
+- Где находится маркер бага (лиловая метка)
+- Что визуально неправильно (если видно)
+- Состояние UI-элементов (открытые dropdown, модалки, выделенные элементы)
+- Размер viewport (desktop/mobile/tablet) если определяется
+
+Это описание критически важно — solver-агент будет использовать его для понимания визуального контекста бага.
+
+### 2.2 Описание
 
 Очисти HTML-теги из description. Оставь чистый текст.
 
-### 2.2 Action logs → Steps to Reproduce
+### 2.3 Action logs → Steps to Reproduce
 
 Преобразуй action logs в человекочитаемые шаги:
 
@@ -54,15 +67,15 @@ tools: Read, Write, Bash
 
 Подсчитай количество действий для статистики.
 
-### 2.3 Console logs
+### 2.4 Console logs
 
 Если console logs непустые — включи их. Обрежь до **50 строк**. Если обрезано — добавь `... (truncated, N total lines)`.
 
-### 2.4 Error logs
+### 2.5 Error logs
 
 Если error logs непустые — включи как есть (обычно короткие).
 
-### 2.5 Network errors
+### 2.6 Network errors
 
 Из network logs оставь ТОЛЬКО запросы с HTTP-статусами 4xx и 5xx. Формат каждой записи:
 ```
@@ -71,12 +84,12 @@ STATUS METHOD URL
 
 Если нет ошибочных запросов — секцию не включай.
 
-### 2.6 Scope и Size
+### 2.7 Scope и Size
 
 - **affected_apps**: определи по CSS-селекторам и контексту. По умолчанию `apps/web`.
 - **complexity**: `xs` если <5 шагов и нет error logs, `s` если 5-15 шагов, `m` если >15 шагов или есть error logs.
 
-### 2.7 GitHub title
+### 2.8 GitHub title
 
 Сформируй title в формате conventional commits:
 ```
@@ -102,9 +115,14 @@ fix(web): <краткое описание проблемы на русском>
 2. <transformed action 2>
 ...
 
+## Screenshot Analysis
+
+<screenshot_description — детальное описание скриншота из Шага 2.1>
+
 ## Visual Context
 
 Webvizio task: https://app.webvizio.com/task/<uuid>/show
+_(скриншот доступен агентам через MCP: `get_task_screenshot(<uuid>)`)_
 
 ## Console Logs
 
@@ -156,7 +174,8 @@ cat > "$RESULT_FILE" <<'RESULT_JSON'
   "has_error_logs": <true|false>,
   "has_network_errors": <true|false>,
   "action_count": <число действий>,
-  "description_preview": "<первые 100 символов описания>"
+  "description_preview": "<первые 100 символов описания>",
+  "screenshot_description": "<описание скриншота из Шага 2.1>"
 }
 RESULT_JSON
 ```
