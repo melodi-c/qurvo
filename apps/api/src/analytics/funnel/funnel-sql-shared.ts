@@ -79,7 +79,7 @@ export function resolveWindowSeconds(params: {
   conversion_window_value?: number;
   conversion_window_unit?: string;
 }): number {
-  const hasValue = params.conversion_window_value != null;
+  const hasValue = params.conversion_window_value !== null && params.conversion_window_value !== undefined;
   const hasUnit = !!params.conversion_window_unit;
 
   if (hasValue && !hasUnit) {
@@ -96,8 +96,9 @@ export function resolveWindowSeconds(params: {
   const MAX_WINDOW_SECONDS = 90 * 86400; // 90 days, same limit as conversion_window_days
 
   if (hasValue && hasUnit) {
-    const multiplier = UNIT_TO_SECONDS[params.conversion_window_unit!] ?? 86400;
-    const resolved = params.conversion_window_value! * multiplier;
+    const unit = params.conversion_window_unit ?? '';
+    const multiplier = UNIT_TO_SECONDS[unit] ?? 86400;
+    const resolved = params.conversion_window_value * multiplier;
     if (resolved > MAX_WINDOW_SECONDS) {
       throw new AppBadRequestException(
         `conversion_window_value * conversion_window_unit exceeds the maximum allowed window of 90 days (${MAX_WINDOW_SECONDS} seconds). Got ${resolved} seconds.`,
@@ -165,7 +166,7 @@ export function buildSamplingClause(
   samplingFactor: number | undefined,
   queryParams: FunnelChQueryParams,
 ): Expr | undefined {
-  if (samplingFactor == null || isNaN(samplingFactor) || samplingFactor >= 1) {return undefined;}
+  if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return undefined;}
   const pct = Math.round(samplingFactor * 100);
   queryParams.sample_pct = pct;
   return rawWithParams(
@@ -183,7 +184,7 @@ export function buildSamplingClauseRaw(
   samplingFactor: number | undefined,
   queryParams: FunnelChQueryParams,
 ): string {
-  if (samplingFactor == null || isNaN(samplingFactor) || samplingFactor >= 1) {return '';}
+  if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return '';}
   const pct = Math.round(samplingFactor * 100);
   queryParams.sample_pct = pct;
   return `\n                AND sipHash64(toString(${RESOLVED_PERSON})) % 100 < {sample_pct:UInt8}`;

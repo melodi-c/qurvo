@@ -49,7 +49,7 @@ export function InlineEditField({
 
   const save = () => {
     if (!localValue.trim() || isPending) {return;}
-    onSave(localValue);
+    void onSave(localValue);
   };
 
   if (isEditing) {

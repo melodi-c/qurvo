@@ -362,7 +362,7 @@ export default function AdminPlansPage() {
     mutationFn: (id: string) => api.adminPlansControllerDeletePlan({ id }),
     onSuccess: () => {
       toast.success(t('deleteSuccess'));
-      queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
       confirmDelete.close();
     },
     onError: (error: unknown) => {
@@ -381,7 +381,7 @@ export default function AdminPlansPage() {
   }, [confirmDelete.itemId, deleteMutation]);
 
   const handleSuccess = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
   }, [queryClient]);
 
   const columns: Column<AdminPlan>[] = [

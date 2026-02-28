@@ -77,6 +77,7 @@ const EVENT_BASE_COLUMNS = `
       sdk_name,
       sdk_version`;
 
+// eslint-disable-next-line complexity -- dynamic query builder with optional filters
 export async function queryEvents(
   ch: ClickHouseClient,
   params: EventsQueryParams,

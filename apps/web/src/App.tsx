@@ -85,7 +85,7 @@ function AppRoutes() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
 
   useEffect(() => {
-    checkAuth();
+    void checkAuth();
   }, [checkAuth]);
 
   return (

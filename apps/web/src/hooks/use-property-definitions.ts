@@ -43,7 +43,7 @@ export function useUpsertPropertyDefinition() {
         data,
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['property-definitions', projectId] });
+      void qc.invalidateQueries({ queryKey: ['property-definitions', projectId] });
     },
   });
 }

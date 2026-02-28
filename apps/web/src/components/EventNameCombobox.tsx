@@ -38,7 +38,7 @@ export function EventNameCombobox({
     ? eventNames.filter((n) => {
         const q = search.toLowerCase();
         const desc = descriptions[n];
-        return n.toLowerCase().includes(q) || (desc && desc.toLowerCase().includes(q));
+        return n.toLowerCase().includes(q) || desc?.toLowerCase().includes(q);
       })
     : eventNames;
 

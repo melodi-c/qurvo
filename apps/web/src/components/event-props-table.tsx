@@ -9,7 +9,7 @@ export interface PropEntry {
 }
 
 function isNonEmpty(v: PropValue): boolean {
-  return v !== '' && v !== 0 && v != null;
+  return v !== '' && v !== 0 && v !== null && v !== undefined;
 }
 
 export function PropsTable({ rows }: { rows: PropEntry[] }) {

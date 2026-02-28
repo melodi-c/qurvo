@@ -9,7 +9,7 @@ import type {
 
 /** Escape a CSV cell value: wrap in quotes if it contains comma, quote, or newline. */
 function escapeCsvCell(value: string | number | null | undefined): string {
-  const str = value == null ? '' : String(value);
+  const str = (value === null || value === undefined) ? '' : String(value);
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -90,7 +90,7 @@ export function retentionToCsv(result: RetentionResult): string {
 
   const rows = cohorts.map((c) => {
     const periodCells = Array.from({ length: maxPeriods }, (_, i) =>
-      c.periods[i] != null ? c.periods[i] : '',
+      c.periods[i] !== null && c.periods[i] !== undefined ? c.periods[i] : '',
     );
     return buildCsvRow([c.cohort_date, c.cohort_size, ...periodCells]);
   });

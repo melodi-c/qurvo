@@ -9,6 +9,7 @@ interface Token {
 
 // ── Tokenizer ──
 
+// eslint-disable-next-line complexity -- lexer state machine with character-level branching
 export function tokenize(expression: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
@@ -34,7 +35,7 @@ export function tokenize(expression: string): Token[] {
       while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) {
         if (s[i] === '.') {
           dotCount++;
-          if (dotCount > 1) {
+          if (dotCount > 1) { // eslint-disable-line max-depth -- number parsing validation
             throw new Error(`Invalid number: "${num}."`);
           }
         }

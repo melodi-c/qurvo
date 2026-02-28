@@ -53,8 +53,8 @@ export class PersonsController {
     return this.personsService.getPersonEvents({
       project_id: query.project_id,
       person_id: personId,
-      limit: query.limit!,
-      offset: query.offset!,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
     }) as any;
   }
 }

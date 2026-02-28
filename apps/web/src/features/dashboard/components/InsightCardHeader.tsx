@@ -6,7 +6,7 @@ import { useDashboardStore } from '../store';
 import { InsightCardMenu } from './InsightCardMenu';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightCardHeader.translations';
-import type { Widget, InsightType } from '@/api/generated/Api';
+import type { Widget } from '@/api/generated/Api';
 
 interface InsightCardHeaderProps {
   widget: Widget;

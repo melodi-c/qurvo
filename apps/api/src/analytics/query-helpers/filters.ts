@@ -2,7 +2,6 @@ import type { Expr } from '@qurvo/ch-query';
 import {
   and,
   eq,
-  func,
   inArray,
   like,
   neq,
@@ -14,7 +13,6 @@ import {
   rawWithParams,
 } from '@qurvo/ch-query';
 import { timeRange } from './time';
-import { resolvedPerson } from './resolved-person';
 
 // ── Types ──
 
@@ -229,6 +227,7 @@ export function cohortFilter(
   if (!inputs?.length) {return undefined;}
   // Dynamically import to avoid hard dependency at module level.
    
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- dynamic require
   const { buildCohortFilterClause } = require('@qurvo/cohort-query') as typeof import('@qurvo/cohort-query');
 
   // Collect params populated by buildCohortFilterClause into a local object.

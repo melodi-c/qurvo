@@ -46,7 +46,7 @@ export function AiChatView({ chatId, projectId }: { chatId: string | null; proje
   useEffect(() => {
     if (chatId && !loadedRef.current) {
       loadedRef.current = true;
-      loadConversation(chatId);
+      void loadConversation(chatId);
     }
   }, [chatId, loadConversation]);
 
@@ -67,8 +67,8 @@ export function AiChatView({ chatId, projectId }: { chatId: string | null; proje
   const handleSend = useCallback(
     async (text: string) => {
       await sendMessage(text, projectId);
-      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
-      qc.invalidateQueries({ queryKey: ['billing', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      void qc.invalidateQueries({ queryKey: ['billing', projectId] });
     },
     [sendMessage, projectId, qc],
   );
@@ -76,15 +76,15 @@ export function AiChatView({ chatId, projectId }: { chatId: string | null; proje
   const handleEdit = useCallback(
     async (sequence: number, newText: string) => {
       await editMessage(sequence, newText, projectId);
-      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
-      qc.invalidateQueries({ queryKey: ['billing', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      void qc.invalidateQueries({ queryKey: ['billing', projectId] });
     },
     [editMessage, projectId, qc],
   );
 
   const handleStop = useCallback(() => {
     stopStreaming();
-    qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+    void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
   }, [stopStreaming, qc, projectId]);
 
   const goBack = useCallback(() => {

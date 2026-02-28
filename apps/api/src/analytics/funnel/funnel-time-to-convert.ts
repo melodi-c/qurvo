@@ -368,10 +368,10 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
     return { from_step: fromStep, to_step: toStep, average_seconds: null, median_seconds: null, sample_size: 0, bins: [] };
   }
 
-  const avgSeconds = row.avg_seconds != null ? Math.round(Number(row.avg_seconds)) : null;
+  const avgSeconds = row.avg_seconds !== null && row.avg_seconds !== undefined ? Math.round(Number(row.avg_seconds)) : null;
   const durations: number[] = row.durations ?? [];
   const rawMedian = exactMedian(durations);
-  const medianSeconds = rawMedian != null ? Math.round(rawMedian) : null;
+  const medianSeconds = rawMedian !== null && rawMedian !== undefined ? Math.round(rawMedian) : null;
   const minVal = Number(row.min_seconds ?? 0);
   const maxVal = Number(row.max_seconds ?? 0);
 

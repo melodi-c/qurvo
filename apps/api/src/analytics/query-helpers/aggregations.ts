@@ -1,5 +1,5 @@
 import type { Expr } from '@qurvo/ch-query';
-import { avg, count, func, max, min, raw, sum, uniqExact } from '@qurvo/ch-query';
+import { avg, count, max, min, raw, sum, uniqExact } from '@qurvo/ch-query';
 import { resolvedPerson } from './resolved-person';
 import { resolveNumericPropertyExpr } from './filters';
 

@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { eq, sql, count } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Database } from '@qurvo/db';
 import { users, projects, plans, projectMembers } from '@qurvo/db';
 import type { ClickHouseClient } from '@qurvo/clickhouse';

@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate(routes.home());
+      void navigate(routes.home());
     } catch (err) {
       setError(err instanceof Error ? err.message : t('loginFailed'));
     } finally {

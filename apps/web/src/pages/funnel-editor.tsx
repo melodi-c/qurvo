@@ -160,7 +160,7 @@ export default function FunnelEditorPage() {
               <Metric label={t('completed')} value={totalConverted?.toLocaleString() ?? '\u2014'} />
             </>
           )}
-          {funnelResult?.sampling_factor != null && funnelResult.sampling_factor < 1 && (
+          {funnelResult?.sampling_factor !== null && funnelResult?.sampling_factor !== undefined && funnelResult.sampling_factor < 1 && (
             <>
               <MetricsDivider />
               <span className={cn('inline-flex items-center gap-1.5 text-xs', STATUS_COLORS.warning)}>

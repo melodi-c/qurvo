@@ -64,7 +64,7 @@ export default function CohortEditorPage() {
     try {
       const newCohort = await duplicateMutation.mutateAsync(cohortId);
       toast.success(t('duplicated'));
-      go.cohorts.detail(newCohort.id);
+      void go.cohorts.detail(newCohort.id);
     } catch (err) {
       toast.error(extractApiErrorMessage(err, t('duplicateFailed')));
     }

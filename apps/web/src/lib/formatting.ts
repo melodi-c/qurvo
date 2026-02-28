@@ -111,7 +111,7 @@ export function formatBucket(bucket: string, granularity: string, compact?: bool
 
 /** Format seconds into a human-readable duration. Locale-aware suffixes (e.g. "30с", "5м", "2ч", "3д" in Russian). Supports days. */
 export function formatSeconds(s: number | null | undefined): string | null {
-  if (s == null) {return null;}
+  if (s === null || s === undefined) {return null;}
   const lang = getLocale() as 'en' | 'ru';
   const ru = lang === 'ru';
   if (s < 60) {return `${Math.round(s)}${ru ? 'с' : 's'}`;}

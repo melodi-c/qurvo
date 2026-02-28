@@ -9,7 +9,7 @@ import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-q
  *
  * Without `tz` the behaviour is unchanged: UTC wall-clock time is returned.
  */
-export function toChTs(iso: string, endOfDay = false, tz?: string): string {
+export function toChTs(iso: string, endOfDay = false, _tz?: string): string {
   if (iso.length === 10) {
     // Date-only input — no timezone conversion needed in Node.js.
     // ClickHouse handles the timezone interpretation via toDateTime64(..., tz).

@@ -18,7 +18,7 @@ export function useAdminUsers() {
     mutationFn: ({ id, is_staff }: { id: string; is_staff: boolean }) =>
       apiClient.admin.adminUsersControllerPatchUser({ id }, { is_staff }),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       toast.success(variables.is_staff ? t('promoteSuccess') : t('demoteSuccess'));
     },
     onError: () => toast.error(t('actionFailed')),
@@ -47,8 +47,8 @@ export function useAdminUserDetail(id: string | undefined) {
     mutationFn: (is_staff: boolean) =>
       apiClient.admin.adminUsersControllerPatchUser({ id: id! }, { is_staff }),
     onSuccess: (_data, is_staff) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users', id] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       toast.success(is_staff ? t('promoteSuccess') : t('demoteSuccess'));
     },
     onError: () => toast.error(t('actionFailed')),

@@ -9,7 +9,7 @@ import { useDashboardStore } from '../store';
 import { DEFAULT_WIDGET_SIZE, DEFAULT_FALLBACK_SIZE } from '../lib/default-sizes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './AddWidgetDialog.translations';
-import type { Insight, InsightType } from '@/api/generated/Api';
+import type { Insight } from '@/api/generated/Api';
 
 interface AddWidgetDialogProps {
   open: boolean;

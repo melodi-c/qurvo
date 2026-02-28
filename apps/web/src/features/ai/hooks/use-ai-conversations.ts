@@ -62,7 +62,7 @@ export function useRenameConversation(projectId: string) {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
     },
   });
 }
@@ -93,8 +93,8 @@ export function useToggleSharedConversation(
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
-      qc.invalidateQueries({ queryKey: ['ai-conversations-shared', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations-shared', projectId] });
     },
   });
 }
@@ -115,8 +115,8 @@ export function useDeleteConversation(projectId: string) {
       await api.aiControllerDeleteConversation({ id, project_id: projectId });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
-      qc.invalidateQueries({ queryKey: ['ai-conversations-shared', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
+      void qc.invalidateQueries({ queryKey: ['ai-conversations-shared', projectId] });
     },
   });
 }

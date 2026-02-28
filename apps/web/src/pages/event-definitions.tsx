@@ -81,7 +81,7 @@ export default function EventDefinitionsPage() {
 
   const handleRowClick = useCallback(
     (row: EventDefinition) => {
-      go.dataManagement.detail(row.event_name);
+      void go.dataManagement.detail(row.event_name);
     },
     [go],
   );

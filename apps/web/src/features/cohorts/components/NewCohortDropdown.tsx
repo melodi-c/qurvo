@@ -26,7 +26,7 @@ import { extractApiErrorMessage } from '@/lib/utils';
 import translations from './NewCohortDropdown.translations';
 
 export function NewCohortDropdown() {
-  const { go, link } = useAppNavigate();
+  const { go } = useAppNavigate();
   const { t } = useLocalTranslation(translations);
   const createStaticMutation = useCreateStaticCohort();
 
@@ -49,7 +49,7 @@ export function NewCohortDropdown() {
       });
       toast.success(t('created'));
       setDialogOpen(false);
-      go.cohorts.detail(cohort.id);
+      void go.cohorts.detail(cohort.id);
     } catch (err) {
       toast.error(extractApiErrorMessage(err, t('createFailed')));
     }
@@ -107,7 +107,7 @@ export function NewCohortDropdown() {
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && name.trim()) {
-                    handleCreate();
+                    void handleCreate();
                   }
                 }}
               />

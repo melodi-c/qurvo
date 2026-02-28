@@ -31,7 +31,7 @@ export function useCreateCohort() {
     mutationFn: (data: CreateCohort) =>
       api.cohortsControllerCreate({ projectId }, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
   });
 }
@@ -44,7 +44,7 @@ export function useUpdateCohort() {
     mutationFn: ({ cohortId, data }: { cohortId: string; data: UpdateCohort }) =>
       api.cohortsControllerUpdate({ projectId, cohortId }, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
   });
 }
@@ -57,7 +57,7 @@ export function useDeleteCohort() {
     mutationFn: (cohortId: string) =>
       api.cohortsControllerRemove({ projectId, cohortId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
   });
 }
@@ -99,7 +99,7 @@ export function useCreateStaticCohort() {
     mutationFn: (data: CreateStaticCohort) =>
       api.staticCohortsControllerCreateStaticCohort({ projectId }, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
   });
 }
@@ -112,7 +112,7 @@ export function useDuplicateAsStatic() {
     mutationFn: (cohortId: string) =>
       api.staticCohortsControllerDuplicateAsStatic({ projectId, cohortId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
   });
 }
@@ -125,7 +125,7 @@ export function useUploadCohortCsv() {
     mutationFn: ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) =>
       api.staticCohortsControllerUploadCsv({ projectId, cohortId }, { csv_content: csvContent }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
+      void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
   });
 }

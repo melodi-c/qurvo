@@ -43,7 +43,7 @@ export default function VerifyEmailPage() {
         setVerified(true);
         // If we have a session, refresh auth state so redirect works
         if (getAuthHeaders().Authorization) {
-          checkAuth();
+          void checkAuth();
         }
       })
       .catch(() => {
@@ -54,7 +54,7 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (user && !pendingVerification) {
-      navigate(routes.home());
+      void navigate(routes.home());
     }
   }, [user, pendingVerification, navigate]);
 
@@ -70,7 +70,7 @@ export default function VerifyEmailPage() {
     setLoading(true);
     try {
       await verifyByCode(code);
-      navigate(routes.home());
+      void navigate(routes.home());
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, t('verificationError')));
     } finally {

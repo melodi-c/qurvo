@@ -9,9 +9,7 @@ import type Redis from 'ioredis';
 import {
   cohorts,
   isConditionGroup,
-  type CohortCondition,
   type CohortConditionGroup,
-  type CohortCohortCondition,
   type Database,
 } from '@qurvo/db';
 import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/cohort-query';

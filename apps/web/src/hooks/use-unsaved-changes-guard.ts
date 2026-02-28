@@ -97,7 +97,7 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
     if (target === '__popstate__') {
       window.history.back();
     } else {
-      navigate(target);
+      void navigate(target);
     }
   }, [navigate]);
 

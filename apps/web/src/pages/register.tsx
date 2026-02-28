@@ -26,7 +26,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form);
-      navigate(routes.home());
+      void navigate(routes.home());
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registrationFailed'));
     } finally {

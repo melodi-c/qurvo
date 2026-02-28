@@ -57,7 +57,7 @@ export class PropertyDefinitionsService {
     if (params.search) {conditions.push(ilike(propertyDefinitions.property_name, `%${escapeLikePattern(params.search)}%`));}
     if (params.is_numerical !== undefined) {conditions.push(eq(propertyDefinitions.is_numerical, params.is_numerical));}
 
-    const where = and(...conditions)!;
+    const where = and(...conditions) ?? eq(propertyDefinitions.project_id, projectId);
     const orderCol = columnMap[params.order_by ?? 'last_seen_at'] ?? propertyDefinitions.last_seen_at;
     const orderFn = params.order === 'asc' ? asc : desc;
     const limit = params.limit ?? 100;
@@ -97,12 +97,12 @@ export class PropertyDefinitionsService {
   private async listEventScoped(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     const epConditions: SQL[] = [
       eq(eventProperties.project_id, projectId),
-      eq(eventProperties.event_name, params.event_name!),
+      eq(eventProperties.event_name, params.event_name ?? ''),
     ];
     if (params.type) {epConditions.push(eq(eventProperties.property_type, params.type));}
     if (params.search) {epConditions.push(ilike(eventProperties.property_name, `%${escapeLikePattern(params.search)}%`));}
 
-    const epWhere = and(...epConditions)!;
+    const epWhere = and(...epConditions) ?? eq(eventProperties.project_id, projectId);
 
     const [epRows, epCountResult] = await Promise.all([
       this.db

@@ -13,6 +13,7 @@ const INSIGHT_TYPE_SLUGS: Record<InsightType, string> = {
 // route() helper — single source of truth for path pattern + builder function
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic function constraint requires any
 type Route<F extends (...args: any[]) => string> = F & { pattern: string };
 
 function route(pattern: string): Route<() => string>;

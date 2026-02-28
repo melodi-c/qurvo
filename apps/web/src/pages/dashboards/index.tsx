@@ -32,7 +32,7 @@ export default function DashboardsPage() {
     setShowCreate(false);
     setName('');
     toast.success(t('created'));
-    go.dashboards.detail(result.id);
+    void go.dashboards.detail(result.id);
   };
 
   const handleDelete = async () => {

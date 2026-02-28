@@ -85,7 +85,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
       // Mark current state as clean before navigating away
       initialState.current = { name, description, config };
       unsavedGuard.markClean();
-      go.insights.list();
+      void go.insights.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
     } finally {

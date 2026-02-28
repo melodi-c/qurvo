@@ -257,6 +257,7 @@ export class AiService implements OnModuleInit {
     return { seq, totalInputTokens, totalOutputTokens, totalCachedTokens };
   }
 
+  // eslint-disable-next-line complexity -- streaming SSE with tool call accumulation
   private async *streamOneTurn(
     client: OpenAI,
     messages: ChatCompletionMessageParam[],

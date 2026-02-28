@@ -23,7 +23,7 @@ export function useAdminProjectDetail(id: string | undefined) {
     mutationFn: (plan_id: string | null) =>
       apiClient.admin.adminProjectsControllerPatchProject({ id: id! }, { plan_id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'projects', id] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'projects', id] });
       toast.success(t('planUpdated'));
     },
     onError: () => toast.error(t('planUpdateFailed')),

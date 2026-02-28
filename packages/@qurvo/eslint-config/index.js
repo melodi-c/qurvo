@@ -67,7 +67,7 @@ const base = [
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', '.turbo/'],
+    ignores: ['dist/', 'node_modules/', '.turbo/', 'vitest.config.ts', 'vitest.*.config.ts', 'scripts/'],
   },
 ];
 

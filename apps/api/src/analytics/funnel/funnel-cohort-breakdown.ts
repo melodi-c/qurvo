@@ -13,6 +13,7 @@ import {
   notInSubquery,
   add,
   type Expr,
+  type QueryNode,
 } from '@qurvo/ch-query';
 import type {
   FunnelQueryParams,
@@ -39,7 +40,7 @@ interface CohortBreakdownResult {
  * Shared between per-cohort and aggregate paths.
  */
 function buildCohortFunnelCompiled(
-  cteResult: { ctes: Array<{ name: string; query: import('@qurvo/ch-query').QueryNode }>; hasExclusions: boolean },
+  cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean },
 ): { sql: string; params: Record<string, unknown> } {
   const stepsSubquery = select(add(col('number'), literal(1)).as('step_num'))
     .from('numbers({num_steps:UInt64})')
@@ -92,7 +93,7 @@ export async function runFunnelCohortBreakdown(
   cohortClause: string,
   samplingClause: string,
 ): Promise<CohortBreakdownResult> {
-  const cohortBreakdowns = params.breakdown_cohort_ids!;
+  const cohortBreakdowns = params.breakdown_cohort_ids ?? [];
   const { steps, exclusions = [] } = params;
   const orderType = params.funnel_order_type ?? 'ordered';
   const numSteps = steps.length;

@@ -41,7 +41,7 @@ export function ProjectTokenTab({ projectId }: { projectId: string }) {
   const canRotate = role === 'owner' || role === 'editor';
 
   const handleCopy = (value: string) => {
-    copy(value);
+    void copy(value);
     toast.success(t('copySuccess'));
   };
 

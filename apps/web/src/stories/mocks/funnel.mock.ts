@@ -13,6 +13,7 @@ import type { FunnelStepResult } from '@/api/generated/Api';
  * @param prevCount   Users who completed the previous step.
  * @param overrides   Optional partial overrides applied last.
  */
+// eslint-disable-next-line max-params -- test factory helper with positional args for readability
 export function makeStep(
   step: number,
   label: string,

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { eq, and, desc, asc, ilike, count } from 'drizzle-orm';
+import { eq, and, ilike, count } from 'drizzle-orm';
 import { createTestProject } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import { propertyDefinitions } from '@qurvo/db';

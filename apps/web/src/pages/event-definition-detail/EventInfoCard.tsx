@@ -46,7 +46,7 @@ export function EventInfoCard({ eventName, eventDef }: EventInfoCardProps) {
     try {
       await deleteMutation.mutateAsync();
       toast.success(t('eventDeleted'));
-      go.dataManagement.list();
+      void go.dataManagement.list();
     } catch {
       toast.error(t('eventDeleteFailed'));
     }
