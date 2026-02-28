@@ -18,7 +18,8 @@ import {
   inArray,
   inSubquery,
   and,
-  // analytics domain helpers
+} from '@qurvo/ch-query';
+import {
   analyticsWhere,
   eventIs,
   propertyFilters,
@@ -32,7 +33,7 @@ import {
   baseMetricColumns,
   type PropertyFilter,
   type TrendMetric,
-} from '@qurvo/ch-query';
+} from '../query-helpers';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 

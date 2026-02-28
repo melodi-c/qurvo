@@ -87,5 +87,3 @@ export {
 // Builders — select builder
 export { select, unionAll, SelectBuilder } from './builders';
 
-// Analytics — domain helpers
-export * from './analytics';

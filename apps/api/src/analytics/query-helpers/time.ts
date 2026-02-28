@@ -1,5 +1,5 @@
-import type { AliasExpr, Expr } from '../ast';
-import { and, func, gte, lte, param, raw } from '../builders';
+import type { AliasExpr, Expr } from '@qurvo/ch-query';
+import { and, func, gte, lte, param, raw } from '@qurvo/ch-query';
 
 type WithAs = Expr & { as(alias: string): AliasExpr };
 
@@ -187,7 +187,7 @@ export function neighborBucket(
 }
 
 /**
- * Granularity truncation of min(col) — for projection optimization.
+ * Granularity truncation of min(col) -- for projection optimization.
  * min(toStartOfDay(t)) == toStartOfDay(min(t))
  */
 export function bucketOfMin(granularity: Granularity, column: string, tz?: string): WithAs {

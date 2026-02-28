@@ -19,6 +19,8 @@ import {
   toString,
   notInSubquery,
   arraySort,
+} from '@qurvo/ch-query';
+import {
   resolvedPerson,
   analyticsWhere,
   projectIs,
@@ -30,8 +32,8 @@ import {
   truncateDate,
   bucket,
   neighborBucket,
-} from '@qurvo/ch-query';
-import type { PropertyFilter } from '@qurvo/ch-query';
+  type PropertyFilter,
+} from '../query-helpers';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

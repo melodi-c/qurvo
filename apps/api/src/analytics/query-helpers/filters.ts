@@ -1,4 +1,4 @@
-import type { Expr } from '../ast';
+import type { Expr } from '@qurvo/ch-query';
 import {
   and,
   eq,
@@ -12,7 +12,7 @@ import {
   param,
   raw,
   rawWithParams,
-} from '../builders';
+} from '@qurvo/ch-query';
 import { timeRange } from './time';
 import { resolvedPerson } from './resolved-person';
 
@@ -254,8 +254,8 @@ export function cohortFilter(
 }
 
 /**
- * Minimal type for cohort filter inputs — avoids importing the full @qurvo/db types
- * into the ch-query package. Compatible with CohortFilterInput from @qurvo/cohort-query.
+ * Minimal type for cohort filter inputs -- avoids importing the full @qurvo/db types
+ * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/cohort-query.
  */
 export interface CohortFilterInputLike {
   cohort_id: string;
