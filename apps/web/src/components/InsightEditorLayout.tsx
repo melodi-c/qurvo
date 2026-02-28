@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { SlidersHorizontal, X, Download } from 'lucide-react';
+import { SlidersHorizontal, X, Download, Check } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightEditorLayout.translations';
@@ -100,6 +101,7 @@ export function InsightEditorLayout({
   const { t } = useLocalTranslation(translations);
   const { t: tGuard } = useLocalTranslation(guardTranslations);
   const [panelOpen, setPanelOpen] = useState(false);
+  const hasResults = isConfigValid && !showSkeleton && !isEmpty;
 
   return (
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
@@ -118,7 +120,7 @@ export function InsightEditorLayout({
         saveError={saveError}
       />
 
-      <div className="lg:hidden border-b border-border px-4 py-2 flex items-center">
+      <div className="lg:hidden border-b border-border px-4 py-2 flex items-center gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -137,6 +139,12 @@ export function InsightEditorLayout({
             </>
           )}
         </Button>
+        {panelOpen && hasResults && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Check className="h-3 w-3" />
+            {t('resultsReady')}
+          </Badge>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">

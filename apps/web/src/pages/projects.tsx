@@ -184,10 +184,10 @@ export default function ProjectsPage() {
               onClick={() => navigate(routes.dashboards.list(project.id))}
             >
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FolderOpen className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">{project.name}</CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FolderOpen className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <CardTitle className="text-base truncate">{project.name}</CardTitle>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>

@@ -26,9 +26,13 @@ export function LayoutTopbar({ onMenuOpen, userInitial, logoHref }: LayoutTopbar
         <QurvoLogo className="w-5 h-5 text-primary shrink-0" />
         <span className="text-sm font-semibold tracking-tight">{t('appName')}</span>
       </Link>
-      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-[10px] font-bold text-primary shrink-0">
+      <button
+        onClick={onMenuOpen}
+        className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-[10px] font-bold text-primary shrink-0 hover:bg-primary/25 transition-colors"
+        aria-label={t('openUserMenu')}
+      >
         {userInitial}
-      </span>
+      </button>
     </header>
   );
 }

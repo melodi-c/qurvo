@@ -36,7 +36,7 @@ export function DashboardHeader() {
           )
         }
       >
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           {!isEditing && dashboardId && (
             <Button variant="outline" onClick={() => setShareOpen(true)}>
               <Share2 className="h-4 w-4 mr-2" />
