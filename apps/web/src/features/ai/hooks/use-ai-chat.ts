@@ -270,6 +270,7 @@ export function useAiChat(projectId: string) {
     try {
       const data = await api.aiControllerGetConversation({ id: convId, limit: PAGE_SIZE, project_id: projectId });
 
+      hasMoreRef.current = data.has_more ?? false;
       setState({
         messages: mapMessages(data.messages ?? []),
         conversationId: convId,
@@ -313,6 +314,7 @@ export function useAiChat(projectId: string) {
       });
 
       const older = mapMessages(data.messages ?? []);
+      hasMoreRef.current = data.has_more ?? false;
       setState((prev) => ({
         ...prev,
         messages: [...older, ...prev.messages],
