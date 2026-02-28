@@ -1,5 +1,21 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildPropertyFilterConditions, type PropertyFilter, toChTs } from '../analytics/query-helpers';
+import {
+  compile,
+  select,
+  col,
+  raw,
+  param,
+  func,
+  eq,
+  gte,
+  lte,
+} from '@qurvo/ch-query';
+import {
+  analyticsWhere,
+  projectIs,
+  toChTs,
+  type PropertyFilter,
+} from '../analytics/query-helpers';
 
 export interface EventsQueryParams {
   project_id: string;
@@ -49,32 +65,40 @@ export interface EventDetailRow extends EventRow {
   user_properties: string;
 }
 
-const EVENT_BASE_COLUMNS = `
-      event_id,
-      event_name,
-      event_type,
-      distinct_id,
-      toString(person_id) AS person_id,
-      session_id,
-      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
-      url,
-      referrer,
-      page_title,
-      page_path,
-      device_type,
-      browser,
-      browser_version,
-      os,
-      os_version,
-      screen_width,
-      screen_height,
-      country,
-      region,
-      city,
-      language,
-      timezone,
-      sdk_name,
-      sdk_version`;
+/** ISO datetime format pattern for ClickHouse formatDateTime (UTC, milliseconds always `.000`). */
+export const FORMAT_DATETIME_ISO = '%Y-%m-%dT%H:%i:%S.000Z';
+
+/**
+ * Base columns shared by events list and person events queries.
+ * Each entry is a ch-query Expr (aliased where needed).
+ */
+export const EVENT_BASE_COLUMNS = [
+  col('event_id'),
+  col('event_name'),
+  col('event_type'),
+  col('distinct_id'),
+  func('toString', col('person_id')).as('person_id'),
+  col('session_id'),
+  func('formatDateTime', raw('events.timestamp'), raw(`'${FORMAT_DATETIME_ISO}'`), raw("'UTC'")).as('timestamp'),
+  col('url'),
+  col('referrer'),
+  col('page_title'),
+  col('page_path'),
+  col('device_type'),
+  col('browser'),
+  col('browser_version'),
+  col('os'),
+  col('os_version'),
+  col('screen_width'),
+  col('screen_height'),
+  col('country'),
+  col('region'),
+  col('city'),
+  col('language'),
+  col('timezone'),
+  col('sdk_name'),
+  col('sdk_version'),
+];
 
 // eslint-disable-next-line complexity -- dynamic query builder with optional filters
 export async function queryEvents(
@@ -87,41 +111,31 @@ export async function queryEvents(
     params.date_from ??
     new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    date_from: toChTs(dateFrom),
-    date_to: toChTs(dateTo, true),
-    limit: params.limit ?? 50,
-    offset: params.offset ?? 0,
-  };
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
 
-  const conditions: string[] = [
-    `project_id = {project_id:UUID}`,
-    `events.timestamp >= {date_from:DateTime}`,
-    `events.timestamp <= {date_to:DateTime}`,
-  ];
+  const validFilters = params.filters?.filter((f) => f.property?.trim()) ?? [];
 
-  if (params.event_name) {
-    queryParams['event_name'] = params.event_name;
-    conditions.push(`event_name = {event_name:String}`);
-  }
+  const whereExpr = analyticsWhere({
+    projectId: params.project_id,
+    from: dateFrom,
+    to: toChTs(dateTo, true),
+    eventName: params.event_name,
+    filters: validFilters.length ? validFilters : undefined,
+  });
 
-  if (params.filters?.length) {
-    const validFilters = params.filters.filter((f) => f.property?.trim());
-    conditions.push(...buildPropertyFilterConditions(validFilters, 'ev', queryParams));
-  }
+  const node = select(...EVENT_BASE_COLUMNS)
+    .from('events')
+    .where(whereExpr)
+    .orderBy(raw('events.timestamp'), 'DESC')
+    .limit(limit)
+    .offset(offset)
+    .build();
 
-  const query = `
-    SELECT ${EVENT_BASE_COLUMNS}
-    FROM events
-    WHERE ${conditions.join(' AND ')}
-    ORDER BY events.timestamp DESC
-    LIMIT {limit:UInt32}
-    OFFSET {offset:UInt32}
-  `;
+  const { sql, params: queryParams } = compile(node);
 
   const result = await ch.query({
-    query,
+    query: sql,
     query_params: queryParams,
     format: 'JSONEachRow',
   });
@@ -140,28 +154,28 @@ export async function queryEventDetail(
   params: EventDetailParams,
 ): Promise<EventDetailRow | null> {
   const ms = new Date(params.timestamp).getTime();
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    event_id: params.event_id,
-    ts_hint_from: new Date(ms - 5 * 60_000).toISOString().slice(0, 19).replace('T', ' '),
-    ts_hint_to: new Date(ms + 5 * 60_000).toISOString().slice(0, 19).replace('T', ' '),
-  };
+  const tsFrom = new Date(ms - 5 * 60_000).toISOString().slice(0, 19).replace('T', ' ');
+  const tsTo = new Date(ms + 5 * 60_000).toISOString().slice(0, 19).replace('T', ' ');
 
-  const query = `
-    SELECT ${EVENT_BASE_COLUMNS},
-      properties,
-      user_properties
-    FROM events
-    WHERE
-      project_id = {project_id:UUID}
-      AND event_id = {event_id:UUID}
-      AND events.timestamp >= {ts_hint_from:DateTime}
-      AND events.timestamp <= {ts_hint_to:DateTime}
-    LIMIT 1
-  `;
+  const node = select(
+    ...EVENT_BASE_COLUMNS,
+    col('properties'),
+    col('user_properties'),
+  )
+    .from('events')
+    .where(
+      projectIs(params.project_id),
+      eq(raw('event_id'), param('UUID', params.event_id)),
+      gte(raw('events.timestamp'), param('DateTime', tsFrom)),
+      lte(raw('events.timestamp'), param('DateTime', tsTo)),
+    )
+    .limit(1)
+    .build();
+
+  const { sql, params: queryParams } = compile(node);
 
   const result = await ch.query({
-    query,
+    query: sql,
     query_params: queryParams,
     format: 'JSONEachRow',
   });

@@ -1,5 +1,16 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import {
+  compile,
+  select,
+  col,
+  raw,
+  param,
+  eq,
+  or,
+} from '@qurvo/ch-query';
+import { projectIs } from '../analytics/query-helpers';
 import type { EventDetailRow } from '../events/events.query';
+import { EVENT_BASE_COLUMNS } from '../events/events.query';
 
 export interface PersonEventsQueryParams {
   project_id: string;
@@ -16,55 +27,34 @@ export async function queryPersonEvents(
   ch: ClickHouseClient,
   params: PersonEventsQueryParams,
 ): Promise<EventDetailRow[]> {
-  const query = `
-    SELECT
-      event_id,
-      event_name,
-      event_type,
-      distinct_id,
-      toString(events.person_id) AS person_id,
-      session_id,
-      formatDateTime(events.timestamp, '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS timestamp,
-      url,
-      referrer,
-      page_title,
-      page_path,
-      device_type,
-      browser,
-      browser_version,
-      os,
-      os_version,
-      screen_width,
-      screen_height,
-      country,
-      region,
-      city,
-      language,
-      timezone,
-      sdk_name,
-      sdk_version,
-      properties,
-      user_properties
-    FROM events
-    WHERE
-      project_id = {project_id:UUID}
-      AND (
-        events.person_id = {person_id:UUID}
-        OR dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)) = {person_id:UUID}
-      )
-    ORDER BY events.timestamp DESC
-    LIMIT {limit:UInt32}
-    OFFSET {offset:UInt32}
-  `;
+  const personIdParam = param('UUID', params.person_id);
+
+  const node = select(
+    ...EVENT_BASE_COLUMNS,
+    col('properties'),
+    col('user_properties'),
+  )
+    .from('events')
+    .where(
+      projectIs(params.project_id),
+      or(
+        eq(raw('events.person_id'), personIdParam),
+        eq(
+          raw(`dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id))`),
+          param('UUID', params.person_id),
+        ),
+      ),
+    )
+    .orderBy(raw('events.timestamp'), 'DESC')
+    .limit(params.limit)
+    .offset(params.offset)
+    .build();
+
+  const { sql, params: queryParams } = compile(node);
 
   const result = await ch.query({
-    query,
-    query_params: {
-      project_id: params.project_id,
-      person_id: params.person_id,
-      limit: params.limit,
-      offset: params.offset,
-    },
+    query: sql,
+    query_params: queryParams,
     format: 'JSONEachRow',
   });
 
