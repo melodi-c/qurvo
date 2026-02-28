@@ -12,6 +12,8 @@ import {
   param,
   raw,
   rawWithParams,
+  buildCohortFilterClause,
+  compileExprToSql,
 } from '@qurvo/ch-query';
 import { timeRange } from './time';
 import { resolvedPerson } from './resolved-person';
@@ -213,10 +215,10 @@ export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
 /**
  * Cohort filter: RESOLVED_PERSON IN (subquery).
  *
- * This is an escape-hatch adapter for @qurvo/cohort-query.
- * It calls buildCohortFilterClause() to get a SQL string, collects the params
- * it populates, and wraps everything in a RawWithParamsExpr so the params
- * flow through the AST compilation pipeline.
+ * Delegates to `@qurvo/ch-query`'s `buildCohortFilterClause()` which returns
+ * an Expr (ANDed IN-subquery predicates), then compiles it to SQL and wraps
+ * in a `rawWithParams` so that ClickHouse named parameters (populated via
+ * side effects into `cohortParams`) flow through the AST compilation pipeline.
  *
  * Returns undefined if inputs is empty/undefined (allowing and() to skip it).
  */
@@ -227,9 +229,6 @@ export function cohortFilter(
   dateFrom?: string,
 ): Expr | undefined {
   if (!inputs?.length) return undefined;
-  // Dynamically import to avoid hard dependency at module level.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { buildCohortFilterClause } = require('@qurvo/cohort-query') as typeof import('@qurvo/cohort-query');
 
   // Collect params populated by buildCohortFilterClause into a local object.
   // These will be embedded into the RawWithParamsExpr and merged during compilation.
@@ -240,22 +239,26 @@ export function cohortFilter(
   // but uses `unknown` for the `definition` field to avoid pulling @qurvo/db
   // types into ch-query. The cast is safe because buildCohortFilterClause only
   // reads `definition` to pass it to buildCohortSubquery which handles unknown shapes.
-  type CohortFilterInput = Parameters<typeof buildCohortFilterClause>[0][number];
-  const clause = buildCohortFilterClause(
-    inputs as CohortFilterInput[],
+  type CohortFilterInputCast = Parameters<typeof buildCohortFilterClause>[0][number];
+  const expr = buildCohortFilterClause(
+    inputs as CohortFilterInputCast[],
     'project_id',
     cohortParams,
     undefined,
     dateTo,
     dateFrom,
   );
-  if (!clause) return undefined;
-  return rawWithParams(clause, cohortParams);
+  if (!expr) return undefined;
+
+  // Compile the Expr to SQL and wrap with rawWithParams so that ClickHouse
+  // named parameters (e.g. {coh_mid_0:UUID}) are carried through the outer AST.
+  const { sql, params } = compileExprToSql(expr);
+  return rawWithParams(sql, { ...cohortParams, ...params });
 }
 
 /**
  * Minimal type for cohort filter inputs -- avoids importing the full @qurvo/db types
- * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/cohort-query.
+ * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/ch-query.
  */
 export interface CohortFilterInputLike {
   cohort_id: string;

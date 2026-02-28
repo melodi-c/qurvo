@@ -20,7 +20,6 @@
     "@nestjs/throttler": "^6.5.0",
     "@qurvo/ch-query": "workspace:*",
     "@qurvo/clickhouse": "workspace:*",
-    "@qurvo/cohort-query": "workspace:*",
     "@qurvo/db": "workspace:*",
     "@qurvo/distributed-lock": "workspace:*",
     "@qurvo/nestjs-infra": "workspace:*",

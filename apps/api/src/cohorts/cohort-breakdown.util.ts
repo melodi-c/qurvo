@@ -1,4 +1,4 @@
-import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { buildCohortSubquery, compile } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { RESOLVED_PERSON } from '../utils/clickhouse-helpers';
 
@@ -52,6 +52,8 @@ export function buildCohortFilterForBreakdown(
           WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
         )`;
   }
-  const subquery = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo, dateFrom);
+  const node = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo, dateFrom);
+  const { sql: subquery, params: compiledParams } = compile(node);
+  Object.assign(queryParams, compiledParams);
   return `${RESOLVED_PERSON} IN (${subquery})`;
 }

@@ -7,7 +7,7 @@ import {
   ts,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import type { CohortFilterInput } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
 import { truncateDate, shiftDate } from '../../utils/clickhouse-helpers';

@@ -3,7 +3,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { eq, and, or, isNull, lt, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { buildCohortSubquery, compile } from '@qurvo/ch-query';
 import { CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import { COHORT_STALE_THRESHOLD_MINUTES, COHORT_MAX_ERRORS } from '../constants';
 
@@ -53,7 +53,9 @@ export class CohortComputationService {
     version: number,
   ): Promise<void> {
     const queryParams: Record<string, unknown> = { project_id: projectId };
-    const subquery = buildCohortSubquery(definition, 0, 'project_id', queryParams);
+    const node = buildCohortSubquery(definition, 0, 'project_id', queryParams);
+    const { sql: subquery, params: compiledParams } = compile(node);
+    Object.assign(queryParams, compiledParams);
 
     // Insert new membership rows with current version
     const insertSql = `

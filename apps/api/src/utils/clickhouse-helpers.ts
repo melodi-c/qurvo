@@ -1,4 +1,4 @@
-import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-query';
+import { buildCohortFilterClause, compileExprToSql, type CohortFilterInput } from '@qurvo/ch-query';
 
 /**
  * Converts an ISO date/datetime string to a ClickHouse-compatible datetime string.
@@ -30,7 +30,7 @@ export function toChTs(iso: string, endOfDay = false, tz?: string): string {
   return iso.slice(0, 19).replace('T', ' ');
 }
 
-export { RESOLVED_PERSON } from '@qurvo/cohort-query';
+export { RESOLVED_PERSON } from '@qurvo/ch-query';
 
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
@@ -114,7 +114,11 @@ export function buildCohortClause(
   dateFrom?: string,
 ): string {
   if (!cohortFilters?.length) return '';
-  return ' AND ' + buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo, dateFrom);
+  const expr = buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo, dateFrom);
+  if (!expr) return '';
+  const { sql, params } = compileExprToSql(expr);
+  Object.assign(queryParams, params);
+  return ' AND ' + sql;
 }
 
 /**

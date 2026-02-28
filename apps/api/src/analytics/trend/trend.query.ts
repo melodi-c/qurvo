@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import type { CohortFilterInput } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/ch-query';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import {
