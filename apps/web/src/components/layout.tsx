@@ -77,6 +77,7 @@ export default function Layout() {
     <div className="flex flex-col lg:flex-row h-screen bg-background">
       {/* Mobile top bar */}
       <div
+        className="contents"
         aria-hidden={sidebar.isOpen || undefined}
         inert={sidebar.isOpen || undefined}
       >
