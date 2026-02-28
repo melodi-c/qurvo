@@ -76,12 +76,18 @@ export default function Layout() {
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background">
       {/* Mobile top bar */}
-      <LayoutTopbar onMenuOpen={sidebar.open} userInitial={userInitial} logoHref={logoHref} />
+      <div
+        aria-hidden={sidebar.isOpen || undefined}
+        inert={sidebar.isOpen || undefined}
+      >
+        <LayoutTopbar onMenuOpen={sidebar.open} userInitial={userInitial} logoHref={logoHref} />
+      </div>
 
       {/* Backdrop (mobile only) */}
       {sidebar.isOpen && (
         <div
           className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
+          aria-hidden="true"
           onClick={sidebar.close}
         />
       )}
@@ -128,7 +134,11 @@ export default function Layout() {
       </SidebarNav>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto flex flex-col">
+      <main
+        className="flex-1 overflow-auto flex flex-col"
+        aria-hidden={sidebar.isOpen || undefined}
+        inert={sidebar.isOpen || undefined}
+      >
         {currentProject && (
           <DemoBanner projectId={currentProject} isDemo={currentProjectIsDemo} />
         )}
