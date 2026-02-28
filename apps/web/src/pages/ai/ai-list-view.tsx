@@ -16,6 +16,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useConversations, useSharedConversations, useDeleteConversation, useRenameConversation, useSearchConversations } from '@/features/ai/hooks/use-ai-conversations';
 import translations from './index.translations';
 import { formatDate } from '@/lib/formatting';
+import { parseHighlightedSnippet } from '@/lib/highlight';
 
 type AiTab = 'mine' | 'shared';
 
@@ -157,10 +158,15 @@ export function AiListView({ projectId }: { projectId: string }) {
                   icon={MessageSquare}
                   title={result.title}
                   subtitle={
-                    <span
-                      className="text-muted-foreground"
-                      dangerouslySetInnerHTML={{ __html: result.snippet }}
-                    />
+                    <span className="text-muted-foreground">
+                      {parseHighlightedSnippet(result.snippet).map((seg, i) =>
+                        seg.highlighted ? (
+                          <mark key={i} className="bg-yellow-500/20 text-foreground rounded-sm">{seg.text}</mark>
+                        ) : (
+                          <span key={i}>{seg.text}</span>
+                        ),
+                      )}
+                    </span>
                   }
                   onClick={() => navigate(result.id)}
                 />
