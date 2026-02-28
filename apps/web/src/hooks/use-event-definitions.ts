@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { EventDefinition, UpsertEventDefinition } from '@/api/generated/Api';
 
 export const eventDefinitionsKey = (projectId: string) => ['event-definitions', projectId];
@@ -22,6 +23,7 @@ export function useEventDefinitions() {
 export function useUpsertEventDefinition() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: ({ eventName, data }: { eventName: string; data: UpsertEventDefinition }) =>
@@ -32,6 +34,7 @@ export function useUpsertEventDefinition() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: eventDefinitionsKey(projectId) });
     },
+    onError: onError('upsertEventDefinitionFailed'),
   });
 }
 

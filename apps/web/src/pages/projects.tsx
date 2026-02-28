@@ -49,7 +49,11 @@ export default function ProjectsPage() {
   };
 
   const handleDelete = async () => {
-    await deleteMutation.mutateAsync(confirmDelete.itemId);
+    try {
+      await deleteMutation.mutateAsync(confirmDelete.itemId);
+    } catch {
+      // onError toast is handled by the hook
+    }
   };
 
   const hasProjects = projects && projects.length > 0;

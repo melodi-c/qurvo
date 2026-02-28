@@ -36,7 +36,7 @@ export function AiListView({ projectId }: { projectId: string }) {
       await deleteMutation.mutateAsync(itemId);
       toast.success(t('deleted'));
     } catch {
-      toast.error(t('deleteFailed'));
+      // onError toast is handled by the hook
     }
   }, [itemId, deleteMutation, t]);
 
@@ -105,9 +105,13 @@ export function AiListView({ projectId }: { projectId: string }) {
       }
       setEditingId(null);
       setEditValue('');
-      await renameMutation.mutateAsync({ id, title: trimmed });
+      try {
+        await renameMutation.mutateAsync({ id, title: trimmed });
+      } catch {
+        toast.error(t('renameFailed'));
+      }
     },
-    [editValue, renameMutation, cancelEdit],
+    [editValue, renameMutation, cancelEdit, t],
   );
 
   useEffect(() => {

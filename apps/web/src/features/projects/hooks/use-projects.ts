@@ -28,6 +28,7 @@ export function useProjects() {
       }
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
+    onError: () => toast.error(t('createFailed')),
   });
 
   const createDemoMutation = useMutation({

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { CreateInsight, UpdateInsight, InsightType, Insight } from '@/api/generated/Api';
 
 export function useInsights(type?: InsightType) {
@@ -25,18 +26,21 @@ export function useInsight(insightId: string) {
 export function useCreateInsight() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: (data: CreateInsight) =>
       api.savedInsightsControllerCreate({ projectId }, data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['insights', projectId] });
     },
+    onError: onError('createInsightFailed'),
   });
 }
 
 export function useUpdateInsight() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: ({ insightId, data }: { insightId: string; data: UpdateInsight }) =>
       api.savedInsightsControllerUpdate({ projectId, insightId }, data),
@@ -44,6 +48,7 @@ export function useUpdateInsight() {
       void qc.invalidateQueries({ queryKey: ['insights', projectId] });
       void qc.invalidateQueries({ queryKey: ['insight', insightId] });
     },
+    onError: onError('updateInsightFailed'),
   });
 }
 
@@ -73,11 +78,13 @@ export function useToggleFavorite() {
 export function useDeleteInsight() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: (insightId: string) =>
       api.savedInsightsControllerRemove({ projectId, insightId }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['insights', projectId] });
     },
+    onError: onError('deleteInsightFailed'),
   });
 }
