@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useDashboardStore } from './store';
+import { EMPTY_OVERRIDES } from './lib/filter-overrides';
 import type { Widget } from '@/api/generated/Api';
 
 function makeWidget(id: string, dashboardId: string): Widget {
@@ -97,6 +98,35 @@ describe('useDashboardStore', () => {
       expect(state.isEditing).toBe(false);
       expect(state.isDirty).toBe(false);
       expect(state.localName).toBe('Dashboard A');
+    });
+
+    it('should reset filterOverrides when cancelEditMode restores snapshot', () => {
+      const widgetA = makeWidget('w-1', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA]);
+      useDashboardStore.getState().enterEditMode();
+      useDashboardStore.getState().setFilterOverrides({ dateFrom: '2025-01-01', dateTo: '2025-02-01' });
+
+      // Verify overrides are set
+      expect(useDashboardStore.getState().filterOverrides.dateFrom).toBe('2025-01-01');
+
+      useDashboardStore.getState().cancelEditMode();
+
+      const state = useDashboardStore.getState();
+      expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
+    });
+
+    it('should reset filterOverrides when cancelEditMode has no snapshot', () => {
+      const widgetA = makeWidget('w-1', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA]);
+      // Not editing, but set some filter overrides
+      useDashboardStore.getState().setFilterOverrides({ dateFrom: '2025-01-01' });
+
+      useDashboardStore.getState().cancelEditMode('dash-a');
+
+      const state = useDashboardStore.getState();
+      expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
     });
   });
 

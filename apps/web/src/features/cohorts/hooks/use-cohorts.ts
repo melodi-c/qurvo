@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
 import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
@@ -95,6 +95,23 @@ export function useCohortPreviewCount() {
   return useMutation({
     mutationFn: (data: CohortPreview) =>
       api.cohortsControllerPreviewCount({ projectId }, data),
+  });
+}
+
+/**
+ * Query-based cohort preview that uses a definition hash as the query key.
+ * Automatically cancels previous requests when the definition changes,
+ * ensuring results never arrive out of order.
+ */
+export function useCohortPreviewQuery(definition: CohortPreview['definition'], hash: string, enabled: boolean) {
+  const projectId = useProjectId();
+
+  return useQuery({
+    queryKey: ['cohort-preview', projectId, hash],
+    queryFn: () =>
+      api.cohortsControllerPreviewCount({ projectId }, { definition }),
+    enabled: enabled && !!projectId,
+    placeholderData: keepPreviousData,
   });
 }
 
