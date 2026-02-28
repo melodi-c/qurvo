@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "clean": "rm -rf dist .turbo",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "swagger:generate": "nest build && tsx scripts/generate-swagger.ts"
+    "swagger:generate": "nest build && tsx scripts/generate-swagger.ts",
+    "lint": "eslint src/"
   },
   "dependencies": {
     "@fastify/static": "^9.0.0",
@@ -47,6 +48,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@qurvo/testing": "workspace:*",
+    "eslint": "^9.0.0",
+    "@qurvo/eslint-config": "workspace:*",
     "@qurvo/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^7.0.11",
