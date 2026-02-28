@@ -521,6 +521,20 @@ bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
   "<NUMBER>" "$PR_URL" "$COMMIT_HASH" "$BASE_BRANCH"
 ```
 
+### Webvizio auto-close
+
+После закрытия GitHub issue:
+
+1. Прочитай `/tmp/claude-results/issue-<NUMBER>.json` (уже в кэше — загружен на Шаге 1)
+2. Найди в `.body` паттерн `<!-- WEBVIZIO: <UUID> -->`
+3. Если UUID найден:
+   ```bash
+   WV_UUID=$(grep -oP '<!-- WEBVIZIO: \K[a-f0-9-]+' /tmp/claude-results/issue-<NUMBER>.json || true)
+   ```
+   - Вызови MCP tool `close_task(uuid)` через Webvizio MCP
+   - Добавь в итоговый отчёт: "WV closed: <uuid>"
+4. Если UUID не найден — пропусти (обычный GitHub issue, не из Webvizio)
+
 ---
 
 ## Шаг 6.3: Dependency watcher
