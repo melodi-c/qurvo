@@ -20,7 +20,7 @@ import type {
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
-import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
+import { seriesKey, isIncompleteBucket, buildDataPoints, snapAnnotationDateToBucket } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -84,12 +84,12 @@ function renderFormulaSeries({ visibleFormulaKeys, compact }: SeriesRenderProps)
 
 // ── Annotation rendering helper ──
 
-function renderAnnotations(annotations: Annotation[] | undefined, compact?: boolean) {
+function renderAnnotations(annotations: Annotation[] | undefined, granularity: string, compact?: boolean) {
   if (!annotations?.length) {return null;}
   return annotations.map((ann) => (
     <ReferenceLine
       key={ann.id}
-      x={ann.date}
+      x={snapAnnotationDateToBucket(ann.date, granularity)}
       stroke={ann.color ?? 'hsl(var(--color-muted-foreground))'}
       strokeDasharray="4 2"
       label={compact ? undefined : { value: ann.label, position: 'insideTopLeft', fontSize: 11, fill: ann.color ?? 'hsl(var(--color-muted-foreground))' }}
@@ -134,10 +134,10 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   const lastCompleteBucketIdx = useMemo(() => {
     if (!granularity || data.length === 0) {return data.length - 1;}
     for (let i = data.length - 1; i >= 0; i--) {
-      if (!isIncompleteBucket(data[i].bucket as string, granularity)) {return i;}
+      if (!isIncompleteBucket(data[i].bucket as string, granularity, timezone)) {return i;}
     }
     return -1;
-  }, [data, granularity]);
+  }, [data, granularity, timezone]);
 
   const hasIncomplete = lastCompleteBucketIdx < data.length - 1 && lastCompleteBucketIdx >= 0;
   const completeData = hasIncomplete ? data.slice(0, lastCompleteBucketIdx + 1) : data;
@@ -207,7 +207,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
               {renderPrevSeries(seriesProps)}
               {renderCurrentSeries(seriesProps)}
               {renderFormulaSeries(seriesProps)}
-              {renderAnnotations(annotations, compact)}
+              {renderAnnotations(annotations, granularity ?? 'day', compact)}
             </ChartComponent>
           </ResponsiveContainer>
         ) : (
@@ -243,7 +243,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}
                 {renderFormulaSeries(seriesProps)}
-                {renderAnnotations(annotations, compact)}
+                {renderAnnotations(annotations, granularity ?? 'day', compact)}
               </LineChart>
             </ResponsiveContainer>
 
