@@ -8,10 +8,8 @@ import {
   raw,
   count,
   countIf,
-  avgIf,
   and,
   gte,
-  gt,
   or,
   notInSubquery,
   inSubquery,
@@ -25,7 +23,7 @@ import {
   type CompiledQuery,
   type QueryNode,
 } from '@qurvo/ch-query';
-import { resolvePropertyExpr, cohortFilter } from '../query-helpers';
+import { resolvePropertyExpr, cohortFilter, cohortBounds } from '../query-helpers';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
@@ -33,6 +31,8 @@ import {
   buildBaseQueryParams,
   buildSamplingClauseRaw,
   buildStepCondition,
+  avgTimeSecondsExpr,
+  stepsSubquery as buildStepsSubquery,
   toChTs,
   validateExclusions,
   validateUnorderedSteps,
@@ -73,7 +73,8 @@ export async function queryFunnel(
   const ctx = new CompilerContext();
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx)).join(', ');
 
-  const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, toChTs(params.date_to, true), toChTs(params.date_from));
+  const { dateTo, dateFrom } = cohortBounds(params);
+  const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
   const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams, ctx).sql : '';
   // Raw sampling clause for CTE body builders (string-based escape hatch)
   const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
@@ -190,16 +191,7 @@ function buildFunnelQuery(
 
   // Time columns for avg_time_to_convert (only for non-breakdown).
   if (includeTimestampCols) {
-    selectColumns.push(
-      avgIf(
-        raw('(last_step_ms - first_step_ms) / 1000.0'),
-        and(
-          gte(col('max_step'), raw('{num_steps:UInt64}')),
-          gt(col('first_step_ms'), literal(0)),
-          gt(col('last_step_ms'), col('first_step_ms')),
-        ),
-      ).as('avg_time_seconds'),
-    );
+    selectColumns.push(avgTimeSecondsExpr());
   }
 
   // total_bd_count from breakdown_total CTE (for truncation detection)
@@ -210,11 +202,7 @@ function buildFunnelQuery(
   }
 
   // Build the CROSS JOIN subquery for step numbers
-  const stepsSubquery = select(
-    add(col('number'), literal(1)).as('step_num'),
-  )
-    .from('numbers({num_steps:UInt64})')
-    .build();
+  const stepsSubquery = buildStepsSubquery();
 
   // Build WHERE conditions
   const whereConditions: (Expr | undefined)[] = [];

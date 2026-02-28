@@ -18,7 +18,7 @@ import { getTestContext, type ContainerContext } from '../context';
 import { buildCohortSubquery as buildCohortSubqueryNode } from '@qurvo/cohort-query';
 import { compile } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { toChTs } from '../../utils/clickhouse-helpers';
+import { toChTs } from '../../analytics/query-helpers';
 
 /** Local string-returning wrapper around the ch-query builder. */
 function buildCohortSubquery(

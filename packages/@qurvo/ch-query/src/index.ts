@@ -6,6 +6,10 @@ export type {
   RawExpr,
   RawWithParamsExpr,
   FuncCallExpr,
+  ParametricFuncCallExpr,
+  LambdaExpr,
+  IntervalExpr,
+  NamedParamExpr,
   AliasExpr,
   BinaryOp,
   BinaryExpr,
@@ -38,6 +42,10 @@ export {
   func,
   funcDistinct,
   subquery,
+  parametricFunc,
+  lambda,
+  interval,
+  namedParam,
 } from './builders';
 
 // Builders — shortcut functions
@@ -61,6 +69,24 @@ export {
   toString,
 } from './builders';
 
+// Builders — ClickHouse functions
+export {
+  jsonExtractString,
+  jsonExtractRaw,
+  jsonHas,
+  toFloat64OrZero,
+  toDate,
+  parseDateTimeBestEffortOrZero,
+  argMax,
+  dictGetOrNull,
+  lower,
+  match,
+  multiSearchAny,
+  coalesce,
+  arrayExists,
+  arrayMax,
+} from './builders';
+
 // Builders — condition builders
 export {
   and,
@@ -78,6 +104,7 @@ export {
   sub,
   mul,
   div,
+  mod,
   inSubquery,
   notInSubquery,
   inArray,
@@ -86,4 +113,4 @@ export {
 } from './builders';
 
 // Builders — select builder & set operations
-export { select, unionAll, intersect, unionDistinct, SelectBuilder } from './builders';
+export { select, unionAll, intersect, unionDistinct, except, SelectBuilder } from './builders';

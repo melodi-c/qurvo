@@ -1,4 +1,5 @@
 import type { FunnelStep, FunnelStepResult, FunnelBreakdownStepResult } from './funnel.types';
+import { buildEmptyStepResults } from './funnel-sql-shared';
 
 // ── Raw row types from ClickHouse ────────────────────────────────────────────
 
@@ -30,16 +31,7 @@ export function computeStepResults(
   numSteps: number,
 ): FunnelStepResult[] {
   if (rows.length === 0) {
-    return steps.map((s, i) => ({
-      step: i + 1,
-      label: s.label ?? '',
-      event_name: s.event_name,
-      count: 0,
-      conversion_rate: 0,
-      drop_off: 0,
-      drop_off_rate: 0,
-      avg_time_to_convert_seconds: null,
-    }));
+    return buildEmptyStepResults(steps);
   }
   const firstCount = Number(rows[0]?.entered ?? 0);
   return rows.map((row) => {
@@ -141,16 +133,7 @@ export function computeAggregateSteps(
   steps: FunnelStep[],
 ): FunnelStepResult[] {
   if (allBreakdownSteps.length === 0) {
-    return steps.map((s, i) => ({
-      step: i + 1,
-      label: s.label ?? '',
-      event_name: s.event_name,
-      count: 0,
-      conversion_rate: 0,
-      drop_off: 0,
-      drop_off_rate: 0,
-      avg_time_to_convert_seconds: null,
-    }));
+    return buildEmptyStepResults(steps);
   }
   const stepTotals = new Map<number, number>();
   for (const r of allBreakdownSteps) {

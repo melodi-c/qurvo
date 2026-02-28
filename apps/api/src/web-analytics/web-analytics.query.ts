@@ -1,6 +1,27 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod } from '../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
+import type { Expr } from '@qurvo/ch-query';
+import {
+  alias,
+  compile,
+  select,
+  col,
+  raw,
+  count,
+  uniqExact,
+  sum,
+  avg,
+  func,
+  eq,
+  jsonExtractString,
+} from '@qurvo/ch-query';
+import {
+  analyticsWhere,
+  resolvedPerson,
+  bucket,
+  toChTs,
+  shiftPeriod,
+  type PropertyFilter,
+} from '../analytics/query-helpers';
 import { MAX_PATH_NODES } from '../constants';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -79,81 +100,71 @@ function autoGranularity(dateFrom: string, dateTo: string): WebAnalyticsGranular
   return 'month';
 }
 
-
-function buildBaseQueryParams(params: WebAnalyticsQueryParams): Record<string, unknown> {
-  return {
-    project_id: params.project_id,
-    from: toChTs(params.date_from),
+/**
+ * Shared WHERE clause for web-analytics queries.
+ * project_id + time range + event IN ($pageview, $pageleave) + optional filters.
+ */
+function waWhere(params: WebAnalyticsQueryParams): Expr {
+  return analyticsWhere({
+    projectId: params.project_id,
+    from: params.date_from,
     to: toChTs(params.date_to, true),
-  };
-}
-
-function buildFilterConditions(
-  filters: PropertyFilter[] | undefined,
-  queryParams: Record<string, unknown>,
-): string {
-  if (!filters?.length) {return '';}
-  const parts = buildPropertyFilterConditions(filters, 'wa', queryParams);
-  return parts.length ? ' AND ' + parts.join(' AND ') : '';
-}
-
-function prepareQuery(params: WebAnalyticsQueryParams): { queryParams: Record<string, unknown>; filterConditions: string } {
-  const queryParams = buildBaseQueryParams(params);
-  const filterConditions = buildFilterConditions(params.filters, queryParams);
-  return { queryParams, filterConditions };
+    eventNames: ['$pageview', '$pageleave'],
+    filters: params.filters,
+  });
 }
 
 /**
- * Lightweight session CTE for KPIs and timeseries.
- * Only computes metrics needed for overview — no dimension columns.
+ * Shared WHERE clause for direct-dimension queries ($pageview only).
  */
-function buildKpiSessionCTE(
-  filterConditions: string,
-): string {
-  return `
-    session_stats AS (
-      SELECT
-        session_id,
-        countIf(event_name = '$pageview') AS pageview_count,
-        min(timestamp) AS session_start,
-        dateDiff('second', min(timestamp), max(timestamp)) AS duration_seconds,
-        if(countIf(event_name = '$pageview') = 1
-           AND dateDiff('second', min(timestamp), max(timestamp)) < 10, 1, 0) AS is_bounce,
-        any(${RESOLVED_PERSON}) AS resolved_person
-      FROM events
-      WHERE project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
-        AND event_name IN ('$pageview', '$pageleave')
-        ${filterConditions}
-      GROUP BY session_id
-      HAVING pageview_count > 0
-    )`;
+function waWherePageview(params: WebAnalyticsQueryParams): Expr {
+  return analyticsWhere({
+    projectId: params.project_id,
+    from: params.date_from,
+    to: toChTs(params.date_to, true),
+    eventName: '$pageview',
+    filters: params.filters,
+  });
+}
+
+// ── KPI Session CTE ─────────────────────────────────────────────────────────
+
+/**
+ * Lightweight session CTE for KPIs and timeseries.
+ * Returns: session_id, pageview_count, session_start, duration_seconds, is_bounce, resolved_person
+ */
+function buildKpiSessionCTE(params: WebAnalyticsQueryParams) {
+  return select(
+    col('session_id'),
+    func('countIf', eq(raw('event_name'), raw("'$pageview'"))).as('pageview_count'),
+    func('min', raw('timestamp')).as('session_start'),
+    func('dateDiff', raw("'second'"), func('min', raw('timestamp')), func('max', raw('timestamp'))).as('duration_seconds'),
+    raw(`if(countIf(event_name = '$pageview') = 1 AND dateDiff('second', min(timestamp), max(timestamp)) < 10, 1, 0)`).as('is_bounce'),
+    func('any', resolvedPerson()).as('resolved_person'),
+  )
+    .from('events')
+    .where(waWhere(params))
+    .groupBy(col('session_id'))
+    .having(raw('pageview_count > 0'))
+    .build();
 }
 
 /**
  * Session CTE with entry/exit page columns. Used only by paths query.
  */
-function buildPathsSessionCTE(
-  filterConditions: string,
-): string {
-  return `
-    session_stats AS (
-      SELECT
-        session_id,
-        countIf(event_name = '$pageview') AS pageview_count,
-        argMinIf(page_path, timestamp, event_name = '$pageview') AS entry_page,
-        argMaxIf(page_path, timestamp, event_name = '$pageview') AS exit_page,
-        any(${RESOLVED_PERSON}) AS resolved_person
-      FROM events
-      WHERE project_id = {project_id:UUID}
-        AND timestamp >= {from:DateTime64(3)}
-        AND timestamp <= {to:DateTime64(3)}
-        AND event_name IN ('$pageview', '$pageleave')
-        ${filterConditions}
-      GROUP BY session_id
-      HAVING pageview_count > 0
-    )`;
+function buildPathsSessionCTE(params: WebAnalyticsQueryParams) {
+  return select(
+    col('session_id'),
+    func('countIf', eq(raw('event_name'), raw("'$pageview'"))).as('pageview_count'),
+    func('argMinIf', col('page_path'), raw('timestamp'), eq(raw('event_name'), raw("'$pageview'"))).as('entry_page'),
+    func('argMaxIf', col('page_path'), raw('timestamp'), eq(raw('event_name'), raw("'$pageview'"))).as('exit_page'),
+    func('any', resolvedPerson()).as('resolved_person'),
+  )
+    .from('events')
+    .where(waWhere(params))
+    .groupBy(col('session_id'))
+    .having(raw('pageview_count > 0'))
+    .build();
 }
 
 // ── Overview Query ────────────────────────────────────────────────────────────
@@ -186,19 +197,20 @@ function parseKPIs(row: RawKPIRow | undefined): WebAnalyticsKPIs {
 
 async function queryKPIs(
   ch: ClickHouseClient,
-  queryParams: Record<string, unknown>,
-  filterConditions: string,
+  params: WebAnalyticsQueryParams,
 ): Promise<WebAnalyticsKPIs> {
-  const sql = `
-    WITH ${buildKpiSessionCTE(filterConditions)}
-    SELECT
-      uniqExact(resolved_person) AS unique_visitors,
-      sum(pageview_count) AS pageviews,
-      count() AS sessions,
-      avg(duration_seconds) AS avg_duration_seconds,
-      avgIf(is_bounce, 1) AS bounce_rate
-    FROM session_stats`;
+  const kpiNode = select(
+    uniqExact(col('resolved_person')).as('unique_visitors'),
+    sum(col('pageview_count')).as('pageviews'),
+    count().as('sessions'),
+    avg(col('duration_seconds')).as('avg_duration_seconds'),
+    func('avgIf', col('is_bounce'), raw('1')).as('bounce_rate'),
+  )
+    .from('session_stats')
+    .with('session_stats', buildKpiSessionCTE(params))
+    .build();
 
+  const { sql, params: queryParams } = compile(kpiNode);
   const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   const rows = await result.json<RawKPIRow>();
   return parseKPIs(rows[0]);
@@ -209,34 +221,36 @@ export async function queryOverview(
   params: WebAnalyticsQueryParams,
 ): Promise<OverviewResult> {
   const granularity = autoGranularity(params.date_from, params.date_to);
-  const { queryParams, filterConditions } = prepareQuery(params);
 
   // Previous period params
   const prev = shiftPeriod(params.date_from, params.date_to);
-  const prevParams: Record<string, unknown> = {
-    ...queryParams,
-    from: toChTs(prev.from),
-    to: toChTs(prev.to, true),
+  const prevParams: WebAnalyticsQueryParams = {
+    ...params,
+    date_from: prev.from,
+    date_to: prev.to,
   };
 
-  // Timeseries SQL
-  const bucketExpr = granularityTruncExpr(granularity, 'session_start');
-  const tsSql = `
-    WITH ${buildKpiSessionCTE(filterConditions)}
-    SELECT
-      ${bucketExpr} AS bucket,
-      uniqExact(resolved_person) AS unique_visitors,
-      sum(pageview_count) AS pageviews,
-      count() AS sessions
-    FROM session_stats
-    GROUP BY bucket
-    ORDER BY bucket ASC`;
+  // Timeseries query
+  const bucketExpr = bucket(granularity, 'session_start');
+  const tsNode = select(
+    bucketExpr.as('bucket'),
+    uniqExact(col('resolved_person')).as('unique_visitors'),
+    sum(col('pageview_count')).as('pageviews'),
+    count().as('sessions'),
+  )
+    .from('session_stats')
+    .with('session_stats', buildKpiSessionCTE(params))
+    .groupBy(raw('bucket'))
+    .orderBy(raw('bucket'), 'ASC')
+    .build();
+
+  const tsCompiled = compile(tsNode);
 
   // Run all three independent queries in parallel
   const [current, previous, tsResult] = await Promise.all([
-    queryKPIs(ch, { ...queryParams }, filterConditions),
-    queryKPIs(ch, prevParams, filterConditions),
-    ch.query({ query: tsSql, query_params: queryParams, format: 'JSONEachRow' }),
+    queryKPIs(ch, params),
+    queryKPIs(ch, prevParams),
+    ch.query({ query: tsCompiled.sql, query_params: tsCompiled.params, format: 'JSONEachRow' }),
   ]);
 
   const tsRows = await tsResult.json<RawTimeseriesRow>();
@@ -267,64 +281,61 @@ function parseDimensionRows(rows: RawDimensionRow[]): DimensionRow[] {
 }
 
 /**
- * Session-based dimension query (heavy). Only used for entry_page / exit_page
+ * Session-based dimension query. Used for entry_page / exit_page
  * which require argMinIf/argMaxIf across session events.
  */
 async function querySessionDimension(
   ch: ClickHouseClient,
-  queryParams: Record<string, unknown>,
-  filterConditions: string,
+  params: WebAnalyticsQueryParams,
   dimensionExpr: string,
   limit = 20,
 ): Promise<DimensionRow[]> {
-  const dimParams = { ...queryParams, dim_limit: limit };
-  const sql = `
-    WITH ${buildPathsSessionCTE(filterConditions)}
-    SELECT
-      ${dimensionExpr} AS name,
-      uniqExact(resolved_person) AS visitors,
-      sum(pageview_count) AS pageviews
-    FROM session_stats
-    WHERE name != ''
-    GROUP BY name
-    ORDER BY visitors DESC
-    LIMIT {dim_limit:UInt32}`;
+  const node = select(
+    raw(dimensionExpr).as('name'),
+    uniqExact(col('resolved_person')).as('visitors'),
+    sum(col('pageview_count')).as('pageviews'),
+  )
+    .from('session_stats')
+    .with('session_stats', buildPathsSessionCTE(params))
+    .where(raw("name != ''"))
+    .groupBy(raw('name'))
+    .orderBy(raw('visitors'), 'DESC')
+    .limit(limit)
+    .build();
 
-  const result = await ch.query({ query: sql, query_params: dimParams, format: 'JSONEachRow' });
+  const { sql, params: queryParams } = compile(node);
+  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   return parseDimensionRows(await result.json<RawDimensionRow>());
 }
 
 /**
  * Direct event aggregation (lightweight). Used for simple column dimensions
  * (country, browser, os, device_type, referrer, utm_*) — no session grouping needed.
- * Reads only the dimension column + person_id, skipping all other columns.
- * Filters to $pageview only (pageleave needed only for session duration/bounce).
+ * Filters to $pageview only.
  */
 async function queryDirectDimension(
   ch: ClickHouseClient,
-  queryParams: Record<string, unknown>,
-  filterConditions: string,
-  columnExpr: string,
+  params: WebAnalyticsQueryParams,
+  columnExpr: Expr,
   limit = 20,
 ): Promise<DimensionRow[]> {
-  const dimParams = { ...queryParams, dim_limit: limit };
-  const sql = `
-    SELECT
-      ${columnExpr} AS name,
-      uniqExact(${RESOLVED_PERSON}) AS visitors,
-      count() AS pageviews
-    FROM events
-    WHERE project_id = {project_id:UUID}
-      AND timestamp >= {from:DateTime64(3)}
-      AND timestamp <= {to:DateTime64(3)}
-      AND event_name = '$pageview'
-      AND name != ''
-      ${filterConditions}
-    GROUP BY name
-    ORDER BY visitors DESC
-    LIMIT {dim_limit:UInt32}`;
+  const node = select(
+    alias(columnExpr, 'name'),
+    uniqExact(resolvedPerson()).as('visitors'),
+    count().as('pageviews'),
+  )
+    .from('events')
+    .where(
+      waWherePageview(params),
+      raw("name != ''"),
+    )
+    .groupBy(raw('name'))
+    .orderBy(raw('visitors'), 'DESC')
+    .limit(limit)
+    .build();
 
-  const result = await ch.query({ query: sql, query_params: dimParams, format: 'JSONEachRow' });
+  const { sql, params: queryParams } = compile(node);
+  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   return parseDimensionRows(await result.json<RawDimensionRow>());
 }
 
@@ -334,12 +345,10 @@ export async function queryTopPages(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<PathsResult> {
-  const { queryParams, filterConditions } = prepareQuery(params);
-
   const [top_pages, entry_pages, exit_pages] = await Promise.all([
-    queryTopPagesDimension(ch, queryParams, filterConditions),
-    querySessionDimension(ch, { ...queryParams }, filterConditions, 'entry_page'),
-    querySessionDimension(ch, { ...queryParams }, filterConditions, 'exit_page'),
+    queryTopPagesDimension(ch, params),
+    querySessionDimension(ch, params, 'entry_page'),
+    querySessionDimension(ch, params, 'exit_page'),
   ]);
 
   return { top_pages, entry_pages, exit_pages };
@@ -347,33 +356,26 @@ export async function queryTopPages(
 
 async function queryTopPagesDimension(
   ch: ClickHouseClient,
-  queryParams: Record<string, unknown>,
-  filterConditions: string,
+  params: WebAnalyticsQueryParams,
 ): Promise<DimensionRow[]> {
-  // Top pages aggregated from individual pageview events, not sessions
-  const sql = `
-    SELECT
-      page_path AS name,
-      uniqExact(${RESOLVED_PERSON}) AS visitors,
-      count() AS pageviews
-    FROM events
-    WHERE project_id = {project_id:UUID}
-      AND timestamp >= {from:DateTime64(3)}
-      AND timestamp <= {to:DateTime64(3)}
-      AND event_name = '$pageview'
-      AND page_path != ''
-      ${filterConditions}
-    GROUP BY name
-    ORDER BY pageviews DESC
-    LIMIT ${MAX_PATH_NODES}`;
+  const node = select(
+    col('page_path').as('name'),
+    uniqExact(resolvedPerson()).as('visitors'),
+    count().as('pageviews'),
+  )
+    .from('events')
+    .where(
+      waWherePageview(params),
+      raw("page_path != ''"),
+    )
+    .groupBy(raw('name'))
+    .orderBy(raw('pageviews'), 'DESC')
+    .limit(MAX_PATH_NODES)
+    .build();
 
+  const { sql, params: queryParams } = compile(node);
   const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  const rows = await result.json<RawDimensionRow>();
-  return rows.map((r) => ({
-    name: r.name,
-    visitors: Number(r.visitors),
-    pageviews: Number(r.pageviews),
-  }));
+  return parseDimensionRows(await result.json<RawDimensionRow>());
 }
 
 // ── Sources Query ─────────────────────────────────────────────────────────────
@@ -382,13 +384,11 @@ export async function querySources(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<SourcesResult> {
-  const { queryParams, filterConditions } = prepareQuery(params);
-
   const [referrers, utm_sources, utm_mediums, utm_campaigns] = await Promise.all([
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'referrer'),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, `JSONExtractString(properties, 'utm_source')`),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, `JSONExtractString(properties, 'utm_medium')`),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, `JSONExtractString(properties, 'utm_campaign')`),
+    queryDirectDimension(ch, params, col('referrer')),
+    queryDirectDimension(ch, params, jsonExtractString(col('properties'), 'utm_source')),
+    queryDirectDimension(ch, params, jsonExtractString(col('properties'), 'utm_medium')),
+    queryDirectDimension(ch, params, jsonExtractString(col('properties'), 'utm_campaign')),
   ]);
 
   return { referrers, utm_sources, utm_mediums, utm_campaigns };
@@ -400,12 +400,10 @@ export async function queryDevices(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<DevicesResult> {
-  const { queryParams, filterConditions } = prepareQuery(params);
-
   const [device_types, browsers, oses] = await Promise.all([
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'device_type'),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'browser'),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'os'),
+    queryDirectDimension(ch, params, col('device_type')),
+    queryDirectDimension(ch, params, col('browser')),
+    queryDirectDimension(ch, params, col('os')),
   ]);
 
   return { device_types, browsers, oses };
@@ -417,12 +415,10 @@ export async function queryGeography(
   ch: ClickHouseClient,
   params: WebAnalyticsQueryParams,
 ): Promise<GeographyResult> {
-  const { queryParams, filterConditions } = prepareQuery(params);
-
   const [countries, regions, cities] = await Promise.all([
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'country'),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'region'),
-    queryDirectDimension(ch, { ...queryParams }, filterConditions, 'city'),
+    queryDirectDimension(ch, params, col('country')),
+    queryDirectDimension(ch, params, col('region')),
+    queryDirectDimension(ch, params, col('city')),
   ]);
 
   return { countries, regions, cities };

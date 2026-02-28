@@ -7,6 +7,7 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildStepCondition,
+  buildStrictUserFilter,
   funnelTsExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
@@ -58,20 +59,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
   // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
   // doesn't match the current or next expected step. So it must see ALL events for correctness.
   // However, we still pre-filter to users who have at least one funnel step event.
-  const strictUserFilter = [
-    '',
-    '                AND distinct_id IN (',
-    '                  SELECT DISTINCT distinct_id',
-    '                  FROM events',
-    '                  WHERE project_id = {project_id:UUID}',
-    `                    AND timestamp >= ${fromExpr}`,
-    `                    AND timestamp <= ${toExpr}`,
-    '                    AND event_name IN ({all_event_names:Array(String)})',
-    '                )',
-  ].join('\n');
-  const eventNameFilter = orderType === 'strict'
-    ? strictUserFilter
-    : '\n                AND event_name IN ({all_event_names:Array(String)})';
+  const eventNameFilter = buildStrictUserFilter(fromExpr, toExpr, 'all_event_names', orderType);
 
   // Build full step conditions for step 0 and last step.
   const step0Cond = buildStepCondition(steps[0], 0, queryParams, ctx);

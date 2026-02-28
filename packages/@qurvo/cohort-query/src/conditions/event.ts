@@ -1,11 +1,13 @@
 import type { CohortAggregationType, CohortEventCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, and, lte, gte, eq as bEq } from '@qurvo/ch-query';
+import { select, raw } from '@qurvo/ch-query';
 import {
   RESOLVED_PERSON,
   buildEventFilterClauses,
   resolveEventPropertyExpr,
-  buildOperatorClause,
+  buildCountIfCondStr,
+  allocCondIdx,
+  buildEventsBaseSelect,
   resolveDateTo,
   resolveDateFrom,
 } from '../helpers';
@@ -41,10 +43,9 @@ function buildEventZeroCountSubquery(
   cond: CohortEventCondition,
   ctx: BuildContext,
   condIdx: number,
+  eventPk: string,
+  daysPk: string,
 ): SelectNode {
-  const eventPk = `coh_${condIdx}_event`;
-  const daysPk = `coh_${condIdx}_days`;
-
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
   const upperSql = compileExprToSql(upperBound).sql;
@@ -52,27 +53,9 @@ function buildEventZeroCountSubquery(
     ? compileExprToSql(lowerBound).sql
     : `${upperSql} - INTERVAL {${daysPk}:UInt32} DAY`;
 
-  // Build countIf condition parts
-  const countIfParts: string[] = [`event_name = {${eventPk}:String}`];
-  if (cond.event_filters && cond.event_filters.length > 0) {
-    for (let i = 0; i < cond.event_filters.length; i++) {
-      const f = cond.event_filters[i];
-      const pk = `coh_${condIdx}_ef${i}`;
-      const expr = resolveEventPropertyExpr(f.property);
-      const clauseExpr = buildOperatorClause(expr, f.operator, pk, ctx.queryParams, f.value, f.values);
-      countIfParts.push(compileExprToSql(clauseExpr).sql);
-    }
-  }
+  const countIfCond = buildCountIfCondStr(eventPk, condIdx, cond.event_filters, ctx.queryParams);
 
-  const countIfCond = countIfParts.join(' AND ');
-
-  return select(raw(RESOLVED_PERSON).as('person_id'))
-    .from('events')
-    .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`timestamp >= ${lowerBoundSql}`),
-      raw(`timestamp <= ${upperSql}`),
-    )
+  return buildEventsBaseSelect(ctx, upperSql, lowerBoundSql)
     .groupBy(raw('person_id'))
     .having(raw(`countIf(${countIfCond}) = 0`))
     .build();
@@ -82,10 +65,7 @@ export function buildEventConditionSubquery(
   cond: CohortEventCondition,
   ctx: BuildContext,
 ): SelectNode {
-  const condIdx = ctx.counter.value++;
-  const eventPk = `coh_${condIdx}_event`;
-  const countPk = `coh_${condIdx}_count`;
-  const daysPk = `coh_${condIdx}_days`;
+  const { condIdx, eventPk, countPk, daysPk } = allocCondIdx(ctx);
 
   const isCount = !cond.aggregation_type || cond.aggregation_type === 'count';
 
@@ -95,7 +75,7 @@ export function buildEventConditionSubquery(
 
   // Special case: "performed event exactly 0 times"
   if (cond.count_operator === 'eq' && cond.count === 0 && isCount) {
-    return buildEventZeroCountSubquery(cond, ctx, condIdx);
+    return buildEventZeroCountSubquery(cond, ctx, condIdx, eventPk, daysPk);
   }
 
   let countOp: string;

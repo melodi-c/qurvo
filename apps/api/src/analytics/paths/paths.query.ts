@@ -21,8 +21,8 @@ import {
   timeRange,
   resolvedPerson,
   cohortFilter,
+  cohortBounds,
   propertyFilters,
-  toChTs,
 } from '../query-helpers';
 import type { PropertyFilter } from '../query-helpers';
 import { MAX_PATH_NODES } from '../../constants';
@@ -132,8 +132,7 @@ export async function queryPaths(
 
   const stepLimitParam = param('UInt16', params.step_limit);
   const minPersonsParam = param('UInt32', params.min_persons ?? 1);
-  const dateTo = toChTs(params.date_to, true);
-  const dateFrom = toChTs(params.date_from);
+  const { dateTo, dateFrom } = cohortBounds(params);
 
   // CTE 1: ordered_events
   const orderedEvents = select(

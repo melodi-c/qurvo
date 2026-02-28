@@ -6,6 +6,7 @@ import {
   buildStepCondition,
   buildExclusionColumns,
   buildExcludedUsersCTE,
+  buildUnorderedCoverageExprs,
   funnelTsExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
@@ -60,36 +61,9 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS t${i}_arr`,
   ).join(',\n        ');
 
-  // ── Step 2: coverage expression ─────────────────────────────────────────
-  const coverageExpr = (anchorVar: string): string =>
-    steps.map((_, j) =>
-      `if(arrayExists(t${j} -> t${j} >= ${anchorVar} AND t${j} <= ${anchorVar} + ${winExpr}, t${j}_arr), 1, 0)`,
-    ).join(' + ');
-
-  // ── Step 3: max_step — best coverage achievable from any candidate anchor ──
-  const maxFromEachStep = steps.map((_, i) =>
-    `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
-  );
-  const maxStepExpr = maxFromEachStep.length === 1
-    ? maxFromEachStep[0]
-    : `greatest(${maxFromEachStep.join(', ')})`;
-
-  // ── Step 4: anchor_ms — latest anchor achieving full coverage (all N steps) ──
-  let anchorMsExpr: string;
-  if (N === 1) {
-    anchorMsExpr = `if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))`;
-  } else {
-    const fullCovPred = (i: number): string =>
-      `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
-    const maxes = steps.map((_, i) =>
-      `arrayMax(arrayFilter(${fullCovPred(i)}, t${i}_arr))`,
-    );
-    let expr = `toInt64(0)`;
-    for (let i = maxes.length - 1; i >= 0; i--) {
-      expr = `if(toInt64(${maxes[i]}) != 0, toInt64(${maxes[i]}), ${expr})`;
-    }
-    anchorMsExpr = expr;
-  }
+  // ── Steps 2-4: coverage, max_step, anchor_ms — shared with TTC unordered ──
+  const { coverageExpr, maxStepExpr, anchorMsExpr } =
+    buildUnorderedCoverageExprs(N, winExpr, steps);
 
   // ── Step 5: breakdown_value ───────────────────────────────────────────────
   const breakdownArrCol = breakdownExpr

@@ -1,7 +1,7 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
 import { select, raw, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
 import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
@@ -16,8 +16,7 @@ export function buildStoppedPerformingSubquery(
     );
   }
 
-  const condIdx = ctx.counter.value++;
-  const eventPk = `coh_${condIdx}_event`;
+  const { condIdx, eventPk } = allocCondIdx(ctx);
   const recentPk = `coh_${condIdx}_recent`;
   const histPk = `coh_${condIdx}_hist`;
 

@@ -4,7 +4,22 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { buildPropertyFilterConditions } from '../../utils/property-filter';
+import {
+  compile,
+  select,
+  raw,
+  count,
+  func,
+  argMax,
+  toString as chToString,
+} from '@qurvo/ch-query';
+import {
+  projectIs,
+  eventIs,
+  propertyFilters,
+  type PropertyFilter,
+} from '../../analytics/query-helpers';
+import { FORMAT_DATETIME_ISO } from '../../constants';
 
 const argsSchema = z.object({
   filters: z.array(propertyFilterSchema).nullish().describe(
@@ -43,7 +58,7 @@ const MAX_STRING_LENGTH = 60;
 
 function truncateStringValue(value: unknown): unknown {
   if (typeof value === 'string' && value.length > MAX_STRING_LENGTH) {
-    return value.slice(0, MAX_STRING_LENGTH) + '…';
+    return value.slice(0, MAX_STRING_LENGTH) + '\u2026';
   }
   return value;
 }
@@ -78,47 +93,44 @@ export class QueryPersonsTool implements AiTool {
     const limit = Math.min(args.limit ?? 10, 25);
     const orderBy = args.order_by ?? 'event_count';
 
-    const params: Record<string, unknown> = { project_id: projectId, limit };
-    const whereClauses: string[] = ['project_id = {project_id:UUID}'];
+    const formatTs = (col: string) =>
+      func('formatDateTime', raw(col), raw(`'${FORMAT_DATETIME_ISO}'`), raw("'UTC'"));
 
-    if (args.event_name) {
-      params['event_name'] = args.event_name;
-      whereClauses.push('event_name = {event_name:String}');
-    }
-
-    if (args.date_from) {
-      params['date_from'] = args.date_from;
-      whereClauses.push('timestamp >= parseDateTimeBestEffort({date_from:String})');
-    }
-
-    if (args.date_to) {
-      params['date_to'] = args.date_to;
-      whereClauses.push('timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY');
-    }
-
-    if (args.filters?.length) {
-      const filterConditions = buildPropertyFilterConditions(args.filters, 'pf', params);
-      whereClauses.push(...filterConditions);
-    }
+    const builder = select(
+      chToString(raw('person_id')).as('person_id'),
+      argMax(raw('user_properties'), raw('timestamp')).as('user_properties'),
+      count().as('event_count'),
+      formatTs('min(timestamp)').as('first_seen'),
+      formatTs('max(timestamp)').as('last_seen'),
+    )
+      .from('events')
+      .where(
+        projectIs(projectId),
+        args.event_name ? eventIs(args.event_name) : undefined,
+        args.date_from
+          ? raw(`timestamp >= parseDateTimeBestEffort({date_from:String})`)
+          : undefined,
+        args.date_to
+          ? raw(`timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY`)
+          : undefined,
+        args.filters?.length
+          ? propertyFilters(args.filters as PropertyFilter[])
+          : undefined,
+      )
+      .groupBy(raw('person_id'));
 
     const orderExpr =
-      orderBy === 'event_count' ? 'event_count DESC' :
-      orderBy === 'last_seen' ? 'last_seen DESC' :
-      'first_seen DESC';
+      orderBy === 'event_count' ? raw('event_count') :
+      orderBy === 'last_seen' ? raw('last_seen') :
+      raw('first_seen');
+    builder.orderBy(orderExpr, 'DESC');
+    builder.limit(limit);
 
-    const sql = `
-      SELECT
-        toString(person_id) AS person_id,
-        argMax(user_properties, timestamp) AS user_properties,
-        count() AS event_count,
-        formatDateTime(min(timestamp), '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS first_seen,
-        formatDateTime(max(timestamp), '%Y-%m-%dT%H:%i:%S.000Z', 'UTC') AS last_seen
-      FROM events
-      WHERE ${whereClauses.join('\n        AND ')}
-      GROUP BY person_id
-      ORDER BY ${orderExpr}
-      LIMIT {limit:UInt32}
-    `;
+    const { sql, params } = compile(builder.build());
+
+    // Inject date params that are used as raw expressions with manual param syntax
+    if (args.date_from) { params['date_from'] = args.date_from; }
+    if (args.date_to) { params['date_to'] = args.date_to; }
 
     const res = await this.ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
     const rows = await res.json<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>();

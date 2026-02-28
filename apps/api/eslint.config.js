@@ -8,9 +8,7 @@ module.exports = [
     files: [
       '**/analytics/**/*.ts',
       '**/web-analytics/**/*.ts',
-      '**/utils/property-filter.ts',
       '**/utils/pg-property-filter.ts',
-      '**/utils/clickhouse-helpers.ts',
     ],
     rules: {
       complexity: ['error', 30],

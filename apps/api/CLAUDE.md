@@ -129,9 +129,14 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 - `cohort_members FINAL` and `person_static_cohort FINAL` still use FINAL (small tables, correctness matters)
 
 ### Shared Utilities
-`src/utils/` contains shared code used across modules:
-- `clickhouse-helpers.ts` — `granularityTruncExpr()`, `shiftPeriod()`, `buildCohortClause()`, `buildCohortFilterClause()`, `shiftDate()`, `truncateDate()`, `granularityInterval()`
-- `property-filter.ts` — `FilterOperator` type, `PropertyFilter` interface, `buildPropertyFilterConditions()`, `resolvePropertyExpr()`, `resolveNumericPropertyExpr()`
+`src/analytics/query-helpers/` — canonical source for all ClickHouse query utilities:
+- `time.ts` — `toChTs()`, `shiftDate()`, `truncateDate()`, `shiftPeriod()`, `bucket()` (AST), `granularityTruncExpr()` (string), `tsParam()` (AST), `tsExpr()` (string), `granularityInterval()`, `buildFilterClause()`
+- `filters.ts` — `propertyFilter()` / `propertyFilters()` (AST), `buildPropertyFilterConditions()` (string), `resolvePropertyExpr()` (AST), `resolvePropertyExprStr()` (string), `cohortFilter()` (AST), `buildCohortClause()` (string), `DIRECT_COLUMNS`, `FilterOperator`, `PropertyFilter`
+- `resolved-person.ts` — `RESOLVED_PERSON` SQL constant, `resolvedPerson()` AST builder
+- `aggregations.ts` — `baseMetricColumns()`, `aggColumn()`, `numericProperty()`
+- `index.ts` — barrel re-exports for all of the above
+
+`src/utils/` contains remaining shared code:
 - `escape-like.ts` — `escapeLikePattern()` for escaping LIKE wildcards in user input
 - `pg-errors.ts` — `isPgUniqueViolation()` for checking PostgreSQL unique constraint violations
 - `session-cache.ts` — `invalidateUserSessionCaches(db, redis, userId)` — shared between auth and verification modules

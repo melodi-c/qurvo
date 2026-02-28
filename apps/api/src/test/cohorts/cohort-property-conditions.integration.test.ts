@@ -80,8 +80,8 @@ describe('countCohortMembers — person_property conditions', () => {
         timestamp,
       }),
       // user without 'plan' property at all:
-      // JSONExtractString returns '' for absent keys, and '' != 'premium' is true,
-      // so users with no 'plan' property ARE included in neq: 'premium' results.
+      // With JSONHas guard, neq requires the key to exist. Users without the key
+      // are excluded (aligned with analytics filters.ts neq behavior).
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
@@ -99,10 +99,10 @@ describe('countCohortMembers — person_property conditions', () => {
       ],
     });
 
-    // user-b and user-c have plan='free' (not 'premium'), user-no-plan has no 'plan' key at all.
-    // JSONExtractString returns '' for absent keys, '' != 'premium' evaluates to true,
-    // so user-no-plan is INCLUDED in neq results. Total: 3.
-    expect(count).toBe(3);
+    // user-b and user-c have plan='free' (not 'premium').
+    // user-no-plan has no 'plan' key → JSONHas returns false → excluded by neq guard.
+    // Total: 2.
+    expect(count).toBe(2);
   });
 
   it('counts persons matching contains condition', async () => {
@@ -484,7 +484,8 @@ describe('countCohortMembers — numeric and set operators for person_property',
         timestamp,
       }),
       // user with company set to empty string:
-      // is_set is implemented as expr != '' so company='' is treated as NOT set.
+      // With JSONHas, company='' is treated as SET (key exists in JSON).
+      // Aligned with analytics filters.ts is_set behavior.
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
@@ -502,10 +503,11 @@ describe('countCohortMembers — numeric and set operators for person_property',
       ],
     });
 
-    // Only user-with-company qualifies: company='Acme Corp' != ''.
-    // user-without-company: JSONExtractString returns '' for absent key → fails != '' check.
-    // user-empty-company: company='' → fails != '' check, treated same as absent.
-    expect(count).toBe(1);
+    // user-with-company: JSONHas returns true (key exists with value 'Acme Corp').
+    // user-empty-company: JSONHas returns true (key exists, even though value is '').
+    // user-without-company: JSONHas returns false (no 'company' key).
+    // Total: 2.
+    expect(count).toBe(2);
   });
 
   it('is_not_set: counts persons where user_property is absent (empty)', async () => {
@@ -538,8 +540,8 @@ describe('countCohortMembers — numeric and set operators for person_property',
         timestamp,
       }),
       // user with company explicitly set to empty string:
-      // is_not_set is implemented as expr = '' so company='' falls into is_not_set,
-      // same as a completely absent property key.
+      // With NOT JSONHas, company='' is treated as SET (key exists), so NOT is_not_set.
+      // Aligned with analytics filters.ts is_not_set behavior.
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
@@ -557,10 +559,10 @@ describe('countCohortMembers — numeric and set operators for person_property',
       ],
     });
 
-    // user-without-company and another-without-company: no 'company' key, JSONExtractString → '' = ''.
-    // user-empty-company: company='' → '' = '' is true, treated same as absent property.
-    // Total: 3 (absent key and empty string are both classified as is_not_set).
-    expect(count).toBe(3);
+    // user-without-company and another-without-company: no 'company' key → NOT JSONHas = true.
+    // user-empty-company: company='' → JSONHas returns true → NOT JSONHas = false → excluded.
+    // Total: 2 (only truly absent keys are classified as is_not_set).
+    expect(count).toBe(2);
   });
 
   it('gt: counts persons where numeric user_property > threshold', async () => {

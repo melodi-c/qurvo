@@ -10,7 +10,7 @@ import { getTestContext, type ContainerContext } from '../context';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
-import { truncateDate, shiftDate } from '../../utils/clickhouse-helpers';
+import { truncateDate, shiftDate } from '../../analytics/query-helpers';
 import { materializeCohort } from '../cohorts/helpers';
 
 let ctx: ContainerContext;
