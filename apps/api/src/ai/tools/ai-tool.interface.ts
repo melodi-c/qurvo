@@ -25,6 +25,51 @@ export interface AiTool {
 }
 
 /**
+ * Recursively inlines all `$ref` pointers in a JSON Schema object and removes
+ * the `definitions` / `$defs` section. This is required because DeepSeek
+ * Reasoner rejects tool schemas where `anyOf` branches contain `$ref` elements
+ * without a top-level `type` field.
+ *
+ * `zodFunction()` from the openai SDK produces `$ref` entries when serialising
+ * `z.discriminatedUnion()` — this normalisation step resolves them in-place so
+ * every branch carries its own full schema.
+ */
+export function normalizeJsonSchema(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  const defs = (schema.definitions || schema['$defs'] || {}) as Record<
+    string,
+    unknown
+  >;
+
+  function resolveRef(ref: string): unknown {
+    return defs[ref.replace('#/definitions/', '').replace('#/$defs/', '')];
+  }
+
+  function walk(node: unknown): unknown {
+    if (!node || typeof node !== 'object') return node;
+    if (Array.isArray(node)) return node.map(walk);
+
+    const obj = node as Record<string, unknown>;
+
+    if (obj['$ref']) {
+      const resolved = resolveRef(obj['$ref'] as string);
+      if (resolved) return walk(JSON.parse(JSON.stringify(resolved)));
+      return node;
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (key === 'definitions' || key === '$defs') continue;
+      result[key] = walk(val);
+    }
+    return result;
+  }
+
+  return walk(schema) as Record<string, unknown>;
+}
+
+/**
  * Creates cached tool definition + run method builder.
  * Centralises zodFunction call, Zod parse, and ToolCallResult wrapping.
  */
@@ -34,11 +79,25 @@ export function defineTool<T extends z.ZodType>(config: {
   schema: T;
   visualizationType?: string;
 }) {
-  const def = zodFunction({
+  const raw = zodFunction({
     name: config.name,
     parameters: config.schema,
     description: config.description,
   });
+
+  // Normalize the function parameters to inline $ref pointers — required for
+  // DeepSeek Reasoner compatibility (rejects anyOf branches without "type").
+  const def: ChatCompletionTool = {
+    ...raw,
+    function: {
+      ...raw.function,
+      parameters: raw.function.parameters
+        ? normalizeJsonSchema(
+            raw.function.parameters as Record<string, unknown>,
+          )
+        : raw.function.parameters,
+    },
+  };
 
   return {
     name: config.name,
