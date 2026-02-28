@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Sparkles, Plus, MessageSquare, Users, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,17 @@ export function AiListView({ projectId }: { projectId: string }) {
   const deleteMutation = useDeleteConversation(projectId);
   const renameMutation = useRenameConversation(projectId);
   const { isOpen, itemId, itemName, requestDelete, close } = useConfirmDelete();
+
+  const handleDelete = useCallback(async () => {
+    if (!itemId) return;
+    try {
+      await deleteMutation.mutateAsync(itemId);
+      toast.success(t('deleted'));
+    } catch {
+      toast.error(t('deleteFailed'));
+    }
+  }, [itemId, deleteMutation, t]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -260,9 +272,7 @@ export function AiListView({ projectId }: { projectId: string }) {
         title={t('deleteTitle', { name: itemName ?? '' })}
         description={t('deleteDescription')}
         variant="destructive"
-        onConfirm={async () => {
-          if (itemId) await deleteMutation.mutateAsync(itemId);
-        }}
+        onConfirm={handleDelete}
       />
     </div>
   );
