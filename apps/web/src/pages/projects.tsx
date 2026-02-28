@@ -40,7 +40,9 @@ export default function ProjectsPage() {
   const confirmDelete = useConfirmDelete();
 
   const handleCreate = () => {
-    createMutation.mutate({ name }, {
+    const trimmed = name.trim();
+    if (!trimmed) {return;}
+    createMutation.mutate({ name: trimmed }, {
       onSuccess: () => {
         setShowCreate(false);
         setName('');

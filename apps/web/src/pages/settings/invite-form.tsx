@@ -48,7 +48,13 @@ export function InviteForm({ inviteMutation }: InviteFormProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="flex items-end gap-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleInvite();
+          }}
+          className="flex items-end gap-3"
+        >
           <div className="flex-1 space-y-1">
             <Label htmlFor="invite-email" className="text-xs text-muted-foreground">{t('email')}</Label>
             <Input
@@ -73,15 +79,15 @@ export function InviteForm({ inviteMutation }: InviteFormProps) {
             </Select>
           </div>
           <Button
-            onClick={handleInvite}
+            type="submit"
             disabled={inviteMutation.isPending || !inviteEmail.trim()}
           >
             {inviteMutation.isPending ? t('sending') : t('sendInvite')}
           </Button>
-          <Button variant="ghost" onClick={closeForm}>
+          <Button type="button" variant="ghost" onClick={closeForm}>
             {t('cancel')}
           </Button>
-        </div>
+        </form>
       </CardContent>
     </Card>
   );
