@@ -23,9 +23,9 @@ import translations from './[id].translations';
 export default function DashboardBuilderPage() {
   const { t } = useLocalTranslation(translations);
   const { go } = useAppNavigate();
-  const { id } = useParams<{ id: string }>();
-  const { data: dashboard, isLoading } = useDashboard(id!);
-  const { save, isPending } = useSaveDashboard(id!);
+  const { id = '' } = useParams<{ id: string }>();
+  const { data: dashboard, isLoading } = useDashboard(id);
+  const { save, isPending } = useSaveDashboard(id);
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTextDialog, setShowTextDialog] = useState(false);
 

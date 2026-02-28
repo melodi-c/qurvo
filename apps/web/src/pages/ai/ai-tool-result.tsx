@@ -523,14 +523,12 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
           new ClipboardItem({ 'image/png': blob }),
         ]);
         toast.success(t('chartCopied'));
-      } catch (clipboardErr) {
-        console.error('[copyChart]', clipboardErr);
+      } catch {
         const filename = `chart_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.png`;
         downloadChartAsPng(blob, filename);
         toast.success(t('chartDownloaded'));
       }
-    } catch (err) {
-      console.error('[copyChart]', err);
+    } catch {
       toast.error(t('copyError'));
     } finally {
       setIsCopyingChart(false);
