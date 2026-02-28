@@ -10,8 +10,8 @@ import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import translations from './api-keys-tab.translations';
 
 export function ApiKeysTab({ projectId }: { projectId: string }) {
-  const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
   const { t } = useLocalTranslation(translations);
+  const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
