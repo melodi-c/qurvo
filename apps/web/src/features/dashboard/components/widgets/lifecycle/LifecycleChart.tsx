@@ -9,10 +9,12 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import type { LifecycleResult } from '@/api/generated/Api';
 import { CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { LIFECYCLE_STATUS_COLORS } from './lifecycle-shared';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './LifecycleChart.translations';
@@ -38,7 +40,9 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
     [result.data],
   );
 
-  if (data.length === 0) {return null;}
+  if (data.length === 0) {
+    return <EmptyState icon={BarChart3} description={t('noData')} />;
+  }
 
   const height = compact ? 160 : 300;
 
