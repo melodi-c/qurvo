@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import type { InsightType, CreateInsight } from '@/api/generated/Api';
 
 interface UseInsightEditorOptions<T extends CreateInsight['config']> {
@@ -32,14 +33,31 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   const [config, setConfig] = useState<T>(defaultConfig);
   const initialized = useRef(isNew);
 
+  // Track initial state for isDirty computation
+  const initialState = useRef({ name: defaultName, description: '', config: defaultConfig() });
+
   useEffect(() => {
     if (!initialized.current && insight) {
       setName(insight.name);
       setDescription(insight.description ?? '');
       setConfig(insight.config as T);
+      initialState.current = {
+        name: insight.name,
+        description: insight.description ?? '',
+        config: insight.config as T,
+      };
       initialized.current = true;
     }
   }, [insight]);
+
+  const isDirty = useMemo(() => {
+    const initial = initialState.current;
+    if (name !== initial.name) return true;
+    if (description !== initial.description) return true;
+    return JSON.stringify(config) !== JSON.stringify(initial.config);
+  }, [name, description, config]);
+
+  const unsavedGuard = useUnsavedChangesGuard(isDirty);
 
   const createMutation = useCreateInsight();
   const updateMutation = useUpdateInsight();
@@ -62,6 +80,8 @@ export function useInsightEditor<T extends CreateInsight['config']>({
           data: { name, description: description || undefined, config: config_ },
         });
       }
+      // Mark current state as clean before navigating away
+      initialState.current = { name, description, config };
       go.insights.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
@@ -91,5 +111,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     isConfigValid,
     isValid,
     showSkeleton,
+    isDirty,
+    unsavedGuard,
   };
 }

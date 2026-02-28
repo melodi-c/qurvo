@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { UsersRound, Loader2, AlertTriangle, Copy, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,12 +20,14 @@ import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useDuplicateAsStatic } from '@/features/cohorts/hooks/use-cohorts';
 import { cn, extractApiErrorMessage } from '@/lib/utils';
 import translations from './cohort-editor.translations';
+import guardTranslations from '@/hooks/use-unsaved-changes-guard.translations';
 import { useCohortEditor } from '@/features/cohorts/hooks/use-cohort-editor';
 
 type TabId = 'overview' | 'members';
 
 export default function CohortEditorPage() {
   const { t } = useLocalTranslation(translations);
+  const { t: tGuard } = useLocalTranslation(guardTranslations);
   const [urlTab, setTab] = useUrlTab<TabId>('overview', ['overview', 'members']);
   const { go } = useAppNavigate();
   const duplicateMutation = useDuplicateAsStatic();
@@ -53,6 +56,7 @@ export default function CohortEditorPage() {
     isValid,
     saveError,
     handleSave,
+    unsavedGuard,
   } = useCohortEditor();
 
   const handleDuplicateAsStatic = async () => {
@@ -305,6 +309,17 @@ export default function CohortEditorPage() {
           </main>
         )}
       </div>
+
+      <ConfirmDialog
+        open={unsavedGuard.showDialog}
+        onOpenChange={(open) => { if (!open) unsavedGuard.cancelNavigation(); }}
+        title={tGuard('title')}
+        description={tGuard('description')}
+        confirmLabel={tGuard('confirm')}
+        cancelLabel={tGuard('cancel')}
+        variant="default"
+        onConfirm={unsavedGuard.confirmNavigation}
+      />
     </div>
   );
 }

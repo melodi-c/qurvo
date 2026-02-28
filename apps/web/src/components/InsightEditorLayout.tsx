@@ -4,10 +4,12 @@ import { SlidersHorizontal, X, Download } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightEditorLayout.translations';
+import guardTranslations from '@/hooks/use-unsaved-changes-guard.translations';
 
 interface InsightEditorLayoutProps {
   /** EditorHeader props */
@@ -55,6 +57,13 @@ interface InsightEditorLayoutProps {
 
   /** Optional CSV export callback. When provided, shows an Export CSV button. */
   onExportCsv?: () => void;
+
+  /** Unsaved changes guard state from useUnsavedChangesGuard */
+  unsavedGuard?: {
+    showDialog: boolean;
+    confirmNavigation: () => void;
+    cancelNavigation: () => void;
+  };
 }
 
 export function InsightEditorLayout({
@@ -86,8 +95,10 @@ export function InsightEditorLayout({
   children,
   chartClassName = 'flex-1 overflow-auto p-6',
   onExportCsv,
+  unsavedGuard,
 }: InsightEditorLayoutProps): ReactNode {
   const { t } = useLocalTranslation(translations);
+  const { t: tGuard } = useLocalTranslation(guardTranslations);
   const [panelOpen, setPanelOpen] = useState(false);
 
   return (
@@ -185,6 +196,19 @@ export function InsightEditorLayout({
           )}
         </main>
       </div>
+
+      {unsavedGuard && (
+        <ConfirmDialog
+          open={unsavedGuard.showDialog}
+          onOpenChange={(open) => { if (!open) unsavedGuard.cancelNavigation(); }}
+          title={tGuard('title')}
+          description={tGuard('description')}
+          confirmLabel={tGuard('confirm')}
+          cancelLabel={tGuard('cancel')}
+          variant="default"
+          onConfirm={unsavedGuard.confirmNavigation}
+        />
+      )}
     </div>
   );
 }
