@@ -12,7 +12,7 @@ const argsSchema = z.object({
     y: z.number().int().min(0).describe('Row position (0-based)'),
     w: z.number().int().min(1).describe('Width in grid columns'),
     h: z.number().int().min(1).describe('Height in grid rows'),
-  }).optional().describe('Optional grid position and size. Defaults to x:0, y:0, w:6, h:4'),
+  }).nullish().describe('Optional grid position and size. Defaults to x:0, y:0, w:6, h:4'),
 });
 
 const tool = defineTool({

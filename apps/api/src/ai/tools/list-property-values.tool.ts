@@ -14,10 +14,10 @@ const argsSchema = z.object({
   property_type: z.enum(['event', 'person']).describe(
     'Whether this is an event property (from events table) or a person property (from person profiles)',
   ),
-  event_name: z.string().optional().describe(
+  event_name: z.string().nullish().describe(
     'Optional: scope event property values to a specific event name. Only applies when property_type is "event".',
   ),
-  limit: z.number().int().min(1).max(50).optional().describe(
+  limit: z.number().int().min(1).max(50).nullish().describe(
     'Maximum number of distinct values to return, sorted by occurrence count descending. Default: 20.',
   ),
 });

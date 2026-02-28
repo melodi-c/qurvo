@@ -10,8 +10,8 @@ import { buildCohortSubquery } from '@qurvo/cohort-query';
 
 const argsSchema = z.object({
   cohort_id: z.string().uuid().describe('UUID of the cohort to query'),
-  limit: z.number().int().min(1).max(100).optional().describe('Max number of members to return when include_members is true (default 20, max 100)'),
-  include_members: z.boolean().optional().describe('Whether to include the member list with person details (default false — returns count only)'),
+  limit: z.number().int().min(1).max(100).nullish().describe('Max number of members to return when include_members is true (default 20, max 100)'),
+  include_members: z.boolean().nullish().describe('Whether to include the member list with person details (default false — returns count only)'),
 });
 
 const tool = defineTool({

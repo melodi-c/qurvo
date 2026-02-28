@@ -9,15 +9,15 @@ import type { AiTool } from './ai-tool.interface';
 const argsSchema = z.object({
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  step_limit: z.number().int().min(3).max(10).optional().default(5)
+  step_limit: z.number().int().min(3).max(10).nullish()
     .describe('Maximum number of steps in the path (3-10, default 5)'),
-  start_event: z.string().optional()
+  start_event: z.string().nullish()
     .describe('Anchor start point — only show paths starting from this event'),
-  end_event: z.string().optional()
+  end_event: z.string().nullish()
     .describe('Anchor end point — only show paths ending at this event'),
-  exclusions: z.array(z.string()).optional()
+  exclusions: z.array(z.string()).nullish()
     .describe('Event names to exclude from paths'),
-  min_persons: z.number().int().min(1).optional()
+  min_persons: z.number().int().min(1).nullish()
     .describe('Minimum person count per transition (default 1)'),
 });
 
@@ -42,7 +42,7 @@ export class PathsTool implements AiTool {
   definition() { return tool.definition; }
 
   run = tool.createRun(async (args, userId, projectId) => {
-    const result = await this.pathsService.query({ project_id: projectId, ...args });
+    const result = await this.pathsService.query({ project_id: projectId, ...args, step_limit: args.step_limit ?? 5 });
     return result.data;
   });
 }

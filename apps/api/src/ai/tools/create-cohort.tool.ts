@@ -33,8 +33,8 @@ const cohortPropertyOperatorSchema = z.enum([
 const cohortEventFilterSchema = z.object({
   property: z.string().describe('Event property name (e.g. "properties.plan", "country")'),
   operator: cohortPropertyOperatorSchema.describe('Filter operator'),
-  value: z.string().optional().describe('Single value for comparison'),
-  values: z.array(z.string()).optional().describe('Multiple values for "in"/"not_in"/"contains_multi"/"not_contains_multi" operators'),
+  value: z.string().nullish().describe('Single value for comparison'),
+  values: z.array(z.string()).nullish().describe('Multiple values for "in"/"not_in"/"contains_multi"/"not_contains_multi" operators'),
 });
 
 // ── Leaf condition schemas (no nesting) ─────────────────────────────────────
@@ -45,17 +45,17 @@ const eventConditionSchema = z.object({
   count_operator: z.enum(['gte', 'lte', 'eq']).describe('How to compare event count: gte (at least), lte (at most), eq (exactly)'),
   count: z.number().int().min(0).describe('Event count threshold'),
   time_window_days: z.number().int().min(1).describe('Look-back window in days'),
-  event_filters: z.array(cohortEventFilterSchema).optional().describe('Optional filters on event properties'),
-  aggregation_type: z.enum(['count', 'sum', 'avg', 'min', 'max', 'median', 'p75', 'p90', 'p95', 'p99']).optional().describe('Aggregation for numeric property (default: count of events)'),
-  aggregation_property: z.string().optional().describe('Property to aggregate when aggregation_type is not count'),
+  event_filters: z.array(cohortEventFilterSchema).nullish().describe('Optional filters on event properties'),
+  aggregation_type: z.enum(['count', 'sum', 'avg', 'min', 'max', 'median', 'p75', 'p90', 'p95', 'p99']).nullish().describe('Aggregation for numeric property (default: count of events)'),
+  aggregation_property: z.string().nullish().describe('Property to aggregate when aggregation_type is not count'),
 });
 
 const personPropertyConditionSchema = z.object({
   type: z.literal('person_property'),
   property: z.string().describe('Person property name (e.g. "plan", "country")'),
   operator: cohortPropertyOperatorSchema.describe('Filter operator'),
-  value: z.string().optional().describe('Single value to compare against'),
-  values: z.array(z.string()).optional().describe('Multiple values for "in"/"not_in" operators'),
+  value: z.string().nullish().describe('Single value to compare against'),
+  values: z.array(z.string()).nullish().describe('Multiple values for "in"/"not_in" operators'),
 });
 
 const cohortConditionSchema = z.object({
@@ -68,21 +68,21 @@ const firstTimeEventConditionSchema = z.object({
   type: z.literal('first_time_event'),
   event_name: z.string().describe('Name of the event'),
   time_window_days: z.number().int().min(1).describe('Window in which the first occurrence must fall'),
-  event_filters: z.array(cohortEventFilterSchema).optional().describe('Optional filters on event properties'),
+  event_filters: z.array(cohortEventFilterSchema).nullish().describe('Optional filters on event properties'),
 });
 
 const notPerformedEventConditionSchema = z.object({
   type: z.literal('not_performed_event'),
   event_name: z.string().describe('Name of the event the person must NOT have performed'),
   time_window_days: z.number().int().min(1).describe('Look-back window in days'),
-  event_filters: z.array(cohortEventFilterSchema).optional().describe('Optional filters on event properties'),
+  event_filters: z.array(cohortEventFilterSchema).nullish().describe('Optional filters on event properties'),
 });
 
 const eventSequenceConditionSchema = z.object({
   type: z.literal('event_sequence'),
   steps: z.array(z.object({
     event_name: z.string(),
-    event_filters: z.array(cohortEventFilterSchema).optional(),
+    event_filters: z.array(cohortEventFilterSchema).nullish(),
   })).min(2).describe('Ordered list of events the person must have performed in sequence'),
   time_window_days: z.number().int().min(1).describe('Window in which the full sequence must occur'),
 });
@@ -91,7 +91,7 @@ const notPerformedEventSequenceConditionSchema = z.object({
   type: z.literal('not_performed_event_sequence'),
   steps: z.array(z.object({
     event_name: z.string(),
-    event_filters: z.array(cohortEventFilterSchema).optional(),
+    event_filters: z.array(cohortEventFilterSchema).nullish(),
   })).min(2).describe('Ordered list of events the person must NOT have completed in sequence'),
   time_window_days: z.number().int().min(1).describe('Window in which the sequence check applies'),
 });
@@ -103,7 +103,7 @@ const performedRegularlyConditionSchema = z.object({
   total_periods: z.number().int().min(1).describe('Total number of periods to evaluate'),
   min_periods: z.number().int().min(1).describe('Minimum number of those periods in which the event must occur'),
   time_window_days: z.number().int().min(1).describe('Overall look-back window in days'),
-  event_filters: z.array(cohortEventFilterSchema).optional().describe('Optional filters on event properties'),
+  event_filters: z.array(cohortEventFilterSchema).nullish().describe('Optional filters on event properties'),
 });
 
 const stoppedPerformingConditionSchema = z.object({
@@ -111,7 +111,7 @@ const stoppedPerformingConditionSchema = z.object({
   event_name: z.string().describe('Name of the event'),
   recent_window_days: z.number().int().min(1).describe('Recent period in which event must NOT appear'),
   historical_window_days: z.number().int().min(1).describe('Historical period in which event must have appeared'),
-  event_filters: z.array(cohortEventFilterSchema).optional().describe('Optional filters on event properties'),
+  event_filters: z.array(cohortEventFilterSchema).nullish().describe('Optional filters on event properties'),
 });
 
 const restartedPerformingConditionSchema = z.object({
@@ -120,7 +120,7 @@ const restartedPerformingConditionSchema = z.object({
   recent_window_days: z.number().int().min(1).describe('Recent period in which event must reappear'),
   gap_window_days: z.number().int().min(1).describe('Gap period in between where event was absent'),
   historical_window_days: z.number().int().min(1).describe('Historical period before the gap'),
-  event_filters: z.array(cohortEventFilterSchema).optional().describe('Optional filters on event properties'),
+  event_filters: z.array(cohortEventFilterSchema).nullish().describe('Optional filters on event properties'),
 });
 
 // All leaf condition options (no group wrappers) — used to build the flat union
@@ -182,7 +182,7 @@ const definitionSchema = z.object({
 
 const argsSchema = z.object({
   name: z.string().min(1).max(200).describe('Cohort name, e.g. "Power users", "Churned last 30 days"'),
-  description: z.string().max(1000).optional().describe('Optional human-readable description of who this cohort captures'),
+  description: z.string().max(1000).nullish().describe('Optional human-readable description of who this cohort captures'),
   definition: definitionSchema.describe(
     'Cohort definition. Top-level is always { type: "AND"|"OR", values: [...] }. ' +
     'Items in values can be leaf conditions or nested AND/OR groups (one level deep).',

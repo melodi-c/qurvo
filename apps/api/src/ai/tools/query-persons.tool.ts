@@ -7,25 +7,25 @@ import type { AiTool } from './ai-tool.interface';
 import { buildPropertyFilterConditions } from '../../utils/property-filter';
 
 const argsSchema = z.object({
-  filters: z.array(propertyFilterSchema).optional().describe(
+  filters: z.array(propertyFilterSchema).nullish().describe(
     'Optional filters to narrow down persons by property values. ' +
     'Use "user_properties.<key>" for person/user properties (e.g. "user_properties.plan"), ' +
     'or "properties.<key>" for event properties (e.g. "properties.browser"), ' +
     'or direct columns like "browser", "country", "device_type".',
   ),
-  event_name: z.string().optional().describe(
+  event_name: z.string().nullish().describe(
     'Optional: only include persons who performed this specific event.',
   ),
-  date_from: z.string().optional().describe(
+  date_from: z.string().nullish().describe(
     'Start of date range in YYYY-MM-DD format. Filters event activity within this window.',
   ),
-  date_to: z.string().optional().describe(
+  date_to: z.string().nullish().describe(
     'End of date range in YYYY-MM-DD format. Filters event activity within this window.',
   ),
-  order_by: z.enum(['event_count', 'last_seen', 'first_seen']).optional().describe(
+  order_by: z.enum(['event_count', 'last_seen', 'first_seen']).nullish().describe(
     'Sort order for results. Defaults to "event_count" (most active users first).',
   ),
-  limit: z.number().int().min(1).max(25).optional().describe(
+  limit: z.number().int().min(1).max(25).nullish().describe(
     'Maximum number of persons to return. Default: 10, max: 25.',
   ),
 });

@@ -22,8 +22,8 @@ const argsSchema = z.object({
   segment_b_filters: z.array(propertyFilterSchema).min(1).describe(
     'Filters defining segment B. Use "properties.<key>" for event properties or direct columns like "country", "device_type"',
   ),
-  segment_a_name: z.string().optional().describe('Display name for segment A (default: "Segment A")'),
-  segment_b_name: z.string().optional().describe('Display name for segment B (default: "Segment B")'),
+  segment_a_name: z.string().nullish().describe('Display name for segment A (default: "Segment A")'),
+  segment_b_name: z.string().nullish().describe('Display name for segment B (default: "Segment B")'),
 });
 
 const tool = defineTool({

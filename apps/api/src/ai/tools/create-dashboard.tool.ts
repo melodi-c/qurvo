@@ -6,7 +6,7 @@ import type { AiTool } from './ai-tool.interface';
 
 const argsSchema = z.object({
   name: z.string().min(1).max(255).describe('Dashboard name, e.g. "Marketing Q1", "User Acquisition"'),
-  description: z.string().max(1000).optional().describe('Optional description of the dashboard purpose'),
+  description: z.string().max(1000).nullish().describe('Optional description of the dashboard purpose'),
 });
 
 const tool = defineTool({

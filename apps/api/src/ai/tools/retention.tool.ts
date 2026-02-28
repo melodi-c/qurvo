@@ -10,7 +10,7 @@ const argsSchema = z.object({
   target_event: z.string().describe('Event to track retention for'),
   retention_type: z.enum(['first_time', 'recurring']).describe('first_time = cohort by first event; recurring = any repeat'),
   granularity: z.enum(['day', 'week', 'month']).describe('Period granularity'),
-  periods: z.number().min(1).max(30).optional().describe('Number of periods to show (1-30). Default: 11'),
+  periods: z.number().min(1).max(30).nullish().describe('Number of periods to show (1-30). Default: 11'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
 });

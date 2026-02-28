@@ -10,12 +10,12 @@ const argsSchema = z.object({
   steps: z.array(z.object({
     event_name: z.string().describe('Event name for this funnel step'),
     label: z.string().describe('Display label for this step'),
-    filters: z.array(propertyFilterSchema).optional().describe('Optional filters to narrow down events by property values'),
+    filters: z.array(propertyFilterSchema).nullish().describe('Optional filters to narrow down events by property values'),
   })).min(2).max(10).describe('Ordered funnel steps'),
-  conversion_window_days: z.number().min(1).max(90).optional().describe('Max days allowed for conversion (1-90). Default: 14'),
+  conversion_window_days: z.number().min(1).max(90).nullish().describe('Max days allowed for conversion (1-90). Default: 14'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  breakdown_property: z.string().optional().describe('Optional property to break down by'),
+  breakdown_property: z.string().nullish().describe('Optional property to break down by'),
 });
 
 const tool = defineTool({

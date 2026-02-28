@@ -11,9 +11,9 @@ const argsSchema = z.object({
   event_b: z.string().describe('The target event that must occur AFTER event_a (e.g. "purchase")'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  buckets: z.number().int().min(2).max(50).optional().default(10)
+  buckets: z.number().int().min(2).max(50).nullish()
     .describe('Number of histogram buckets. Default: 10'),
-  max_days: z.number().int().min(1).max(365).optional().default(90)
+  max_days: z.number().int().min(1).max(365).nullish()
     .describe('Ignore pairs with an interval longer than N days. Default: 90'),
 });
 

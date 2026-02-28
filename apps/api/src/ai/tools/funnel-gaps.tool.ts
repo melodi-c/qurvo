@@ -12,7 +12,7 @@ const argsSchema = z.object({
   end_event: z.string().describe('The conversion event of the funnel (e.g. "activation")'),
   date_from: z.string().describe('Start date in ISO format (YYYY-MM-DD)'),
   date_to: z.string().describe('End date in ISO format (YYYY-MM-DD)'),
-  max_results: z.number().int().min(1).max(50).optional().default(10)
+  max_results: z.number().int().min(1).max(50).nullish()
     .describe('Maximum number of events to return, ranked by |lift|. Default: 10'),
 });
 
