@@ -1,7 +1,10 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, buildCohortClause, buildFilterClause, tsExpr } from '../../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
+import {
+  select, col, count, uniqExact, compile,
+  analyticsWhere, bucket, resolvedPerson,
+  type PropertyFilter,
+} from '@qurvo/ch-query';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -114,41 +117,31 @@ export async function queryStickiness(
   ch: ClickHouseClient,
   params: StickinessQueryParams,
 ): Promise<StickinessQueryResult> {
-  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
-  const queryParams: Record<string, unknown> = {
-    project_id: params.project_id,
-    target_event: params.target_event,
-  };
-  if (hasTz) queryParams['tz'] = params.timezone;
+  const personPeriods = select(
+    resolvedPerson().as('person_id'),
+    uniqExact(bucket(params.granularity, 'timestamp', params.timezone)).as('active_periods'),
+  )
+    .from('events')
+    .where(analyticsWhere({
+      projectId: params.project_id,
+      from: params.date_from,
+      to: params.date_to,
+      tz: params.timezone,
+      eventName: params.target_event,
+      filters: params.event_filters,
+      cohortFilters: params.cohort_filters,
+    }))
+    .groupBy(col('person_id'))
+    .build();
 
-  queryParams['from'] = toChTs(params.date_from, false, params.timezone);
-  queryParams['to'] = toChTs(params.date_to, true, params.timezone);
+  const query = select(col('active_periods'), count().as('user_count'))
+    .with('person_active_periods', personPeriods)
+    .from('person_active_periods')
+    .groupBy(col('active_periods'))
+    .orderBy(col('active_periods'))
+    .build();
 
-  const fromExpr = tsExpr('from', 'tz', hasTz);
-  const toExpr = tsExpr('to', 'tz', hasTz);
-  const truncExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
-
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true, params.timezone), toChTs(params.date_from, false, params.timezone));
-
-  const eventFilterConditions = buildPropertyFilterConditions(params.event_filters ?? [], 'ef', queryParams);
-  const eventFilterClause = buildFilterClause(eventFilterConditions);
-
-  const sql = `
-    WITH person_active_periods AS (
-      SELECT ${RESOLVED_PERSON} AS person_id,
-             uniqExact(${truncExpr}) AS active_periods
-      FROM events
-      WHERE project_id = {project_id:UUID}
-        AND event_name = {target_event:String}
-        AND timestamp >= ${fromExpr}
-        AND timestamp <= ${toExpr}${eventFilterClause}${cohortClause}
-      GROUP BY person_id
-    )
-    SELECT active_periods, count() AS user_count
-    FROM person_active_periods
-    GROUP BY active_periods
-    ORDER BY active_periods`;
-
+  const { sql, params: queryParams } = compile(query);
   const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   const rows = await result.json<RawStickinessRow>();
 
