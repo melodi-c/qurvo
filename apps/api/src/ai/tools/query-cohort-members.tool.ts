@@ -6,7 +6,8 @@ import type { CohortConditionGroup } from '@qurvo/db';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { buildCohortSubquery, compile } from '@qurvo/ch-query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 
 const argsSchema = z.object({
   cohort_id: z.string().uuid().describe('UUID of the cohort to query'),

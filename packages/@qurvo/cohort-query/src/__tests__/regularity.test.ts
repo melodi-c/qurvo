@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildPerformedRegularlySubquery } from '../../cohort/conditions/regularity';
-import { compile } from '../../compiler';
-import type { BuildContext } from '../../cohort/types';
+import { buildPerformedRegularlySubquery } from '../conditions/regularity';
+import { compile } from '@qurvo/ch-query';
+import type { BuildContext } from '../types';
 
 function makeCtx(dateTo?: string): BuildContext {
   return {

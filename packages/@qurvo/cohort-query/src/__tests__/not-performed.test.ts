@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildNotPerformedEventSubquery } from '../../cohort/conditions/not-performed';
-import { compile } from '../../compiler';
-import type { BuildContext } from '../../cohort/types';
+import { buildNotPerformedEventSubquery } from '../conditions/not-performed';
+import { compile } from '@qurvo/ch-query';
+import type { BuildContext } from '../types';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {

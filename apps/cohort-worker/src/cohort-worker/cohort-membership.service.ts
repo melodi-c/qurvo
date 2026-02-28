@@ -5,7 +5,7 @@ import { Queue, type QueueEvents } from 'bullmq';
 import Redis from 'ioredis';
 import { PeriodicWorkerMixin } from '@qurvo/worker-core';
 import { Heartbeat } from '@qurvo/heartbeat';
-import { topologicalSortCohorts, groupCohortsByLevel } from '@qurvo/ch-query';
+import { topologicalSortCohorts, groupCohortsByLevel } from '@qurvo/cohort-query';
 import { type DistributedLock } from '@qurvo/distributed-lock';
 import { REDIS } from '@qurvo/nestjs-infra';
 import {

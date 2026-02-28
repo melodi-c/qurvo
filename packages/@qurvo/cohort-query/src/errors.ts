@@ -3,7 +3,7 @@
  * field values that passed DTO validation (defence-in-depth guard).
  *
  * This is a plain Error subclass with no NestJS or HTTP dependencies so that
- * `@qurvo/ch-query` stays a pure TypeScript library.
+ * `@qurvo/cohort-query` stays a pure TypeScript library.
  *
  * The API layer catches this and re-throws as `AppBadRequestException`
  * (HTTP 400), so callers receive a proper 400 instead of a 500.

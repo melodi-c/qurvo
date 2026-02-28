@@ -1,8 +1,8 @@
 import type { CohortEventSequenceCondition } from '@qurvo/db';
-import type { SelectNode } from '../../ast';
-import { select, raw } from '../../builders';
+import type { SelectNode } from '@qurvo/ch-query';
+import { select, raw } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, resolveDateTo } from '../helpers';
-import { compileExprToSql } from '../../compiler';
+import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 

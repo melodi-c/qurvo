@@ -1,6 +1,6 @@
 import type { CohortPropertyCondition } from '@qurvo/db';
-import type { SelectNode } from '../../ast';
-import { select, raw, lte } from '../../builders';
+import type { SelectNode } from '@qurvo/ch-query';
+import { select, raw, lte } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, resolvePropertyExpr, buildOperatorClause, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 

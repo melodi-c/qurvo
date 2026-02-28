@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildCohortRefConditionSubquery } from '../../cohort/conditions/cohort-ref';
-import { compile } from '../../compiler';
-import type { BuildContext } from '../../cohort/types';
+import { buildCohortRefConditionSubquery } from '../conditions/cohort-ref';
+import { compile } from '@qurvo/ch-query';
+import type { BuildContext } from '../types';
 import type { CohortCohortCondition } from '@qurvo/db';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {

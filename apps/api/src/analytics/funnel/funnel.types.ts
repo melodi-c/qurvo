@@ -1,4 +1,4 @@
-import type { CohortFilterInput } from '@qurvo/ch-query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import type { PropertyFilter } from '../query-helpers';
 

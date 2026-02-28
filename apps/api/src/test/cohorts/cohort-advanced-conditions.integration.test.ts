@@ -8,7 +8,8 @@ import {
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import { countCohortMembers } from '../../cohorts/cohorts.query';
-import { buildCohortSubquery, compile } from '@qurvo/ch-query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 
 /**

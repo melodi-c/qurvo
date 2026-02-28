@@ -1,8 +1,8 @@
 import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
-import type { Expr, QueryNode, SelectNode } from '../ast';
-import { select, raw, rawWithParams, and, intersect, unionDistinct, inSubquery } from '../builders';
-import { compile } from '../compiler';
+import type { Expr, QueryNode, SelectNode } from '@qurvo/ch-query';
+import { select, raw, rawWithParams, and, intersect, unionDistinct, inSubquery } from '@qurvo/ch-query';
+import { compile } from '@qurvo/ch-query';
 import { RESOLVED_PERSON } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
 import { buildPropertyConditionSubquery } from './conditions/property';

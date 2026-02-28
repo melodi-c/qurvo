@@ -15,7 +15,8 @@ import {
   DAY_MS,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import { buildCohortSubquery as buildCohortSubqueryNode, compile } from '@qurvo/ch-query';
+import { buildCohortSubquery as buildCohortSubqueryNode } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { toChTs } from '../../utils/clickhouse-helpers';
 

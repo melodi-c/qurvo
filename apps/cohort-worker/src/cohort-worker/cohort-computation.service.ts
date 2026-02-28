@@ -3,7 +3,8 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { eq, and, or, isNull, lt, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery, compile } from '@qurvo/ch-query';
+import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 import { CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import { COHORT_STALE_THRESHOLD_MINUTES, COHORT_MAX_ERRORS } from '../constants';
 

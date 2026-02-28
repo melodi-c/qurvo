@@ -1,6 +1,6 @@
 import type { CohortNotPerformedEventCondition } from '@qurvo/db';
-import type { SelectNode } from '../../ast';
-import { select, raw } from '../../builders';
+import type { SelectNode } from '@qurvo/ch-query';
+import { select, raw } from '@qurvo/ch-query';
 import {
   RESOLVED_PERSON,
   resolveEventPropertyExpr,
@@ -8,7 +8,7 @@ import {
   resolveDateTo,
   resolveDateFrom,
 } from '../helpers';
-import { compileExprToSql } from '../../compiler';
+import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
 export function buildNotPerformedEventSubquery(

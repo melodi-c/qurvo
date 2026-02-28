@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type { CohortFilterInput } from '@qurvo/ch-query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import {
   select,
   unionAll,

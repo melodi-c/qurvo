@@ -1,6 +1,6 @@
 import type { CohortAggregationType, CohortEventCondition } from '@qurvo/db';
-import type { Expr, SelectNode } from '../../ast';
-import { select, raw, rawWithParams, and, lte, gte, eq as bEq } from '../../builders';
+import type { Expr, SelectNode } from '@qurvo/ch-query';
+import { select, raw, rawWithParams, and, lte, gte, eq as bEq } from '@qurvo/ch-query';
 import {
   RESOLVED_PERSON,
   buildEventFilterClauses,
@@ -9,7 +9,7 @@ import {
   resolveDateTo,
   resolveDateFrom,
 } from '../helpers';
-import { compileExprToSql } from '../../compiler';
+import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
 function buildAggregationExpr(type: CohortAggregationType | undefined, property: string | undefined): Expr {

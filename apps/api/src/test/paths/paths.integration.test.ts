@@ -7,7 +7,7 @@ import {
   dateOffset,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import type { CohortFilterInput } from '@qurvo/ch-query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { queryPaths } from '../../analytics/paths/paths.query';
 
 let ctx: ContainerContext;
