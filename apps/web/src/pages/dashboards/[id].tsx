@@ -52,8 +52,9 @@ export default function DashboardBuilderPage() {
 
   // Reset edit mode when navigating away so that returning to this dashboard
   // (or visiting another) does not leave stale dirty/editing state in the store.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => () => cancelEditMode(), []);
+  // Pass the current `id` so cancelEditMode skips snapshot restore when the
+  // store has already moved to a different dashboard (race on fast navigation).
+  useEffect(() => () => cancelEditMode(id), [id, cancelEditMode]);
 
   const handleSave = async () => {
     // Read latest state imperatively — avoids subscribing to frequent layout/widget updates

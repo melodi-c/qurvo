@@ -44,7 +44,7 @@ interface DashboardStore {
 
   // New actions
   enterEditMode: () => void;
-  cancelEditMode: () => void;
+  cancelEditMode: (forDashboardId?: string) => void;
   setFilterOverrides: (overrides: Partial<Omit<DashboardFilterOverrides, 'propertyFilters'>>) => void;
   setPropertyFilters: (filters: DashboardFilterOverrides['propertyFilters']) => void;
   clearFilterOverrides: () => void;
@@ -169,8 +169,13 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       },
     })),
 
-  cancelEditMode: () =>
+  cancelEditMode: (forDashboardId?: string) =>
     set((s) => {
+      // Guard: if called for a specific dashboard (e.g. from cleanup effect)
+      // but the store already moved to a different dashboard, skip restore.
+      if (forDashboardId && s.dashboardId !== forDashboardId) {
+        return {};
+      }
       if (!s.snapshot) return { isEditing: false, isDirty: false };
       return {
         isEditing: false,
