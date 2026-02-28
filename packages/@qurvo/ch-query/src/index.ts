@@ -28,6 +28,7 @@ export type { CompiledQuery } from './compiler';
 
 // Builders — expression factories
 export {
+  alias,
   col,
   literal,
   param,

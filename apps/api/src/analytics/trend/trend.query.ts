@@ -3,13 +3,40 @@ import { AppBadRequestException } from '../../exceptions/app-bad-request.excepti
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod, buildCohortClause, tsExpr } from '../../utils/clickhouse-helpers';
-import { resolvePropertyExpr, resolveNumericPropertyExpr, buildPropertyFilterConditions, type PropertyFilter } from '../../utils/property-filter';
+import {
+  compile,
+  select,
+  unionAll,
+  alias,
+  col,
+  literal,
+  param,
+  raw,
+  rawWithParams,
+  count,
+  uniqExact,
+  inArray,
+  inSubquery,
+  and,
+  // analytics domain helpers
+  analyticsWhere,
+  eventIs,
+  propertyFilters,
+  cohortFilter,
+  resolvedPerson,
+  resolvePropertyExpr,
+  bucket,
+  toChTs,
+  shiftPeriod,
+  aggColumn,
+  baseMetricColumns,
+  type PropertyFilter,
+  type TrendMetric,
+} from '@qurvo/ch-query';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
-export type TrendMetric = 'total_events' | 'unique_users' | 'events_per_user'
-  | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
+export type { TrendMetric };
 export type TrendGranularity = 'hour' | 'day' | 'week' | 'month';
 
 export interface TrendSeries {
@@ -54,46 +81,6 @@ export type TrendQueryResult =
   | { compare: true; breakdown: false; series: TrendSeriesResult[]; series_previous: TrendSeriesResult[] }
   | { compare: true; breakdown: true; breakdown_property: string; series: TrendSeriesResult[]; series_previous: TrendSeriesResult[] };
 
-// ── ClickHouse query parameter type ──────────────────────────────────────────
-
-/**
- * ClickHouse query parameters used internally by trend queries.
- *
- * Static keys:
- *   project_id — UUID of the project
- *   from       — start of the date range (ClickHouse DateTime string)
- *   to         — end of the date range (ClickHouse DateTime string)
- *
- * Dynamic keys added during query building:
- *   s{i}_event            — event name for series i (String)
- *   s{i}_f{j}_v           — filter value for series i, filter j
- *   cohort_bd_{i}_{j}      — cohort ID for cohort breakdown (UUID)
- *   cohort_name_{i}_{j}    — cohort label for cohort breakdown (String)
- *   cohort_filter_*        — params injected by buildCohortClause / buildCohortFilterForBreakdown
- */
-interface TrendChQueryParams {
-  project_id: string;
-  from: string;
-  to: string;
-  [key: string]: unknown;
-}
-
-// ── Filter condition builder ──────────────────────────────────────────────────
-
-function buildSeriesConditions(
-  series: TrendSeries,
-  idx: number,
-  queryParams: TrendChQueryParams,
-): string {
-  queryParams[`s${idx}_event`] = series.event_name;
-  const filterParts = buildPropertyFilterConditions(
-    series.filters ?? [],
-    `s${idx}`,
-    queryParams,
-  );
-  return [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
-}
-
 // ── Raw row types from ClickHouse ─────────────────────────────────────────────
 
 interface RawTrendRow {
@@ -108,30 +95,15 @@ interface RawBreakdownRow extends RawTrendRow {
   breakdown_value: string;
 }
 
-const AGG_FUNCTIONS: Record<string, string> = {
-  property_sum: 'sum',
-  property_avg: 'avg',
-  property_min: 'min',
-  property_max: 'max',
-};
-
-function buildAggColumn(metric: TrendMetric, metricProperty?: string): string {
-  const fn = AGG_FUNCTIONS[metric];
-  if (!fn) return '0 AS agg_value';
-  if (!metricProperty) throw new AppBadRequestException('metric_property is required for property aggregation metrics');
-  const expr = resolveNumericPropertyExpr(metricProperty);
-  return `${fn}(${expr}) AS agg_value`;
-}
-
 // ── Result assembly ───────────────────────────────────────────────────────────
 
-function assembleValue(metric: TrendMetric, raw: string, uniq: string, agg: string): number {
+function assembleValue(metric: TrendMetric, rawVal: string, uniq: string, agg: string): number {
   if (metric.startsWith('property_')) return Number(agg);
-  if (metric === 'total_events') return Number(raw);
+  if (metric === 'total_events') return Number(rawVal);
   if (metric === 'unique_users') return Number(uniq);
   // events_per_user
   const u = Number(uniq);
-  return u > 0 ? Math.round((Number(raw) / u) * 100) / 100 : 0;
+  return u > 0 ? Math.round((Number(rawVal) / u) * 100) / 100 : 0;
 }
 
 function assembleNonBreakdown(
@@ -194,14 +166,57 @@ function assembleBreakdown(
   return results;
 }
 
+// ── Series WHERE builder ──────────────────────────────────────────────────────
+
+/**
+ * Builds the WHERE clause for a single series arm, combining:
+ *  - project_id, time range, timezone
+ *  - event_name filter
+ *  - per-series property filters
+ *  - global cohort filters
+ *
+ * All parameters are automatically numbered by the compiler.
+ */
+function seriesWhere(
+  s: TrendSeries,
+  params: TrendQueryParams,
+  dateFrom: string,
+  dateTo: string,
+) {
+  return analyticsWhere({
+    projectId: params.project_id,
+    from: dateFrom,
+    to: dateTo,
+    tz: params.timezone,
+    eventName: s.event_name,
+    filters: s.filters,
+    cohortFilters: params.cohort_filters,
+    dateTo: toChTs(dateTo, true),
+    dateFrom: toChTs(dateFrom),
+  });
+}
+
+// ── Agg column with validation ────────────────────────────────────────────────
+
+function buildAggColumnExpr(metric: TrendMetric, metricProperty?: string) {
+  if (metric.startsWith('property_') && !metricProperty) {
+    throw new AppBadRequestException('metric_property is required for property aggregation metrics');
+  }
+  return alias(aggColumn(metric, metricProperty), 'agg_value');
+}
+
 // ── Core query executor ───────────────────────────────────────────────────────
 
 /**
- * Execute the breakdown trend query.
+ * Execute the trend query using the ch-query AST builder.
+ *
+ * Three branches:
+ *  1. Cohort breakdown — one arm per (series x cohort)
+ *  2. Non-breakdown — one arm per series
+ *  3. Property breakdown — one arm per series + top_values CTE or fixed values
  *
  * @param fixedBreakdownValues — when provided (compare mode), skip the top_values CTE and
- *   filter by this pre-computed set of breakdown values instead.  This ensures that
- *   the previous-period query uses the same breakdown values as the current period.
+ *   filter by this pre-computed set of breakdown values instead.
  */
 async function executeTrendQuery(
   ch: ClickHouseClient,
@@ -210,168 +225,159 @@ async function executeTrendQuery(
   dateTo: string,
   fixedBreakdownValues?: string[],
 ): Promise<TrendSeriesResult[]> {
-  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
-  const queryParams: TrendChQueryParams = {
-    project_id: params.project_id,
-    from: toChTs(dateFrom, false, params.timezone),
-    to: toChTs(dateTo, true, params.timezone),
-  };
-  if (hasTz) queryParams['tz'] = params.timezone;
-
-  const fromExpr = tsExpr('from', 'tz', hasTz);
-  const toExpr = tsExpr('to', 'tz', hasTz);
-  const bucketExpr = granularityTruncExpr(params.granularity, 'timestamp', params.timezone);
   const hasCohortBreakdown = !!params.breakdown_cohort_ids?.length;
   const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
-  const aggCol = buildAggColumn(params.metric, params.metric_property);
+  const bucketExpr = bucket(params.granularity, 'timestamp', params.timezone);
+  const aggCol = buildAggColumnExpr(params.metric, params.metric_property);
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(dateTo, true, params.timezone), toChTs(dateFrom, false, params.timezone));
-
-  // Cohort breakdown path: one arm per (series x cohort)
+  // ── Branch 1: Cohort breakdown ──
   if (hasCohortBreakdown) {
     const cohortBreakdowns = params.breakdown_cohort_ids!;
-    // Map cohort_id → cohort name for attaching breakdown_label after assembly
     const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
-    const arms: string[] = [];
-    params.series.forEach((s, seriesIdx) => {
-      const cond = buildSeriesConditions(s, seriesIdx, queryParams);
-      cohortBreakdowns.forEach((cb, cbIdx) => {
+
+    // Cohort breakdown uses rawWithParams for the cohort filter predicates
+    // because buildCohortFilterForBreakdown returns raw SQL with named params.
+    // project_id must be in queryParams because the cohort SQL references {project_id:UUID}.
+    const queryParams: Record<string, unknown> = { project_id: params.project_id };
+    const arms = params.series.flatMap((s, seriesIdx) => {
+      // Build series-level event + filter conditions via the old path
+      // because we need to mix raw cohort SQL into the WHERE.
+      return cohortBreakdowns.map((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
-        const cohortFilter = buildCohortFilterForBreakdown(cb, paramKey, 900 + cbIdx, queryParams, toChTs(dateTo, true), toChTs(dateFrom));
-        // Use cohort_id as breakdown_value to guarantee uniqueness across cohorts with identical names
+        const cohortFilterSql = buildCohortFilterForBreakdown(
+          cb, paramKey, 900 + cbIdx, queryParams,
+          toChTs(dateTo, true), toChTs(dateFrom),
+        );
         const cohortIdKey = `cohort_id_${seriesIdx}_${cbIdx}`;
         queryParams[cohortIdKey] = cb.cohort_id;
-        arms.push(`
-          SELECT
-            ${seriesIdx} AS series_idx,
-            {${cohortIdKey}:String} AS breakdown_value,
-            ${bucketExpr} AS bucket,
-            count() AS raw_value,
-            uniqExact(${RESOLVED_PERSON}) AS uniq_value,
-            ${aggCol}
-          FROM events
-          WHERE
-            project_id = {project_id:UUID}
-            AND timestamp >= ${fromExpr}
-            AND timestamp <= ${toExpr}
-            AND ${cond}${cohortClause}
-            AND ${cohortFilter}
-          GROUP BY bucket`);
+
+        return select(
+          literal(seriesIdx).as('series_idx'),
+          rawWithParams(`{${cohortIdKey}:String}`, { [cohortIdKey]: cb.cohort_id }).as('breakdown_value'),
+          alias(bucketExpr, 'bucket'),
+          ...baseMetricColumns(),
+          aggCol,
+        )
+          .from('events')
+          .where(
+            seriesWhere(s, params, dateFrom, dateTo),
+            rawWithParams(cohortFilterSql, queryParams),
+          )
+          .groupBy(col('bucket'))
+          .build();
       });
     });
 
-    const sql = `${arms.join('\nUNION ALL\n')}\nORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
-    const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+    const query = select(
+      col('series_idx'), col('breakdown_value'), col('bucket'),
+      col('raw_value'), col('uniq_value'), col('agg_value'),
+    )
+      .from(unionAll(...arms))
+      .orderBy(col('series_idx'))
+      .orderBy(col('breakdown_value'))
+      .orderBy(col('bucket'))
+      .build();
+
+    const compiled = compile(query);
+    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
     const rows = await result.json<RawBreakdownRow>();
     return assembleBreakdown(rows, params.metric, params.series, cohortLabelMap);
   }
 
+  // ── Branch 2: Non-breakdown ──
   if (!hasBreakdown) {
-    const arms = params.series.map((s, idx) => {
-      const cond = buildSeriesConditions(s, idx, queryParams);
-      return `
-        SELECT
-          ${idx} AS series_idx,
-          ${bucketExpr} AS bucket,
-          count() AS raw_value,
-          uniqExact(${RESOLVED_PERSON}) AS uniq_value,
-          ${aggCol}
-        FROM events
-        WHERE
-          project_id = {project_id:UUID}
-          AND timestamp >= ${fromExpr}
-          AND timestamp <= ${toExpr}
-          AND ${cond}${cohortClause}
-        GROUP BY bucket`;
-    });
+    const arms = params.series.map((s, idx) =>
+      select(
+        literal(idx).as('series_idx'),
+        alias(bucketExpr, 'bucket'),
+        ...baseMetricColumns(),
+        aggCol,
+      )
+        .from('events')
+        .where(seriesWhere(s, params, dateFrom, dateTo))
+        .groupBy(col('bucket'))
+        .build(),
+    );
 
-    const sql = `${arms.join('\nUNION ALL\n')}\nORDER BY series_idx ASC, bucket ASC`;
+    const query = select(
+      col('series_idx'), col('bucket'),
+      col('raw_value'), col('uniq_value'), col('agg_value'),
+    )
+      .from(unionAll(...arms))
+      .orderBy(col('series_idx'))
+      .orderBy(col('bucket'))
+      .build();
 
-    const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+    const compiled = compile(query);
+    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
     const rows = await result.json<RawTrendRow>();
     return assembleNonBreakdown(rows, params.metric, params.series);
   }
 
-  // Breakdown path
+  // ── Branch 3: Property breakdown ──
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property!);
 
-  const arms = params.series.map((s, idx) => {
-    const cond = buildSeriesConditions(s, idx, queryParams);
-    return `
-      SELECT
-        ${idx} AS series_idx,
-        ${breakdownExpr} AS breakdown_value,
-        ${bucketExpr} AS bucket,
-        count() AS raw_value,
-        uniqExact(${RESOLVED_PERSON}) AS uniq_value,
-        ${aggCol}
-      FROM events
-      WHERE
-        project_id = {project_id:UUID}
-        AND timestamp >= ${fromExpr}
-        AND timestamp <= ${toExpr}
-        AND ${cond}${cohortClause}
-      GROUP BY breakdown_value, bucket`;
-  });
+  const arms = params.series.map((s, idx) =>
+    select(
+      literal(idx).as('series_idx'),
+      alias(breakdownExpr, 'breakdown_value'),
+      alias(bucketExpr, 'bucket'),
+      ...baseMetricColumns(),
+      aggCol,
+    )
+      .from('events')
+      .where(seriesWhere(s, params, dateFrom, dateTo))
+      .groupBy(col('breakdown_value'), col('bucket'))
+      .build(),
+  );
 
-  // Determine which breakdown values to include.
-  // When fixedBreakdownValues is supplied (previous-period query in compare mode),
-  // use those values directly so that both periods share the same top-N set.
-  // Otherwise build the top_values CTE from the current period's data.
-  let sql: string;
+  let query;
+
   if (fixedBreakdownValues) {
-    // Pass the fixed list as an Array(String) parameter to avoid SQL injection.
-    queryParams['fixed_breakdown_values'] = fixedBreakdownValues;
-    sql = `
-      SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
-      FROM (
-        ${arms.join('\nUNION ALL\n')}
-      )
-      WHERE breakdown_value IN ({fixed_breakdown_values:Array(String)})
-      ORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
+    // Compare mode: filter by the fixed set of breakdown values from the current period.
+    query = select(
+      col('series_idx'), col('breakdown_value'), col('bucket'),
+      col('raw_value'), col('uniq_value'), col('agg_value'),
+    )
+      .from(unionAll(...arms))
+      .where(inArray(col('breakdown_value'), param('Array(String)', fixedBreakdownValues)))
+      .orderBy(col('series_idx'))
+      .orderBy(col('breakdown_value'))
+      .orderBy(col('bucket'))
+      .build();
   } else {
-    // top_values CTE: use UNION ALL of per-series conditions so that only events
-    // matching at least one series' full filter set are considered. This prevents
-    // breakdown values from unrelated events (that match no series filter) from
-    // occupying slots in the top-N list.
-    const topValuesArms = params.series.map((s, idx) => {
-      // buildSeriesConditions already populated queryParams for this series index,
-      // so we just need to reconstruct the condition string without re-mutating params.
-      const filterParts = buildPropertyFilterConditions(
-        s.filters ?? [],
-        `s${idx}`,
-        queryParams,
-      );
-      const cond = [`event_name = {s${idx}_event:String}`, ...filterParts].join(' AND ');
-      return `
-        SELECT ${breakdownExpr} AS breakdown_value
-        FROM events
-        WHERE
-          project_id = {project_id:UUID}
-          AND timestamp >= ${fromExpr}
-          AND timestamp <= ${toExpr}
-          AND ${cond}${cohortClause}`;
-    });
+    // Top-N CTE: select breakdown values by frequency across all series.
+    const topValuesArms = params.series.map((s) =>
+      select(alias(breakdownExpr, 'breakdown_value'))
+        .from('events')
+        .where(seriesWhere(s, params, dateFrom, dateTo))
+        .build(),
+    );
 
-    sql = `
-      WITH top_values AS (
-        SELECT breakdown_value, count() AS cnt
-        FROM (
-          ${topValuesArms.join('\nUNION ALL\n')}
-        )
-        GROUP BY breakdown_value
-        ORDER BY cnt DESC
-        LIMIT ${MAX_BREAKDOWN_VALUES}
-      )
-      SELECT series_idx, breakdown_value, bucket, raw_value, uniq_value, agg_value
-      FROM (
-        ${arms.join('\nUNION ALL\n')}
-      )
-      WHERE breakdown_value IN (SELECT breakdown_value FROM top_values)
-      ORDER BY series_idx ASC, breakdown_value ASC, bucket ASC`;
+    const topValuesCte = select(col('breakdown_value'), count().as('cnt'))
+      .from(unionAll(...topValuesArms))
+      .groupBy(col('breakdown_value'))
+      .orderBy(col('cnt'), 'DESC')
+      .limit(MAX_BREAKDOWN_VALUES)
+      .build();
+
+    const topValuesRef = select(col('breakdown_value')).from('top_values').build();
+
+    query = select(
+      col('series_idx'), col('breakdown_value'), col('bucket'),
+      col('raw_value'), col('uniq_value'), col('agg_value'),
+    )
+      .from(unionAll(...arms))
+      .where(inSubquery(col('breakdown_value'), topValuesRef))
+      .with('top_values', topValuesCte)
+      .orderBy(col('series_idx'))
+      .orderBy(col('breakdown_value'))
+      .orderBy(col('bucket'))
+      .build();
   }
 
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  const compiled = compile(query);
+  const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
   return assembleBreakdown(rows, params.metric, params.series);
 }
@@ -402,18 +408,10 @@ export async function queryTrend(
   const prev = shiftPeriod(params.date_from, params.date_to);
 
   // When comparing with a property breakdown, lock the previous-period query to the
-  // same set of breakdown values that appeared in the current period.  Without this,
-  // each period independently computes its own top-N, so values in the top-N of the
-  // current period may be absent from the previous period's results and vice-versa.
-  //
-  // Cohort breakdowns are fixed by definition (the cohort list never changes between
-  // the two calls), so no special handling is needed there.
+  // same set of breakdown values that appeared in the current period.
   const hasPropertyBreakdown = !!params.breakdown_property && !params.breakdown_cohort_ids?.length;
   let fixedBreakdownValues: string[] | undefined;
   if (hasPropertyBreakdown) {
-    // Collect the unique breakdown values that survived the top-N filter in the current period.
-    // '(none)' is the assembled sentinel for a raw empty-string value in ClickHouse, so
-    // convert it back to '' before passing to the SQL IN clause.
     fixedBreakdownValues = [
       ...new Set(
         currentSeries.map((s) => {
@@ -426,11 +424,7 @@ export async function queryTrend(
 
   let previousSeries = await executeTrendQuery(ch, params, prev.from, prev.to, fixedBreakdownValues);
 
-  // For property breakdowns, guarantee that every (series_idx, breakdown_value) pair
-  // present in the current period also appears in the previous period.  When a
-  // breakdown value had zero events in the previous period, the query returns no rows
-  // for it and assembleBreakdown omits it entirely.  Fill those gaps with an empty
-  // data array so the consumer can render a zero line without special-casing.
+  // Fill gaps for breakdown values absent in the previous period.
   if (hasPropertyBreakdown) {
     const prevIndex = new Set(previousSeries.map((s) => `${s.series_idx}::${s.breakdown_value ?? '(none)'}`));
     const gaps: TrendSeriesResult[] = [];

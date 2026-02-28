@@ -31,6 +31,14 @@ function withAlias<T extends Expr>(expr: T): WithAlias<T> {
   });
 }
 
+/**
+ * Wraps any Expr in an AliasExpr.
+ * Useful when the expr doesn't have a built-in .as() method.
+ */
+export function alias(expr: Expr, name: string): AliasExpr {
+  return { type: 'alias', expr, alias: name };
+}
+
 // ── Expression factories ──
 
 export function col(name: string): WithAlias<ColumnExpr> {

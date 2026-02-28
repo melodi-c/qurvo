@@ -705,8 +705,8 @@ describe('analytics/aggregations', () => {
       expect(sql).toContain('dictGetOrNull');
     });
 
-    test('event_frequency returns count()/uniqExact(...)', () => {
-      const { sql } = compileExpr(aggColumn('event_frequency'));
+    test('events_per_user returns count()/uniqExact(...)', () => {
+      const { sql } = compileExpr(aggColumn('events_per_user'));
       expect(sql).toContain('count() / uniqExact(');
     });
 
@@ -722,8 +722,28 @@ describe('analytics/aggregations', () => {
       expect(sql).toContain('toFloat64OrZero');
     });
 
+    test('property_min with metricProperty', () => {
+      const { sql } = compileExpr(aggColumn('property_min', 'properties.price'));
+      expect(sql).toContain('min(');
+      expect(sql).toContain('toFloat64OrZero');
+    });
+
+    test('property_max with metricProperty', () => {
+      const { sql } = compileExpr(aggColumn('property_max', 'properties.price'));
+      expect(sql).toContain('max(');
+      expect(sql).toContain('toFloat64OrZero');
+    });
+
     test('property_sum without metricProperty throws', () => {
       expect(() => aggColumn('property_sum')).toThrow('requires metricProperty');
+    });
+
+    test('property_min without metricProperty throws', () => {
+      expect(() => aggColumn('property_min')).toThrow('requires metricProperty');
+    });
+
+    test('property_max without metricProperty throws', () => {
+      expect(() => aggColumn('property_max')).toThrow('requires metricProperty');
     });
   });
 

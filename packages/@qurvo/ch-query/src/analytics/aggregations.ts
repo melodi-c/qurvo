@@ -1,14 +1,16 @@
 import type { Expr } from '../ast';
-import { avg, count, func, raw, sum, uniqExact } from '../builders';
+import { avg, count, func, max, min, raw, sum, uniqExact } from '../builders';
 import { resolvedPerson } from './resolved-person';
 import { resolveNumericPropertyExpr } from './filters';
 
 export type TrendMetric =
   | 'total_events'
   | 'unique_users'
-  | 'event_frequency'
+  | 'events_per_user'
   | 'property_sum'
-  | 'property_avg';
+  | 'property_avg'
+  | 'property_min'
+  | 'property_max';
 
 /**
  * Returns the standard pair of metric columns used across analytics queries:
@@ -27,9 +29,11 @@ export function baseMetricColumns(): Expr[] {
  *
  * - total_events: count()
  * - unique_users: uniqExact(RESOLVED_PERSON)
- * - event_frequency: count() / uniqExact(RESOLVED_PERSON)
+ * - events_per_user: count() / uniqExact(RESOLVED_PERSON)
  * - property_sum: sum(toFloat64OrZero(JSONExtractRaw(properties, key)))
  * - property_avg: avg(toFloat64OrZero(JSONExtractRaw(properties, key)))
+ * - property_min: min(toFloat64OrZero(JSONExtractRaw(properties, key)))
+ * - property_max: max(toFloat64OrZero(JSONExtractRaw(properties, key)))
  */
 export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
   switch (metric) {
@@ -37,7 +41,7 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
       return count();
     case 'unique_users':
       return uniqExact(resolvedPerson());
-    case 'event_frequency':
+    case 'events_per_user':
       return raw(`count() / uniqExact(${resolvedPersonSQL()})`);
     case 'property_sum': {
       if (!metricProperty) throw new Error('property_sum requires metricProperty');
@@ -46,6 +50,14 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
     case 'property_avg': {
       if (!metricProperty) throw new Error('property_avg requires metricProperty');
       return avg(resolveNumericPropertyExpr(metricProperty));
+    }
+    case 'property_min': {
+      if (!metricProperty) throw new Error('property_min requires metricProperty');
+      return min(resolveNumericPropertyExpr(metricProperty));
+    }
+    case 'property_max': {
+      if (!metricProperty) throw new Error('property_max requires metricProperty');
+      return max(resolveNumericPropertyExpr(metricProperty));
     }
     default: {
       const _exhaustive: never = metric;
