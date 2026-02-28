@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { TablePagination } from '@/components/ui/table-pagination';
 
@@ -74,14 +74,27 @@ export function DataTable<T>({
                   className={cn(
                     'transition-colors',
                     isClickable && 'cursor-pointer',
+                    isClickable && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                     isExpanded ? 'bg-muted/30 hover:bg-muted/30' : 'hover:bg-muted/20',
                   )}
+                  tabIndex={isClickable ? 0 : undefined}
                   onClick={
                     onRowClick
                       ? () => onRowClick(row)
                       : isExpandable
                         ? () => onExpandToggle(key)
                         : undefined
+                  }
+                  onKeyDown={
+                    isClickable
+                      ? (e: KeyboardEvent<HTMLTableRowElement>) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (onRowClick) onRowClick(row);
+                            else if (isExpandable) onExpandToggle(key);
+                          }
+                        }
+                      : undefined
                   }
                 >
                   {columns.map((col) => (
