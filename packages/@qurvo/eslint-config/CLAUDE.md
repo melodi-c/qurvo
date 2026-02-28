@@ -26,9 +26,9 @@ module.exports = [
 | `complexity` | warn | max 6 |
 | `max-depth` | warn | max 4 |
 | `max-params` | warn | max 4 |
-| `eqeqeq` | error | always |
-| `prefer-const` | error | |
-| `curly` | error | all |
+| `eqeqeq` | warn | always (Issue #711 will upgrade to error) |
+| `prefer-const` | warn | (Issue #711 will upgrade to error) |
+| `curly` | warn | all (Issue #711 will upgrade to error) |
 | `no-console` | warn | allows `console.warn`, `console.error` |
 | `@typescript-eslint/no-explicit-any` | warn | |
 | `@typescript-eslint/no-unused-vars` | warn | ignores `_` prefixed params |
