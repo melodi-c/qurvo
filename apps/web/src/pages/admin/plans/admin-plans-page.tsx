@@ -235,8 +235,15 @@ function PlanDialog({ open, onOpenChange, plan, onSuccess }: PlanDialogProps) {
               <Input
                 id="plan-slug"
                 value={values.slug}
-                onChange={(e) => setValues((v) => ({ ...v, slug: e.target.value }))}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+                  }))
+                }
                 placeholder={t('slugPlaceholder')}
+                pattern="[a-z0-9_-]+"
+                title={t('slugPattern')}
                 required
               />
             </div>

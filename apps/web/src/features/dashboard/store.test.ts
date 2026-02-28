@@ -129,4 +129,64 @@ describe('useDashboardStore', () => {
       expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
     });
   });
+
+  describe('replaceWidgetId', () => {
+    it('should replace temp ID with server ID in localWidgets and localLayout', () => {
+      const tempWidget = makeWidget('temp-abc', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard', [tempWidget]);
+
+      useDashboardStore.getState().replaceWidgetId('temp-abc', 'server-uuid-1');
+
+      const state = useDashboardStore.getState();
+      expect(state.localWidgets).toHaveLength(1);
+      expect(state.localWidgets[0].id).toBe('server-uuid-1');
+      expect(state.localLayout).toHaveLength(1);
+      expect(state.localLayout[0].i).toBe('server-uuid-1');
+    });
+
+    it('should replace temp ID in widgetMeta', () => {
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard', []);
+      useDashboardStore.getState().addTextTile('Hello');
+
+      const stateBeforeReplace = useDashboardStore.getState();
+      const tempId = stateBeforeReplace.localWidgets[0].id;
+      expect(stateBeforeReplace.widgetMeta[tempId]).toBeDefined();
+
+      useDashboardStore.getState().replaceWidgetId(tempId, 'server-uuid-2');
+
+      const state = useDashboardStore.getState();
+      expect(state.widgetMeta['server-uuid-2']).toBeDefined();
+      expect(state.widgetMeta['server-uuid-2'].textContent).toBe('Hello');
+      expect(state.widgetMeta[tempId]).toBeUndefined();
+    });
+
+    it('should replace temp ID in snapshot when editing', () => {
+      const tempWidget = makeWidget('temp-abc', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard', [tempWidget]);
+      useDashboardStore.getState().enterEditMode();
+
+      useDashboardStore.getState().replaceWidgetId('temp-abc', 'server-uuid-3');
+
+      const state = useDashboardStore.getState();
+      expect(state.snapshot).not.toBeNull();
+      expect(state.snapshot!.widgets[0].id).toBe('server-uuid-3');
+      expect(state.snapshot!.layout[0].i).toBe('server-uuid-3');
+    });
+
+    it('should not affect other widgets when replacing an ID', () => {
+      const widget1 = makeWidget('w-1', 'dash-a');
+      const widget2 = makeWidget('temp-abc', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard', [widget1, widget2]);
+
+      useDashboardStore.getState().replaceWidgetId('temp-abc', 'server-uuid-4');
+
+      const state = useDashboardStore.getState();
+      expect(state.localWidgets).toHaveLength(2);
+      expect(state.localWidgets[0].id).toBe('w-1');
+      expect(state.localWidgets[1].id).toBe('server-uuid-4');
+    });
+  });
 });

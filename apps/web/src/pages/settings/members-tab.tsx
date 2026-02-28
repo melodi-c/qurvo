@@ -9,6 +9,7 @@ import { ProjectMemberRow } from '@/components/project-member-row';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { Users, Mail, Trash2 } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getRoleLabel } from '@/lib/i18n-utils';
 import translations from './members-tab.translations';
 import { formatDate } from '@/lib/formatting';
 import { useMembers } from '@/features/settings/hooks/use-members';
@@ -100,7 +101,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                         </Button>
                       </>
                     ) : (
-                      <span className="text-xs text-muted-foreground capitalize px-2 py-1 bg-muted rounded">{member.role}</span>
+                      <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">{getRoleLabel(member.role)}</span>
                     )
                   }
                 />
@@ -123,7 +124,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
                   key={invite.id}
                   avatar={<Mail className="h-4 w-4 text-muted-foreground" />}
                   name={invite.email}
-                  subtitle={<><span className="capitalize">{invite.role}</span> &middot; {t('invited')} {formatDate(invite.created_at)}</>}
+                  subtitle={<>{getRoleLabel(invite.role)} &middot; {t('invited')} {formatDate(invite.created_at)}</>}
                   actions={
                     isOwner ? (
                       <Button

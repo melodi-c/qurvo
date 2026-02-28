@@ -2,6 +2,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -21,9 +22,11 @@ export default function PersonDetailPage() {
     person,
     personLoading,
     personError,
+    refetchPerson,
     events,
     eventsLoading,
     eventsError,
+    refetchEvents,
     page,
     setPage,
     limit,
@@ -37,7 +40,15 @@ export default function PersonDetailPage() {
       <PageHeader title={personLoading ? <Skeleton className="h-7 w-48" /> : (displayName ?? '')} />
 
       {!personLoading && personError && (
-        <EmptyState icon={AlertTriangle} description={t('errorLoadingPerson')} />
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('errorLoadingPerson')}
+          action={
+            <Button variant="outline" onClick={() => refetchPerson()}>
+              {t('retry')}
+            </Button>
+          }
+        />
       )}
 
       {!personError && (
@@ -104,7 +115,15 @@ export default function PersonDetailPage() {
         {eventsLoading && <ListSkeleton count={6} height="h-10" className="space-y-2" />}
 
         {!eventsLoading && eventsError && (
-          <EmptyState icon={AlertTriangle} description={t('errorLoadingEvents')} />
+          <EmptyState
+            icon={AlertTriangle}
+            description={t('errorLoadingEvents')}
+            action={
+              <Button variant="outline" onClick={() => refetchEvents()}>
+                {t('retry')}
+              </Button>
+            }
+          />
         )}
 
         {!eventsLoading && !eventsError && (

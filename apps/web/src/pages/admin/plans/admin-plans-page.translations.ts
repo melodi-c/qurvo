@@ -27,6 +27,7 @@ export default createTranslations({
     // Form fields
     namePlaceholder: 'Free',
     slugPlaceholder: 'free',
+    slugPattern: 'Only lowercase letters, digits, hyphens and underscores',
     eventsLimitPlaceholder: 'Leave empty for unlimited',
     dataRetentionDaysPlaceholder: 'Leave empty for unlimited',
     maxProjectsPlaceholder: 'Leave empty for unlimited',
@@ -81,6 +82,7 @@ export default createTranslations({
     // Form fields
     namePlaceholder: 'Бесплатный',
     slugPlaceholder: 'free',
+    slugPattern: 'Только строчные буквы, цифры, дефисы и подчёркивания',
     eventsLimitPlaceholder: 'Оставьте пустым для безлимита',
     dataRetentionDaysPlaceholder: 'Оставьте пустым для безлимита',
     maxProjectsPlaceholder: 'Оставьте пустым для безлимита',

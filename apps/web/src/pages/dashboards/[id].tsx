@@ -23,9 +23,9 @@ import translations from './[id].translations';
 export default function DashboardBuilderPage() {
   const { t } = useLocalTranslation(translations);
   const { go } = useAppNavigate();
-  const { id } = useParams<{ id: string }>();
-  const { data: dashboard, isLoading } = useDashboard(id!);
-  const { save, isPending } = useSaveDashboard(id!);
+  const { id = '' } = useParams<{ id: string }>();
+  const { data: dashboard, isLoading } = useDashboard(id);
+  const { save, isPending } = useSaveDashboard(id);
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTextDialog, setShowTextDialog] = useState(false);
 
@@ -55,6 +55,16 @@ export default function DashboardBuilderPage() {
   // Pass the current `id` so cancelEditMode skips snapshot restore when the
   // store has already moved to a different dashboard (race on fast navigation).
   useEffect(() => () => cancelEditMode(id), [id, cancelEditMode]);
+
+  // Warn on tab close / navigation away when there are unsaved changes
+  useEffect(() => {
+    if (!isEditing || !isDirty) {return;}
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isEditing, isDirty]);
 
   const handleSave = async () => {
     // Read latest state imperatively — avoids subscribing to frequent layout/widget updates

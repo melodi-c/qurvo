@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { Annotation, CreateAnnotation, UpdateAnnotation } from '@/api/generated/Api';
 
 export function useAnnotations(dateFrom?: string, dateTo?: string): {
@@ -26,6 +27,7 @@ export function useAnnotations(dateFrom?: string, dateTo?: string): {
 export function useCreateAnnotation() {
   const projectId = useProjectId();
   const queryClient = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: (data: CreateAnnotation) =>
@@ -33,12 +35,14 @@ export function useCreateAnnotation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
     },
+    onError: onError('createAnnotationFailed'),
   });
 }
 
 export function useUpdateAnnotation() {
   const projectId = useProjectId();
   const queryClient = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateAnnotation }) =>
@@ -46,12 +50,14 @@ export function useUpdateAnnotation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
     },
+    onError: onError('updateAnnotationFailed'),
   });
 }
 
 export function useDeleteAnnotation() {
   const projectId = useProjectId();
   const queryClient = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: (id: string) =>
@@ -59,5 +65,6 @@ export function useDeleteAnnotation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['annotations', projectId] });
     },
+    onError: onError('deleteAnnotationFailed'),
   });
 }

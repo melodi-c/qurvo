@@ -16,7 +16,9 @@ export function TextTileDialog({ open, onClose }: TextTileDialogProps) {
   const { t } = useLocalTranslation(translations);
 
   const handleAdd = () => {
-    addTextTile(content);
+    const trimmed = content.trim();
+    if (!trimmed) {return;}
+    addTextTile(trimmed);
     setContent('');
     onClose();
   };
@@ -46,7 +48,7 @@ export function TextTileDialog({ open, onClose }: TextTileDialogProps) {
           <Button variant="ghost" onClick={handleClose}>
             {t('cancel')}
           </Button>
-          <Button onClick={handleAdd}>
+          <Button onClick={handleAdd} disabled={!content.trim()}>
             {t('add')}
           </Button>
         </DialogFooter>

@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
+import { useDashboardStore } from '../store';
 import type { CreateWidget, Widget } from '@/api/generated/Api';
 
 export function useDashboardList() {
@@ -24,42 +26,49 @@ export function useDashboard(dashboardId: string) {
 export function useCreateDashboard() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: (name: string) =>
       api.dashboardsControllerCreate({ projectId }, { name }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
     },
+    onError: onError('createDashboardFailed'),
   });
 }
 
 export function useDeleteDashboard() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: (dashboardId: string) =>
       api.dashboardsControllerRemove({ projectId, dashboardId }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
     },
+    onError: onError('deleteDashboardFailed'),
   });
 }
 
 export function useUpdateDashboardName() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: ({ dashboardId, name }: { dashboardId: string; name: string }) =>
       api.dashboardsControllerUpdate({ projectId, dashboardId }, { name }),
     onSuccess: (_data, { dashboardId }) => {
       void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
+    onError: onError('updateDashboardFailed'),
   });
 }
 
 export function useAddWidget() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: ({
       dashboardId,
@@ -71,18 +80,21 @@ export function useAddWidget() {
     onSuccess: (_data, { dashboardId }) => {
       void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
+    onError: onError('addWidgetFailed'),
   });
 }
 
 export function useRemoveWidget() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: ({ dashboardId, widgetId }: { dashboardId: string; widgetId: string }) =>
       api.dashboardsControllerRemoveWidget({ projectId, dashboardId, widgetId }),
     onSuccess: (_data, { dashboardId }) => {
       void qc.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     },
+    onError: onError('removeWidgetFailed'),
   });
 }
 
@@ -132,9 +144,14 @@ export function useSaveDashboard(dashboardId: string) {
       // 1. Update dashboard name
       await updateName.mutateAsync(name);
 
-      // 2. Add new widgets first — safest to do before removals
+      // 2. Add new widgets first — safest to do before removals.
+      //    Replace local temp IDs with server-assigned IDs so that a retry
+      //    after partial failure does not duplicate already-created widgets.
       for (const w of toAdd) {
-        await addWidget.mutateAsync(w);
+        const created = await addWidget.mutateAsync(w);
+        if (created.id !== w.id) {
+          useDashboardStore.getState().replaceWidgetId(w.id, created.id);
+        }
       }
 
       // 3. Update existing widgets

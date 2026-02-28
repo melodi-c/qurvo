@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { api } from '@/api/client';
-import { CreditCard, Check, X } from 'lucide-react';
+import { AlertTriangle, CreditCard, Check, X } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { STATUS_COLORS } from '@/lib/chart-colors';
 import translations from './billing-tab.translations';
@@ -20,7 +21,7 @@ function formatNumber(n: number): string {
 export function BillingTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['billing', projectId],
     queryFn: () => api.billingControllerGetStatus({ projectId }),
     enabled: !!projectId,
@@ -32,6 +33,20 @@ export function BillingTab({ projectId }: { projectId: string }) {
   }
 
   if (isLoading) {return <ListSkeleton count={1} height="h-40" />;}
+
+  if (isError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        description={t('errorLoading')}
+        action={
+          <Button variant="outline" onClick={() => refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
+  }
 
   const pct = data?.events_limit
     ? Math.min(100, Math.round((data.events_this_month / data.events_limit) * 100))

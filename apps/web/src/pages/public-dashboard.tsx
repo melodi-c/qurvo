@@ -6,6 +6,7 @@ import { apiClient } from '@/api/client';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getInsightTypeLabel } from '@/lib/i18n-utils';
 import translations from './public-dashboard.translations';
 import type { Widget } from '@/api/generated/Api';
 
@@ -28,8 +29,8 @@ function PublicWidgetCard({ widget }: { widget: Widget }) {
         <div className="flex items-center gap-2">
           <LayoutDashboard className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="font-medium text-sm truncate">{widget.insight.name}</span>
-          <span className="ml-auto text-xs text-muted-foreground capitalize shrink-0">
-            {widget.insight.type}
+          <span className="ml-auto text-xs text-muted-foreground shrink-0">
+            {getInsightTypeLabel(widget.insight.type)}
           </span>
         </div>
         <p className="text-xs text-muted-foreground">

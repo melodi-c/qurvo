@@ -61,6 +61,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     retention: t('typeRetention'),
     lifecycle: t('typeLifecycle'),
     stickiness: t('typeStickiness'),
+    paths: t('typePaths'),
   }), [t]);
 
   const handleRowClick = useCallback(

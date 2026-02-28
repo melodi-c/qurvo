@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { RefreshCw, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/formatting';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -117,7 +117,7 @@ export function WidgetShell<Response>({
             {cachedAt && (
               <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
                 {fromCache
-                  ? formatDistanceToNow(new Date(cachedAt), { addSuffix: true })
+                  ? formatRelativeTime(cachedAt)
                   : t('fresh')}
               </span>
             )}
