@@ -79,7 +79,7 @@ export function createWidgetDataHook<Config, Response extends CachedResponse, Pa
       const age = Date.now() - new Date(query.data.cached_at).getTime();
       if (age > STALE_AFTER_MS) {
         autoRefreshTriggered.current = true;
-        refreshRef.current().catch(console.error);
+        void refreshRef.current().catch(() => {});
       }
     }, [query.data?.cached_at, widgetId, hash]);
 

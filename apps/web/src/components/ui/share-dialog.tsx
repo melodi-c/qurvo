@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link2, Plus, Trash2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,13 +49,21 @@ function ShareTokenRow({
 }) {
   const { t } = useLocalTranslation(translations);
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (timerRef.current) {clearTimeout(timerRef.current);}
+  }, []);
 
   const url = buildShareUrl(resourceType, token.token);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timerRef.current) {clearTimeout(timerRef.current);}
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Clipboard API unavailable — silently ignore
     });
   }, [url]);
 
