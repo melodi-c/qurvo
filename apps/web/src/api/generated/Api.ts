@@ -565,6 +565,7 @@ export interface RetentionWidgetConfig {
   retention_type: RetentionType;
   granularity: Granularity;
   return_event?: string;
+  filters?: StepFilter[];
   cohort_ids?: string[];
   target_event: string;
   periods: number;
@@ -575,6 +576,7 @@ export interface RetentionWidgetConfig {
 export interface LifecycleWidgetConfig {
   type: LifecycleWidgetConfigDtoTypeEnum;
   granularity: Granularity;
+  filters?: StepFilter[];
   cohort_ids?: string[];
   target_event: string;
   date_from: string;
@@ -584,6 +586,7 @@ export interface LifecycleWidgetConfig {
 export interface StickinessWidgetConfig {
   type: StickinessWidgetConfigDtoTypeEnum;
   granularity: Granularity;
+  filters?: StepFilter[];
   cohort_ids?: string[];
   target_event: string;
   date_from: string;
@@ -608,6 +611,7 @@ export interface PathsWidgetConfig {
   min_persons?: number;
   path_cleaning_rules?: PathCleaningRuleConfig[];
   wildcard_groups?: WildcardGroupConfig[];
+  filters?: StepFilter[];
   cohort_ids?: string[];
   date_from: string;
   date_to: string;
@@ -1805,6 +1809,7 @@ export interface RetentionControllerGetRetentionParams {
   cohort_ids?: string[];
   retention_type: RetentionType;
   granularity: Granularity;
+  filters?: StepFilter[];
   target_event: string;
   return_event?: string;
   /**
@@ -1830,6 +1835,7 @@ export interface LifecycleControllerGetLifecycleParams {
    */
   cohort_ids?: string[];
   granularity: Granularity;
+  event_filters?: StepFilter[];
   target_event: string;
   /** @format uuid */
   widget_id?: string;
@@ -1848,6 +1854,7 @@ export interface StickinessControllerGetStickinessParams {
    */
   cohort_ids?: string[];
   granularity: Granularity;
+  event_filters?: StepFilter[];
   target_event: string;
   /** @format uuid */
   widget_id?: string;
@@ -1868,6 +1875,7 @@ export interface PathsControllerGetPathsParams {
   exclusions?: string[];
   path_cleaning_rules?: PathCleaningRule[];
   wildcard_groups?: WildcardGroup[];
+  event_filters?: StepFilter[];
   /**
    * @min 3
    * @max 1000

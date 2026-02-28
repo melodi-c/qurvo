@@ -2,13 +2,17 @@ import {
   IsString,
   IsNotEmpty,
   IsInt,
+  IsArray,
   Min,
   Max,
   IsIn,
   IsOptional,
+  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { Type, Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { StepFilterDto } from './shared/filters.dto';
+import { makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 
@@ -34,6 +38,14 @@ export class RetentionQueryDto extends BaseAnalyticsQueryDto {
   @Min(1)
   @Max(30)
   periods: number = 11;
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsOptional()
+  @Transform(makeJsonArrayTransform(StepFilterDto))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  filters?: StepFilterDto[];
 }
 
 export class RetentionCohortDto {

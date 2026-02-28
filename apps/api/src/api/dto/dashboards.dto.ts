@@ -1,6 +1,7 @@
 import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNumber, Min, IsUUID, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { StepFilterDto } from './shared/filters.dto';
 import { FunnelStepDto, FunnelExclusionDto } from './funnel.dto';
 import { TrendSeriesDto } from './trend.dto';
 import { InsightDto } from './insights.dto';
@@ -119,6 +120,8 @@ export class RetentionWidgetConfigDto {
   date_from: string;
   date_to: string;
   @ApiPropertyOptional() return_event?: string;
+  @ApiPropertyOptional({ type: [StepFilterDto] }) @IsArray() @IsOptional()
+  filters?: StepFilterDto[];
   @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
@@ -134,6 +137,8 @@ export class LifecycleWidgetConfigDto {
 
   date_from: string;
   date_to: string;
+  @ApiPropertyOptional({ type: [StepFilterDto] }) @IsArray() @IsOptional()
+  filters?: StepFilterDto[];
   @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
@@ -149,6 +154,8 @@ export class StickinessWidgetConfigDto {
 
   date_from: string;
   date_to: string;
+  @ApiPropertyOptional({ type: [StepFilterDto] }) @IsArray() @IsOptional()
+  filters?: StepFilterDto[];
   @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
@@ -176,6 +183,8 @@ export class PathsWidgetConfigDto {
   @ApiPropertyOptional() min_persons?: number;
   @ApiPropertyOptional({ type: [PathCleaningRuleConfigDto] }) path_cleaning_rules?: PathCleaningRuleConfigDto[];
   @ApiPropertyOptional({ type: [WildcardGroupConfigDto] }) wildcard_groups?: WildcardGroupConfigDto[];
+  @ApiPropertyOptional({ type: [StepFilterDto] }) @IsArray() @IsOptional()
+  filters?: StepFilterDto[];
   @IsArray() @IsOptional() @IsUUID('4', { each: true })
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
