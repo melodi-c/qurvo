@@ -334,13 +334,13 @@ prompt: |
 
 Прочитай `RESULT_FILE`. Обработка:
 - `PASS` → переходи к 6.2
-- `FAIL` → re-launch solver (max 1 retry):
+- `FAIL` → re-launch solver **в существующем worktree** (max 1 retry):
   ```
   subagent_type: "issue-solver"
   run_in_background: false
-  isolation: "worktree"
   prompt: |
-    Исправь следующие lint-проблемы в worktree {WORKTREE_PATH}:
+    WORKTREE_PATH: {WORKTREE_PATH}
+    Исправь следующие lint-проблемы:
     <LINT_ISSUES>
 
     Issue #{NUMBER}: {TITLE}
@@ -349,6 +349,7 @@ prompt: |
     BASE_BRANCH: {BRANCH}
     RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
   ```
+  **НЕ указывай `isolation: "worktree"`** — solver должен работать в уже существующем worktree поверх своих предыдущих коммитов.
 
 #### 6.2 Migration Validation (только если has-migrations)
 
@@ -403,20 +404,25 @@ prompt: |
 Дождись завершения обоих. Прочитай оба `RESULT_FILE`. Обработка:
 
 - **Оба APPROVE/PASS** → issue status → `REVIEW_PASSED` → переходи к 6.4 (мерж)
-- **reviewer: REQUEST_CHANGES** или **security: FAIL** → structured feedback → re-launch solver (max 2 итерации)
+- **reviewer: REQUEST_CHANGES** или **security: FAIL** → structured feedback → re-launch solver **в существующем worktree** (max 2 итерации)
 
 **Structured feedback protocol** (передаётся solver'у при retry):
 ```
-Исправь следующие проблемы в worktree {WORKTREE_PATH}:
-1. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
-2. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
+subagent_type: "issue-solver"
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: {WORKTREE_PATH}
+  Исправь следующие проблемы:
+  1. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
+  2. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
 
-Issue #{NUMBER}: {TITLE}
-ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
-AFFECTED_APPS: {APPS}
-BASE_BRANCH: {BRANCH}
-RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+  Issue #{NUMBER}: {TITLE}
+  ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
+  AFFECTED_APPS: {APPS}
+  BASE_BRANCH: {BRANCH}
+  RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
 ```
+**НЕ указывай `isolation: "worktree"`** — solver работает в существующем worktree поверх своих предыдущих коммитов.
 
 Если после 2-й итерации review всё ещё FAIL/REQUEST_CHANGES → эскалируй пользователю.
 
@@ -440,12 +446,12 @@ RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
    - **Build failure** → retry 1 раз с hint'ом об ошибке build
    - **Другое** → эскалация пользователю
 
-3. **Retry** (максимум 1 раз):
+3. **Retry** (максимум 1 раз) **в существующем worktree**:
    ```
    subagent_type: "issue-solver"
    run_in_background: true
-   isolation: "worktree"
    prompt: |
+     WORKTREE_PATH: {WORKTREE_PATH}
      RETRY: предыдущая попытка завершилась ошибкой.
      FAIL_REASON: <причина из первой попытки>
      HINT: <что нужно исправить — конкретный файл, ошибка, тест>
@@ -456,6 +462,7 @@ RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
      ...остальной промпт как обычно...
      RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
    ```
+   **НЕ указывай `isolation: "worktree"`** — solver продолжает в существующем worktree.
 
 4. Если retry тоже FAILED → сними `in-progress`, добавь в отчёт, эскалируй:
    ```bash
