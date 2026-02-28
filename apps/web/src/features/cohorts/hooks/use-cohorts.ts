@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { api } from '@/api/client';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { CreateCohort, UpdateCohort, CohortPreview, CreateStaticCohort } from '@/api/generated/Api';
 
 export function useCohorts() {
@@ -26,6 +27,7 @@ export function useCohort(cohortId: string) {
 export function useCreateCohort() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: (data: CreateCohort) =>
@@ -33,12 +35,14 @@ export function useCreateCohort() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
+    onError: onError('createCohortFailed'),
   });
 }
 
 export function useUpdateCohort() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: ({ cohortId, data }: { cohortId: string; data: UpdateCohort }) =>
@@ -46,12 +50,14 @@ export function useUpdateCohort() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
+    onError: onError('updateCohortFailed'),
   });
 }
 
 export function useDeleteCohort() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: (cohortId: string) =>
@@ -59,6 +65,7 @@ export function useDeleteCohort() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
+    onError: onError('deleteCohortFailed'),
   });
 }
 
@@ -94,6 +101,7 @@ export function useCohortPreviewCount() {
 export function useCreateStaticCohort() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: (data: CreateStaticCohort) =>
@@ -101,12 +109,14 @@ export function useCreateStaticCohort() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
+    onError: onError('createStaticCohortFailed'),
   });
 }
 
 export function useDuplicateAsStatic() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: (cohortId: string) =>
@@ -114,12 +124,14 @@ export function useDuplicateAsStatic() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
+    onError: onError('duplicateAsStaticFailed'),
   });
 }
 
 export function useUploadCohortCsv() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: ({ cohortId, csvContent }: { cohortId: string; csvContent: string }) =>
@@ -127,5 +139,6 @@ export function useUploadCohortCsv() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['cohorts', projectId] });
     },
+    onError: onError('uploadCsvFailed'),
   });
 }

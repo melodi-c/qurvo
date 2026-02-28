@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen } from 'lucide-react';
+import { AlertTriangle, FolderOpen } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -18,7 +19,7 @@ export default function AdminProjectsPage() {
   const { t } = useLocalTranslation(translations);
   const navigate = useNavigate();
 
-  const { data: projects, isLoading } = useQuery({
+  const { data: projects, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'projects'],
     queryFn: () => apiClient.admin.adminProjectsControllerListProjects(),
   });
@@ -63,7 +64,19 @@ export default function AdminProjectsPage() {
 
       {isLoading && <ListSkeleton count={5} />}
 
-      {!isLoading && projects?.length === 0 && (
+      {!isLoading && isError && (
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('errorLoading')}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t('retry')}
+            </Button>
+          }
+        />
+      )}
+
+      {!isLoading && !isError && projects?.length === 0 && (
         <EmptyState
           icon={FolderOpen}
           title={t('noProjects')}
@@ -71,7 +84,7 @@ export default function AdminProjectsPage() {
         />
       )}
 
-      {!isLoading && projects && projects.length > 0 && (
+      {!isLoading && !isError && projects && projects.length > 0 && (
         <DataTable
           columns={columns}
           data={projects}

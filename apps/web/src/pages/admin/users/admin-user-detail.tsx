@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { AdminUserProject } from '@/api/generated/Api';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getRoleLabel } from '@/lib/i18n-utils';
 import translations from './admin-user-detail.translations';
 import { formatDate } from '@/lib/formatting';
 import { useAdminUserDetail } from '@/features/admin/hooks/use-admin-users';
@@ -37,7 +38,7 @@ export default function AdminUserDetailPage() {
     {
       key: 'role',
       header: t('projectRole'),
-      render: (row) => <Badge variant="secondary">{row.role}</Badge>,
+      render: (row) => <Badge variant="secondary">{getRoleLabel(row.role)}</Badge>,
     },
   ], [t]);
 

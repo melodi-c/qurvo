@@ -23,7 +23,7 @@ export const useLanguageStore = create<LanguageState>()(
 
       changeLanguage: (language) => {
         set({ language });
-        api.authControllerUpdateProfile({ language }).catch(console.error);
+        void api.authControllerUpdateProfile({ language }).catch(() => {});
       },
     }),
     {

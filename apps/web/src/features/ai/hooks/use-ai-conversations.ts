@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { AiConversation, AiConversationDetail, AiConversationSearchResult } from '@/api/generated/Api';
 
 export type { AiConversation as Conversation };
@@ -110,6 +111,7 @@ export function useSearchConversations(projectId: string, query: string) {
 
 export function useDeleteConversation(projectId: string) {
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
   return useMutation({
     mutationFn: async (id: string) => {
       await api.aiControllerDeleteConversation({ id, project_id: projectId });
@@ -118,5 +120,6 @@ export function useDeleteConversation(projectId: string) {
       void qc.invalidateQueries({ queryKey: ['ai-conversations', projectId] });
       void qc.invalidateQueries({ queryKey: ['ai-conversations-shared', projectId] });
     },
+    onError: onError('deleteConversationFailed'),
   });
 }

@@ -8,7 +8,7 @@ export function useAdminProjectDetail(id: string | undefined) {
   const { t } = useLocalTranslation(translations);
   const queryClient = useQueryClient();
 
-  const { data: project, isLoading: isProjectLoading } = useQuery({
+  const { data: project, isLoading: isProjectLoading, isError: isProjectError, refetch: refetchProject } = useQuery({
     queryKey: ['admin', 'projects', id],
     queryFn: () => apiClient.admin.adminProjectsControllerGetProject({ id: id! }),
     enabled: !!id,
@@ -32,6 +32,8 @@ export function useAdminProjectDetail(id: string | undefined) {
   return {
     project,
     isProjectLoading,
+    isProjectError,
+    refetchProject,
     plans,
     isPlansLoading,
     updatePlanMutation,

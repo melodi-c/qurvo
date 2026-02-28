@@ -35,7 +35,8 @@ export function InlineCreateForm({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit(value);
+            if (!value.trim()) {return;}
+            onSubmit(value.trim());
           }}
           className="flex gap-3"
         >
@@ -47,7 +48,7 @@ export function InlineCreateForm({
             autoFocus={autoFocus}
             className="flex-1"
           />
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || !value.trim()}>
             {isPending ? (pendingLabel ?? resolvedSubmitLabel) : resolvedSubmitLabel}
           </Button>
           <Button type="button" variant="ghost" onClick={onCancel}>

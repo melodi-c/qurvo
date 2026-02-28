@@ -19,6 +19,8 @@ export default createTranslations({
     noMembersDescription: 'This project has no members yet.',
     removePlan: 'Remove plan',
     copyFailed: 'Failed to copy token',
+    errorLoading: 'Failed to load project details',
+    retry: 'Retry',
   },
   ru: {
     plan: 'План',
@@ -38,5 +40,7 @@ export default createTranslations({
     noMembersDescription: 'В этом проекте пока нет участников.',
     removePlan: 'Убрать план',
     copyFailed: 'Не удалось скопировать токен',
+    errorLoading: 'Не удалось загрузить данные проекта',
+    retry: 'Повторить',
   },
 });

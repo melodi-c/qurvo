@@ -5,6 +5,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ProjectMemberRow } from '@/components/project-member-row';
 import { Mail } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getRoleLabel } from '@/lib/i18n-utils';
 import translations from './invites-tab.translations';
 import { useInvites } from '@/features/profile/hooks/use-invites';
 
@@ -27,7 +28,7 @@ export function InvitesTab() {
             <CardContent className="pt-6">
               <ProjectMemberRow
                 name={invite.project.name}
-                subtitle={<>{t('invitedBy', { name: invite.invited_by.display_name })} <span className="capitalize">{invite.role}</span></>}
+                subtitle={<>{t('invitedBy', { name: invite.invited_by.display_name })} {getRoleLabel(invite.role)}</>}
                 className="px-0 py-0"
                 actions={
                   <>

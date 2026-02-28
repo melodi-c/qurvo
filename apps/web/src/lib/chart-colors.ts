@@ -125,7 +125,7 @@ export const MAP_HOVER_NO_DATA_COLOR = '#3f3f46';
 
 /**
  * Interpolates between MAP_COLOR_FROM and MAP_COLOR_TO by factor `t` (0–1).
- * Used for choropleth fill colors in WorldMapChart and GeographySection.
+ * Used for choropleth fill colors in GeographySection.
  */
 export function interpolateMapColor(t: number): string {
   const r0 = 0x27, g0 = 0x27, b0 = 0x2a;

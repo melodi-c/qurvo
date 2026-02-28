@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getRoleLabel } from '@/lib/i18n-utils';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import { Users, Copy, Check } from 'lucide-react';
+import { AlertTriangle, Users, Copy, Check } from 'lucide-react';
 import type { AdminProjectMember, AdminPlan } from '@/api/generated/Api';
 import translations from './admin-project-detail.translations';
 import { useAdminProjectDetail } from '@/features/admin/hooks/use-admin-projects';
@@ -21,7 +22,7 @@ export default function AdminProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
 
-  const { project, isProjectLoading, plans, isPlansLoading, updatePlanMutation } = useAdminProjectDetail(id);
+  const { project, isProjectLoading, isProjectError, refetchProject, plans, isPlansLoading, updatePlanMutation } = useAdminProjectDetail(id);
 
   const memberColumns: Column<AdminProjectMember>[] = useMemo(() => [
     {
@@ -37,7 +38,7 @@ export default function AdminProjectDetailPage() {
     {
       key: 'role',
       header: t('role'),
-      render: (row) => <Badge variant="outline">{row.role}</Badge>,
+      render: (row) => <Badge variant="outline">{getRoleLabel(row.role)}</Badge>,
     },
   ], [t]);
 
@@ -49,8 +50,20 @@ export default function AdminProjectDetailPage() {
     );
   }
 
-  if (!project) {
-    return null;
+  if (isProjectError || !project) {
+    return (
+      <div className="space-y-6">
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('errorLoading')}
+          action={
+            <Button variant="outline" onClick={() => refetchProject()}>
+              {t('retry')}
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   const handlePlanChange = (value: string) => {
