@@ -9,7 +9,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { queryEvents, queryEventDetail, type EventsQueryParams, type EventRow, type EventDetailRow } from './events.query';
 import { queryEventPropertyValues, type PropertyValueRow } from './event-property-values.query';
-import { DIRECT_COLUMNS } from '../utils/property-filter';
+import { DIRECT_COLUMNS } from '../analytics/query-helpers';
 import { EventNotFoundException } from './exceptions/event-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS, AI_CONTEXT_MAX_EVENT_NAMES } from '../constants';
 

@@ -4,8 +4,7 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
-import { resolvePropertyExpr } from '../../utils/property-filter';
+import { toChTs, RESOLVED_PERSON, resolvePropertyExprStr } from '../../analytics/query-helpers';
 import { type Metric, computeMetricValue } from './metric.utils';
 import { MAX_METRIC_SEGMENTS } from '../../constants';
 import type { RootCauseToolOutput } from '@qurvo/ai-types';
@@ -109,7 +108,7 @@ async function queryDimension(
   currentTo: string,
   dimension: string,
 ): Promise<DimensionResult> {
-  const breakdownExpr = resolvePropertyExpr(dimension);
+  const breakdownExpr = resolvePropertyExprStr(dimension);
 
   const queryParams: Record<string, unknown> = {
     project_id: projectId,

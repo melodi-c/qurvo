@@ -9,6 +9,13 @@ export {
   bucket,
   neighborBucket,
   bucketOfMin,
+  // String-returning helpers for raw SQL consumers
+  granularityTruncExpr,
+  granularityTruncMinExpr,
+  granularityInterval,
+  granularityNeighborExpr,
+  tsExpr,
+  buildFilterClause,
 } from './time';
 export type { Granularity } from './time';
 
@@ -20,10 +27,16 @@ export {
   propertyFilter,
   propertyFilters,
   cohortFilter,
+  cohortBounds,
   analyticsWhere,
   resolvePropertyExpr,
+  resolvePropertyExprStr,
   resolveNumericPropertyExpr,
+  resolveNumericPropertyExprStr,
   DIRECT_COLUMNS,
+  // String-returning helpers for raw SQL consumers
+  buildPropertyFilterConditions,
+  buildCohortClause,
 } from './filters';
 export type {
   FilterOperator,

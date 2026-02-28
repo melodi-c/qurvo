@@ -4,7 +4,7 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { buildPropertyFilterConditions } from '../../utils/property-filter';
+import { buildPropertyFilterConditions } from '../../analytics/query-helpers';
 
 const argsSchema = z.object({
   filters: z.array(propertyFilterSchema).nullish().describe(

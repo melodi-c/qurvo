@@ -219,3 +219,87 @@ function compileExprInline(expr: Expr): string {
       throw new Error(`Cannot inline expression of type: ${expr.type}`);
   }
 }
+
+// ── String-returning helpers for raw SQL consumers ──────────────────────────
+
+/**
+ * Returns a raw SQL string for granularity truncation.
+ * Thin wrapper around bucket() that serializes the AST to SQL.
+ *
+ * Used by consumers that build queries via template literals (web-analytics, etc.)
+ */
+export function granularityTruncExpr(granularity: Granularity, col: string, tz?: string): string {
+  return compileExprInline(bucket(granularity, col, tz));
+}
+
+/**
+ * Returns the granularity-truncated minimum of a column as a raw SQL string.
+ * granularityTruncExpr(granularity, `min(col)`, tz)
+ */
+export function granularityTruncMinExpr(granularity: Granularity, col: string, tz?: string): string {
+  return granularityTruncExpr(granularity, `min(${col})`, tz);
+}
+
+/**
+ * Returns a ClickHouse INTERVAL expression for a given granularity.
+ */
+export function granularityInterval(granularity: 'day' | 'week' | 'month'): string {
+  switch (granularity) {
+    case 'day': return `INTERVAL 1 DAY`;
+    case 'week': return `INTERVAL 7 DAY`;
+    case 'month': return `INTERVAL 1 MONTH`;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
+  }
+}
+
+/**
+ * Returns the SQL expression to compare `timestamp` against a named datetime parameter.
+ *
+ * - Without timezone: `{paramName:DateTime64(3)}`
+ * - With timezone: `toDateTime64({paramName:String}, 3, {tzParam:String})`
+ */
+export function tsExpr(paramName: string, tzParam: string, hasTz: boolean): string {
+  return hasTz
+    ? `toDateTime64({${paramName}:String}, 3, {${tzParam}:String})`
+    : `{${paramName}:DateTime64(3)}`;
+}
+
+/**
+ * Returns a DST-safe ClickHouse expression for the neighbor bucket as a raw SQL string.
+ */
+export function granularityNeighborExpr(
+  granularity: 'day' | 'week' | 'month',
+  bucketExpr: string,
+  direction: 1 | -1,
+  tz?: string,
+): string {
+  const hasTz = !!(tz && tz !== 'UTC');
+  const interval = granularityInterval(granularity);
+  const shifted = direction === 1 ? `${bucketExpr} + ${interval}` : `${bucketExpr} - ${interval}`;
+
+  if (!hasTz || granularity === 'day') {
+    return shifted;
+  }
+
+  switch (granularity) {
+    case 'week':
+      return `toDateTime(toStartOfWeek(${shifted}, 1, '${tz}'), '${tz}')`;
+    case 'month':
+      return `toDateTime(toStartOfMonth(${shifted}, '${tz}'), '${tz}')`;
+    default: {
+      const _exhaustive: never = granularity;
+      throw new Error(`Unhandled granularity: ${_exhaustive}`);
+    }
+  }
+}
+
+/**
+ * Builds a SQL filter clause from an array of conditions.
+ * Returns ' AND cond1 AND cond2 ...' when conditions are present, or '' when empty.
+ */
+export function buildFilterClause(conditions: string[]): string {
+  return conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
+}

@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { resolvePropertyExpr } from '../utils/property-filter';
+import { resolvePropertyExprStr } from '../analytics/query-helpers';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
 export interface PropertyValueRow {
@@ -20,7 +20,7 @@ export async function queryEventPropertyValues(
 ): Promise<PropertyValueRow[]> {
   let propExpr: string;
   try {
-    propExpr = resolvePropertyExpr(params.property_name);
+    propExpr = resolvePropertyExprStr(params.property_name);
   } catch {
     throw new AppBadRequestException(`Unknown property: ${params.property_name}`);
   }

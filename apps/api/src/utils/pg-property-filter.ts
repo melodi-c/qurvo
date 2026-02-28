@@ -1,7 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { escapeLikePattern } from './escape-like';
-import type { PropertyFilter } from './property-filter';
+import type { PropertyFilter } from '../analytics/query-helpers';
 
 /**
  * Builds Drizzle SQL fragments for filtering on persons.properties JSONB.

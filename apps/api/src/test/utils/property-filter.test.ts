@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPropertyFilterConditions,
-  resolvePropertyExpr,
-  resolveNumericPropertyExpr,
+  resolvePropertyExprStr as resolvePropertyExpr,
+  resolveNumericPropertyExprStr as resolveNumericPropertyExpr,
   type PropertyFilter,
-} from '../../utils/property-filter';
-import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
+} from '../../analytics/query-helpers';
 
 describe('resolvePropertyExpr', () => {
   it('resolves properties.* to JSONExtractString', () => {
@@ -32,29 +31,23 @@ describe('resolvePropertyExpr', () => {
   });
 
   it('throws for unknown property', () => {
-    expect(() => resolvePropertyExpr('unknown_column')).toThrow(AppBadRequestException);
     expect(() => resolvePropertyExpr('unknown_column')).toThrow('Unknown filter property: unknown_column');
   });
 
-  it('escapes single quotes in property key', () => {
-    expect(resolvePropertyExpr("properties.user's_plan")).toBe("JSONExtractString(properties, 'user\\'s_plan')");
+  it('rejects single quotes in property key (SAFE_JSON_KEY_REGEX validation)', () => {
+    expect(() => resolvePropertyExpr("properties.user's_plan")).toThrow('Invalid JSON key segment');
   });
 
-  it('escapes backslash in property key before single quote escaping', () => {
-    // key = "foo\\" → escaped → "foo\\\\"
-    expect(resolvePropertyExpr('properties.foo\\')).toBe("JSONExtractString(properties, 'foo\\\\')");
+  it('rejects backslash in property key (SAFE_JSON_KEY_REGEX validation)', () => {
+    expect(() => resolvePropertyExpr('properties.foo\\')).toThrow('Invalid JSON key segment');
   });
 
-  it('escapes backslash followed by single quote (SQL injection vector)', () => {
-    // key = "foo\\'" — without backslash escaping this would produce "foo\\'", breaking the SQL string.
-    // With proper escaping: backslash → "\\\\", quote → "\\'", result: "foo\\\\\\'"
-    expect(resolvePropertyExpr("properties.foo\\'")).toBe("JSONExtractString(properties, 'foo\\\\\\'')");
+  it('rejects backslash followed by single quote (SQL injection prevention)', () => {
+    expect(() => resolvePropertyExpr("properties.foo\\'")).toThrow('Invalid JSON key segment');
   });
 
-  it('escapes single quotes in nested path segments individually', () => {
-    expect(resolvePropertyExpr("properties.a's.b")).toBe(
-      "JSONExtractString(properties, 'a\\'s', 'b')",
-    );
+  it('rejects single quotes in nested path segments (SAFE_JSON_KEY_REGEX validation)', () => {
+    expect(() => resolvePropertyExpr("properties.a's.b")).toThrow('Invalid JSON key segment');
   });
 });
 
@@ -74,11 +67,11 @@ describe('resolveNumericPropertyExpr', () => {
   });
 
   it('throws for direct columns (not allowed as numeric)', () => {
-    expect(() => resolveNumericPropertyExpr('event_name')).toThrow(AppBadRequestException);
+    expect(() => resolveNumericPropertyExpr('event_name')).toThrow('Unknown metric property: event_name');
   });
 
   it('throws for unknown property', () => {
-    expect(() => resolveNumericPropertyExpr('unknown')).toThrow(AppBadRequestException);
+    expect(() => resolveNumericPropertyExpr('unknown')).toThrow('Unknown metric property: unknown');
   });
 });
 
@@ -205,22 +198,20 @@ describe('buildPropertyFilterConditions', () => {
     expect(Object.keys(params)).toHaveLength(0);
   });
 
-  it('escapes backslash in is_set JSON key', () => {
+  it('rejects backslash in is_set JSON key (SAFE_JSON_KEY_REGEX validation)', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: 'properties.foo\\', operator: 'is_set' },
     ];
-    const result = buildPropertyFilterConditions(filters, 'p', params);
-    expect(result).toEqual(["JSONHas(properties, 'foo\\\\')"]);
+    expect(() => buildPropertyFilterConditions(filters, 'p', params)).toThrow('Invalid JSON key segment');
   });
 
-  it('escapes backslash+quote in is_not_set JSON key (SQL injection vector)', () => {
+  it('rejects backslash+quote in is_not_set JSON key (SQL injection prevention)', () => {
     const params: Record<string, unknown> = {};
     const filters: PropertyFilter[] = [
       { property: "properties.foo\\'", operator: 'is_not_set' },
     ];
-    const result = buildPropertyFilterConditions(filters, 'p', params);
-    expect(result).toEqual(["NOT JSONHas(properties, 'foo\\\\\\'')"]); // backslash → \\\\, quote → \\'
+    expect(() => buildPropertyFilterConditions(filters, 'p', params)).toThrow('Invalid JSON key segment');
   });
 
   it('builds is_set condition for direct column using != empty string', () => {
@@ -287,7 +278,7 @@ describe('buildPropertyFilterConditions', () => {
     const filters: PropertyFilter[] = [
       { property: 'nonexistent_column', operator: 'eq', value: 'val' },
     ];
-    expect(() => buildPropertyFilterConditions(filters, 'p', params)).toThrow(AppBadRequestException);
+    expect(() => buildPropertyFilterConditions(filters, 'p', params)).toThrow('Unknown filter property: nonexistent_column');
   });
 });
 
