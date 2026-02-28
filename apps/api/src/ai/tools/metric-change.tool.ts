@@ -4,7 +4,24 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { toChTs, RESOLVED_PERSON, resolvePropertyExprStr } from '../../analytics/query-helpers';
+import {
+  compileExprToSql,
+  CompilerContext,
+  and,
+  gte,
+  lte,
+  or,
+  raw,
+} from '@qurvo/ch-query';
+import {
+  resolvePropertyExprStr,
+  projectIs,
+  eventIs,
+  analyticsWhere,
+  toChTs,
+  tsParam,
+  RESOLVED_PERSON,
+} from '../../analytics/query-helpers';
 import { type Metric, computeMetricValue } from './metric.utils';
 import { MAX_METRIC_SEGMENTS } from '../../constants';
 import type { RootCauseToolOutput } from '@qurvo/ai-types';
@@ -84,16 +101,15 @@ function computeSegmentMetrics(
       ? currentValue === 0 ? 0 : 1
       : absoluteChange / baselineValue;
 
-  // Contribution: how much did this segment's absolute change contribute to the total absolute change?
   const totalChange = totalCurrentValue - totalBaselineValue;
   const contribution = totalChange === 0 ? 0 : absoluteChange / totalChange;
 
   return {
     baseline_value: baselineValue,
     current_value: currentValue,
-    relative_change_pct: Math.round(relativeChange * 10000) / 100, // percentage, 2dp
+    relative_change_pct: Math.round(relativeChange * 10000) / 100,
     absolute_change: absoluteChange,
-    contribution_pct: Math.round(contribution * 10000) / 100, // percentage, 2dp
+    contribution_pct: Math.round(contribution * 10000) / 100,
   };
 }
 
@@ -110,14 +126,18 @@ async function queryDimension(
 ): Promise<DimensionResult> {
   const breakdownExpr = resolvePropertyExprStr(dimension);
 
-  const queryParams: Record<string, unknown> = {
-    project_id: projectId,
-    event_name: eventName,
-    baseline_from: toChTs(baselineFrom),
-    baseline_to: toChTs(baselineTo, true),
-    current_from: toChTs(currentFrom),
-    current_to: toChTs(currentTo, true),
-  };
+  // Compile WHERE clauses via AST with a shared context to avoid param collisions
+  const ctx = new CompilerContext();
+  const queryParams: Record<string, unknown> = {};
+
+  const baselineWhere = compileExprToSql(
+    analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), eventName }),
+    queryParams, ctx,
+  );
+  const currentWhere = compileExprToSql(
+    analyticsWhere({ projectId, from: currentFrom, to: toChTs(currentTo, true), eventName }),
+    queryParams, ctx,
+  );
 
   const sql = `
     WITH
@@ -127,11 +147,7 @@ async function queryDimension(
           count() AS raw_value,
           uniqExact(${RESOLVED_PERSON}) AS uniq_value
         FROM events
-        WHERE
-          project_id = {project_id:UUID}
-          AND event_name = {event_name:String}
-          AND timestamp >= {baseline_from:DateTime64(3)}
-          AND timestamp <= {baseline_to:DateTime64(3)}
+        WHERE ${baselineWhere.sql}
         GROUP BY segment_value
       ),
       current_period AS (
@@ -140,11 +156,7 @@ async function queryDimension(
           count() AS raw_value,
           uniqExact(${RESOLVED_PERSON}) AS uniq_value
         FROM events
-        WHERE
-          project_id = {project_id:UUID}
-          AND event_name = {event_name:String}
-          AND timestamp >= {current_from:DateTime64(3)}
-          AND timestamp <= {current_to:DateTime64(3)}
+        WHERE ${currentWhere.sql}
         GROUP BY segment_value
       ),
       totals AS (
@@ -177,22 +189,14 @@ async function queryDimension(
   const rows = await res.json<RawSegmentRow>();
 
   const segments: SegmentResult[] = rows.map((row) => {
-    const baselineRaw = Number(row.baseline_raw);
-    const baselineUniq = Number(row.baseline_uniq);
-    const currentRaw = Number(row.current_raw);
-    const currentUniq = Number(row.current_uniq);
+    const bRaw = Number(row.baseline_raw);
+    const bUniq = Number(row.baseline_uniq);
+    const cRaw = Number(row.current_raw);
+    const cUniq = Number(row.current_uniq);
     const totalBaselineValue = computeMetricValue(metric, Number(row.total_baseline_raw), Number(row.total_baseline_uniq));
     const totalCurrentValue = computeMetricValue(metric, Number(row.total_current_raw), Number(row.total_current_uniq));
 
-    const metrics = computeSegmentMetrics(
-      metric,
-      baselineRaw,
-      baselineUniq,
-      currentRaw,
-      currentUniq,
-      totalBaselineValue,
-      totalCurrentValue,
-    );
+    const metrics = computeSegmentMetrics(metric, bRaw, bUniq, cRaw, cUniq, totalBaselineValue, totalCurrentValue);
 
     return {
       dimension,
@@ -201,7 +205,6 @@ async function queryDimension(
     };
   });
 
-  // Sort by absolute contribution descending (largest movers first)
   segments.sort((a, b) => Math.abs(b.contribution_pct) - Math.abs(a.contribution_pct));
 
   return { dimension, segments };
@@ -217,29 +220,44 @@ async function queryOverallTotals(
   currentFrom: string,
   currentTo: string,
 ): Promise<{ baseline_value: number; current_value: number; relative_change_pct: number; absolute_change: number }> {
-  const queryParams: Record<string, unknown> = {
-    project_id: projectId,
-    event_name: eventName,
-    baseline_from: toChTs(baselineFrom),
-    baseline_to: toChTs(baselineTo, true),
-    current_from: toChTs(currentFrom),
-    current_to: toChTs(currentTo, true),
-  };
+  const ctx = new CompilerContext();
+  const queryParams: Record<string, unknown> = {};
+
+  // Build conditional time-range expressions via AST
+  const baselineCond = and(
+    gte(raw('timestamp'), tsParam(baselineFrom)),
+    lte(raw('timestamp'), tsParam(toChTs(baselineTo, true))),
+  );
+  const currentCond = and(
+    gte(raw('timestamp'), tsParam(currentFrom)),
+    lte(raw('timestamp'), tsParam(toChTs(currentTo, true))),
+  );
+
+  const baseCondSql = compileExprToSql(baselineCond, queryParams, ctx);
+  const curCondSql = compileExprToSql(currentCond, queryParams, ctx);
+
+  // Project + event conditions
+  const projEventSql = compileExprToSql(
+    and(projectIs(projectId), eventIs(eventName)),
+    queryParams, ctx,
+  );
+
+  // OR condition for the WHERE clause (scan only relevant rows)
+  const orCondSql = compileExprToSql(
+    or(baselineCond, currentCond),
+    queryParams, ctx,
+  );
 
   const sql = `
     SELECT
-      countIf(timestamp >= {baseline_from:DateTime64(3)} AND timestamp <= {baseline_to:DateTime64(3)}) AS baseline_raw,
-      uniqExactIf(${RESOLVED_PERSON}, timestamp >= {baseline_from:DateTime64(3)} AND timestamp <= {baseline_to:DateTime64(3)}) AS baseline_uniq,
-      countIf(timestamp >= {current_from:DateTime64(3)} AND timestamp <= {current_to:DateTime64(3)}) AS current_raw,
-      uniqExactIf(${RESOLVED_PERSON}, timestamp >= {current_from:DateTime64(3)} AND timestamp <= {current_to:DateTime64(3)}) AS current_uniq
+      countIf(${baseCondSql.sql}) AS baseline_raw,
+      uniqExactIf(${RESOLVED_PERSON}, ${baseCondSql.sql}) AS baseline_uniq,
+      countIf(${curCondSql.sql}) AS current_raw,
+      uniqExactIf(${RESOLVED_PERSON}, ${curCondSql.sql}) AS current_uniq
     FROM events
     WHERE
-      project_id = {project_id:UUID}
-      AND event_name = {event_name:String}
-      AND (
-        (timestamp >= {baseline_from:DateTime64(3)} AND timestamp <= {baseline_to:DateTime64(3)})
-        OR (timestamp >= {current_from:DateTime64(3)} AND timestamp <= {current_to:DateTime64(3)})
-      )
+      ${projEventSql.sql}
+      AND (${orCondSql.sql})
   `;
 
   const res = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
@@ -279,7 +297,6 @@ export class MetricChangeTool implements AiTool {
       breakdown_properties: breakdownProperties,
     } = args;
 
-    // Run overall totals + all dimension breakdowns in parallel
     const [overall, ...dimensionResults] = await Promise.all([
       queryOverallTotals(this.ch, projectId, eventName, metric, baselineFrom, baselineTo, currentFrom, currentTo),
       ...breakdownProperties.map((dim) =>
@@ -287,7 +304,6 @@ export class MetricChangeTool implements AiTool {
       ),
     ]);
 
-    // Build a flat ranked list across all dimensions, sorted by absolute contribution
     const allSegments: SegmentResult[] = dimensionResults.flatMap((d) => d.segments);
     allSegments.sort((a, b) => Math.abs(b.contribution_pct) - Math.abs(a.contribution_pct));
 

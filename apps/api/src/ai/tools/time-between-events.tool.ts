@@ -4,7 +4,9 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
+import { compile } from '@qurvo/ch-query';
 import { toChTs, RESOLVED_PERSON } from '../../analytics/query-helpers';
+import { firstEventCte } from './first-event-cte';
 
 const argsSchema = z.object({
   event_a: z.string().describe('The starting event (e.g. "signup")'),
@@ -84,7 +86,7 @@ function buildHistogram(
 
   const step = (maxVal - minVal) / bucketCount;
   const buckets: HistogramBucket[] = Array.from({ length: bucketCount }, (_, i) => ({
-    label: `${formatDuration(minVal + i * step)}–${formatDuration(minVal + (i + 1) * step)}`,
+    label: `${formatDuration(minVal + i * step)}\u2013${formatDuration(minVal + (i + 1) * step)}`,
     from_seconds: Math.round(minVal + i * step),
     to_seconds: Math.round(minVal + (i + 1) * step),
     count: 0,
@@ -122,37 +124,37 @@ export class TimeBetweenEventsTool implements AiTool {
     const bucketCount = args.buckets ?? 10;
     const maxDays = args.max_days ?? 90;
     const maxSeconds = maxDays * 86400;
+    const fromTs = toChTs(args.date_from);
+    const toTs = toChTs(args.date_to, true);
 
+    // Build the "first_a" CTE via the shared firstEventCte helper
+    const firstANode = firstEventCte({
+      projectId,
+      eventName: args.event_a,
+      from: fromTs,
+      to: toTs,
+    });
+    const firstACompiled = compile(firstANode);
+
+    // Manual params for the remaining CTEs
     const queryParams: Record<string, unknown> = {
+      ...firstACompiled.params,
       project_id: projectId,
-      from: toChTs(args.date_from),
-      to: toChTs(args.date_to, true),
-      event_a: args.event_a,
+      to: toTs,
       event_b: args.event_b,
       max_seconds: maxSeconds,
     };
 
     // Strategy:
-    // 1. Per user: find first occurrence of event_a in date range (start_ts)
-    // 2. Per user: find first occurrence of event_b AFTER start_ts and within max_seconds
+    // 1. first_a CTE (shared helper): per user first occurrence of event_a in date range
+    // 2. first_b: per user first occurrence of event_b AFTER start_ts within max_seconds
     // 3. Return diff_seconds for each qualifying pair
     //
     // We avoid FINAL and use IN/NOT IN patterns per ClickHouse gotchas.
-    // CTEs are not materialised — use minimal references.
+    // CTEs are not materialised -- use minimal references.
     const sql = `
       WITH
-        first_a AS (
-          SELECT
-            ${RESOLVED_PERSON} AS pid,
-            min(timestamp) AS start_ts
-          FROM events
-          WHERE
-            project_id = {project_id:UUID}
-            AND event_name = {event_a:String}
-            AND timestamp >= {from:DateTime64(3)}
-            AND timestamp <= {to:DateTime64(3)}
-          GROUP BY pid
-        ),
+        first_a AS (${firstACompiled.sql}),
         first_b AS (
           SELECT
             ${RESOLVED_PERSON} AS pid,
