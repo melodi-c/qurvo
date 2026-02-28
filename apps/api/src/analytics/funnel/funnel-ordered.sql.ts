@@ -1,4 +1,4 @@
-import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
+import { rawWithParams, select, raw, CompilerContext, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -21,6 +21,8 @@ export interface OrderedCTEOptions {
   queryParams: FunnelChQueryParams;
   breakdownExpr?: string;
   includeTimestampCols?: boolean;
+  /** Shared CompilerContext to avoid p_N param collisions across multiple compileExprToSql calls. */
+  ctx?: CompilerContext;
 }
 
 /**
@@ -44,7 +46,7 @@ export interface OrderedCTEResult {
 export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTEResult {
   const {
     steps, orderType, stepConditions, exclusions, cohortClause,
-    samplingClause, numSteps, queryParams, breakdownExpr, includeTimestampCols,
+    samplingClause, numSteps, queryParams, breakdownExpr, includeTimestampCols, ctx,
   } = options;
 
   const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
@@ -71,8 +73,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     : '\n                AND event_name IN ({all_event_names:Array(String)})';
 
   // Build full step conditions for step 0 and last step.
-  const step0Cond = buildStepCondition(steps[0]!, 0, queryParams);
-  const lastStepCond = buildStepCondition(steps[numSteps - 1]!, numSteps - 1, queryParams);
+  const step0Cond = buildStepCondition(steps[0]!, 0, queryParams, ctx);
+  const lastStepCond = buildStepCondition(steps[numSteps - 1]!, numSteps - 1, queryParams, ctx);
 
   // Optional breakdown column.
   const breakdownCol = breakdownExpr
@@ -81,7 +83,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
 
   // Exclusion columns
   const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams)
+    ? buildExclusionColumns(exclusions, steps, queryParams, ctx)
     : [];
   const exclColumnsSQL = exclColumns.length > 0
     ? ',\n              ' + exclColumns.join(',\n              ')

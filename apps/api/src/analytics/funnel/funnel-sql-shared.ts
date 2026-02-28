@@ -6,13 +6,15 @@ import {
   raw,
   select,
   col,
+  compileExprToSql,
+  CompilerContext,
+  propertyFilters,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
-import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
 
-export { RESOLVED_PERSON, toChTs };
+export { RESOLVED_PERSON, toChTs, CompilerContext };
 
 // ── ClickHouse query parameter types ─────────────────────────────────────────
 
@@ -116,22 +118,28 @@ export function resolveStepEventNames(step: FunnelStep): string[] {
   return [step.event_name];
 }
 
-/** Builds the windowFunnel condition for one step, injecting filter params into queryParams. */
+/** Builds the windowFunnel condition for one step, injecting filter params into queryParams.
+ *
+ * An optional `ctx` (CompilerContext) can be passed to share the param counter across
+ * multiple buildStepCondition / buildExclusionColumns calls for the same query —
+ * prevents p_0 collisions when each call would otherwise start its own counter.
+ */
 export function buildStepCondition(
   step: FunnelStep,
   idx: number,
   queryParams: FunnelChQueryParams,
+  ctx?: CompilerContext,
 ): string {
-  const filterParts = buildPropertyFilterConditions(
-    step.filters ?? [],
-    `step_${idx}`,
-    queryParams,
-  );
   const names = resolveStepEventNames(step);
   const eventCond = names.length === 1
     ? `event_name = {step_${idx}:String}`
     : `event_name IN ({step_${idx}_names:Array(String)})`;
-  return [eventCond, ...filterParts].join(' AND ');
+
+  const filtersExpr = propertyFilters(step.filters ?? []);
+  if (!filtersExpr) return eventCond;
+
+  const { sql: filterSql } = compileExprToSql(filtersExpr, queryParams, ctx);
+  return `${eventCond} AND ${filterSql}`;
 }
 
 /** Collects all unique event names across steps and exclusions. */
@@ -245,11 +253,15 @@ export function validateExclusions(
 
 /**
  * Builds per-user array columns for exclusion checking.
+ *
+ * An optional `ctx` (CompilerContext) can be passed to share the param counter across
+ * multiple buildStepCondition / buildExclusionColumns calls for the same query.
  */
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
   steps: FunnelStep[],
   queryParams: FunnelChQueryParams,
+  ctx?: CompilerContext,
 ): string[] {
   const lines: string[] = [];
   for (const [i, excl] of exclusions.entries()) {
@@ -276,12 +288,12 @@ export function buildExclusionColumns(
       toCond = `event_name IN ({excl_${i}_to_step_names:Array(String)})`;
     }
 
-    const exclFilterParts = buildPropertyFilterConditions(
-      excl.filters ?? [],
-      `excl_${i}_excl`,
-      queryParams,
-    );
-    const exclCond = [`event_name = {excl_${i}_name:String}`, ...exclFilterParts].join(' AND ');
+    const exclFiltersExpr = propertyFilters(excl.filters ?? []);
+    let exclCond = `event_name = {excl_${i}_name:String}`;
+    if (exclFiltersExpr) {
+      const { sql: exclFilterSql } = compileExprToSql(exclFiltersExpr, queryParams, ctx);
+      exclCond += ` AND ${exclFilterSql}`;
+    }
 
     lines.push(
       `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${fromCond}) AS excl_${i}_from_arr`,

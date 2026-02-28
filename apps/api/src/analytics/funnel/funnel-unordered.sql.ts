@@ -1,4 +1,4 @@
-import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
+import { rawWithParams, select, raw, CompilerContext, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -16,6 +16,8 @@ export interface UnorderedCTEOptions {
   samplingClause: string;
   queryParams: FunnelChQueryParams;
   breakdownExpr?: string;
+  /** Shared CompilerContext to avoid p_N param collisions across multiple compileExprToSql calls. */
+  ctx?: CompilerContext;
 }
 
 /**
@@ -44,13 +46,13 @@ export interface UnorderedCTEResult {
  * and array lambda expressions have no typed builder equivalents.
  */
 export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): UnorderedCTEResult {
-  const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr } = options;
+  const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr, ctx } = options;
   const N = steps.length;
   const winExpr = `toInt64({window:UInt64}) * 1000`;
   const fromExpr = funnelTsExpr('from', queryParams);
   const toExpr = funnelTsExpr('to', queryParams);
 
-  const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams));
+  const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx));
 
   // ── Step 1: collect all timestamps per step as arrays ────────────────────
   const groupArrayCols = stepConds.map((cond, i) =>
@@ -95,7 +97,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
 
   // ── Step 6: exclusion array columns ──────────────────────────────────────
   const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams)
+    ? buildExclusionColumns(exclusions, steps, queryParams, ctx)
     : [];
   const exclColsSQL = exclColumns.length > 0
     ? ',\n        ' + exclColumns.join(',\n        ')
