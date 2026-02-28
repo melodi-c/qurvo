@@ -9,9 +9,7 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist .turbo"
   },
-  "dependencies": {
-    "@qurvo/db": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
     "typescript": "^5.7.0",

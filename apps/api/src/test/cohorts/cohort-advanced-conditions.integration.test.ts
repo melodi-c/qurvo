@@ -9,6 +9,7 @@ import {
 import { getTestContext, type ContainerContext } from '../context';
 import { countCohortMembers } from '../../cohorts/cohorts.query';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 
 /**
@@ -22,7 +23,9 @@ async function countCohortMembersAt(
   dateTo: string,
 ): Promise<number> {
   const params: Record<string, unknown> = { project_id: projectId };
-  const subquery = buildCohortSubquery(definition, 0, 'project_id', params, undefined, dateTo);
+  const node = buildCohortSubquery(definition, 0, 'project_id', params, undefined, dateTo);
+  const { sql: subquery, params: compiledParams } = compile(node);
+  Object.assign(params, compiledParams);
   const result = await context.ch.query({
     query: `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`,
     query_params: params,

@@ -7,6 +7,7 @@ import { CohortsService } from '../../cohorts/cohorts.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 
 const argsSchema = z.object({
   cohort_id: z.string().uuid().describe('UUID of the cohort to query'),
@@ -103,9 +104,10 @@ export class QueryCohortMembersTool implements AiTool {
     } else {
       // Inline cohort definition — build dynamic subquery
       const innerParams: Record<string, unknown> = { project_id: projectId };
-      const definitionSubquery = buildCohortSubquery(definition, 0, 'project_id', innerParams);
+      const node = buildCohortSubquery(definition, 0, 'project_id', innerParams);
+      const { sql: definitionSubquery, params: compiledParams } = compile(node);
       // Merge inner params (may add numbered params like p0, p1, ...) into outer params
-      Object.assign(params, innerParams);
+      Object.assign(params, innerParams, compiledParams);
       personIdSubquery = `
         SELECT person_id
         FROM (${definitionSubquery})

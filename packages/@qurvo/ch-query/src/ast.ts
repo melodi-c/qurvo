@@ -153,4 +153,14 @@ export interface UnionAllNode {
   queries: QueryNode[];
 }
 
-export type QueryNode = SelectNode | UnionAllNode;
+/**
+ * Generic set operation node: INTERSECT, UNION DISTINCT, EXCEPT, etc.
+ * Used by cohort group builders for AND (INTERSECT) and OR (UNION DISTINCT) groups.
+ */
+export interface SetOperationNode {
+  type: 'set_operation';
+  operator: 'INTERSECT' | 'UNION DISTINCT' | 'EXCEPT';
+  queries: QueryNode[];
+}
+
+export type QueryNode = SelectNode | UnionAllNode | SetOperationNode;

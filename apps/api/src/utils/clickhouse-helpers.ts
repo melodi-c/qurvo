@@ -1,3 +1,4 @@
+import { compileExprToSql } from '@qurvo/ch-query';
 import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-query';
 
 /**
@@ -114,7 +115,11 @@ export function buildCohortClause(
   dateFrom?: string,
 ): string {
   if (!cohortFilters?.length) {return '';}
-  return ' AND ' + buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo, dateFrom);
+  const expr = buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo, dateFrom);
+  if (!expr) {return '';}
+  const { sql, params } = compileExprToSql(expr);
+  Object.assign(queryParams, params);
+  return ' AND ' + sql;
 }
 
 /**

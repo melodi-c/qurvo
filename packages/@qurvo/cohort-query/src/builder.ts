@@ -1,5 +1,8 @@
 import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
+import type { Expr, QueryNode, SelectNode } from '@qurvo/ch-query';
+import { select, raw, rawWithParams, and, intersect, unionDistinct, inSubquery } from '@qurvo/ch-query';
+import { compile } from '@qurvo/ch-query';
 import { RESOLVED_PERSON } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
 import { buildPropertyConditionSubquery } from './conditions/property';
@@ -27,7 +30,7 @@ type ConditionBuilder<T extends CohortCondition = CohortCondition> = (
   cond: T,
   ctx: BuildContext,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
-) => string;
+) => SelectNode;
 
 const CONDITION_BUILDERS: { [K in ConditionType]: ConditionBuilder<Extract<CohortCondition, { type: K }>> } = {
   person_property: (cond, ctx) => buildPropertyConditionSubquery(cond, ctx),
@@ -48,7 +51,7 @@ function buildConditionSubquery(
   cond: CohortCondition,
   ctx: BuildContext,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
-): string {
+): SelectNode {
   const builder = CONDITION_BUILDERS[cond.type] as ConditionBuilder;
   if (!builder) {
     throw new Error(`Unknown condition type: ${(cond as { type: string }).type}`);
@@ -59,19 +62,21 @@ function buildConditionSubquery(
 // ── Recursive group builder ──────────────────────────────────────────────────
 
 /**
- * Builds a subquery returning person_ids matching a nested AND/OR group.
+ * Builds a QueryNode returning person_ids matching a nested AND/OR group.
  * AND groups use INTERSECT, OR groups use UNION DISTINCT.
  */
 function buildGroupSubquery(
   group: CohortConditionGroup,
   ctx: BuildContext,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
-): string {
+): QueryNode {
   if (group.values.length === 0) {
-    return `SELECT toUUID('00000000-0000-0000-0000-000000000000') AS person_id WHERE 0`;
+    return select(raw(`toUUID('00000000-0000-0000-0000-000000000000')`).as('person_id'))
+      .where(raw('0'))
+      .build();
   }
 
-  const subqueries: string[] = [];
+  const subqueries: QueryNode[] = [];
   for (const val of group.values) {
     if (isConditionGroup(val)) {
       subqueries.push(buildGroupSubquery(val, ctx, resolveCohortIsStatic));
@@ -84,25 +89,20 @@ function buildGroupSubquery(
     return subqueries[0];
   }
 
-  const joiner = group.type === 'AND' ? 'INTERSECT' : 'UNION DISTINCT';
-  return subqueries.join(`\n${joiner}\n`);
+  return group.type === 'AND'
+    ? intersect(...subqueries)
+    : unionDistinct(...subqueries);
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 /**
- * Builds a subquery from a CohortConditionGroup definition.
+ * Builds a QueryNode from a CohortConditionGroup definition.
  *
  * @param dateTo - Optional datetime string (e.g. "2025-01-31 23:59:59") used
- *   as the upper bound for behavioral conditions instead of `now()`.  Pass the
- *   funnel/trend `date_to` value here to ensure historical queries are
- *   reproducible and cache-coherent.
+ *   as the upper bound for behavioral conditions instead of `now()`.
  * @param dateFrom - Optional datetime string used as the lower bound for the
- *   `not_performed_event` condition.  When provided together with `dateTo`, the
- *   absence check is scoped to the exact `[dateFrom, dateTo]` analysis window
- *   rather than the rolling `[dateTo - N days, dateTo]` window.  Pass the
- *   funnel/trend `date_from` value here to avoid false-negative exclusions when
- *   a user performed the target event before the analysis period began.
+ *   `not_performed_event` condition.
  */
 export function buildCohortSubquery(
   definition: CohortConditionGroup,
@@ -112,10 +112,7 @@ export function buildCohortSubquery(
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
   dateFrom?: string,
-): string {
-  // Defence-in-depth: reject overly complex definitions before generating SQL.
-  // The API layer also validates via CohortsService, but this guard protects
-  // any caller of the library (e.g. cohort-worker) that bypasses the API DTO layer.
+): QueryNode {
   validateDefinitionComplexity(definition);
 
   const ctx: BuildContext = {
@@ -131,17 +128,10 @@ export function buildCohortSubquery(
 // ── Filter clause builder ────────────────────────────────────────────────────
 
 /**
- * Builds a WHERE clause fragment: `RESOLVED_PERSON IN (cohort subquery)`.
- * Uses pre-computed tables when materialized, inline subquery otherwise.
+ * Builds a WHERE clause Expr: `RESOLVED_PERSON IN (cohort subquery)` for each cohort.
+ * Returns an Expr (ANDed together) or undefined if no cohorts.
  *
- * @param dateTo - Optional datetime string used as the upper bound for
- *   behavioral conditions instead of `now()`.  Pass the funnel/trend `date_to`
- *   value here to ensure historical queries are reproducible.
- * @param dateFrom - Optional datetime string used as the lower bound for the
- *   `not_performed_event` condition.  When provided together with `dateTo`, the
- *   absence check is scoped to the exact `[dateFrom, dateTo]` analysis window.
- *   Pass the funnel/trend `date_from` value here to avoid false-negative
- *   exclusions when a user performed the target event before the analysis period.
+ * Uses pre-computed tables when materialized, inline subquery otherwise.
  */
 export function buildCohortFilterClause(
   cohorts: CohortFilterInput[],
@@ -150,29 +140,47 @@ export function buildCohortFilterClause(
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
   dateFrom?: string,
-): string {
-  if (cohorts.length === 0) return '';
+): Expr | undefined {
+  if (cohorts.length === 0) return undefined;
 
-  const clauses = cohorts.map((c, idx) => {
+  const exprs: Expr[] = cohorts.map((c, idx) => {
     if (c.materialized) {
       const idParam = `coh_mid_${idx}`;
       queryParams[idParam] = c.cohort_id;
-      return `${RESOLVED_PERSON} IN (
-        SELECT person_id FROM cohort_members FINAL
-        WHERE cohort_id = {${idParam}:UUID} AND project_id = {${projectIdParam}:UUID}
-      )`;
+      const memberQuery = select(raw('person_id'))
+        .from('cohort_members FINAL')
+        .where(
+          raw(`cohort_id = {${idParam}:UUID}`),
+          raw(`project_id = {${projectIdParam}:UUID}`),
+        )
+        .build();
+      return inSubquery(raw(RESOLVED_PERSON), memberQuery);
     }
     if (c.is_static) {
       const idParam = `coh_sid_${idx}`;
       queryParams[idParam] = c.cohort_id;
-      return `${RESOLVED_PERSON} IN (
-        SELECT person_id FROM person_static_cohort FINAL
-        WHERE cohort_id = {${idParam}:UUID} AND project_id = {${projectIdParam}:UUID}
-      )`;
+      const memberQuery = select(raw('person_id'))
+        .from('person_static_cohort FINAL')
+        .where(
+          raw(`cohort_id = {${idParam}:UUID}`),
+          raw(`project_id = {${projectIdParam}:UUID}`),
+        )
+        .build();
+      return inSubquery(raw(RESOLVED_PERSON), memberQuery);
     }
-    const subquery = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
-    return `${RESOLVED_PERSON} IN (${subquery})`;
+    const subqueryNode = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
+    // Since buildCohortSubquery may return a SetOperationNode (INTERSECT/UNION DISTINCT),
+    // we need a SelectNode for inSubquery. Wrap it in a subselect if needed.
+    if (subqueryNode.type === 'select') {
+      return inSubquery(raw(RESOLVED_PERSON), subqueryNode);
+    }
+    // For set operations, wrap in a subselect: SELECT * FROM (... INTERSECT/UNION ...)
+    // Actually, IN (... INTERSECT/UNION ...) is valid in ClickHouse.
+    // Use raw SQL to embed the compiled set operation.
+    const compiled = compile(subqueryNode);
+    Object.assign(queryParams, compiled.params);
+    return rawWithParams(`${RESOLVED_PERSON} IN (${compiled.sql})`, compiled.params);
   });
 
-  return clauses.join(' AND ');
+  return exprs.length === 1 ? exprs[0] : and(...exprs);
 }

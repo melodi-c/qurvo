@@ -10,7 +10,8 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@qurvo/ch-query": "workspace:*"
+    "@qurvo/ch-query": "workspace:*",
+    "@qurvo/db": "workspace:*"
   },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",

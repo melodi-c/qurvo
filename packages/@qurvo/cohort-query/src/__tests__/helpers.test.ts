@@ -3,9 +3,9 @@ import {
   resolvePropertyExpr,
   resolveEventPropertyExpr,
   buildOperatorClause,
-} from '../../cohort/helpers';
-import { compileExprToSql } from '../../compiler';
-import { raw } from '../../builders';
+} from '../helpers';
+import { compileExprToSql } from '@qurvo/ch-query';
+import { raw } from '@qurvo/ch-query';
 
 /** Helper to compile an Expr to its SQL string. */
 function sql(expr: ReturnType<typeof resolvePropertyExpr>): string {

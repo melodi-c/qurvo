@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
 
 export async function materializeCohort(
   ch: ClickHouseClient,
@@ -10,7 +11,9 @@ export async function materializeCohort(
 ): Promise<number> {
   const version = Date.now();
   const queryParams: Record<string, unknown> = { project_id: projectId };
-  const subquery = buildCohortSubquery(definition, 0, 'project_id', queryParams);
+  const node = buildCohortSubquery(definition, 0, 'project_id', queryParams);
+  const { sql: subquery, params: compiledParams } = compile(node);
+  Object.assign(queryParams, compiledParams);
 
   const insertSql = `
     INSERT INTO cohort_members (cohort_id, project_id, person_id, version)

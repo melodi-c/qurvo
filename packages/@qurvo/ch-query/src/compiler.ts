@@ -8,6 +8,7 @@ import type {
   JoinClause,
   QueryNode,
   SelectNode,
+  SetOperationNode,
   UnionAllNode,
 } from './ast';
 
@@ -254,12 +255,18 @@ function compileUnionAll(node: UnionAllNode, ctx: CompilerContext): string {
   return node.queries.map((q) => compileQuery(q, ctx)).join('\nUNION ALL\n');
 }
 
+function compileSetOperation(node: SetOperationNode, ctx: CompilerContext): string {
+  return node.queries.map((q) => compileQuery(q, ctx)).join(`\n${node.operator}\n`);
+}
+
 function compileQuery(node: QueryNode, ctx: CompilerContext): string {
   switch (node.type) {
     case 'select':
       return compileSelect(node, ctx);
     case 'union_all':
       return compileUnionAll(node, ctx);
+    case 'set_operation':
+      return compileSetOperation(node, ctx);
   }
 }
 

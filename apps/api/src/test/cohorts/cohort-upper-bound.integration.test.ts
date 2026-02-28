@@ -15,8 +15,26 @@ import {
   DAY_MS,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { buildCohortSubquery as buildCohortSubqueryNode } from '@qurvo/cohort-query';
+import { compile } from '@qurvo/ch-query';
+import type { CohortConditionGroup } from '@qurvo/db';
 import { toChTs } from '../../utils/clickhouse-helpers';
+
+/** Local string-returning wrapper around the ch-query builder. */
+function buildCohortSubquery(
+  definition: CohortConditionGroup,
+  cohortIdx: number,
+  projectIdParam: string,
+  queryParams: Record<string, unknown>,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
+  dateTo?: string,
+  dateFrom?: string,
+): string {
+  const node = buildCohortSubqueryNode(definition, cohortIdx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
+  const { sql, params } = compile(node);
+  Object.assign(queryParams, params);
+  return sql;
+}
 
 let ctx: ContainerContext;
 

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildStoppedPerformingSubquery } from '../../cohort/conditions/stopped';
-import { buildRestartedPerformingSubquery } from '../../cohort/conditions/restarted';
-import { CohortQueryValidationError } from '../../cohort/errors';
-import type { BuildContext } from '../../cohort/types';
+import { buildStoppedPerformingSubquery } from '../conditions/stopped';
+import { buildRestartedPerformingSubquery } from '../conditions/restarted';
+import { compile } from '@qurvo/ch-query';
+import { CohortQueryValidationError } from '../errors';
+import type { BuildContext } from '../types';
 
 function makeCtx(): BuildContext {
   return {
@@ -51,11 +52,12 @@ describe('buildStoppedPerformingSubquery — window guard', () => {
     ).toThrow(/stopped_performing/);
   });
 
-  it('returns a SQL string when recent_window_days < historical_window_days', () => {
-    const sql = buildStoppedPerformingSubquery(
+  it('returns a SelectNode that compiles to valid SQL when recent_window_days < historical_window_days', () => {
+    const node = buildStoppedPerformingSubquery(
       { type: 'stopped_performing', event_name: 'page_view', recent_window_days: 7, historical_window_days: 30 },
       makeCtx(),
     );
+    const sql = compile(node).sql;
     expect(sql).toContain('SELECT');
     expect(sql).toContain('person_id');
   });
@@ -65,7 +67,6 @@ describe('buildStoppedPerformingSubquery — window guard', () => {
 
 describe('buildRestartedPerformingSubquery — window guard', () => {
   it('throws CohortQueryValidationError when historical_window_days === recent + gap', () => {
-    // recent=7, gap=14 → sum=21; historical=21 is invalid (must be > 21)
     expect(() =>
       buildRestartedPerformingSubquery(
         {
@@ -81,7 +82,6 @@ describe('buildRestartedPerformingSubquery — window guard', () => {
   });
 
   it('throws with correct message when historical_window_days === recent + gap', () => {
-    // recent=7, gap=14 → sum=21; historical=21 is invalid (must be > 21)
     expect(() =>
       buildRestartedPerformingSubquery(
         {
@@ -97,7 +97,6 @@ describe('buildRestartedPerformingSubquery — window guard', () => {
   });
 
   it('throws CohortQueryValidationError when historical_window_days < recent + gap', () => {
-    // recent=7, gap=14 → sum=21; historical=10 < 21 → invalid
     expect(() =>
       buildRestartedPerformingSubquery(
         {
@@ -113,7 +112,6 @@ describe('buildRestartedPerformingSubquery — window guard', () => {
   });
 
   it('throws with correct message when historical_window_days < recent + gap', () => {
-    // recent=7, gap=14 → sum=21; historical=10 < 21 → invalid
     expect(() =>
       buildRestartedPerformingSubquery(
         {
@@ -128,8 +126,8 @@ describe('buildRestartedPerformingSubquery — window guard', () => {
     ).toThrow(/restarted_performing/);
   });
 
-  it('returns a SQL string when historical_window_days > recent + gap', () => {
-    const sql = buildRestartedPerformingSubquery(
+  it('returns a SelectNode that compiles to valid SQL when historical_window_days > recent + gap', () => {
+    const node = buildRestartedPerformingSubquery(
       {
         type: 'restarted_performing',
         event_name: 'page_view',
@@ -139,6 +137,7 @@ describe('buildRestartedPerformingSubquery — window guard', () => {
       },
       makeCtx(),
     );
+    const sql = compile(node).sql;
     expect(sql).toContain('SELECT');
     expect(sql).toContain('person_id');
   });

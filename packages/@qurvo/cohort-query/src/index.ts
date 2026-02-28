@@ -1,16 +1,30 @@
-/**
- * @qurvo/cohort-query — backward-compatible re-export wrapper.
- *
- * All cohort query logic has been moved to @qurvo/ch-query/src/cohort/.
- * This package re-exports everything so existing consumers
- * (apps/api, apps/cohort-worker) continue to compile without changes.
- */
+// Expr-returning helpers (primary API)
 export {
-  // Builder
-  buildCohortSubquery,
-  buildCohortFilterClause,
+  RESOLVED_PERSON,
+  TOP_LEVEL_COLUMNS,
+  resolvePropertyExpr,
+  resolveEventPropertyExpr,
+  buildOperatorClause,
+  resolveDateTo,
+  resolveDateFrom,
+  buildEventFilterClauses,
+} from './helpers';
 
-  // Validation
+// String-returning bridge functions (backward compat for condition builders)
+export {
+  resolvePropertyExprStr,
+  resolveEventPropertyExprStr,
+  buildOperatorClauseStr,
+  resolveDateToStr,
+  resolveDateFromStr,
+  buildEventFilterClausesStr,
+} from './helpers';
+
+// Builder
+export { buildCohortSubquery, buildCohortFilterClause } from './builder';
+
+// Validation
+export {
   extractCohortReferences,
   detectCircularDependency,
   countLeafConditions,
@@ -18,33 +32,14 @@ export {
   validateDefinitionComplexity,
   MAX_TOTAL_CONDITIONS,
   MAX_NESTING_DEPTH,
+} from './validation';
 
-  // Toposort
-  topologicalSortCohorts,
-  groupCohortsByLevel,
+// Toposort
+export { topologicalSortCohorts, groupCohortsByLevel } from './toposort';
+export type { CohortForSort, ToposortResult } from './toposort';
 
-  // Errors
-  CohortQueryValidationError,
+// Types
+export type { CohortFilterInput, BuildContext } from './types';
 
-  // Helpers — re-exported under original names.
-  // The cohort-specific resolvePropertyExpr (with argMax) is namespaced
-  // in ch-query's main index as `cohortResolvePropertyExpr`, but we
-  // re-export it under the original name here for backward compat.
-  cohortResolvePropertyExpr as resolvePropertyExpr,
-  cohortResolveEventPropertyExpr as resolveEventPropertyExpr,
-  cohortBuildOperatorClause as buildOperatorClause,
-  cohortBuildEventFilterClauses as buildEventFilterClauses,
-  cohortResolveDateTo as resolveDateTo,
-  cohortResolveDateFrom as resolveDateFrom,
-  TOP_LEVEL_COLUMNS,
-
-  // RESOLVED_PERSON is available directly (not renamed)
-  RESOLVED_PERSON,
-} from '@qurvo/ch-query';
-
-export type {
-  CohortForSort,
-  ToposortResult,
-  CohortFilterInput,
-  BuildContext,
-} from '@qurvo/ch-query';
+// Errors
+export { CohortQueryValidationError } from './errors';

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildCohortRefConditionSubquery } from '../../cohort/conditions/cohort-ref';
-import type { BuildContext } from '../../cohort/types';
+import { buildCohortRefConditionSubquery } from '../conditions/cohort-ref';
+import { compile } from '@qurvo/ch-query';
+import type { BuildContext } from '../types';
 import type { CohortCohortCondition } from '@qurvo/db';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
@@ -22,7 +23,7 @@ const BASE_COND: CohortCohortCondition = {
 describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', () => {
   it('non-negated: returns cohort_members subquery without events scan', () => {
     const ctx = makeCtx();
-    const sql = buildCohortRefConditionSubquery(BASE_COND, ctx);
+    const sql = compile(buildCohortRefConditionSubquery(BASE_COND, ctx)).sql;
 
     expect(sql).toContain('cohort_members');
     expect(sql).not.toContain('FROM events');
@@ -30,7 +31,7 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
 
   it('non-negated static: returns person_static_cohort subquery without events scan', () => {
     const ctx = makeCtx();
-    const sql = buildCohortRefConditionSubquery({ ...BASE_COND, is_static: true }, ctx);
+    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, is_static: true }, ctx)).sql;
 
     expect(sql).toContain('person_static_cohort');
     expect(sql).not.toContain('FROM events');
@@ -38,62 +39,49 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
 
   it('negated (no dates): upper bound is now64(3), no lower bound', () => {
     const ctx = makeCtx();
-    const sql = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx)).sql;
 
-    // Must scan events table
     expect(sql).toContain('FROM events');
-    // Must include NOT IN subquery against cohort_members
     expect(sql).toContain('NOT IN');
     expect(sql).toContain('cohort_members');
-    // Upper bound must be present
     expect(sql).toContain('timestamp <= now64(3)');
-    // No lower bound when dateFrom is not set — all persons in the project
-    // must be considered (the old lowerBound ?? upperBound fallback created
-    // a degenerate [now, now] window that returned 0 persons).
+    // No lower bound when dateFrom is not set
     expect(sql).not.toContain('timestamp >= now64(3)');
   });
 
   it('negated with dateTo only: upper bound only, no lower bound', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59' });
-    const sql = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx)).sql;
 
-    // Upper bound must use dateTo
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
-    // No lower bound when only dateTo is set — "up to dateTo" semantics
     expect(sql).not.toContain('timestamp >= {coh_date_to:DateTime64(3)}');
-    // Param must be stored
     expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
   });
 
   it('negated with dateFrom + dateTo: uses exact [dateFrom, dateTo] window', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    const sql = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx)).sql;
 
-    // Lower bound: dateFrom
     expect(sql).toContain('timestamp >= {coh_date_from:DateTime64(3)}');
-    // Upper bound: dateTo
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
-    // Both params stored
     expect(ctx.queryParams['coh_date_from']).toBe('2025-01-01 00:00:00');
     expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
   });
 
   it('negated: SQL does NOT scan without a timestamp bound (regression guard)', () => {
-    // Ensure there is always a timestamp clause — no unbounded full-history scan
     const ctx = makeCtx({ dateTo: '2025-06-30 23:59:59', dateFrom: '2025-06-01 00:00:00' });
-    const sql = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx)).sql;
 
-    // Both bounds present
-    expect(sql).toContain('AND timestamp >=');
-    expect(sql).toContain('AND timestamp <=');
+    expect(sql).toContain('timestamp >=');
+    expect(sql).toContain('timestamp <=');
   });
 
   it('negated static cohort: references person_static_cohort in NOT IN subquery', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    const sql = buildCohortRefConditionSubquery(
+    const sql = compile(buildCohortRefConditionSubquery(
       { ...BASE_COND, negated: true, is_static: true },
       ctx,
-    );
+    )).sql;
 
     expect(sql).toContain('person_static_cohort');
     expect(sql).toContain('NOT IN');
@@ -103,7 +91,7 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
 
   it('negated: cohort_id param stored with correct value', () => {
     const ctx = makeCtx();
-    buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx));
 
     expect(ctx.queryParams['coh_0_ref_id']).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
   });
