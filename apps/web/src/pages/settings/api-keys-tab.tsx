@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Copy, Check } from 'lucide-react';
+import { AlertTriangle, Copy, Check } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import translations from './api-keys-tab.translations';
@@ -13,13 +14,27 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
   const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
 
-  const { data: project, isLoading } = useQuery({
+  const { data: project, isLoading, isError, refetch } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.projectsControllerGetById({ id: projectId }),
     enabled: !!projectId,
   });
 
   if (isLoading) {return <ListSkeleton count={1} height="h-20" />;}
+
+  if (isError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        description={t('errorLoading')}
+        action={
+          <Button variant="outline" onClick={() => refetch()}>
+            {t('retry')}
+          </Button>
+        }
+      />
+    );
+  }
 
   const token = project?.token;
 

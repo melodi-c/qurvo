@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Users } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { RequireProject } from '@/components/require-project';
@@ -42,7 +43,7 @@ export default function PersonsPage() {
 
   const { debounced: debouncedState, hash: stateHash } = useDebouncedHash(filterState, 400);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['persons', projectId, stateHash, page],
     queryFn: () => {
       const validFilters = debouncedState.filters.filter(isValidFilter);
@@ -126,7 +127,15 @@ export default function PersonsPage() {
         {isLoading && <ListSkeleton count={8} height="h-10" className="space-y-2" />}
 
         {!isLoading && isError && (
-          <EmptyState icon={AlertTriangle} description={t('errorLoading')} />
+          <EmptyState
+            icon={AlertTriangle}
+            description={t('errorLoading')}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t('retry')}
+              </Button>
+            }
+          />
         )}
 
         {!isLoading && !isError && rows.length > 0 && (
