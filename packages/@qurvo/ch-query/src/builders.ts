@@ -242,6 +242,10 @@ export function inArray(expr: Expr, arrayParam: ParamExpr): InExpr {
   return { type: 'in', expr, target: arrayParam };
 }
 
+export function notInArray(expr: Expr, arrayParam: ParamExpr): InExpr {
+  return { type: 'in', expr, target: arrayParam, negated: true };
+}
+
 export function multiIf(
   branches: Array<{ condition: Expr; result: Expr }>,
   elseResult: Expr,
@@ -328,6 +332,12 @@ export class SelectBuilder {
   with(name: string, query: QueryNode): this {
     if (!this.node.ctes) this.node.ctes = [];
     this.node.ctes.push({ name, query });
+    return this;
+  }
+
+  withAll(ctes: Array<{ name: string; query: QueryNode }>): this {
+    if (!this.node.ctes) this.node.ctes = [];
+    this.node.ctes.push(...ctes);
     return this;
   }
 

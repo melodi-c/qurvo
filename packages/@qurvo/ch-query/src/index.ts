@@ -79,6 +79,7 @@ export {
   inSubquery,
   notInSubquery,
   inArray,
+  notInArray,
   multiIf,
 } from './builders';
 
