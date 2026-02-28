@@ -5,6 +5,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import {
+  alias,
   compileExprToSql,
   CompilerContext,
   and,
@@ -14,7 +15,8 @@ import {
   raw,
 } from '@qurvo/ch-query';
 import {
-  resolvePropertyExprStr,
+  resolvePropertyExpr,
+  baseMetricColumns,
   projectIs,
   eventIs,
   analyticsWhere,
@@ -124,12 +126,19 @@ async function queryDimension(
   currentTo: string,
   dimension: string,
 ): Promise<DimensionResult> {
-  const breakdownExpr = resolvePropertyExprStr(dimension);
-
-  // Compile WHERE clauses via AST with a shared context to avoid param collisions
+  // Compile SELECT columns via AST (baseMetricColumns + breakdown dimension)
   const ctx = new CompilerContext();
   const queryParams: Record<string, unknown> = {};
 
+  const metricColsSql = baseMetricColumns()
+    .map((col) => compileExprToSql(col, queryParams, ctx).sql)
+    .join(', ');
+  const segmentColSql = compileExprToSql(
+    alias(resolvePropertyExpr(dimension), 'segment_value'), queryParams, ctx,
+  ).sql;
+  const selectCols = `${metricColsSql}, ${segmentColSql}`;
+
+  // Compile WHERE clauses via AST with the shared context to avoid param collisions
   const baselineWhere = compileExprToSql(
     analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), eventName }),
     queryParams, ctx,
@@ -142,19 +151,13 @@ async function queryDimension(
   const sql = `
     WITH
       baseline AS (
-        SELECT
-          ${breakdownExpr} AS segment_value,
-          count() AS raw_value,
-          uniqExact(${RESOLVED_PERSON}) AS uniq_value
+        SELECT ${selectCols}
         FROM events
         WHERE ${baselineWhere.sql}
         GROUP BY segment_value
       ),
       current_period AS (
-        SELECT
-          ${breakdownExpr} AS segment_value,
-          count() AS raw_value,
-          uniqExact(${RESOLVED_PERSON}) AS uniq_value
+        SELECT ${selectCols}
         FROM events
         WHERE ${currentWhere.sql}
         GROUP BY segment_value
