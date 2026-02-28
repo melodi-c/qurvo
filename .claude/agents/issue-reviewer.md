@@ -13,7 +13,7 @@ tools: Read, Bash, Grep, Glob
 > Механические lint-проверки (console.log, unused imports, Injectable, TODO) выполняет `lint-checker` — ты их НЕ проверяешь.
 > Проверки безопасности (SQL injection, XSS, eval, auth guards, TypeScript type safety) выполняет `security-checker` — ты их НЕ проверяешь.
 
-Входные данные: `WORKTREE_PATH`, `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY`, `ACCEPTANCE_CRITERIA` (извлечённые из issue), `AFFECTED_APPS`, `BASE_BRANCH` (по умолчанию `main`), `TEST_SUMMARY` (результаты тестов из solver, опционально), `CHANGED_FILES_SUMMARY` (что сделано, опционально).
+Входные данные: `WORKTREE_PATH`, `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_DATA_FILE` (путь к JSON-файлу с body, comments, labels), `AFFECTED_APPS`, `BASE_BRANCH` (по умолчанию `main`), `TEST_SUMMARY` (результаты тестов из solver, опционально), `CHANGED_FILES_SUMMARY` (что сделано, опционально).
 
 ---
 
@@ -33,6 +33,14 @@ packages/@qurvo/clickhouse   → packages/@qurvo/clickhouse/CLAUDE.md
 ```
 
 Из прочитанных файлов извлеки **project-specific правила** — паттерны, антипаттерны, обязательные требования.
+
+---
+
+## Шаг 0.5: Загрузить данные issue
+
+Прочитай `ISSUE_DATA_FILE` через Read tool. Извлеки:
+- `ISSUE_BODY` = `.body`
+- `ACCEPTANCE_CRITERIA` — найди в body секции: `acceptance criteria`, `criteria`, `критерии`, `требования`, `expected`, `definition of done`, `dod`, `- [ ]`
 
 ---
 

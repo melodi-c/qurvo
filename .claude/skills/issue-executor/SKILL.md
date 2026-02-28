@@ -76,6 +76,7 @@ bash "$SM" issue-status 42 SOLVING agent_id=<id> worktree_path=<path>
 bash "$SM" issue-status 42 MERGED pr_url=<url> merge_commit=<hash>
 bash "$SM" groups '[[42,43],[44]]'
 bash "$SM" group-index 1
+bash "$SM" batch "phase EXECUTING_GROUP" "group-index 0"  # несколько команд за 1 вызов
 bash "$SM" prune-merged    # после каждой группы — удалить MERGED
 bash "$SM" read-active     # для recovery — только active issues
 ```
@@ -92,49 +93,43 @@ bash "$SM" read-active     # для recovery — только active issues
 
 ## Шаг 1: Получить issues
 
+Используй `fetch-issues.sh` для получения и инициализации:
+
 ```bash
 START_TIME=$(date +%s)
-rm -rf /tmp/claude-results && mkdir -p /tmp/claude-results
 SM="$CLAUDE_PROJECT_DIR/.claude/scripts/state-manager.sh"
-bash "$SM" init "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Адаптируй аргументы под запрос пользователя:
+#   --label ready
+#   --numbers 42,43,44
+#   --label ready --label api
+FETCH_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/fetch-issues.sh" <filter_args>)
 ```
 
-Используй `gh` CLI для получения списка issues:
+Скрипт автоматически:
+1. Очищает `/tmp/claude-results` и инициализирует state
+2. Получает issues через `gh` CLI
+3. Фильтрует issues с лейблом `skip`
+4. Определяет топологию (standalone/parent) через sub_issues API
+5. Записывает `/tmp/claude-results/issue-<N>.json` для каждого issue
+6. Добавляет issues в state через `issue-add`
+7. Записывает `/tmp/claude-results/issues-manifest.json`
 
-```bash
-# Примеры — адаптируй под запрос
-gh issue list --state open --json number,title,body,labels
-gh issue list --label ready --state open --json number,title,body,labels
-gh issue view <N> --json number,title,body,labels,comments
+**Stdout** — компактный вывод:
+```
+42|fix(api): bug title|standalone|api|0
+43|feat(web): new feature|standalone|web|0
+ISSUES_COUNT=3
+MANIFEST: /tmp/claude-results/issues-manifest.json
 ```
 
-Если пользователь указал конкретные номера -- получи каждый через `gh issue view`.
+Если `ISSUES_COUNT=0` — сообщи пользователю и останови выполнение.
 
-Результат: список issues с полями `number`, `title`, `body`, `labels`.
+### Топология (из `fetch-issues.sh`):
+- **standalone** — мержится в `main`
+- **parent** — имеет sub-issues → feature branch `feature/issue-N`; sub-issues мержатся в неё
 
-**Фильтр `skip`**: исключи issues с лейблом `skip`. Если есть — упомяни в отчёте как "пропущено (skip)".
-
-Если issues не найдены (или все отфильтрованы) -- сообщи пользователю и останови выполнение.
-
-Обнови state: `bash "$SM" issue-add <N> "<title>" <group>`
-
----
-
-## Шаг 1.5: Построить топологию sub-issues
-
-Для каждого issue проверь наличие sub-issues:
-
-```bash
-REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-gh api repos/$REPO/issues/<NUMBER>/sub_issues --jq '[.[] | {number, title, state}]' 2>/dev/null || echo "[]"
-```
-
-Карта типов:
-- **Standalone** — нет sub-issues и не является sub-issue → мержится в `main`
-- **Parent** — имеет sub-issues → feature branch `feature/issue-N`; sub-issues мержатся в неё
-- **Sub-issue** — является sub-issue parent → `BASE_BRANCH: feature/issue-<PARENT_NUMBER>`
-
-Если parent issue в списке, но его sub-issues нет — добавь их автоматически.
+Если parent issue в списке, но его sub-issues нет — добавь их вручную через `gh issue view` и `fetch-issues.sh --numbers`.
 
 ---
 
@@ -147,10 +142,7 @@ subagent_type: "issue-validator"
 model: haiku
 run_in_background: true
 prompt: |
-  ISSUE_NUMBER: <NUMBER>
-  ISSUE_TITLE: <TITLE>
-  ISSUE_BODY: <BODY>
-  ISSUE_LABELS: <LABELS>
+  ISSUE_DATA_FILE: /tmp/claude-results/issue-<NUMBER>.json
   RESULT_FILE: /tmp/claude-results/validator-<NUMBER>.json
 ```
 
@@ -188,14 +180,15 @@ subagent_type: "intersection-analyzer"
 model: sonnet
 run_in_background: false
 prompt: |
-  Проанализируй пересечения для параллелизации:
-  <ISSUES_JSON>
+  Проанализируй пересечения для параллелизации.
+  ISSUES_DIR: /tmp/claude-results/
+  Прочитай все issue-*.json файлы из этой директории.
   RESULT_FILE: /tmp/claude-results/intersection.json
 ```
 
 Прочитай `/tmp/claude-results/intersection.json`. Если невалиден — retry 1 раз. Если повторно невалиден — все issues последовательно.
 
-Обнови state: `bash "$SM" phase ANALYZING_INTERSECTIONS` и `bash "$SM" groups '<JSON>'`
+Обнови state: `bash "$SM" batch "phase ANALYZING_INTERSECTIONS" "groups '<JSON>'"`
 
 ---
 
@@ -237,17 +230,16 @@ Sub-issues одного parent запускаются РАНЬШЕ осталь�
 
 Для каждой группы из `parallel_groups`:
 
-1. **Навесь `in-progress`** на все issues группы:
+1. **Запусти `start-group.sh`**:
    ```bash
-   gh issue edit <NUMBER> --add-label "in-progress"
+   bash "$CLAUDE_PROJECT_DIR/.claude/scripts/start-group.sh" <GROUP_INDEX> "<ISSUE_NUMBERS_CSV>"
    ```
-2. Обнови state: `bash "$SM" phase EXECUTING_GROUP` и `bash "$SM" group-index <I>`
-3. Запусти всех подагентов группы **одновременно** (`run_in_background: true`, `subagent_type: "issue-solver"`, **`isolation: "worktree"`**)
-4. Дождись завершения ВСЕХ подагентов текущей группы
-5. **Обработай результаты** (Шаг 6) — мерж + retry при FAILED
-6. **Dependency watcher** (Шаг 6.3) — проверь разблокированные issues
-7. `bash "$SM" prune-merged` — очисти MERGED issues из state
-8. Только после этого запусти следующую группу
+2. Запусти всех подагентов группы **одновременно** (`run_in_background: true`, `subagent_type: "issue-solver"`, **`isolation: "worktree"`**)
+3. Дождись завершения ВСЕХ подагентов текущей группы
+4. **Обработай результаты** (Шаг 6) — мерж + retry при FAILED
+5. **Dependency watcher** (Шаг 6.3) — проверь разблокированные issues
+6. `bash "$SM" prune-merged` — очисти MERGED issues из state
+7. Только после этого запусти следующую группу
 
 ### Промпт для каждого issue-solver подагента
 
@@ -255,10 +247,7 @@ Sub-issues одного parent запускаются РАНЬШЕ осталь�
 ```
 Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 
-{ISSUE_BODY}
-
-{ISSUE_COMMENTS — если есть}
-
+ISSUE_DATA_FILE: /tmp/claude-results/issue-{ISSUE_NUMBER}.json
 AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 RELATED_ISSUES: {номера и заголовки других issues в этой группе}
 RECENT_CHANGES: {git log --oneline -5 -- <AFFECTED_APPS paths> — кратко что менялось недавно}
@@ -269,10 +258,7 @@ RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 
-{ISSUE_BODY}
-
-{ISSUE_COMMENTS — если есть}
-
+ISSUE_DATA_FILE: /tmp/claude-results/issue-{ISSUE_NUMBER}.json
 AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 BASE_BRANCH: feature/issue-{PARENT_NUMBER}
 RELATED_ISSUES: {другие sub-issues этого parent}
@@ -319,21 +305,185 @@ gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализован
    STATUS=$(echo "$LAST_COMMENT" | grep -o 'STATUS=[^ ]*' | cut -d= -f2 || echo "UNKNOWN")
    ```
 
-Обнови state: `bash "$SM" issue-status <N> READY_FOR_REVIEW` и `bash "$SM" phase REVIEWING`
-
 ### STATUS: READY_FOR_REVIEW — Review Loop
 
-Прочитай `.claude/skills/issue-executor/REVIEW-LOOP.md` и выполни.
+Подготовь review:
+```bash
+bash "$CLAUDE_PROJECT_DIR/.claude/scripts/prepare-review.sh" <NUMBER>
+```
 
-### STATUS: FAILED / NEEDS_USER_INPUT / не найден
+#### 6.1 Lint Check
 
-Прочитай `.claude/skills/issue-executor/FAILURE-HANDLERS.md` и выполни.
+```
+subagent_type: "lint-checker"
+model: haiku
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+  RESULT_FILE: <WORKTREE_PATH>/.claude/results/lint-<NUMBER>.json
+```
+
+Прочитай `RESULT_FILE`. Обработка:
+- `PASS` → переходи к 6.2
+- `FAIL` → re-launch solver (max 1 retry):
+  ```
+  subagent_type: "issue-solver"
+  run_in_background: false
+  isolation: "worktree"
+  prompt: |
+    Исправь следующие lint-проблемы в worktree {WORKTREE_PATH}:
+    <LINT_ISSUES>
+
+    Issue #{NUMBER}: {TITLE}
+    ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
+    AFFECTED_APPS: {APPS}
+    BASE_BRANCH: {BRANCH}
+    RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+  ```
+
+#### 6.2 Migration Validation (только если has-migrations)
+
+Если issue имеет лейбл `has-migrations` или solver изменил файлы в `packages/@qurvo/db/drizzle/` или `packages/@qurvo/clickhouse/`:
+
+```
+subagent_type: "migration-validator"
+model: sonnet
+run_in_background: false
+prompt: |
+  WORKTREE_PATH: <абсолютный путь>
+  BASE_BRANCH: <ветка>
+  RESULT_FILE: <WORKTREE_PATH>/.claude/results/migration-<NUMBER>.json
+```
+
+Прочитай `RESULT_FILE`. Обработка:
+- `PASS` или `WARN` → продолжай
+- `FAIL` → re-launch solver с описанием проблем (max 1 retry)
+
+#### 6.3 Logic Review + Security Check (параллельно)
+
+Запусти `issue-reviewer` и `security-checker` **параллельно** (`run_in_background: true`):
+
+**issue-reviewer**:
+```
+subagent_type: "issue-reviewer"
+run_in_background: true
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  ISSUE_NUMBER: <номер>
+  ISSUE_TITLE: <заголовок issue>
+  ISSUE_DATA_FILE: /tmp/claude-results/issue-<NUMBER>.json
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+  TEST_SUMMARY: <результаты тестов — passed/failed>
+  CHANGED_FILES_SUMMARY: <список изменённых файлов — 1-2 строки на файл>
+  RESULT_FILE: <WORKTREE_PATH>/.claude/results/reviewer-<NUMBER>.json
+```
+
+**security-checker**:
+```
+subagent_type: "security-checker"
+model: haiku
+run_in_background: true
+prompt: |
+  WORKTREE_PATH: <абсолютный путь к worktree>
+  AFFECTED_APPS: <список>
+  BASE_BRANCH: <ветка>
+  RESULT_FILE: <WORKTREE_PATH>/.claude/results/security-<NUMBER>.json
+```
+
+Дождись завершения обоих. Прочитай оба `RESULT_FILE`. Обработка:
+
+- **Оба APPROVE/PASS** → issue status → `REVIEW_PASSED` → переходи к 6.4 (мерж)
+- **reviewer: REQUEST_CHANGES** или **security: FAIL** → structured feedback → re-launch solver (max 2 итерации)
+
+**Structured feedback protocol** (передаётся solver'у при retry):
+```
+Исправь следующие проблемы в worktree {WORKTREE_PATH}:
+1. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
+2. [{SEVERITY}] {file}:{line} — {description}. Suggested: {code}
+
+Issue #{NUMBER}: {TITLE}
+ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
+AFFECTED_APPS: {APPS}
+BASE_BRANCH: {BRANCH}
+RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+```
+
+Если после 2-й итерации review всё ещё FAIL/REQUEST_CHANGES → эскалируй пользователю.
+
+### STATUS: FAILED — Retry механизм
+
+1. Прочитай причину из result file (`RESULT_FILE`) или AGENT_META `FAIL_REASON`
+2. **Определи тип ошибки**:
+   - **Test failure** → запусти `test-failure-analyzer` для диагностики:
+     ```
+     subagent_type: "test-failure-analyzer"
+     model: haiku
+     run_in_background: false
+     prompt: |
+       WORKTREE_PATH: <path>
+       TEST_OUTPUT: <вывод тестов из result file>
+       AFFECTED_APPS: <apps>
+       ISSUE_NUMBER: <number>
+       RESULT_FILE: <WORKTREE_PATH>/.claude/results/test-analyzer-<NUMBER>.json
+     ```
+     Прочитай `RESULT_FILE`, передай анализ как HINT при retry.
+   - **Build failure** → retry 1 раз с hint'ом об ошибке build
+   - **Другое** → эскалация пользователю
+
+3. **Retry** (максимум 1 раз):
+   ```
+   subagent_type: "issue-solver"
+   run_in_background: true
+   isolation: "worktree"
+   prompt: |
+     RETRY: предыдущая попытка завершилась ошибкой.
+     FAIL_REASON: <причина из первой попытки>
+     HINT: <что нужно исправить — конкретный файл, ошибка, тест>
+
+     Issue #{NUMBER}: {TITLE}
+     ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
+     AFFECTED_APPS: ...
+     ...остальной промпт как обычно...
+     RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+   ```
+
+4. Если retry тоже FAILED → сними `in-progress`, добавь в отчёт, эскалируй:
+   ```bash
+   gh issue edit <NUMBER> --remove-label "in-progress" --add-label "blocked"
+   ```
+
+### STATUS: NEEDS_USER_INPUT
+
+- **Причина содержит "слишком большой"** → запусти `issue-decomposer` в foreground:
+  ```
+  subagent_type: "issue-decomposer"
+  model: sonnet
+  run_in_background: false
+  prompt: |
+    ISSUE_DATA_FILE: /tmp/claude-results/issue-<NUMBER>.json
+    REPO_ROOT: $REPO_ROOT
+    RESULT_FILE: /tmp/claude-results/decomposer-<NUMBER>.json
+  ```
+  Прочитай `RESULT_FILE`. Если `"atomic": true` → эскалируй пользователю. Если вернул sub_issues → создай через `gh issue create`, привяжи к оригинальному issue.
+- **Любая другая причина** → сообщи пользователю. При ответе — перезапусти подагента с дополненным промптом + `WORKTREE_PATH`.
+
+### STATUS не найден
+
+Считай FAILED с причиной "подагент не вернул статус". Retry 1 раз. Если повторно нет статуса → сними `in-progress`.
+
+Обнови state после каждого обработанного результата:
+```bash
+bash "$SM" issue-status <NUMBER> <NEW_STATUS>
+```
 
 ---
 
 ### 6.4 Мерж
 
-Обнови state: `bash "$SM" issue-status <N> MERGING` и `bash "$SM" phase MERGING`
+Обнови state: `bash "$SM" batch "issue-status <N> MERGING" "phase MERGING"`
 
 Определи AUTO_MERGE: если issue имеет label `size:l` или `needs-review` → `AUTO_MERGE="false"`.
 
@@ -365,19 +515,10 @@ PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
 - **exit 3** (push failed) → retry 1 раз
 - **exit 4** (PR create failed) → retry 1 раз
 
-Обнови state: `bash "$SM" issue-status <N> MERGED pr_url=<url> merge_commit=<hash>`
-
-Сними лейблы и закрой:
+Закрой issue через `close-merged-issue.sh`:
 ```bash
-gh issue edit <NUMBER> --remove-label "in-progress" --remove-label "under-review"
-gh issue close <NUMBER> --comment "$(cat <<COMMENT
-## Смерджено
-
-**PR**: $PR_URL
-**Коммит**: \`$COMMIT_HASH\`
-**Ветка**: \`$BASE_BRANCH\`
-COMMENT
-)"
+bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
+  "<NUMBER>" "$PR_URL" "$COMMIT_HASH" "$BASE_BRANCH"
 ```
 
 ---

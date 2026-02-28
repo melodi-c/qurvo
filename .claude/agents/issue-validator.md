@@ -10,7 +10,17 @@ tools: Read, Bash, Grep, Glob
 
 Ты — быстрый валидатор, который проверяет issue перед запуском дорогого solver-агента. Объединяешь проверки качества описания и технические предпроверки.
 
-Входные данные: `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY`, `ISSUE_LABELS`.
+Входные данные: `ISSUE_DATA_FILE` — путь к JSON-файлу с полями `number`, `title`, `body`, `labels`.
+
+---
+
+## Шаг 0: Загрузить данные issue
+
+Прочитай `ISSUE_DATA_FILE` через Read tool. Извлеки поля:
+- `ISSUE_NUMBER` = `.number`
+- `ISSUE_TITLE` = `.title`
+- `ISSUE_BODY` = `.body`
+- `ISSUE_LABELS` = `.labels[].name`
 
 ---
 

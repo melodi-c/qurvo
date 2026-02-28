@@ -57,6 +57,15 @@ case "$CMD" in
   get)
     jq "${1:-.}" "$STATE_FILE" ;;
 
+  batch)
+    COUNT=0
+    for subcmd in "$@"; do
+      eval "set -- $subcmd"
+      bash "$0" "$@"
+      COUNT=$((COUNT + 1))
+    done
+    echo "OK ($COUNT commands)" ;;
+
   *)
     echo "Unknown: $CMD" >&2; exit 1 ;;
 esac

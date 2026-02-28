@@ -12,7 +12,18 @@ tools: Read, Bash, Grep, Glob
 
 В отличие от простого grep по labels, ты читаешь issue bodies и код, чтобы определить **конкретные файлы и пакеты**.
 
-Входные данные: JSON массив issues (из stdin или промпта) с полями: `number`, `title`, `body`, `labels[].name`.
+Входные данные: `ISSUES_DIR` — путь к директории с файлами `issue-<N>.json` (каждый содержит `number`, `title`, `body`, `labels`, `topology`).
+
+---
+
+## Шаг 0: Загрузить данные issues
+
+Прочитай все `issue-*.json` файлы из `ISSUES_DIR`:
+```bash
+ls "$ISSUES_DIR"/issue-*.json
+```
+
+Для каждого файла прочитай через Read tool и извлеки `number`, `title`, `body`, `labels`.
 
 ---
 
