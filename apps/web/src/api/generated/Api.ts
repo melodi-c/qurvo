@@ -1675,9 +1675,15 @@ export interface FunnelControllerGetFunnelTimeToConvertParams {
   sampling_factor?: number;
   funnel_order_type?: FunnelOrderTypeEnum1;
   exclusions?: FunnelExclusion[];
-  /** @min 0 */
+  /**
+   * @min 0
+   * @max 9
+   */
   from_step: number;
-  /** @min 1 */
+  /**
+   * @min 1
+   * @max 9
+   */
   to_step: number;
   steps: FunnelStep[];
   /**
