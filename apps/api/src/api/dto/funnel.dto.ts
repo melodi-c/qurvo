@@ -156,6 +156,7 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
 @BreakdownCohortIdsRequiresCohortType()
 export class FunnelQueryDto extends FunnelBaseQueryDto {
   @IsString()
+  @IsNotEmpty()
   @IsOptional()
   breakdown_property?: string;
 
@@ -202,11 +203,13 @@ export class FunnelTimeToConvertQueryDto extends FunnelBaseQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  @Max(9)
   from_step: number;
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(9)
   to_step: number;
 
   @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
