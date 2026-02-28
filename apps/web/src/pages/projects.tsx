@@ -3,6 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/ui/page-header';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { GridSkeleton } from '@/components/ui/grid-skeleton';
@@ -11,7 +18,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { api } from '@/api/client';
 import { toast } from 'sonner';
-import { Plus, FolderOpen, AlertTriangle, Sparkles } from 'lucide-react';
+import { Plus, FolderOpen, AlertTriangle, Sparkles, MoreHorizontal, Key, Trash2 } from 'lucide-react';
 import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './projects.translations';
@@ -182,19 +189,24 @@ export default function ProjectsPage() {
                     <FolderOpen className="h-5 w-5 text-muted-foreground" />
                     <CardTitle className="text-base">{project.name}</CardTitle>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(routes.keys(project.id)); }}>
-                      {t('keys')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={(e) => { e.stopPropagation(); confirmDelete.requestDelete(project.id, project.name); }}
-                    >
-                      {t('delete')}
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem onClick={() => navigate(routes.keys(project.id))}>
+                        <Key />
+                        {t('keys')}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onClick={() => confirmDelete.requestDelete(project.id, project.name)}>
+                        <Trash2 />
+                        {t('delete')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardHeader>
             </Card>

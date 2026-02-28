@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -69,10 +70,13 @@ export function InsightCardMenu({ widget, onEditText, onExpand }: InsightCardMen
             </DropdownMenuItem>
           )}
           {isEditing && (
-            <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
-              <Trash2 />
-              {t('remove')}
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+                <Trash2 />
+                {t('remove')}
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
