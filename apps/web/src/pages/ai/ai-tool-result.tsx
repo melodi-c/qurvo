@@ -314,8 +314,8 @@ function HistogramChart({ data }: HistogramChartProps) {
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
         <span><span className="font-medium text-foreground">{t('totalUsers')}:</span> {total_users}</span>
         <span><span className="font-medium text-foreground">{t('median')}:</span> {formatStatDuration(stats.median_seconds)}</span>
-        <span><span className="font-medium text-foreground">P75:</span> {formatStatDuration(stats.p75_seconds)}</span>
-        <span><span className="font-medium text-foreground">P90:</span> {formatStatDuration(stats.p90_seconds)}</span>
+        <span><span className="font-medium text-foreground">{t('p75')}:</span> {formatStatDuration(stats.p75_seconds)}</span>
+        <span><span className="font-medium text-foreground">{t('p90')}:</span> {formatStatDuration(stats.p90_seconds)}</span>
         <span><span className="font-medium text-foreground">{t('avg')}:</span> {formatStatDuration(stats.mean_seconds)}</span>
         <span><span className="font-medium text-foreground">{t('min')}:</span> {formatStatDuration(stats.min_seconds)}</span>
         <span><span className="font-medium text-foreground">{t('max')}:</span> {formatStatDuration(stats.max_seconds)}</span>

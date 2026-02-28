@@ -1,6 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useLocalTranslation } from '@/hooks/use-local-translation';
+import formTranslations from './inline-create-form.translations';
 
 interface InlineCreateFormProps {
   placeholder: string;
@@ -21,10 +23,12 @@ export function InlineCreateForm({
   onCancel,
   value,
   onChange,
-  submitLabel = 'Create',
+  submitLabel,
   pendingLabel,
   autoFocus,
 }: InlineCreateFormProps) {
+  const { t } = useLocalTranslation(formTranslations);
+  const resolvedSubmitLabel = submitLabel ?? t('create');
   return (
     <Card>
       <CardContent>
@@ -44,10 +48,10 @@ export function InlineCreateForm({
             className="flex-1"
           />
           <Button type="submit" disabled={isPending}>
-            {isPending ? (pendingLabel ?? submitLabel) : submitLabel}
+            {isPending ? (pendingLabel ?? resolvedSubmitLabel) : resolvedSubmitLabel}
           </Button>
           <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t('cancel')}
           </Button>
         </form>
       </CardContent>
