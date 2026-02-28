@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { InlineEditField } from '@/components/ui/inline-edit-field';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TimezoneCombobox } from '@/components/TimezoneCombobox';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -87,22 +87,11 @@ export function GeneralTab({ projectId }: { projectId: string }) {
 
             {/* Timezone */}
             <DefinitionListRow label={t('timezone')}>
-              <Select
+              <TimezoneCombobox
                 value={project?.timezone ?? 'UTC'}
-                onValueChange={(tz) => updateMutation.mutate({ timezone: tz })}
+                onChange={(tz) => updateMutation.mutate({ timezone: tz })}
                 disabled={!isEditor}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Intl.supportedValuesOf('timeZone').map((tz) => (
-                    <SelectItem key={tz} value={tz}>
-                      {tz}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </DefinitionListRow>
           </DefinitionList>
         </CardContent>
