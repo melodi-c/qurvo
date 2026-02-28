@@ -22,6 +22,7 @@ disable-model-invocation: true
 - Запускать тесты/build напрямую
 - Разрешать merge-конфликты самостоятельно
 - **Вызывать TaskOutput** — система САМА уведомляет о завершении background-агентов. TaskOutput не нужен и тратит время впустую
+- **Вызывать EnterWorktree** — executor работает ТОЛЬКО в основном репо. Worktree создаются автоматически при запуске подагентов с `isolation: "worktree"`
 - **Выполнять `git diff`, `git log`, `git show`** для анализа изменений подагентов — это работа ревьюера, не оркестратора
 - **Прямые git-операции**: `git checkout`, `git switch`, `git cherry-pick`, `git rebase`, `git merge`, `git reset --hard`, `git stash` — ЗАПРЕЩЕНЫ (заблокированы хуком `restrict-executor.sh`). Git-операции выполняются ТОЛЬКО через скрипты `.claude/scripts/` или подагентами
 
