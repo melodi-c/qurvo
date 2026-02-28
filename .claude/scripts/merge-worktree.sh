@@ -53,8 +53,8 @@ if ! git merge --no-ff "$BRANCH" -m "Merge $BRANCH: $ISSUE_TITLE" 2>&1 >&2; then
   exit 1
 fi
 
-if [[ -n "$AFFECTED_APPS" ]]; then
-  # Обновить зависимости после мержа (solver мог добавить новые пакеты/workspace)
+pre_merge_build() {
+  if [[ -z "$AFFECTED_APPS" ]]; then return 0; fi
   echo "Pre-merge verification: installing dependencies..." >&2
   pnpm install --frozen-lockfile >&2 2>&1 || pnpm install >&2 2>&1 || true
   echo "Pre-merge verification: building affected apps..." >&2
@@ -64,12 +64,33 @@ if [[ -n "$AFFECTED_APPS" ]]; then
     echo "Building @qurvo/$APP..." >&2
     if ! pnpm turbo build --filter="@qurvo/$APP" >&2 2>&1; then
       echo "PRE_MERGE_BUILD_FAILED: @qurvo/$APP" >&2
-      # Откатить локальный merge
-      git reset --hard "$BASE_BEFORE" >&2
-      exit 2
+      return 1
     fi
   done
   echo "Pre-merge verification: OK" >&2
+  return 0
+}
+
+if ! pre_merge_build; then
+  # Build failed — возможно base branch обновился другим мержем.
+  # Retry: pull свежий base, повторить merge + build.
+  echo "Retrying: pulling fresh $BASE_BRANCH and re-merging..." >&2
+  git reset --hard "$BASE_BEFORE" >&2
+  git pull origin "$BASE_BRANCH" >&2 2>&1
+  BASE_BEFORE=$(git rev-parse "$BASE_BRANCH")
+
+  git checkout "$BASE_BRANCH" >&2
+  if ! git merge --no-ff "$BRANCH" -m "Merge $BRANCH: $ISSUE_TITLE" 2>&1 >&2; then
+    echo "MERGE_CONFLICT on retry" >&2
+    git merge --abort 2>/dev/null || true
+    exit 1
+  fi
+
+  if ! pre_merge_build; then
+    echo "PRE_MERGE_BUILD_FAILED after retry" >&2
+    git reset --hard "$BASE_BEFORE" >&2
+    exit 2
+  fi
 fi
 
 # Откатить локальный merge — PR сделает merge через GitHub
