@@ -46,6 +46,8 @@ export function normalizeJsonSchema(
     return defs[ref.replace('#/definitions/', '').replace('#/$defs/', '')];
   }
 
+  const resolving = new Set<string>();
+
   function walk(node: unknown): unknown {
     if (!node || typeof node !== 'object') return node;
     if (Array.isArray(node)) return node.map(walk);
@@ -53,15 +55,39 @@ export function normalizeJsonSchema(
     const obj = node as Record<string, unknown>;
 
     if (obj['$ref']) {
-      const resolved = resolveRef(obj['$ref'] as string);
-      if (resolved) return walk(JSON.parse(JSON.stringify(resolved)));
-      return node;
+      const refKey = obj['$ref'] as string;
+      const resolved = resolveRef(refKey);
+      if (!resolved) return node;
+
+      // Cycle detected — inline a copy without further $ref expansion
+      if (resolving.has(refKey)) {
+        return stripRefs(JSON.parse(JSON.stringify(resolved)));
+      }
+
+      resolving.add(refKey);
+      const result = walk(JSON.parse(JSON.stringify(resolved)));
+      resolving.delete(refKey);
+      return result;
     }
 
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(obj)) {
       if (key === 'definitions' || key === '$defs') continue;
       result[key] = walk(val);
+    }
+    return result;
+  }
+
+  /** Remove all $ref pointers from a deep-copied node (break cycles). */
+  function stripRefs(node: unknown): unknown {
+    if (!node || typeof node !== 'object') return node;
+    if (Array.isArray(node)) return node.map(stripRefs);
+
+    const obj = node as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (key === '$ref' || key === 'definitions' || key === '$defs') continue;
+      result[key] = stripRefs(val);
     }
     return result;
   }

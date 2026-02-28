@@ -104,6 +104,133 @@ describe('normalizeJsonSchema', () => {
     expect(ext).toHaveProperty('$ref', '#/definitions/Unknown');
   });
 
+  it('handles recursive $ref without infinite loop (self-referencing)', () => {
+    // TreeNode references itself: children is an array of TreeNode
+    const schema: Record<string, unknown> = {
+      type: 'object',
+      properties: {
+        root: { $ref: '#/definitions/TreeNode' },
+      },
+      definitions: {
+        TreeNode: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            children: {
+              type: 'array',
+              items: { $ref: '#/definitions/TreeNode' },
+            },
+          },
+        },
+      },
+    };
+
+    // Must not throw RangeError: Maximum call stack size exceeded
+    const result = normalizeJsonSchema(schema);
+
+    expect(result).not.toHaveProperty('definitions');
+    const root = (result.properties as Record<string, unknown>).root as Record<string, unknown>;
+    expect(root.type).toBe('object');
+    // First level children should be inlined
+    const children = (root.properties as Record<string, unknown>).children as Record<string, unknown>;
+    expect(children.type).toBe('array');
+    // The recursive $ref should be stripped (no more $ref in the output)
+    const nestedItems = children.items as Record<string, unknown>;
+    expect(nestedItems).not.toHaveProperty('$ref');
+    expect(nestedItems.type).toBe('object');
+  });
+
+  it('handles mutually recursive $ref without infinite loop', () => {
+    // A references B, B references A
+    const schema: Record<string, unknown> = {
+      type: 'object',
+      properties: {
+        start: { $ref: '#/definitions/A' },
+      },
+      definitions: {
+        A: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            next: { $ref: '#/definitions/B' },
+          },
+        },
+        B: {
+          type: 'object',
+          properties: {
+            value: { type: 'number' },
+            back: { $ref: '#/definitions/A' },
+          },
+        },
+      },
+    };
+
+    const result = normalizeJsonSchema(schema);
+
+    expect(result).not.toHaveProperty('definitions');
+    const start = (result.properties as Record<string, unknown>).start as Record<string, unknown>;
+    expect(start.type).toBe('object');
+    // A.next should be resolved to B
+    const next = (start.properties as Record<string, unknown>).next as Record<string, unknown>;
+    expect(next.type).toBe('object');
+    expect((next.properties as Record<string, unknown>)).toHaveProperty('value');
+    // B.back should be resolved but without further $ref (cycle broken)
+    const back = (next.properties as Record<string, unknown>).back as Record<string, unknown>;
+    expect(back).not.toHaveProperty('$ref');
+    expect(back.type).toBe('object');
+  });
+
+  it('handles cohort-like pattern: discriminatedUnion with shared $ref across branches', () => {
+    // Simulates the pattern from create-cohort.tool.ts where multiple
+    // anyOf branches share the same $ref definitions
+    const schema: Record<string, unknown> = {
+      type: 'object',
+      properties: {
+        definition: {
+          type: 'object',
+          properties: {
+            values: {
+              type: 'array',
+              items: {
+                anyOf: [
+                  { $ref: '#/$defs/LeafA' },
+                  { $ref: '#/$defs/LeafB' },
+                  { $ref: '#/$defs/InnerGroup' },
+                ],
+              },
+            },
+          },
+        },
+      },
+      $defs: {
+        LeafA: { type: 'object', properties: { type: { const: 'a' }, v: { type: 'string' } } },
+        LeafB: { type: 'object', properties: { type: { const: 'b' }, n: { type: 'number' } } },
+        InnerGroup: {
+          type: 'object',
+          properties: {
+            type: { const: 'group' },
+            values: {
+              type: 'array',
+              items: {
+                anyOf: [
+                  { $ref: '#/$defs/LeafA' },
+                  { $ref: '#/$defs/LeafB' },
+                ],
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const result = normalizeJsonSchema(schema);
+
+    expect(result).not.toHaveProperty('$defs');
+    // Verify no $ref remains anywhere in the output
+    const json = JSON.stringify(result);
+    expect(json).not.toContain('$ref');
+  });
+
   it('does not mutate the original schema', () => {
     const schema: Record<string, unknown> = {
       type: 'object',
