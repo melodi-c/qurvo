@@ -26,6 +26,8 @@ export default createTranslations({
     aiMessagesUnlimited: 'Unlimited',
     aiMessagesTooltip: 'Each request counts as one AI message: manual queries in the AI chat, scheduled job executions, and automated insight detections.',
     usageProgress: 'Event usage progress',
+    errorLoading: 'Failed to load billing information',
+    retry: 'Retry',
   },
   ru: {
     selectProject: 'Выберите проект для просмотра тарифа',
@@ -52,5 +54,7 @@ export default createTranslations({
     aiMessagesUnlimited: 'Без ограничений',
     aiMessagesTooltip: 'Каждый запрос считается одним AI-сообщением: ручные запросы в AI-чате, запуски scheduled jobs и автоматическое обнаружение инсайтов.',
     usageProgress: 'Прогресс использования событий',
+    errorLoading: 'Не удалось загрузить информацию о тарифе',
+    retry: 'Повторить',
   },
 });

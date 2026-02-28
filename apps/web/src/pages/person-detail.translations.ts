@@ -12,6 +12,7 @@ export default createTranslations({
     eventHistory: 'Event History',
     errorLoadingPerson: 'Failed to load person details',
     errorLoadingEvents: 'Failed to load event history',
+    retry: 'Retry',
   },
   ru: {
     profile: 'Профиль',
@@ -24,5 +25,6 @@ export default createTranslations({
     eventHistory: 'История событий',
     errorLoadingPerson: 'Не удалось загрузить данные пользователя',
     errorLoadingEvents: 'Не удалось загрузить историю событий',
+    retry: 'Повторить',
   },
 });
