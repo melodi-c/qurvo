@@ -34,14 +34,14 @@ export function ProjectTokenTab({ projectId }: { projectId: string }) {
     },
   });
 
-  if (isLoading) return <ListSkeleton count={1} height="h-20" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-20" />;}
 
   const token = project?.token;
   const role = project?.role;
   const canRotate = role === 'owner' || role === 'editor';
 
   const handleCopy = (value: string) => {
-    copy(value);
+    void copy(value);
     toast.success(t('copySuccess'));
   };
 

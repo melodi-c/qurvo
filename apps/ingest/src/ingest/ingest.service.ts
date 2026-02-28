@@ -39,7 +39,7 @@ function resolveEventType(eventName: string): string {
  * Falls back to server time if no client timestamps provided.
  */
 export function resolveTimestamp(clientTs: string | undefined, serverTime: string, sentAt?: string): string {
-  if (!clientTs || !sentAt) return serverTime;
+  if (!clientTs || !sentAt) {return serverTime;}
 
   const clientTsMs = new Date(clientTs).getTime();
   const sentAtMs = new Date(sentAt).getTime();
@@ -47,8 +47,8 @@ export function resolveTimestamp(clientTs: string | undefined, serverTime: strin
 
   const offsetMs = sentAtMs - clientTsMs;
 
-  if (offsetMs < 0) return serverTime;
-  if (offsetMs > MAX_TIMESTAMP_DRIFT_MS) return serverTime;
+  if (offsetMs < 0) {return serverTime;}
+  if (offsetMs > MAX_TIMESTAMP_DRIFT_MS) {return serverTime;}
 
   const resolvedMs = serverMs - offsetMs;
   return new Date(resolvedMs).toISOString();
@@ -73,6 +73,7 @@ export class IngestService {
     private readonly metrics: MetricsService,
   ) {}
 
+  // eslint-disable-next-line max-params -- grouping ip/userAgent/sentAt into opts would break existing callers
   async trackBatch(projectId: string, events: TrackEvent[], ip?: string, userAgent?: string, sentAt?: string) {
     const stopTimer = this.metrics.startTimer('ingest.batch_duration_ms');
     try {
@@ -102,40 +103,55 @@ export class IngestService {
     this.logger.log({ projectId, eventCount: events.length, batchId }, 'Import batch ingested');
   }
 
+  // eslint-disable-next-line complexity -- data mapping with fallback defaults
   private buildPayload(
     projectId: string,
     event: TrackEvent,
     serverTime: string,
     opts: BuildPayloadOpts,
   ): Record<string, string> {
-    const {
-      session_id = '', url = '', referrer = '', page_title = '', page_path = '',
-      device_type = '', browser = '', browser_version = '', os = '', os_version = '',
-      screen_width = 0, screen_height = 0, language = '', timezone = '',
-      sdk_name = '', sdk_version = '',
-    } = event.context ?? {};
-
     return {
       schema_version: STREAM_SCHEMA_VERSION,
-      event_id: opts.event_id || uuidv7(),
+      event_id: opts.event_id ?? uuidv7(),
       project_id: projectId,
       event_name: event.event,
       event_type: resolveEventType(event.event),
       distinct_id: event.distinct_id,
-      anonymous_id: event.anonymous_id || '',
+      anonymous_id: event.anonymous_id ?? '',
       user_id: event.event === '$identify' ? event.distinct_id : '',
-      session_id, url, referrer, page_title, page_path,
-      device_type, browser, browser_version, os, os_version,
-      screen_width: String(Math.max(0, screen_width)),
-      screen_height: String(Math.max(0, screen_height)),
-      language, timezone,
-      ip: opts.ip || '',
-      user_agent: opts.userAgent || '',
-      sdk_name, sdk_version,
-      properties: JSON.stringify(event.properties || {}),
-      user_properties: JSON.stringify(event.user_properties || {}),
+      ...this.extractContext(event),
+      ip: opts.ip ?? '',
+      user_agent: opts.userAgent ?? '',
+      properties: JSON.stringify(event.properties ?? {}),
+      user_properties: JSON.stringify(event.user_properties ?? {}),
       batch_id: opts.batchId,
       timestamp: resolveTimestamp(event.timestamp, serverTime, opts.sentAt),
+    };
+  }
+
+   
+  private extractContext(event: TrackEvent): Record<string, string> {
+    const ctx = event.context ?? {};
+    const s = (v: string | undefined) => v ?? '';
+    const n = (v: number | undefined) => String(Math.max(0, v ?? 0));
+
+    return {
+      session_id: s(ctx.session_id),
+      url: s(ctx.url),
+      referrer: s(ctx.referrer),
+      page_title: s(ctx.page_title),
+      page_path: s(ctx.page_path),
+      device_type: s(ctx.device_type),
+      browser: s(ctx.browser),
+      browser_version: s(ctx.browser_version),
+      os: s(ctx.os),
+      os_version: s(ctx.os_version),
+      screen_width: n(ctx.screen_width),
+      screen_height: n(ctx.screen_height),
+      language: s(ctx.language),
+      timezone: s(ctx.timezone),
+      sdk_name: s(ctx.sdk_name),
+      sdk_version: s(ctx.sdk_version),
     };
   }
 

@@ -147,7 +147,7 @@ function CsvUploadSection({ cohortId }: { cohortId: string }) {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {return;}
 
     if (!file.name.endsWith('.csv')) {
       toast.error(t('uploadCsvInvalidFormat'));
@@ -282,7 +282,7 @@ function RemoveMembersSection({ cohortId }: { cohortId: string }) {
 
             <ConfirmDialog
               open={confirm.isOpen}
-              onOpenChange={(open) => { if (!open) confirm.close(); }}
+              onOpenChange={(open) => { if (!open) {confirm.close();} }}
               title={t('confirmRemoveTitle')}
               description={t('confirmRemoveDescription')}
               confirmLabel={t('confirmLabel')}

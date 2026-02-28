@@ -6,7 +6,7 @@ import { useDashboardStore } from '../store';
 import { InsightCardMenu } from './InsightCardMenu';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightCardHeader.translations';
-import type { Widget, InsightType } from '@/api/generated/Api';
+import type { Widget } from '@/api/generated/Api';
 
 interface InsightCardHeaderProps {
   widget: Widget;
@@ -28,7 +28,7 @@ export function InsightCardHeader({
 
   const insight = widget.insight;
   const isTextTile = !insight;
-  const insightType = insight?.type as InsightType | undefined;
+  const insightType = insight?.type;
   const typeLabel = insightType ? t(insightType) : t('textTile');
   const displayName = insight?.name || t('untitled');
   const colorClass = insightType

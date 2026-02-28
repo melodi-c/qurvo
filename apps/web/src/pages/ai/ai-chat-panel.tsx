@@ -74,7 +74,7 @@ export function AiChatPanel({
           messages[0]?.sequence !== undefined &&
           addedCount > 0 &&
           container.scrollTop < 100;
-        if (isOlderPrepended) return; // Don't auto-scroll
+        if (isOlderPrepended) {return;} // Don't auto-scroll
       }
     }
 
@@ -83,14 +83,14 @@ export function AiChatPanel({
   }, [messages]);
 
   useEffect(() => {
-    if (!isStreaming && !readOnly) inputRef.current?.focus();
+    if (!isStreaming && !readOnly) {inputRef.current?.focus();}
   }, [isStreaming, readOnly]);
 
   // Detect scroll to top for loading more messages
   const handleScroll = useCallback(() => {
-    if (!hasMore || isLoadingMore || !onLoadMore) return;
+    if (!hasMore || isLoadingMore || !onLoadMore) {return;}
     const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!container) {return;}
 
     if (container.scrollTop < 50) {
       const prevScrollHeight = container.scrollHeight;
@@ -105,7 +105,7 @@ export function AiChatPanel({
 
   const handleSubmit = useCallback(() => {
     const text = input.trim();
-    if (!text || isStreaming || !onSend) return;
+    if (!text || isStreaming || !onSend) {return;}
     setInput('');
     onSend(text);
   }, [input, isStreaming, onSend]);

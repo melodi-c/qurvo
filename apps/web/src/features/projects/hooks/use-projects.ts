@@ -23,10 +23,10 @@ export function useProjects() {
     onSuccess: async (newProject) => {
       if (isFirstProject) {
         await queryClient.invalidateQueries({ queryKey: ['projects'] });
-        navigate(routes.dashboards.list(newProject.id));
+        void navigate(routes.dashboards.list(newProject.id));
         return;
       }
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 
@@ -35,7 +35,7 @@ export function useProjects() {
     onSuccess: async (demoProject) => {
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(t('demoCreated'));
-      navigate(routes.dashboards.list(demoProject.id));
+      void navigate(routes.dashboards.list(demoProject.id));
     },
     onError: () => toast.error(t('demoFailed')),
   });
@@ -43,7 +43,7 @@ export function useProjects() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.projectsControllerRemove({ id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(t('deleted'));
     },
     onError: () => toast.error(t('deleteFailed')),

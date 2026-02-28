@@ -48,7 +48,7 @@ export const apiClient = new Api({
   paramsSerializer: (params) => {
     const parts: string[] = [];
     for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-      if (value === undefined || value === null) continue;
+      if (value === undefined || value === null) {continue;}
       if (typeof value === 'object') {
         parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}`);
       } else {

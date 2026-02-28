@@ -30,6 +30,7 @@ export interface CohortBreakdownEntry {
  *   absence check is scoped to the exact `[dateFrom, dateTo]` analysis window
  *   rather than the rolling `[dateTo - N days, dateTo]` window.
  */
+// eslint-disable-next-line max-params -- positional args match buildCohortSubquery signature
 export function buildCohortFilterForBreakdown(
   cb: CohortBreakdownEntry,
   paramKey: string,

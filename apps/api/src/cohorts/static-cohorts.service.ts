@@ -209,7 +209,7 @@ export class StaticCohortsService {
       person_id: r.person_id,
       user_properties: typeof r.user_properties === 'string'
         ? (JSON.parse(r.user_properties) as Record<string, unknown>)
-        : (r.user_properties as Record<string, unknown>),
+        : (r.user_properties),
     }));
 
     return { data, total };

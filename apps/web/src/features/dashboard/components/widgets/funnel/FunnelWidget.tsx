@@ -27,7 +27,7 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(result);
 
   const handleExportCsv = useCallback(() => {
-    if (!result?.steps) return;
+    if (!result?.steps) {return;}
     downloadCsv(funnelToCsv(result.steps), 'funnel.csv');
   }, [result]);
 

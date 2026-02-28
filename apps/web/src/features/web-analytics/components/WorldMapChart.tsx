@@ -59,7 +59,7 @@ export function WorldMapChart({
 
   const dataMap = useMemo(() => {
     const map = new Map<string, { visitors: number; pageviews: number }>();
-    if (!data) return map;
+    if (!data) {return map;}
     for (const row of data) {
       if (row.name) {
         map.set(row.name.toUpperCase(), {
@@ -72,16 +72,16 @@ export function WorldMapChart({
   }, [data]);
 
   const maxValue = useMemo(() => {
-    if (dataMap.size === 0) return 1;
+    if (dataMap.size === 0) {return 1;}
     return Math.max(...Array.from(dataMap.values()).map((v) => v[metric]));
   }, [dataMap, metric]);
 
   const getFillColor = useCallback(
     (isoA2: string): string => {
       const entry = dataMap.get(isoA2.toUpperCase());
-      if (!entry) return MAP_COLOR_EMPTY;
+      if (!entry) {return MAP_COLOR_EMPTY;}
       const value = entry[metric];
-      if (!value) return MAP_COLOR_EMPTY;
+      if (!value) {return MAP_COLOR_EMPTY;}
       const normalized = Math.pow(value / maxValue, 0.4);
       return interpolateMapColor(normalized);
     },

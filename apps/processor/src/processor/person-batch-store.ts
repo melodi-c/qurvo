@@ -46,6 +46,7 @@ export class PersonBatchStore {
     return this.pendingPersons.size;
   }
 
+  // eslint-disable-next-line complexity -- person property merging with set/set_once/unset
   enqueue(
     projectId: string,
     personId: string,
@@ -108,6 +109,7 @@ export class PersonBatchStore {
     }
   }
 
+  // eslint-disable-next-line complexity -- flush with PG upsert, merge replay, and error handling
   private async _doFlush(): Promise<void> {
     const pendingPersons = this.pendingPersons;
     const pendingDistinctIds = this.pendingDistinctIds;
@@ -205,10 +207,11 @@ export class PersonBatchStore {
   }
 
   /** Replay failed merges from Redis. Best-effort: successful merges are removed, failures stay. */
+  // eslint-disable-next-line complexity -- merge replay with batch Redis operations
   private async replayFailedMerges(): Promise<void> {
     try {
       const raw = await this.redis.lrange(FAILED_MERGES_KEY, -FAILED_MERGES_REPLAY_BATCH, -1);
-      if (raw.length === 0) return;
+      if (raw.length === 0) {return;}
 
       let replayed = 0;
       for (const entry of raw) {
@@ -284,7 +287,7 @@ export class PersonBatchStore {
         .where(and(eq(persons.project_id, projectId), inArray(persons.id, [fromPersonId, intoPersonId])));
 
       const anonRow = bothRows.find((r) => r.id === fromPersonId);
-      if (!anonRow) return;
+      if (!anonRow) {return;}
 
       const userRow = bothRows.find((r) => r.id === intoPersonId);
       if (userRow) {
@@ -331,7 +334,8 @@ export class PersonBatchStore {
     // Compute final properties for each person
     const values: Array<{ id: string; project_id: string; properties: Record<string, unknown> }> = [];
     for (const personId of sortedIds) {
-      const update = pending.get(personId)!;
+      const update = pending.get(personId);
+      if (!update) { continue; }
       const existingProps = existingMap.get(personId) ?? {};
       // Merge: setOnce < existing < set, then remove unset keys
       const merged: Record<string, unknown> = {

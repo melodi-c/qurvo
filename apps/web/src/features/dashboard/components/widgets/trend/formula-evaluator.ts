@@ -9,6 +9,7 @@ interface Token {
 
 // ── Tokenizer ──
 
+// eslint-disable-next-line complexity -- lexer state machine with character-level branching
 export function tokenize(expression: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
@@ -34,7 +35,7 @@ export function tokenize(expression: string): Token[] {
       while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) {
         if (s[i] === '.') {
           dotCount++;
-          if (dotCount > 1) {
+          if (dotCount > 1) { // eslint-disable-line max-depth -- number parsing validation
             throw new Error(`Invalid number: "${num}."`);
           }
         }
@@ -116,7 +117,7 @@ function parse(tokens: Token[]): ASTNode {
 
   function parseFactor(): ASTNode {
     const tok = peek();
-    if (!tok) throw new Error('Unexpected end of expression');
+    if (!tok) {throw new Error('Unexpected end of expression');}
 
     if (tok.type === 'number') {
       consume();
@@ -132,7 +133,7 @@ function parse(tokens: Token[]): ASTNode {
       consume();
       const node = parseExpr();
       const closing = peek();
-      if (!closing || closing.type !== 'rparen') {
+      if (closing?.type !== 'rparen') {
         throw new Error('Missing closing parenthesis');
       }
       consume();

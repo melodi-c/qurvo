@@ -29,4 +29,4 @@ async function bootstrap() {
   await app.listen(env().INGEST_PORT, '0.0.0.0');
 }
 
-bootstrap();
+void bootstrap();

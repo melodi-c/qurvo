@@ -102,7 +102,7 @@ function buildTrendUrl(projectId: string, params: Record<string, string | string
   qs.set('date_to', '2025-01-31');
 
   for (const [key, value] of Object.entries(params)) {
-    if (value === undefined) continue;
+    if (value === undefined) {continue;}
     if (Array.isArray(value)) {
       qs.set(key, JSON.stringify(value));
     } else {

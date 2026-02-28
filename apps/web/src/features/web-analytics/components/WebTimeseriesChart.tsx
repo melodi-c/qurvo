@@ -47,7 +47,7 @@ export function WebTimeseriesChart({
   ], [t]);
 
   const chartData = useMemo(() => {
-    if (!data) return [];
+    if (!data) {return [];}
     return data.map((d) => ({
       ...d,
       label: formatBucket(d.bucket, granularity, false, timezone),

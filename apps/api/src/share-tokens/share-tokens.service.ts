@@ -46,15 +46,15 @@ export class ShareTokensService {
       .where(eq(shareTokens.token, token))
       .limit(1);
 
-    if (!shareToken) return null;
-    if (shareToken.expires_at && shareToken.expires_at < new Date()) return null;
+    if (!shareToken) {return null;}
+    if (shareToken.expires_at && shareToken.expires_at < new Date()) {return null;}
 
     return shareToken;
   }
 
   async findDashboardToken(token: string) {
     const shareToken = await this.findByToken(token);
-    if (!shareToken || shareToken.resource_type !== 'dashboard') {
+    if (shareToken?.resource_type !== 'dashboard') {
       throw new ShareTokenNotFoundException();
     }
     return shareToken;
@@ -62,7 +62,7 @@ export class ShareTokensService {
 
   async findInsightToken(token: string) {
     const shareToken = await this.findByToken(token);
-    if (!shareToken || shareToken.resource_type !== 'insight') {
+    if (shareToken?.resource_type !== 'insight') {
       throw new ShareTokenNotFoundException();
     }
     return shareToken;
@@ -88,7 +88,7 @@ export class ShareTokensService {
       .where(and(eq(shareTokens.id, id), eq(shareTokens.project_id, projectId)))
       .returning({ id: shareTokens.id });
 
-    if (!deleted) throw new ShareTokenNotFoundException('Share token not found');
+    if (!deleted) {throw new ShareTokenNotFoundException('Share token not found');}
     this.logger.log({ shareTokenId: id, projectId }, 'Share token revoked');
   }
 }

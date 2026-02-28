@@ -12,13 +12,13 @@ export interface FunnelChartProps {
 
 export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false, conversionRateDisplay = 'total' }: FunnelChartProps) {
   const relative = conversionRateDisplay === 'relative';
-  if (steps.length === 0) return null;
-  if (!breakdown) return <PlainFunnel steps={steps} compact={compact} relative={relative} />;
+  if (steps.length === 0) {return null;}
+  if (!breakdown) {return <PlainFunnel steps={steps} compact={compact} relative={relative} />;}
 
   // Backend provides aggregate_steps; fall back to computing from steps for old cache entries
   const agg: FunnelStepResult[] = aggregateSteps ?? (() => {
     const totals = new Map<number, number>();
-    for (const s of steps) totals.set(s.step, (totals.get(s.step) ?? 0) + s.count);
+    for (const s of steps) {totals.set(s.step, (totals.get(s.step) ?? 0) + s.count);}
     const nums = [...totals.keys()].sort((a, b) => a - b);
     const base = totals.get(nums[0]) ?? 0;
     return nums.map((sn, i) => {

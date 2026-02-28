@@ -43,7 +43,8 @@ export class EventDefinitionsService {
       conditions.push(ilike(eventDefinitions.event_name, `%${escapeLikePattern(params.search)}%`));
     }
 
-    const where = and(...conditions)!;
+    // and() always returns a value when given at least one condition (project_id is always present)
+    const where = and(...conditions) ?? eq(eventDefinitions.project_id, projectId);
     const orderCol = columnMap[params.order_by ?? 'last_seen_at'] ?? eventDefinitions.last_seen_at;
     const orderFn = params.order === 'asc' ? asc : desc;
     const limit = params.limit ?? 100;
@@ -112,7 +113,7 @@ export class EventDefinitionsService {
         .delete(eventDefinitions)
         .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)))
         .returning({ id: eventDefinitions.id });
-      if (deleted.length === 0) throw new DefinitionNotFoundException('event', eventName);
+      if (deleted.length === 0) {throw new DefinitionNotFoundException('event', eventName);}
     });
   }
 }

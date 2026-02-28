@@ -53,7 +53,7 @@ export function BreakdownCohortIdsRequiresCohortType(validationOptions?: Validat
           const hasCohortIds =
             Array.isArray(obj['breakdown_cohort_ids']) &&
             (obj['breakdown_cohort_ids'] as unknown[]).length > 0;
-          if (!hasCohortIds) return true;
+          if (!hasCohortIds) {return true;}
           return obj['breakdown_type'] === 'cohort';
         },
       },

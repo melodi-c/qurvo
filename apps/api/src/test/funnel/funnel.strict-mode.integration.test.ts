@@ -65,9 +65,9 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(1);
-    expect(r.steps[1]!.count).toBe(1);
-    expect(r.steps[1]!.conversion_rate).toBe(100);
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
+    expect(r.steps[1].conversion_rate).toBe(100);
   });
 
   it('user WITH a non-funnel event between steps does NOT convert in strict mode', async () => {
@@ -116,9 +116,9 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
     // User entered step 1 (signup)
-    expect(r.steps[0]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
     // pageview between signup and purchase resets strict_order — no conversion
-    expect(r.steps[1]!.count).toBe(0);
+    expect(r.steps[1].count).toBe(0);
   });
 
   it('ordered mode converts the same user with intervening event (confirms strict vs ordered difference)', async () => {
@@ -166,9 +166,9 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
     // In ordered mode, pageview is ignored — user completes the funnel
-    expect(r.steps[1]!.count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
   });
 
   it('user whose ONLY complete path has an intervening event does NOT convert in strict mode', async () => {
@@ -230,10 +230,10 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
     // User entered at step 1 (has signup events → passes subquery user filter)
-    expect(r.steps[0]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
     // ClickHouse strict_order: the pageview after the first signup resets progress.
     // windowFunnel returns max_step = 1 for this entire sequence → no step 2 conversion.
-    expect(r.steps[1]!.count).toBe(0);
+    expect(r.steps[1].count).toBe(0);
   });
 
   it('user with high-volume non-funnel events is correctly excluded in strict mode', async () => {
@@ -328,10 +328,10 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
     // Only the 2 funnel users enter (they have signup events); non-funnel users are excluded
-    expect(r.steps[0]!.count).toBe(2);
+    expect(r.steps[0].count).toBe(2);
     // Only funnelUserClean converts (no interruption); funnelUserInterrupted has pageview between steps
-    expect(r.steps[1]!.count).toBe(1);
-    expect(r.steps[1]!.conversion_rate).toBe(50);
+    expect(r.steps[1].count).toBe(1);
+    expect(r.steps[1].conversion_rate).toBe(50);
   });
 
   it('strict + exclusion: excludes user who performed exclusion event between steps (no intervening events)', async () => {
@@ -543,10 +543,10 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
     // All 3 users entered step A (have step_a events → pass the distinct_id subquery filter)
-    expect(r.steps[0]!.count).toBe(3);
+    expect(r.steps[0].count).toBe(3);
     // personA and personB reach step B (personB: A→B succeeded before interruption)
-    expect(r.steps[1]!.count).toBe(2);
+    expect(r.steps[1].count).toBe(2);
     // Only personA reaches step C (personB interrupted between B and C)
-    expect(r.steps[2]!.count).toBe(1);
+    expect(r.steps[2].count).toBe(1);
   });
 });

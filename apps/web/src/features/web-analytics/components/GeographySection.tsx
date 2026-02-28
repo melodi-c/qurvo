@@ -81,7 +81,7 @@ export function GeographySection({
 
   const dataMap = useMemo(() => {
     const map = new Map<string, { visitors: number; pageviews: number }>();
-    if (!countries) return map;
+    if (!countries) {return map;}
     for (const row of countries) {
       if (row.name) {
         map.set(row.name.toUpperCase(), {
@@ -94,16 +94,16 @@ export function GeographySection({
   }, [countries]);
 
   const maxValue = useMemo(() => {
-    if (dataMap.size === 0) return 1;
+    if (dataMap.size === 0) {return 1;}
     return Math.max(...Array.from(dataMap.values()).map((v) => v[mapMetric]));
   }, [dataMap, mapMetric]);
 
   const getFillColor = useCallback(
     (isoA2: string): string => {
       const entry = dataMap.get(isoA2.toUpperCase());
-      if (!entry) return MAP_COLOR_EMPTY;
+      if (!entry) {return MAP_COLOR_EMPTY;}
       const value = entry[mapMetric];
-      if (!value) return MAP_COLOR_EMPTY;
+      if (!value) {return MAP_COLOR_EMPTY;}
       const normalized = Math.pow(value / maxValue, 0.4);
       return interpolateMapColor(normalized);
     },

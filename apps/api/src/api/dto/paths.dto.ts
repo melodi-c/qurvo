@@ -47,7 +47,7 @@ export class WildcardGroupDto {
 }
 
 export class PathsQueryDto extends BaseAnalyticsQueryDto {
-  @Transform(({ value }) => (value != null ? Number(value) : 5))
+  @Transform(({ value }) => (value !== null && value !== undefined ? Number(value) : 5))
   @IsInt()
   @Min(3)
   @Max(1000)
@@ -69,7 +69,7 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
   @IsOptional()
   exclusions?: string[];
 
-  @Transform(({ value }) => (value != null ? Number(value) : undefined))
+  @Transform(({ value }) => (value !== null && value !== undefined ? Number(value) : undefined))
   @IsInt()
   @Min(1)
   @IsOptional()

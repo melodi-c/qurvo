@@ -29,7 +29,7 @@ export function useCreateInsight() {
     mutationFn: (data: CreateInsight) =>
       api.savedInsightsControllerCreate({ projectId }, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['insights', projectId] });
+      void qc.invalidateQueries({ queryKey: ['insights', projectId] });
     },
   });
 }
@@ -41,8 +41,8 @@ export function useUpdateInsight() {
     mutationFn: ({ insightId, data }: { insightId: string; data: UpdateInsight }) =>
       api.savedInsightsControllerUpdate({ projectId, insightId }, data),
     onSuccess: (_data, { insightId }) => {
-      qc.invalidateQueries({ queryKey: ['insights', projectId] });
-      qc.invalidateQueries({ queryKey: ['insight', insightId] });
+      void qc.invalidateQueries({ queryKey: ['insights', projectId] });
+      void qc.invalidateQueries({ queryKey: ['insight', insightId] });
     },
   });
 }
@@ -62,10 +62,10 @@ export function useToggleFavorite() {
       return { prev };
     },
     onError: (_err, _vars, context) => {
-      if (context?.prev) qc.setQueryData(['insights', projectId], context.prev);
+      if (context?.prev) {qc.setQueryData(['insights', projectId], context.prev);}
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['insights', projectId] });
+      void qc.invalidateQueries({ queryKey: ['insights', projectId] });
     },
   });
 }
@@ -77,7 +77,7 @@ export function useDeleteInsight() {
     mutationFn: (insightId: string) =>
       api.savedInsightsControllerRemove({ projectId, insightId }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['insights', projectId] });
+      void qc.invalidateQueries({ queryKey: ['insights', projectId] });
     },
   });
 }

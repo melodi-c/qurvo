@@ -41,7 +41,7 @@ export function RetentionChart({ result, compact = false }: RetentionChartProps)
     [average_retention, periodPrefix],
   );
 
-  if (data.length === 0) return null;
+  if (data.length === 0) {return null;}
 
   return (
     <div className={compact ? 'h-full' : ''}>

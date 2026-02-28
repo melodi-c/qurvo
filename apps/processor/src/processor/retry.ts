@@ -13,6 +13,7 @@ export interface RetryOptions {
  * Retry a function with linear backoff + jitter.
  * On exhausted retries, calls `onExhausted` (if provided) and re-throws.
  */
+// eslint-disable-next-line complexity -- retry loop with backoff, logging, and exhaustion handler
 export async function withRetry<T>(
   fn: () => Promise<T>,
   label: string,

@@ -77,7 +77,7 @@ export function RetentionQueryPanel({ config, onChange }: RetentionQueryPanelPro
             value={config.periods}
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
-              if (v >= 1 && v <= 30) onChange({ ...config, periods: v });
+              if (v >= 1 && v <= 30) {onChange({ ...config, periods: v });}
             }}
             className="h-8 text-sm"
           />

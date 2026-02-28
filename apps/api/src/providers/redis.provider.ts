@@ -1,4 +1,4 @@
-import { Provider } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import Redis from 'ioredis';
 
 export const REDIS = Symbol('REDIS');

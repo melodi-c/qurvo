@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Test, type TestingModule } from '@nestjs/testing';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import type { Database } from '@qurvo/db';
 import { REDIS, DRIZZLE } from '@qurvo/nestjs-infra';
 import {
@@ -31,7 +31,7 @@ let cached: Promise<TestContext> | null = null;
  * (BillingCheckService, AiQuotaResetService) from starting automatically.
  */
 export function getTestContext(): Promise<TestContext> {
-  if (cached) return cached;
+  if (cached) {return cached;}
   cached = bootstrap();
   return cached;
 }
@@ -58,7 +58,7 @@ async function bootstrap(): Promise<TestContext> {
  * Called once at the very end (setupFiles afterAll teardown).
  */
 export async function closeTestContext(): Promise<void> {
-  if (!cached) return;
+  if (!cached) {return;}
   const { moduleRef } = await cached;
   cached = null;
   try {

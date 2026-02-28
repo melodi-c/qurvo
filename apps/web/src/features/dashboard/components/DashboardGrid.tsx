@@ -15,8 +15,8 @@ const COLS = { sm: 24, xs: 1 };
 const GRID_ROW_HEIGHT = 40;
 
 function getWidgetMobileHeight(widget: Widget): number {
-  if (widget.insight?.type === 'retention') return 440;
-  if (!widget.insight) return 200;
+  if (widget.insight?.type === 'retention') {return 440;}
+  if (!widget.insight) {return 200;}
   return 320;
 }
 const GRID_MARGIN: [number, number] = [12, 12];

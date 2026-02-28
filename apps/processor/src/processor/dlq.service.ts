@@ -26,6 +26,7 @@ export class DlqService implements OnApplicationBootstrap {
   private replayPromise: Promise<void> | null = null;
   private readonly lock: DistributedLock;
 
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     @InjectPinoLogger(DlqService.name) private readonly logger: PinoLogger,
@@ -46,23 +47,22 @@ export class DlqService implements OnApplicationBootstrap {
       clearTimeout(this.dlqTimer);
       this.dlqTimer = null;
     }
-    if (this.replayPromise) await this.replayPromise;
+    if (this.replayPromise) {await this.replayPromise;}
   }
 
   private scheduleReplay() {
-    this.dlqTimer = setTimeout(async () => {
+    this.dlqTimer = setTimeout(() => {
       this.replayPromise = this.replayDlq();
-      try {
-        await this.replayPromise;
-      } catch (err) {
-        this.logger.error({ err }, 'DLQ replay threw unexpectedly');
-      } finally {
-        this.replayPromise = null;
-      }
-      if (!this.stopped) this.scheduleReplay();
+      this.replayPromise
+        .catch((err) => this.logger.error({ err }, 'DLQ replay threw unexpectedly'))
+        .finally(() => {
+          this.replayPromise = null;
+          if (!this.stopped) { this.scheduleReplay(); }
+        });
     }, DLQ_REPLAY_INTERVAL_MS);
   }
 
+  // eslint-disable-next-line complexity -- DLQ replay with circuit breaker, lock, and error handling
   private async replayDlq() {
     if (await this.redis.exists(DLQ_CIRCUIT_KEY)) {
       this.logger.warn('DLQ circuit breaker open, skipping replay');
@@ -85,13 +85,13 @@ export class DlqService implements OnApplicationBootstrap {
 
     try {
       const entries = await this.redis.xrange(REDIS_STREAM_DLQ, '-', '+', 'COUNT', DLQ_REPLAY_BATCH) as [string, string[]][];
-      if (!entries || entries.length === 0) return;
+      if (!entries || entries.length === 0) {return;}
 
       const ids = entries.map(([id]) => id);
       const events: Event[] = entries
-        .map(([id, fields]) => {
+        .map(([id, fields]) => { // eslint-disable-line complexity -- DLQ entry parsing and validation
           const obj = parseRedisFields(fields);
-          if (!obj.data) return null;
+          if (!obj.data) {return null;}
 
           let parsed: unknown;
           try {

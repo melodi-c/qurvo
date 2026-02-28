@@ -674,6 +674,6 @@ describe('queryFunnel — (none) does not displace real values from top-N', () =
 
     // (none) must be last in the ordering.
     const step1Rows = rBd.steps.filter((s) => s.step === 1);
-    expect(step1Rows[step1Rows.length - 1]!.breakdown_value).toBe('(none)');
+    expect(step1Rows[step1Rows.length - 1].breakdown_value).toBe('(none)');
   });
 });

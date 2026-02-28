@@ -44,6 +44,7 @@ function filterNoisy(props: Record<string, unknown>): Record<string, unknown> {
  * High-churn properties (browser, OS, screen size, etc.) are filtered
  * out to reduce PG write amplification — they're already in CH event columns.
  */
+// eslint-disable-next-line complexity -- property parsing with set/set_once/unset + context filtering
 export function parseUserProperties(raw: string): ParsedUserProperties {
   let obj: Record<string, unknown>;
   try {

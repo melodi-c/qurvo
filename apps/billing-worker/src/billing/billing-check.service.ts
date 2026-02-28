@@ -78,14 +78,7 @@ export class BillingCheckService extends PeriodicWorkerMixin implements OnApplic
     const counterValues = await this.redis.mget(...counterKeys);
 
     // 3. Determine which projects are over limit
-    const overLimit: string[] = [];
-    for (let i = 0; i < rows.length; i++) {
-      const limit = rows[i].eventsLimit!;
-      const count = counterValues[i] !== null ? parseInt(counterValues[i]!, 10) : 0;
-      if (!Number.isNaN(count) && count >= limit) {
-        overLimit.push(rows[i].projectId);
-      }
-    }
+    const overLimit = this.findOverLimitProjects(rows, counterValues);
 
     // 4. Atomically replace the quota_limited set
     const pipeline = this.redis.multi();
@@ -106,5 +99,21 @@ export class BillingCheckService extends PeriodicWorkerMixin implements OnApplic
       { total: rows.length, overLimit: overLimit.length },
       'Billing check completed',
     );
+  }
+
+  private findOverLimitProjects(
+    rows: { projectId: string; eventsLimit: number | null }[],
+    counterValues: (string | null)[],
+  ): string[] {
+    const result: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const limit = rows[i].eventsLimit ?? 0;
+      const raw = counterValues[i];
+      const count = raw !== null ? parseInt(raw, 10) : 0;
+      if (!Number.isNaN(count) && count >= limit) {
+        result.push(rows[i].projectId);
+      }
+    }
+    return result;
   }
 }

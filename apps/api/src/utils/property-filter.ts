@@ -94,14 +94,14 @@ function buildJsonHas(jsonColumn: string, segments: string[]): string {
 
 export function resolvePropertyExpr(prop: string): string {
   const source = resolvePropertySource(prop);
-  if (source) return buildJsonExtractString(source.jsonColumn, source.segments);
-  if (DIRECT_COLUMNS.has(prop)) return prop;
+  if (source) {return buildJsonExtractString(source.jsonColumn, source.segments);}
+  if (DIRECT_COLUMNS.has(prop)) {return prop;}
   throw new AppBadRequestException(`Unknown filter property: ${prop}`);
 }
 
 export function resolveNumericPropertyExpr(prop: string): string {
   const source = resolvePropertySource(prop);
-  if (source) return `toFloat64OrZero(${buildJsonExtractRaw(source.jsonColumn, source.segments)})`;
+  if (source) {return `toFloat64OrZero(${buildJsonExtractRaw(source.jsonColumn, source.segments)})`;}
   throw new AppBadRequestException(`Unknown metric property: ${prop}`);
 }
 

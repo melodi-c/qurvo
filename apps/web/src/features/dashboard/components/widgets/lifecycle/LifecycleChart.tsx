@@ -38,7 +38,7 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
     [result.data],
   );
 
-  if (data.length === 0) return null;
+  if (data.length === 0) {return null;}
 
   const height = compact ? 160 : 300;
 

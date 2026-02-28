@@ -25,7 +25,7 @@ import { AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT,
 export function findSafeStartIndex(msgs: ReadonlyArray<{ role: string }>): number {
   let startIndex = 0;
   for (let i = 0; i < msgs.length; i++) {
-    if (msgs[i].role !== 'tool') break;
+    if (msgs[i].role !== 'tool') {break;}
     startIndex = i + 1;
   }
   return startIndex;
@@ -141,7 +141,7 @@ export class AiMessageHistoryBuilder {
         };
         messages.push(assistantMsg);
       } else if (msg.role === 'tool') {
-        if (!msg.tool_call_id) continue;
+        if (!msg.tool_call_id) {continue;}
         const rawContent = typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result);
         const content = rawContent.length > AI_TOOL_RESULT_MAX_CHARS
           ? rawContent.slice(0, AI_TOOL_RESULT_MAX_CHARS) + '...[truncated]'

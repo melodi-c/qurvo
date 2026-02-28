@@ -40,20 +40,20 @@ export function useInsightsFilters() {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         if ('search' in partial) {
-          if (partial.search) next.set('search', partial.search);
-          else next.delete('search');
+          if (partial.search) {next.set('search', partial.search);}
+          else {next.delete('search');}
         }
         if ('type' in partial) {
-          if (partial.type && partial.type !== 'all') next.set('type', partial.type);
-          else next.delete('type');
+          if (partial.type && partial.type !== 'all') {next.set('type', partial.type);}
+          else {next.delete('type');}
         }
         if ('sort' in partial) {
-          if (partial.sort && partial.sort !== 'newest') next.set('sort', partial.sort);
-          else next.delete('sort');
+          if (partial.sort && partial.sort !== 'newest') {next.set('sort', partial.sort);}
+          else {next.delete('sort');}
         }
         if ('favorites' in partial) {
-          if (partial.favorites) next.set('favorites', '1');
-          else next.delete('favorites');
+          if (partial.favorites) {next.set('favorites', '1');}
+          else {next.delete('favorites');}
         }
         return next;
       }, { replace: true });

@@ -40,7 +40,7 @@ export const useFunnelData = createWidgetDataHook<FunnelWidgetConfig, FunnelResp
     project_id: projectId,
     steps: cleanSteps(config),
     conversion_window_days: config.conversion_window_days,
-    ...(config.conversion_window_value != null ? { conversion_window_value: config.conversion_window_value } : {}),
+    ...(config.conversion_window_value !== null && config.conversion_window_value !== undefined ? { conversion_window_value: config.conversion_window_value } : {}),
     ...(config.conversion_window_unit ? { conversion_window_unit: config.conversion_window_unit } : {}),
     date_from: config.date_from,
     date_to: config.date_to,

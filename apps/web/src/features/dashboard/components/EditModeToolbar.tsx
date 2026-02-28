@@ -16,7 +16,7 @@ export function EditModeToolbar({ onAddInsight, onAddText }: EditModeToolbarProp
   const { t } = useLocalTranslation(translations);
 
   // Only show when editing and dashboard has widgets (empty state has its own CTAs)
-  if (!isEditing || localWidgets.length === 0) return null;
+  if (!isEditing || localWidgets.length === 0) {return null;}
 
   return (
     <div

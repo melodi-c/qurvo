@@ -80,7 +80,7 @@ export function IngestionWarningsTab({ projectId }: { projectId: string }) {
         />
       )}
 
-      {!isLoading && !isError && warnings && warnings.length === 0 && (
+      {!isLoading && !isError && warnings?.length === 0 && (
         <EmptyState
           icon={AlertTriangle}
           title={t('noWarnings')}

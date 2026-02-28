@@ -6,7 +6,7 @@ import { projects, projectMembers } from '@qurvo/db';
 import { AuthService } from '../../auth/auth.service';
 import { VerificationService } from '../../verification/verification.service';
 import { ProjectsService } from '../../projects/projects.service';
-import { DemoSeedService } from '../../demo/demo-seed.service';
+import type { DemoSeedService } from '../../demo/demo-seed.service';
 import type { EmailProvider } from '../../email/email.provider.interface';
 
 let ctx: ContainerContext;

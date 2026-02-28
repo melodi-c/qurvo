@@ -94,9 +94,9 @@ interface CustomTooltipProps {
 }
 
 function CustomTooltip({ active, payload, usersLabel }: CustomTooltipProps) {
-  if (!active || !payload?.length) return null;
+  if (!active || !payload?.length) {return null;}
   const data = payload[0]?.payload?.payload;
-  if (!data) return null;
+  if (!data) {return null;}
 
   // Link tooltip
   if (data.source !== undefined && data.target !== undefined) {

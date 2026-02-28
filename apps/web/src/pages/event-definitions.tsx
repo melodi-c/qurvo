@@ -81,7 +81,7 @@ export default function EventDefinitionsPage() {
 
   const handleRowClick = useCallback(
     (row: EventDefinition) => {
-      go.dataManagement.detail(row.event_name);
+      void go.dataManagement.detail(row.event_name);
     },
     [go],
   );
@@ -123,7 +123,7 @@ export default function EventDefinitionsPage() {
               )}
             </div>
 
-            {filtered && filtered.length === 0 && (
+            {filtered?.length === 0 && (
               <EmptyState
                 icon={Database}
                 title={t('noEventsFound')}

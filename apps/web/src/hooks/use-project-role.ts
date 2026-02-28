@@ -11,7 +11,7 @@ export function useProjectRole(): 'owner' | 'editor' | 'viewer' | undefined {
   const qc = useQueryClient();
   const projectId = useProjectId();
 
-  if (!projectId) return undefined;
+  if (!projectId) {return undefined;}
 
   const projects = qc.getQueryData<ProjectWithRole[]>(['projects']);
   const project = projects?.find((p) => p.id === projectId);

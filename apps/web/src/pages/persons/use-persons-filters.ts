@@ -12,11 +12,11 @@ export interface PersonsFilterState {
 function serializePersonsFilters(state: PersonsFilterState, prev: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams(prev);
 
-  if (state.search) next.set('search', state.search);
-  else next.delete('search');
+  if (state.search) {next.set('search', state.search);}
+  else {next.delete('search');}
 
-  if (state.filters.length > 0) next.set('filters', JSON.stringify(state.filters));
-  else next.delete('filters');
+  if (state.filters.length > 0) {next.set('filters', JSON.stringify(state.filters));}
+  else {next.delete('filters');}
 
   return next;
 }

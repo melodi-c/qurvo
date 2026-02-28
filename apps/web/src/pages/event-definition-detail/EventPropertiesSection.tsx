@@ -46,7 +46,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
     const def = definitions?.find(
       (d) => `${d.property_name}:${d.property_type}` === confirmDelete.itemId,
     );
-    if (!def) return;
+    if (!def) {return;}
     try {
       await deleteMutation.mutateAsync({
         propertyType: def.property_type,
@@ -100,7 +100,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
     });
 
   const filtered = useMemo(() => {
-    if (!definitions) return undefined;
+    if (!definitions) {return undefined;}
     return definitions.filter((d) =>
       !search || d.property_name.toLowerCase().includes(search.toLowerCase()),
     );
@@ -264,7 +264,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
             { value: 'person', label: typeFilterLabels.person },
           ]}
           value={typeFilter}
-          onChange={(v) => setTypeFilter(v as 'all' | 'event' | 'person')}
+          onChange={(v) => setTypeFilter(v)}
         />
         {filtered && (
           <span className="text-sm text-muted-foreground">
@@ -277,7 +277,7 @@ export function EventPropertiesSection({ eventName }: { eventName: string }) {
 
       {isLoading && <ListSkeleton count={5} />}
 
-      {!isLoading && filtered && filtered.length === 0 && (
+      {!isLoading && filtered?.length === 0 && (
         <EmptyState
           icon={Database}
           title={t('noPropertiesFound')}

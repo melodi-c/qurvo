@@ -16,8 +16,8 @@ export function useInvites() {
   const acceptMutation = useMutation({
     mutationFn: (inviteId: string) => api.myInvitesControllerAcceptInvite({ inviteId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myInvites'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['myInvites'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(t('acceptSuccess'));
     },
     onError: () => toast.error(t('acceptError')),
@@ -26,7 +26,7 @@ export function useInvites() {
   const declineMutation = useMutation({
     mutationFn: (inviteId: string) => api.myInvitesControllerDeclineInvite({ inviteId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myInvites'] });
+      void queryClient.invalidateQueries({ queryKey: ['myInvites'] });
       toast.success(t('declineSuccess'));
     },
     onError: () => toast.error(t('declineError')),

@@ -73,8 +73,8 @@ describe('queryFunnel — timezone support', () => {
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(1);
-    expect(r.steps[1]!.count).toBe(1);
+    expect(r.steps[0].count).toBe(1);
+    expect(r.steps[1].count).toBe(1);
   });
 
   it('shifts day boundary with Europe/Moscow timezone (UTC+3)', async () => {
@@ -144,8 +144,8 @@ describe('queryFunnel — timezone support', () => {
 
     expect(resultForNextDay.breakdown).toBe(false);
     const r2 = resultForNextDay as Extract<typeof resultForNextDay, { breakdown: false }>;
-    expect(r2.steps[0]!.count).toBe(1);
-    expect(r2.steps[1]!.count).toBe(1);
+    expect(r2.steps[0].count).toBe(1);
+    expect(r2.steps[1].count).toBe(1);
   });
 
   it('UTC timezone behaves same as no timezone', async () => {
@@ -192,10 +192,10 @@ describe('queryFunnel — timezone support', () => {
 
     const r1 = withoutTz as Extract<typeof withoutTz, { breakdown: false }>;
     const r2 = withUtcTz as Extract<typeof withUtcTz, { breakdown: false }>;
-    expect(r1.steps[0]!.count).toBe(1);
-    expect(r2.steps[0]!.count).toBe(1);
-    expect(r1.steps[1]!.count).toBe(1);
-    expect(r2.steps[1]!.count).toBe(1);
+    expect(r1.steps[0].count).toBe(1);
+    expect(r2.steps[0].count).toBe(1);
+    expect(r1.steps[1].count).toBe(1);
+    expect(r2.steps[1].count).toBe(1);
   });
 });
 
@@ -316,6 +316,6 @@ describe('queryFunnelTimeToConvert — timezone support', () => {
 
     const r = funnelResult as Extract<typeof funnelResult, { breakdown: false }>;
     // Both queries operate on the same date range — they should see the same number of converted users.
-    expect(r.steps[1]!.count).toBe(ttcResult.sample_size);
+    expect(r.steps[1].count).toBe(ttcResult.sample_size);
   });
 });

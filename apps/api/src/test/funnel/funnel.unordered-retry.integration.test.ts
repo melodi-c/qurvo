@@ -432,7 +432,7 @@ describe('queryFunnelTimeToConvert — unordered funnel repeated attempt TTC', (
 
     // Average TTC: (2 days + 3 days) / 2 = 2.5 days = 216000 seconds
     // Allow generous tolerance (±1 day) for test timing drift
-    const expected = 2.5 * 86400;
+    // Expected: ~2.5 * 86400 = 216000s (2.5 days average)
     const avgSeconds = result.average_seconds ?? 0;
     expect(avgSeconds).toBeGreaterThan(1 * 86400);   // > 1 day
     expect(avgSeconds).toBeLessThan(5 * 86400);      // < 5 days (not the inflated ~6.5d)

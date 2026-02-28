@@ -32,7 +32,7 @@ export default function PathsEditorPage() {
   const transitions = result?.transitions;
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(pathsToCsv(result), 'paths.csv');
   }, [result]);
 

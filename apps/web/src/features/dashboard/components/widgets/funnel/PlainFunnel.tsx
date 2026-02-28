@@ -12,7 +12,7 @@ export function PlainFunnel({ steps, compact, relative }: { steps: FunnelStepRes
   const bw = barWidthPx(1, compact);
 
   const stepConvs = steps.map((s, i) => {
-    if (i === 0) return null;
+    if (i === 0) {return null;}
     const prev = steps[i - 1];
     return prev.count > 0 ? Math.round((s.count / prev.count) * 1000) / 10 : null;
   });

@@ -9,12 +9,12 @@ export interface PropEntry {
 }
 
 function isNonEmpty(v: PropValue): boolean {
-  return v !== '' && v !== 0 && v != null;
+  return v !== '' && v !== 0 && v !== null && v !== undefined;
 }
 
 export function PropsTable({ rows }: { rows: PropEntry[] }) {
   const visible = rows.filter((r) => isNonEmpty(r.value));
-  if (visible.length === 0) return null;
+  if (visible.length === 0) {return null;}
   return (
     <table className="w-full text-xs">
       <tbody>
@@ -33,13 +33,13 @@ export function PropsTable({ rows }: { rows: PropEntry[] }) {
 
 export function PropsTableGrouped({ groups }: { groups: { label: string; rows: PropEntry[] }[] }) {
   const nonEmpty = groups.filter((g) => g.rows.some((r) => isNonEmpty(r.value)));
-  if (nonEmpty.length === 0) return null;
+  if (nonEmpty.length === 0) {return null;}
   return (
     <table className="w-full text-xs">
       <tbody>
         {nonEmpty.map((group) => {
           const visible = group.rows.filter((r) => isNonEmpty(r.value));
-          if (visible.length === 0) return null;
+          if (visible.length === 0) {return null;}
           return (
             <tr key={`section-${group.label}`}>
               <td colSpan={2} className="p-0">

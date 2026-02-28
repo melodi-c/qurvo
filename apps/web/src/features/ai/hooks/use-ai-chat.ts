@@ -180,7 +180,7 @@ export function useAiChat(projectId: string) {
 
   const sendMessage = useCallback(
     async (text: string, projectId: string, conversationId?: string | null) => {
-      if (!getAuthHeaders().Authorization) return;
+      if (!getAuthHeaders().Authorization) {return;}
 
       const userMsg: AiMessageData = { id: tempId(), role: 'user', content: text };
       setState((prev) => ({
@@ -207,7 +207,7 @@ export function useAiChat(projectId: string) {
           messages: finalizeStreamingMessages(prev.messages),
         }));
       } catch (err: unknown) {
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === 'AbortError') {return;}
         setState((prev) => ({
           ...prev,
           isStreaming: false,
@@ -220,10 +220,10 @@ export function useAiChat(projectId: string) {
 
   const editMessage = useCallback(
     async (sequence: number, newText: string, projectId: string) => {
-      if (!getAuthHeaders().Authorization) return;
+      if (!getAuthHeaders().Authorization) {return;}
 
       const convId = conversationIdRef.current;
-      if (!convId) return;
+      if (!convId) {return;}
 
       // Optimistically update: replace edited message content and drop all following messages
       setState((prev) => ({
@@ -255,7 +255,7 @@ export function useAiChat(projectId: string) {
           messages: finalizeStreamingMessages(prev.messages),
         }));
       } catch (err: unknown) {
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === 'AbortError') {return;}
         setState((prev) => ({
           ...prev,
           isStreaming: false,
@@ -297,10 +297,10 @@ export function useAiChat(projectId: string) {
 
   const loadMoreMessages = useCallback(async () => {
     const convId = conversationIdRef.current;
-    if (!convId || isLoadingMoreRef.current || !hasMoreRef.current) return;
+    if (!convId || isLoadingMoreRef.current || !hasMoreRef.current) {return;}
 
     const oldestSeq = oldestSequenceRef.current;
-    if (!oldestSeq) return;
+    if (!oldestSeq) {return;}
 
     isLoadingMoreRef.current = true;
     setState((prev) => ({ ...prev, isLoadingMore: true }));

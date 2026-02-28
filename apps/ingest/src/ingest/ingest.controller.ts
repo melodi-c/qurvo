@@ -30,6 +30,7 @@ export class IngestController {
     return { status: 'ok' };
   }
 
+  // eslint-disable-next-line max-params -- NestJS decorators require separate parameters
   @Post('v1/batch')
   @UseGuards(ApiKeyGuard, RateLimitGuard, BillingGuard)
   async batch(
@@ -43,26 +44,11 @@ export class IngestController {
   ) {
     // Quota exceeded — return 200 to prevent SDK retries (PostHog pattern)
     if (request.quotaLimited) {
-      if (beacon === '1') {
-        reply.status(204);
-        return;
-      }
-      reply.status(200);
-      return { ok: true, quota_limited: true };
+      return this.replyQuotaLimited(beacon, reply);
     }
 
     const { events: rawEvents, sent_at } = BatchWrapperSchema.parse(body);
-
-    const validEvents: TrackEvent[] = [];
-    const dropReasons: { index: number; errors: unknown[] }[] = [];
-    for (let i = 0; i < rawEvents.length; i++) {
-      const result = TrackEventSchema.safeParse(rawEvents[i]);
-      if (result.success) {
-        validEvents.push(result.data);
-      } else {
-        dropReasons.push({ index: i, errors: result.error.issues.map((e) => ({ path: e.path, message: e.message })) });
-      }
-    }
+    const { validEvents, dropReasons } = this.validateEvents(rawEvents);
 
     if (validEvents.length === 0) {
       throw new HttpException(
@@ -71,14 +57,7 @@ export class IngestController {
       );
     }
 
-    if (dropReasons.length > 0) {
-      this.logger.warn(
-        { projectId, dropped: dropReasons.length, total: rawEvents.length, reasons: dropReasons.slice(0, 5) },
-        'Some events dropped due to validation',
-      );
-      this.ingestService.reportDropped('validation', dropReasons.length);
-    }
-
+    this.reportDroppedEvents(projectId, dropReasons, rawEvents.length);
     await this.callOrThrow503(() => this.ingestService.trackBatch(projectId, validEvents, ip, userAgent, sent_at), projectId, validEvents.length);
 
     // sendBeacon() — return 204 No Content (browser ignores response body)
@@ -89,6 +68,39 @@ export class IngestController {
 
     reply.status(202);
     return { ok: true, count: validEvents.length, dropped: dropReasons.length };
+  }
+
+  private replyQuotaLimited(beacon: string | undefined, reply: FastifyReply) {
+    if (beacon === '1') {
+      reply.status(204);
+      return;
+    }
+    reply.status(200);
+    return { ok: true, quota_limited: true };
+  }
+
+  private validateEvents(rawEvents: unknown[]) {
+    const validEvents: TrackEvent[] = [];
+    const dropReasons: { index: number; errors: unknown[] }[] = [];
+    for (let i = 0; i < rawEvents.length; i++) {
+      const result = TrackEventSchema.safeParse(rawEvents[i]);
+      if (result.success) {
+        validEvents.push(result.data);
+      } else {
+        dropReasons.push({ index: i, errors: result.error.issues.map((e) => ({ path: e.path, message: e.message })) });
+      }
+    }
+    return { validEvents, dropReasons };
+  }
+
+  private reportDroppedEvents(projectId: string, dropReasons: { index: number; errors: unknown[] }[], totalCount: number): void {
+    if (dropReasons.length > 0) {
+      this.logger.warn(
+        { projectId, dropped: dropReasons.length, total: totalCount, reasons: dropReasons.slice(0, 5) },
+        'Some events dropped due to validation',
+      );
+      this.ingestService.reportDropped('validation', dropReasons.length);
+    }
   }
 
   @Post('v1/import')

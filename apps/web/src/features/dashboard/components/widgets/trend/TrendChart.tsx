@@ -85,7 +85,7 @@ function renderFormulaSeries({ visibleFormulaKeys, compact }: SeriesRenderProps)
 // ── Annotation rendering helper ──
 
 function renderAnnotations(annotations: Annotation[] | undefined, compact?: boolean) {
-  if (!annotations?.length) return null;
+  if (!annotations?.length) {return null;}
   return annotations.map((ann) => (
     <ReferenceLine
       key={ann.id}
@@ -132,9 +132,9 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   );
 
   const lastCompleteBucketIdx = useMemo(() => {
-    if (!granularity || data.length === 0) return data.length - 1;
+    if (!granularity || data.length === 0) {return data.length - 1;}
     for (let i = data.length - 1; i >= 0; i--) {
-      if (!isIncompleteBucket(data[i].bucket as string, granularity)) return i;
+      if (!isIncompleteBucket(data[i].bucket as string, granularity)) {return i;}
     }
     return -1;
   }, [data, granularity]);
@@ -153,8 +153,8 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   const toggleSeries = (key: string) => {
     setHiddenKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {next.delete(key);}
+      else {next.add(key);}
       return next;
     });
   };

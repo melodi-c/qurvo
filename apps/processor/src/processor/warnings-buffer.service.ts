@@ -34,12 +34,12 @@ export class WarningsBufferService implements OnApplicationBootstrap {
 
   async shutdown(): Promise<void> {
     this.loop.stop();
-    if (this.flushTimer) clearTimeout(this.flushTimer);
+    if (this.flushTimer) {clearTimeout(this.flushTimer);}
     await this.flush();
   }
 
   private async flush(): Promise<void> {
-    if (this.buffer.length === 0) return;
+    if (this.buffer.length === 0) {return;}
     const batch = this.buffer.splice(0);
     try {
       await this.ch.insert({

@@ -1,5 +1,5 @@
 import type { Expr } from '@qurvo/ch-query';
-import { avg, count, func, max, min, raw, sum, uniqExact } from '@qurvo/ch-query';
+import { avg, count, max, min, raw, sum, uniqExact } from '@qurvo/ch-query';
 import { resolvedPerson } from './resolved-person';
 import { resolveNumericPropertyExpr } from './filters';
 
@@ -44,19 +44,19 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
     case 'events_per_user':
       return raw(`count() / uniqExact(${resolvedPersonSQL()})`);
     case 'property_sum': {
-      if (!metricProperty) throw new Error('property_sum requires metricProperty');
+      if (!metricProperty) {throw new Error('property_sum requires metricProperty');}
       return sum(resolveNumericPropertyExpr(metricProperty));
     }
     case 'property_avg': {
-      if (!metricProperty) throw new Error('property_avg requires metricProperty');
+      if (!metricProperty) {throw new Error('property_avg requires metricProperty');}
       return avg(resolveNumericPropertyExpr(metricProperty));
     }
     case 'property_min': {
-      if (!metricProperty) throw new Error('property_min requires metricProperty');
+      if (!metricProperty) {throw new Error('property_min requires metricProperty');}
       return min(resolveNumericPropertyExpr(metricProperty));
     }
     case 'property_max': {
-      if (!metricProperty) throw new Error('property_max requires metricProperty');
+      if (!metricProperty) {throw new Error('property_max requires metricProperty');}
       return max(resolveNumericPropertyExpr(metricProperty));
     }
     default: {

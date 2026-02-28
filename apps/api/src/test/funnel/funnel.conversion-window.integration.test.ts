@@ -84,8 +84,8 @@ describe('queryFunnel — sub-second conversion window (millisecond precision)',
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(2); // both entered step A
-    expect(r.steps[1]!.count).toBe(1); // only personConverted completed step B within 1s
+    expect(r.steps[0].count).toBe(2); // both entered step A
+    expect(r.steps[1].count).toBe(1); // only personConverted completed step B within 1s
   });
 
   it('strict funnel: counts conversion when two steps occur within 1 second (500ms apart)', async () => {
@@ -145,7 +145,7 @@ describe('queryFunnel — sub-second conversion window (millisecond precision)',
 
     expect(result.breakdown).toBe(false);
     const r = result as Extract<typeof result, { breakdown: false }>;
-    expect(r.steps[0]!.count).toBe(2); // both entered step A
-    expect(r.steps[1]!.count).toBe(1); // only personConverted completed step B within 1s
+    expect(r.steps[0].count).toBe(2); // both entered step A
+    expect(r.steps[1].count).toBe(1); // only personConverted completed step B within 1s
   });
 });

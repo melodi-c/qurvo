@@ -271,7 +271,7 @@ const ISO_NUMERIC_TO_ALPHA2: Record<string, string> = {
  * isoNumericToAlpha2('999') // ''
  */
 export function isoNumericToAlpha2(id: string): string {
-  if (!id) return '';
+  if (!id) {return '';}
   // Normalise to 3-digit zero-padded string (world-atlas emits un-padded numbers like "4" or "36")
   const padded = id.padStart(3, '0');
   return ISO_NUMERIC_TO_ALPHA2[padded] ?? '';

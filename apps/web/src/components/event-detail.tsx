@@ -45,14 +45,14 @@ export interface EventLike {
 }
 
 function parseSafe(json: string | undefined): Record<string, unknown> {
-  if (!json) return {};
+  if (!json) {return {};}
   try { return JSON.parse(json) as Record<string, unknown>; } catch { return {}; }
 }
 
 // --- value renderers ---
 
 function ExternalLinkValue({ value }: { value: string }) {
-  if (!value) return null;
+  if (!value) {return null;}
   if (value.startsWith('http')) {
     return (
       <a
@@ -72,7 +72,7 @@ function ExternalLinkValue({ value }: { value: string }) {
 
 function PersonLink({ personId, projectId }: { personId: string; projectId?: string }) {
   const { link } = useAppNavigate();
-  if (!personId) return null;
+  if (!personId) {return null;}
   if (projectId) {
     return (
       <Link

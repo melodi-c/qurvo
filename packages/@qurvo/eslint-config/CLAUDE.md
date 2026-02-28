@@ -23,31 +23,37 @@ module.exports = [
 
 | Rule | Level | Notes |
 |---|---|---|
-| `complexity` | warn | max 6 |
-| `max-depth` | warn | max 4 |
-| `max-params` | warn | max 4 |
-| `eqeqeq` | warn | always (Issue #711 will upgrade to error) |
-| `prefer-const` | warn | (Issue #711 will upgrade to error) |
-| `curly` | warn | all (Issue #711 will upgrade to error) |
-| `no-console` | warn | allows `console.warn`, `console.error` |
-| `@typescript-eslint/no-explicit-any` | warn | |
-| `@typescript-eslint/no-unused-vars` | warn | ignores `_` prefixed params |
-| `@typescript-eslint/no-non-null-assertion` | warn | |
-| `@typescript-eslint/prefer-optional-chain` | warn | |
-| `@typescript-eslint/consistent-type-imports` | warn | prefer type-imports |
-| `no-restricted-syntax` | warn | bans `as unknown` casts |
+| `complexity` | error | max 6 |
+| `max-depth` | error | max 4 |
+| `max-params` | error | max 4 |
+| `eqeqeq` | error | always |
+| `prefer-const` | error | |
+| `curly` | error | all |
+| `no-console` | error | allows `console.warn`, `console.error` |
+| `@typescript-eslint/no-explicit-any` | error | off in test files |
+| `@typescript-eslint/no-unused-vars` | error | ignores `_` prefixed params |
+| `@typescript-eslint/no-non-null-assertion` | error | off in test files |
+| `@typescript-eslint/prefer-optional-chain` | error | |
+| `@typescript-eslint/consistent-type-imports` | error | prefer type-imports |
+| `no-restricted-syntax` | error | bans `as unknown` casts; off in test files |
 
 ## Type-Aware Rules
 
 | Rule | Level |
 |---|---|
-| `@typescript-eslint/no-floating-promises` | warn |
-| `@typescript-eslint/no-misused-promises` | warn |
-| `@typescript-eslint/await-thenable` | warn |
-| `@typescript-eslint/no-unnecessary-type-assertion` | warn |
+| `@typescript-eslint/no-floating-promises` | error |
+| `@typescript-eslint/no-misused-promises` | error |
+| `@typescript-eslint/await-thenable` | error |
+| `@typescript-eslint/no-unnecessary-type-assertion` | error |
+
+## Test File Overrides
+
+Test files (`*.test.ts`, `*.spec.ts`, `test/**/*.ts` and `.tsx` variants) have relaxed rules:
+- `no-explicit-any`, `no-non-null-assertion`, `no-restricted-syntax` — off
+- `complexity`, `max-depth`, `max-params` — off
 
 ## Scope
 
 - Files: `**/*.ts`, `**/*.tsx`
-- Ignores: `dist/`, `node_modules/`, `.turbo/`
+- Ignores: `dist/`, `node_modules/`, `.turbo/`, `vitest.config.ts`, `vitest.*.config.ts`, `scripts/`
 - Parser: `@typescript-eslint/parser`

@@ -1,5 +1,6 @@
-import { Provider } from '@nestjs/common';
-import { createClickHouse, ClickHouseClient } from '@qurvo/clickhouse';
+import type { Provider } from '@nestjs/common';
+import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { createClickHouse } from '@qurvo/clickhouse';
 
 export const CLICKHOUSE = Symbol('CLICKHOUSE');
 

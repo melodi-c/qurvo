@@ -91,7 +91,8 @@ function assembleLifecycleResult(
     if (!bucketMap.has(b)) {
       bucketMap.set(b, { bucket: b, new: 0, returning: 0, resurrecting: 0, dormant: 0 });
     }
-    const point = bucketMap.get(b)!;
+    const point = bucketMap.get(b);
+    if (!point) { continue; }
     const count = Number(row.count);
     const status = row.status as LifecycleStatus;
     if (status === 'dormant') {

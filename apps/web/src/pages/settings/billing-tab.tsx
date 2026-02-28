@@ -16,6 +16,7 @@ function formatNumber(n: number): string {
   return new Intl.NumberFormat().format(n);
 }
 
+// eslint-disable-next-line complexity -- billing UI with many conditional plan/quota display sections
 export function BillingTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
 
@@ -30,7 +31,7 @@ export function BillingTab({ projectId }: { projectId: string }) {
     return <EmptyState icon={CreditCard} description={t('selectProject')} />;
   }
 
-  if (isLoading) return <ListSkeleton count={1} height="h-40" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-40" />;}
 
   const pct = data?.events_limit
     ? Math.min(100, Math.round((data.events_this_month / data.events_limit) * 100))
@@ -90,12 +91,12 @@ export function BillingTab({ projectId }: { projectId: string }) {
                 </div>
               </div>
             )}
-            {data?.data_retention_days != null && (
+            {data?.data_retention_days !== null && data?.data_retention_days !== undefined && (
               <DefinitionListRow label={<>{t('dataRetention')}<InfoTooltip content={t('dataRetentionTooltip')} /></>}>
                 {t('dataRetentionDays', { days: data.data_retention_days })}
               </DefinitionListRow>
             )}
-            {data?.max_projects != null && (
+            {data?.max_projects !== null && data?.max_projects !== undefined && (
               <DefinitionListRow label={t('maxProjects')}>
                 {data.max_projects}
               </DefinitionListRow>

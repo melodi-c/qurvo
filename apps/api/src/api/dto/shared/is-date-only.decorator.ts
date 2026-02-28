@@ -1,15 +1,16 @@
-import { registerDecorator, ValidationOptions } from 'class-validator';
+import type { ValidationOptions } from 'class-validator';
+import { registerDecorator } from 'class-validator';
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function isSemanticDateOnly(value: string): boolean {
-  if (!DATE_ONLY_REGEX.test(value)) return false;
+  if (!DATE_ONLY_REGEX.test(value)) {return false;}
   const [year, month, day] = value.split('-').map(Number);
   // Append T00:00:00 to force UTC interpretation; bare YYYY-MM-DD is parsed as
   // UTC midnight by the spec but some environments differ — explicit suffix is
   // always safe and avoids timezone-offset surprises.
   const date = new Date(`${value}T00:00:00`);
-  if (isNaN(date.getTime())) return false;
+  if (isNaN(date.getTime())) {return false;}
   // Guard against date overflow (e.g. 2024-02-30 silently becomes 2024-03-01)
   return (
     date.getFullYear() === year &&

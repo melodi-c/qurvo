@@ -130,6 +130,7 @@ export class QueryCohortMembersTool implements AiTool {
       person_id: r.person_id,
       user_properties: typeof r.user_properties === 'string'
         ? (JSON.parse(r.user_properties) as Record<string, unknown>)
+        // eslint-disable-next-line no-restricted-syntax -- ClickHouse returns user_properties as either string or parsed object
         : (r.user_properties as unknown as Record<string, unknown>),
     }));
   }

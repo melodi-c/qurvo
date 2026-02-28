@@ -24,7 +24,7 @@ export class AiFeedbackService {
       .from(aiMessages)
       .where(eq(aiMessages.id, messageId))
       .limit(1);
-    if (!message) throw new MessageNotFoundException();
+    if (!message) {throw new MessageNotFoundException();}
 
     const [existing] = await this.db
       .select({ id: aiMessageFeedback.id })
@@ -55,7 +55,7 @@ export class AiFeedbackService {
       .where(and(eq(aiMessageFeedback.message_id, messageId), eq(aiMessageFeedback.user_id, userId)))
       .limit(1);
 
-    if (!existing) throw new MessageFeedbackNotFoundException();
+    if (!existing) {throw new MessageFeedbackNotFoundException();}
 
     await this.db
       .delete(aiMessageFeedback)

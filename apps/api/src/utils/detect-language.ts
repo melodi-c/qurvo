@@ -1,5 +1,5 @@
 export function detectLanguageFromHeader(acceptLanguage: string | undefined): string {
-  if (!acceptLanguage) return 'English';
+  if (!acceptLanguage) {return 'English';}
 
   // Parse the first (highest-priority) language tag, e.g. "ru-RU,ru;q=0.9,en;q=0.8" → "ru"
   const primaryTag = acceptLanguage.split(',')[0].split(';')[0].trim().split('-')[0].toLowerCase();

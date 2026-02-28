@@ -49,6 +49,10 @@ function createBoundedGunzip(source: NodeJS.ReadableStream): Transform {
   return limiter;
 }
 
+function isGzipHeader(buf: Buffer): boolean {
+  return buf[0] === GZIP_MAGIC_0 && buf[1] === GZIP_MAGIC_1;
+}
+
 function createGzipAutoDetect(request: FastifyRequest, source: NodeJS.ReadableStream): NodeJS.ReadableStream {
   let headerBuf: Buffer | null = null;
   let decided = false;
@@ -57,39 +61,37 @@ function createGzipAutoDetect(request: FastifyRequest, source: NodeJS.ReadableSt
 
   const out = new Transform({
     transform(chunk: Buffer, _enc, cb) {
-      if (!decided) {
-        headerBuf = headerBuf ? Buffer.concat([headerBuf, chunk]) : chunk;
-        if (headerBuf.length < 2) {
-          cb();
-          return;
-        }
+      if (decided) {
+        return gunzip ? gunzip.write(chunk, cb) : void (this.push(chunk), cb());
+      }
 
-        decided = true;
+      headerBuf = headerBuf ? Buffer.concat([headerBuf, chunk]) : chunk;
+      if (headerBuf.length < 2) {
+        cb();
+        return;
+      }
 
-        if (headerBuf[0] === GZIP_MAGIC_0 && headerBuf[1] === GZIP_MAGIC_1) {
-          delete request.headers['content-encoding'];
-          delete request.headers['content-length'];
-          request.headers['content-type'] = 'application/json';
+      decided = true;
 
-          gunzip = createGunzip();
-          gunzip.on('data', (d: Buffer) => {
-            decompressedBytes += d.length;
-            if (decompressedBytes > MAX_DECOMPRESSED_BYTES) {
-              gunzip!.destroy(new Error('Decompressed payload exceeds maximum allowed size'));
-              return;
-            }
-            out.push(d);
-          });
-          gunzip.on('error', (e) => out.destroy(e));
-          gunzip.write(headerBuf, cb);
-        } else {
-          this.push(headerBuf);
-          cb();
-        }
-      } else if (gunzip) {
-        gunzip.write(chunk, cb);
+      if (isGzipHeader(headerBuf)) {
+        delete request.headers['content-encoding'];
+        delete request.headers['content-length'];
+        request.headers['content-type'] = 'application/json';
+
+        gunzip = createGunzip();
+        const gz = gunzip;
+        gz.on('data', (d: Buffer) => {
+          decompressedBytes += d.length;
+          if (decompressedBytes > MAX_DECOMPRESSED_BYTES) {
+            gz.destroy(new Error('Decompressed payload exceeds maximum allowed size'));
+            return;
+          }
+          out.push(d);
+        });
+        gz.on('error', (e) => out.destroy(e));
+        gz.write(headerBuf, cb);
       } else {
-        this.push(chunk);
+        this.push(headerBuf);
         cb();
       }
     },
@@ -121,7 +123,7 @@ function withReadTimeout(source: NodeJS.ReadableStream): NodeJS.ReadableStream {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const resetTimer = () => {
-    if (timer) clearTimeout(timer);
+    if (timer) {clearTimeout(timer);}
     timer = setTimeout(() => {
       wrapper.destroy(new Error('Body read timeout — client stopped sending data'));
     }, BODY_READ_TIMEOUT_MS);
@@ -133,14 +135,14 @@ function withReadTimeout(source: NodeJS.ReadableStream): NodeJS.ReadableStream {
       cb(null, chunk);
     },
     flush(cb) {
-      if (timer) clearTimeout(timer);
+      if (timer) {clearTimeout(timer);}
       cb();
     },
   });
 
   source.pipe(wrapper);
   source.on('error', (e) => wrapper.destroy(e));
-  wrapper.on('close', () => { if (timer) clearTimeout(timer); });
+  wrapper.on('close', () => { if (timer) {clearTimeout(timer);} });
 
   resetTimer();
   return wrapper;

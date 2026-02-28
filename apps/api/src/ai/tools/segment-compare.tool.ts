@@ -7,7 +7,7 @@ import type { AiTool } from './ai-tool.interface';
 import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
 import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { PropertyFilter } from '../../utils/property-filter';
-import { type Metric, computeMetricValue } from './metric.utils';
+import { computeMetricValue } from './metric.utils';
 
 const argsSchema = z.object({
   event_name: z.string().describe('Name of the event to analyze (e.g. "purchase", "signup")'),

@@ -13,6 +13,7 @@ const INSIGHT_TYPE_SLUGS: Record<InsightType, string> = {
 // route() helper — single source of truth for path pattern + builder function
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic function constraint requires any
 type Route<F extends (...args: any[]) => string> = F & { pattern: string };
 
 function route(pattern: string): Route<() => string>;
@@ -43,7 +44,7 @@ export const routes = {
   projects: route('/projects'),
   invites: route('/invites'),
   profile: route('/profile', (params?: { tab?: string }) => {
-    if (params?.tab) return `/profile?tab=${params.tab}`;
+    if (params?.tab) {return `/profile?tab=${params.tab}`;}
     return '/profile';
   }),
 
@@ -238,7 +239,7 @@ export const routes = {
 };
 
 /** Recursively wraps route functions so each call goes through `transform`. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type WrapRoutes<T, R> = {
   [K in keyof T]: T[K] extends (...args: infer A) => string
     ? (...args: A) => R

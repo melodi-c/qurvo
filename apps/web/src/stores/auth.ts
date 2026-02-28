@@ -11,7 +11,7 @@ function isLanguage(v: string): v is Language {
 }
 
 function syncLanguage(lang: string) {
-  if (isLanguage(lang)) useLanguageStore.getState().setLanguage(lang);
+  if (isLanguage(lang)) {useLanguageStore.getState().setLanguage(lang);}
 }
 
 interface AuthState {

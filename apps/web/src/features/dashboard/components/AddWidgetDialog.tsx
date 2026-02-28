@@ -9,7 +9,7 @@ import { useDashboardStore } from '../store';
 import { DEFAULT_WIDGET_SIZE, DEFAULT_FALLBACK_SIZE } from '../lib/default-sizes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './AddWidgetDialog.translations';
-import type { Insight, InsightType } from '@/api/generated/Api';
+import type { Insight } from '@/api/generated/Api';
 
 interface AddWidgetDialogProps {
   open: boolean;
@@ -91,7 +91,7 @@ export function AddWidgetDialog({ open, onClose }: AddWidgetDialogProps) {
                 className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors text-left"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted flex-shrink-0">
-                  <InsightTypeIcon type={insight.type as InsightType} />
+                  <InsightTypeIcon type={insight.type} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{insight.name}</p>

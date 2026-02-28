@@ -50,7 +50,7 @@ export class ProjectsService {
       .where(and(eq(projectMembers.project_id, projectId), eq(projectMembers.user_id, userId)))
       .limit(1);
 
-    if (!project) throw new ProjectNotFoundException();
+    if (!project) {throw new ProjectNotFoundException();}
     return project;
   }
 
@@ -87,7 +87,7 @@ export class ProjectsService {
 
   async update(userId: string, projectId: string, input: { name?: string; timezone?: string }) {
     const membership = await this.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    if (membership.role === 'viewer') {throw new InsufficientPermissionsException();}
 
     const values: Record<string, unknown> = { updated_at: new Date() };
     if (input.name !== undefined) {
@@ -107,7 +107,7 @@ export class ProjectsService {
 
   async remove(userId: string, projectId: string) {
     const membership = await this.getMembership(userId, projectId);
-    if (membership.role !== 'owner') throw new InsufficientPermissionsException('Only owner can delete project');
+    if (membership.role !== 'owner') {throw new InsufficientPermissionsException('Only owner can delete project');}
 
     await this.db.delete(projects).where(eq(projects.id, projectId));
     this.logger.log({ projectId, userId }, 'Project deleted');
@@ -115,7 +115,7 @@ export class ProjectsService {
 
   async rotateToken(userId: string, projectId: string) {
     const membership = await this.getMembership(userId, projectId);
-    if (membership.role === 'viewer') throw new InsufficientPermissionsException();
+    if (membership.role === 'viewer') {throw new InsufficientPermissionsException();}
 
     const [current] = await this.db
       .select({ token: projects.token })
@@ -123,7 +123,7 @@ export class ProjectsService {
       .where(eq(projects.id, projectId))
       .limit(1);
 
-    if (!current) throw new ProjectNotFoundException();
+    if (!current) {throw new ProjectNotFoundException();}
 
     const oldToken = current.token;
     const newToken = crypto.randomBytes(24).toString('base64url');
@@ -149,7 +149,7 @@ export class ProjectsService {
       .from(projectMembers)
       .where(and(eq(projectMembers.project_id, projectId), eq(projectMembers.user_id, userId)))
       .limit(1);
-    if (result.length === 0) throw new ProjectNotFoundException();
+    if (result.length === 0) {throw new ProjectNotFoundException();}
     return result[0];
   }
 }

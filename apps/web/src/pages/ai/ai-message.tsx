@@ -20,7 +20,7 @@ interface AiMessageProps {
 
 function parseSuggestions(content: string): { text: string; suggestions: string[] } {
   const match = content.match(/\[SUGGESTIONS\]\s*\n([\s\S]*?)$/);
-  if (!match) return { text: content, suggestions: [] };
+  if (!match) {return { text: content, suggestions: [] };}
   const text = content.slice(0, match.index).trimEnd();
   const suggestions = match[1]
     .split('\n')
@@ -55,7 +55,7 @@ export function AiMessage({ message, isStreaming, onSuggestionClick, onEdit }: A
 
   const submitEdit = useCallback(() => {
     const text = editText.trim();
-    if (!text || message.sequence === undefined) return;
+    if (!text || message.sequence === undefined) {return;}
     setIsEditing(false);
     setEditText('');
     onEdit?.(message.sequence, text);
@@ -83,7 +83,7 @@ export function AiMessage({ message, isStreaming, onSuggestionClick, onEdit }: A
   }, [isEditing]);
 
   const { text, suggestions } = useMemo(() => {
-    if (message.role === 'tool') return { text: '', suggestions: [] };
+    if (message.role === 'tool') {return { text: '', suggestions: [] };}
     if (!isUser && message.content && !message.isStreaming) {
       return parseSuggestions(message.content);
     }
@@ -108,7 +108,7 @@ export function AiMessage({ message, isStreaming, onSuggestionClick, onEdit }: A
     );
   }
 
-  if (!message.content && !message.isStreaming) return null;
+  if (!message.content && !message.isStreaming) {return null;}
 
   if (isEditing) {
     return (

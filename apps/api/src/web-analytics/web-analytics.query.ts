@@ -73,9 +73,9 @@ function autoGranularity(dateFrom: string, dateTo: string): WebAnalyticsGranular
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
   const diffDays = Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays <= 2) return 'hour';
-  if (diffDays <= 89) return 'day';
-  if (diffDays <= 364) return 'week';
+  if (diffDays <= 2) {return 'hour';}
+  if (diffDays <= 89) {return 'day';}
+  if (diffDays <= 364) {return 'week';}
   return 'month';
 }
 
@@ -92,7 +92,7 @@ function buildFilterConditions(
   filters: PropertyFilter[] | undefined,
   queryParams: Record<string, unknown>,
 ): string {
-  if (!filters?.length) return '';
+  if (!filters?.length) {return '';}
   const parts = buildPropertyFilterConditions(filters, 'wa', queryParams);
   return parts.length ? ' AND ' + parts.join(' AND ') : '';
 }
@@ -174,7 +174,7 @@ interface RawTimeseriesRow {
 }
 
 function parseKPIs(row: RawKPIRow | undefined): WebAnalyticsKPIs {
-  if (!row) return { unique_visitors: 0, pageviews: 0, sessions: 0, avg_duration_seconds: 0, bounce_rate: 0 };
+  if (!row) {return { unique_visitors: 0, pageviews: 0, sessions: 0, avg_duration_seconds: 0, bounce_rate: 0 };}
   return {
     unique_visitors: Number(row.unique_visitors),
     pageviews: Number(row.pageviews),

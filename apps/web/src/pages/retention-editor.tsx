@@ -32,7 +32,7 @@ export default function RetentionEditorPage() {
   const result = data?.data;
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(retentionToCsv(result), 'retention.csv');
   }, [result]);
 

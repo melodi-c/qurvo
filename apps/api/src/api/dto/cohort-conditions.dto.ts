@@ -150,11 +150,11 @@ function BetweenValuesOrdered(validationOptions?: ValidationOptions) {
         validate(value: unknown, args: ValidationArguments) {
           const obj = args.object as Record<string, unknown>;
           const op = obj['operator'] as string | undefined;
-          if (op !== 'between' && op !== 'not_between') return true;
-          if (!Array.isArray(value) || value.length !== 2) return false;
+          if (op !== 'between' && op !== 'not_between') {return true;}
+          if (!Array.isArray(value) || value.length !== 2) {return false;}
           const min = Number(value[0]);
           const max = Number(value[1]);
-          if (isNaN(min) || isNaN(max)) return false;
+          if (isNaN(min) || isNaN(max)) {return false;}
           return min <= max;
         },
         defaultMessage() {

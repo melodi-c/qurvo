@@ -90,8 +90,8 @@ export function DataTable<T>({
                       ? (e: KeyboardEvent<HTMLTableRowElement>) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            if (onRowClick) onRowClick(row);
-                            else if (isExpandable) onExpandToggle(key);
+                            if (onRowClick) {onRowClick(row);}
+                            else if (isExpandable) {onExpandToggle(key);}
                           }
                         }
                       : undefined
