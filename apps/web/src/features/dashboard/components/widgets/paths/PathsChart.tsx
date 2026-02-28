@@ -41,10 +41,10 @@ function toSankeyData(transitions: PathTransition[]) {
 
   const links: SankeyLink[] = [];
 
-  for (const t of transitions) {
-    const sourceIdx = getNodeIndex(t.step, t.source);
-    const targetIdx = getNodeIndex(t.step + 1, t.target);
-    links.push({ source: sourceIdx, target: targetIdx, value: t.person_count });
+  for (const tr of transitions) {
+    const sourceIdx = getNodeIndex(tr.step, tr.source);
+    const targetIdx = getNodeIndex(tr.step + 1, tr.target);
+    links.push({ source: sourceIdx, target: targetIdx, value: tr.person_count });
   }
 
   return { nodes, links };
@@ -147,7 +147,7 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
   }
 
   // Count unique steps to calculate minimum width
-  const maxStep = transitions.reduce((m, t) => Math.max(m, t.step), 0);
+  const maxStep = transitions.reduce((m, tr) => Math.max(m, tr.step), 0);
   const stepCount = maxStep + 1; // +1 for the target column
   const minWidth = Math.max(stepCount * MIN_WIDTH_PER_STEP, MIN_SANKEY_WIDTH);
   const chartHeight = compact ? Math.max(containerHeight ?? 250, 250) : 400;

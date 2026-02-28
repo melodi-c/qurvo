@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -105,6 +105,13 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
+
+  // Reset hidden keys only when the actual set of series keys changes
+  // (not on every data refresh — allSeriesKeys is a new array reference each time)
+  const seriesKeysFingerprint = allSeriesKeys.join('\0');
+  useEffect(() => {
+    setHiddenKeys(new Set());
+  }, [seriesKeysFingerprint]);
   const prevKeys = useMemo(
     () => (previousSeries ?? []).map((s) => `prev_${seriesKey(s)}`),
     [previousSeries],
@@ -226,7 +233,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                   tick={chartAxisTick()}
                   tickLine={false}
                   axisLine={false}
-                  domain={[data[0]?.bucket, data[data.length - 1]?.bucket]}
+                  domain={data.length > 0 ? [data[0].bucket, data[data.length - 1].bucket] : undefined}
                   type="category"
                   allowDuplicatedCategory={false}
                 />
@@ -254,7 +261,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                   data={incompleteData}
                   margin={fullMargin}
                 >
-                  <XAxis dataKey="bucket" hide domain={[data[0]?.bucket, data[data.length - 1]?.bucket]} type="category" allowDuplicatedCategory={false} />
+                  <XAxis dataKey="bucket" hide domain={data.length > 0 ? [data[0].bucket, data[data.length - 1].bucket] : undefined} type="category" allowDuplicatedCategory={false} />
                   <YAxis hide width={48} />
                   {visibleSeriesKeys.map((key) => {
                     const colorIdx = allSeriesKeys.indexOf(key);

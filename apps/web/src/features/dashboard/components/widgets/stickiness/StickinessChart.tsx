@@ -8,9 +8,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import type { StickinessResult } from '@/api/generated/Api';
 import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from '@/lib/chart-colors';
 import { formatCompactNumber, formatGranularity } from '@/lib/formatting';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './StickinessChart.translations';
 
@@ -38,7 +40,9 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
     [result.data, result.granularity, totalUsers],
   );
 
-  if (data.length === 0) {return null;}
+  if (data.length === 0) {
+    return <EmptyState icon={BarChart3} description={t('noData')} />;
+  }
 
   const usersLabel = t('users');
 
