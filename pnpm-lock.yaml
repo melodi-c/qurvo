@@ -660,6 +660,10 @@ importers:
         version: 5.9.3
 
   packages/@qurvo/ch-query:
+    dependencies:
+      '@qurvo/cohort-query':
+        specifier: workspace:*
+        version: link:../cohort-query
     devDependencies:
       '@qurvo/tsconfig':
         specifier: workspace:*

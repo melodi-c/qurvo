@@ -9,6 +9,9 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist .turbo"
   },
+  "dependencies": {
+    "@qurvo/cohort-query": "workspace:*"
+  },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
     "typescript": "^5.7.0",
