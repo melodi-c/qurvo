@@ -123,11 +123,12 @@ export function useCohortEditor() {
       }
       // Mark current state as clean before navigating away
       initialState.current = { name, description, groups: JSON.stringify(groups) };
+      unsavedGuard.markClean();
       go.cohorts.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t('saveFailed'));
     }
-  }, [name, description, definition, groups, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t]);
+  }, [name, description, definition, groups, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t, unsavedGuard]);
 
   return {
     isNew,

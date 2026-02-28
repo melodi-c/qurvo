@@ -82,11 +82,12 @@ export function useInsightEditor<T extends CreateInsight['config']>({
       }
       // Mark current state as clean before navigating away
       initialState.current = { name, description, config };
+      unsavedGuard.markClean();
       go.insights.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save');
     }
-  }, [name, description, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn]);
+  }, [name, description, config, isNew, insightId, isSaving, type, go, createMutation, updateMutation, cleanFn, unsavedGuard]);
 
   const previewId = isNew ? `${type}-new` : insightId!;
   const isConfigValid = isConfigValidFn ? isConfigValidFn(config) : true;

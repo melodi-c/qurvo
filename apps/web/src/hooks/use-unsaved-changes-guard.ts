@@ -106,5 +106,10 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
     pendingNavigation.current = null;
   }, []);
 
-  return { showDialog, confirmNavigation, cancelNavigation };
+  /** Synchronously mark the guard as clean so the next navigation is not blocked. */
+  const markClean = useCallback(() => {
+    isDirtyRef.current = false;
+  }, []);
+
+  return { showDialog, confirmNavigation, cancelNavigation, markClean };
 }
