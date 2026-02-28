@@ -57,6 +57,16 @@ elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+reset\s+--hard"; 
 # git stash (скрывает состояние)
 elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+stash"; then
   BLOCKED="git stash — запрещён для executor"
+
+# git push (прямой, не через merge-worktree.sh)
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+push" \
+  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
+  BLOCKED="git push — используй merge-worktree.sh"
+
+# gh pr create (прямой, не через merge-worktree.sh)
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)gh\s+pr\s+create" \
+  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
+  BLOCKED="gh pr create — используй merge-worktree.sh"
 fi
 
 if [ -n "$BLOCKED" ]; then
