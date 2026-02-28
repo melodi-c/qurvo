@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,60 +15,38 @@ import { GridSkeleton } from '@/components/ui/grid-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
-import { api } from '@/api/client';
-import { toast } from 'sonner';
 import { Plus, FolderOpen, AlertTriangle, Sparkles, MoreHorizontal, Key, Trash2 } from 'lucide-react';
 import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './projects.translations';
+import { useProjects } from '@/features/projects/hooks/use-projects';
 
 export default function ProjectsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { t } = useLocalTranslation(translations);
 
-  const { data: projects, isLoading, isError, refetch } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => api.projectsControllerList(),
-  });
+  const {
+    projects,
+    isLoading,
+    isError,
+    refetch,
+    createMutation,
+    createDemoMutation,
+    deleteMutation,
+  } = useProjects();
 
-  const isFirstProject = !projects || projects.length === 0;
-
-  const createMutation = useMutation({
-    mutationFn: (data: { name: string }) => api.projectsControllerCreate(data),
-    onSuccess: async (newProject) => {
-      if (isFirstProject) {
-        await queryClient.invalidateQueries({ queryKey: ['projects'] });
-        navigate(routes.dashboards.list(newProject.id));
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setShowCreate(false);
-      setName('');
-    },
-  });
-
-  const createDemoMutation = useMutation({
-    mutationFn: () => api.projectsControllerCreateDemo(),
-    onSuccess: async (demoProject) => {
-      await queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success(t('demoCreated'));
-      navigate(routes.dashboards.list(demoProject.id));
-    },
-    onError: () => toast.error(t('demoFailed')),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.projectsControllerRemove({ id }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success(t('deleted'));
-    },
-    onError: () => toast.error(t('deleteFailed')),
-  });
   const confirmDelete = useConfirmDelete();
+
+  const handleCreate = () => {
+    createMutation.mutate({ name }, {
+      onSuccess: () => {
+        setShowCreate(false);
+        setName('');
+      },
+    });
+  };
 
   const handleDelete = async () => {
     await deleteMutation.mutateAsync(confirmDelete.itemId);
@@ -115,7 +92,7 @@ export default function ProjectsPage() {
                 value={name}
                 onChange={setName}
                 isPending={createMutation.isPending}
-                onSubmit={() => createMutation.mutate({ name })}
+                onSubmit={handleCreate}
                 onCancel={() => setShowCreate(false)}
               />
             </div>
@@ -168,7 +145,7 @@ export default function ProjectsPage() {
           value={name}
           onChange={setName}
           isPending={createMutation.isPending}
-          onSubmit={() => createMutation.mutate({ name })}
+          onSubmit={handleCreate}
           onCancel={() => setShowCreate(false)}
         />
       )}

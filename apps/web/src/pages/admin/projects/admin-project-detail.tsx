@@ -1,4 +1,3 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/page-header';
@@ -11,37 +10,17 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import { apiClient } from '@/api/client';
 import { Users, Copy, Check } from 'lucide-react';
 import type { AdminProjectMember, AdminPlan } from '@/api/generated/Api';
 import translations from './admin-project-detail.translations';
+import { useAdminProjectDetail } from '@/features/admin/hooks/use-admin-projects';
 
 export default function AdminProjectDetailPage() {
   const { t } = useLocalTranslation(translations);
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
 
-  const { data: project, isLoading: isProjectLoading } = useQuery({
-    queryKey: ['admin', 'projects', id],
-    queryFn: () => apiClient.admin.adminProjectsControllerGetProject({ id: id! }),
-    enabled: !!id,
-  });
-
-  const { data: plans, isLoading: isPlansLoading } = useQuery({
-    queryKey: ['admin', 'plans'],
-    queryFn: () => apiClient.admin.adminPlansControllerListPlans(),
-  });
-
-  const updatePlanMutation = useMutation({
-    mutationFn: (plan_id: string | null) =>
-      apiClient.admin.adminProjectsControllerPatchProject({ id: id! }, { plan_id }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'projects', id] });
-      toast.success(t('planUpdated'));
-    },
-    onError: () => toast.error(t('planUpdateFailed')),
-  });
+  const { project, isProjectLoading, plans, isPlansLoading, updatePlanMutation } = useAdminProjectDetail(id);
 
   const memberColumns: Column<AdminProjectMember>[] = [
     {
