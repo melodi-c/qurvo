@@ -3,12 +3,8 @@ import {
   compile,
   select,
   col,
-  raw,
   countIf,
-  avgIf,
-  and,
   gte,
-  gt,
   literal,
   notInSubquery,
   add,
@@ -28,7 +24,12 @@ import {
   type RawFunnelRow,
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
-import { toChTs, type FunnelChQueryParams } from './funnel-sql-shared';
+import { cohortBounds } from '../query-helpers';
+import {
+  avgTimeSecondsExpr,
+  stepsSubquery as buildStepsSubquery,
+  type FunnelChQueryParams,
+} from './funnel-sql-shared';
 
 interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];
@@ -42,10 +43,6 @@ interface CohortBreakdownResult {
 function buildCohortFunnelCompiled(
   cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean },
 ): { sql: string; params: Record<string, unknown> } {
-  const stepsSubquery = select(add(col('number'), literal(1)).as('step_num'))
-    .from('numbers({num_steps:UInt64})')
-    .build();
-
   const whereConditions: Expr[] = [];
   if (cteResult.hasExclusions) {
     const excludedRef = select(col('person_id')).from('excluded_users').build();
@@ -56,18 +53,11 @@ function buildCohortFunnelCompiled(
     col('step_num'),
     countIf(gte(col('max_step'), col('step_num'))).as('entered'),
     countIf(gte(col('max_step'), add(col('step_num'), literal(1)))).as('next_step'),
-    avgIf(
-      raw('(last_step_ms - first_step_ms) / 1000.0'),
-      and(
-        gte(col('max_step'), raw('{num_steps:UInt64}')),
-        gt(col('first_step_ms'), literal(0)),
-        gt(col('last_step_ms'), col('first_step_ms')),
-      ),
-    ).as('avg_time_seconds'),
+    avgTimeSecondsExpr(),
   )
     .withAll(cteResult.ctes)
     .from('funnel_per_user')
-    .crossJoin(stepsSubquery, 'steps');
+    .crossJoin(buildStepsSubquery(), 'steps');
 
   if (whereConditions.length > 0) {
     builder.where(...whereConditions);
@@ -105,8 +95,9 @@ export async function runFunnelCohortBreakdown(
     const cbParamKey = `cohort_bd_${cb.cohort_id.replace(/-/g, '')}`;
     const cbQueryParams = { ...baseQueryParams };
 
+    const { dateTo, dateFrom } = cohortBounds(params);
     const cohortFilterPredicate = buildCohortFilterForBreakdown(
-      cb, cbParamKey, 900 + cbIdx, cbQueryParams, toChTs(params.date_to, true), toChTs(params.date_from),
+      cb, cbParamKey, 900 + cbIdx, cbQueryParams, dateTo, dateFrom,
     );
     const cohortFilter = ` AND ${cohortFilterPredicate}`;
 

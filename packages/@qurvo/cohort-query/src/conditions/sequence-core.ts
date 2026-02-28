@@ -1,5 +1,5 @@
 import type { CohortEventFilter } from '@qurvo/db';
-import { buildEventFilterClausesStr } from '../helpers';
+import { buildEventFilterClausesStr, allocCondIdx } from '../helpers';
 import type { BuildContext } from '../types';
 
 interface SequenceCondition {
@@ -33,8 +33,7 @@ export function buildSequenceCore(
   /** Parameter key for `time_window_days` (used in the outer WHERE scan horizon). */
   daysPk: string;
 } {
-  const condIdx = ctx.counter.value++;
-  const daysPk = `coh_${condIdx}_days`;
+  const { condIdx, daysPk } = allocCondIdx(ctx);
   const windowMsPk = `coh_${condIdx}_window_ms`;
 
   ctx.queryParams[daysPk] = cond.time_window_days;

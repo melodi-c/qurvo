@@ -7,7 +7,7 @@ import {
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import { queryLifecycle } from '../../analytics/lifecycle/lifecycle.query';
-import { truncateDate } from '../../utils/clickhouse-helpers';
+import { truncateDate } from '../../analytics/query-helpers';
 
 // ── DST Regression Tests ──────────────────────────────────────────────────────
 //

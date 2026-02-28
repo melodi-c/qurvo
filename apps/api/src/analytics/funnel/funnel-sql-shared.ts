@@ -6,6 +6,12 @@ import {
   col,
   compileExprToSql,
   CompilerContext,
+  avgIf,
+  and,
+  gte,
+  gt,
+  literal,
+  add,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
@@ -304,7 +310,7 @@ export function buildExclusionColumns(
 }
 
 /**
- * Builds the excluded_users CTE as a QueryNode.
+ * Builds the excluded_users WHERE condition SQL string.
  *
  * A user is placed in excluded_users if, for exclusion i:
  *  - There exists at least one (from_ts, to_ts) conversion window attempt
@@ -316,10 +322,10 @@ export function buildExclusionColumns(
  *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
  *   funnels (issue #497).
  */
-export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): SelectNode {
+function buildExcludedUsersWhereConditions(exclusions: FunnelExclusion[], anchorFilter: boolean): string {
   const win = `toInt64({window:UInt64}) * 1000`;
   const anchorGuard = anchorFilter ? `f >= first_step_ms AND f <= first_step_ms + ${win} AND ` : '';
-  const conditions = exclusions.map((_, i) => {
+  return exclusions.map((_, i) => {
     const tainted = [
       `arrayExists(`,
       `        f -> ${anchorGuard}arrayExists(`,
@@ -343,53 +349,161 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
     ].join('\n      ');
 
     return `(${tainted}\n      AND ${clean})`;
-  });
+  }).join('\n      OR ');
+}
 
+/** Builds the excluded_users CTE as a QueryNode (AST). */
+export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): SelectNode {
   return select(col('person_id'))
     .from('funnel_per_user')
-    .where(raw(conditions.join('\n      OR ')))
+    .where(raw(buildExcludedUsersWhereConditions(exclusions, anchorFilter)))
     .build();
 }
 
 /**
  * Returns the excluded_users CTE body as a raw SQL string.
  * Used by funnel-time-to-convert.ts where the entire query is built as raw SQL.
- * Same logic as buildExcludedUsersCTE but returns string instead of SelectNode.
+ * Delegates to the shared buildExcludedUsersWhereConditions.
  */
 export function buildExcludedUsersCTERaw(exclusions: FunnelExclusion[], anchorFilter = false): string {
-  const win = `toInt64({window:UInt64}) * 1000`;
-  const anchorGuard = anchorFilter ? `f >= first_step_ms AND f <= first_step_ms + ${win} AND ` : '';
-  const conditions = exclusions.map((_, i) => {
-    const tainted = [
-      `arrayExists(`,
-      `        f -> ${anchorGuard}arrayExists(`,
-      `          t -> t > f AND t <= f + ${win} AND`,
-      `               arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
-      `          excl_${i}_to_arr`,
-      `        ) = 1,`,
-      `        excl_${i}_from_arr`,
-      `      ) = 1`,
-    ].join('\n      ');
-
-    const clean = [
-      `arrayExists(`,
-      `        f -> ${anchorGuard}arrayExists(`,
-      `          t -> t > f AND t <= f + ${win} AND`,
-      `               NOT arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
-      `          excl_${i}_to_arr`,
-      `        ) = 1,`,
-      `        excl_${i}_from_arr`,
-      `      ) = 0`,
-    ].join('\n      ');
-
-    return `(${tainted}\n      AND ${clean})`;
-  });
-
   return `excluded_users AS (
     SELECT person_id
     FROM funnel_per_user
-    WHERE ${conditions.join('\n      OR ')}
+    WHERE ${buildExcludedUsersWhereConditions(exclusions, anchorFilter)}
   )`;
+}
+
+// ── Unordered coverage expressions ───────────────────────────────────────────
+
+/**
+ * Builds the three unordered coverage expressions that are shared between
+ * funnel-unordered.sql.ts and funnel-time-to-convert.ts (unordered path).
+ *
+ * @param N           Total number of steps.
+ * @param winExpr     ClickHouse expression for the window in milliseconds (e.g. `toInt64({window:UInt64}) * 1000`).
+ * @param stepsOrConds Array of length N used only for .map index iteration.
+ * @returns coverageExpr, maxStepExpr, anchorMsExpr
+ */
+export function buildUnorderedCoverageExprs(
+  N: number,
+  winExpr: string,
+  stepsOrConds: readonly unknown[],
+): {
+  /** Closure returning the coverage sum expression for a given anchor variable. */
+  coverageExpr: (anchorVar: string) => string;
+  /** Expression for max achievable step from any candidate anchor. */
+  maxStepExpr: string;
+  /** Expression for the anchor millisecond timestamp. */
+  anchorMsExpr: string;
+} {
+  const coverageExpr = (anchorVar: string): string =>
+    stepsOrConds.map((_, j) =>
+      `if(arrayExists(t${j} -> t${j} >= ${anchorVar} AND t${j} <= ${anchorVar} + ${winExpr}, t${j}_arr), 1, 0)`,
+    ).join(' + ');
+
+  const maxFromEachStep = stepsOrConds.map((_, i) =>
+    `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
+  );
+  const maxStepExpr = maxFromEachStep.length === 1
+    ? maxFromEachStep[0]
+    : `greatest(${maxFromEachStep.join(', ')})`;
+
+  let anchorMsExpr: string;
+  if (N === 1) {
+    anchorMsExpr = `if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))`;
+  } else {
+    const fullCovPred = (i: number): string =>
+      `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
+    const maxes = stepsOrConds.map((_, i) =>
+      `arrayMax(arrayFilter(${fullCovPred(i)}, t${i}_arr))`,
+    );
+    let expr = `toInt64(0)`;
+    for (let i = maxes.length - 1; i >= 0; i--) {
+      expr = `if(toInt64(${maxes[i]}) != 0, toInt64(${maxes[i]}), ${expr})`;
+    }
+    anchorMsExpr = expr;
+  }
+
+  return { coverageExpr, maxStepExpr, anchorMsExpr };
+}
+
+// ── Strict user filter ──────────────────────────────────────────────────────
+
+/**
+ * Builds the strict-mode user pre-filter subquery.
+ * Duplicated in funnel-ordered.sql.ts and funnel-time-to-convert.ts.
+ *
+ * For strict mode: returns a distinct_id IN subquery that limits to users with at least one step event.
+ * For non-strict: returns a simple AND event_name IN clause.
+ */
+export function buildStrictUserFilter(
+  fromExpr: string,
+  toExpr: string,
+  paramName: string,
+  orderType: FunnelOrderType,
+): string {
+  if (orderType === 'strict') {
+    return [
+      '',
+      '                AND distinct_id IN (',
+      '                  SELECT DISTINCT distinct_id',
+      '                  FROM events',
+      '                  WHERE project_id = {project_id:UUID}',
+      `                    AND timestamp >= ${fromExpr}`,
+      `                    AND timestamp <= ${toExpr}`,
+      `                    AND event_name IN ({${paramName}:Array(String)})`,
+      '                )',
+    ].join('\n');
+  }
+  return `\n                AND event_name IN ({${paramName}:Array(String)})`;
+}
+
+// ── Shared funnel AST expressions ───────────────────────────────────────────
+
+/**
+ * Builds the avg_time_seconds AST expression, shared between funnel-query.ts and funnel-cohort-breakdown.ts.
+ * `avgIf((last_step_ms - first_step_ms) / 1000.0, max_step >= N AND first_step_ms > 0 AND last_step_ms > first_step_ms)`
+ */
+export function avgTimeSecondsExpr(): Expr {
+  return avgIf(
+    raw('(last_step_ms - first_step_ms) / 1000.0'),
+    and(
+      gte(col('max_step'), raw('{num_steps:UInt64}')),
+      gt(col('first_step_ms'), literal(0)),
+      gt(col('last_step_ms'), col('first_step_ms')),
+    ),
+  ).as('avg_time_seconds');
+}
+
+/**
+ * Builds the CROSS JOIN subquery for step numbers: SELECT number + 1 AS step_num FROM numbers(N).
+ * Shared between funnel-query.ts and funnel-cohort-breakdown.ts.
+ */
+export function stepsSubquery(): SelectNode {
+  return select(
+    add(col('number'), literal(1)).as('step_num'),
+  )
+    .from('numbers({num_steps:UInt64})')
+    .build();
+}
+
+// ── Empty step results ──────────────────────────────────────────────────────
+
+/**
+ * Generates N zero-valued step results for empty funnels.
+ * Single source of truth for both computeStepResults and computeAggregateSteps.
+ */
+export function buildEmptyStepResults(steps: FunnelStep[]): import('./funnel.types').FunnelStepResult[] {
+  return steps.map((s, i) => ({
+    step: i + 1,
+    label: s.label ?? '',
+    event_name: s.event_name,
+    count: 0,
+    conversion_rate: 0,
+    drop_off: 0,
+    drop_off_rate: 0,
+    avg_time_to_convert_seconds: null,
+  }));
 }
 
 // ── Base query params builder ────────────────────────────────────────────────

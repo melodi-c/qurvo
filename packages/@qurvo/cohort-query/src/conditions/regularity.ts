@@ -1,7 +1,7 @@
 import type { CohortPerformedRegularlyCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
 import { select, raw } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
 import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
@@ -18,8 +18,7 @@ export function buildPerformedRegularlySubquery(
   cond: CohortPerformedRegularlyCondition,
   ctx: BuildContext,
 ): SelectNode {
-  const condIdx = ctx.counter.value++;
-  const eventPk = `coh_${condIdx}_event`;
+  const { condIdx, eventPk } = allocCondIdx(ctx);
   const windowPk = `coh_${condIdx}_window`;
   const minPk = `coh_${condIdx}_min`;
 

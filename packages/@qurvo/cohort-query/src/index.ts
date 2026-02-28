@@ -8,6 +8,9 @@ export {
   resolveDateTo,
   resolveDateFrom,
   buildEventFilterClauses,
+  allocCondIdx,
+  buildCountIfCondStr,
+  buildEventsBaseSelect,
 } from './helpers';
 
 // String-returning bridge functions (backward compat for condition builders)

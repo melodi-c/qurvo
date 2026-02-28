@@ -2,7 +2,7 @@ import { eq, and, desc, sql, inArray, type SQL } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
 import { escapeLikePattern } from '../utils/escape-like';
 import { buildPgPropertyFilterConditions } from '../utils/pg-property-filter';
-import type { PropertyFilter } from '../utils/property-filter';
+import type { PropertyFilter } from '../analytics/query-helpers';
 
 function buildPersonSearchCondition(search: string, projectId: string): SQL {
   return sql`${persons.id} IN (

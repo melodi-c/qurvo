@@ -1,7 +1,7 @@
 import type { CohortCohortCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import { select, raw, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom } from '../helpers';
+import { RESOLVED_PERSON, allocCondIdx, resolveDateTo, resolveDateFrom } from '../helpers';
 import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
@@ -10,7 +10,7 @@ export function buildCohortRefConditionSubquery(
   ctx: BuildContext,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): SelectNode {
-  const condIdx = ctx.counter.value++;
+  const { condIdx } = allocCondIdx(ctx);
   const idPk = `coh_${condIdx}_ref_id`;
   ctx.queryParams[idPk] = cond.cohort_id;
 

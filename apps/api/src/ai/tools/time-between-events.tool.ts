@@ -4,7 +4,7 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
+import { toChTs, RESOLVED_PERSON } from '../../analytics/query-helpers';
 
 const argsSchema = z.object({
   event_a: z.string().describe('The starting event (e.g. "signup")'),

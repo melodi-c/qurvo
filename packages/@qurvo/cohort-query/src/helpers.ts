@@ -1,6 +1,6 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr } from '@qurvo/ch-query';
-import { and, raw, rawWithParams } from '@qurvo/ch-query';
+import { and, raw, rawWithParams, select } from '@qurvo/ch-query';
 import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
@@ -47,6 +47,28 @@ function toNumericExprStr(expr: string): string {
 function toRawExprStr(expr: string): string | null {
   if (!expr.includes('JSONExtractString')) return null;
   return expr.replace(/\bJSONExtractString\b/g, 'JSONExtractRaw');
+}
+
+/**
+ * Converts a JSONExtractString(col, 'key') expression to JSONHas(col, 'key').
+ * Returns null if the expression is not a JSONExtractString call.
+ * Aligned with analytics filters that use JSONHas for is_set/neq guards.
+ */
+function toJsonHasExpr(exprSql: string): string | null {
+  // Match JSONExtractString(column, 'key') or argMax-wrapped variants
+  const directMatch = exprSql.match(/^JSONExtractString\((.+)\)$/);
+  if (directMatch) {
+    return `JSONHas(${directMatch[1]})`;
+  }
+  // For argMax-wrapped: JSONExtractString(argMax(col, timestamp), 'key')
+  // We need the column and key from inside the JSONExtractString
+  if (exprSql.includes('JSONExtractString(argMax(')) {
+    const innerMatch = exprSql.match(/JSONExtractString\(argMax\(([^,]+),\s*timestamp\),\s*'([^']+)'\)/);
+    if (innerMatch) {
+      return `JSONHas(argMax(${innerMatch[1]}, timestamp), '${innerMatch[2]}')`;
+    }
+  }
+  return null;
 }
 
 function extractJsonKey(property: string): { column: 'properties' | 'user_properties'; key: string } {
@@ -117,13 +139,20 @@ export function buildOperatorClause(
       return rawWithParams(`${exprSql} = {${pk}:String}`, { [pk]: value ?? '' });
     }
     case 'neq': {
+      // Aligned with analytics filters: add JSONHas guard so that rows without
+      // the key are excluded (consistent with analytics filters.ts neq behavior).
       queryParams[pk] = value ?? '';
       const rawNeqExpr = toRawExprStr(exprSql);
+      const jsonHasGuard = toJsonHasExpr(exprSql);
       if (rawNeqExpr) {
+        const guard = jsonHasGuard ? `${jsonHasGuard} AND ` : '';
         return rawWithParams(
-          `(${exprSql} != {${pk}:String} AND toString(${rawNeqExpr}) != {${pk}:String})`,
+          `(${guard}${exprSql} != {${pk}:String} AND toString(${rawNeqExpr}) != {${pk}:String})`,
           { [pk]: value ?? '' },
         );
+      }
+      if (jsonHasGuard) {
+        return rawWithParams(`${jsonHasGuard} AND ${exprSql} != {${pk}:String}`, { [pk]: value ?? '' });
       }
       return rawWithParams(`${exprSql} != {${pk}:String}`, { [pk]: value ?? '' });
     }
@@ -138,16 +167,19 @@ export function buildOperatorClause(
       return rawWithParams(`${exprSql} NOT LIKE {${pk}:String}`, { [pk]: likeVal });
     }
     case 'is_set': {
-      const rawIsSetExpr = toRawExprStr(exprSql);
-      if (rawIsSetExpr) {
-        return raw(`${rawIsSetExpr} NOT IN ('', 'null', '""')`);
+      // Aligned with analytics filters: use JSONHas() to check key existence.
+      // Previously used JSONExtractRaw NOT IN ('', 'null', '""') which checked value.
+      const jsonHasExpr = toJsonHasExpr(exprSql);
+      if (jsonHasExpr) {
+        return raw(jsonHasExpr);
       }
       return raw(`${exprSql} != ''`);
     }
     case 'is_not_set': {
-      const rawIsNotSetExpr = toRawExprStr(exprSql);
-      if (rawIsNotSetExpr) {
-        return raw(`${rawIsNotSetExpr} IN ('', 'null', '""')`);
+      // Aligned with analytics filters: use NOT JSONHas() to check key absence.
+      const jsonHasExpr = toJsonHasExpr(exprSql);
+      if (jsonHasExpr) {
+        return raw(`NOT ${jsonHasExpr}`);
       }
       return raw(`${exprSql} = ''`);
     }
@@ -291,6 +323,75 @@ export function buildEventFilterClauses(
   }
 
   return parts.length > 0 ? and(...parts) : undefined;
+}
+
+// ── Condition builder micro-helpers ──
+
+/**
+ * Allocates a condition index and returns commonly-needed param keys.
+ * Extracts the `condIdx = ctx.counter.value++; pk = coh_${condIdx}_...` boilerplate
+ * that repeats in 6+ condition builder files.
+ */
+export function allocCondIdx(ctx: BuildContext): {
+  condIdx: number;
+  eventPk: string;
+  daysPk: string;
+  countPk: string;
+} {
+  const condIdx = ctx.counter.value++;
+  return {
+    condIdx,
+    eventPk: `coh_${condIdx}_event`,
+    daysPk: `coh_${condIdx}_days`,
+    countPk: `coh_${condIdx}_count`,
+  };
+}
+
+/**
+ * Builds the countIf condition string: `event_name = {pk:String} [AND filter1 AND filter2 ...]`.
+ * Shared between event.ts (buildEventZeroCountSubquery) and not-performed.ts.
+ */
+export function buildCountIfCondStr(
+  eventPk: string,
+  condIdx: number,
+  filters: import('@qurvo/db').CohortEventFilter[] | undefined,
+  queryParams: Record<string, unknown>,
+): string {
+  const parts: string[] = [`event_name = {${eventPk}:String}`];
+  if (filters && filters.length > 0) {
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const pk = `coh_${condIdx}_ef${i}`;
+      const expr = resolveEventPropertyExpr(f.property);
+      const clauseExpr = buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values);
+      parts.push(compileExprToSql(clauseExpr).sql);
+    }
+  }
+  return parts.join(' AND ');
+}
+
+/**
+ * Builds a standard events-table base SELECT for cohort conditions.
+ * Pattern: `SELECT RESOLVED_PERSON AS person_id FROM events WHERE project_id + timestamp window`.
+ *
+ * Many condition builders repeat this exact pattern 9+ times. This factory
+ * produces the SelectBuilder with WHERE conditions pre-applied, letting callers
+ * add .groupBy() and .having() as needed.
+ */
+export function buildEventsBaseSelect(
+  ctx: BuildContext,
+  upperSql: string,
+  lowerSql: string,
+  extraWhere?: (Expr | undefined)[],
+) {
+  return select(raw(RESOLVED_PERSON).as('person_id'))
+    .from('events')
+    .where(
+      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
+      raw(`timestamp >= ${lowerSql}`),
+      raw(`timestamp <= ${upperSql}`),
+      ...(extraWhere ?? []),
+    );
 }
 
 // ── String-returning bridge functions ──

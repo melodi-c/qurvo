@@ -1,6 +1,12 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { toChTs, RESOLVED_PERSON, granularityTruncExpr, shiftPeriod } from '../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
+import {
+  toChTs,
+  RESOLVED_PERSON,
+  granularityTruncExpr,
+  shiftPeriod,
+  buildPropertyFilterConditions,
+  type PropertyFilter,
+} from '../analytics/query-helpers';
 import { MAX_PATH_NODES } from '../constants';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

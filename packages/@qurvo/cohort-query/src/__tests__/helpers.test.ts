@@ -125,12 +125,13 @@ describe('buildOperatorClause — eq/neq with JSON expressions use OR/AND with J
     expect(params['p0']).toBe('US');
   });
 
-  it('neq: uses AND with JSONExtractRaw when expr contains JSONExtractString', () => {
+  it('neq: uses JSONHas guard AND with JSONExtractRaw when expr contains JSONExtractString', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(properties, timestamp), 'active')");
     const clause = sql(buildOperatorClause(expr, 'neq', 'p0', params, 'false'));
+    // Aligned with analytics filters: neq now includes JSONHas guard for consistency.
     expect(clause).toBe(
-      "(JSONExtractString(argMax(properties, timestamp), 'active') != {p0:String} AND toString(JSONExtractRaw(argMax(properties, timestamp), 'active')) != {p0:String})",
+      "(JSONHas(argMax(properties, timestamp), 'active') AND JSONExtractString(argMax(properties, timestamp), 'active') != {p0:String} AND toString(JSONExtractRaw(argMax(properties, timestamp), 'active')) != {p0:String})",
     );
     expect(params['p0']).toBe('false');
   });
@@ -319,35 +320,37 @@ describe('buildOperatorClause — date operators guard against empty value and e
   });
 });
 
-describe('buildOperatorClause — is_set / is_not_set with JSON expressions use JSONExtractRaw', () => {
-  it('is_set: uses JSONExtractRaw NOT IN for user_properties JSON expression', () => {
+describe('buildOperatorClause — is_set / is_not_set with JSON expressions use JSONHas', () => {
+  // D3 semantic alignment: is_set/is_not_set now use JSONHas (key existence check),
+  // aligned with analytics filters behavior.
+  it('is_set: uses JSONHas for user_properties JSON expression', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(user_properties, timestamp), 'active')");
     const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
-    expect(clause).toBe("JSONExtractRaw(argMax(user_properties, timestamp), 'active') NOT IN ('', 'null', '\"\"')");
+    expect(clause).toBe("JSONHas(argMax(user_properties, timestamp), 'active')");
     expect(Object.keys(params)).toHaveLength(0);
   });
 
-  it('is_not_set: uses JSONExtractRaw IN for user_properties JSON expression', () => {
+  it('is_not_set: uses NOT JSONHas for user_properties JSON expression', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(user_properties, timestamp), 'active')");
     const clause = sql(buildOperatorClause(expr, 'is_not_set', 'p0', params));
-    expect(clause).toBe("JSONExtractRaw(argMax(user_properties, timestamp), 'active') IN ('', 'null', '\"\"')");
+    expect(clause).toBe("NOT JSONHas(argMax(user_properties, timestamp), 'active')");
     expect(Object.keys(params)).toHaveLength(0);
   });
 
-  it('is_set: uses JSONExtractRaw NOT IN for event properties JSON expression', () => {
+  it('is_set: uses JSONHas for event properties JSON expression', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'score')");
     const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
-    expect(clause).toBe("JSONExtractRaw(properties, 'score') NOT IN ('', 'null', '\"\"')");
+    expect(clause).toBe("JSONHas(properties, 'score')");
   });
 
-  it('is_not_set: uses JSONExtractRaw IN for event properties JSON expression', () => {
+  it('is_not_set: uses NOT JSONHas for event properties JSON expression', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'score')");
     const clause = sql(buildOperatorClause(expr, 'is_not_set', 'p0', params));
-    expect(clause).toBe("JSONExtractRaw(properties, 'score') IN ('', 'null', '\"\"')");
+    expect(clause).toBe("NOT JSONHas(properties, 'score')");
   });
 
   it('is_set: falls back to != \'\' for non-JSON (top-level column) expression', () => {

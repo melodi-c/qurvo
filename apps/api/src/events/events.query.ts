@@ -1,6 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { buildPropertyFilterConditions, type PropertyFilter } from '../utils/property-filter';
-import { toChTs } from '../utils/clickhouse-helpers';
+import { buildPropertyFilterConditions, type PropertyFilter, toChTs } from '../analytics/query-helpers';
 
 export interface EventsQueryParams {
   project_id: string;

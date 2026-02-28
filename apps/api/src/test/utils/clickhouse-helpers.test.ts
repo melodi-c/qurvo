@@ -8,7 +8,7 @@ import {
   truncateDate,
   granularityInterval,
   tsExpr,
-} from '../../utils/clickhouse-helpers';
+} from '../../analytics/query-helpers';
 
 describe('toChTs', () => {
   it('returns midnight local datetime string when only date part is given', () => {

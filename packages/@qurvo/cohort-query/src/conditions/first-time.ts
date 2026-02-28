@@ -1,7 +1,7 @@
 import type { CohortFirstTimeEventCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
 import { select, raw } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
 import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
@@ -9,9 +9,7 @@ export function buildFirstTimeEventSubquery(
   cond: CohortFirstTimeEventCondition,
   ctx: BuildContext,
 ): SelectNode {
-  const condIdx = ctx.counter.value++;
-  const eventPk = `coh_${condIdx}_event`;
-  const daysPk = `coh_${condIdx}_days`;
+  const { condIdx, eventPk, daysPk } = allocCondIdx(ctx);
 
   ctx.queryParams[eventPk] = cond.event_name;
   ctx.queryParams[daysPk] = cond.time_window_days;

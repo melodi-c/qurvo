@@ -4,9 +4,7 @@ import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { toChTs, RESOLVED_PERSON } from '../../utils/clickhouse-helpers';
-import { buildPropertyFilterConditions } from '../../utils/property-filter';
-import type { PropertyFilter } from '../../utils/property-filter';
+import { toChTs, RESOLVED_PERSON, buildPropertyFilterConditions, type PropertyFilter } from '../../analytics/query-helpers';
 import { computeMetricValue } from './metric.utils';
 
 const argsSchema = z.object({

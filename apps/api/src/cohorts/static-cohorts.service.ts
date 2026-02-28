@@ -5,7 +5,8 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { cohorts, type Database } from '@qurvo/db';
-import { RESOLVED_PERSON } from '../utils/clickhouse-helpers';
+import { RESOLVED_PERSON, resolvePropertyExpr } from '../analytics/query-helpers';
+import { compileExprToSql } from '@qurvo/ch-query';
 import { CohortsService } from './cohorts.service';
 import { parseCohortCsv } from './parse-cohort-csv';
 
@@ -246,7 +247,7 @@ export class StaticCohortsService {
         SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
-          AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
+          AND lower(${compileExprToSql(resolvePropertyExpr('user_properties.email')).sql}) IN {emails:Array(String)}`,
       query_params: { project_id: projectId, emails: normalizedEmails },
       format: 'JSONEachRow',
     });
