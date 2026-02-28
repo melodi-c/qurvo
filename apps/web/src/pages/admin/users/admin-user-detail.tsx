@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,40 +9,23 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { apiClient } from '@/api/client';
 import type { AdminUserProject } from '@/api/generated/Api';
-import { toast } from 'sonner';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './admin-user-detail.translations';
 import { formatDate } from '@/lib/formatting';
+import { useAdminUserDetail } from '@/features/admin/hooks/use-admin-users';
 
 export default function AdminUserDetailPage() {
   const { t } = useLocalTranslation(translations);
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { data: user, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'users', id],
-    queryFn: () => apiClient.admin.adminUsersControllerGetUser({ id: id! }),
-    enabled: !!id,
-  });
-
-  const patchMutation = useMutation({
-    mutationFn: (is_staff: boolean) =>
-      apiClient.admin.adminUsersControllerPatchUser({ id: id! }, { is_staff }),
-    onSuccess: (_data, is_staff) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users', id] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast.success(is_staff ? t('promoteSuccess') : t('demoteSuccess'));
-      setConfirmOpen(false);
-    },
-    onError: () => toast.error(t('actionFailed')),
-  });
+  const { user, isLoading, isError, refetch, patchMutation } = useAdminUserDetail(id);
 
   const handleStaffToggle = async () => {
     if (!user) return;
     await patchMutation.mutateAsync(!user.is_staff);
+    setConfirmOpen(false);
   };
 
   const projectColumns = useMemo((): Column<AdminUserProject>[] => [

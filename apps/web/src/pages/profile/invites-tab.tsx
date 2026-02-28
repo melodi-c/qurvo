@@ -1,42 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ProjectMemberRow } from '@/components/project-member-row';
-import { api } from '@/api/client';
-import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './invites-tab.translations';
+import { useInvites } from '@/features/profile/hooks/use-invites';
 
 export function InvitesTab() {
   const { t } = useLocalTranslation(translations);
-  const queryClient = useQueryClient();
 
-  const { data: invites, isLoading } = useQuery({
-    queryKey: ['myInvites'],
-    queryFn: () => api.myInvitesControllerGetMyInvites(),
-  });
-
-  const acceptMutation = useMutation({
-    mutationFn: (inviteId: string) => api.myInvitesControllerAcceptInvite({ inviteId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myInvites'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success(t('acceptSuccess'));
-    },
-    onError: () => toast.error(t('acceptError')),
-  });
-
-  const declineMutation = useMutation({
-    mutationFn: (inviteId: string) => api.myInvitesControllerDeclineInvite({ inviteId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myInvites'] });
-      toast.success(t('declineSuccess'));
-    },
-    onError: () => toast.error(t('declineError')),
-  });
+  const { invites, isLoading, acceptMutation, declineMutation } = useInvites();
 
   return (
     <div>

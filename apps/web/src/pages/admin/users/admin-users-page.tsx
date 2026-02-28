@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Users } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
@@ -10,34 +9,19 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
-import { apiClient } from '@/api/client';
 import type { AdminUserListItem } from '@/api/generated/Api';
 import { routes } from '@/lib/routes';
-import { toast } from 'sonner';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './admin-users-page.translations';
 import { formatDate } from '@/lib/formatting';
+import { useAdminUsers } from '@/features/admin/hooks/use-admin-users';
 
 export default function AdminUsersPage() {
   const { t } = useLocalTranslation(translations);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const confirmAction = useConfirmDelete();
 
-  const { data: users, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: () => apiClient.admin.adminUsersControllerListUsers(),
-  });
-
-  const patchMutation = useMutation({
-    mutationFn: ({ id, is_staff }: { id: string; is_staff: boolean }) =>
-      apiClient.admin.adminUsersControllerPatchUser({ id }, { is_staff }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast.success(variables.is_staff ? t('promoteSuccess') : t('demoteSuccess'));
-    },
-    onError: () => toast.error(t('actionFailed')),
-  });
+  const { users, isLoading, isError, refetch, patchMutation } = useAdminUsers();
 
   const handleStaffToggle = async () => {
     const user = (users ?? []).find((u) => u.id === confirmAction.itemId);
