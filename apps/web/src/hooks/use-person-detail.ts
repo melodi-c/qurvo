@@ -16,14 +16,14 @@ export function usePersonDetail() {
     setPage(0);
   }, [personId]);
 
-  const { data: person, isLoading: personLoading, isError: personError } = useQuery({
+  const { data: person, isLoading: personLoading, isError: personError, refetch: refetchPerson } = useQuery({
     queryKey: ['person', projectId, personId],
     queryFn: () =>
       api.personsControllerGetPersonById({ personId: personId!, project_id: projectId }),
     enabled: !!projectId && !!personId,
   });
 
-  const { data: events, isLoading: eventsLoading, isError: eventsError } = useQuery({
+  const { data: events, isLoading: eventsLoading, isError: eventsError, refetch: refetchEvents } = useQuery({
     queryKey: ['person-events', projectId, personId, page],
     queryFn: () =>
       api.personsControllerGetPersonEvents({
@@ -41,9 +41,11 @@ export function usePersonDetail() {
     person,
     personLoading,
     personError,
+    refetchPerson,
     events,
     eventsLoading,
     eventsError,
+    refetchEvents,
     page,
     setPage,
     limit: LIMIT,
