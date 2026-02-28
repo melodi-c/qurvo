@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getRoleLabel } from '@/lib/i18n-utils';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { Users, Copy, Check } from 'lucide-react';
 import type { AdminProjectMember, AdminPlan } from '@/api/generated/Api';
@@ -37,7 +38,7 @@ export default function AdminProjectDetailPage() {
     {
       key: 'role',
       header: t('role'),
-      render: (row) => <Badge variant="outline">{row.role}</Badge>,
+      render: (row) => <Badge variant="outline">{getRoleLabel(row.role)}</Badge>,
     },
   ], [t]);
 

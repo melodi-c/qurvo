@@ -14,7 +14,7 @@ import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycl
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
 import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
 import { CHART_COLORS_HEX, CHART_TOOLTIP_STYLE, CHART_GRID_COLOR, STATUS_COLORS_HEX, chartAxisTick } from '@/lib/chart-colors';
-import { formatCompactNumber } from '@/lib/formatting';
+import { formatCompactNumber, formatSeconds } from '@/lib/formatting';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectId } from '@/hooks/use-project-id';
 import translations from './ai-tool-result.translations';
@@ -285,16 +285,7 @@ function SegmentCompareChart({ data }: SegmentCompareChartProps) {
 }
 
 function formatStatDuration(seconds: number): string {
-  if (seconds < 3600) {
-    const mins = Math.round(seconds / 60);
-    return mins <= 1 ? '< 1m' : `${mins}m`;
-  }
-  if (seconds < 86400) {
-    const hours = Math.round(seconds / 3600);
-    return `${hours}h`;
-  }
-  const days = Math.round(seconds / 86400);
-  return `${days}d`;
+  return formatSeconds(seconds) ?? '0';
 }
 
 interface HistogramChartProps {

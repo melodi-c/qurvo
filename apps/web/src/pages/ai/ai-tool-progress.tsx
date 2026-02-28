@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Loader2, TrendingUp, Filter, Users, Activity, Zap, GitBranch, List, Bookmark, LayoutDashboard, PlusSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getGranularityLabel } from '@/lib/i18n-utils';
 import translations from './ai-tool-progress.translations';
 import { formatShortDateRange } from '@/lib/formatting';
 
@@ -38,7 +39,7 @@ function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: 
           details.push(t('series', { count: String(series.length) }));
         }
       }
-      if (typeof args.granularity === 'string') {details.push(args.granularity);}
+      if (typeof args.granularity === 'string') {details.push(getGranularityLabel(args.granularity));}
       if (dateRange) {details.push(dateRange);}
       break;
     }
@@ -56,7 +57,7 @@ function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: 
       if (typeof args.target_event === 'string') {
         details.push(`\`${args.target_event}\``);
       }
-      if (typeof args.granularity === 'string') {details.push(args.granularity);}
+      if (typeof args.granularity === 'string') {details.push(getGranularityLabel(args.granularity));}
       if (dateRange) {details.push(dateRange);}
       break;
     }

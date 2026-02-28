@@ -8,7 +8,7 @@ import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineCreateForm } from '@/components/ui/inline-create-form';
 import { Plus, LayoutDashboard, AlertTriangle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/formatting';
 import { ClickableListRow } from '@/components/ui/clickable-list-row';
 import { toast } from 'sonner';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
@@ -93,7 +93,7 @@ export default function DashboardsPage() {
                   key={dashboard.id}
                   icon={LayoutDashboard}
                   title={dashboard.name}
-                  subtitle={formatDistanceToNow(new Date(dashboard.updated_at), { addSuffix: true })}
+                  subtitle={formatRelativeTime(dashboard.updated_at)}
                   onClick={() => go.dashboards.detail(dashboard.id)}
                   onDelete={() => confirmDelete.requestDelete(dashboard.id, dashboard.name)}
                 />

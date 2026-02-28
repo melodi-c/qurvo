@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
+import { getErrorMessage } from '@/lib/i18n-utils';
 import type { InsightType, CreateInsight } from '@/api/generated/Api';
 
 interface UseInsightEditorOptions<T extends CreateInsight['config']> {
@@ -87,7 +88,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
       unsavedGuard.markClean();
       void go.insights.list();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Failed to save');
+      setSaveError(e instanceof Error ? e.message : getErrorMessage('failedToSave'));
     } finally {
       savingRef.current = false;
     }
