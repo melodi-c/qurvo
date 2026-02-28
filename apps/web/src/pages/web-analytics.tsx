@@ -57,6 +57,7 @@ export default function WebAnalyticsPage() {
         previous={overview.data?.previous}
         isLoading={overview.isLoading}
         isError={overview.isError}
+        onRetry={() => overview.refetch()}
       />
 
       <WebTimeseriesChart

@@ -2,6 +2,7 @@ import { AlertTriangle } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { formatRelativeTime } from '@/lib/formatting';
@@ -35,7 +36,7 @@ function DetailsCell({ details }: { details: string }) {
 
 export function IngestionWarningsTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
-  const { data: warnings, isLoading, isError } = useIngestionWarnings(projectId);
+  const { data: warnings, isLoading, isError, refetch } = useIngestionWarnings(projectId);
 
   const columns: Column<{ project_id: string; type: string; details: string; timestamp: string }>[] = [
     {
@@ -66,7 +67,15 @@ export function IngestionWarningsTab({ projectId }: { projectId: string }) {
       {isLoading && <ListSkeleton count={3} height="h-12" />}
 
       {isError && (
-        <p className="text-sm text-destructive">{t('loadError')}</p>
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('loadError')}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t('retry')}
+            </Button>
+          }
+        />
       )}
 
       {!isLoading && !isError && warnings && warnings.length === 0 && (
