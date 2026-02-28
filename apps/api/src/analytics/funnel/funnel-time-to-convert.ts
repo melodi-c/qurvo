@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { compileExprToSql, CompilerContext } from '@qurvo/ch-query';
-import { cohortFilter } from '../query-helpers';
+import { cohortFilter, cohortBounds } from '../query-helpers';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
 import {
@@ -14,6 +14,8 @@ import {
   buildAllEventNames,
   buildExclusionColumns,
   buildExcludedUsersCTERaw,
+  buildUnorderedCoverageExprs,
+  buildStrictUserFilter,
   validateExclusions,
   validateUnorderedSteps,
   funnelTsExpr,
@@ -114,7 +116,8 @@ export async function queryFunnelTimeToConvert(
   });
 
   const ctx = new CompilerContext();
-  const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, toChTs(params.date_to, true), toChTs(params.date_from));
+  const { dateTo, dateFrom } = cohortBounds(params);
+  const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
   const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams, ctx).sql : '';
 
   const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
@@ -276,17 +279,7 @@ export async function queryFunnelTimeToConvert(
   const fromExpr = funnelTsExpr('from', queryParams);
   const toExpr = funnelTsExpr('to', queryParams);
 
-  const strictUserFilter = orderType === 'strict' ? [
-    '',
-    '                AND distinct_id IN (',
-    '                  SELECT DISTINCT distinct_id',
-    '                  FROM events',
-    '                  WHERE project_id = {project_id:UUID}',
-    `                    AND timestamp >= ${fromExpr}`,
-    `                    AND timestamp <= ${toExpr}`,
-    '                    AND event_name IN ({step_names:Array(String)})',
-    '                )',
-  ].join('\n') : `\n                AND event_name IN ({step_names:Array(String)})`;
+  const strictUserFilter = buildStrictUserFilter(fromExpr, toExpr, 'step_names', orderType);
 
   const sql = `
     WITH funnel_raw AS (
@@ -448,40 +441,9 @@ async function buildUnorderedTtcSql(
     ? ',\n        ' + exclColumns.join(',\n        ')
     : '';
 
-  // coverage(anchorVar) = number of steps covered by the given anchor.
-  const coverageExpr = (anchorVar: string): string =>
-    stepConds.map((_, j) =>
-      `if(arrayExists(t${j} -> t${j} >= ${anchorVar} AND t${j} <= ${anchorVar} + ${winExpr}, t${j}_arr), 1, 0)`,
-    ).join(' + ');
-
-  // max_step: best coverage from any candidate anchor across all step arrays.
-  const maxFromEachStep = stepConds.map((_, i) =>
-    `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
-  );
-  const maxStepExpr = maxFromEachStep.length === 1
-    ? maxFromEachStep[0]
-    : `greatest(${maxFromEachStep.join(', ')})`;
-
-  // anchor_ms: latest anchor achieving full coverage (all N steps) — deterministic
-  // regardless of groupArrayIf element order (issue #545 / #659).
-  // arrayMax(arrayFilter(pred, arr)) returns the maximum (latest) element satisfying
-  // the predicate, independent of array order. arrayMax of an empty array returns 0.
-  const fullCovPred = (i: number): string =>
-    `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
-  let anchorMsExpr: string;
-  if (N === 1) {
-    anchorMsExpr = `if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))`;
-  } else {
-    const maxes = stepConds.map((_, i) =>
-      `arrayMax(arrayFilter(${fullCovPred(i)}, t${i}_arr))`,
-    );
-    // Nested if/else: if(x0 != 0, x0, if(x1 != 0, x1, ... 0))
-    let expr = `toInt64(0)`;
-    for (let i = maxes.length - 1; i >= 0; i--) {
-      expr = `if(toInt64(${maxes[i]}) != 0, toInt64(${maxes[i]}), ${expr})`;
-    }
-    anchorMsExpr = expr;
-  }
+  // Coverage, max_step, anchor_ms — shared with funnel-unordered.sql.ts
+  const { maxStepExpr, anchorMsExpr } =
+    buildUnorderedCoverageExprs(N, winExpr, stepConds);
 
   // Pass-through exclusion aliases from step_times to anchor_per_user.
   const exclColAliases = exclColumns.map(col => col.split(' AS ')[1]);
