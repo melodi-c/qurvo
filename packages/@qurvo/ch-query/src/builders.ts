@@ -15,6 +15,7 @@ import type {
   RawExpr,
   RawWithParamsExpr,
   SelectNode,
+  SetOperationNode,
   SubqueryExpr,
   UnionAllNode,
 } from './ast';
@@ -367,4 +368,12 @@ export function select(...columns: Expr[]): SelectBuilder {
 
 export function unionAll(...queries: QueryNode[]): UnionAllNode {
   return { type: 'union_all', queries };
+}
+
+export function intersect(...queries: QueryNode[]): SetOperationNode {
+  return { type: 'set_operation', operator: 'INTERSECT', queries };
+}
+
+export function unionDistinct(...queries: QueryNode[]): SetOperationNode {
+  return { type: 'set_operation', operator: 'UNION DISTINCT', queries };
 }

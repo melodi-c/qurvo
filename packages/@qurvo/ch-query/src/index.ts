@@ -19,6 +19,7 @@ export type {
   JoinClause,
   SelectNode,
   UnionAllNode,
+  SetOperationNode,
   QueryNode,
 } from './ast';
 
@@ -84,8 +85,8 @@ export {
   multiIf,
 } from './builders';
 
-// Builders — select builder
-export { select, unionAll, SelectBuilder } from './builders';
+// Builders — select builder & set operations
+export { select, unionAll, intersect, unionDistinct, SelectBuilder } from './builders';
 
 // Cohort — cohort query builder, validation, helpers
 export {

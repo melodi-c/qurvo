@@ -1,15 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { buildCohortSubquery } from '../../cohort/builder';
+import { compile } from '../../compiler';
 import type { CohortConditionGroup } from '@qurvo/db';
 
 describe('buildCohortSubquery — empty group', () => {
   it('empty root group returns UUID-typed empty result set (no String literal)', () => {
     const group: CohortConditionGroup = { type: 'AND', values: [] };
     const params: Record<string, unknown> = {};
-    const sql = buildCohortSubquery(group, 0, 'proj', params);
+    const node = buildCohortSubquery(group, 0, 'proj', params);
+    const sql = compile(node).sql;
     // Must use toUUID(...) so ClickHouse infers UUID column type, not String.
-    // This prevents type mismatch errors in INTERSECT / UNION DISTINCT queries.
-    expect(sql).toBe(`SELECT toUUID('00000000-0000-0000-0000-000000000000') AS person_id WHERE 0`);
+    expect(sql).toContain(`toUUID('00000000-0000-0000-0000-000000000000')`);
+    expect(sql).toContain('person_id');
+    expect(sql).toContain('WHERE 0');
   });
 
   it('empty nested group inside AND group also returns UUID-typed empty result', () => {
@@ -27,7 +30,8 @@ describe('buildCohortSubquery — empty group', () => {
       ],
     };
     const params: Record<string, unknown> = {};
-    const sql = buildCohortSubquery(outer, 0, 'proj', params);
+    const node = buildCohortSubquery(outer, 0, 'proj', params);
+    const sql = compile(node).sql;
     // The inner empty-OR subquery must use toUUID(...) not '' to avoid INTERSECT type mismatch.
     expect(sql).toContain(`toUUID('00000000-0000-0000-0000-000000000000')`);
     expect(sql).not.toContain(`SELECT '' AS person_id`);
@@ -50,7 +54,8 @@ describe('buildCohortSubquery — empty group', () => {
       ],
     };
     const params: Record<string, unknown> = {};
-    const sql = buildCohortSubquery(outer, 0, 'proj', params);
+    const node = buildCohortSubquery(outer, 0, 'proj', params);
+    const sql = compile(node).sql;
     expect(sql).toContain(`toUUID('00000000-0000-0000-0000-000000000000')`);
     expect(sql).not.toContain(`SELECT '' AS person_id`);
     // Outer OR group joins with UNION DISTINCT

@@ -1,5 +1,8 @@
 import type { CohortPerformedRegularlyCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClausesStr, resolveDateToStr } from '../helpers';
+import type { SelectNode } from '../../ast';
+import { select, raw } from '../../builders';
+import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { compileExprToSql } from '../../compiler';
 import type { BuildContext } from '../types';
 
 function periodBucketExpr(periodType: 'day' | 'week' | 'month'): string {
@@ -14,7 +17,7 @@ function periodBucketExpr(periodType: 'day' | 'week' | 'month'): string {
 export function buildPerformedRegularlySubquery(
   cond: CohortPerformedRegularlyCondition,
   ctx: BuildContext,
-): string {
+): SelectNode {
   const condIdx = ctx.counter.value++;
   const eventPk = `coh_${condIdx}_event`;
   const windowPk = `coh_${condIdx}_window`;
@@ -24,18 +27,21 @@ export function buildPerformedRegularlySubquery(
   ctx.queryParams[windowPk] = cond.time_window_days;
   ctx.queryParams[minPk] = cond.min_periods;
 
-  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const bucketExpr = periodBucketExpr(cond.period_type);
-  const upperBound = resolveDateToStr(ctx);
+  const upperBound = resolveDateTo(ctx);
+  const upperSql = compileExprToSql(upperBound).sql;
 
-  return `
-    SELECT ${RESOLVED_PERSON} AS person_id
-    FROM events
-    WHERE
-      project_id = {${ctx.projectIdParam}:UUID}
-      AND event_name = {${eventPk}:String}
-      AND timestamp >= ${upperBound} - INTERVAL {${windowPk}:UInt32} DAY
-      AND timestamp <= ${upperBound}${filterClause}
-    GROUP BY person_id
-    HAVING uniqExact(${bucketExpr}) >= {${minPk}:UInt32}`;
+  return select(raw(RESOLVED_PERSON).as('person_id'))
+    .from('events')
+    .where(
+      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
+      raw(`event_name = {${eventPk}:String}`),
+      raw(`timestamp >= ${upperSql} - INTERVAL {${windowPk}:UInt32} DAY`),
+      raw(`timestamp <= ${upperSql}`),
+      filterExpr,
+    )
+    .groupBy(raw('person_id'))
+    .having(raw(`uniqExact(${bucketExpr}) >= {${minPk}:UInt32}`))
+    .build();
 }

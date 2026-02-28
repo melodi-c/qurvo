@@ -702,6 +702,9 @@ importers:
       '@qurvo/ch-query':
         specifier: workspace:*
         version: link:../ch-query
+      '@qurvo/db':
+        specifier: workspace:*
+        version: link:../db
     devDependencies:
       '@qurvo/tsconfig':
         specifier: workspace:*

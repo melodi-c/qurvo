@@ -4,12 +4,64 @@
  * All cohort query logic has been moved to @qurvo/ch-query/src/cohort/.
  * This package re-exports everything so existing consumers
  * (apps/api, apps/cohort-worker) continue to compile without changes.
+ *
+ * After the ch-query migration (#699), buildCohortSubquery returns QueryNode
+ * and buildCohortFilterClause returns Expr. This wrapper provides
+ * string-returning versions for backward compatibility until consumers
+ * are updated (#700).
  */
-export {
-  // Builder
-  buildCohortSubquery,
-  buildCohortFilterClause,
+import {
+  buildCohortSubquery as buildCohortSubqueryNode,
+  buildCohortFilterClause as buildCohortFilterClauseExpr,
+  compile,
+  compileExprToSql,
+  RESOLVED_PERSON,
+} from '@qurvo/ch-query';
+import type { CohortConditionGroup } from '@qurvo/db';
+import type { CohortFilterInput } from '@qurvo/ch-query';
 
+/**
+ * String-returning wrapper around ch-query's buildCohortSubquery.
+ * Returns compiled SQL string for backward compatibility.
+ */
+export function buildCohortSubquery(
+  definition: CohortConditionGroup,
+  cohortIdx: number,
+  projectIdParam: string,
+  queryParams: Record<string, unknown>,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
+  dateTo?: string,
+  dateFrom?: string,
+): string {
+  const node = buildCohortSubqueryNode(definition, cohortIdx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
+  const { sql, params } = compile(node);
+  // Merge compiled params into the caller's queryParams for backward compat.
+  // The condition builders already populate queryParams via side effects,
+  // but the compiler may generate additional p_N params from Expr nodes.
+  Object.assign(queryParams, params);
+  return sql;
+}
+
+/**
+ * String-returning wrapper around ch-query's buildCohortFilterClause.
+ * Returns compiled SQL string for backward compatibility.
+ */
+export function buildCohortFilterClause(
+  cohorts: CohortFilterInput[],
+  projectIdParam: string,
+  queryParams: Record<string, unknown>,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
+  dateTo?: string,
+  dateFrom?: string,
+): string {
+  const expr = buildCohortFilterClauseExpr(cohorts, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
+  if (!expr) return '';
+  const { sql, params } = compileExprToSql(expr);
+  Object.assign(queryParams, params);
+  return sql;
+}
+
+export {
   // Validation
   extractCohortReferences,
   detectCircularDependency,
@@ -27,9 +79,6 @@ export {
   CohortQueryValidationError,
 
   // Helpers — re-exported under original names.
-  // The cohort-specific resolvePropertyExpr (with argMax) is namespaced
-  // in ch-query's main index as `cohortResolvePropertyExpr`, but we
-  // re-export it under the original name here for backward compat.
   cohortResolvePropertyExpr as resolvePropertyExpr,
   cohortResolveEventPropertyExpr as resolveEventPropertyExpr,
   cohortBuildOperatorClause as buildOperatorClause,
