@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import type { INestApplicationContext } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
@@ -8,7 +8,7 @@ import {
   type ContainerContext,
   type TestProject,
 } from '@qurvo/testing';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { cohorts, type CohortConditionGroup } from '@qurvo/db';
 import type { Queue } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';

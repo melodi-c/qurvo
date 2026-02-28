@@ -25,6 +25,6 @@ export function validateEnv(): Env {
 }
 
 export function env(): Env {
-  if (!cached) {validateEnv();}
-  return cached!;
+  if (!cached) { cached = validateEnv(); }
+  return cached;
 }

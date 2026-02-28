@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, Logger } from '@nestjs/common';
+import type { FastifyRequest } from 'fastify';
 import Redis from 'ioredis';
 import { REDIS, BILLING_QUOTA_LIMITED_KEY } from '../constants';
 import { MetricsService } from '@qurvo/worker-core';
@@ -13,7 +14,7 @@ export class BillingGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
     const projectId = request.projectId;
 
     let isMember: number;

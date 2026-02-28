@@ -20,7 +20,7 @@ import {
   COHORT_GC_CYCLE_REDIS_KEY,
 } from '../constants';
 import { DISTRIBUTED_LOCK, COMPUTE_QUEUE_EVENTS } from './tokens';
-import { CohortComputationService, type StaleCohort } from './cohort-computation.service';
+import { CohortComputationService } from './cohort-computation.service';
 import { filterByBackoff } from './backoff';
 import { MetricsService } from './metrics.service';
 import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processor';
@@ -33,6 +33,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
   protected readonly initialDelayMs = COHORT_INITIAL_DELAY_MS;
   private readonly heartbeat: Heartbeat;
 
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(DISTRIBUTED_LOCK) private readonly lock: DistributedLock,
     @InjectQueue(COHORT_COMPUTE_QUEUE) private readonly computeQueue: Queue<ComputeJobData, ComputeJobResult>,
@@ -74,148 +75,160 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
       return;
     }
 
-    let computed = 0;
-    let pgFailed = 0;
-    let staleCount = 0;
-    let eligibleCount = 0;
-    let cyclicCount = 0;
+    const stats = { computed: 0, pgFailed: 0, staleCount: 0, eligibleCount: 0, cyclicCount: 0 };
 
     try {
-      // ── 1. Fetch only stale dynamic cohorts ────────────────────────────
-      const staleCohorts = await this.computation.findStaleCohorts();
-
-      staleCount = staleCohorts.length;
-
-      if (staleCohorts.length === 0) {return;}
-
-      // ── 2. Error backoff filter ────────────────────────────────────────
-      const eligible = filterByBackoff(staleCohorts);
-
-      eligibleCount = eligible.length;
-      const backoffSkipped = staleCount - eligibleCount;
-      if (backoffSkipped > 0) {
-        this.metrics.backoffSkippedTotal.inc(backoffSkipped);
-      }
-
-      if (eligible.length === 0) {return;}
-
-      // ── 3. Topological sort ────────────────────────────────────────────
-      const { sorted, cyclic } = topologicalSortCohorts(
-        eligible.map((c) => ({ id: c.id, definition: c.definition })),
-      );
-
-      cyclicCount = cyclic.length;
-
-      if (cyclic.length > 0) {
-        this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
-        for (const id of cyclic) {
-          await this.computation.recordError(id, new Error('Cyclic cohort dependency detected'));
-        }
-      }
-
-      // ── 4. Group by dependency level and compute in parallel ─────────
-      const levels = groupCohortsByLevel(sorted);
-      const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
-      const pendingDeletions: Array<{ cohortId: string; version: number }> = [];
-
-      for (const level of levels) {
-        // Extend lock TTL before processing each level.
-        // If extend() returns false, another instance acquired the lock — stop immediately
-        // to prevent dual-write race on cohort_members and membership_version.
-        const extended = await this.lock.extend().catch(() => false);
-        if (!extended) {
-          this.logger.warn('Lock lost during cohort cycle — aborting remaining levels');
-          break;
-        }
-
-        // Enqueue all cohorts in this level for parallel computation.
-        // Use cohortId-based job IDs to avoid collisions when multiple cohorts
-        // are enqueued within the same millisecond (Bug 1 fix).
-        const jobs = await this.computeQueue.addBulk(
-          level.map((c) => {
-            const cohort = cohortById.get(c.id)!;
-            return {
-              name: 'compute',
-              opts: { jobId: `${cohort.id}-${Date.now()}` },
-              data: {
-                cohortId: cohort.id,
-                projectId: cohort.project_id,
-                definition: cohort.definition,
-              } satisfies ComputeJobData,
-            };
-          }),
-        );
-
-        // Wait for all jobs in this level to complete.
-        // ttl prevents indefinite hang when Redis is unavailable or Bull worker is stuck.
-        const results = await Promise.allSettled(
-          jobs.map((j) =>
-            j.waitUntilFinished(this.queueEvents, COHORT_JOB_TIMEOUT_MS).catch(async (err: unknown) => {
-              const msg = err instanceof Error ? err.message : String(err);
-              const isTimeout = msg.includes('timed out before finishing');
-              if (isTimeout) {
-                this.logger.warn(
-                  { jobId: j.id, ttlMs: COHORT_JOB_TIMEOUT_MS },
-                  'Cohort compute job timed out — Redis/Bull may be unavailable',
-                );
-                await this.computation
-                  .recordError(j.data.cohortId, new Error('Compute job timed out: ' + msg))
-                  .catch(() => {});
-              }
-              throw err;
-            }),
-          ),
-        );
-
-        // Collect results
-        for (let i = 0; i < results.length; i++) {
-          const r = results[i];
-          if (r.status === 'fulfilled') {
-            const result = r.value;
-            computed += result.success ? 1 : 0;
-            pgFailed += result.pgFailed ? 1 : 0;
-            if (result.success && result.version !== undefined) {
-              pendingDeletions.push({ cohortId: result.cohortId, version: result.version });
-            }
-          } else {
-            // rejected = framework-level Bull/Redis error or timeout that wasn't caught above.
-            // Map index back to cohort_id so recordError increments errors_calculating
-            // and error backoff kicks in on subsequent cycles.
-            const cohortId = jobs[i].data.cohortId;
-            this.logger.error(
-              { err: r.reason, cohortId, jobId: jobs[i].id },
-              'Cohort compute job rejected unexpectedly',
-            );
-            await this.computation
-              .recordError(cohortId, r.reason)
-              .catch(() => {});
-          }
-        }
-      }
-
-      // ── 5. Batch-delete old versions (single CH mutation) ────────────
-      if (pendingDeletions.length > 0) {
-        await this.computation
-          .deleteOldVersions(pendingDeletions)
-          .catch((err) => this.logger.error({ err }, 'Batch deletion of old cohort versions failed'));
-      }
+      await this.processCohorts(stats);
     } finally {
-      // ── 6. GC orphaned memberships (every N cycles, persisted in Redis) ──
-      await this.runGcIfDue();
-
-      stopTimer();
-      this.metrics.cyclesTotal.inc();
-      if (computed > 0) {
-        this.metrics.computedTotal.inc(computed);
-      }
-
-      this.logger.info(
-        { computed, pgFailed, stale: staleCount, eligible: eligibleCount, cyclic: cyclicCount, durationMs: Date.now() - startMs },
-        'Cohort membership cycle completed',
-      );
-
-      await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
+      await this.finalizeCycle(stopTimer, stats, startMs);
     }
+  }
+
+  private async processCohorts(stats: {
+    computed: number;
+    pgFailed: number;
+    staleCount: number;
+    eligibleCount: number;
+    cyclicCount: number;
+  }): Promise<void> {
+    // ── 1. Fetch only stale dynamic cohorts ────────────────────────────
+    const staleCohorts = await this.computation.findStaleCohorts();
+    stats.staleCount = staleCohorts.length;
+    if (staleCohorts.length === 0) { return; }
+
+    // ── 2. Error backoff filter ────────────────────────────────────────
+    const eligible = filterByBackoff(staleCohorts);
+    stats.eligibleCount = eligible.length;
+    this.metrics.backoffSkippedTotal.inc(stats.staleCount - stats.eligibleCount);
+    if (eligible.length === 0) { return; }
+
+    // ── 3. Topological sort ────────────────────────────────────────────
+    const { sorted, cyclic } = topologicalSortCohorts(
+      eligible.map((c) => ({ id: c.id, definition: c.definition })),
+    );
+    stats.cyclicCount = cyclic.length;
+    await this.recordCyclicErrors(cyclic);
+
+    // ── 4. Group by dependency level and compute in parallel ─────────
+    const levels = groupCohortsByLevel(sorted);
+    const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
+    const pendingDeletions: Array<{ cohortId: string; version: number }> = [];
+
+    for (const level of levels) {
+      const extended = await this.lock.extend().catch(() => false);
+      if (!extended) {
+        this.logger.warn('Lock lost during cohort cycle — aborting remaining levels');
+        break;
+      }
+      await this.processLevel(level, cohortById, stats, pendingDeletions);
+    }
+
+    // ── 5. Batch-delete old versions (single CH mutation) ────────────
+    if (pendingDeletions.length > 0) {
+      await this.computation
+        .deleteOldVersions(pendingDeletions)
+        .catch((err) => this.logger.error({ err }, 'Batch deletion of old cohort versions failed'));
+    }
+  }
+
+  private async recordCyclicErrors(cyclic: string[]): Promise<void> {
+    if (cyclic.length === 0) { return; }
+    this.logger.warn({ cyclic }, 'Cyclic cohort dependencies detected — skipping');
+    for (const id of cyclic) {
+      await this.computation.recordError(id, new Error('Cyclic cohort dependency detected'));
+    }
+  }
+
+  private async processLevel(
+    level: Array<{ id: string }>,
+    cohortById: Map<string, { id: string; project_id: string; definition: Record<string, unknown> }>,
+    stats: { computed: number; pgFailed: number },
+    pendingDeletions: Array<{ cohortId: string; version: number }>,
+  ): Promise<void> {
+    const jobs = await this.computeQueue.addBulk(
+      level.map((c) => {
+        const cohort = cohortById.get(c.id);
+        if (!cohort) { throw new Error(`Cohort ${c.id} not found in eligible set`); }
+        return {
+          name: 'compute',
+          opts: { jobId: `${cohort.id}-${Date.now()}` },
+          data: {
+            cohortId: cohort.id,
+            projectId: cohort.project_id,
+            definition: cohort.definition,
+          } satisfies ComputeJobData,
+        };
+      }),
+    );
+
+    const results = await Promise.allSettled(
+      jobs.map((j) =>
+        j.waitUntilFinished(this.queueEvents, COHORT_JOB_TIMEOUT_MS).catch(async (err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('timed out before finishing')) {
+            this.logger.warn({ jobId: j.id, ttlMs: COHORT_JOB_TIMEOUT_MS }, 'Cohort compute job timed out');
+            await this.computation.recordError(j.data.cohortId, new Error('Compute job timed out: ' + msg)).catch(() => {});
+          }
+          throw err;
+        }),
+      ),
+    );
+
+    await this.collectResults(results, jobs, stats, pendingDeletions);
+  }
+
+  private async collectResults(
+    results: PromiseSettledResult<ComputeJobResult>[],
+    jobs: Array<{ id: string | undefined; data: ComputeJobData }>,
+    stats: { computed: number; pgFailed: number },
+    pendingDeletions: Array<{ cohortId: string; version: number }>,
+  ): Promise<void> {
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === 'fulfilled') {
+        this.tallyFulfilledResult(r.value, stats, pendingDeletions);
+      } else {
+        await this.handleRejectedResult(r.reason, jobs[i]);
+      }
+    }
+  }
+
+  private tallyFulfilledResult(
+    value: ComputeJobResult,
+    stats: { computed: number; pgFailed: number },
+    pendingDeletions: Array<{ cohortId: string; version: number }>,
+  ): void {
+    stats.computed += value.success ? 1 : 0;
+    stats.pgFailed += value.pgFailed ? 1 : 0;
+    if (value.success && value.version !== undefined) {
+      pendingDeletions.push({ cohortId: value.cohortId, version: value.version });
+    }
+  }
+
+  private async handleRejectedResult(
+    reason: unknown,
+    job: { id: string | undefined; data: ComputeJobData },
+  ): Promise<void> {
+    this.logger.error({ err: reason, cohortId: job.data.cohortId, jobId: job.id }, 'Cohort compute job rejected unexpectedly');
+    await this.computation.recordError(job.data.cohortId, reason).catch(() => {});
+  }
+
+  private async finalizeCycle(
+    stopTimer: () => void,
+    stats: { computed: number; pgFailed: number; staleCount: number; eligibleCount: number; cyclicCount: number },
+    startMs: number,
+  ): Promise<void> {
+    await this.runGcIfDue();
+    stopTimer();
+    this.metrics.cyclesTotal.inc();
+    if (stats.computed > 0) {
+      this.metrics.computedTotal.inc(stats.computed);
+    }
+    this.logger.info(
+      { ...stats, durationMs: Date.now() - startMs },
+      'Cohort membership cycle completed',
+    );
+    await this.lock.release().catch((err) => this.logger.error({ err }, 'Cohort lock release failed'));
   }
 
   private async runGcIfDue(): Promise<void> {

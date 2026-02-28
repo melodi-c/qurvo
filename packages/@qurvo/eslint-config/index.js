@@ -20,31 +20,50 @@ const base = [
     },
     rules: {
       // Complexity
-      complexity: ['warn', 6],
-      'max-depth': ['warn', 4],
-      'max-params': ['warn', 4],
+      complexity: ['error', 6],
+      'max-depth': ['error', 4],
+      'max-params': ['error', 4],
 
-      // Best practices (warn initially; Issue #711 will upgrade to error after fixing violations)
-      eqeqeq: ['warn', 'always'],
-      'prefer-const': 'warn',
-      curly: ['warn', 'all'],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      // Best practices
+      eqeqeq: ['error', 'always'],
+      'prefer-const': 'error',
+      curly: ['error', 'all'],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
 
       // TypeScript (syntax-only, no type info needed)
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-non-null-assertion': 'warn',
-      '@typescript-eslint/prefer-optional-chain': 'warn',
-      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/prefer-optional-chain': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
 
       // Ban `as unknown` casts
       'no-restricted-syntax': [
-        'warn',
+        'error',
         {
           selector: 'TSAsExpression > TSUnknownKeyword',
           message: 'Avoid "as unknown" casts — use a type guard or explicit intermediate type instead.',
         },
       ],
+    },
+  },
+  // Relaxed rules for test files — tests legitimately use any, non-null assertions, etc.
+  {
+    files: [
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/test/**/*.ts',
+      '**/test/**/*.tsx',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      'no-restricted-syntax': 'off',
+      complexity: 'off',
+      'max-depth': 'off',
+      'max-params': 'off',
     },
   },
   {
@@ -74,10 +93,10 @@ function typeAware(tsconfigPath) {
         '@typescript-eslint': tsPlugin,
       },
       rules: {
-        '@typescript-eslint/no-floating-promises': 'warn',
-        '@typescript-eslint/no-misused-promises': 'warn',
-        '@typescript-eslint/await-thenable': 'warn',
-        '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+        '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-misused-promises': 'error',
+        '@typescript-eslint/await-thenable': 'error',
+        '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       },
     },
   ];

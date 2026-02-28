@@ -9,6 +9,7 @@ import { AiQuotaResetService } from './ai-quota-reset.service';
 
 @Injectable()
 export class ShutdownService implements OnApplicationShutdown {
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(DRIZZLE) private readonly db: Database,

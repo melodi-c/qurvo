@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, Inject, HttpException, Logger } from '@nestjs/common';
+import type { FastifyRequest } from 'fastify';
 import Redis from 'ioredis';
 import { REDIS, RATE_LIMIT_MAX_EVENTS, RATE_LIMIT_BUCKET_SECONDS, rateLimitWindowKeys } from '../constants';
 import { MetricsService } from '@qurvo/worker-core';
@@ -13,7 +14,7 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<import('fastify').FastifyRequest>();
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
     const projectId = request.projectId;
 
     const keys = rateLimitWindowKeys(projectId);

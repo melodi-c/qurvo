@@ -17,6 +17,12 @@ import { CohortComputeProcessor } from './cohort-compute.processor';
 import { MetricsService } from './metrics.service';
 import { ShutdownService } from './shutdown.service';
 
+function getRedisUrl(): string {
+  const url = process.env.REDIS_URL;
+  if (!url) { throw new Error('REDIS_URL environment variable is required'); }
+  return url;
+}
+
 function parseRedisUrl(url: string) {
   const u = new URL(url);
   return {
@@ -38,7 +44,7 @@ const ComputeQueueEventsProvider: Provider = {
   provide: COMPUTE_QUEUE_EVENTS,
   useFactory: () =>
     new QueueEvents(COHORT_COMPUTE_QUEUE, {
-      connection: parseRedisUrl(process.env.REDIS_URL!),
+      connection: parseRedisUrl(getRedisUrl()),
     }),
 };
 
@@ -46,7 +52,7 @@ const ComputeQueueEventsProvider: Provider = {
   imports: [
     BullModule.forRootAsync({
       useFactory: () => ({
-        connection: parseRedisUrl(process.env.REDIS_URL!),
+        connection: parseRedisUrl(getRedisUrl()),
       }),
     }),
     BullModule.registerQueue({ name: COHORT_COMPUTE_QUEUE }),
