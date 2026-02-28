@@ -9,13 +9,44 @@ const steps = [
 ];
 
 describe('computeStepResults — avg_time_to_convert_seconds zero handling', () => {
-  it('returns null when avg_time_seconds is "0" (ClickHouse avgIf over empty set)', () => {
-    // ClickHouse avgIf() returns 0.0 (not NULL) when no rows satisfy the condition.
-    // This happens when no user completed the full funnel. The "0" string must
-    // map to null, not 0, so the frontend shows "no data" instead of "0 s".
+  it('returns 0 when avg_time_seconds is "0" (valid zero-duration conversion)', () => {
+    // avg_time_seconds = 0 is valid for batch-imported or high-frequency server SDK
+    // events where all conversions happen at the same timestamp. The >= 0 check
+    // treats zero as a real value, not as a sentinel for "no data".
     const rows = [
-      { step_num: '1', entered: '5', next_step: '0', avg_time_seconds: '0' },
-      { step_num: '2', entered: '0', next_step: '0', avg_time_seconds: null },
+      { step_num: '1', entered: '5', next_step: '3', avg_time_seconds: '0' },
+      { step_num: '2', entered: '3', next_step: '0', avg_time_seconds: null },
+    ];
+    const twoSteps = [
+      { event_name: 'signup', label: 'Sign Up' },
+      { event_name: 'purchase', label: 'Purchase' },
+    ];
+
+    const result = computeStepResults(rows, twoSteps, 2);
+
+    expect(result[0].avg_time_to_convert_seconds).toBe(0);
+    expect(result[1].avg_time_to_convert_seconds).toBeNull(); // last step always null
+  });
+
+  it('returns 0 when avg_time_seconds is "0.0" (alternate zero representation)', () => {
+    const rows = [
+      { step_num: '1', entered: '3', next_step: '1', avg_time_seconds: '0.0' },
+      { step_num: '2', entered: '1', next_step: '0', avg_time_seconds: null },
+    ];
+    const twoSteps = [
+      { event_name: 'signup', label: 'Sign Up' },
+      { event_name: 'purchase', label: 'Purchase' },
+    ];
+
+    const result = computeStepResults(rows, twoSteps, 2);
+
+    expect(result[0].avg_time_to_convert_seconds).toBe(0);
+  });
+
+  it('returns null when avg_time_seconds is null (no data)', () => {
+    const rows = [
+      { step_num: '1', entered: '5', next_step: '3', avg_time_seconds: null },
+      { step_num: '2', entered: '3', next_step: '0', avg_time_seconds: null },
     ];
     const twoSteps = [
       { event_name: 'signup', label: 'Sign Up' },
@@ -26,21 +57,6 @@ describe('computeStepResults — avg_time_to_convert_seconds zero handling', () 
 
     expect(result[0].avg_time_to_convert_seconds).toBeNull();
     expect(result[1].avg_time_to_convert_seconds).toBeNull();
-  });
-
-  it('returns null when avg_time_seconds is "0.0" (alternate zero representation)', () => {
-    const rows = [
-      { step_num: '1', entered: '3', next_step: '0', avg_time_seconds: '0.0' },
-      { step_num: '2', entered: '0', next_step: '0', avg_time_seconds: null },
-    ];
-    const twoSteps = [
-      { event_name: 'signup', label: 'Sign Up' },
-      { event_name: 'purchase', label: 'Purchase' },
-    ];
-
-    const result = computeStepResults(rows, twoSteps, 2);
-
-    expect(result[0].avg_time_to_convert_seconds).toBeNull();
   });
 
   it('returns the rounded value when avg_time_seconds is a positive number string', () => {

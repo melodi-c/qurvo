@@ -328,7 +328,8 @@ export async function queryFunnelTimeToConvert(
 
 // ── Shared result-row types and parser ───────────────────────────────────────
 
-interface TtcAggRow {
+/** @internal Exported for unit testing only. */
+export interface TtcAggRow {
   avg_seconds: string | null;
   sample_size: string;
   min_seconds: string | null;
@@ -353,7 +354,8 @@ function exactMedian(values: number[]): number | null {
   return (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): TimeToConvertResult {
+/** @internal Exported for unit testing only. */
+export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): TimeToConvertResult {
   const row = rows[0];
   const sampleSize = Number(row?.sample_size ?? 0);
 
@@ -390,9 +392,12 @@ function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number): Time
   }
 
   const bins: TimeToConvertBin[] = [];
+  const maxRounded = Math.round(maxVal);
   for (let i = 0; i < binCount; i++) {
     const fromSec = Math.round(minVal + i * binWidth);
-    const toSec = Math.round(minVal + (i + 1) * binWidth);
+    const toSec = i === binCount - 1
+      ? maxRounded
+      : Math.round(minVal + (i + 1) * binWidth);
     bins.push({ from_seconds: fromSec, to_seconds: toSec, count: binCountByIdx.get(i) ?? 0 });
   }
 
