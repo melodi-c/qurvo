@@ -32,7 +32,7 @@ export function TimezoneCombobox({
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    if (!search) return ALL_TIMEZONES;
+    if (!search) {return ALL_TIMEZONES;}
     const q = search.toLowerCase();
     return ALL_TIMEZONES.filter((tz) => tz.toLowerCase().includes(q));
   }, [search]);
