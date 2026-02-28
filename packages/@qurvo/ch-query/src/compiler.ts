@@ -5,7 +5,11 @@ import type {
   Expr,
   FuncCallExpr,
   InExpr,
+  IntervalExpr,
   JoinClause,
+  LambdaExpr,
+  NamedParamExpr,
+  ParametricFuncCallExpr,
   QueryNode,
   SelectNode,
   SetOperationNode,
@@ -37,6 +41,22 @@ export class CompilerContext {
     return { ...this.params };
   }
 }
+
+// ── Validation helpers ──
+
+const VALID_INTERVAL_UNITS = new Set([
+  'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR',
+]);
+
+/** Only alphanumeric + underscore, must start with a letter or underscore */
+const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
+ * ClickHouse type names: alphanumeric, underscore, and parentheses for
+ * parameterised types like Array(String), Nullable(UInt64), DateTime64(3).
+ * Also allows commas and spaces inside parens for multi-param types.
+ */
+const CH_TYPE_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/;
 
 // ── Expression compiler ──
 
@@ -79,6 +99,51 @@ function compileFuncCall(expr: FuncCallExpr, ctx: CompilerContext): string {
     return `${expr.name}(DISTINCT ${args})`;
   }
   return `${expr.name}(${args})`;
+}
+
+function compileParametricFuncCall(expr: ParametricFuncCallExpr, ctx: CompilerContext): string {
+  const params = expr.params.map((p) => compileExpr(p, ctx)).join(', ');
+  const args = expr.args.map((a) => compileExpr(a, ctx)).join(', ');
+  return `${expr.name}(${params})(${args})`;
+}
+
+function compileLambda(expr: LambdaExpr, ctx: CompilerContext): string {
+  for (const p of expr.params) {
+    if (!IDENTIFIER_RE.test(p)) {
+      throw new Error(
+        `Invalid lambda parameter name: "${p}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`,
+      );
+    }
+  }
+  const body = compileExpr(expr.body, ctx);
+  if (expr.params.length === 1) {
+    return `${expr.params[0]} -> ${body}`;
+  }
+  return `(${expr.params.join(', ')}) -> ${body}`;
+}
+
+function compileInterval(expr: IntervalExpr): string {
+  if (!VALID_INTERVAL_UNITS.has(expr.unit)) {
+    throw new Error(
+      `Invalid interval unit: "${expr.unit}". Allowed units: ${[...VALID_INTERVAL_UNITS].join(', ')}.`,
+    );
+  }
+  return `INTERVAL ${expr.value} ${expr.unit}`;
+}
+
+function compileNamedParam(expr: NamedParamExpr, ctx: CompilerContext): string {
+  if (!IDENTIFIER_RE.test(expr.key)) {
+    throw new Error(
+      `Invalid named parameter key: "${expr.key}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`,
+    );
+  }
+  if (!CH_TYPE_RE.test(expr.chType)) {
+    throw new Error(
+      `Invalid ClickHouse type: "${expr.chType}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/.`,
+    );
+  }
+  ctx.mergeParams({ [expr.key]: expr.value });
+  return `{${expr.key}:${expr.chType}}`;
 }
 
 function compileBinary(expr: BinaryExpr, ctx: CompilerContext): string {
@@ -137,6 +202,14 @@ function compileExpr(expr: Expr, ctx: CompilerContext): string {
       return expr.sql;
     case 'func':
       return compileFuncCall(expr, ctx);
+    case 'parametric_func':
+      return compileParametricFuncCall(expr, ctx);
+    case 'lambda':
+      return compileLambda(expr, ctx);
+    case 'interval':
+      return compileInterval(expr);
+    case 'named_param':
+      return compileNamedParam(expr, ctx);
     case 'alias':
       return `${compileExpr(expr.expr, ctx)} AS ${expr.alias}`;
     case 'binary':
@@ -179,8 +252,9 @@ function compileSelect(node: SelectNode, ctx: CompilerContext): string {
   }
 
   // SELECT
+  const selectKeyword = node.distinct ? 'SELECT DISTINCT' : 'SELECT';
   parts.push(
-    `SELECT\n  ${node.columns.map((c) => compileExpr(c, ctx)).join(',\n  ')}`,
+    `${selectKeyword}\n  ${node.columns.map((c) => compileExpr(c, ctx)).join(',\n  ')}`,
   );
 
   // FROM

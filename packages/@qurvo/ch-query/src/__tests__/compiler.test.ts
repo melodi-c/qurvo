@@ -1,11 +1,19 @@
 import { describe, expect, test } from 'vitest';
-import { compile } from '../compiler';
+import { compile, compileExprToSql } from '../compiler';
 import {
+  add,
   and,
+  argMax,
+  arrayExists,
+  arrayMax,
+  coalesce,
   col,
   count,
   countIf,
+  dictGetOrNull,
+  div,
   eq,
+  except,
   func,
   funcDistinct,
   groupArray,
@@ -13,28 +21,40 @@ import {
   gte,
   inArray,
   inSubquery,
+  interval,
+  jsonExtractRaw,
+  jsonExtractString,
+  jsonHas,
+  lambda,
   like,
   literal,
+  lower,
   lt,
   lte,
+  match,
+  mod,
+  mul,
   multiIf,
+  multiSearchAny,
+  namedParam,
   neq,
   not,
   notInSubquery,
   notLike,
   or,
   param,
+  parametricFunc,
+  parseDateTimeBestEffortOrZero,
   raw,
   select,
+  sub,
   subquery,
   sumIf,
+  toDate,
+  toFloat64OrZero,
   toString,
   unionAll,
   uniqExact,
-  add,
-  sub,
-  mul,
-  div,
 } from '../builders';
 import type { SelectNode } from '../ast';
 
@@ -737,4 +757,449 @@ describe('compiler', () => {
       expect(Object.keys(params)).toHaveLength(2);
     });
   });
+
+  describe('parametric functions', () => {
+    test('windowFunnel(N)(cond1, cond2)', () => {
+      const q = select(
+        parametricFunc(
+          'windowFunnel',
+          [literal(86400)],
+          [
+            eq(col('event'), param('String', 'pageview')),
+            eq(col('event'), param('String', 'signup')),
+          ],
+        ).as('level'),
+      ).from('events').groupBy(col('person_id')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('windowFunnel(86400)(event = {p_0:String}, event = {p_1:String}) AS level');
+    });
+
+    test('quantile(0.5)(expr)', () => {
+      const q = select(
+        parametricFunc('quantile', [literal(0.5)], [col('duration')]).as('median'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('quantile(0.5)(duration) AS median');
+    });
+
+    test('groupArray(100)(expr)', () => {
+      const q = select(
+        parametricFunc('groupArray', [literal(100)], [col('event')]).as('recent_events'),
+      ).from('events').groupBy(col('person_id')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('groupArray(100)(event) AS recent_events');
+    });
+
+    test('windowFunnel with strict_order param', () => {
+      const q = select(
+        parametricFunc(
+          'windowFunnel',
+          [literal(86400), literal('strict_order')],
+          [col('step1'), col('step2'), col('step3')],
+        ).as('level'),
+      ).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("windowFunnel(86400, 'strict_order')(step1, step2, step3) AS level");
+    });
+  });
+
+  describe('lambda expressions', () => {
+    test('single param lambda', () => {
+      const q = select(
+        func('arrayExists', lambda(['x'], gt(col('x'), literal(0))), col('arr')).as('has_positive'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayExists(x -> x > 0, arr) AS has_positive');
+    });
+
+    test('multi-param lambda', () => {
+      const q = select(
+        func('arrayMap', lambda(['x', 'y'], add(col('x'), col('y'))), col('a'), col('b')).as('sums'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayMap((x, y) -> x + y, a, b) AS sums');
+    });
+
+    test('lambda with complex body', () => {
+      const q = select(
+        func('arrayFilter', lambda(['x'], and(gt(col('x'), literal(0)), lt(col('x'), literal(100)))), col('arr')).as('filtered'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayFilter(x -> x > 0 AND x < 100, arr) AS filtered');
+    });
+
+    test('arrayExists shortcut with lambda', () => {
+      const q = select(
+        arrayExists(lambda(['x'], gt(col('x'), literal(0))), col('arr')).as('result'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayExists(x -> x > 0, arr) AS result');
+    });
+
+    test('arrayMax shortcut with lambda', () => {
+      const q = select(
+        arrayMax(lambda(['x'], col('x')), col('timestamps')).as('latest'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayMax(x -> x, timestamps) AS latest');
+    });
+  });
+
+  describe('interval expressions', () => {
+    test('INTERVAL N DAY', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(gte(col('timestamp'), sub(raw('now()'), interval(7, 'DAY'))))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('timestamp >= now() - INTERVAL 7 DAY');
+    });
+
+    test('INTERVAL with different units', () => {
+      const { sql: sql1 } = compileExprToSql(interval(30, 'MINUTE'));
+      expect(sql1).toBe('INTERVAL 30 MINUTE');
+
+      const { sql: sql2 } = compileExprToSql(interval(1, 'HOUR'));
+      expect(sql2).toBe('INTERVAL 1 HOUR');
+
+      const { sql: sql3 } = compileExprToSql(interval(3, 'MONTH'));
+      expect(sql3).toBe('INTERVAL 3 MONTH');
+    });
+
+    test('INTERVAL in date arithmetic', () => {
+      const q = select(
+        add(col('created_at'), interval(30, 'DAY')).as('expiry'),
+      ).from('users').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('created_at + INTERVAL 30 DAY AS expiry');
+    });
+  });
+
+  describe('named parameters', () => {
+    test('namedParam generates {key:Type} placeholder', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(eq(col('cohort_id'), namedParam('cohort_bd_0_id', 'String', 'abc-123')))
+        .build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('{cohort_bd_0_id:String}');
+      expect(params).toEqual({ cohort_bd_0_id: 'abc-123' });
+    });
+
+    test('namedParam coexists with auto-incrementing params', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(
+          and(
+            eq(col('project_id'), param('UUID', 'pid')),
+            eq(col('cohort_id'), namedParam('my_cohort', 'String', 'c-1')),
+          ),
+        )
+        .build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('{p_0:UUID}');
+      expect(sql).toContain('{my_cohort:String}');
+      expect(params).toEqual({ p_0: 'pid', my_cohort: 'c-1' });
+    });
+  });
+
+  describe('SELECT DISTINCT', () => {
+    test('basic SELECT DISTINCT', () => {
+      const q = select(col('person_id')).distinct().from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('SELECT DISTINCT\n  person_id');
+    });
+
+    test('SELECT DISTINCT with multiple columns', () => {
+      const q = select(col('person_id'), col('event'))
+        .distinct()
+        .from('events')
+        .where(eq(col('project_id'), param('UUID', 'pid')))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('SELECT DISTINCT\n  person_id');
+      expect(sql).toContain('event');
+    });
+
+    test('non-distinct SELECT still works', () => {
+      const q = select(col('person_id')).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('SELECT\n  person_id');
+      expect(sql).not.toContain('DISTINCT');
+    });
+  });
+
+  describe('modulo operator', () => {
+    test('mod() compiles to %', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(lt(mod(func('sipHash64', col('person_id')), literal(100)), literal(10)))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('sipHash64(person_id) % 100 < 10');
+    });
+  });
+
+  describe('except()', () => {
+    test('EXCEPT set operation', () => {
+      const q1 = select(col('person_id')).from('all_users').build();
+      const q2 = select(col('person_id')).from('blocked_users').build();
+      const e = except(q1, q2);
+      const { sql } = compile(e);
+      expect(sql).toContain('SELECT\n  person_id\nFROM all_users\nEXCEPT\nSELECT\n  person_id\nFROM blocked_users');
+    });
+  });
+
+  describe('new ClickHouse function shortcuts', () => {
+    test('jsonExtractString compiles correctly', () => {
+      const q = select(
+        jsonExtractString(col('properties'), 'name').as('prop_name'),
+      ).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("JSONExtractString(properties, 'name') AS prop_name");
+    });
+
+    test('jsonExtractString with nested keys', () => {
+      const q = select(
+        jsonExtractString(col('data'), 'user', 'address', 'city').as('city'),
+      ).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("JSONExtractString(data, 'user', 'address', 'city') AS city");
+    });
+
+    test('jsonExtractRaw', () => {
+      const q = select(jsonExtractRaw(col('data'), 'payload').as('raw_payload')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("JSONExtractRaw(data, 'payload') AS raw_payload");
+    });
+
+    test('jsonHas', () => {
+      const q = select(col('*')).from('t').where(eq(jsonHas(col('props'), 'key'), literal(1))).build();
+      const { sql } = compile(q);
+      expect(sql).toContain("JSONHas(props, 'key') = 1");
+    });
+
+    test('toFloat64OrZero', () => {
+      const q = select(toFloat64OrZero(col('str_val')).as('num_val')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toFloat64OrZero(str_val) AS num_val');
+    });
+
+    test('toDate', () => {
+      const q = select(toDate(col('timestamp')).as('day')).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toDate(timestamp) AS day');
+    });
+
+    test('parseDateTimeBestEffortOrZero', () => {
+      const q = select(parseDateTimeBestEffortOrZero(col('date_str')).as('dt')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('parseDateTimeBestEffortOrZero(date_str) AS dt');
+    });
+
+    test('argMax', () => {
+      const q = select(argMax(col('user_properties'), col('timestamp')).as('latest_props'))
+        .from('events')
+        .groupBy(col('person_id'))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('argMax(user_properties, timestamp) AS latest_props');
+    });
+
+    test('dictGetOrNull', () => {
+      const q = select(
+        dictGetOrNull('person_overrides_dict', 'override_id', col('person_id')).as('canonical_id'),
+      ).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("dictGetOrNull('person_overrides_dict', 'override_id', person_id) AS canonical_id");
+    });
+
+    test('lower', () => {
+      const q = select(lower(col('email')).as('email_lower')).from('users').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('lower(email) AS email_lower');
+    });
+
+    test('match (REGEXP)', () => {
+      const q = select(col('*')).from('events').where(match(col('url'), literal('^https://.*'))).build();
+      const { sql } = compile(q);
+      expect(sql).toContain("match(url, '^https://.*')");
+    });
+
+    test('multiSearchAny', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(multiSearchAny(col('text'), param('Array(String)', ['foo', 'bar'])))
+        .build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('multiSearchAny(text, {p_0:Array(String)})');
+      expect(params).toEqual({ p_0: ['foo', 'bar'] });
+    });
+
+    test('coalesce', () => {
+      const q = select(
+        coalesce(
+          dictGetOrNull('person_overrides_dict', 'override_id', col('person_id')),
+          col('person_id'),
+        ).as('resolved_person'),
+      ).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("coalesce(dictGetOrNull('person_overrides_dict', 'override_id', person_id), person_id) AS resolved_person");
+    });
+  });
+
+  describe('real-world patterns with new features', () => {
+    test('sampling with mod: sipHash64(person_id) % 100 < N', () => {
+      const sampleRate = 10;
+      const q = select(count().as('sampled_count'))
+        .from('events')
+        .where(lt(mod(func('sipHash64', col('person_id')), literal(100)), literal(sampleRate)))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('sipHash64(person_id) % 100 < 10');
+    });
+
+    test('RESOLVED_PERSON pattern with coalesce + dictGetOrNull', () => {
+      const q = select(
+        coalesce(
+          dictGetOrNull('person_overrides_dict', 'override_person_id', col('person_id')),
+          col('person_id'),
+        ).as('resolved_person'),
+        count().as('cnt'),
+      )
+        .from('events')
+        .groupBy(col('resolved_person'))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain("coalesce(dictGetOrNull('person_overrides_dict', 'override_person_id', person_id), person_id) AS resolved_person");
+    });
+
+    test('funnel with parametricFunc + interval', () => {
+      const q = select(
+        parametricFunc(
+          'windowFunnel',
+          [literal(86400), literal('strict_order')],
+          [
+            eq(col('event'), param('String', 'step1')),
+            eq(col('event'), param('String', 'step2')),
+          ],
+        ).as('level'),
+      )
+        .from('events')
+        .where(gte(col('timestamp'), sub(raw('now()'), interval(30, 'DAY'))))
+        .groupBy(col('person_id'))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain("windowFunnel(86400, 'strict_order')");
+      expect(sql).toContain('INTERVAL 30 DAY');
+    });
+
+    test('SELECT DISTINCT + except for cohort exclusion', () => {
+      const allUsers = select(col('person_id')).distinct().from('events').build();
+      const excluded = select(col('person_id')).distinct().from('blocked').build();
+      const e = except(allUsers, excluded);
+      const { sql } = compile(e);
+      expect(sql).toContain('SELECT DISTINCT');
+      expect(sql).toContain('EXCEPT');
+    });
+  });
+
+  describe('input validation (security)', () => {
+    describe('interval unit validation', () => {
+      test('rejects invalid interval unit', () => {
+        expect(() => {
+          const q = select(col('*'))
+            .from('events')
+            .where(gte(col('timestamp'), sub(raw('now()'), interval(1, 'DROP TABLE'))))
+            .build();
+          compile(q);
+        }).toThrow(/Invalid interval unit/);
+      });
+
+      test('rejects SQL injection in interval unit', () => {
+        expect(() => interval(1, "DAY; DROP TABLE events --")).toThrow(
+          /Invalid interval unit/,
+        );
+      });
+
+      test('accepts all valid interval units', () => {
+        for (const unit of ['SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR']) {
+          const { sql } = compileExprToSql(interval(1, unit));
+          expect(sql).toBe(`INTERVAL 1 ${unit}`);
+        }
+      });
+    });
+
+    describe('named parameter validation', () => {
+      test('rejects key with SQL injection', () => {
+        expect(() => namedParam('key}; DROP TABLE', 'String', 'val')).toThrow(
+          /Invalid named parameter key/,
+        );
+      });
+
+      test('rejects key starting with number', () => {
+        expect(() => namedParam('0key', 'String', 'val')).toThrow(
+          /Invalid named parameter key/,
+        );
+      });
+
+      test('rejects chType with SQL injection', () => {
+        expect(() => namedParam('key', 'String}; DROP TABLE', 'val')).toThrow(
+          /Invalid ClickHouse type/,
+        );
+      });
+
+      test('accepts valid key and chType', () => {
+        const np = namedParam('cohort_id', 'String', 'abc');
+        const { sql, params } = compileExprToSql(np);
+        expect(sql).toBe('{cohort_id:String}');
+        expect(params).toEqual({ cohort_id: 'abc' });
+      });
+
+      test('accepts parameterised chType like Array(String)', () => {
+        const np = namedParam('my_arr', 'Array(String)', ['a', 'b']);
+        const { sql } = compileExprToSql(np);
+        expect(sql).toBe('{my_arr:Array(String)}');
+      });
+
+      test('accepts parameterised chType like DateTime64(3)', () => {
+        const np = namedParam('ts', 'DateTime64(3)', '2024-01-01');
+        const { sql } = compileExprToSql(np);
+        expect(sql).toBe('{ts:DateTime64(3)}');
+      });
+    });
+
+    describe('lambda parameter validation', () => {
+      test('rejects lambda param with SQL injection', () => {
+        expect(() => lambda(['x -> 1; DROP'], gt(col('x'), literal(0)))).toThrow(
+          /Invalid lambda parameter name/,
+        );
+      });
+
+      test('rejects lambda param starting with number', () => {
+        expect(() => lambda(['1x'], gt(col('x'), literal(0)))).toThrow(
+          /Invalid lambda parameter name/,
+        );
+      });
+
+      test('rejects lambda param with spaces', () => {
+        expect(() => lambda(['x y'], gt(col('x'), literal(0)))).toThrow(
+          /Invalid lambda parameter name/,
+        );
+      });
+
+      test('accepts valid lambda params', () => {
+        const l = lambda(['x'], gt(col('x'), literal(0)));
+        const { sql } = compileExprToSql(func('arrayExists', l, col('arr')));
+        expect(sql).toContain('x -> x > 0');
+      });
+
+      test('accepts underscore-prefixed lambda params', () => {
+        const l = lambda(['_x', '__y'], add(col('_x'), col('__y')));
+        const { sql } = compileExprToSql(func('arrayMap', l, col('a'), col('b')));
+        expect(sql).toContain('(_x, __y) -> _x + __y');
+      });
+    });
+  });
+
 });
