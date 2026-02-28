@@ -8,8 +8,12 @@ import type {
   Expr,
   FuncCallExpr,
   InExpr,
+  IntervalExpr,
+  LambdaExpr,
   LiteralExpr,
+  NamedParamExpr,
   NotExpr,
+  ParametricFuncCallExpr,
   ParamExpr,
   QueryNode,
   RawExpr,
@@ -77,6 +81,41 @@ export function funcDistinct(name: string, ...args: Expr[]): WithAlias<FuncCallE
 
 export function subquery(query: SelectNode): WithAlias<SubqueryExpr> {
   return withAlias({ type: 'subquery', query });
+}
+
+/**
+ * Parametric function call: name(params)(args)
+ * e.g. parametricFunc('windowFunnel', [literal(86400)], [cond1, cond2])
+ *      → windowFunnel(86400)(cond1, cond2)
+ */
+export function parametricFunc(
+  name: string,
+  params: Expr[],
+  args: Expr[],
+): WithAlias<ParametricFuncCallExpr> {
+  return withAlias({ type: 'parametric_func', name, params, args });
+}
+
+/**
+ * Lambda expression: lambda(['x'], body) → x -> body
+ * lambda(['x', 'y'], body) → (x, y) -> body
+ */
+export function lambda(params: string[], body: Expr): LambdaExpr {
+  return { type: 'lambda', params, body };
+}
+
+/** INTERVAL N UNIT — e.g. interval(7, 'DAY') → INTERVAL 7 DAY */
+export function interval(value: number, unit: string): WithAlias<IntervalExpr> {
+  return withAlias({ type: 'interval', value, unit });
+}
+
+/**
+ * Named ClickHouse parameter with explicit name: {key:Type}
+ * Unlike param() (auto-incrementing p_N), this uses a caller-chosen name.
+ * Useful for cohort builders and other cases where param names must be stable.
+ */
+export function namedParam(key: string, chType: string, value: unknown): WithAlias<NamedParamExpr> {
+  return withAlias({ type: 'named_param', key, chType, value });
 }
 
 // ── Shortcut functions for common ClickHouse functions ──
@@ -148,6 +187,90 @@ export function arrayFilter(lambda: string, arrayExpr: Expr): WithAlias<FuncCall
 
 export function toString(expr: Expr): WithAlias<FuncCallExpr> {
   return func('toString', expr);
+}
+
+// ── JSON functions ──
+
+/** JSONExtractString(expr, key1, key2, ...) — variadic, supports nested keys */
+export function jsonExtractString(expr: Expr, ...keys: string[]): WithAlias<FuncCallExpr> {
+  return func('JSONExtractString', expr, ...keys.map((k) => literal(k)));
+}
+
+/** JSONExtractRaw(expr, key1, key2, ...) — variadic, supports nested keys */
+export function jsonExtractRaw(expr: Expr, ...keys: string[]): WithAlias<FuncCallExpr> {
+  return func('JSONExtractRaw', expr, ...keys.map((k) => literal(k)));
+}
+
+/** JSONHas(expr, key1, key2, ...) — variadic, supports nested keys */
+export function jsonHas(expr: Expr, ...keys: string[]): WithAlias<FuncCallExpr> {
+  return func('JSONHas', expr, ...keys.map((k) => literal(k)));
+}
+
+// ── Type conversion functions ──
+
+export function toFloat64OrZero(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toFloat64OrZero', expr);
+}
+
+export function toDate(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toDate', expr);
+}
+
+export function parseDateTimeBestEffortOrZero(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('parseDateTimeBestEffortOrZero', expr);
+}
+
+// ── Aggregate functions ──
+
+export function argMax(expr: Expr, orderByExpr: Expr): WithAlias<FuncCallExpr> {
+  return func('argMax', expr, orderByExpr);
+}
+
+// ── Dictionary functions ──
+
+export function dictGetOrNull(dictName: string, attrName: string, keyExpr: Expr): WithAlias<FuncCallExpr> {
+  return func('dictGetOrNull', literal(dictName), literal(attrName), keyExpr);
+}
+
+// ── String functions ──
+
+export function lower(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('lower', expr);
+}
+
+/** match(expr, pattern) — REGEXP match */
+export function match(expr: Expr, pattern: Expr): WithAlias<FuncCallExpr> {
+  return func('match', expr, pattern);
+}
+
+/** multiSearchAny(expr, arrayExpr) — search for any of the strings in array */
+export function multiSearchAny(expr: Expr, arrayExpr: Expr): WithAlias<FuncCallExpr> {
+  return func('multiSearchAny', expr, arrayExpr);
+}
+
+// ── Conditional functions ──
+
+/** coalesce(expr1, expr2, ...) — returns the first non-NULL argument */
+export function coalesce(...exprs: Expr[]): WithAlias<FuncCallExpr> {
+  return func('coalesce', ...exprs);
+}
+
+// ── Array functions with lambda support ──
+
+/**
+ * arrayExists(lambda, arrayExpr) — returns 1 if at least one element matches.
+ * e.g. arrayExists(lambda(['x'], gt(col('x'), literal(0))), col('arr'))
+ */
+export function arrayExists(lambdaExpr: LambdaExpr, arrayExpr: Expr): WithAlias<FuncCallExpr> {
+  return func('arrayExists', lambdaExpr, arrayExpr);
+}
+
+/**
+ * arrayMax(lambda, arrayExpr) — returns maximum of lambda applied to each element.
+ * e.g. arrayMax(lambda(['x'], col('x')), col('arr'))
+ */
+export function arrayMax(lambdaExpr: LambdaExpr, arrayExpr: Expr): WithAlias<FuncCallExpr> {
+  return func('arrayMax', lambdaExpr, arrayExpr);
 }
 
 // ── Condition builders ──
@@ -239,6 +362,10 @@ export function div(left: Expr, right: Expr): WithAlias<BinaryExpr> {
   return withAlias(makeBinary('/', left, right));
 }
 
+export function mod(left: Expr, right: Expr): WithAlias<BinaryExpr> {
+  return withAlias(makeBinary('%', left, right));
+}
+
 export function inSubquery(expr: Expr, query: SelectNode): InExpr {
   return { type: 'in', expr, target: query };
 }
@@ -269,6 +396,11 @@ export class SelectBuilder {
 
   constructor(columns: Expr[]) {
     this.node = { type: 'select', columns };
+  }
+
+  distinct(): this {
+    this.node.distinct = true;
+    return this;
   }
 
   from(table: string | QueryNode, alias?: string): this {
@@ -376,4 +508,8 @@ export function intersect(...queries: QueryNode[]): SetOperationNode {
 
 export function unionDistinct(...queries: QueryNode[]): SetOperationNode {
   return { type: 'set_operation', operator: 'UNION DISTINCT', queries };
+}
+
+export function except(...queries: QueryNode[]): SetOperationNode {
+  return { type: 'set_operation', operator: 'EXCEPT', queries };
 }

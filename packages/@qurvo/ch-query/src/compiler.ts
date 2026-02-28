@@ -5,7 +5,11 @@ import type {
   Expr,
   FuncCallExpr,
   InExpr,
+  IntervalExpr,
   JoinClause,
+  LambdaExpr,
+  NamedParamExpr,
+  ParametricFuncCallExpr,
   QueryNode,
   SelectNode,
   SetOperationNode,
@@ -81,6 +85,29 @@ function compileFuncCall(expr: FuncCallExpr, ctx: CompilerContext): string {
   return `${expr.name}(${args})`;
 }
 
+function compileParametricFuncCall(expr: ParametricFuncCallExpr, ctx: CompilerContext): string {
+  const params = expr.params.map((p) => compileExpr(p, ctx)).join(', ');
+  const args = expr.args.map((a) => compileExpr(a, ctx)).join(', ');
+  return `${expr.name}(${params})(${args})`;
+}
+
+function compileLambda(expr: LambdaExpr, ctx: CompilerContext): string {
+  const body = compileExpr(expr.body, ctx);
+  if (expr.params.length === 1) {
+    return `${expr.params[0]} -> ${body}`;
+  }
+  return `(${expr.params.join(', ')}) -> ${body}`;
+}
+
+function compileInterval(expr: IntervalExpr): string {
+  return `INTERVAL ${expr.value} ${expr.unit}`;
+}
+
+function compileNamedParam(expr: NamedParamExpr, ctx: CompilerContext): string {
+  ctx.mergeParams({ [expr.key]: expr.value });
+  return `{${expr.key}:${expr.chType}}`;
+}
+
 function compileBinary(expr: BinaryExpr, ctx: CompilerContext): string {
   const op = expr.op;
 
@@ -137,6 +164,14 @@ function compileExpr(expr: Expr, ctx: CompilerContext): string {
       return expr.sql;
     case 'func':
       return compileFuncCall(expr, ctx);
+    case 'parametric_func':
+      return compileParametricFuncCall(expr, ctx);
+    case 'lambda':
+      return compileLambda(expr, ctx);
+    case 'interval':
+      return compileInterval(expr);
+    case 'named_param':
+      return compileNamedParam(expr, ctx);
     case 'alias':
       return `${compileExpr(expr.expr, ctx)} AS ${expr.alias}`;
     case 'binary':
@@ -179,8 +214,9 @@ function compileSelect(node: SelectNode, ctx: CompilerContext): string {
   }
 
   // SELECT
+  const selectKeyword = node.distinct ? 'SELECT DISTINCT' : 'SELECT';
   parts.push(
-    `SELECT\n  ${node.columns.map((c) => compileExpr(c, ctx)).join(',\n  ')}`,
+    `${selectKeyword}\n  ${node.columns.map((c) => compileExpr(c, ctx)).join(',\n  ')}`,
   );
 
   // FROM

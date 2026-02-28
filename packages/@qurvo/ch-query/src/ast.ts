@@ -42,6 +42,44 @@ export interface FuncCallExpr {
   distinct?: boolean;
 }
 
+/**
+ * Parametric function call: name(params)(args)
+ * e.g. windowFunnel(86400, 'strict_order')(cond1, cond2)
+ *      quantile(0.5)(expr)
+ *      groupArray(100)(expr)
+ */
+export interface ParametricFuncCallExpr {
+  type: 'parametric_func';
+  name: string;
+  params: Expr[];
+  args: Expr[];
+}
+
+/** Lambda expression: (x, y) -> body  or  x -> body */
+export interface LambdaExpr {
+  type: 'lambda';
+  params: string[];
+  body: Expr;
+}
+
+/** INTERVAL N UNIT — e.g. INTERVAL 7 DAY */
+export interface IntervalExpr {
+  type: 'interval';
+  value: number;
+  unit: string;
+}
+
+/**
+ * Named ClickHouse parameter with explicit name: {key:Type}
+ * Unlike ParamExpr (auto-incrementing p_N), this uses a caller-chosen name.
+ */
+export interface NamedParamExpr {
+  type: 'named_param';
+  key: string;
+  chType: string;
+  value: unknown;
+}
+
 export interface AliasExpr {
   type: 'alias';
   expr: Expr;
@@ -62,7 +100,8 @@ export type BinaryOp =
   | '+'
   | '-'
   | '*'
-  | '/';
+  | '/'
+  | '%';
 
 export interface BinaryExpr {
   type: 'binary';
@@ -109,6 +148,10 @@ export type Expr =
   | RawExpr
   | RawWithParamsExpr
   | FuncCallExpr
+  | ParametricFuncCallExpr
+  | LambdaExpr
+  | IntervalExpr
+  | NamedParamExpr
   | AliasExpr
   | BinaryExpr
   | NotExpr
@@ -133,6 +176,7 @@ export interface JoinClause {
 
 export interface SelectNode {
   type: 'select';
+  distinct?: boolean;
   columns: Expr[];
   from?: string | QueryNode;
   fromAlias?: string;

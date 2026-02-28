@@ -2,16 +2,22 @@ import { describe, expect, test } from 'vitest';
 import {
   add,
   and,
+  argMax,
+  arrayExists,
   arrayFilter,
+  arrayMax,
   arraySort,
   avg,
   avgIf,
+  coalesce,
   col,
   count,
   countDistinct,
   countIf,
+  dictGetOrNull,
   div,
   eq,
+  except,
   func,
   funcDistinct,
   groupArray,
@@ -20,28 +26,42 @@ import {
   gte,
   inArray,
   inSubquery,
+  interval,
+  jsonExtractRaw,
+  jsonExtractString,
+  jsonHas,
+  lambda,
   like,
   literal,
+  lower,
   lt,
   lte,
+  match,
   max,
   maxIf,
   min,
   minIf,
+  mod,
   mul,
   multiIf,
+  multiSearchAny,
+  namedParam,
   neq,
   not,
   notInSubquery,
   notLike,
   or,
   param,
+  parametricFunc,
+  parseDateTimeBestEffortOrZero,
   raw,
   select,
   sub,
   subquery,
   sum,
   sumIf,
+  toDate,
+  toFloat64OrZero,
   toString,
   unionAll,
   uniqExact,
@@ -214,11 +234,12 @@ describe('builders', () => {
       expect(n.type).toBe('not');
     });
 
-    test('arithmetic: add, sub, mul, div', () => {
+    test('arithmetic: add, sub, mul, div, mod', () => {
       expect(add(col('a'), col('b')).op).toBe('+');
       expect(sub(col('a'), col('b')).op).toBe('-');
       expect(mul(col('a'), col('b')).op).toBe('*');
       expect(div(col('a'), col('b')).op).toBe('/');
+      expect(mod(col('a'), col('b')).op).toBe('%');
     });
 
     test('inSubquery()', () => {
@@ -434,6 +455,196 @@ describe('builders', () => {
       const u = unionAll(q1, unionAll(q2, q3));
       expect(u.queries).toHaveLength(2);
       expect(u.queries[1].type).toBe('union_all');
+    });
+  });
+
+  describe('new expression factories', () => {
+    test('parametricFunc() returns ParametricFuncCallExpr', () => {
+      const pf = parametricFunc('windowFunnel', [literal(86400)], [col('cond1'), col('cond2')]);
+      expect(pf.type).toBe('parametric_func');
+      expect(pf.name).toBe('windowFunnel');
+      expect(pf.params).toHaveLength(1);
+      expect(pf.args).toHaveLength(2);
+    });
+
+    test('parametricFunc().as() creates AliasExpr', () => {
+      const a = parametricFunc('quantile', [literal(0.5)], [col('x')]).as('median');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('median');
+    });
+
+    test('lambda() returns LambdaExpr', () => {
+      const l = lambda(['x'], gt(col('x'), literal(0)));
+      expect(l.type).toBe('lambda');
+      expect(l.params).toEqual(['x']);
+      expect(l.body.type).toBe('binary');
+    });
+
+    test('lambda() with multiple params', () => {
+      const l = lambda(['x', 'y'], add(col('x'), col('y')));
+      expect(l.params).toEqual(['x', 'y']);
+    });
+
+    test('interval() returns IntervalExpr', () => {
+      const i = interval(7, 'DAY');
+      expect(i.type).toBe('interval');
+      expect(i.value).toBe(7);
+      expect(i.unit).toBe('DAY');
+    });
+
+    test('interval().as() creates AliasExpr', () => {
+      const a = interval(30, 'MINUTE').as('window');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('window');
+    });
+
+    test('namedParam() returns NamedParamExpr', () => {
+      const np = namedParam('cohort_id', 'String', 'abc-123');
+      expect(np.type).toBe('named_param');
+      expect(np.key).toBe('cohort_id');
+      expect(np.chType).toBe('String');
+      expect(np.value).toBe('abc-123');
+    });
+
+    test('namedParam().as() creates AliasExpr', () => {
+      const a = namedParam('my_param', 'UInt64', 42).as('val');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('val');
+    });
+  });
+
+  describe('new ClickHouse functions', () => {
+    test('jsonExtractString()', () => {
+      const f = jsonExtractString(col('properties'), 'name');
+      expect(f.name).toBe('JSONExtractString');
+      expect(f.args).toHaveLength(2);
+      expect(f.args[1]).toEqual(expect.objectContaining({ type: 'literal', value: 'name' }));
+    });
+
+    test('jsonExtractString() with nested keys', () => {
+      const f = jsonExtractString(col('props'), 'user', 'address', 'city');
+      expect(f.args).toHaveLength(4);
+    });
+
+    test('jsonExtractRaw()', () => {
+      const f = jsonExtractRaw(col('properties'), 'data');
+      expect(f.name).toBe('JSONExtractRaw');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('jsonHas()', () => {
+      const f = jsonHas(col('properties'), 'key');
+      expect(f.name).toBe('JSONHas');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('toFloat64OrZero()', () => {
+      const f = toFloat64OrZero(col('value'));
+      expect(f.name).toBe('toFloat64OrZero');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toDate()', () => {
+      const f = toDate(col('timestamp'));
+      expect(f.name).toBe('toDate');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('parseDateTimeBestEffortOrZero()', () => {
+      const f = parseDateTimeBestEffortOrZero(col('date_str'));
+      expect(f.name).toBe('parseDateTimeBestEffortOrZero');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('argMax()', () => {
+      const f = argMax(col('value'), col('timestamp'));
+      expect(f.name).toBe('argMax');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('dictGetOrNull()', () => {
+      const f = dictGetOrNull('person_overrides_dict', 'override_id', col('person_id'));
+      expect(f.name).toBe('dictGetOrNull');
+      expect(f.args).toHaveLength(3);
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'literal', value: 'person_overrides_dict' }));
+      expect(f.args[1]).toEqual(expect.objectContaining({ type: 'literal', value: 'override_id' }));
+    });
+
+    test('lower()', () => {
+      const f = lower(col('name'));
+      expect(f.name).toBe('lower');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('match()', () => {
+      const f = match(col('url'), literal('^https://.*'));
+      expect(f.name).toBe('match');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('multiSearchAny()', () => {
+      const f = multiSearchAny(col('text'), param('Array(String)', ['foo', 'bar']));
+      expect(f.name).toBe('multiSearchAny');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('coalesce()', () => {
+      const f = coalesce(col('a'), col('b'), literal(0));
+      expect(f.name).toBe('coalesce');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('arrayExists() with lambda', () => {
+      const l = lambda(['x'], gt(col('x'), literal(0)));
+      const f = arrayExists(l, col('arr'));
+      expect(f.name).toBe('arrayExists');
+      expect(f.args).toHaveLength(2);
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'lambda' }));
+    });
+
+    test('arrayMax() with lambda', () => {
+      const l = lambda(['x'], col('x'));
+      const f = arrayMax(l, col('arr'));
+      expect(f.name).toBe('arrayMax');
+      expect(f.args).toHaveLength(2);
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'lambda' }));
+    });
+  });
+
+  describe('mod()', () => {
+    test('creates modulo BinaryExpr', () => {
+      const m = mod(col('a'), literal(100));
+      expect(m.type).toBe('binary');
+      expect(m.op).toBe('%');
+    });
+
+    test('mod().as() creates AliasExpr', () => {
+      const a = mod(col('hash'), literal(100)).as('bucket');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('bucket');
+    });
+  });
+
+  describe('SelectBuilder.distinct()', () => {
+    test('sets distinct flag', () => {
+      const node = select(col('person_id')).distinct().from('events').build();
+      expect(node.distinct).toBe(true);
+    });
+
+    test('returns same builder for chaining', () => {
+      const builder = select(col('a'));
+      expect(builder.distinct()).toBe(builder);
+    });
+  });
+
+  describe('except()', () => {
+    test('creates SetOperationNode with EXCEPT', () => {
+      const q1 = select(col('id')).from('all_users').build();
+      const q2 = select(col('id')).from('blocked_users').build();
+      const e = except(q1, q2);
+      expect(e.type).toBe('set_operation');
+      expect(e.operator).toBe('EXCEPT');
+      expect(e.queries).toHaveLength(2);
     });
   });
 });
