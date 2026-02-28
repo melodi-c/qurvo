@@ -52,6 +52,9 @@ if ! git merge --no-ff "$BRANCH" -m "Merge $BRANCH: $ISSUE_TITLE" 2>&1 >&2; then
 fi
 
 if [[ -n "$AFFECTED_APPS" ]]; then
+  # Обновить зависимости после мержа (solver мог добавить новые пакеты/workspace)
+  echo "Pre-merge verification: installing dependencies..." >&2
+  pnpm install --frozen-lockfile >&2 2>&1 || pnpm install >&2 2>&1 || true
   echo "Pre-merge verification: building affected apps..." >&2
   IFS=',' read -ra APPS <<< "$AFFECTED_APPS"
   for APP in "${APPS[@]}"; do
