@@ -200,6 +200,8 @@ function compileExprInline(expr: Expr): string {
   switch (expr.type) {
     case 'raw':
       return expr.sql;
+    case 'raw_with_params':
+      return expr.sql;
     case 'column':
       return expr.name;
     case 'func': {

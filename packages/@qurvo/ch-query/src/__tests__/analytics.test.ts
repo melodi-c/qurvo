@@ -18,10 +18,12 @@ import {
   eventIn,
   propertyFilter,
   propertyFilters,
+  cohortFilter,
   analyticsWhere,
   resolvePropertyExpr,
   resolveNumericPropertyExpr,
 } from '../analytics/filters';
+import type { CohortFilterInputLike } from '../analytics/filters';
 import { resolvedPerson, RESOLVED_PERSON } from '../analytics/resolved-person';
 import { baseMetricColumns, aggColumn, numericProperty } from '../analytics/aggregations';
 import type { Expr } from '../ast';
@@ -450,6 +452,126 @@ describe('analytics/filters', () => {
       expect(sql).toContain('browser = {p_0:String}');
       expect(sql).toContain('country = {p_1:String}');
       expect(sql).toContain('AND');
+    });
+  });
+
+  describe('JSON key validation', () => {
+    test('rejects keys containing single quotes', () => {
+      expect(() => propertyFilter({
+        property: "properties.key'OR 1=1--",
+        operator: 'eq',
+        value: 'test',
+      })).toThrow('Invalid JSON key segment');
+    });
+
+    test('rejects keys containing semicolons', () => {
+      expect(() => propertyFilter({
+        property: 'properties.key;DROP TABLE events',
+        operator: 'eq',
+        value: 'test',
+      })).toThrow('Invalid JSON key segment');
+    });
+
+    test('rejects keys containing parentheses', () => {
+      expect(() => propertyFilter({
+        property: 'properties.key()',
+        operator: 'eq',
+        value: 'test',
+      })).toThrow('Invalid JSON key segment');
+    });
+
+    test('rejects keys containing spaces', () => {
+      expect(() => propertyFilter({
+        property: 'properties.key name',
+        operator: 'eq',
+        value: 'test',
+      })).toThrow('Invalid JSON key segment');
+    });
+
+    test('allows alphanumeric keys with underscores and hyphens', () => {
+      expect(() => propertyFilter({
+        property: 'properties.my_key-123',
+        operator: 'eq',
+        value: 'test',
+      })).not.toThrow();
+    });
+  });
+
+  describe('cohortFilter', () => {
+    test('empty inputs returns undefined', () => {
+      expect(cohortFilter(undefined, 'pid')).toBeUndefined();
+      expect(cohortFilter([], 'pid')).toBeUndefined();
+    });
+
+    test('materialized cohort generates IN subquery with params in AST', () => {
+      const inputs: CohortFilterInputLike[] = [{
+        cohort_id: 'cohort-1',
+        definition: {},
+        materialized: true,
+        is_static: false,
+      }];
+      const expr = cohortFilter(inputs, 'project-1');
+      expect(expr).toBeDefined();
+
+      // Compile it and verify cohort params flow through
+      const { sql, params } = compileWhere(expr!);
+      expect(sql).toContain('cohort_members');
+      expect(sql).toContain('{coh_mid_0:UUID}');
+      expect(params.coh_mid_0).toBe('cohort-1');
+      expect(params.project_id).toBe('project-1');
+    });
+
+    test('static cohort generates IN subquery with person_static_cohort', () => {
+      const inputs: CohortFilterInputLike[] = [{
+        cohort_id: 'cohort-static-1',
+        definition: {},
+        materialized: false,
+        is_static: true,
+      }];
+      const expr = cohortFilter(inputs, 'project-1');
+      expect(expr).toBeDefined();
+
+      const { sql, params } = compileWhere(expr!);
+      expect(sql).toContain('person_static_cohort');
+      expect(sql).toContain('{coh_sid_0:UUID}');
+      expect(params.coh_sid_0).toBe('cohort-static-1');
+      expect(params.project_id).toBe('project-1');
+    });
+  });
+
+  describe('analyticsWhere with cohortFilters', () => {
+    test('cohort params are included in compiled params', () => {
+      const expr = analyticsWhere({
+        projectId: 'pid-123',
+        from: '2026-01-01',
+        to: '2026-01-31',
+        cohortFilters: [{
+          cohort_id: 'cohort-abc',
+          definition: {},
+          materialized: true,
+          is_static: false,
+        }],
+      });
+      const { sql, params } = compileWhere(expr);
+      // Standard analytics params
+      expect(params.p_0).toBe('pid-123');
+      // Cohort params must be present (not lost)
+      expect(params.coh_mid_0).toBe('cohort-abc');
+      expect(params.project_id).toBe('pid-123');
+      expect(sql).toContain('cohort_members');
+    });
+
+    test('works without cohortFilters', () => {
+      const expr = analyticsWhere({
+        projectId: 'pid-123',
+        from: '2026-01-01',
+        to: '2026-01-31',
+      });
+      const { sql, params } = compileWhere(expr);
+      expect(sql).toContain('project_id = {p_0:UUID}');
+      expect(params.p_0).toBe('pid-123');
+      // No cohort params
+      expect(params.coh_mid_0).toBeUndefined();
     });
   });
 

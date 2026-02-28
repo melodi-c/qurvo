@@ -13,6 +13,7 @@ import type {
   ParamExpr,
   QueryNode,
   RawExpr,
+  RawWithParamsExpr,
   SelectNode,
   SubqueryExpr,
   UnionAllNode,
@@ -46,6 +47,15 @@ export function param(chType: string, value: unknown): WithAlias<ParamExpr> {
 
 export function raw(sql: string): WithAlias<RawExpr> {
   return withAlias({ type: 'raw', sql });
+}
+
+/**
+ * Raw SQL with pre-named ClickHouse parameters.
+ * The params will be merged into the compilation context when compiled.
+ * Used for escape-hatch integrations where external code builds SQL with {name:Type} placeholders.
+ */
+export function rawWithParams(sql: string, params: Record<string, unknown>): WithAlias<RawWithParamsExpr> {
+  return withAlias({ type: 'raw_with_params', sql, params });
 }
 
 export function func(name: string, ...args: Expr[]): WithAlias<FuncCallExpr> {

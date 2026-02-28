@@ -27,6 +27,11 @@ class CompilerContext {
     return `{${name}:${chType}}`;
   }
 
+  /** Merge pre-named params (e.g. from RawWithParamsExpr) into the context */
+  mergeParams(params: Record<string, unknown>): void {
+    Object.assign(this.params, params);
+  }
+
   getParams(): Record<string, unknown> {
     return { ...this.params };
   }
@@ -125,6 +130,9 @@ function compileExpr(expr: Expr, ctx: CompilerContext): string {
     case 'param':
       return ctx.addParam(expr.value, expr.chType);
     case 'raw':
+      return expr.sql;
+    case 'raw_with_params':
+      ctx.mergeParams(expr.params);
       return expr.sql;
     case 'func':
       return compileFuncCall(expr, ctx);

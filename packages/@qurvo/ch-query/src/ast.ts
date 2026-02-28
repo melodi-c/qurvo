@@ -23,6 +23,18 @@ export interface RawExpr {
   sql: string;
 }
 
+/**
+ * Raw SQL with embedded named parameters.
+ * Used for escape-hatch integrations (e.g. cohort-query) where the SQL string
+ * contains ClickHouse {name:Type} placeholders and the corresponding values
+ * must be passed through the compilation pipeline.
+ */
+export interface RawWithParamsExpr {
+  type: 'raw_with_params';
+  sql: string;
+  params: Record<string, unknown>;
+}
+
 export interface FuncCallExpr {
   type: 'func';
   name: string;
@@ -95,6 +107,7 @@ export type Expr =
   | LiteralExpr
   | ParamExpr
   | RawExpr
+  | RawWithParamsExpr
   | FuncCallExpr
   | AliasExpr
   | BinaryExpr

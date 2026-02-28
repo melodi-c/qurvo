@@ -11,6 +11,7 @@ import {
   or,
   param,
   raw,
+  rawWithParams,
 } from '../builders';
 import { timeRange } from './time';
 import { resolvedPerson } from './resolved-person';
@@ -39,11 +40,28 @@ export const DIRECT_COLUMNS = new Set([
 
 // ── Internal helpers ──
 
+/**
+ * Strict validation for JSON path key segments.
+ * Only allows alphanumeric characters, underscores, hyphens, and dots.
+ * Rejects any characters that could enable SQL injection (quotes, brackets, semicolons, etc).
+ */
+const SAFE_JSON_KEY_REGEX = /^[a-zA-Z0-9_\-.]+$/;
+
+function validateJsonKey(segment: string): void {
+  if (!SAFE_JSON_KEY_REGEX.test(segment)) {
+    throw new Error(
+      `Invalid JSON key segment: "${segment}". ` +
+      `Only alphanumeric characters, underscores, hyphens, and dots are allowed.`,
+    );
+  }
+}
+
 function escapeLikePattern(s: string): string {
   return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
 }
 
 function escapeJsonKey(segment: string): string {
+  validateJsonKey(segment);
   return segment.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
@@ -196,19 +214,15 @@ export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
  * Cohort filter: RESOLVED_PERSON IN (subquery).
  *
  * This is an escape-hatch adapter for @qurvo/cohort-query.
- * It calls buildCohortFilterClause() to get a SQL string, then wraps it in RawExpr.
- *
- * NOTE: cohortFilter() uses the legacy queryParams mutation pattern from
- * buildCohortFilterClause. The returned Expr is a RawExpr containing the full
- * SQL clause. The caller must pass the queryParams object to ClickHouse along
- * with the compiled query params.
+ * It calls buildCohortFilterClause() to get a SQL string, collects the params
+ * it populates, and wraps everything in a RawWithParamsExpr so the params
+ * flow through the AST compilation pipeline.
  *
  * Returns undefined if inputs is empty/undefined (allowing and() to skip it).
  */
 export function cohortFilter(
   inputs: CohortFilterInputLike[] | undefined,
   projectId: string,
-  queryParams: Record<string, unknown>,
   dateTo?: string,
   dateFrom?: string,
 ): Expr | undefined {
@@ -216,21 +230,27 @@ export function cohortFilter(
   // Dynamically import to avoid hard dependency at module level.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { buildCohortFilterClause } = require('@qurvo/cohort-query') as typeof import('@qurvo/cohort-query');
-  // Cast: CohortFilterInputLike is structurally compatible with CohortFilterInput
-  // but uses `unknown` for definition to avoid pulling @qurvo/db types into ch-query.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+  // Collect params populated by buildCohortFilterClause into a local object.
+  // These will be embedded into the RawWithParamsExpr and merged during compilation.
+  const cohortParams: Record<string, unknown> = {};
+  cohortParams['project_id'] = projectId;
+
+  // CohortFilterInputLike is structurally compatible with CohortFilterInput
+  // but uses `unknown` for the `definition` field to avoid pulling @qurvo/db
+  // types into ch-query. The cast is safe because buildCohortFilterClause only
+  // reads `definition` to pass it to buildCohortSubquery which handles unknown shapes.
+  type CohortFilterInput = Parameters<typeof buildCohortFilterClause>[0][number];
   const clause = buildCohortFilterClause(
-    inputs as any,
-    // We use a RawExpr for project_id, so pass a dummy param name --
-    // buildCohortFilterClause will reference {project_id:UUID} in its SQL
+    inputs as CohortFilterInput[],
     'project_id',
-    queryParams,
+    cohortParams,
     undefined,
     dateTo,
     dateFrom,
   );
   if (!clause) return undefined;
-  return raw(clause);
+  return rawWithParams(clause, cohortParams);
 }
 
 /**
@@ -255,6 +275,9 @@ export interface CohortFilterInputLike {
  *   [AND cohortClause]
  *
  * Returns: and(projectIs, timeRange, eventIs?, propertyFilters?, cohortFilter?)
+ *
+ * Cohort params are embedded in the AST via RawWithParamsExpr and flow through
+ * compile() automatically -- no external queryParams object needed.
  */
 export function analyticsWhere(opts: {
   projectId: string;
@@ -265,11 +288,9 @@ export function analyticsWhere(opts: {
   eventNames?: string[];
   filters?: PropertyFilter[];
   cohortFilters?: CohortFilterInputLike[];
-  queryParams?: Record<string, unknown>;
   dateTo?: string;
   dateFrom?: string;
 }): Expr {
-  const qp = opts.queryParams ?? {};
   return and(
     projectIs(opts.projectId),
     timeRange(opts.from, opts.to, opts.tz),
@@ -277,7 +298,7 @@ export function analyticsWhere(opts: {
     opts.eventNames?.length ? eventIn(opts.eventNames) : undefined,
     opts.filters?.length ? propertyFilters(opts.filters) : undefined,
     opts.cohortFilters?.length
-      ? cohortFilter(opts.cohortFilters, opts.projectId, qp, opts.dateTo, opts.dateFrom)
+      ? cohortFilter(opts.cohortFilters, opts.projectId, opts.dateTo, opts.dateFrom)
       : undefined,
   );
 }
