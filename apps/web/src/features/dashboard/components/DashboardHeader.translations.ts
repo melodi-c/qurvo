@@ -5,10 +5,12 @@ export default createTranslations({
     edit: 'Edit',
     cancel: 'Cancel',
     share: 'Share',
+    dashboardName: 'Dashboard name',
   },
   ru: {
     edit: 'Редактировать',
     cancel: 'Отмена',
     share: 'Поделиться',
+    dashboardName: 'Название дашборда',
   },
 });

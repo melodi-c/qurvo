@@ -42,9 +42,12 @@ export function PlainFunnel({ steps, compact, relative }: { steps: FunnelStepRes
               <div className="absolute inset-x-0 bottom-0 border-t border-border/50 pointer-events-none" />
 
               <div
-                className="relative z-10 flex items-end h-full cursor-default"
+                className="relative z-10 flex items-end h-full cursor-default outline-none"
+                tabIndex={0}
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(null)}
+                onFocus={() => setHovered(i)}
+                onBlur={() => setHovered(null)}
               >
                 {isHov && <BarTooltip step={step} stepConv={stepConvs[i]} />}
                 <Bar color={color} conversionRate={barRates[i]} width={bw} height={barH} hovered={isHov} />

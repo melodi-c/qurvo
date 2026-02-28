@@ -51,6 +51,7 @@ export function EditorHeader({
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder={placeholder}
+            aria-label={t('nameInput')}
             className="flex-1 bg-transparent text-base lg:text-sm font-medium outline-none placeholder:text-muted-foreground/40 min-w-0"
           />
         </nav>

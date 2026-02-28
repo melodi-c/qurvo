@@ -28,6 +28,7 @@ export function DashboardHeader() {
             <Input
               value={localName}
               onChange={(e) => setLocalName(e.target.value)}
+              aria-label={t('dashboardName')}
               className="text-base font-semibold h-auto py-1"
             />
           ) : (
