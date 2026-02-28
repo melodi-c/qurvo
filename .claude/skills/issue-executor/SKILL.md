@@ -384,10 +384,9 @@ prompt: |
   ISSUE_DATA_FILE: /tmp/claude-results/issue-<NUMBER>.json
   AFFECTED_APPS: <список>
   BASE_BRANCH: <ветка>
-  TEST_SUMMARY: <результаты тестов — passed/failed>
-  CHANGED_FILES_SUMMARY: <список изменённых файлов — 1-2 строки на файл>
   RESULT_FILE: <WORKTREE_PATH>/.claude/results/reviewer-<NUMBER>.json
 ```
+Ревьюер сам выполнит `git diff` в worktree — executor НЕ должен делать diff или собирать список файлов.
 
 **security-checker**:
 ```
