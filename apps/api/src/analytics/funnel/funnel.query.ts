@@ -4,7 +4,7 @@ import {
   select,
   col,
   raw,
-  rawWithParams,
+  count,
   countIf,
   avgIf,
   and,
@@ -14,7 +14,10 @@ import {
   notInSubquery,
   inSubquery,
   eq,
+  neq,
   literal,
+  subquery,
+  add,
   type Expr,
   type SelectNode,
   type CompiledQuery,
@@ -178,7 +181,7 @@ function buildFunnelQuery(
     countIf(gte(col('max_step'), col('step_num'))).as('entered'),
   );
   selectColumns.push(
-    countIf(gte(col('max_step'), raw('step_num + 1'))).as('next_step'),
+    countIf(gte(col('max_step'), add(col('step_num'), literal(1)))).as('next_step'),
   );
 
   // Time columns for avg_time_to_convert (only for non-breakdown).
@@ -188,8 +191,8 @@ function buildFunnelQuery(
         raw('(last_step_ms - first_step_ms) / 1000.0'),
         and(
           gte(col('max_step'), raw('{num_steps:UInt64}')),
-          gt(raw('first_step_ms'), literal(0)),
-          gt(col('last_step_ms'), raw('first_step_ms')),
+          gt(col('first_step_ms'), literal(0)),
+          gt(col('last_step_ms'), col('first_step_ms')),
         ),
       ).as('avg_time_seconds'),
     );
@@ -198,13 +201,13 @@ function buildFunnelQuery(
   // total_bd_count from breakdown_total CTE (for truncation detection)
   if (hasBreakdown) {
     selectColumns.push(
-      raw('(SELECT total FROM breakdown_total)').as('total_bd_count'),
+      subquery(select(col('total')).from('breakdown_total').build()).as('total_bd_count'),
     );
   }
 
   // Build the CROSS JOIN subquery for step numbers
   const stepsSubquery = select(
-    raw('number + 1').as('step_num'),
+    add(col('number'), literal(1)).as('step_num'),
   )
     .from('numbers({num_steps:UInt64})')
     .build();
@@ -273,7 +276,7 @@ function buildTopBreakdownCTEs(
   // Base conditions: max_step >= 1 and non-empty breakdown_value
   const baseConditions: Expr[] = [
     gte(col('max_step'), literal(1)),
-    raw("breakdown_value != ''"),
+    neq(col('breakdown_value'), literal('')),
   ];
 
   // Add exclusion filter if applicable
@@ -285,12 +288,12 @@ function buildTopBreakdownCTEs(
   // top_breakdown_values: top-N by count DESC
   const topCTE = select(
     col('breakdown_value'),
-    raw('count()').as('bd_count'),
+    count().as('bd_count'),
   )
     .from('funnel_per_user')
     .where(and(...baseConditions))
     .groupBy(col('breakdown_value'))
-    .orderBy(raw('bd_count'), 'DESC')
+    .orderBy(col('bd_count'), 'DESC')
     .limit(queryParams.breakdown_limit ?? MAX_BREAKDOWN_VALUES)
     .build();
 
@@ -302,7 +305,7 @@ function buildTopBreakdownCTEs(
     .build();
 
   const totalCTE = select(
-    raw('count()').as('total'),
+    count().as('total'),
   )
     .from(innerQuery)
     .build();

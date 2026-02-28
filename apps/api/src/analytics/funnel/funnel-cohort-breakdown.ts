@@ -11,6 +11,7 @@ import {
   gt,
   literal,
   notInSubquery,
+  add,
   type Expr,
 } from '@qurvo/ch-query';
 import type {
@@ -40,7 +41,7 @@ interface CohortBreakdownResult {
 function buildCohortFunnelCompiled(
   cteResult: { ctes: Array<{ name: string; query: import('@qurvo/ch-query').QueryNode }>; hasExclusions: boolean },
 ): { sql: string; params: Record<string, unknown> } {
-  const stepsSubquery = select(raw('number + 1').as('step_num'))
+  const stepsSubquery = select(add(col('number'), literal(1)).as('step_num'))
     .from('numbers({num_steps:UInt64})')
     .build();
 
@@ -53,13 +54,13 @@ function buildCohortFunnelCompiled(
   const builder = select(
     col('step_num'),
     countIf(gte(col('max_step'), col('step_num'))).as('entered'),
-    countIf(gte(col('max_step'), raw('step_num + 1'))).as('next_step'),
+    countIf(gte(col('max_step'), add(col('step_num'), literal(1)))).as('next_step'),
     avgIf(
       raw('(last_step_ms - first_step_ms) / 1000.0'),
       and(
         gte(col('max_step'), raw('{num_steps:UInt64}')),
-        gt(raw('first_step_ms'), literal(0)),
-        gt(col('last_step_ms'), raw('first_step_ms')),
+        gt(col('first_step_ms'), literal(0)),
+        gt(col('last_step_ms'), col('first_step_ms')),
       ),
     ).as('avg_time_seconds'),
   )
