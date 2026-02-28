@@ -173,6 +173,9 @@ export function useAiChat(projectId: string) {
   const isLoadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
 
+  // Abort any active SSE stream on unmount to prevent setState on unmounted component
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
+
   // Keep a ref in sync so sendMessage/editMessage can read it without stale closures
   useEffect(() => {
     conversationIdRef.current = state.conversationId;
