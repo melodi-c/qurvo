@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { StepFilterDto } from './shared/filters.dto';
 import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
@@ -90,6 +91,14 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
   @Type(() => WildcardGroupDto)
   @IsOptional()
   wildcard_groups?: WildcardGroupDto[];
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsOptional()
+  @Transform(makeJsonArrayTransform(StepFilterDto))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  event_filters?: StepFilterDto[];
 }
 
 export class PathTransitionDto {

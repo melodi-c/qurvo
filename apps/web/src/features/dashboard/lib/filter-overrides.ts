@@ -32,12 +32,15 @@ interface OverridableConfig {
   date_to?: string;
   series?: FilterableItem[];
   steps?: FilterableItem[];
+  /** Top-level filters for target-event widgets (retention, lifecycle, stickiness, paths) */
+  filters?: StepFilter[];
 }
 
 /**
  * Merges dashboard-level overrides into a widget config.
  * - Replaces date_from/date_to if the date override is set
- * - Appends property filters to each series/step filters array
+ * - Appends property filters to each series/step filters array (trend, funnel)
+ * - Appends property filters to top-level filters array (retention, lifecycle, stickiness, paths)
  */
 export function applyFilterOverrides<T extends OverridableConfig>(
   config: T,
@@ -45,15 +48,24 @@ export function applyFilterOverrides<T extends OverridableConfig>(
 ): T {
   if (!hasActiveOverrides(overrides)) {return config;}
 
+  const hasPropertyOverrides = overrides.propertyFilters.length > 0;
+  const hasSeries = !!config.series;
+  const hasSteps = !!config.steps;
+
   return {
     ...config,
     ...(config.date_from !== undefined && overrides.dateFrom && { date_from: overrides.dateFrom }),
     ...(config.date_to !== undefined && overrides.dateTo && { date_to: overrides.dateTo }),
-    ...(config.series && overrides.propertyFilters.length > 0 && {
-      series: appendFilters(config.series, overrides.propertyFilters),
+    ...(hasSeries && hasPropertyOverrides && {
+      series: appendFilters(config.series!, overrides.propertyFilters),
     }),
-    ...(config.steps && overrides.propertyFilters.length > 0 && {
-      steps: appendFilters(config.steps, overrides.propertyFilters),
+    ...(hasSteps && hasPropertyOverrides && {
+      steps: appendFilters(config.steps!, overrides.propertyFilters),
+    }),
+    // For target-event widgets (retention, lifecycle, stickiness, paths):
+    // append overrides to the top-level filters array when no series/steps exist
+    ...(!hasSeries && !hasSteps && hasPropertyOverrides && {
+      filters: [...(config.filters ?? []), ...overrides.propertyFilters],
     }),
   };
 }

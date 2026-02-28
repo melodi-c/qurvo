@@ -21,8 +21,10 @@ import {
   timeRange,
   resolvedPerson,
   cohortFilter,
+  propertyFilters,
   toChTs,
 } from '../query-helpers';
+import type { PropertyFilter } from '../query-helpers';
 import { MAX_PATH_NODES } from '../../constants';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -48,6 +50,7 @@ export interface PathsQueryParams {
   min_persons?: number;
   path_cleaning_rules?: PathCleaningRule[];
   wildcard_groups?: WildcardGroup[];
+  event_filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
 }
 
@@ -145,6 +148,7 @@ export async function queryPaths(
       params.exclusions?.length
         ? notInArray(raw('event_name'), param('Array(String)', params.exclusions))
         : undefined,
+      params.event_filters?.length ? propertyFilters(params.event_filters) : undefined,
       cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom),
     )
     .orderBy(col('pid'))

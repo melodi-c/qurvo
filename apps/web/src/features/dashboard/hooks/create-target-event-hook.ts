@@ -12,6 +12,12 @@ interface TargetEventHookOptions<Config extends BaseTargetEventConfig, Response 
   extraHash?: (config: Config) => Record<string, unknown>;
   /** Extra fields to include in the API params */
   extraParams?: (config: Config) => Partial<Params>;
+  /**
+   * Name of the API param for property filters.
+   * Retention uses 'filters', lifecycle/stickiness use 'event_filters'.
+   * @default 'event_filters'
+   */
+  filtersParamName?: string;
 }
 
 export function createTargetEventHook<
@@ -19,6 +25,8 @@ export function createTargetEventHook<
   Response extends CachedResponse,
   Params,
 >(options: TargetEventHookOptions<Config, Response, Params>) {
+  const filtersParam = options.filtersParamName ?? 'event_filters';
+
   return createWidgetDataHook<Config, Response, Params>({
     queryKeyPrefix: options.queryKeyPrefix,
     apiFn: options.apiFn,
@@ -28,6 +36,7 @@ export function createTargetEventHook<
         granularity: config.granularity,
         from: config.date_from,
         to: config.date_to,
+        filters: config.filters,
         cohort_ids: config.cohort_ids,
         ...options.extraHash?.(config),
       }),
@@ -41,6 +50,7 @@ export function createTargetEventHook<
       ...(timezone && timezone !== 'UTC' ? { timezone } : {}),
       ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
+      ...(config.filters?.length ? { [filtersParam]: config.filters } : {}),
       ...options.extraParams?.(config),
     } as Params),
   });
