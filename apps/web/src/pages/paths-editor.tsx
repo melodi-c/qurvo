@@ -25,7 +25,7 @@ export default function PathsEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton } = editor;
+    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const { data, isLoading, isFetching } = usePathsData(config, previewId);
   const result = data?.data;
@@ -79,6 +79,7 @@ export default function PathsEditorPage() {
       }
       onExportCsv={result ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
+      unsavedGuard={unsavedGuard}
     >
       <PathsChart
         transitions={transitions!}

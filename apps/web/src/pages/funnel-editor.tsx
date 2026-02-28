@@ -43,7 +43,7 @@ export default function FunnelEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton } = editor;
+    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const [viewMode, setViewMode] = useState<ViewMode>('conversion');
   const { fromStep, setFromStep, toStep, setToStep } = useTimeToConvertState(config.steps.length);
@@ -175,6 +175,7 @@ export default function FunnelEditorPage() {
       }
       onExportCsv={steps ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
+      unsavedGuard={unsavedGuard}
     >
       {isTimeToConvert ? (
         <>

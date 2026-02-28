@@ -6,6 +6,7 @@ import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectRole } from '@/hooks/use-project-role';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
 import { stripClientKeys } from '@/features/cohorts/utils/strip-client-keys';
 import translations from '@/pages/cohort-editor/cohort-editor.translations';
@@ -30,23 +31,46 @@ export function useCohortEditor() {
   const initialized = useRef(isNew);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Track initial state for isDirty computation
+  const initialState = useRef({
+    name: t('defaultName'),
+    description: '',
+    groups: JSON.stringify([createEmptyGroup()]),
+  });
+
   useEffect(() => {
     if (!initialized.current && existingCohort) {
       setName(existingCohort.name);
       setDescription(existingCohort.description ?? '');
       const rootGroup = existingCohort.definition as CohortConditionGroup;
+      let parsedGroups: CohortConditionGroup[];
       if (rootGroup.type === 'AND') {
-        setGroups([rootGroup]);
+        parsedGroups = [rootGroup];
       } else {
         const andGroups = rootGroup.values.map((v) => {
           if (isGroup(v)) return v;
           return { type: 'AND' as const, values: [v] };
         });
-        setGroups(andGroups.length > 0 ? andGroups : [createEmptyGroup()]);
+        parsedGroups = andGroups.length > 0 ? andGroups : [createEmptyGroup()];
       }
+      setGroups(parsedGroups);
+      initialState.current = {
+        name: existingCohort.name,
+        description: existingCohort.description ?? '',
+        groups: JSON.stringify(parsedGroups),
+      };
       initialized.current = true;
     }
   }, [existingCohort]);
+
+  const isDirty = useMemo(() => {
+    const initial = initialState.current;
+    if (name !== initial.name) return true;
+    if (description !== initial.description) return true;
+    return JSON.stringify(groups) !== initial.groups;
+  }, [name, description, groups]);
+
+  const unsavedGuard = useUnsavedChangesGuard(isDirty);
 
   const definition = useMemo((): CohortConditionGroup => {
     if (groups.length === 1) return groups[0];
@@ -97,11 +121,14 @@ export function useCohortEditor() {
         });
         toast.success(t('cohortUpdated'));
       }
+      // Mark current state as clean before navigating away
+      initialState.current = { name, description, groups: JSON.stringify(groups) };
+      unsavedGuard.markClean();
       go.cohorts.list();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t('saveFailed'));
     }
-  }, [name, description, definition, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t]);
+  }, [name, description, definition, groups, isNew, cohortId, isValid, isSaving, go, createMutation, updateMutation, t, unsavedGuard]);
 
   return {
     isNew,
@@ -126,5 +153,7 @@ export function useCohortEditor() {
     isValid,
     saveError,
     handleSave,
+    isDirty,
+    unsavedGuard,
   };
 }

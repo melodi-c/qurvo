@@ -26,7 +26,7 @@ export default function StickinessEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton } = editor;
+    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const { data, isLoading, isFetching } = useStickinessData(config, previewId);
   const result = data?.data;
@@ -77,6 +77,7 @@ export default function StickinessEditorPage() {
         </>
       }
       onExportCsv={result ? handleExportCsv : undefined}
+      unsavedGuard={unsavedGuard}
     >
       {result && <StickinessChart result={result} />}
     </InsightEditorLayout>

@@ -34,7 +34,7 @@ export default function TrendEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton } = editor;
+    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
   const result = data?.data;
@@ -122,6 +122,7 @@ export default function TrendEditorPage() {
       }
       onExportCsv={series ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
+      unsavedGuard={unsavedGuard}
     >
       <TrendChart
         series={series!}
