@@ -1,4 +1,4 @@
-import { rawWithParams, select, col, raw, type QueryNode } from '@qurvo/ch-query';
+import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -38,8 +38,8 @@ export interface OrderedCTEResult {
  * Builds the ordered/strict funnel CTEs using windowFunnel().
  *
  * Returns an array of named QueryNode CTEs that the caller attaches via .withAll().
- * Complex CTE bodies use rawWithParams() as the escape hatch for ClickHouse-specific
- * expressions (windowFunnel, arrayFilter, groupArrayIf).
+ * CTE bodies are built as raw SQL via rawWithParams() — windowFunnel(), arrayFilter(),
+ * and groupArrayIf() have no typed builder equivalents.
  */
 export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTEResult {
   const {
@@ -94,22 +94,19 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     // in raw CTE, then derive the correct first_step_ms in funnel_per_user.
     const winMs = `toInt64({window:UInt64}) * 1000`;
 
-    // funnel_raw CTE: aggregates per person with windowFunnel + timestamp arrays
-    const rawCteSql = `
+    // funnel_raw CTE: aggregates per person with windowFunnel + timestamp arrays.
+    // Built as raw SQL — windowFunnel() and groupArrayIf() have no builder equivalent.
+    const funnelRawNode = select(rawWithParams(`
               ${RESOLVED_PERSON} AS person_id,
               ${wfExpr} AS max_step${breakdownCol},
               groupArrayIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS t0_arr,
-              toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond})) AS last_step_ms${exclColumnsSQL}`;
-
-    const rawCteWhere = `
+              toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond})) AS last_step_ms${exclColumnsSQL}
+            FROM events
+            WHERE
               project_id = {project_id:UUID}
               AND timestamp >= ${fromExpr}
-              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}`;
-
-    const funnelRawNode = select(rawWithParams(rawCteSql, queryParams))
-      .from('events')
-      .where(rawWithParams(rawCteWhere, queryParams))
-      .groupBy(raw('person_id'))
+              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
+            GROUP BY person_id`, queryParams))
       .build();
 
     ctes.push({ name: 'funnel_raw', query: funnelRawNode });
@@ -129,14 +126,12 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
               toInt64(0)
             )`;
 
-    const funnelPerUserSql = `
+    const funnelPerUserNode = select(raw(`
               person_id,
               max_step${breakdownForward},
               ${firstStepMsExpr} AS first_step_ms,
-              last_step_ms${exclColsForward}`;
-
-    const funnelPerUserNode = select(raw(funnelPerUserSql))
-      .from('funnel_raw')
+              last_step_ms${exclColsForward}
+            FROM funnel_raw`))
       .build();
 
     ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
@@ -146,19 +141,16 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
       ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
       : '';
 
-    const singleCteSql = `
+    // Single CTE: built as raw SQL — windowFunnel() has no builder equivalent.
+    const funnelPerUserNode = select(rawWithParams(`
               ${RESOLVED_PERSON} AS person_id,
-              ${wfExpr} AS max_step${breakdownCol}${timestampCols}${exclColumnsSQL}`;
-
-    const singleCteWhere = `
+              ${wfExpr} AS max_step${breakdownCol}${timestampCols}${exclColumnsSQL}
+            FROM events
+            WHERE
               project_id = {project_id:UUID}
               AND timestamp >= ${fromExpr}
-              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}`;
-
-    const funnelPerUserNode = select(rawWithParams(singleCteSql, queryParams))
-      .from('events')
-      .where(rawWithParams(singleCteWhere, queryParams))
-      .groupBy(raw('person_id'))
+              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
+            GROUP BY person_id`, queryParams))
       .build();
 
     ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });

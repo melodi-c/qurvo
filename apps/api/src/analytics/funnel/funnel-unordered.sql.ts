@@ -1,4 +1,4 @@
-import { rawWithParams, select, col, raw, type QueryNode } from '@qurvo/ch-query';
+import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -40,7 +40,8 @@ export interface UnorderedCTEResult {
  *      (max_step, first_step_ms, last_step_ms, breakdown_value, excl arrays).
  *
  * Returns an array of named QueryNode CTEs that the caller attaches via .withAll().
- * Complex array lambda expressions use rawWithParams() as the escape hatch.
+ * CTE bodies are built as raw SQL via rawWithParams() — groupArrayIf(), arrayExists(),
+ * and array lambda expressions have no typed builder equivalents.
  */
 export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): UnorderedCTEResult {
   const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr } = options;
@@ -125,48 +126,41 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
-  // CTE 1: step_times — aggregates per person with groupArrayIf per step
-  const stepTimesCols = `
+  // CTE 1: step_times — aggregates per person with groupArrayIf per step.
+  // Built as raw SQL — groupArrayIf() has no builder equivalent.
+  const stepTimesNode = select(rawWithParams(`
         ${RESOLVED_PERSON} AS person_id,
-        ${groupArrayCols}${breakdownArrCol}${exclColsSQL}`;
-
-  const stepTimesWhere = `
+        ${groupArrayCols}${breakdownArrCol}${exclColsSQL}
+      FROM events
+      WHERE
         project_id = {project_id:UUID}
         AND timestamp >= ${fromExpr}
         AND timestamp <= ${toExpr}
-        AND event_name IN ({all_event_names:Array(String)})${cohortClause}${samplingClause}`;
-
-  const stepTimesNode = select(rawWithParams(stepTimesCols, queryParams))
-    .from('events')
-    .where(rawWithParams(stepTimesWhere, queryParams))
-    .groupBy(raw('person_id'))
+        AND event_name IN ({all_event_names:Array(String)})${cohortClause}${samplingClause}
+      GROUP BY person_id`, queryParams))
     .build();
 
   ctes.push({ name: 'step_times', query: stepTimesNode });
 
   // CTE 2: anchor_per_user — computes max_step and anchor_ms from arrays
-  const anchorCols = `
+  const anchorPerUserNode = select(raw(`
         person_id,
         toInt64(${maxStepExpr}) AS max_step,
         toInt64(${anchorMsExpr}) AS anchor_ms${breakdownArrForward}${exclColsForward},
-        ${steps.map((_, i) => `t${i}_arr`).join(', ')}`;
-
-  const anchorPerUserNode = select(raw(anchorCols))
-    .from('step_times')
-    .where(raw(anyStepNonEmpty))
+        ${steps.map((_, i) => `t${i}_arr`).join(', ')}
+      FROM step_times
+      WHERE ${anyStepNonEmpty}`))
     .build();
 
   ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });
 
   // CTE 3: funnel_per_user — final shape with resolved timestamps
-  const funnelPerUserCols = `
+  const funnelPerUserNode = select(raw(`
         person_id,
         max_step,
         anchor_ms AS first_step_ms,
-        toInt64(${lastStepMsExpr}) AS last_step_ms${breakdownValueExpr}${exclColsForward}`;
-
-  const funnelPerUserNode = select(raw(funnelPerUserCols))
-    .from('anchor_per_user')
+        toInt64(${lastStepMsExpr}) AS last_step_ms${breakdownValueExpr}${exclColsForward}
+      FROM anchor_per_user`))
     .build();
 
   ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
