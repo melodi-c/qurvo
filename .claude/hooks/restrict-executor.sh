@@ -22,32 +22,40 @@ fi
 # Прямые git-команды, которые меняют состояние рабочей копии.
 # Скрипты (.claude/scripts/) вызывают git внутри себя — хук видит
 # только top-level Bash command (bash merge-worktree.sh ...), не блокируя.
+#
+# GIT_OPTS учитывает флаги перед субкомандой (-C <path>, -c key=val,
+# --git-dir, --work-tree и т.д.), чтобы нельзя было обойти блокировку
+# через "git -C /path checkout ...".
 
 BLOCKED=""
 
+# Паттерн: git [произвольные флаги/аргументы]* <субкоманда>
+# Флаги git перед субкомандой: -C <path>, -c <key=val>, --git-dir=..., и т.д.
+GIT_OPTS='(\s+(-[Cc]\s+\S+|--git-dir(=\S+|\s+\S+)|--work-tree(=\S+|\s+\S+)|--namespace(=\S+|\s+\S+)|--bare|--no-pager|--no-replace-objects))*'
+
 # git checkout / switch (меняет HEAD — ломает worktree creation)
-if echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)git\s+(checkout|switch)\s'; then
+if echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+(checkout|switch)\s"; then
   BLOCKED="git checkout/switch — меняет HEAD, ломает создание worktree"
 
 # git cherry-pick (вносит коммиты вне контролируемого flow)
-elif echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)git\s+cherry-pick'; then
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+cherry-pick"; then
   BLOCKED="git cherry-pick — запрещён, используй solver для изменений"
 
 # git rebase (переписывает историю)
-elif echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)git\s+rebase'; then
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+rebase"; then
   BLOCKED="git rebase — запрещён для executor"
 
 # git merge (прямой, не через merge-worktree.sh)
-elif echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)git\s+merge\s' \
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+merge\s" \
   && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
   BLOCKED="git merge — используй merge-worktree.sh"
 
 # git reset --hard (теряет изменения)
-elif echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)git\s+reset\s+--hard'; then
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+reset\s+--hard"; then
   BLOCKED="git reset --hard — запрещён для executor"
 
 # git stash (скрывает состояние)
-elif echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)git\s+stash'; then
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+stash"; then
   BLOCKED="git stash — запрещён для executor"
 fi
 

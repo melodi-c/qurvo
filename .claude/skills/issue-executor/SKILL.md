@@ -627,8 +627,12 @@ prompt: |
 
 Если есть FAILED или NEEDS_INPUT — добавь рекомендации.
 
-Очисти state:
+Очисти worktrees, ветки и state:
 ```bash
+# Удалить оставшиеся worktrees + локальные/remote ветки (FAILED, BLOCKED, AUTO_MERGE=false)
+bash "$CLAUDE_PROJECT_DIR/.claude/scripts/cleanup-worktrees.sh" "$REPO_ROOT"
+
+# Удалить state и temp-файлы
 rm -f "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json"
 rm -rf /tmp/claude-results
 ```
