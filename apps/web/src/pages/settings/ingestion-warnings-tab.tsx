@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -39,7 +40,7 @@ export function IngestionWarningsTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
   const { data: warnings, isLoading, isError, refetch } = useIngestionWarnings(projectId);
 
-  const columns: Column<{ project_id: string; type: string; details: string; timestamp: string }>[] = [
+  const columns: Column<{ project_id: string; type: string; details: string; timestamp: string }>[] = useMemo(() => [
     {
       key: 'type',
       header: t('type'),
@@ -59,7 +60,7 @@ export function IngestionWarningsTab({ projectId }: { projectId: string }) {
         </span>
       ),
     },
-  ];
+  ], [t]);
 
   return (
     <div className="space-y-4 max-w-4xl">

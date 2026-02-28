@@ -1,11 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { api } from '@/api/client';
 
 export type FeedbackRating = 'positive' | 'negative';
 
 export function useAiMessageFeedback(messageId: string) {
-  const queryClient = useQueryClient();
-
   const submitMutation = useMutation({
     mutationFn: ({ rating, comment }: { rating: FeedbackRating; comment?: string }) =>
       api.aiControllerSubmitFeedback({ id: messageId }, { rating, comment }),

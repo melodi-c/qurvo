@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -43,7 +44,7 @@ export default function AdminProjectDetailPage() {
     onError: () => toast.error(t('planUpdateFailed')),
   });
 
-  const memberColumns: Column<AdminProjectMember>[] = [
+  const memberColumns: Column<AdminProjectMember>[] = useMemo(() => [
     {
       key: 'display_name',
       header: t('displayName'),
@@ -59,7 +60,7 @@ export default function AdminProjectDetailPage() {
       header: t('role'),
       render: (row) => <Badge variant="outline">{row.role}</Badge>,
     },
-  ];
+  ], [t]);
 
   if (isProjectLoading) {
     return (

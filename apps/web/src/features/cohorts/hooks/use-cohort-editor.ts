@@ -9,7 +9,7 @@ import { useProjectRole } from '@/hooks/use-project-role';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
 import { stripClientKeys } from '@/features/cohorts/utils/strip-client-keys';
-import translations from '@/pages/cohort-editor/cohort-editor.translations';
+import translations from './use-cohort-editor.translations';
 
 export function useCohortEditor() {
   const { t } = useLocalTranslation(translations);
