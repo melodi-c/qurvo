@@ -67,7 +67,7 @@ export function EventTable({
       {
         key: 'event',
         header: t('event'),
-        className: 'px-0 py-2.5',
+        className: 'px-0 py-2.5 max-w-0 w-full overflow-hidden',
         headerClassName: 'px-0',
         render: (row) => {
           const urlDisplay = (() => {
@@ -129,8 +129,8 @@ export function EventTable({
     cols.push({
       key: 'when',
       header: t('when'),
-      className: 'px-0 pr-4 py-2.5',
-      headerClassName: 'px-0 pr-4',
+      className: 'px-0 pr-4 py-2.5 whitespace-nowrap',
+      headerClassName: 'px-0 pr-4 whitespace-nowrap',
       render: (row) => (
         <span
           className="flex items-center text-xs text-muted-foreground tabular-nums"
