@@ -60,22 +60,13 @@ COPY . .
 # single stage means they are compiled exactly once regardless of how many app
 # stages are built in parallel, eliminating N-fold recompilation.
 #
-# Build order respects intra-package dependency graph:
-#   Level 0 (no @qurvo deps):   db, clickhouse, worker-core, distributed-lock,
-#                                heartbeat, ai-types
-#   Level 1 (depends on level 0): nestjs-infra (→ db, clickhouse),
-#                                  cohort-query (→ db)
+# turbo resolves the dependency graph automatically (dependsOn: ["^build"]).
+# Packages without a "build" script (tsconfig, eslint-config, testing) are
+# skipped. New packages are picked up without Dockerfile changes.
 # ==============================================================================
 FROM base AS packages-builder
 
-RUN pnpm --filter @qurvo/db build \
- && pnpm --filter @qurvo/clickhouse build \
- && pnpm --filter @qurvo/worker-core build \
- && pnpm --filter @qurvo/distributed-lock build \
- && pnpm --filter @qurvo/heartbeat build \
- && pnpm --filter @qurvo/ai-types build \
- && pnpm --filter @qurvo/nestjs-infra build \
- && pnpm --filter @qurvo/cohort-query build
+RUN pnpm turbo build --filter='./packages/@qurvo/*'
 
 # ==============================================================================
 # Stage: nestjs-builder — build target NestJS app only (packages already built)
