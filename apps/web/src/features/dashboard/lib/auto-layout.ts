@@ -29,14 +29,26 @@ export function computeAutoLayout(items: RglItem[]): RglItem[] {
     }
   };
 
+  const MAX_ROWS = 1000;
+
   return sorted.map((item) => {
-    for (let y = 0; ; y++) {
-      for (let x = 0; x <= COLS - item.w; x++) {
-        if (canPlace(x, y, item.w, item.h)) {
-          place(x, y, item.w, item.h);
-          return { ...item, x, y };
+    const w = Math.min(Math.max(item.w, 1), COLS);
+    const h = Math.max(item.h, 1);
+
+    for (let y = 0; y < MAX_ROWS; y++) {
+      for (let x = 0; x <= COLS - w; x++) {
+        if (canPlace(x, y, w, h)) {
+          place(x, y, w, h);
+          return { ...item, x, y, w, h };
         }
       }
     }
+
+    console.warn(
+      `[auto-layout] Could not place widget "${item.i}" (w=${item.w}, h=${item.h}) within ${MAX_ROWS} rows, placing at (0, ${grid.length})`,
+    );
+    const fallbackY = grid.length;
+    place(0, fallbackY, w, h);
+    return { ...item, x: 0, y: fallbackY, w, h };
   });
 }
