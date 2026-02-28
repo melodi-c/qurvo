@@ -89,3 +89,40 @@ export { select, unionAll, SelectBuilder } from './builders';
 
 // Analytics — domain helpers
 export * from './analytics';
+
+// Cohort — cohort query builder, validation, helpers
+// Note: selective re-exports to avoid name collisions with analytics module.
+// Consumers needing cohort-specific resolvePropertyExpr etc. import from '@qurvo/ch-query/cohort'
+// or from the '@qurvo/cohort-query' compat wrapper.
+export {
+  buildCohortSubquery,
+  buildCohortFilterClause,
+  extractCohortReferences,
+  detectCircularDependency,
+  countLeafConditions,
+  measureNestingDepth,
+  validateDefinitionComplexity,
+  MAX_TOTAL_CONDITIONS,
+  MAX_NESTING_DEPTH,
+  topologicalSortCohorts,
+  groupCohortsByLevel,
+  CohortQueryValidationError,
+  // Cohort-specific helpers (Expr-returning)
+  buildOperatorClause as cohortBuildOperatorClause,
+  buildEventFilterClauses as cohortBuildEventFilterClauses,
+  resolveDateTo as cohortResolveDateTo,
+  resolveDateFrom as cohortResolveDateFrom,
+  TOP_LEVEL_COLUMNS,
+} from './cohort';
+export type {
+  CohortForSort,
+  ToposortResult,
+  CohortFilterInput,
+  BuildContext,
+} from './cohort';
+// Re-export cohort's resolvePropertyExpr/resolveEventPropertyExpr under
+// namespaced names to avoid collision with analytics.resolvePropertyExpr:
+export {
+  resolvePropertyExpr as cohortResolvePropertyExpr,
+  resolveEventPropertyExpr as cohortResolveEventPropertyExpr,
+} from './cohort';

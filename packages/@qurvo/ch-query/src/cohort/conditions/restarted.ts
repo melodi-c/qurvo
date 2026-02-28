@@ -1,5 +1,5 @@
 import type { CohortRestartedPerformingCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClausesStr, resolveDateToStr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -22,8 +22,8 @@ export function buildRestartedPerformingSubquery(
   ctx.queryParams[recentPk] = cond.recent_window_days;
   ctx.queryParams[histPk] = cond.historical_window_days;
 
-  const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
-  const upperBound = resolveDateTo(ctx);
+  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const upperBound = resolveDateToStr(ctx);
 
   // 3-window approach: historical INTERSECT NOT gap INTERSECT recent
   // Persons who:

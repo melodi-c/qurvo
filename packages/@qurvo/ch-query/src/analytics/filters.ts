@@ -15,6 +15,8 @@ import {
 } from '../builders';
 import { timeRange } from './time';
 import { resolvedPerson } from './resolved-person';
+import { buildCohortFilterClause } from '../cohort/builder';
+import type { CohortFilterInput } from '../cohort/types';
 
 // ── Types ──
 
@@ -227,20 +229,15 @@ export function cohortFilter(
   dateFrom?: string,
 ): Expr | undefined {
   if (!inputs?.length) return undefined;
-  // Dynamically import to avoid hard dependency at module level.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { buildCohortFilterClause } = require('@qurvo/cohort-query') as typeof import('@qurvo/cohort-query');
 
   // Collect params populated by buildCohortFilterClause into a local object.
   // These will be embedded into the RawWithParamsExpr and merged during compilation.
   const cohortParams: Record<string, unknown> = {};
   cohortParams['project_id'] = projectId;
 
-  // CohortFilterInputLike is structurally compatible with CohortFilterInput
-  // but uses `unknown` for the `definition` field to avoid pulling @qurvo/db
-  // types into ch-query. The cast is safe because buildCohortFilterClause only
-  // reads `definition` to pass it to buildCohortSubquery which handles unknown shapes.
-  type CohortFilterInput = Parameters<typeof buildCohortFilterClause>[0][number];
+  // CohortFilterInputLike is structurally compatible with CohortFilterInput.
+  // The cast is safe because buildCohortFilterClause only reads `definition`
+  // to pass it to buildCohortSubquery which handles unknown shapes.
   const clause = buildCohortFilterClause(
     inputs as CohortFilterInput[],
     'project_id',

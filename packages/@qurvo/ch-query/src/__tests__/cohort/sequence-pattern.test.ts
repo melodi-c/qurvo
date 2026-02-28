@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildEventSequenceSubquery } from '../conditions/sequence';
-import { buildNotPerformedEventSequenceSubquery } from '../conditions/not-performed-sequence';
-import type { BuildContext } from '../types';
+import { buildEventSequenceSubquery } from '../../cohort/conditions/sequence';
+import { buildNotPerformedEventSequenceSubquery } from '../../cohort/conditions/not-performed-sequence';
+import type { BuildContext } from '../../cohort/types';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {
@@ -238,7 +238,7 @@ describe('buildNotPerformedEventSequenceSubquery — dateFrom/dateTo window', ()
     expect(sql).toContain('AND timestamp <= {coh_date_to:DateTime64(3)}');
   });
 
-  it('fixed-window mode (dateFrom + dateTo): uses dateFrom as lower bound', () => {
+  it('fixed-window mode (dateFrom + dateTo): uses two-window NOT IN approach', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
     const sql = buildNotPerformedEventSequenceSubquery(
       {
@@ -249,12 +249,16 @@ describe('buildNotPerformedEventSequenceSubquery — dateFrom/dateTo window', ()
       ctx,
     );
 
-    // Lower bound must be dateFrom, not a rolling expression
+    // Inner sequence check uses dateFrom as lower bound
     expect(sql).toContain('AND timestamp >= {coh_date_from:DateTime64(3)}');
     // Upper bound must be dateTo
     expect(sql).toContain('AND timestamp <= {coh_date_to:DateTime64(3)}');
-    // Must NOT use rolling window when dateFrom is present
-    expect(sql).not.toContain('- INTERVAL {coh_0_days:UInt32} DAY');
+    // Outer "active persons" scan still uses rolling window (wider scan
+    // discovers persons whose events are before dateFrom). The INTERVAL
+    // is present in the outer scan, and dateFrom in the inner scan.
+    expect(sql).toContain('- INTERVAL {coh_0_days:UInt32} DAY');
+    // Two-window approach uses NOT IN
+    expect(sql).toContain('NOT IN');
   });
 
   it('no dates (cohort-worker mode): uses now64(3) as both upper and rolling lower bound', () => {

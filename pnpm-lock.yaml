@@ -664,9 +664,9 @@ importers:
 
   packages/@qurvo/ch-query:
     dependencies:
-      '@qurvo/cohort-query':
+      '@qurvo/db':
         specifier: workspace:*
-        version: link:../cohort-query
+        version: link:../db
     devDependencies:
       '@qurvo/tsconfig':
         specifier: workspace:*
@@ -699,9 +699,9 @@ importers:
 
   packages/@qurvo/cohort-query:
     dependencies:
-      '@qurvo/db':
+      '@qurvo/ch-query':
         specifier: workspace:*
-        version: link:../db
+        version: link:../ch-query
     devDependencies:
       '@qurvo/tsconfig':
         specifier: workspace:*

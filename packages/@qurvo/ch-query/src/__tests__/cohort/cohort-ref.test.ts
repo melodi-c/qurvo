@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildCohortRefConditionSubquery } from '../conditions/cohort-ref';
-import type { BuildContext } from '../types';
+import { buildCohortRefConditionSubquery } from '../../cohort/conditions/cohort-ref';
+import type { BuildContext } from '../../cohort/types';
 import type { CohortCohortCondition } from '@qurvo/db';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
@@ -36,7 +36,7 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
     expect(sql).not.toContain('FROM events');
   });
 
-  it('negated (no dates): includes timestamp bounds using now64(3)', () => {
+  it('negated (no dates): upper bound is now64(3), no lower bound', () => {
     const ctx = makeCtx();
     const sql = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
 
@@ -45,17 +45,22 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
     // Must include NOT IN subquery against cohort_members
     expect(sql).toContain('NOT IN');
     expect(sql).toContain('cohort_members');
-    // Both timestamp bounds must be present (prevents full-history scan)
-    expect(sql).toContain('timestamp >= now64(3)');
+    // Upper bound must be present
     expect(sql).toContain('timestamp <= now64(3)');
+    // No lower bound when dateFrom is not set — all persons in the project
+    // must be considered (the old lowerBound ?? upperBound fallback created
+    // a degenerate [now, now] window that returned 0 persons).
+    expect(sql).not.toContain('timestamp >= now64(3)');
   });
 
-  it('negated with dateTo only: uses {coh_date_to:DateTime64(3)} for both bounds', () => {
+  it('negated with dateTo only: upper bound only, no lower bound', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59' });
     const sql = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
 
-    expect(sql).toContain('timestamp >= {coh_date_to:DateTime64(3)}');
+    // Upper bound must use dateTo
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
+    // No lower bound when only dateTo is set — "up to dateTo" semantics
+    expect(sql).not.toContain('timestamp >= {coh_date_to:DateTime64(3)}');
     // Param must be stored
     expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
   });

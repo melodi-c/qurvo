@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCohortSubquery } from '../builder';
+import { buildCohortSubquery } from '../../cohort/builder';
 import type { CohortConditionGroup } from '@qurvo/db';
 
 describe('buildCohortSubquery — empty group', () => {

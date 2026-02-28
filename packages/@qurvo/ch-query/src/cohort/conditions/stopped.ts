@@ -1,5 +1,5 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClausesStr, resolveDateToStr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -22,8 +22,8 @@ export function buildStoppedPerformingSubquery(
   ctx.queryParams[recentPk] = cond.recent_window_days;
   ctx.queryParams[histPk] = cond.historical_window_days;
 
-  const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
-  const upperBound = resolveDateTo(ctx);
+  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const upperBound = resolveDateToStr(ctx);
 
   // Historical performers NOT IN recent performers
   return `

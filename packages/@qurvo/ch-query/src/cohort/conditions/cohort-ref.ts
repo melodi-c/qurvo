@@ -1,5 +1,5 @@
 import type { CohortCohortCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom } from '../helpers';
+import { RESOLVED_PERSON, resolveDateToStr, resolveDateFromStr } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildCohortRefConditionSubquery(
@@ -19,8 +19,8 @@ export function buildCohortRefConditionSubquery(
     WHERE cohort_id = {${idPk}:UUID} AND project_id = {${ctx.projectIdParam}:UUID}`;
 
   if (cond.negated) {
-    const upperBound = resolveDateTo(ctx);
-    const lowerBound = resolveDateFrom(ctx);
+    const upperBound = resolveDateToStr(ctx);
+    const lowerBound = resolveDateFromStr(ctx);
     /**
      * Negated cohort-ref: return all persons in the project who are NOT members
      * of the referenced cohort.

@@ -1,5 +1,5 @@
 import type { CohortPerformedRegularlyCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClausesStr, resolveDateToStr } from '../helpers';
 import type { BuildContext } from '../types';
 
 function periodBucketExpr(periodType: 'day' | 'week' | 'month'): string {
@@ -24,9 +24,9 @@ export function buildPerformedRegularlySubquery(
   ctx.queryParams[windowPk] = cond.time_window_days;
   ctx.queryParams[minPk] = cond.min_periods;
 
-  const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const bucketExpr = periodBucketExpr(cond.period_type);
-  const upperBound = resolveDateTo(ctx);
+  const upperBound = resolveDateToStr(ctx);
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id

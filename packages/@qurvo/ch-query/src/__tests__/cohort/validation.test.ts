@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { detectCircularDependency } from '../validation';
+import { detectCircularDependency } from '../../cohort/validation';
 
 /**
  * Builds a simple CohortConditionGroup that references the given cohort IDs.

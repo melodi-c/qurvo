@@ -1,5 +1,5 @@
 import type { CohortNotPerformedEventCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, resolveEventPropertyExpr, buildOperatorClause, resolveDateTo, resolveDateFrom } from '../helpers';
+import { RESOLVED_PERSON, resolveEventPropertyExprStr, buildOperatorClauseStr, resolveDateToStr, resolveDateFromStr } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildNotPerformedEventSubquery(
@@ -19,13 +19,13 @@ export function buildNotPerformedEventSubquery(
     for (let i = 0; i < cond.event_filters.length; i++) {
       const f = cond.event_filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
-      const expr = resolveEventPropertyExpr(f.property);
-      countIfCond += ` AND ${buildOperatorClause(expr, f.operator, pk, ctx.queryParams, f.value, f.values)}`;
+      const expr = resolveEventPropertyExprStr(f.property);
+      countIfCond += ` AND ${buildOperatorClauseStr(expr, f.operator, pk, ctx.queryParams, f.value, f.values)}`;
     }
   }
 
-  const upperBound = resolveDateTo(ctx);
-  const lowerBound = resolveDateFrom(ctx);
+  const upperBound = resolveDateToStr(ctx);
+  const lowerBound = resolveDateFromStr(ctx);
 
   /**
    * Time-range semantics for the absence check:

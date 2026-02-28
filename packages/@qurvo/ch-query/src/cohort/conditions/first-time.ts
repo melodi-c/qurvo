@@ -1,5 +1,5 @@
 import type { CohortFirstTimeEventCondition } from '@qurvo/db';
-import { RESOLVED_PERSON, buildEventFilterClauses, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClausesStr, resolveDateToStr } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildFirstTimeEventSubquery(
@@ -13,9 +13,9 @@ export function buildFirstTimeEventSubquery(
   ctx.queryParams[eventPk] = cond.event_name;
   ctx.queryParams[daysPk] = cond.time_window_days;
 
-  const filterClause = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterClause = buildEventFilterClausesStr(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
 
-  const upperBound = resolveDateTo(ctx);
+  const upperBound = resolveDateToStr(ctx);
 
   return `
     SELECT ${RESOLVED_PERSON} AS person_id

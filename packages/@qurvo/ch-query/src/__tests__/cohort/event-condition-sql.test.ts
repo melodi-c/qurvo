@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildEventConditionSubquery } from '../conditions/event';
-import type { BuildContext } from '../types';
+import { buildEventConditionSubquery } from '../../cohort/conditions/event';
+import type { BuildContext } from '../../cohort/types';
 
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {
