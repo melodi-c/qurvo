@@ -1103,4 +1103,103 @@ describe('compiler', () => {
       expect(sql).toContain('EXCEPT');
     });
   });
+
+  describe('input validation (security)', () => {
+    describe('interval unit validation', () => {
+      test('rejects invalid interval unit', () => {
+        expect(() => {
+          const q = select(col('*'))
+            .from('events')
+            .where(gte(col('timestamp'), sub(raw('now()'), interval(1, 'DROP TABLE'))))
+            .build();
+          compile(q);
+        }).toThrow(/Invalid interval unit/);
+      });
+
+      test('rejects SQL injection in interval unit', () => {
+        expect(() => interval(1, "DAY; DROP TABLE events --")).toThrow(
+          /Invalid interval unit/,
+        );
+      });
+
+      test('accepts all valid interval units', () => {
+        for (const unit of ['SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR']) {
+          const { sql } = compileExprToSql(interval(1, unit));
+          expect(sql).toBe(`INTERVAL 1 ${unit}`);
+        }
+      });
+    });
+
+    describe('named parameter validation', () => {
+      test('rejects key with SQL injection', () => {
+        expect(() => namedParam('key}; DROP TABLE', 'String', 'val')).toThrow(
+          /Invalid named parameter key/,
+        );
+      });
+
+      test('rejects key starting with number', () => {
+        expect(() => namedParam('0key', 'String', 'val')).toThrow(
+          /Invalid named parameter key/,
+        );
+      });
+
+      test('rejects chType with SQL injection', () => {
+        expect(() => namedParam('key', 'String}; DROP TABLE', 'val')).toThrow(
+          /Invalid ClickHouse type/,
+        );
+      });
+
+      test('accepts valid key and chType', () => {
+        const np = namedParam('cohort_id', 'String', 'abc');
+        const { sql, params } = compileExprToSql(np);
+        expect(sql).toBe('{cohort_id:String}');
+        expect(params).toEqual({ cohort_id: 'abc' });
+      });
+
+      test('accepts parameterised chType like Array(String)', () => {
+        const np = namedParam('my_arr', 'Array(String)', ['a', 'b']);
+        const { sql } = compileExprToSql(np);
+        expect(sql).toBe('{my_arr:Array(String)}');
+      });
+
+      test('accepts parameterised chType like DateTime64(3)', () => {
+        const np = namedParam('ts', 'DateTime64(3)', '2024-01-01');
+        const { sql } = compileExprToSql(np);
+        expect(sql).toBe('{ts:DateTime64(3)}');
+      });
+    });
+
+    describe('lambda parameter validation', () => {
+      test('rejects lambda param with SQL injection', () => {
+        expect(() => lambda(['x -> 1; DROP'], gt(col('x'), literal(0)))).toThrow(
+          /Invalid lambda parameter name/,
+        );
+      });
+
+      test('rejects lambda param starting with number', () => {
+        expect(() => lambda(['1x'], gt(col('x'), literal(0)))).toThrow(
+          /Invalid lambda parameter name/,
+        );
+      });
+
+      test('rejects lambda param with spaces', () => {
+        expect(() => lambda(['x y'], gt(col('x'), literal(0)))).toThrow(
+          /Invalid lambda parameter name/,
+        );
+      });
+
+      test('accepts valid lambda params', () => {
+        const l = lambda(['x'], gt(col('x'), literal(0)));
+        const { sql } = compileExprToSql(func('arrayExists', l, col('arr')));
+        expect(sql).toContain('x -> x > 0');
+      });
+
+      test('accepts underscore-prefixed lambda params', () => {
+        const l = lambda(['_x', '__y'], add(col('_x'), col('__y')));
+        const { sql } = compileExprToSql(func('arrayMap', l, col('a'), col('b')));
+        expect(sql).toContain('(_x, __y) -> _x + __y');
+      });
+    });
+  });
+
 });

@@ -647,4 +647,52 @@ describe('builders', () => {
       expect(e.queries).toHaveLength(2);
     });
   });
+
+  describe('input validation (security)', () => {
+    test('lambda() rejects invalid param names', () => {
+      expect(() => lambda(['x; DROP TABLE'], gt(col('x'), literal(0)))).toThrow(
+        /Invalid lambda parameter name/,
+      );
+      expect(() => lambda([''], gt(col('x'), literal(0)))).toThrow(
+        /Invalid lambda parameter name/,
+      );
+    });
+
+    test('lambda() accepts valid param names', () => {
+      expect(() => lambda(['x'], gt(col('x'), literal(0)))).not.toThrow();
+      expect(() => lambda(['_x', 'y_1', 'ABC'], gt(col('x'), literal(0)))).not.toThrow();
+    });
+
+    test('interval() rejects invalid units', () => {
+      expect(() => interval(1, 'INVALID')).toThrow(/Invalid interval unit/);
+      expect(() => interval(1, '')).toThrow(/Invalid interval unit/);
+      expect(() => interval(1, 'day')).toThrow(/Invalid interval unit/); // case-sensitive
+    });
+
+    test('interval() accepts all valid units', () => {
+      for (const unit of ['SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR']) {
+        expect(() => interval(1, unit)).not.toThrow();
+      }
+    });
+
+    test('namedParam() rejects invalid key', () => {
+      expect(() => namedParam('', 'String', 'v')).toThrow(/Invalid named parameter key/);
+      expect(() => namedParam('a b', 'String', 'v')).toThrow(/Invalid named parameter key/);
+      expect(() => namedParam('key}', 'String', 'v')).toThrow(/Invalid named parameter key/);
+    });
+
+    test('namedParam() rejects invalid chType', () => {
+      expect(() => namedParam('key', '', 'v')).toThrow(/Invalid ClickHouse type/);
+      expect(() => namedParam('key', 'String}', 'v')).toThrow(/Invalid ClickHouse type/);
+      expect(() => namedParam('key', 'Type(a}{b)', 'v')).toThrow(/Invalid ClickHouse type/);
+    });
+
+    test('namedParam() accepts valid types', () => {
+      expect(() => namedParam('k', 'String', 'v')).not.toThrow();
+      expect(() => namedParam('k', 'Array(String)', 'v')).not.toThrow();
+      expect(() => namedParam('k', 'DateTime64(3)', 'v')).not.toThrow();
+      expect(() => namedParam('k', 'Nullable(UInt64)', 'v')).not.toThrow();
+    });
+  });
+
 });

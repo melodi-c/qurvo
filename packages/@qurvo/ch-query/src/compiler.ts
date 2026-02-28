@@ -42,6 +42,22 @@ export class CompilerContext {
   }
 }
 
+// ── Validation helpers ──
+
+const VALID_INTERVAL_UNITS = new Set([
+  'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR',
+]);
+
+/** Only alphanumeric + underscore, must start with a letter or underscore */
+const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
+ * ClickHouse type names: alphanumeric, underscore, and parentheses for
+ * parameterised types like Array(String), Nullable(UInt64), DateTime64(3).
+ * Also allows commas and spaces inside parens for multi-param types.
+ */
+const CH_TYPE_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/;
+
 // ── Expression compiler ──
 
 function compileLiteral(value: string | number | boolean): string {
@@ -92,6 +108,13 @@ function compileParametricFuncCall(expr: ParametricFuncCallExpr, ctx: CompilerCo
 }
 
 function compileLambda(expr: LambdaExpr, ctx: CompilerContext): string {
+  for (const p of expr.params) {
+    if (!IDENTIFIER_RE.test(p)) {
+      throw new Error(
+        `Invalid lambda parameter name: "${p}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`,
+      );
+    }
+  }
   const body = compileExpr(expr.body, ctx);
   if (expr.params.length === 1) {
     return `${expr.params[0]} -> ${body}`;
@@ -100,10 +123,25 @@ function compileLambda(expr: LambdaExpr, ctx: CompilerContext): string {
 }
 
 function compileInterval(expr: IntervalExpr): string {
+  if (!VALID_INTERVAL_UNITS.has(expr.unit)) {
+    throw new Error(
+      `Invalid interval unit: "${expr.unit}". Allowed units: ${[...VALID_INTERVAL_UNITS].join(', ')}.`,
+    );
+  }
   return `INTERVAL ${expr.value} ${expr.unit}`;
 }
 
 function compileNamedParam(expr: NamedParamExpr, ctx: CompilerContext): string {
+  if (!IDENTIFIER_RE.test(expr.key)) {
+    throw new Error(
+      `Invalid named parameter key: "${expr.key}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`,
+    );
+  }
+  if (!CH_TYPE_RE.test(expr.chType)) {
+    throw new Error(
+      `Invalid ClickHouse type: "${expr.chType}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/.`,
+    );
+  }
   ctx.mergeParams({ [expr.key]: expr.value });
   return `{${expr.key}:${expr.chType}}`;
 }

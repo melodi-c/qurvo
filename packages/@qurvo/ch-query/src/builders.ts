@@ -24,6 +24,15 @@ import type {
   UnionAllNode,
 } from './ast';
 
+// ── Validation helpers (shared with compiler.ts — duplicated to keep builders zero-dep on compiler) ──
+
+const VALID_INTERVAL_UNITS = new Set([
+  'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR',
+]);
+
+const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const CH_TYPE_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/;
+
 // ── Alias helper ──
 
 type WithAlias<T extends Expr> = T & { as(alias: string): AliasExpr };
@@ -101,11 +110,23 @@ export function parametricFunc(
  * lambda(['x', 'y'], body) → (x, y) -> body
  */
 export function lambda(params: string[], body: Expr): LambdaExpr {
+  for (const p of params) {
+    if (!IDENTIFIER_RE.test(p)) {
+      throw new Error(
+        `Invalid lambda parameter name: "${p}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`,
+      );
+    }
+  }
   return { type: 'lambda', params, body };
 }
 
 /** INTERVAL N UNIT — e.g. interval(7, 'DAY') → INTERVAL 7 DAY */
 export function interval(value: number, unit: string): WithAlias<IntervalExpr> {
+  if (!VALID_INTERVAL_UNITS.has(unit)) {
+    throw new Error(
+      `Invalid interval unit: "${unit}". Allowed units: ${[...VALID_INTERVAL_UNITS].join(', ')}.`,
+    );
+  }
   return withAlias({ type: 'interval', value, unit });
 }
 
@@ -115,6 +136,16 @@ export function interval(value: number, unit: string): WithAlias<IntervalExpr> {
  * Useful for cohort builders and other cases where param names must be stable.
  */
 export function namedParam(key: string, chType: string, value: unknown): WithAlias<NamedParamExpr> {
+  if (!IDENTIFIER_RE.test(key)) {
+    throw new Error(
+      `Invalid named parameter key: "${key}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/.`,
+    );
+  }
+  if (!CH_TYPE_RE.test(chType)) {
+    throw new Error(
+      `Invalid ClickHouse type: "${chType}". Must match /^[a-zA-Z_][a-zA-Z0-9_]*(\\([a-zA-Z0-9_, ]*\\))?$/.`,
+    );
+  }
   return withAlias({ type: 'named_param', key, chType, value });
 }
 
