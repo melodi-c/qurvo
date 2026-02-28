@@ -270,3 +270,27 @@ export function compile(node: QueryNode): CompiledQuery {
   const sql = compileQuery(node, ctx);
   return { sql, params: ctx.getParams() };
 }
+
+/**
+ * Compile a standalone Expr to a SQL string and collect its params.
+ *
+ * This is a bridge for code that still builds raw SQL strings (e.g. funnel CTEs)
+ * but wants to use ch-query Expr nodes for individual clauses (property filters,
+ * cohort filters, resolvePropertyExpr, etc.).
+ *
+ * An optional `targetParams` object can be passed to merge the compiled params into
+ * (avoids the caller having to do `Object.assign` manually). The params are also
+ * returned in the result.
+ */
+export function compileExprToSql(
+  expr: Expr,
+  targetParams?: Record<string, unknown>,
+): { sql: string; params: Record<string, unknown> } {
+  const ctx = new CompilerContext();
+  const sql = compileExpr(expr, ctx);
+  const params = ctx.getParams();
+  if (targetParams) {
+    Object.assign(targetParams, params);
+  }
+  return { sql, params };
+}

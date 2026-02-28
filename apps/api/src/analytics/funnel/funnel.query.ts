@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
   compile,
+  compileExprToSql,
   select,
   col,
   raw,
@@ -18,11 +19,12 @@ import {
   literal,
   subquery,
   add,
+  resolvePropertyExpr,
+  cohortFilter,
   type Expr,
   type SelectNode,
   type CompiledQuery,
 } from '@qurvo/ch-query';
-import { resolvePropertyExpr } from '../../utils/property-filter';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
@@ -46,7 +48,6 @@ import {
   type RawFunnelRow,
   type RawBreakdownRow,
 } from './funnel-results';
-import { buildCohortClause } from '../../utils/clickhouse-helpers';
 
 // Re-export public API for consumers (funnel.service.ts, integration tests, etc.)
 export * from './funnel.types';
@@ -72,7 +73,8 @@ export async function queryFunnel(
   const queryParams = buildBaseQueryParams(params, allEventNames);
   const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams)).join(', ');
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams).sql : '';
   // Raw sampling clause for CTE body builders (string-based escape hatch)
   const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
   // Mirror the same guard used in buildSamplingClause: sampling is active only when
@@ -106,7 +108,7 @@ export async function queryFunnel(
   // ── Property breakdown funnel ───────────────────────────────────────────
   const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
   queryParams.breakdown_limit = breakdownLimit;
-  const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
+  const breakdownExpr = compileExprToSql(resolvePropertyExpr(params.breakdown_property)).sql;
   const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams, breakdownExpr);
   const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();

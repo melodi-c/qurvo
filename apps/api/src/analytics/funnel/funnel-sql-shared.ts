@@ -6,10 +6,11 @@ import {
   raw,
   select,
   col,
+  compileExprToSql,
+  propertyFilters,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
-import { buildPropertyFilterConditions } from '../../utils/property-filter';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
 
 export { RESOLVED_PERSON, toChTs };
@@ -122,16 +123,16 @@ export function buildStepCondition(
   idx: number,
   queryParams: FunnelChQueryParams,
 ): string {
-  const filterParts = buildPropertyFilterConditions(
-    step.filters ?? [],
-    `step_${idx}`,
-    queryParams,
-  );
   const names = resolveStepEventNames(step);
   const eventCond = names.length === 1
     ? `event_name = {step_${idx}:String}`
     : `event_name IN ({step_${idx}_names:Array(String)})`;
-  return [eventCond, ...filterParts].join(' AND ');
+
+  const filtersExpr = propertyFilters(step.filters ?? []);
+  if (!filtersExpr) return eventCond;
+
+  const { sql: filterSql } = compileExprToSql(filtersExpr, queryParams);
+  return `${eventCond} AND ${filterSql}`;
 }
 
 /** Collects all unique event names across steps and exclusions. */
@@ -276,12 +277,12 @@ export function buildExclusionColumns(
       toCond = `event_name IN ({excl_${i}_to_step_names:Array(String)})`;
     }
 
-    const exclFilterParts = buildPropertyFilterConditions(
-      excl.filters ?? [],
-      `excl_${i}_excl`,
-      queryParams,
-    );
-    const exclCond = [`event_name = {excl_${i}_name:String}`, ...exclFilterParts].join(' AND ');
+    const exclFiltersExpr = propertyFilters(excl.filters ?? []);
+    let exclCond = `event_name = {excl_${i}_name:String}`;
+    if (exclFiltersExpr) {
+      const { sql: exclFilterSql } = compileExprToSql(exclFiltersExpr, queryParams);
+      exclCond += ` AND ${exclFilterSql}`;
+    }
 
     lines.push(
       `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${fromCond}) AS excl_${i}_from_arr`,

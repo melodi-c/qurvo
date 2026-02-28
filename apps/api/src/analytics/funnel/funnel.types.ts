@@ -1,6 +1,6 @@
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
-import type { PropertyFilter } from '../../utils/property-filter';
+import type { PropertyFilter } from '@qurvo/ch-query';
 
 // ── Step / Exclusion types ───────────────────────────────────────────────────
 

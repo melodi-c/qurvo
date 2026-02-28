@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { compileExprToSql, cohortFilter } from '@qurvo/ch-query';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import { buildCohortClause } from '../../utils/clickhouse-helpers';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -112,7 +112,8 @@ export async function queryFunnelTimeToConvert(
     }
   });
 
-  const cohortClause = buildCohortClause(params.cohort_filters, 'project_id', queryParams, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, toChTs(params.date_to, true), toChTs(params.date_from));
+  const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams).sql : '';
 
   const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
 
