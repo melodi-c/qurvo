@@ -7,52 +7,45 @@ import { routes } from '@/lib/routes';
 // Type helpers — strip the first (projectId) argument from route functions
 // ---------------------------------------------------------------------------
 
-type DropFirst<T extends unknown[]> = T extends [unknown, ...infer Rest] ? Rest : never;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CurriedRoutes<T> = {
+type CurriedRoutes<T, R> = {
   [K in keyof T]: T[K] extends (...args: infer A) => string
     ? A extends [string, ...infer Rest]
-      ? (...args: Rest) => string
-      : () => string
+      ? (...args: Rest) => R
+      : () => R
     : T[K] extends Record<string, unknown>
-      ? CurriedRoutes<T[K]>
-      : never;
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type NavigatingRoutes<T> = {
-  [K in keyof T]: T[K] extends (...args: infer A) => string
-    ? A extends [string, ...infer Rest]
-      ? (...args: Rest) => void
-      : () => void
-    : T[K] extends Record<string, unknown>
-      ? NavigatingRoutes<T[K]>
+      ? CurriedRoutes<T[K], R>
       : never;
 };
 
 // ---------------------------------------------------------------------------
-// Helper: recursively wrap route functions, auto-prepending projectId
+// Helper: recursively wrap route functions, auto-prepending projectId.
+// The runtime obj is always a plain object with function/object leaves,
+// but TypeScript cannot narrow `typeof routes` structurally inside a loop.
+// We keep the internal casts minimal — only at property access boundaries.
 // ---------------------------------------------------------------------------
 
-function curriedRoutes<R>(
-  obj: Record<string, unknown>,
+function curryRoutes<R>(
+  obj: typeof routes,
   projectId: string,
   transform: (path: string) => R,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const key of Object.keys(obj)) {
-    const value = obj[key];
-    if (typeof value === 'function') {
-      result[key] = (...args: unknown[]) => {
-        const path = (value as (...a: unknown[]) => string)(projectId, ...args);
-        return transform(path);
-      };
-    } else if (typeof value === 'object' && value !== null) {
-      result[key] = curriedRoutes(value as Record<string, unknown>, projectId, transform);
+): CurriedRoutes<typeof routes, R> {
+  const rec = (node: Record<string, unknown>): Record<string, unknown> => {
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(node)) {
+      const value = node[key];
+      if (typeof value === 'function') {
+        result[key] = (...args: unknown[]) => {
+          const path = (value as (...a: unknown[]) => string)(projectId, ...args);
+          return transform(path);
+        };
+      } else if (typeof value === 'object' && value !== null) {
+        result[key] = rec(value as Record<string, unknown>);
+      }
     }
-  }
-  return result;
+    return result;
+  };
+  // routes is structurally Record<string, fn | object> at runtime
+  return rec(obj as Record<string, unknown>) as CurriedRoutes<typeof routes, R>;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,24 +60,14 @@ export function useAppNavigate() {
    *  Usage: go.dashboards.list()  →  navigate('/projects/<id>/dashboards')
    *         go.insights.detailByType(type, insightId)  */
   const go = useMemo(
-    () =>
-      curriedRoutes(
-        routes as unknown as Record<string, unknown>,
-        projectId,
-        (path) => navigate(path),
-      ) as NavigatingRoutes<typeof routes>,
+    () => curryRoutes(routes, projectId, (path) => navigate(path)),
     [navigate, projectId],
   );
 
   /** Build link URL with projectId auto-prepended.
    *  Usage: <Link to={link.dashboards.detail(id)} /> */
   const link = useMemo(
-    () =>
-      curriedRoutes(
-        routes as unknown as Record<string, unknown>,
-        projectId,
-        (path) => path,
-      ) as CurriedRoutes<typeof routes>,
+    () => curryRoutes(routes, projectId, (path) => path),
     [projectId],
   );
 

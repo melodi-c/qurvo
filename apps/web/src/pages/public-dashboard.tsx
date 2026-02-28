@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { LayoutDashboard, LinkIcon, FileQuestion } from 'lucide-react';
 import { apiClient } from '@/api/client';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -55,7 +56,7 @@ export default function PublicDashboardPage() {
   const isExpiredOrNotFound = isError;
 
   // Detect 404 vs other errors
-  const is404 = isError && (error as { status?: number })?.status === 404;
+  const is404 = isError && error instanceof AxiosError && error.response?.status === 404;
 
   return (
     <div className="min-h-screen bg-background">
