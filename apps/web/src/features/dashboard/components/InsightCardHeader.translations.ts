@@ -10,6 +10,7 @@ export default createTranslations({
     lifecycle: 'Lifecycle',
     stickiness: 'Stickiness',
     paths: 'Paths',
+    toggleDetails: 'Toggle details',
   },
   ru: {
     untitled: 'Без названия',
@@ -20,5 +21,6 @@ export default createTranslations({
     lifecycle: 'Жизненный цикл',
     stickiness: 'Вовлечённость',
     paths: 'Пути',
+    toggleDetails: 'Показать/скрыть детали',
   },
 });

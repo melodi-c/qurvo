@@ -53,6 +53,7 @@ export function StepFilterRow({ filter, onChange, onRemove, propertyNames, prope
         <button
           type="button"
           onClick={onRemove}
+          aria-label={t('removeFilter')}
           className="flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground/50 transition-colors hover:text-destructive"
         >
           <X className="h-3 w-3" />

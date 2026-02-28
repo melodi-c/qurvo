@@ -25,6 +25,7 @@ export default createTranslations({
     aiMessagesUsed: 'AI messages used',
     aiMessagesUnlimited: 'Unlimited',
     aiMessagesTooltip: 'Each request counts as one AI message: manual queries in the AI chat, scheduled job executions, and automated insight detections.',
+    usageProgress: 'Event usage progress',
   },
   ru: {
     selectProject: 'Выберите проект для просмотра тарифа',
@@ -50,5 +51,6 @@ export default createTranslations({
     aiMessagesUsed: 'AI-сообщений использовано',
     aiMessagesUnlimited: 'Без ограничений',
     aiMessagesTooltip: 'Каждый запрос считается одним AI-сообщением: ручные запросы в AI-чате, запуски scheduled jobs и автоматическое обнаружение инсайтов.',
+    usageProgress: 'Прогресс использования событий',
   },
 });

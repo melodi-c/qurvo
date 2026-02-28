@@ -14,11 +14,13 @@ interface TabNavProps<T extends string> {
 
 export function TabNav<T extends string>({ tabs, value, onChange, className }: TabNavProps<T>) {
   return (
-    <div className={cn('flex gap-1 border-b border-border', className)}>
+    <div role="tablist" className={cn('flex gap-1 border-b border-border', className)}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
+          role="tab"
+          aria-selected={value === tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
             'relative px-3 py-2 text-sm font-medium transition-colors -mb-px',

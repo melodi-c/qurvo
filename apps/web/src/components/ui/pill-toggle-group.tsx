@@ -14,12 +14,13 @@ export function PillToggleGroup<T extends string>({
   className,
 }: PillToggleGroupProps<T>) {
   return (
-    <div className={cn('flex flex-wrap gap-1', className)}>
+    <div role="group" className={cn('flex flex-wrap gap-1', className)}>
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
           className={`flex-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
             value === o.value
               ? 'border-primary bg-primary/10 text-primary'

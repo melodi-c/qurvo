@@ -98,6 +98,7 @@ export function QueryItemCard({
             <button
               type="button"
               onClick={onRemove}
+              aria-label={t('removeStep')}
               className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground/50 transition-colors hover:text-destructive"
             >
               <X className="h-3 w-3" />
@@ -131,6 +132,7 @@ export function QueryItemCard({
             <button
               type="button"
               onClick={() => onEventNamesChange((item.event_names ?? []).filter((_, idx) => idx !== ei))}
+              aria-label={t('removeOrEvent')}
               className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground/40 transition-colors hover:text-destructive"
             >
               <X className="h-3 w-3" />

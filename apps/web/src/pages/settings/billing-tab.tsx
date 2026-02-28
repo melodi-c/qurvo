@@ -75,7 +75,14 @@ export function BillingTab({ projectId }: { projectId: string }) {
                   <span>{t('usage')}</span>
                   <span>{pct}%</span>
                 </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-1.5 rounded-full bg-muted overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={t('usageProgress')}
+                >
                   <div
                     className="h-full rounded-full bg-primary transition-all"
                     style={{ width: `${pct}%` }}

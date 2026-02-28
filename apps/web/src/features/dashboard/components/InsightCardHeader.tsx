@@ -67,6 +67,7 @@ export function InsightCardHeader({
             size="icon"
             className="drag-cancel"
             onClick={onToggleDetails}
+            aria-label={t('toggleDetails')}
           >
             {detailsOpen ? (
               <ChevronUp className="h-3 w-3" />
