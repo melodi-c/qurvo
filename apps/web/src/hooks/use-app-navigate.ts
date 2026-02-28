@@ -45,7 +45,7 @@ function curryRoutes<R>(
     return result;
   };
   // routes is structurally Record<string, fn | object> at runtime
-  return rec(obj as unknown as Record<string, unknown>) as CurriedRoutes<typeof routes, R>;
+  return rec(obj as Record<string, unknown>) as CurriedRoutes<typeof routes, R>;
 }
 
 // ---------------------------------------------------------------------------
