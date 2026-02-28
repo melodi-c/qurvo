@@ -12,6 +12,11 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(getLocale());
 }
 
+/** Format an ISO date/timestamp string as date + time using the current locale. */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(getLocale());
+}
+
 /** Format an ISO date string with granularity context (month: "Jan 2024", other: "Jan 15").
  * Uses the provided timezone (or UTC) to avoid browser-local offset shifts. */
 export function formatDateWithGranularity(iso: string, granularity: string, timezone?: string): string {

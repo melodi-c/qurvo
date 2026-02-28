@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { EventDetail, type EventLike } from '@/components/event-detail';
 import { EventTypeIcon } from '@/components/EventTypeIcon';
-import { eventBadgeVariant, formatRelativeTime } from '@/lib/formatting';
+import { eventBadgeVariant, formatDateTime, formatRelativeTime } from '@/lib/formatting';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useEventDefinitions, buildDescriptionMap } from '@/hooks/use-event-definitions';
@@ -134,7 +134,7 @@ export function EventTable({
       render: (row) => (
         <span
           className="flex items-center text-xs text-muted-foreground tabular-nums"
-          title={new Date(row.timestamp).toLocaleString()}
+          title={formatDateTime(row.timestamp)}
         >
           {formatRelativeTime(row.timestamp)}
         </span>
