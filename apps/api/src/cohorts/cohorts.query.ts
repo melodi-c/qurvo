@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { buildCohortSubquery, compile } from '@qurvo/ch-query';
 
 export interface CohortHistoryPoint {
   date: string;
@@ -34,7 +34,9 @@ export async function countCohortMembers(
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): Promise<number> {
   const params: Record<string, unknown> = { project_id: projectId };
-  const subquery = buildCohortSubquery(definition, 0, 'project_id', params, resolveCohortIsStatic);
+  const node = buildCohortSubquery(definition, 0, 'project_id', params, resolveCohortIsStatic);
+  const { sql: subquery, params: compiledParams } = compile(node);
+  Object.assign(params, compiledParams);
   return queryCount(ch, `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`, params);
 }
 

@@ -22,7 +22,7 @@ import {
   daysAgo,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import type { CohortFilterInput } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/ch-query';
 import { queryFunnel } from '../../analytics/funnel/funnel.query';
 
 let ctx: ContainerContext;

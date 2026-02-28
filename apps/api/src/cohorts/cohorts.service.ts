@@ -14,10 +14,10 @@ import {
   type CohortCohortCondition,
   type Database,
 } from '@qurvo/db';
-import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/cohort-query';
+import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/ch-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
-import type { CohortFilterInput } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/ch-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 import { analyticsProjectCachePattern } from '../analytics/with-analytics-cache';

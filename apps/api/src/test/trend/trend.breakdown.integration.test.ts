@@ -11,7 +11,7 @@ import {
 import { getTestContext } from '../context';
 import { queryTrend } from '../../analytics/trend/trend.query';
 import { sumSeriesValues } from '../helpers';
-import type { CohortFilterInput } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/ch-query';
 
 let ctx: ContainerContext;
 
