@@ -107,14 +107,7 @@ export function DashboardGrid({ onAddInsight, onAddText }: DashboardGridProps) {
           onLayoutChange={handleLayoutChange}
         >
           {localWidgets.map((widget) => (
-            <div
-              key={widget.id}
-              style={
-                !isEditing
-                  ? { contentVisibility: 'auto' as const, containIntrinsicSize: '0 320px' }
-                  : undefined
-              }
-            >
+            <div key={widget.id}>
               <InsightCard widget={widget} />
             </div>
           ))}

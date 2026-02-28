@@ -66,15 +66,18 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
 
   if (cohorts.length === 0) {return null;}
 
-  const secondColStyle = { left: secondColLeft } as React.CSSProperties;
+  const secondColStyle = {
+    left: secondColLeft,
+    boxShadow: '4px 0 8px -2px rgba(0,0,0,0.15)',
+  } as React.CSSProperties;
 
   return (
     <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead ref={firstColRef} className="sticky left-0 bg-background z-20">{t('cohort')}</TableHead>
-          <TableHead className="sticky bg-background z-20 text-right" style={secondColStyle}>{t('users')}</TableHead>
+          <TableHead ref={firstColRef} className="sticky left-0 bg-background z-20 min-w-[120px]">{t('cohort')}</TableHead>
+          <TableHead className="sticky bg-background z-20 text-right min-w-[72px]" style={secondColStyle}>{t('users')}</TableHead>
           {periodHeaders.map((h) => (
             <TableHead key={h} className="text-center min-w-[70px] text-xs">{h}</TableHead>
           ))}
@@ -83,10 +86,10 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
       <TableBody>
         {/* Average row */}
         <TableRow className="border-b-2 border-border font-medium">
-          <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground">
+          <TableCell className="sticky left-0 bg-background z-10 text-xs text-muted-foreground min-w-[120px]">
             {t('average')}
           </TableCell>
-          <TableCell className="sticky bg-background z-10" style={secondColStyle} />
+          <TableCell className="sticky bg-background z-10 min-w-[72px]" style={secondColStyle} />
           {average_retention.slice(0, maxPeriods).map((pct, i) => (
             <TableCell
               key={i}
@@ -103,10 +106,10 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
           const periods = cohort.periods.slice(0, maxPeriods);
           return (
             <TableRow key={cohort.cohort_date}>
-              <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap">
+              <TableCell className="sticky left-0 bg-background z-10 text-xs font-mono whitespace-nowrap min-w-[120px]">
                 {formatDateWithGranularity(cohort.cohort_date, granularity, timezone)}
               </TableCell>
-              <TableCell className="sticky bg-background z-10 text-right text-xs tabular-nums" style={secondColStyle}>
+              <TableCell className="sticky bg-background z-10 text-right text-xs tabular-nums min-w-[72px]" style={secondColStyle}>
                 {cohort.cohort_size.toLocaleString()}
               </TableCell>
               {periods.map((count, i) => {

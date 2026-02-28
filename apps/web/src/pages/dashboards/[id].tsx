@@ -117,7 +117,7 @@ export default function DashboardBuilderPage() {
       )}
 
       {!isLoading && dashboard && (
-        <div className={`space-y-4 ${isEditing && isDirty ? 'pb-32' : ''}`}>
+        <div className="space-y-4">
           <DashboardHeader />
 
           <DashboardFilterBar />
