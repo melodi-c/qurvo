@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Post-merge верификация: build + integration tests для затронутых приложений.
 # Использование: bash verify-post-merge.sh <AFFECTED_APPS> <MERGED_ISSUES>
-# AFFECTED_APPS: через запятую, например "api,web,processor"
+# AFFECTED_APPS: через запятую, например "api,web,processor" или "apps/api,apps/web". apps/ prefix удаляется автоматически.
 # MERGED_ISSUES: через запятую, например "42,43,45"
 # Вывод: ALL_GREEN или REGRESSION + детали.
 set -euo pipefail
 
-AFFECTED_APPS="$1"
+AFFECTED_APPS_RAW="$1"
+# Нормализация: убираем apps/ prefix если передан (apps/api → api)
+AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|apps/||g')
 MERGED_ISSUES="${2:-}"
 
 REPO_ROOT=$(git rev-parse --show-toplevel)

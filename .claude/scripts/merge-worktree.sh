@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Мерж ветки из worktree в целевую ветку через PR с pre-merge verification.
 # Использование: bash merge-worktree.sh <WORKTREE_PATH> <BRANCH> <BASE_BRANCH> <REPO_ROOT> <ISSUE_TITLE> [AFFECTED_APPS] [ISSUE_NUMBER] [AUTO_MERGE] [QUIET]
-# AFFECTED_APPS: опционально, через запятую (например "api,web"). Если указан — запускает build перед PR.
+# AFFECTED_APPS: опционально, через запятую (например "api,web" или "apps/api,apps/web"). apps/ prefix удаляется автоматически.
 # ISSUE_NUMBER: опционально, для "Closes #N" в PR body.
 # AUTO_MERGE: "true" (default) — мержит PR автоматически. "false" — создаёт PR но не мержит.
 # QUIET: "true" — подавить stderr (для экономии контекста executor). По умолчанию "false".
@@ -14,7 +14,9 @@ BRANCH="$2"
 BASE_BRANCH="$3"
 REPO_ROOT="$4"
 ISSUE_TITLE="${5:-}"
-AFFECTED_APPS="${6:-}"
+AFFECTED_APPS_RAW="${6:-}"
+# Нормализация: убираем apps/ prefix если передан (apps/api → api)
+AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|apps/||g')
 ISSUE_NUMBER="${7:-}"
 AUTO_MERGE="${8:-true}"
 QUIET="${9:-false}"
