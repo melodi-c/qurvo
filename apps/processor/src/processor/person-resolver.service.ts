@@ -33,8 +33,9 @@ export class PersonResolverService {
     const values = await this.redis.mget(...redisKeys);
 
     for (let i = 0; i < redisKeys.length; i++) {
-      if (values[i] !== null) {
-        cache.set(redisKeys[i], values[i]!);
+      const val = values[i];
+      if (val !== null) {
+        cache.set(redisKeys[i], val);
       }
     }
     return cache;

@@ -14,6 +14,7 @@ import { RETRY_CLICKHOUSE } from '../constants';
  */
 @Injectable()
 export class BatchWriter {
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @InjectPinoLogger(BatchWriter.name) private readonly logger: PinoLogger,

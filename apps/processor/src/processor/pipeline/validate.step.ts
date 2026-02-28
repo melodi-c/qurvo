@@ -12,6 +12,7 @@ const ILLEGAL_DISTINCT_IDS = new Set([
 ]);
 
 /** Step 2: Validate and split into valid events + invalid IDs for XACK. */
+// eslint-disable-next-line complexity -- message validation with multiple field checks
 export function validateMessages(
   parsed: RawMessage[],
   ctx: PipelineContext,

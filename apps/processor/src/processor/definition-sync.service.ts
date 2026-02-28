@@ -72,6 +72,7 @@ export class DefinitionSyncService {
    * A9: Skips service properties ($set, $set_once, $unset, $group_*, $groups) for event type.
    * A6: Skips property names longer than MAX_NAME_LENGTH.
    */
+  // eslint-disable-next-line complexity -- property extraction with validation checks
   private extractProps(
     bag: Record<string, unknown>,
     type: 'event' | 'person',
@@ -102,6 +103,7 @@ export class DefinitionSyncService {
     }
   }
 
+  // eslint-disable-next-line complexity -- batch sync orchestrates multiple DB operations
   async syncFromBatch(events: Event[]): Promise<void> {
     const flooredMs = floorToHourMs(Date.now());
     const now = new Date(flooredMs);
@@ -260,6 +262,7 @@ export class DefinitionSyncService {
     );
   }
 
+  // eslint-disable-next-line complexity -- cache invalidation across multiple dimensions
   private async invalidateCaches(
     eventKeys: Map<string, { project_id: string; event_name: string }>,
     propMap: Map<string, PropEntry>,

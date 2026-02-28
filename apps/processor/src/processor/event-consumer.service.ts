@@ -41,6 +41,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
   private readonly heartbeat: Heartbeat;
   private readonly pipelineCtx: PipelineContext;
 
+  // eslint-disable-next-line max-params -- NestJS DI requires separate constructor params
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
     private readonly flushService: FlushService,
@@ -72,7 +73,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
       .then(() => {
         this.logger.info({ consumer: this.consumerName }, 'Processor started');
         this.loopPromise = this.startLoop();
-        this.pendingTimer = setInterval(() => this.claimPendingMessages(), PENDING_CLAIM_INTERVAL_MS);
+        this.pendingTimer = setInterval(() => void this.claimPendingMessages(), PENDING_CLAIM_INTERVAL_MS);
         this.heartbeat.start();
       })
       .catch((err) => this.logger.error({ err }, 'Failed to initialize consumer group'));
@@ -140,6 +141,7 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
   }
 
+  // eslint-disable-next-line complexity -- Redis PEL claim with multiple error paths
   private async claimPendingMessages() {
     try {
       // Sample PEL size for observability

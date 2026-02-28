@@ -16,13 +16,10 @@ export function createScheduledLoop(
 
   function schedule(): NodeJS.Timeout | null {
     if (stopped) {return null;}
-    timer = setTimeout(async () => {
-      try {
-        await fn();
-      } catch (err) {
-        onError(err);
-      }
-      schedule();
+    timer = setTimeout(() => {
+      fn()
+        .catch((err) => onError(err))
+        .finally(() => schedule());
     }, intervalMs);
     return timer;
   }

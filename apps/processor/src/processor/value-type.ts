@@ -26,6 +26,7 @@ export function isLikelyUnixTimestamp(n: number): boolean {
  *
  * Matches PostHog's `detect_property_type` from property-defs-rs/src/types.rs.
  */
+// eslint-disable-next-line complexity -- type detection with multiple heuristics matching PostHog's implementation
 export function detectValueType(key: string, value: unknown): ValueType | null {
   const lowerKey = key.toLowerCase();
 
