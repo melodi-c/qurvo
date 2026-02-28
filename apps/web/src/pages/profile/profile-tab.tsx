@@ -84,51 +84,60 @@ export function ProfileTab() {
         <CardHeader>
           <CardTitle className="text-sm">{t('changePassword')}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="current-password">{t('currentPassword')}</Label>
-            <Input
-              id="current-password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder={t('currentPasswordPlaceholder')}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="new-password">{t('newPassword')}</Label>
-            <Input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder={t('newPasswordPlaceholder')}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirm-password">{t('confirmPassword')}</Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder={t('confirmPasswordPlaceholder')}
-            />
-          </div>
-          {newPassword && confirmPassword && newPassword !== confirmPassword && (
-            <p className="text-xs text-destructive">{t('passwordsMismatch')}</p>
-          )}
-          <Button
-            onClick={() =>
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
               changePasswordMutation.mutate({
                 current_password: currentPassword,
                 new_password: newPassword,
-              })
-            }
-            disabled={!canChangePassword || changePasswordMutation.isPending}
+              });
+            }}
+            className="space-y-4"
           >
-            {changePasswordMutation.isPending ? t('changingPassword') : t('changePasswordBtn')}
-          </Button>
+            <div className="space-y-2">
+              <Label htmlFor="current-password">{t('currentPassword')}</Label>
+              <Input
+                id="current-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder={t('currentPasswordPlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">{t('newPassword')}</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder={t('newPasswordPlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">{t('confirmPassword')}</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder={t('confirmPasswordPlaceholder')}
+              />
+            </div>
+            {newPassword && confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-xs text-destructive">{t('passwordsMismatch')}</p>
+            )}
+            <Button
+              type="submit"
+              disabled={!canChangePassword || changePasswordMutation.isPending}
+            >
+              {changePasswordMutation.isPending ? t('changingPassword') : t('changePasswordBtn')}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
