@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewCount, useCohortMemberCount, useCohortSizeHistory } from '@/features/cohorts/hooks/use-cohorts';
+import { useCohort, useCreateCohort, useUpdateCohort, useCohortPreviewQuery, useCohortMemberCount, useCohortSizeHistory } from '@/features/cohorts/hooks/use-cohorts';
 import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -20,7 +20,6 @@ export function useCohortEditor() {
   const { data: existingCohort, isLoading: loadingCohort, isError: errorCohort, refetch: refetchCohort } = useCohort(isNew ? '' : cohortId);
   const createMutation = useCreateCohort();
   const updateMutation = useUpdateCohort();
-  const previewMutation = useCohortPreviewCount();
 
   const { data: memberCount } = useCohortMemberCount(isNew ? '' : cohortId);
   const { data: sizeHistory } = useCohortSizeHistory(isNew ? '' : cohortId);
@@ -80,18 +79,18 @@ export function useCohortEditor() {
   const role = useProjectRole();
   const canPreview = role === 'owner' || role === 'editor';
 
-  const { hash: debouncedHash } = useDebouncedHash(definition, 800);
+  const { debounced: debouncedDefinition, hash: debouncedHash } = useDebouncedHash(definition, 800);
 
   const hasValidConditions = useMemo(() => {
     const allConditions = groups.flatMap((g) => g.values as CohortCondition[]);
     return allConditions.length > 0 && allConditions.every(isConditionValid);
   }, [groups]);
 
-  useEffect(() => {
-    if (!projectId || !hasValidConditions || !canPreview) {return;}
-    previewMutation.mutate({ definition });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedHash, projectId, hasValidConditions, canPreview]);
+  const previewQuery = useCohortPreviewQuery(
+    debouncedDefinition,
+    debouncedHash,
+    !!projectId && hasValidConditions && canPreview,
+  );
 
   const listPath = link.cohorts.list();
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -147,7 +146,7 @@ export function useCohortEditor() {
     setGroups,
     hasValidConditions,
     canPreview,
-    previewMutation,
+    previewQuery,
     listPath,
     isSaving,
     isValid,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
@@ -10,6 +10,11 @@ export function usePersonDetail() {
   const { personId } = useParams<{ personId: string }>();
   const projectId = useProjectId();
   const [page, setPage] = useState(0);
+
+  // Reset pagination when personId changes to avoid showing stale page state
+  useEffect(() => {
+    setPage(0);
+  }, [personId]);
 
   const { data: person, isLoading: personLoading, isError: personError } = useQuery({
     queryKey: ['person', projectId, personId],

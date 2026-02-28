@@ -51,11 +51,10 @@ export default function Layout() {
     }
   }, [currentProject, setLastProjectId]);
 
-  // Sync project timezone into the store so analytics hooks can read it
+  // Sync project timezone into the store so analytics hooks can read it.
+  // Reset to UTC when navigating to a page without a project context.
   useEffect(() => {
-    if (currentProjectTimezone) {
-      setProjectTimezone(currentProjectTimezone);
-    }
+    setProjectTimezone(currentProjectTimezone ?? 'UTC');
   }, [currentProjectTimezone, setProjectTimezone]);
 
   useEffect(() => {

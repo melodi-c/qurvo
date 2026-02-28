@@ -50,7 +50,7 @@ export default function CohortEditorPage() {
     setGroups,
     hasValidConditions,
     canPreview,
-    previewMutation,
+    previewQuery,
     listPath,
     isSaving,
     isValid,
@@ -137,25 +137,25 @@ export default function CohortEditorPage() {
         </div>
       </div>
     );
-  } else if (previewMutation.isPending) {
+  } else if (previewQuery.isFetching) {
     previewContent = (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span className="text-sm">{t('calculating')}</span>
       </div>
     );
-  } else if (previewMutation.isError) {
+  } else if (previewQuery.isError) {
     previewContent = (
       <EmptyState
         icon={AlertTriangle}
         description={t('previewError')}
       />
     );
-  } else if (previewMutation.data) {
+  } else if (previewQuery.data) {
     previewContent = (
       <div className="text-center">
         <p className="text-4xl font-bold tabular-nums text-primary">
-          {previewMutation.data.count.toLocaleString()}
+          {previewQuery.data.count.toLocaleString()}
         </p>
         <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
       </div>
@@ -245,15 +245,15 @@ export default function CohortEditorPage() {
             {activeTab === 'overview' && (
               <>
                 <div className="border-b px-6 py-6 text-center">
-                  {canPreview && previewMutation.isPending ? (
+                  {canPreview && previewQuery.isFetching ? (
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-sm">{t('calculating')}</span>
                     </div>
-                  ) : canPreview && previewMutation.data ? (
+                  ) : canPreview && previewQuery.data ? (
                     <>
                       <p className="text-4xl font-bold tabular-nums text-primary">
-                        {previewMutation.data.count.toLocaleString()}
+                        {previewQuery.data.count.toLocaleString()}
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
                     </>

@@ -176,7 +176,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       if (forDashboardId && s.dashboardId !== forDashboardId) {
         return {};
       }
-      if (!s.snapshot) {return { isEditing: false, isDirty: false };}
+      if (!s.snapshot) {return { isEditing: false, isDirty: false, filterOverrides: EMPTY_OVERRIDES };}
       return {
         isEditing: false,
         isDirty: false,
@@ -185,6 +185,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         localName: s.snapshot.name,
         widgetMeta: s.snapshot.widgetMeta,
         snapshot: null,
+        filterOverrides: EMPTY_OVERRIDES,
       };
     }),
 
