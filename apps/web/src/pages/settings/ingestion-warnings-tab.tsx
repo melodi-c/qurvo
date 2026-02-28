@@ -20,13 +20,14 @@ function WarningTypeBadge({ type }: { type: string }) {
 }
 
 function DetailsCell({ details }: { details: string }) {
+  const { t } = useLocalTranslation(translations);
   try {
     const parsed = JSON.parse(details) as Record<string, unknown>;
     return (
       <div className="space-y-0.5 text-xs text-muted-foreground">
-        {!!parsed['event_name'] && <div><span className="text-foreground">event:</span> {String(parsed['event_name'])}</div>}
-        {!!parsed['distinct_id'] && <div><span className="text-foreground">distinct_id:</span> {String(parsed['distinct_id'])}</div>}
-        {!!parsed['reason'] && <div><span className="text-foreground">reason:</span> {String(parsed['reason'])}</div>}
+        {!!parsed['event_name'] && <div><span className="text-foreground">{t('detailEvent')}</span> {String(parsed['event_name'])}</div>}
+        {!!parsed['distinct_id'] && <div><span className="text-foreground">{t('detailDistinctId')}</span> {String(parsed['distinct_id'])}</div>}
+        {!!parsed['reason'] && <div><span className="text-foreground">{t('detailReason')}</span> {String(parsed['reason'])}</div>}
       </div>
     );
   } catch {
