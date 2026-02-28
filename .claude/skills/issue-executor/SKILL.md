@@ -59,7 +59,7 @@ disable-model-invocation: true
 
 **Поток:**
 1. Запусти подагент с `RESULT_FILE: <путь>` в промпте
-2. Дождись завершения (TaskOutput вернёт "DONE")
+2. Дождись завершения (система уведомит автоматически)
 3. Прочитай `RESULT_FILE` через Read tool (5-10 строк JSON)
 4. Если файл не найден — fallback на AGENT_META из issue comment
 
@@ -269,7 +269,7 @@ RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
 
 **Определение WEBVIZIO_UUID**: при чтении `/tmp/claude-results/issue-<N>.json` найди `<!-- WEBVIZIO: <UUID> -->` в `.body`. Если есть — передай UUID solver'у.
 
-**Важно**: `RESULT_FILE` передаётся в промпте. После запуска подагента запомни `WORKTREE_PATH` из TaskOutput (он содержит путь к worktree) и `task_id`. Обнови state, сохранив `base_branch` для использования при review/merge:
+**Важно**: `RESULT_FILE` передаётся в промпте. После запуска подагента с `isolation: "worktree"` результат содержит `WORKTREE_PATH` (путь к worktree). Обнови state, сохранив `base_branch` для использования при review/merge:
 ```bash
 bash "$SM" issue-status <N> SOLVING worktree_path=<path> base_branch=<main или feature/issue-PARENT>
 ```
@@ -304,7 +304,7 @@ gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализован
 
 По мере завершения каждого background solver'а (не жди остальных):
 
-1. TaskOutput вернёт "DONE" (или ошибку)
+1. Система уведомит о завершении подагента
 2. Прочитай `RESULT_FILE` через Read tool
 3. **Fallback** (если файл не найден): прочитай AGENT_META из issue comment:
    ```bash
