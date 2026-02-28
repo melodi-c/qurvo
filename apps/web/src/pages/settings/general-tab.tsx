@@ -14,6 +14,7 @@ import { Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { getRoleLabel } from '@/lib/i18n-utils';
 import translations from './general-tab.translations';
 
 export function GeneralTab({ projectId }: { projectId: string }) {
@@ -82,7 +83,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
 
             {/* Role */}
             <DefinitionListRow label={t('yourRole')}>
-              <span className="capitalize">{project?.role}</span>
+              <span>{getRoleLabel(project?.role ?? '')}</span>
             </DefinitionListRow>
 
             {/* Timezone */}

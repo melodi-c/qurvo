@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { authFetch, getAuthHeaders } from '@/lib/auth-fetch';
 import { api } from '@/api/client';
+import { getErrorMessage } from '@/lib/i18n-utils';
 import { consumeSseStream } from '../lib/sse-stream.js';
 import type { SseToolResultEvent, SseToolCallStartEvent } from '../lib/sse-stream.js';
 import type { AiMessage } from '@/api/generated/Api';
@@ -92,7 +93,7 @@ async function streamChat(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Request failed' }));
+    const err = await res.json().catch(() => ({ message: getErrorMessage('requestFailed') }));
     throw new Error((err as { message?: string }).message || `HTTP ${res.status}`);
   }
 
@@ -211,7 +212,7 @@ export function useAiChat(projectId: string) {
         setState((prev) => ({
           ...prev,
           isStreaming: false,
-          error: err instanceof Error ? err.message : 'Unknown error',
+          error: err instanceof Error ? err.message : getErrorMessage('unknownError'),
         }));
       }
     },
@@ -259,7 +260,7 @@ export function useAiChat(projectId: string) {
         setState((prev) => ({
           ...prev,
           isStreaming: false,
-          error: err instanceof Error ? err.message : 'Unknown error',
+          error: err instanceof Error ? err.message : getErrorMessage('unknownError'),
         }));
       }
     },
@@ -282,7 +283,7 @@ export function useAiChat(projectId: string) {
         isLoadingMore: false,
       });
     } catch (err: unknown) {
-      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : 'Failed to load conversation' }));
+      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : getErrorMessage('failedToLoadConversation') }));
     }
   }, [projectId]);
 
@@ -322,7 +323,7 @@ export function useAiChat(projectId: string) {
         isLoadingMore: false,
       }));
     } catch (err: unknown) {
-      setState((prev) => ({ ...prev, isLoadingMore: false, error: err instanceof Error ? err.message : 'Failed to load messages' }));
+      setState((prev) => ({ ...prev, isLoadingMore: false, error: err instanceof Error ? err.message : getErrorMessage('failedToLoadMessages') }));
     } finally {
       isLoadingMoreRef.current = false;
     }
