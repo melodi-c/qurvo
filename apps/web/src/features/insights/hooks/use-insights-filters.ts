@@ -5,6 +5,12 @@ import type { InsightType } from '@/api/generated/Api';
 export type InsightTypeFilter = InsightType | 'all';
 export type InsightSortOrder = 'newest' | 'oldest';
 
+const VALID_TYPE_FILTERS: readonly InsightTypeFilter[] = [
+  'all', 'trend', 'funnel', 'retention', 'lifecycle', 'stickiness', 'paths',
+] as const;
+
+const VALID_SORT_ORDERS: readonly InsightSortOrder[] = ['newest', 'oldest'] as const;
+
 export interface InsightsFilters {
   search: string;
   type: InsightTypeFilter;
@@ -15,10 +21,17 @@ export interface InsightsFilters {
 export function useInsightsFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const rawType = searchParams.get('type');
+  const rawSort = searchParams.get('sort');
+
   const filters: InsightsFilters = {
     search: searchParams.get('search') ?? '',
-    type: (searchParams.get('type') as InsightTypeFilter) ?? 'all',
-    sort: (searchParams.get('sort') as InsightSortOrder) ?? 'newest',
+    type: rawType !== null && (VALID_TYPE_FILTERS as readonly string[]).includes(rawType)
+      ? (rawType as InsightTypeFilter)
+      : 'all',
+    sort: rawSort !== null && (VALID_SORT_ORDERS as readonly string[]).includes(rawSort)
+      ? (rawSort as InsightSortOrder)
+      : 'newest',
     favorites: searchParams.get('favorites') === '1',
   };
 
