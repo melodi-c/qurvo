@@ -28,11 +28,15 @@ export default function DashboardsPage() {
 
   const handleCreate = async (value: string) => {
     if (!value.trim()) {return;}
-    const result = await createMutation.mutateAsync(value.trim());
-    setShowCreate(false);
-    setName('');
-    toast.success(t('created'));
-    void go.dashboards.detail(result.id);
+    try {
+      const result = await createMutation.mutateAsync(value.trim());
+      setShowCreate(false);
+      setName('');
+      toast.success(t('created'));
+      void go.dashboards.detail(result.id);
+    } catch {
+      // onError toast is handled by the hook
+    }
   };
 
   const handleDelete = async () => {

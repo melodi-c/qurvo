@@ -104,9 +104,13 @@ export function AiListView({ projectId }: { projectId: string }) {
       }
       setEditingId(null);
       setEditValue('');
-      await renameMutation.mutateAsync({ id, title: trimmed });
+      try {
+        await renameMutation.mutateAsync({ id, title: trimmed });
+      } catch {
+        toast.error(t('renameFailed'));
+      }
     },
-    [editValue, renameMutation, cancelEdit],
+    [editValue, renameMutation, cancelEdit, t],
   );
 
   useEffect(() => {

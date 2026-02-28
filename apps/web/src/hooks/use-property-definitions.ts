@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { PropertyDefinition, TypeEnum1, UpsertPropertyDefinition } from '@/api/generated/Api';
 
 export const propertyDefinitionsKey = (projectId: string, type?: string, eventName?: string) =>
@@ -27,6 +28,7 @@ export function usePropertyDefinitions(type?: TypeEnum1, eventName?: string) {
 export function useUpsertPropertyDefinition() {
   const projectId = useProjectId();
   const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
 
   return useMutation({
     mutationFn: ({
@@ -45,6 +47,7 @@ export function useUpsertPropertyDefinition() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['property-definitions', projectId] });
     },
+    onError: onError('upsertPropertyDefinitionFailed'),
   });
 }
 
