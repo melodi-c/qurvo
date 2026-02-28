@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { buildDataPoints, isIncompleteBucket } from './trend-utils';
+import { buildDataPoints, isIncompleteBucket, snapAnnotationDateToBucket } from './trend-utils';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -249,5 +249,82 @@ describe('buildDataPoints — compare mode (with previousSeries)', () => {
   it('returns empty array when series is empty', () => {
     const result = buildDataPoints([], []);
     expect(result).toEqual([]);
+  });
+});
+
+describe('isIncompleteBucket — timezone-aware', () => {
+  it('uses project timezone for day granularity', () => {
+    vi.useFakeTimers();
+    // 2026-02-27 23:30 UTC = 2026-02-28 in Asia/Tokyo (UTC+9)
+    vi.setSystemTime(new Date('2026-02-27T23:30:00Z'));
+
+    // In UTC it's still Feb 27, but in Asia/Tokyo it's Feb 28
+    expect(isIncompleteBucket('2026-02-28', 'day', 'Asia/Tokyo')).toBe(true);
+    expect(isIncompleteBucket('2026-02-27', 'day', 'Asia/Tokyo')).toBe(false);
+
+    // Without timezone (defaults to UTC), Feb 27 is today
+    expect(isIncompleteBucket('2026-02-27', 'day')).toBe(true);
+    expect(isIncompleteBucket('2026-02-28', 'day')).toBe(false);
+  });
+
+  it('uses project timezone for hour granularity', () => {
+    vi.useFakeTimers();
+    // 2026-02-27 14:35 UTC = 2026-02-27 23:35 in Asia/Tokyo
+    vi.setSystemTime(new Date('2026-02-27T14:35:00Z'));
+
+    // In Asia/Tokyo, hour 23 is the current hour
+    expect(isIncompleteBucket('2026-02-27 23:00:00', 'hour', 'Asia/Tokyo')).toBe(true);
+    expect(isIncompleteBucket('2026-02-27 14:00:00', 'hour', 'Asia/Tokyo')).toBe(false);
+
+    // Without timezone (UTC), hour 14 is the current hour
+    expect(isIncompleteBucket('2026-02-27 14:00:00', 'hour')).toBe(true);
+  });
+
+  it('uses project timezone for month granularity', () => {
+    vi.useFakeTimers();
+    // 2026-02-28 23:30 UTC = 2026-03-01 in Asia/Tokyo
+    vi.setSystemTime(new Date('2026-02-28T23:30:00Z'));
+
+    // In Asia/Tokyo it's March, so Feb bucket is complete
+    expect(isIncompleteBucket('2026-03-01', 'month', 'Asia/Tokyo')).toBe(true);
+    expect(isIncompleteBucket('2026-02-01', 'month', 'Asia/Tokyo')).toBe(false);
+
+    // In UTC it's still February
+    expect(isIncompleteBucket('2026-02-01', 'month')).toBe(true);
+  });
+});
+
+describe('snapAnnotationDateToBucket', () => {
+  it('returns date as-is for day granularity', () => {
+    expect(snapAnnotationDateToBucket('2026-02-15', 'day')).toBe('2026-02-15');
+  });
+
+  it('appends midnight for hour granularity', () => {
+    expect(snapAnnotationDateToBucket('2026-02-15', 'hour')).toBe('2026-02-15 00:00:00');
+  });
+
+  it('snaps to first of month for month granularity', () => {
+    expect(snapAnnotationDateToBucket('2026-02-15', 'month')).toBe('2026-02-01');
+    expect(snapAnnotationDateToBucket('2026-03-31', 'month')).toBe('2026-03-01');
+  });
+
+  it('snaps to Monday for week granularity — date is Wednesday', () => {
+    // 2026-02-25 is Wednesday → Monday is 2026-02-23
+    expect(snapAnnotationDateToBucket('2026-02-25', 'week')).toBe('2026-02-23');
+  });
+
+  it('snaps to Monday for week granularity — date is Monday', () => {
+    // 2026-02-23 is Monday → stays 2026-02-23
+    expect(snapAnnotationDateToBucket('2026-02-23', 'week')).toBe('2026-02-23');
+  });
+
+  it('snaps to Monday for week granularity — date is Sunday', () => {
+    // 2026-03-01 is Sunday → Monday is 2026-02-23
+    expect(snapAnnotationDateToBucket('2026-03-01', 'week')).toBe('2026-02-23');
+  });
+
+  it('snaps to Monday for week granularity — date is Saturday', () => {
+    // 2026-02-28 is Saturday → Monday is 2026-02-23
+    expect(snapAnnotationDateToBucket('2026-02-28', 'week')).toBe('2026-02-23');
   });
 });
