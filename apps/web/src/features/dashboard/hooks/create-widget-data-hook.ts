@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjectId } from '@/hooks/use-project-id';
 import { useProjectStore } from '@/stores/project';
@@ -51,27 +51,37 @@ export function createWidgetDataHook<Config, Response extends CachedResponse, Pa
       gcTime: 2 * 60 * 60 * 1000,
     });
 
-    const refresh = () => refreshLimiter.run(async () => {
-      const params = options.buildParams(config, projectId, widgetUuid, timezone);
-      const result = await options.apiFn({ ...params, force: true });
-      qc.setQueryData(queryKey, result);
-      return result;
-    });
+    const refresh = useCallback(
+      () =>
+        refreshLimiter.run(async () => {
+          const params = options.buildParams(config, projectId, widgetUuid, timezone);
+          const result = await options.apiFn({ ...params, force: true });
+          qc.setQueryData(queryKey, result);
+          return result;
+        }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [hash, projectId, widgetId, timezone],
+    );
 
-    // Auto-refresh if data is older than STALE_AFTER_MS
+    // Keep a ref so the auto-refresh effect always calls the latest refresh
+    const refreshRef = useRef(refresh);
+    refreshRef.current = refresh;
+
+    // Auto-refresh if data is older than STALE_AFTER_MS.
+    // Also resets the flag when widgetId/config changes to avoid
+    // race conditions between separate effects.
+    useEffect(() => {
+      autoRefreshTriggered.current = false;
+    }, [widgetId, hash]);
+
     useEffect(() => {
       if (!query.data || autoRefreshTriggered.current) return;
       const age = Date.now() - new Date(query.data.cached_at).getTime();
       if (age > STALE_AFTER_MS) {
         autoRefreshTriggered.current = true;
-        refresh();
+        refreshRef.current().catch(console.error);
       }
-    }, [query.data?.cached_at]);
-
-    // Reset auto-refresh flag when widgetId/config changes
-    useEffect(() => {
-      autoRefreshTriggered.current = false;
-    }, [widgetId, hash]);
+    }, [query.data?.cached_at, widgetId, hash]);
 
     return {
       data: query.data,
