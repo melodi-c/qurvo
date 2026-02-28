@@ -444,7 +444,9 @@ export function buildCohortClause(
   dateTo?: string,
   dateFrom?: string,
 ): string {
-  if (!cohortFilters?.length) {return '';}
+  if (!cohortFilters?.length) {
+    return '';
+  }
   type CohortFilterInputCast = Parameters<typeof buildCohortFilterClause>[0][number];
   const expr = buildCohortFilterClause(
     cohortFilters as CohortFilterInputCast[],
@@ -454,7 +456,9 @@ export function buildCohortClause(
     dateTo,
     dateFrom,
   );
-  if (!expr) {return '';}
+  if (!expr) {
+    return '';
+  }
   const { sql, params } = compileExprToSql(expr);
   Object.assign(queryParams, params);
   return ' AND ' + sql;
