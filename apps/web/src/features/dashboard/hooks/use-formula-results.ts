@@ -25,7 +25,7 @@ function buildSeriesData(series: TrendSeriesResult[]): Map<string, Map<string, n
   const seriesData = new Map<string, Map<string, number>>();
   for (const s of series) {
     const letter = SERIES_LETTERS[s.series_idx];
-    if (!letter) continue;
+    if (!letter) {continue;}
     let bucketMap = seriesData.get(letter);
     if (!bucketMap) {
       bucketMap = new Map<string, number>();
@@ -54,22 +54,22 @@ export function useFormulaResults(
   // Compute the number of distinct series_idx values to determine available letters.
   const distinctSeriesCount = useMemo(() => {
     const idxSet = new Set<number>();
-    for (const s of series) idxSet.add(s.series_idx);
+    for (const s of series) {idxSet.add(s.series_idx);}
     return idxSet.size;
   }, [series]);
 
   const validFormulas = useMemo(() => {
-    if (!formulas?.length) return [];
+    if (!formulas?.length) {return [];}
     const availableLetters = SERIES_LETTERS.slice(0, distinctSeriesCount);
     return formulas.filter((f) => {
-      if (!f.expression.trim()) return false;
+      if (!f.expression.trim()) {return false;}
       const result = validateFormula(f.expression, availableLetters);
       return result.valid;
     });
   }, [formulas, distinctSeriesCount]);
 
   const formulaResults = useMemo(() => {
-    if (!validFormulas.length) return [];
+    if (!validFormulas.length) {return [];}
     const seriesData = buildSeriesData(series);
     return validFormulas.map((f) => ({
       formula: f,
@@ -99,7 +99,7 @@ export function useFormulaResults(
 
     return validFormulas.map((f, idx) => {
       const fr = formulaResults[idx];
-      if (!fr) return null;
+      if (!fr) {return null;}
 
       if (!formulaHasDivision(f.expression)) {
         // Additive formula — simple sum is correct.
@@ -110,7 +110,7 @@ export function useFormulaResults(
       const letterTotals = new Map<string, Map<string, number>>();
       for (const [letter, bucketMap] of seriesData) {
         let total = 0;
-        for (const v of bucketMap.values()) total += v;
+        for (const v of bucketMap.values()) {total += v;}
         // Wrap in a single-bucket map so evaluateFormula can process it.
         letterTotals.set(letter, new Map([['__total__', total]]));
       }

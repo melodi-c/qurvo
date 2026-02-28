@@ -93,7 +93,7 @@ function buildCleaningExpr(
     }
   }
 
-  if (arms.length === 0) return 'event_name';
+  if (arms.length === 0) {return 'event_name';}
 
   const cases = arms
     .map((a) => {

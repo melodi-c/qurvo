@@ -42,8 +42,8 @@ export class FlushService implements OnApplicationBootstrap {
 
   async shutdown() {
     this.loop.stop();
-    if (this.flushTimer) clearTimeout(this.flushTimer);
-    if (this.flushPromise) await this.flushPromise;
+    if (this.flushTimer) {clearTimeout(this.flushTimer);}
+    if (this.flushPromise) {await this.flushPromise;}
     await this.flush();
   }
 
@@ -61,7 +61,7 @@ export class FlushService implements OnApplicationBootstrap {
   }
 
   async flush(): Promise<void> {
-    if (this.flushPromise || this.buffer.length === 0) return;
+    if (this.flushPromise || this.buffer.length === 0) {return;}
     this.flushPromise = this._doFlush();
     try {
       await this.flushPromise;

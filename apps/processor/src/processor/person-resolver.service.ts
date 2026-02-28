@@ -27,7 +27,7 @@ export class PersonResolverService {
     keys: Array<{ projectId: string; distinctId: string }>,
   ): Promise<Map<string, string>> {
     const cache = new Map<string, string>();
-    if (keys.length === 0) return cache;
+    if (keys.length === 0) {return cache;}
 
     const redisKeys = keys.map((k) => this.redisKey(k.projectId, k.distinctId));
     const values = await this.redis.mget(...redisKeys);
@@ -52,7 +52,7 @@ export class PersonResolverService {
 
     // 1. Check prefetched cache (populated by batch MGET)
     const cached = cache.get(key);
-    if (cached) return cached;
+    if (cached) {return cached;}
 
     // 2. Compute deterministic person_id
     const candidate = deterministicPersonId(projectId, distinctId);

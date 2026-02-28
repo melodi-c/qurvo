@@ -8,10 +8,10 @@ import { REDIS_KEY } from '@qurvo/nestjs-infra';
 import { REDIS, DRIZZLE, API_KEY_HEADER, API_KEY_CACHE_TTL_SECONDS, API_KEY_MAX_LENGTH } from '../constants';
 
 function isValidTokenFormat(token: string): boolean {
-  if (token.length > API_KEY_MAX_LENGTH) return false;
+  if (token.length > API_KEY_MAX_LENGTH) {return false;}
   for (let i = 0; i < token.length; i++) {
     const code = token.charCodeAt(i);
-    if (code < 0x20 || code > 0x7e) return false; // printable ASCII only
+    if (code < 0x20 || code > 0x7e) {return false;} // printable ASCII only
   }
   return true;
 }

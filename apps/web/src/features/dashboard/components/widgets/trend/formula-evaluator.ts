@@ -116,7 +116,7 @@ function parse(tokens: Token[]): ASTNode {
 
   function parseFactor(): ASTNode {
     const tok = peek();
-    if (!tok) throw new Error('Unexpected end of expression');
+    if (!tok) {throw new Error('Unexpected end of expression');}
 
     if (tok.type === 'number') {
       consume();
@@ -132,7 +132,7 @@ function parse(tokens: Token[]): ASTNode {
       consume();
       const node = parseExpr();
       const closing = peek();
-      if (!closing || closing.type !== 'rparen') {
+      if (closing?.type !== 'rparen') {
         throw new Error('Missing closing parenthesis');
       }
       consume();

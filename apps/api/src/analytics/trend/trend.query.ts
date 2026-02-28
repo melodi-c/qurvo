@@ -99,9 +99,9 @@ interface RawBreakdownRow extends RawTrendRow {
 // ── Result assembly ───────────────────────────────────────────────────────────
 
 function assembleValue(metric: TrendMetric, rawVal: string, uniq: string, agg: string): number {
-  if (metric.startsWith('property_')) return Number(agg);
-  if (metric === 'total_events') return Number(rawVal);
-  if (metric === 'unique_users') return Number(uniq);
+  if (metric.startsWith('property_')) {return Number(agg);}
+  if (metric === 'total_events') {return Number(rawVal);}
+  if (metric === 'unique_users') {return Number(uniq);}
   // events_per_user
   const u = Number(uniq);
   return u > 0 ? Math.round((Number(rawVal) / u) * 100) / 100 : 0;
@@ -115,7 +115,7 @@ function assembleNonBreakdown(
   const grouped = new Map<number, TrendDataPoint[]>();
   for (const row of rows) {
     const idx = Number(row.series_idx);
-    if (!grouped.has(idx)) grouped.set(idx, []);
+    if (!grouped.has(idx)) {grouped.set(idx, []);}
     grouped.get(idx)!.push({
       bucket: row.bucket,
       value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),

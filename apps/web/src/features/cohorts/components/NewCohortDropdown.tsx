@@ -41,7 +41,7 @@ export function NewCohortDropdown() {
   };
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {return;}
     try {
       const cohort = await createStaticMutation.mutateAsync({
         name: name.trim(),

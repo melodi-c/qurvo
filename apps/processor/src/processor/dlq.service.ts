@@ -46,7 +46,7 @@ export class DlqService implements OnApplicationBootstrap {
       clearTimeout(this.dlqTimer);
       this.dlqTimer = null;
     }
-    if (this.replayPromise) await this.replayPromise;
+    if (this.replayPromise) {await this.replayPromise;}
   }
 
   private scheduleReplay() {
@@ -59,7 +59,7 @@ export class DlqService implements OnApplicationBootstrap {
       } finally {
         this.replayPromise = null;
       }
-      if (!this.stopped) this.scheduleReplay();
+      if (!this.stopped) {this.scheduleReplay();}
     }, DLQ_REPLAY_INTERVAL_MS);
   }
 
@@ -85,13 +85,13 @@ export class DlqService implements OnApplicationBootstrap {
 
     try {
       const entries = await this.redis.xrange(REDIS_STREAM_DLQ, '-', '+', 'COUNT', DLQ_REPLAY_BATCH) as [string, string[]][];
-      if (!entries || entries.length === 0) return;
+      if (!entries || entries.length === 0) {return;}
 
       const ids = entries.map(([id]) => id);
       const events: Event[] = entries
         .map(([id, fields]) => {
           const obj = parseRedisFields(fields);
-          if (!obj.data) return null;
+          if (!obj.data) {return null;}
 
           let parsed: unknown;
           try {

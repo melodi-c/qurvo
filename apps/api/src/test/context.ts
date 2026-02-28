@@ -9,7 +9,7 @@ let cached: Promise<ContainerContext> | null = null;
  * Safe to call from every test file — only the first call does the actual work.
  */
 export function getTestContext(): Promise<ContainerContext> {
-  if (cached) return cached;
+  if (cached) {return cached;}
   cached = setupContainers();
   return cached;
 }
@@ -19,7 +19,7 @@ export function getTestContext(): Promise<ContainerContext> {
  * Called once at the very end (setupFiles afterAll teardown).
  */
 export async function closeTestContext(): Promise<void> {
-  if (!cached) return;
+  if (!cached) {return;}
   cached = null;
   try {
     await teardownContainers();

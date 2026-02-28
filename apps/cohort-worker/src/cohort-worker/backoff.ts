@@ -21,7 +21,7 @@ export function filterByBackoff<T extends BackoffCohort>(
   now: number = Date.now(),
 ): T[] {
   return staleCohorts.filter((c) => {
-    if (c.errors_calculating === 0 || !c.last_error_at) return true;
+    if (c.errors_calculating === 0 || !c.last_error_at) {return true;}
     const exponent = Math.min(c.errors_calculating, COHORT_ERROR_BACKOFF_MAX_EXPONENT);
     const backoffMs = Math.pow(2, exponent) * COHORT_ERROR_BACKOFF_BASE_MINUTES * 60_000;
     return now >= c.last_error_at.getTime() + backoffMs;

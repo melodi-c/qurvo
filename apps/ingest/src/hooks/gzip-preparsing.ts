@@ -121,7 +121,7 @@ function withReadTimeout(source: NodeJS.ReadableStream): NodeJS.ReadableStream {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const resetTimer = () => {
-    if (timer) clearTimeout(timer);
+    if (timer) {clearTimeout(timer);}
     timer = setTimeout(() => {
       wrapper.destroy(new Error('Body read timeout — client stopped sending data'));
     }, BODY_READ_TIMEOUT_MS);
@@ -133,14 +133,14 @@ function withReadTimeout(source: NodeJS.ReadableStream): NodeJS.ReadableStream {
       cb(null, chunk);
     },
     flush(cb) {
-      if (timer) clearTimeout(timer);
+      if (timer) {clearTimeout(timer);}
       cb();
     },
   });
 
   source.pipe(wrapper);
   source.on('error', (e) => wrapper.destroy(e));
-  wrapper.on('close', () => { if (timer) clearTimeout(timer); });
+  wrapper.on('close', () => { if (timer) {clearTimeout(timer);} });
 
   resetTimer();
   return wrapper;

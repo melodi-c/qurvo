@@ -191,7 +191,7 @@ export function ShareDialog({
               <p className="text-sm text-muted-foreground text-center py-4">{t('error')}</p>
             )}
 
-            {!isLoading && !isError && tokens && tokens.length === 0 && (
+            {!isLoading && !isError && tokens?.length === 0 && (
               <EmptyState
                 icon={Link2}
                 description={t('noTokensDescription')}
@@ -227,7 +227,7 @@ export function ShareDialog({
 
       <ConfirmDialog
         open={revokeTarget !== null}
-        onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}
+        onOpenChange={(open) => { if (!open) {setRevokeTarget(null);} }}
         title={t('revokeConfirmTitle')}
         description={t('revokeConfirmDescription')}
         confirmLabel={t('revokeConfirmLabel')}

@@ -26,7 +26,7 @@ export class HourlyCache {
     for (const key of keys) {
       if (this.map.size >= this.maxSize) {
         this.evict(flooredMs);
-        if (this.map.size >= this.maxSize) return false;
+        if (this.map.size >= this.maxSize) {return false;}
       }
       this.map.set(key, flooredMs);
     }
@@ -34,12 +34,12 @@ export class HourlyCache {
   }
 
   uncache(keys: Iterable<string>): void {
-    for (const key of keys) this.map.delete(key);
+    for (const key of keys) {this.map.delete(key);}
   }
 
   private evict(currentFlooredMs: number): void {
     for (const [k, v] of this.map) {
-      if (v < currentFlooredMs) this.map.delete(k);
+      if (v < currentFlooredMs) {this.map.delete(k);}
     }
   }
 }

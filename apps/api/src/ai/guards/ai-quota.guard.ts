@@ -24,7 +24,7 @@ export class AiQuotaGuard implements CanActivate {
     const userId: string = request.user?.user_id;
     const projectId: string = request.body?.project_id;
 
-    if (!userId || !projectId) return true;
+    if (!userId || !projectId) {return true;}
 
     // Look up the plan's AI message limit — served from Redis cache when available
     const cacheKey = planAiLimitCacheKey(projectId);
@@ -53,7 +53,7 @@ export class AiQuotaGuard implements CanActivate {
     }
 
     // -1 or null = unlimited
-    if (limit === null || limit < 0) return true;
+    if (limit === null || limit < 0) {return true;}
 
     const key = aiQuotaCounterKey(userId);
 
@@ -64,7 +64,7 @@ export class AiQuotaGuard implements CanActivate {
       .expire(key, AI_QUOTA_KEY_TTL_SECONDS)
       .exec()
       .then((results) => {
-        if (!results) return [0];
+        if (!results) {return [0];}
         return [(results[0][1] as number) ?? 0];
       });
 

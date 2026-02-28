@@ -17,13 +17,13 @@ export function useCohortEditor() {
   const { go, link, projectId } = useAppNavigate();
   const isNew = !cohortId || cohortId === 'new';
 
-  const { data: existingCohort, isLoading: loadingCohort, isError: errorCohort, refetch: refetchCohort } = useCohort(isNew ? '' : cohortId!);
+  const { data: existingCohort, isLoading: loadingCohort, isError: errorCohort, refetch: refetchCohort } = useCohort(isNew ? '' : cohortId);
   const createMutation = useCreateCohort();
   const updateMutation = useUpdateCohort();
   const previewMutation = useCohortPreviewCount();
 
-  const { data: memberCount } = useCohortMemberCount(isNew ? '' : cohortId!);
-  const { data: sizeHistory } = useCohortSizeHistory(isNew ? '' : cohortId!);
+  const { data: memberCount } = useCohortMemberCount(isNew ? '' : cohortId);
+  const { data: sizeHistory } = useCohortSizeHistory(isNew ? '' : cohortId);
 
   const [name, setName] = useState(t('defaultName'));
   const [description, setDescription] = useState('');
@@ -48,7 +48,7 @@ export function useCohortEditor() {
         parsedGroups = [rootGroup];
       } else {
         const andGroups = rootGroup.values.map((v) => {
-          if (isGroup(v)) return v;
+          if (isGroup(v)) {return v;}
           return { type: 'AND' as const, values: [v] };
         });
         parsedGroups = andGroups.length > 0 ? andGroups : [createEmptyGroup()];
@@ -65,15 +65,15 @@ export function useCohortEditor() {
 
   const isDirty = useMemo(() => {
     const initial = initialState.current;
-    if (name !== initial.name) return true;
-    if (description !== initial.description) return true;
+    if (name !== initial.name) {return true;}
+    if (description !== initial.description) {return true;}
     return JSON.stringify(groups) !== initial.groups;
   }, [name, description, groups]);
 
   const unsavedGuard = useUnsavedChangesGuard(isDirty);
 
   const definition = useMemo((): CohortConditionGroup => {
-    if (groups.length === 1) return groups[0];
+    if (groups.length === 1) {return groups[0];}
     return { type: 'OR', values: groups };
   }, [groups]);
 
@@ -88,7 +88,7 @@ export function useCohortEditor() {
   }, [groups]);
 
   useEffect(() => {
-    if (!projectId || !hasValidConditions || !canPreview) return;
+    if (!projectId || !hasValidConditions || !canPreview) {return;}
     previewMutation.mutate({ definition });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedHash, projectId, hasValidConditions, canPreview]);
@@ -98,7 +98,7 @@ export function useCohortEditor() {
   const isValid = name.trim() !== '' && hasValidConditions;
 
   const handleSave = useCallback(async () => {
-    if (!isValid || isSaving) return;
+    if (!isValid || isSaving) {return;}
     setSaveError(null);
 
     try {
@@ -112,7 +112,7 @@ export function useCohortEditor() {
         toast.success(t('cohortCreated'));
       } else {
         await updateMutation.mutateAsync({
-          cohortId: cohortId!,
+          cohortId: cohortId,
           data: {
             name: name.trim(),
             description: description.trim() || undefined,

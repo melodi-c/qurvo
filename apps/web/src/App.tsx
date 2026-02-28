@@ -64,9 +64,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const pendingVerification = useAuthStore((s) => s.pendingVerification);
   const { t } = useLocalTranslation(appTranslations);
 
-  if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;
-  if (!user) return <Navigate to={routes.login()} replace />;
-  if (pendingVerification) return <Navigate to={routes.verifyEmail()} replace />;
+  if (loading) {return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;}
+  if (!user) {return <Navigate to={routes.login()} replace />;}
+  if (pendingVerification) {return <Navigate to={routes.verifyEmail()} replace />;}
   return <>{children}</>;
 }
 
@@ -75,9 +75,9 @@ function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
   const loading = useAuthStore((s) => s.loading);
   const { t } = useLocalTranslation(appTranslations);
 
-  if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;
-  if (!user) return <Navigate to={routes.login()} replace />;
-  if (!user.is_staff) return <Navigate to={routes.login()} replace />;
+  if (loading) {return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;}
+  if (!user) {return <Navigate to={routes.login()} replace />;}
+  if (!user.is_staff) {return <Navigate to={routes.login()} replace />;}
   return <>{children}</>;
 }
 

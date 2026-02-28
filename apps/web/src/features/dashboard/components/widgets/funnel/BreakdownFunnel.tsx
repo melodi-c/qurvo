@@ -32,9 +32,9 @@ export function BreakdownFunnel({
 
     for (const s of steps as FunnelBreakdownStepResult[]) {
       const bv = s.breakdown_value ?? noneLabel;
-      if (!sm.has(s.step)) sm.set(s.step, new Map());
+      if (!sm.has(s.step)) {sm.set(s.step, new Map());}
       sm.get(s.step)!.set(bv, s);
-      if (!insertOrder.includes(bv)) insertOrder.push(bv);
+      if (!insertOrder.includes(bv)) {insertOrder.push(bv);}
     }
 
     const sNums = [...sm.keys()].sort((a, b) => a - b);
@@ -51,10 +51,10 @@ export function BreakdownFunnel({
       gConvs.set(
         gv,
         sNums.map((sn, i) => {
-          if (i === 0) return null;
+          if (i === 0) {return null;}
           const prev = sm.get(sNums[i - 1])?.get(gv);
           const curr = sm.get(sn)?.get(gv);
-          if (!prev || !curr) return null;
+          if (!prev || !curr) {return null;}
           return prev.count > 0 ? Math.round((curr.count / prev.count) * 1000) / 10 : null;
         }),
       );

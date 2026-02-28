@@ -112,7 +112,7 @@ export class EventDefinitionsService {
         .delete(eventDefinitions)
         .where(and(eq(eventDefinitions.project_id, projectId), eq(eventDefinitions.event_name, eventName)))
         .returning({ id: eventDefinitions.id });
-      if (deleted.length === 0) throw new DefinitionNotFoundException('event', eventName);
+      if (deleted.length === 0) {throw new DefinitionNotFoundException('event', eventName);}
     });
   }
 }

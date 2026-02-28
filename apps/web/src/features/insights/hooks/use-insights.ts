@@ -62,7 +62,7 @@ export function useToggleFavorite() {
       return { prev };
     },
     onError: (_err, _vars, context) => {
-      if (context?.prev) qc.setQueryData(['insights', projectId], context.prev);
+      if (context?.prev) {qc.setQueryData(['insights', projectId], context.prev);}
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['insights', projectId] });

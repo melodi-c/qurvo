@@ -63,8 +63,8 @@ export class MembersService {
       .from(projectMembers)
       .where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)))
       .limit(1);
-    if (!target) throw new MemberNotFoundException();
-    if (target.role === 'owner') throw new InsufficientPermissionsException('Cannot change owner role');
+    if (!target) {throw new MemberNotFoundException();}
+    if (target.role === 'owner') {throw new InsufficientPermissionsException('Cannot change owner role');}
 
     await this.db.update(projectMembers).set({ role }).where(eq(projectMembers.id, memberId));
 
@@ -79,8 +79,8 @@ export class MembersService {
       .from(projectMembers)
       .where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)))
       .limit(1);
-    if (!target) throw new MemberNotFoundException();
-    if (target.role === 'owner') throw new CannotRemoveOwnerException();
+    if (!target) {throw new MemberNotFoundException();}
+    if (target.role === 'owner') {throw new CannotRemoveOwnerException();}
 
     await this.db.delete(projectMembers).where(and(eq(projectMembers.id, memberId), eq(projectMembers.project_id, projectId)));
     this.logger.log({ memberId, projectId }, 'Member removed');
@@ -105,7 +105,7 @@ export class MembersService {
         .from(users)
         .where(eq(users.email, input.email))
         .limit(1);
-      if (!targetUser) throw new AppBadRequestException('Unable to invite this email');
+      if (!targetUser) {throw new AppBadRequestException('Unable to invite this email');}
 
       // Check if already a member
       const [existingMember] = await tx
@@ -113,7 +113,7 @@ export class MembersService {
         .from(projectMembers)
         .where(and(eq(projectMembers.user_id, targetUser.id), eq(projectMembers.project_id, projectId)))
         .limit(1);
-      if (existingMember) throw new AlreadyMemberException();
+      if (existingMember) {throw new AlreadyMemberException();}
 
       // Check for existing pending invite
       const [existingInvite] = await tx
@@ -125,7 +125,7 @@ export class MembersService {
           eq(projectInvites.status, 'pending'),
         ))
         .limit(1);
-      if (existingInvite) throw new InviteConflictException();
+      if (existingInvite) {throw new InviteConflictException();}
 
       const [created] = await tx
         .insert(projectInvites)
@@ -144,8 +144,8 @@ export class MembersService {
       .from(projectInvites)
       .where(and(eq(projectInvites.id, inviteId), eq(projectInvites.project_id, projectId)))
       .limit(1);
-    if (!invite) throw new InviteNotFoundException();
-    if (invite.status !== 'pending') throw new InviteNotFoundException('Invite is no longer pending');
+    if (!invite) {throw new InviteNotFoundException();}
+    if (invite.status !== 'pending') {throw new InviteNotFoundException('Invite is no longer pending');}
 
     await this.db.update(projectInvites)
       .set({ status: 'cancelled', responded_at: new Date() })
@@ -187,7 +187,7 @@ export class MembersService {
           eq(projectInvites.status, 'pending'),
         ))
         .returning();
-      if (!invite) throw new InviteNotFoundException();
+      if (!invite) {throw new InviteNotFoundException();}
 
       if (action === 'accept') {
         await tx.insert(projectMembers).values({

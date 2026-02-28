@@ -49,15 +49,15 @@ export function normalizeJsonSchema(
   const resolving = new Set<string>();
 
   function walk(node: unknown): unknown {
-    if (!node || typeof node !== 'object') return node;
-    if (Array.isArray(node)) return node.map(walk);
+    if (!node || typeof node !== 'object') {return node;}
+    if (Array.isArray(node)) {return node.map(walk);}
 
     const obj = node as Record<string, unknown>;
 
     if (obj['$ref']) {
       const refKey = obj['$ref'] as string;
       const resolved = resolveRef(refKey);
-      if (!resolved) return node;
+      if (!resolved) {return node;}
 
       // Cycle detected — inline a copy without further $ref expansion
       if (resolving.has(refKey)) {
@@ -72,7 +72,7 @@ export function normalizeJsonSchema(
 
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(obj)) {
-      if (key === 'definitions' || key === '$defs') continue;
+      if (key === 'definitions' || key === '$defs') {continue;}
       result[key] = walk(val);
     }
     return result;
@@ -80,13 +80,13 @@ export function normalizeJsonSchema(
 
   /** Remove all $ref pointers from a deep-copied node (break cycles). */
   function stripRefs(node: unknown): unknown {
-    if (!node || typeof node !== 'object') return node;
-    if (Array.isArray(node)) return node.map(stripRefs);
+    if (!node || typeof node !== 'object') {return node;}
+    if (Array.isArray(node)) {return node.map(stripRefs);}
 
     const obj = node as Record<string, unknown>;
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(obj)) {
-      if (key === '$ref' || key === 'definitions' || key === '$defs') continue;
+      if (key === '$ref' || key === 'definitions' || key === '$defs') {continue;}
       result[key] = stripRefs(val);
     }
     return result;
@@ -113,8 +113,8 @@ type StripNulls<T> =
  * not `T | null`. This bridge normalises the parsed result.
  */
 export function stripNulls<T>(obj: T): StripNulls<T> {
-  if (obj === null) return undefined as StripNulls<T>;
-  if (Array.isArray(obj)) return obj.map(stripNulls) as StripNulls<T>;
+  if (obj === null) {return undefined as StripNulls<T>;}
+  if (Array.isArray(obj)) {return obj.map(stripNulls) as StripNulls<T>;}
   if (typeof obj === 'object' && obj !== null) {
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(obj)) {
@@ -157,7 +157,7 @@ export function defineTool<T extends z.ZodType>(config: {
 
   return {
     name: config.name,
-    definition: def as ChatCompletionTool,
+    definition: def,
     createRun(
       execute: (args: StripNulls<z.infer<T>>, userId: string, projectId: string) => Promise<unknown>,
     ): AiTool['run'] {

@@ -59,7 +59,7 @@ describe('flush and metadata cache invalidation', () => {
     while (Date.now() < pelDeadline) {
       const pendingInfo = await ctx.redis.xpending(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP);
       totalPending = Number(pendingInfo[0]);
-      if (totalPending === 0) break;
+      if (totalPending === 0) {break;}
       await new Promise((r) => setTimeout(r, 200));
     }
     expect(totalPending).toBe(0);
@@ -90,7 +90,7 @@ describe('flush and metadata cache invalidation', () => {
     let exists = 1;
     while (Date.now() < deadline) {
       exists = await ctx.redis.exists(cacheKey);
-      if (exists === 0) break;
+      if (exists === 0) {break;}
       await new Promise((r) => setTimeout(r, 100));
     }
     expect(exists).toBe(0);
@@ -118,7 +118,7 @@ describe('flush and metadata cache invalidation', () => {
       await flushBuffer(processorApp);
       await new Promise((r) => setTimeout(r, 200));
       const probeExists = await ctx.redis.exists(cacheKey);
-      if (probeExists === 0) break;
+      if (probeExists === 0) {break;}
     }
 
     // If probe was never deleted, the first event's sync already completed before we set it.
@@ -175,7 +175,7 @@ describe('flush and metadata cache invalidation', () => {
     let exists = 1;
     while (Date.now() < deadline) {
       exists = await ctx.redis.exists(cacheKey);
-      if (exists === 0) break;
+      if (exists === 0) {break;}
       await flushBuffer(processorApp);
       await new Promise((r) => setTimeout(r, 300));
     }

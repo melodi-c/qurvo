@@ -60,7 +60,7 @@ export default function CohortEditorPage() {
   } = useCohortEditor();
 
   const handleDuplicateAsStatic = async () => {
-    if (!cohortId) return;
+    if (!cohortId) {return;}
     try {
       const newCohort = await duplicateMutation.mutateAsync(cohortId);
       toast.success(t('duplicated'));
@@ -312,7 +312,7 @@ export default function CohortEditorPage() {
 
       <ConfirmDialog
         open={unsavedGuard.showDialog}
-        onOpenChange={(open) => { if (!open) unsavedGuard.cancelNavigation(); }}
+        onOpenChange={(open) => { if (!open) {unsavedGuard.cancelNavigation();} }}
         title={tGuard('title')}
         description={tGuard('description')}
         confirmLabel={tGuard('confirm')}

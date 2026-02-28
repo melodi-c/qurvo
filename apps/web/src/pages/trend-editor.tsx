@@ -50,7 +50,7 @@ export default function TrendEditorPage() {
   ) ?? 0;
   const seriesCount = series?.length ?? 0;
   const handleExportCsv = useCallback(() => {
-    if (!series) return;
+    if (!series) {return;}
     downloadCsv(trendToCsv(series), 'trend.csv');
   }, [series]);
 

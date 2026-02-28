@@ -28,7 +28,7 @@ export function InsightCardHeader({
 
   const insight = widget.insight;
   const isTextTile = !insight;
-  const insightType = insight?.type as InsightType | undefined;
+  const insightType = insight?.type;
   const typeLabel = insightType ? t(insightType) : t('textTile');
   const displayName = insight?.name || t('untitled');
   const colorClass = insightType

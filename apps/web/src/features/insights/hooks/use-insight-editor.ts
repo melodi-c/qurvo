@@ -52,8 +52,8 @@ export function useInsightEditor<T extends CreateInsight['config']>({
 
   const isDirty = useMemo(() => {
     const initial = initialState.current;
-    if (name !== initial.name) return true;
-    if (description !== initial.description) return true;
+    if (name !== initial.name) {return true;}
+    if (description !== initial.description) {return true;}
     return JSON.stringify(config) !== JSON.stringify(initial.config);
   }, [name, description, config]);
 
@@ -68,7 +68,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   const listPath = link.insights.list();
 
   const handleSave = useCallback(async () => {
-    if (!name.trim() || savingRef.current) return;
+    if (!name.trim() || savingRef.current) {return;}
     savingRef.current = true;
     setSaveError(null);
 
@@ -78,7 +78,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
         await createMutation.mutateAsync({ type, name, description: description || undefined, config: config_ });
       } else {
         await updateMutation.mutateAsync({
-          insightId: insightId!,
+          insightId: insightId,
           data: { name, description: description || undefined, config: config_ },
         });
       }
@@ -93,7 +93,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
     }
   }, [name, description, config, isNew, insightId, type, go, createMutation, updateMutation, cleanFn, unsavedGuard]);
 
-  const previewId = isNew ? `${type}-new` : insightId!;
+  const previewId = isNew ? `${type}-new` : insightId;
   const isConfigValid = isConfigValidFn ? isConfigValidFn(config) : true;
   const isValid = name.trim() !== '' && isConfigValid;
   const showSkeleton = (loading: boolean, data: unknown) => loading && !data;

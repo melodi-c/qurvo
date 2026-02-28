@@ -29,7 +29,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const mainTotal = totals[0] ?? 0;
 
   const handleExportCsv = useCallback(() => {
-    if (!result?.series) return;
+    if (!result?.series) {return;}
     downloadCsv(trendToCsv(result.series), 'trend.csv');
   }, [result]);
 

@@ -13,7 +13,7 @@ export function toChTs(iso: string, endOfDay = false, tz?: string): string {
   if (iso.length === 10) {
     // Date-only input — no timezone conversion needed in Node.js.
     // ClickHouse handles the timezone interpretation via toDateTime64(..., tz).
-    if (endOfDay) return `${iso} 23:59:59`;
+    if (endOfDay) {return `${iso} 23:59:59`;}
     return `${iso} 00:00:00`;
   }
   // If the string has an explicit timezone offset (+HH:MM or -HH:MM) or a Z
@@ -113,7 +113,7 @@ export function buildCohortClause(
   dateTo?: string,
   dateFrom?: string,
 ): string {
-  if (!cohortFilters?.length) return '';
+  if (!cohortFilters?.length) {return '';}
   return ' AND ' + buildCohortFilterClause(cohortFilters, projectIdParam, queryParams, undefined, dateTo, dateFrom);
 }
 

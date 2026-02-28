@@ -10,7 +10,7 @@ export function useElementSize() {
   }, []);
 
   useEffect(() => {
-    if (!el) return;
+    if (!el) {return;}
     const observer = new ResizeObserver(([entry]) => {
       setWidth(entry.contentRect.width);
       setHeight(entry.contentRect.height);

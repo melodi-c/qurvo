@@ -74,7 +74,7 @@ export class GeoService implements OnModuleInit {
         );
         return;
       } catch (err) {
-        if (attempt >= GEO_DOWNLOAD_MAX_ATTEMPTS) throw err;
+        if (attempt >= GEO_DOWNLOAD_MAX_ATTEMPTS) {throw err;}
         this.logger.warn({ err, attempt }, 'MMDB download failed, retrying');
         await new Promise((r) => setTimeout(r, GEO_DOWNLOAD_RETRY_DELAY_MS * attempt));
       }

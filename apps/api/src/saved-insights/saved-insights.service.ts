@@ -13,7 +13,7 @@ export class SavedInsightsService {
 
   async list(projectId: string, type?: InsightType) {
     const conditions = [eq(insights.project_id, projectId)];
-    if (type) conditions.push(eq(insights.type, type));
+    if (type) {conditions.push(eq(insights.type, type));}
 
     return this.db
       .select()
@@ -28,7 +28,7 @@ export class SavedInsightsService {
       .from(insights)
       .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)));
 
-    if (rows.length === 0) throw new InsightNotFoundException();
+    if (rows.length === 0) {throw new InsightNotFoundException();}
     return rows[0];
   }
 
@@ -65,7 +65,7 @@ export class SavedInsightsService {
       .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)))
       .returning();
 
-    if (rows.length === 0) throw new InsightNotFoundException();
+    if (rows.length === 0) {throw new InsightNotFoundException();}
     return rows[0];
   }
 
@@ -75,6 +75,6 @@ export class SavedInsightsService {
       .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)))
       .returning();
 
-    if (rows.length === 0) throw new InsightNotFoundException();
+    if (rows.length === 0) {throw new InsightNotFoundException();}
   }
 }

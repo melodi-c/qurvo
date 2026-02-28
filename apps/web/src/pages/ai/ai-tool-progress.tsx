@@ -38,8 +38,8 @@ function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: 
           details.push(t('series', { count: String(series.length) }));
         }
       }
-      if (typeof args.granularity === 'string') details.push(args.granularity);
-      if (dateRange) details.push(dateRange);
+      if (typeof args.granularity === 'string') {details.push(args.granularity);}
+      if (dateRange) {details.push(dateRange);}
       break;
     }
     case 'query_funnel': {
@@ -47,7 +47,7 @@ function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: 
       if (Array.isArray(steps) && steps.length > 0) {
         details.push(t('steps', { count: String(steps.length) }));
       }
-      if (dateRange) details.push(dateRange);
+      if (dateRange) {details.push(dateRange);}
       break;
     }
     case 'query_retention':
@@ -56,8 +56,8 @@ function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: 
       if (typeof args.target_event === 'string') {
         details.push(`\`${args.target_event}\``);
       }
-      if (typeof args.granularity === 'string') details.push(args.granularity);
-      if (dateRange) details.push(dateRange);
+      if (typeof args.granularity === 'string') {details.push(args.granularity);}
+      if (dateRange) {details.push(dateRange);}
       break;
     }
     case 'query_paths': {
@@ -67,7 +67,7 @@ function buildDetails(toolName: string, args: Record<string, unknown>, t: (key: 
       if (typeof args.end_event === 'string') {
         details.push(t('endEvent', { name: args.end_event }));
       }
-      if (dateRange) details.push(dateRange);
+      if (dateRange) {details.push(dateRange);}
       break;
     }
     default:

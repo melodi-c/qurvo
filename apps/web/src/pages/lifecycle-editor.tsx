@@ -31,7 +31,7 @@ export default function LifecycleEditorPage() {
   const result = data?.data;
 
   const handleExportCsv = useCallback(() => {
-    if (!result) return;
+    if (!result) {return;}
     downloadCsv(lifecycleToCsv(result), 'lifecycle.csv');
   }, [result]);
 

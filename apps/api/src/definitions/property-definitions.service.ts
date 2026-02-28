@@ -53,9 +53,9 @@ export class PropertyDefinitionsService {
 
   private async listGlobal(projectId: string, params: PropertyDefinitionListParams): Promise<{ items: PropertyDefinitionItem[]; total: number }> {
     const conditions: SQL[] = [eq(propertyDefinitions.project_id, projectId)];
-    if (params.type) conditions.push(eq(propertyDefinitions.property_type, params.type));
-    if (params.search) conditions.push(ilike(propertyDefinitions.property_name, `%${escapeLikePattern(params.search)}%`));
-    if (params.is_numerical !== undefined) conditions.push(eq(propertyDefinitions.is_numerical, params.is_numerical));
+    if (params.type) {conditions.push(eq(propertyDefinitions.property_type, params.type));}
+    if (params.search) {conditions.push(ilike(propertyDefinitions.property_name, `%${escapeLikePattern(params.search)}%`));}
+    if (params.is_numerical !== undefined) {conditions.push(eq(propertyDefinitions.is_numerical, params.is_numerical));}
 
     const where = and(...conditions)!;
     const orderCol = columnMap[params.order_by ?? 'last_seen_at'] ?? propertyDefinitions.last_seen_at;
@@ -99,8 +99,8 @@ export class PropertyDefinitionsService {
       eq(eventProperties.project_id, projectId),
       eq(eventProperties.event_name, params.event_name!),
     ];
-    if (params.type) epConditions.push(eq(eventProperties.property_type, params.type));
-    if (params.search) epConditions.push(ilike(eventProperties.property_name, `%${escapeLikePattern(params.search)}%`));
+    if (params.type) {epConditions.push(eq(eventProperties.property_type, params.type));}
+    if (params.search) {epConditions.push(ilike(eventProperties.property_name, `%${escapeLikePattern(params.search)}%`));}
 
     const epWhere = and(...epConditions)!;
 
@@ -122,7 +122,7 @@ export class PropertyDefinitionsService {
         .where(epWhere),
     ]);
 
-    if (epRows.length === 0) return { items: [], total: epCountResult[0].count };
+    if (epRows.length === 0) {return { items: [], total: epCountResult[0].count };}
 
     // Get metadata only for the property names we actually need
     const propertyNames = epRows.map((r) => r.property_name);
@@ -130,7 +130,7 @@ export class PropertyDefinitionsService {
       eq(propertyDefinitions.project_id, projectId),
       inArray(propertyDefinitions.property_name, propertyNames),
     ];
-    if (params.type) pdConditions.push(eq(propertyDefinitions.property_type, params.type));
+    if (params.type) {pdConditions.push(eq(propertyDefinitions.property_type, params.type));}
     const pdRows = await this.db
       .select()
       .from(propertyDefinitions)
@@ -200,6 +200,6 @@ export class PropertyDefinitionsService {
       ))
       .returning({ id: propertyDefinitions.id });
 
-    if (rows.length === 0) throw new DefinitionNotFoundException('property', propertyName);
+    if (rows.length === 0) {throw new DefinitionNotFoundException('property', propertyName);}
   }
 }

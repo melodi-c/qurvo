@@ -34,7 +34,7 @@ export function ProjectTokenTab({ projectId }: { projectId: string }) {
     },
   });
 
-  if (isLoading) return <ListSkeleton count={1} height="h-20" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-20" />;}
 
   const token = project?.token;
   const role = project?.role;

@@ -109,7 +109,7 @@ function parseFunnelGapResult(r: unknown): FunnelGapResult | null {
 }
 
 function parseToolResult(visualizationType: string | null, result: unknown): AiToolResultData | null {
-  if (!visualizationType || !result || typeof result !== 'object') return null;
+  if (!visualizationType || !result || typeof result !== 'object') {return null;}
   const r = result as Record<string, unknown>;
 
   switch (visualizationType) {
@@ -167,13 +167,13 @@ function normalizeTrendSeries(series: TrendSeriesResult[]): TrendSeriesResult[] 
 }
 
 function normalizeBucket(bucket: string): string {
-  if (!bucket) return bucket;
+  if (!bucket) {return bucket;}
   // "2026-02-22 00:00:00" → "2026-02-22"
   const match = bucket.match(/^(\d{4}-\d{2}-\d{2}) 00:00:00$/);
-  if (match) return match[1];
+  if (match) {return match[1];}
   // "2026-02-22 14:00:00" → "2026-02-22T14" (hourly)
   const hourMatch = bucket.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):00:00$/);
-  if (hourMatch) return `${hourMatch[1]}T${hourMatch[2]}`;
+  if (hourMatch) {return `${hourMatch[1]}T${hourMatch[2]}`;}
   return bucket;
 }
 
@@ -523,7 +523,7 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
   );
 
   const handleCopyChart = useCallback(async () => {
-    if (!chartRef.current || !parsed) return;
+    if (!chartRef.current || !parsed) {return;}
     setIsCopyingChart(true);
     try {
       const blob = await captureChartAsBlob(chartRef.current);
@@ -547,7 +547,7 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
   }, [parsed, t]);
 
   const handleExportCsv = useCallback(() => {
-    if (!parsed) return;
+    if (!parsed) {return;}
     try {
       const csv = toolResultToCsv(parsed);
       const filename = `${toolName}_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -559,7 +559,7 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
   }, [parsed, toolName, t]);
 
   const handleCopyData = useCallback(async () => {
-    if (!parsed) return;
+    if (!parsed) {return;}
     try {
       const markdown = toolResultToMarkdown(parsed);
       await navigator.clipboard.writeText(markdown);
@@ -571,7 +571,7 @@ export function AiToolResult({ result, visualizationType, toolName }: AiToolResu
 
   if (!parsed) {
     if (isLinkResult(result) && (toolName === 'create_insight' || toolName === 'save_to_dashboard')) {
-      const linkResult = result as LinkToolResult;
+      const linkResult = result;
       const href = linkResult.link;
       const label = getLinkLabel(toolName, linkResult, t);
       return (

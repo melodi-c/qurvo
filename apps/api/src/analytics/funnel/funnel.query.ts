@@ -114,7 +114,7 @@ export async function queryFunnel(
   const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
   const stepResults = computePropertyBreakdownResults(rows, steps, numSteps);
-  const totalBdCount = rows.length > 0 ? Number(rows[0]!.total_bd_count ?? 0) : 0;
+  const totalBdCount = rows.length > 0 ? Number(rows[0].total_bd_count ?? 0) : 0;
   const breakdown_truncated = totalBdCount > breakdownLimit;
 
   // Run a separate no-breakdown query for aggregate_steps.
@@ -256,7 +256,7 @@ function buildFunnelQuery(
 
   // GROUP BY
   const groupByExprs: Expr[] = [];
-  if (hasBreakdown) groupByExprs.push(col('breakdown_value'));
+  if (hasBreakdown) {groupByExprs.push(col('breakdown_value'));}
   groupByExprs.push(col('step_num'));
   builder.groupBy(...groupByExprs);
 

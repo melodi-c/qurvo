@@ -39,7 +39,7 @@ function resolveEventType(eventName: string): string {
  * Falls back to server time if no client timestamps provided.
  */
 export function resolveTimestamp(clientTs: string | undefined, serverTime: string, sentAt?: string): string {
-  if (!clientTs || !sentAt) return serverTime;
+  if (!clientTs || !sentAt) {return serverTime;}
 
   const clientTsMs = new Date(clientTs).getTime();
   const sentAtMs = new Date(sentAt).getTime();
@@ -47,8 +47,8 @@ export function resolveTimestamp(clientTs: string | undefined, serverTime: strin
 
   const offsetMs = sentAtMs - clientTsMs;
 
-  if (offsetMs < 0) return serverTime;
-  if (offsetMs > MAX_TIMESTAMP_DRIFT_MS) return serverTime;
+  if (offsetMs < 0) {return serverTime;}
+  if (offsetMs > MAX_TIMESTAMP_DRIFT_MS) {return serverTime;}
 
   const resolvedMs = serverMs - offsetMs;
   return new Date(resolvedMs).toISOString();

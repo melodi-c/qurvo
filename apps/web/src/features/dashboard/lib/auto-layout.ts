@@ -7,14 +7,14 @@ export function computeAutoLayout(items: RglItem[]): RglItem[] {
   const grid: boolean[][] = [];
 
   const ensureRows = (upTo: number) => {
-    while (grid.length <= upTo) grid.push(new Array(COLS).fill(false));
+    while (grid.length <= upTo) {grid.push(new Array(COLS).fill(false));}
   };
 
   const canPlace = (x: number, y: number, w: number, h: number) => {
     ensureRows(y + h - 1);
     for (let r = y; r < y + h; r++) {
       for (let c = x; c < x + w; c++) {
-        if (c >= COLS || grid[r][c]) return false;
+        if (c >= COLS || grid[r][c]) {return false;}
       }
     }
     return true;

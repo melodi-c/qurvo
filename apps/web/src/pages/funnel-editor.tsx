@@ -78,7 +78,7 @@ export default function FunnelEditorPage() {
   const ttcResult = ttcData?.data;
 
   const handleExportCsv = useCallback(() => {
-    if (!steps) return;
+    if (!steps) {return;}
     downloadCsv(funnelToCsv(steps), 'funnel.csv');
   }, [steps]);
 

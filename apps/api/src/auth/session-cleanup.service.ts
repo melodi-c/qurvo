@@ -29,7 +29,7 @@ export class SessionCleanupService implements OnApplicationBootstrap, OnApplicat
   }
 
   onApplicationShutdown() {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) {clearInterval(this.timer);}
   }
 
   private async cleanup() {

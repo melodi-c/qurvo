@@ -25,7 +25,7 @@ function buildCsvRow(cells: (string | number | null | undefined)[]): string {
  * Columns: bucket, <series_label_1>, <series_label_2>, ...
  */
 export function trendToCsv(series: TrendSeriesResult[]): string {
-  if (series.length === 0) return '';
+  if (series.length === 0) {return '';}
 
   // Collect all unique buckets in order
   const buckets = series[0].data.map((dp) => dp.bucket);
@@ -47,7 +47,7 @@ export function trendToCsv(series: TrendSeriesResult[]): string {
  * funnel: step + event_name + count + conversion_rate + drop_off + avg_time_to_convert_seconds
  */
 export function funnelToCsv(steps: FunnelStepResult[]): string {
-  if (steps.length === 0) return '';
+  if (steps.length === 0) {return '';}
 
   const header = buildCsvRow([
     'step',
@@ -81,7 +81,7 @@ export function funnelToCsv(steps: FunnelStepResult[]): string {
  */
 export function retentionToCsv(result: RetentionResult): string {
   const { cohorts } = result;
-  if (cohorts.length === 0) return '';
+  if (cohorts.length === 0) {return '';}
 
   const maxPeriods = Math.max(...cohorts.map((c) => c.periods.length));
   const periodHeaders = Array.from({ length: maxPeriods }, (_, i) => `period_${i}`);
@@ -102,7 +102,7 @@ export function retentionToCsv(result: RetentionResult): string {
  * lifecycle: bucket + new + returning + resurrecting + dormant
  */
 export function lifecycleToCsv(data: LifecycleResult): string {
-  if (data.data.length === 0) return '';
+  if (data.data.length === 0) {return '';}
 
   const header = buildCsvRow(['bucket', 'new', 'returning', 'resurrecting', 'dormant']);
 
@@ -117,7 +117,7 @@ export function lifecycleToCsv(data: LifecycleResult): string {
  * stickiness: period_count + user_count
  */
 export function stickinessToCsv(data: StickinessResult): string {
-  if (data.data.length === 0) return '';
+  if (data.data.length === 0) {return '';}
 
   const header = buildCsvRow(['period_count', 'user_count']);
 
@@ -130,7 +130,7 @@ export function stickinessToCsv(data: StickinessResult): string {
  * paths: step + source + target + person_count (transitions table)
  */
 export function pathsToCsv(data: PathsResult): string {
-  if (data.transitions.length === 0) return '';
+  if (data.transitions.length === 0) {return '';}
 
   const header = buildCsvRow(['step', 'source', 'target', 'person_count']);
 

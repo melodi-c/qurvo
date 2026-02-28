@@ -30,7 +30,7 @@ export function BillingTab({ projectId }: { projectId: string }) {
     return <EmptyState icon={CreditCard} description={t('selectProject')} />;
   }
 
-  if (isLoading) return <ListSkeleton count={1} height="h-40" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-40" />;}
 
   const pct = data?.events_limit
     ? Math.min(100, Math.round((data.events_this_month / data.events_limit) * 100))

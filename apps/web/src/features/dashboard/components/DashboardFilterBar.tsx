@@ -53,7 +53,7 @@ export function DashboardFilterBar() {
   }
 
   // Not editing and no overrides — hide
-  if (!isEditing) return null;
+  if (!isEditing) {return null;}
 
   // Edit mode — full filter bar
   return (

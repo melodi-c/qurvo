@@ -73,7 +73,7 @@ export class AiService implements OnModuleInit {
   }
 
   private getClient(): OpenAI {
-    if (!this.client) throw new AiNotConfiguredException();
+    if (!this.client) {throw new AiNotConfiguredException();}
     return this.client;
   }
 
@@ -95,7 +95,7 @@ export class AiService implements OnModuleInit {
 
     if (params.conversation_id) {
       const existing = await this.chatService.getConversation(params.conversation_id, userId);
-      if (!existing) throw new ConversationNotFoundException();
+      if (!existing) {throw new ConversationNotFoundException();}
       conversation = existing;
     } else {
       const created = await this.chatService.createConversation(userId, params.project_id);
@@ -283,7 +283,7 @@ export class AiService implements OnModuleInit {
       }
 
       const delta = chunk.choices[0]?.delta;
-      if (!delta) continue;
+      if (!delta) {continue;}
 
       if (delta.content) {
         assistantContent += delta.content;
@@ -296,9 +296,9 @@ export class AiService implements OnModuleInit {
             if (!toolCalls[tc.index]) {
               toolCalls[tc.index] = { id: '', function: { name: '', arguments: '' } };
             }
-            if (tc.id) toolCalls[tc.index].id = tc.id;
-            if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
-            if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
+            if (tc.id) {toolCalls[tc.index].id = tc.id;}
+            if (tc.function?.name) {toolCalls[tc.index].function.name += tc.function.name;}
+            if (tc.function?.arguments) {toolCalls[tc.index].function.arguments += tc.function.arguments;}
           }
         }
       }

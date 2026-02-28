@@ -31,7 +31,7 @@ export async function insertStaticCohortMembers(
   cohortId: string,
   personIds: string[],
 ): Promise<void> {
-  if (personIds.length === 0) return;
+  if (personIds.length === 0) {return;}
   await ch.insert({
     table: 'person_static_cohort',
     values: personIds.map((pid) => ({

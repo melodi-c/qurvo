@@ -208,7 +208,7 @@ export class PersonBatchStore {
   private async replayFailedMerges(): Promise<void> {
     try {
       const raw = await this.redis.lrange(FAILED_MERGES_KEY, -FAILED_MERGES_REPLAY_BATCH, -1);
-      if (raw.length === 0) return;
+      if (raw.length === 0) {return;}
 
       let replayed = 0;
       for (const entry of raw) {
@@ -284,7 +284,7 @@ export class PersonBatchStore {
         .where(and(eq(persons.project_id, projectId), inArray(persons.id, [fromPersonId, intoPersonId])));
 
       const anonRow = bothRows.find((r) => r.id === fromPersonId);
-      if (!anonRow) return;
+      if (!anonRow) {return;}
 
       const userRow = bothRows.find((r) => r.id === intoPersonId);
       if (userRow) {

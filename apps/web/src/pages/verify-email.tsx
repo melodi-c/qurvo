@@ -34,7 +34,7 @@ export default function VerifyEmailPage() {
   // Handle ?token= — verify via API client (public endpoint)
   useEffect(() => {
     const token = searchParams.get('token');
-    if (!token || tokenHandled.current) return;
+    if (!token || tokenHandled.current) {return;}
     tokenHandled.current = true;
     setTokenVerifying(true);
 
@@ -59,7 +59,7 @@ export default function VerifyEmailPage() {
   }, [user, pendingVerification, navigate]);
 
   useEffect(() => {
-    if (cooldown <= 0) return;
+    if (cooldown <= 0) {return;}
     const id = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
     return () => clearInterval(id);
   }, [cooldown]);

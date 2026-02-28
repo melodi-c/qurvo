@@ -39,22 +39,22 @@ export function SidebarNav({
 
   // Focus trap: cycle Tab within sidebar when open on mobile
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {return;}
 
     const sidebar = sidebarRef.current;
-    if (!sidebar) return;
+    if (!sidebar) {return;}
 
     const FOCUSABLE =
       'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== 'Tab') {return;}
 
       const focusable = Array.from(
         sidebar.querySelectorAll<HTMLElement>(FOCUSABLE),
       ).filter((el) => el.offsetParent !== null);
 
-      if (focusable.length === 0) return;
+      if (focusable.length === 0) {return;}
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];

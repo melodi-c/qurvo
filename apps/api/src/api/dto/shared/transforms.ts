@@ -14,7 +14,7 @@ function safeJsonParse(raw: string): unknown {
  * or as native arrays (POST body). Returns parsed array or the value as-is.
  */
 export function parseJsonArray({ value }: { value: unknown }): unknown {
-  if (!value) return undefined;
+  if (!value) {return undefined;}
   return typeof value === 'string' ? safeJsonParse(value) : value;
 }
 
@@ -25,7 +25,7 @@ export function parseJsonArray({ value }: { value: unknown }): unknown {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function makeJsonArrayTransform(targetClass: new (...args: any[]) => any) {
   return ({ value }: { value: unknown }): unknown => {
-    if (!value) return undefined;
+    if (!value) {return undefined;}
     const arr = typeof value === 'string' ? safeJsonParse(value) : value;
     return Array.isArray(arr) ? plainToInstance(targetClass, arr) : arr;
   };

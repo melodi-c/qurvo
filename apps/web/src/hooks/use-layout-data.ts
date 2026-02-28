@@ -91,15 +91,15 @@ export function useLayoutData() {
     const resolvedPath = effectiveProjectId
       ? path.replace(':projectId', effectiveProjectId)
       : path;
-    if (exact) return location.pathname === resolvedPath;
+    if (exact) {return location.pathname === resolvedPath;}
     return location.pathname === resolvedPath || location.pathname.startsWith(resolvedPath + '/');
   }
 
   function navLink(path: string): string {
-    if (!path.includes(':projectId')) return path;
+    if (!path.includes(':projectId')) {return path;}
     // Use effectiveProjectId as fallback so sidebar links work on project-less pages.
     // If no project is known at all, fall back to the projects list.
-    if (!effectiveProjectId) return routes.projects();
+    if (!effectiveProjectId) {return routes.projects();}
     return path.replace(':projectId', effectiveProjectId);
   }
 

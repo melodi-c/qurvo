@@ -22,7 +22,7 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
 
   // 1. beforeunload — native browser prompt on tab close/reload
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty) {return;}
 
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -34,7 +34,7 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
 
   // 2. Patch pushState/replaceState to intercept Link navigation
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty) {return;}
 
     const originalPushState = window.history.pushState.bind(window.history);
     const originalReplaceState = window.history.replaceState.bind(window.history);
@@ -71,7 +71,7 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
 
   // 3. popstate — intercept browser back/forward buttons
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty) {return;}
 
     const handler = () => {
       // Re-push current URL to cancel the navigation
@@ -89,7 +89,7 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
     const target = pendingNavigation.current;
     pendingNavigation.current = null;
 
-    if (!target) return;
+    if (!target) {return;}
 
     // Temporarily mark as clean to avoid re-triggering guard
     isDirtyRef.current = false;

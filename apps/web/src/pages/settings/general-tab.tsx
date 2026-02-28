@@ -52,7 +52,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     return <EmptyState icon={Settings} description={t('selectProject')} />;
   }
 
-  if (isLoading) return <ListSkeleton count={1} height="h-32" />;
+  if (isLoading) {return <ListSkeleton count={1} height="h-32" />;}
 
   const isOwner = project?.role === 'owner';
   const isEditor = project?.role === 'owner' || project?.role === 'editor';

@@ -99,7 +99,7 @@ export function AiChatView({ chatId, projectId }: { chatId: string | null; proje
   }, [startNewConversation, setSearchParams]);
 
   const handleToggleShare = useCallback(() => {
-    if (!conversationId) return;
+    if (!conversationId) {return;}
     toggleSharedMutation.mutate({ id: conversationId, is_shared: !isShared });
   }, [conversationId, isShared, toggleSharedMutation]);
 

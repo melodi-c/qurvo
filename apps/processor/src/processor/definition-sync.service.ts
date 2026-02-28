@@ -80,10 +80,10 @@ export class DefinitionSyncService {
   ): void {
     for (const [k, v] of Object.entries(bag)) {
       // A9: Skip service properties for event type only
-      if (type === 'event' && SKIP_EVENT_PROPERTIES.has(k)) continue;
+      if (type === 'event' && SKIP_EVENT_PROPERTIES.has(k)) {continue;}
 
       // A6: Skip properties with names longer than 200 chars
-      if (k.length > MAX_NAME_LENGTH) continue;
+      if (k.length > MAX_NAME_LENGTH) {continue;}
 
       const property_name = `${prefix}${k}`;
       const detected = detectValueType(k, v);
@@ -115,7 +115,7 @@ export class DefinitionSyncService {
 
     for (const e of events) {
       // A6: Skip events with names longer than 200 chars
-      if (e.event_name.length > MAX_NAME_LENGTH) continue;
+      if (e.event_name.length > MAX_NAME_LENGTH) {continue;}
 
       // Parse properties early to check count before collecting anything
       let parsedProps: Record<string, unknown> | null = null;

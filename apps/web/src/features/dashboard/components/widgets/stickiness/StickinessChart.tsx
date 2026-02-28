@@ -38,7 +38,7 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
     [result.data, result.granularity, totalUsers],
   );
 
-  if (data.length === 0) return null;
+  if (data.length === 0) {return null;}
 
   const usersLabel = t('users');
 

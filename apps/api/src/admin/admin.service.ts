@@ -358,13 +358,13 @@ export class AdminService {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (input.name !== undefined) updateData.name = input.name;
-    if (input.events_limit !== undefined) updateData.events_limit = input.events_limit ?? null;
-    if (input.data_retention_days !== undefined) updateData.data_retention_days = input.data_retention_days ?? null;
-    if (input.max_projects !== undefined) updateData.max_projects = input.max_projects ?? null;
-    if (input.ai_messages_per_month !== undefined) updateData.ai_messages_per_month = input.ai_messages_per_month ?? null;
-    if (input.features !== undefined) updateData.features = input.features;
-    if (input.is_public !== undefined) updateData.is_public = input.is_public;
+    if (input.name !== undefined) {updateData.name = input.name;}
+    if (input.events_limit !== undefined) {updateData.events_limit = input.events_limit ?? null;}
+    if (input.data_retention_days !== undefined) {updateData.data_retention_days = input.data_retention_days ?? null;}
+    if (input.max_projects !== undefined) {updateData.max_projects = input.max_projects ?? null;}
+    if (input.ai_messages_per_month !== undefined) {updateData.ai_messages_per_month = input.ai_messages_per_month ?? null;}
+    if (input.features !== undefined) {updateData.features = input.features;}
+    if (input.is_public !== undefined) {updateData.is_public = input.is_public;}
 
     const [updated] = await this.db
       .update(plans)

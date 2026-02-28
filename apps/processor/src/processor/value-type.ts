@@ -13,7 +13,7 @@ export function isLikelyDateString(s: string): boolean {
 }
 
 export function isLikelyUnixTimestamp(n: number): boolean {
-  if (!Number.isFinite(n) || n < 0) return false;
+  if (!Number.isFinite(n) || n < 0) {return false;}
   const nowS = Math.floor(Date.now() / 1000);
   return n >= nowS - SIX_MONTHS_S && n <= nowS + TEN_YEARS_S;
 }
@@ -30,25 +30,25 @@ export function detectValueType(key: string, value: unknown): ValueType | null {
   const lowerKey = key.toLowerCase();
 
   // A5: Hard-coded overrides — always String regardless of value
-  if (lowerKey.startsWith('utm_') || lowerKey.startsWith('$initial_utm_')) return 'String';
-  if (lowerKey.startsWith('$feature/')) return 'String';
-  if (lowerKey === '$feature_flag_response') return 'String';
-  if (lowerKey.startsWith('$survey_response')) return 'String';
+  if (lowerKey.startsWith('utm_') || lowerKey.startsWith('$initial_utm_')) {return 'String';}
+  if (lowerKey.startsWith('$feature/')) {return 'String';}
+  if (lowerKey === '$feature_flag_response') {return 'String';}
+  if (lowerKey.startsWith('$survey_response')) {return 'String';}
 
   // A5: DateTime heuristic by property name + value
   if (DATETIME_NAME_KEYWORDS.some((kw) => lowerKey.includes(kw))) {
-    if (typeof value === 'string' && isLikelyDateString(value)) return 'DateTime';
-    if (typeof value === 'number' && isLikelyUnixTimestamp(value)) return 'DateTime';
+    if (typeof value === 'string' && isLikelyDateString(value)) {return 'DateTime';}
+    if (typeof value === 'number' && isLikelyUnixTimestamp(value)) {return 'DateTime';}
   }
 
   // Standard type detection
-  if (typeof value === 'boolean') return 'Boolean';
-  if (typeof value === 'number') return 'Numeric';
+  if (typeof value === 'boolean') {return 'Boolean';}
+  if (typeof value === 'number') {return 'Numeric';}
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (trimmed === 'true' || trimmed === 'false' || trimmed === 'TRUE' || trimmed === 'FALSE') return 'Boolean';
-    if (isLikelyDateString(value)) return 'DateTime';
-    if (trimmed !== '' && !isNaN(Number(trimmed))) return 'Numeric';
+    if (trimmed === 'true' || trimmed === 'false' || trimmed === 'TRUE' || trimmed === 'FALSE') {return 'Boolean';}
+    if (isLikelyDateString(value)) {return 'DateTime';}
+    if (trimmed !== '' && !isNaN(Number(trimmed))) {return 'Numeric';}
     return 'String';
   }
 

@@ -100,7 +100,7 @@ describe('queryFunnel — breakdown_limit', () => {
     }
     // aggregate_steps should be defined
     expect(rLimited.aggregate_steps).toBeDefined();
-    expect(rLimited.aggregate_steps!.length).toBe(2);
+    expect(rLimited.aggregate_steps.length).toBe(2);
   });
 
   it('does not set breakdown_truncated when result count is below limit', async () => {

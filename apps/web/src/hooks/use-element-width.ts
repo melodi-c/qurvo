@@ -9,7 +9,7 @@ export function useElementWidth() {
   }, []);
 
   useEffect(() => {
-    if (!el) return;
+    if (!el) {return;}
     const observer = new ResizeObserver(([entry]) => {
       setWidth(entry.contentRect.width);
     });

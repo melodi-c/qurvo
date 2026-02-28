@@ -25,7 +25,7 @@ export function EventSequenceRow({ condition, onChange, onRemove, variant }: Eve
   };
 
   const removeStep = (idx: number) => {
-    if (condition.steps.length <= 2) return;
+    if (condition.steps.length <= 2) {return;}
     onChange({ ...condition, steps: condition.steps.filter((_, i) => i !== idx) } as SequenceCondition);
   };
 

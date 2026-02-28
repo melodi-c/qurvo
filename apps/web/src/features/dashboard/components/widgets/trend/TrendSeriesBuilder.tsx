@@ -31,12 +31,12 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
   const { addFilter, updateFilter, removeFilter } = useFilterManager(series, update);
 
   const addSeries = () => {
-    if (series.length >= 5) return;
+    if (series.length >= 5) {return;}
     onChange([...series, { event_name: '', label: t('seriesN', { n: String(series.length + 1) }) }]);
   };
 
   const removeSeries = (idx: number) => {
-    if (series.length <= 1) return;
+    if (series.length <= 1) {return;}
     onChange(series.filter((_, i) => i !== idx));
   };
 

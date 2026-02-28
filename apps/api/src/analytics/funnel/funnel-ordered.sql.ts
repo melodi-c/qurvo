@@ -1,4 +1,5 @@
-import { rawWithParams, select, raw, CompilerContext, type QueryNode } from '@qurvo/ch-query';
+import type { CompilerContext} from '@qurvo/ch-query';
+import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -73,8 +74,8 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     : '\n                AND event_name IN ({all_event_names:Array(String)})';
 
   // Build full step conditions for step 0 and last step.
-  const step0Cond = buildStepCondition(steps[0]!, 0, queryParams, ctx);
-  const lastStepCond = buildStepCondition(steps[numSteps - 1]!, numSteps - 1, queryParams, ctx);
+  const step0Cond = buildStepCondition(steps[0], 0, queryParams, ctx);
+  const lastStepCond = buildStepCondition(steps[numSteps - 1], numSteps - 1, queryParams, ctx);
 
   // Optional breakdown column.
   const breakdownCol = breakdownExpr
@@ -115,7 +116,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
 
     // Forward exclusion column names from raw CTE into funnel_per_user.
     const exclColsForward = exclColumns.length > 0
-      ? ',\n              ' + exclColumns.map(c => c.split(' AS ')[1]!).join(',\n              ')
+      ? ',\n              ' + exclColumns.map(c => c.split(' AS ')[1]).join(',\n              ')
       : '';
 
     const breakdownForward = breakdownExpr ? ',\n              breakdown_value' : '';

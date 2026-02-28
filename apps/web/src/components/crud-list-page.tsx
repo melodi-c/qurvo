@@ -58,7 +58,7 @@ export function CrudListPage<T extends CrudListRow>({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
     try {
       await onDelete(deleteTarget.id);
       toast.success(t('deleteSuccess', { entity: entityLabel }));
@@ -127,7 +127,7 @@ export function CrudListPage<T extends CrudListRow>({
 
       {projectId && isLoading && <ListSkeleton />}
 
-      {projectId && !isLoading && data && data.length === 0 && (
+      {projectId && !isLoading && data?.length === 0 && (
         <EmptyState
           icon={icon}
           title={emptyTitle}
@@ -154,7 +154,7 @@ export function CrudListPage<T extends CrudListRow>({
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => { if (!open) {setDeleteTarget(null);} }}
         title={t('deleteTitle', { entity: entityLabel, name: deleteTarget?.name ?? '' })}
         description={t('deleteDescription')}
         confirmLabel={t('deleteConfirm')}

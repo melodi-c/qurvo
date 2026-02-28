@@ -109,8 +109,8 @@ function buildJsonHasExpr(jsonColumn: string, segments: string[]): string {
 
 function resolvePropertyColumnExpr(prop: string): string {
   const source = resolvePropertySource(prop);
-  if (source) return buildJsonExtractStringExpr(source.jsonColumn, source.segments);
-  if (DIRECT_COLUMNS.has(prop)) return prop;
+  if (source) {return buildJsonExtractStringExpr(source.jsonColumn, source.segments);}
+  if (DIRECT_COLUMNS.has(prop)) {return prop;}
   throw new Error(`Unknown filter property: ${prop}`);
 }
 
@@ -206,7 +206,7 @@ export function propertyFilter(filter: PropertyFilter): Expr {
  * Returns undefined for empty arrays (allowing and() to skip it).
  */
 export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
-  if (filters.length === 0) return undefined;
+  if (filters.length === 0) {return undefined;}
   return and(...filters.map(propertyFilter));
 }
 
@@ -226,9 +226,9 @@ export function cohortFilter(
   dateTo?: string,
   dateFrom?: string,
 ): Expr | undefined {
-  if (!inputs?.length) return undefined;
+  if (!inputs?.length) {return undefined;}
   // Dynamically import to avoid hard dependency at module level.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const { buildCohortFilterClause } = require('@qurvo/cohort-query') as typeof import('@qurvo/cohort-query');
 
   // Collect params populated by buildCohortFilterClause into a local object.
@@ -249,7 +249,7 @@ export function cohortFilter(
     dateTo,
     dateFrom,
   );
-  if (!clause) return undefined;
+  if (!clause) {return undefined;}
   return rawWithParams(clause, cohortParams);
 }
 

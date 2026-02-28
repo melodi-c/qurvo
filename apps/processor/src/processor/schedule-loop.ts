@@ -15,7 +15,7 @@ export function createScheduledLoop(
   let timer: NodeJS.Timeout | null = null;
 
   function schedule(): NodeJS.Timeout | null {
-    if (stopped) return null;
+    if (stopped) {return null;}
     timer = setTimeout(async () => {
       try {
         await fn();

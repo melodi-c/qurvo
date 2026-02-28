@@ -33,7 +33,7 @@ export function formatDateWithGranularity(iso: string, granularity: string, time
 
 /** Format a short date range from two ISO strings. Extracts MM-DD portion (e.g. "03-15 – 04-20"). Returns null if either value is not a string. */
 export function formatShortDateRange(from: unknown, to: unknown): string | null {
-  if (typeof from !== 'string' || typeof to !== 'string') return null;
+  if (typeof from !== 'string' || typeof to !== 'string') {return null;}
   const fShort = from.slice(5); // MM-DD
   const tShort = to.slice(5);
   return `${fShort} – ${tShort}`;
@@ -44,13 +44,13 @@ export function formatRelativeTime(iso: string): string {
   const locale = getLocale();
   const diff = Date.now() - new Date(iso).getTime();
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  if (diff < 0) return rtf.format(0, 'second');
+  if (diff < 0) {return rtf.format(0, 'second');}
   const s = Math.floor(diff / 1000);
-  if (s < 60) return rtf.format(-s, 'second');
+  if (s < 60) {return rtf.format(-s, 'second');}
   const m = Math.floor(s / 60);
-  if (m < 60) return rtf.format(-m, 'minute');
+  if (m < 60) {return rtf.format(-m, 'minute');}
   const h = Math.floor(m / 60);
-  if (h < 24) return rtf.format(-h, 'hour');
+  if (h < 24) {return rtf.format(-h, 'hour');}
   return new Date(iso).toLocaleDateString(locale);
 }
 
@@ -58,18 +58,18 @@ export function formatRelativeTime(iso: string): string {
  * ClickHouse returns "YYYY-MM-DD HH:MM:SS" (space, no tz) or "YYYY-MM-DD" (date-only).
  * Already-normalised strings (containing 'T' or 'Z') are returned as-is. */
 function normaliseBucketToUtc(bucket: string): string {
-  if (bucket.includes('T') || bucket.includes('Z')) return bucket; // already ISO
-  if (bucket.includes(' ')) return bucket.replace(' ', 'T') + 'Z'; // "YYYY-MM-DD HH:MM:SS"
+  if (bucket.includes('T') || bucket.includes('Z')) {return bucket;} // already ISO
+  if (bucket.includes(' ')) {return bucket.replace(' ', 'T') + 'Z';} // "YYYY-MM-DD HH:MM:SS"
   return bucket + 'T00:00:00Z';                                     // "YYYY-MM-DD"
 }
 
 /** Return a badge variant for a given event name. */
 export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 'outline' {
-  if (eventName === '$pageview') return 'default';
-  if (eventName === '$pageleave') return 'default';
-  if (eventName === '$identify') return 'secondary';
-  if (eventName === '$set' || eventName === '$set_once') return 'secondary';
-  if (eventName === '$screen') return 'default';
+  if (eventName === '$pageview') {return 'default';}
+  if (eventName === '$pageleave') {return 'default';}
+  if (eventName === '$identify') {return 'secondary';}
+  if (eventName === '$set' || eventName === '$set_once') {return 'secondary';}
+  if (eventName === '$screen') {return 'default';}
   return 'outline';
 }
 
@@ -77,7 +77,7 @@ export function eventBadgeVariant(eventName: string): 'default' | 'secondary' | 
  * Bucket strings from ClickHouse are always UTC — normalise to ISO 8601 with 'Z' suffix before parsing.
  * When timezone is provided, display dates in that timezone rather than browser-local time. */
 export function formatBucket(bucket: string, granularity: string, compact?: boolean, timezone?: string): string {
-  if (!bucket) return '';
+  if (!bucket) {return '';}
   const locale = getLocale();
   const d = new Date(normaliseBucketToUtc(bucket));
   // For display: use the project's timezone when provided, else UTC (avoids browser-local offset shifts).
@@ -105,18 +105,18 @@ export function formatBucket(bucket: string, granularity: string, compact?: bool
     return d.toLocaleString(locale, { month: 'short', year: '2-digit', timeZone: displayTz });
   }
   // day (default)
-  if (compact) return d.toLocaleString(locale, { month: 'numeric', day: 'numeric', timeZone: displayTz });
+  if (compact) {return d.toLocaleString(locale, { month: 'numeric', day: 'numeric', timeZone: displayTz });}
   return d.toLocaleString(locale, { month: 'short', day: 'numeric', timeZone: displayTz });
 }
 
 /** Format seconds into a human-readable duration. Locale-aware suffixes (e.g. "30с", "5м", "2ч", "3д" in Russian). Supports days. */
 export function formatSeconds(s: number | null | undefined): string | null {
-  if (s == null) return null;
+  if (s == null) {return null;}
   const lang = getLocale() as 'en' | 'ru';
   const ru = lang === 'ru';
-  if (s < 60) return `${Math.round(s)}${ru ? 'с' : 's'}`;
-  if (s < 3600) return `${Math.round(s / 60)}${ru ? 'м' : 'm'}`;
-  if (s < 86400) return `${(s / 3600).toFixed(1).replace(/\.0$/, '')}${ru ? 'ч' : 'h'}`;
+  if (s < 60) {return `${Math.round(s)}${ru ? 'с' : 's'}`;}
+  if (s < 3600) {return `${Math.round(s / 60)}${ru ? 'м' : 'm'}`;}
+  if (s < 86400) {return `${(s / 3600).toFixed(1).replace(/\.0$/, '')}${ru ? 'ч' : 'h'}`;}
   return `${(s / 86400).toFixed(1).replace(/\.0$/, '')}${ru ? 'д' : 'd'}`;
 }
 
@@ -129,14 +129,14 @@ export function formatGranularity(count: number, granularity: string): string {
     month: { one: lang === 'ru' ? 'месяц' : 'month',  few: lang === 'ru' ? 'месяца' : 'months', many: lang === 'ru' ? 'месяцев' : 'months' },
   };
   const f = forms[granularity];
-  if (!f) return granularity;
+  if (!f) {return granularity;}
   return pluralize(count, f, lang);
 }
 
 /** Format a number compactly for chart axes (e.g. 1234 → "1.2K", 4500000 → "4.5M"). */
 export function formatCompactNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  if (n >= 1_000_000) {return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;}
+  if (n >= 1_000) {return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;}
   return String(n);
 }
 

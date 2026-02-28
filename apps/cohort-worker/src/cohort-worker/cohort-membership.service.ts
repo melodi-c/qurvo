@@ -86,7 +86,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
 
       staleCount = staleCohorts.length;
 
-      if (staleCohorts.length === 0) return;
+      if (staleCohorts.length === 0) {return;}
 
       // ── 2. Error backoff filter ────────────────────────────────────────
       const eligible = filterByBackoff(staleCohorts);
@@ -97,7 +97,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
         this.metrics.backoffSkippedTotal.inc(backoffSkipped);
       }
 
-      if (eligible.length === 0) return;
+      if (eligible.length === 0) {return;}
 
       // ── 3. Topological sort ────────────────────────────────────────────
       const { sorted, cyclic } = topologicalSortCohorts(
@@ -171,7 +171,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
         for (let i = 0; i < results.length; i++) {
           const r = results[i];
           if (r.status === 'fulfilled') {
-            const result = r.value as ComputeJobResult;
+            const result = r.value;
             computed += result.success ? 1 : 0;
             pgFailed += result.pgFailed ? 1 : 0;
             if (result.success && result.version !== undefined) {
@@ -222,7 +222,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
     // Increment counter in Redis so it survives worker restarts (Bug 2 fix).
     // INCR returns the new value after increment (1-based).
     const counter = await this.redis.incr(COHORT_GC_CYCLE_REDIS_KEY);
-    if (counter % COHORT_GC_EVERY_N_CYCLES !== 0) return;
+    if (counter % COHORT_GC_EVERY_N_CYCLES !== 0) {return;}
     await this.computation
       .gcOrphanedMemberships()
       .catch((err) => this.logger.error({ err }, 'Orphan GC failed'));

@@ -25,8 +25,8 @@ export class AnnotationsService {
 
   async list(projectId: string, dateFrom?: string, dateTo?: string) {
     const conditions = [eq(annotations.project_id, projectId)];
-    if (dateFrom) conditions.push(gte(annotations.date, dateFrom));
-    if (dateTo) conditions.push(lte(annotations.date, dateTo));
+    if (dateFrom) {conditions.push(gte(annotations.date, dateFrom));}
+    if (dateTo) {conditions.push(lte(annotations.date, dateTo));}
 
     return this.db
       .select()
@@ -52,10 +52,10 @@ export class AnnotationsService {
 
   async update(projectId: string, id: string, input: UpdateAnnotationInput) {
     const updateData: Record<string, unknown> = { updated_at: new Date() };
-    if (input.date !== undefined) updateData['date'] = input.date;
-    if (input.label !== undefined) updateData['label'] = input.label;
-    if (input.description !== undefined) updateData['description'] = input.description;
-    if (input.color !== undefined) updateData['color'] = input.color;
+    if (input.date !== undefined) {updateData['date'] = input.date;}
+    if (input.label !== undefined) {updateData['label'] = input.label;}
+    if (input.description !== undefined) {updateData['description'] = input.description;}
+    if (input.color !== undefined) {updateData['color'] = input.color;}
 
     const rows = await this.db
       .update(annotations)
@@ -63,7 +63,7 @@ export class AnnotationsService {
       .where(and(eq(annotations.project_id, projectId), eq(annotations.id, id)))
       .returning();
 
-    if (rows.length === 0) throw new AnnotationNotFoundException();
+    if (rows.length === 0) {throw new AnnotationNotFoundException();}
     return rows[0];
   }
 
@@ -73,6 +73,6 @@ export class AnnotationsService {
       .where(and(eq(annotations.project_id, projectId), eq(annotations.id, id)))
       .returning({ id: annotations.id });
 
-    if (rows.length === 0) throw new AnnotationNotFoundException();
+    if (rows.length === 0) {throw new AnnotationNotFoundException();}
   }
 }

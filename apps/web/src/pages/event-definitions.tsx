@@ -123,7 +123,7 @@ export default function EventDefinitionsPage() {
               )}
             </div>
 
-            {filtered && filtered.length === 0 && (
+            {filtered?.length === 0 && (
               <EmptyState
                 icon={Database}
                 title={t('noEventsFound')}

@@ -55,7 +55,7 @@ export class AuthService {
         return created;
       });
     } catch (err: unknown) {
-      if (isPgUniqueViolation(err)) throw new EmailConflictException();
+      if (isPgUniqueViolation(err)) {throw new EmailConflictException();}
       throw err;
     }
 
@@ -160,7 +160,7 @@ export class AuthService {
 
   private async incrementLoginAttempts(key: string): Promise<void> {
     const count = await this.redis.incr(key);
-    if (count === 1) await this.redis.expire(key, LOGIN_WINDOW_SECONDS);
+    if (count === 1) {await this.redis.expire(key, LOGIN_WINDOW_SECONDS);}
   }
 
   async logout(token: string) {

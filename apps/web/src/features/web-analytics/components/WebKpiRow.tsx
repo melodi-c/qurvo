@@ -6,13 +6,13 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './WebKpiRow.translations';
 
 function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000_000) {return `${(n / 1_000_000).toFixed(1)}M`;}
+  if (n >= 1_000) {return `${(n / 1_000).toFixed(1)}K`;}
   return n.toLocaleString();
 }
 
 function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 60) {return `${seconds}s`;}
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s}s`;
@@ -89,7 +89,7 @@ export function WebKpiRow({ current, previous, isLoading, isError, onRetry }: We
         previousValue={previous.bounce_rate}
         invertSentiment
         formatDelta={(cur, prev) => {
-          if (prev === 0) return cur > 0 ? '+100%' : '0%';
+          if (prev === 0) {return cur > 0 ? '+100%' : '0%';}
           const diff = cur - prev;
           const sign = diff >= 0 ? '+' : '';
           return `${sign}${diff.toFixed(1)}pp`;

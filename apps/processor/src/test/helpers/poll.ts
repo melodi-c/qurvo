@@ -18,7 +18,7 @@ export async function pollUntil<T>(
 
   while (Date.now() < deadline) {
     const result = await fn();
-    if (predicate(result)) return result;
+    if (predicate(result)) {return result;}
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 

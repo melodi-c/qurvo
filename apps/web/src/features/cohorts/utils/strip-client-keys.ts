@@ -11,7 +11,7 @@ export function stripClientKeys(group: CohortConditionGroup): CohortConditionGro
     ...rest,
     values: rest.values.map((v) => {
       if ('values' in v && (v.type === 'AND' || v.type === 'OR')) {
-        return stripClientKeys(v as CohortConditionGroup);
+        return stripClientKeys(v);
       }
       const { _key: _k, ...condition } = v as typeof v & { _key?: string };
       return condition;

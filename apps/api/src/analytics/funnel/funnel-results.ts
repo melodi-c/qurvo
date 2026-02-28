@@ -100,7 +100,7 @@ export function computePropertyBreakdownResults(
   const grouped = new Map<string, RawBreakdownRow[]>();
   for (const row of rows) {
     const bv = (row.breakdown_value != null && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
-    if (!grouped.has(bv)) grouped.set(bv, []);
+    if (!grouped.has(bv)) {grouped.set(bv, []);}
     grouped.get(bv)!.push(row);
   }
 
@@ -118,8 +118,8 @@ export function computePropertyBreakdownResults(
 
   // Sort groups: (none) always last, then by step-1 entered count descending.
   groupEntries.sort((a, b) => {
-    if (a.bv === '(none)' && b.bv !== '(none)') return 1;
-    if (a.bv !== '(none)' && b.bv === '(none)') return -1;
+    if (a.bv === '(none)' && b.bv !== '(none)') {return 1;}
+    if (a.bv !== '(none)' && b.bv === '(none)') {return -1;}
     return b.step1Count - a.step1Count;
   });
 

@@ -35,8 +35,8 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
     : average_retention.length;
 
   const getPeriodLabel = useCallback((granularity: string): string => {
-    if (granularity === 'day') return t('day');
-    if (granularity === 'week') return t('week');
+    if (granularity === 'day') {return t('day');}
+    if (granularity === 'week') {return t('week');}
     return t('month');
   }, [t]);
 
@@ -50,7 +50,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
 
   useEffect(() => {
     const el = firstColRef.current;
-    if (!el) return;
+    if (!el) {return;}
 
     setSecondColLeft(el.offsetWidth);
 
@@ -64,7 +64,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
     return () => observer.disconnect();
   }, []);
 
-  if (cohorts.length === 0) return null;
+  if (cohorts.length === 0) {return null;}
 
   const secondColStyle = { left: secondColLeft } as React.CSSProperties;
 
@@ -121,7 +121,7 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
                   </TableCell>
                 );
 
-                if (compact) return cell;
+                if (compact) {return cell;}
 
                 return (
                   <Tooltip key={i}>

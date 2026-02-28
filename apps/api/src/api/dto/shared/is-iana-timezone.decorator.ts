@@ -1,4 +1,5 @@
-import { registerDecorator, ValidationOptions } from 'class-validator';
+import type { ValidationOptions } from 'class-validator';
+import { registerDecorator } from 'class-validator';
 
 const SUPPORTED_TIMEZONES = new Set(Intl.supportedValuesOf('timeZone'));
 

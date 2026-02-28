@@ -12,8 +12,8 @@ export function groupByKey<T>(items: T[], keyFn: (item: T) => string): Map<strin
   for (const item of items) {
     const key = keyFn(item);
     const group = groups.get(key);
-    if (group) group.push(item);
-    else groups.set(key, [item]);
+    if (group) {group.push(item);}
+    else {groups.set(key, [item]);}
   }
   return groups;
 }
@@ -30,7 +30,7 @@ const EMPTY_UA: ParsedUa = Object.freeze({ browser: '', browser_version: '', os:
 
 /** Parse User-Agent string into structured UA fields. Returns empty fields if UA is missing. */
 export function parseUa(userAgent?: string): ParsedUa {
-  if (!userAgent) return EMPTY_UA;
+  if (!userAgent) {return EMPTY_UA;}
   const result = new UAParser(userAgent).getResult();
   return {
     browser: result.browser.name ?? '',

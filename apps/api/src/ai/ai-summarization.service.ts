@@ -61,10 +61,10 @@ export class AiSummarizationService implements OnModuleDestroy {
     // Load all messages except the most recent AI_SUMMARY_KEEP_RECENT (those stay verbatim)
     const totalCount = await this.chatService.getMessageCount(conversationId);
     const oldMessagesCount = totalCount - AI_SUMMARY_KEEP_RECENT;
-    if (oldMessagesCount <= 0) return;
+    if (oldMessagesCount <= 0) {return;}
 
     const oldMessages = await this.chatService.getMessagesForSummary(conversationId, oldMessagesCount);
-    if (oldMessages.length === 0) return;
+    if (oldMessages.length === 0) {return;}
 
     // Build a readable transcript of the older messages for the summarizer
     const transcript = oldMessages
@@ -73,8 +73,8 @@ export class AiSummarizationService implements OnModuleDestroy {
           return `User: ${msg.content ?? ''}`;
         } else if (msg.role === 'assistant') {
           const parts: string[] = [];
-          if (msg.content) parts.push(`Assistant: ${msg.content}`);
-          if (msg.tool_calls) parts.push(`[Used tools: ${(msg.tool_calls as Array<{ function?: { name?: string } }>).map((tc) => tc?.function?.name).filter(Boolean).join(', ')}]`);
+          if (msg.content) {parts.push(`Assistant: ${msg.content}`);}
+          if (msg.tool_calls) {parts.push(`[Used tools: ${(msg.tool_calls as Array<{ function?: { name?: string } }>).map((tc) => tc?.function?.name).filter(Boolean).join(', ')}]`);}
           return parts.join('\n');
         } else if (msg.role === 'tool') {
           const resultStr = typeof msg.tool_result === 'string'

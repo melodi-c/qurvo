@@ -19,12 +19,12 @@ import type { Insight, TrendWidgetConfig, FunnelWidgetConfig, RetentionWidgetCon
 function getTypeSubtitle(insight: Insight): string {
   if (insight.type === 'trend') {
     const config = insight.config as TrendWidgetConfig;
-    if (!config.series?.length) return '\u2014';
+    if (!config.series?.length) {return '\u2014';}
     return config.series.map((s) => s.event_name).join(', ');
   }
   if (insight.type === 'funnel') {
     const config = insight.config as FunnelWidgetConfig;
-    if (!config.steps?.length) return '\u2014';
+    if (!config.steps?.length) {return '\u2014';}
     return config.steps.map((s) => s.event_name).join(' \u2192 ');
   }
   if (insight.type === 'retention') {
@@ -69,7 +69,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
   );
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
     try {
       await onDelete(deleteTarget.id);
       toast.success(t('toastDeleted'));
@@ -190,7 +190,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
       />
       <ConfirmDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => { if (!open) {setDeleteTarget(null);} }}
         title={t('deleteTitle', { name: deleteTarget?.name ?? '' })}
         description={t('deleteDescription')}
         confirmLabel={t('deleteConfirm')}
@@ -199,7 +199,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
       {shareTarget && (
         <ShareDialog
           open={shareTarget !== null}
-          onOpenChange={(open) => { if (!open) setShareTarget(null); }}
+          onOpenChange={(open) => { if (!open) {setShareTarget(null);} }}
           resourceType="insight"
           resourceId={shareTarget.id}
           projectId={projectId}

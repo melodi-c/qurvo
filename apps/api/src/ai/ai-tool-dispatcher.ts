@@ -61,7 +61,7 @@ export class AiToolDispatcher {
       try {
         const args = parsedArgs;
         const tool = this.toolMap.get(tc.function.name);
-        if (!tool) throw new Error(`Unknown tool: ${tc.function.name}`);
+        if (!tool) {throw new Error(`Unknown tool: ${tc.function.name}`);}
 
         if (tool.cacheable === true) {
           const cacheKey = this.buildToolCacheKey(tc.function.name, args, projectId);

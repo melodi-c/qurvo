@@ -18,7 +18,7 @@ export class AiRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const userId: string = request.user?.user_id;
-    if (!userId) return true;
+    if (!userId) {return true;}
 
     const now = Math.floor(Date.now() / 1000);
     const minuteBucket = Math.floor(now / AI_RATE_LIMIT_MINUTE_WINDOW_SECONDS);
@@ -35,7 +35,7 @@ export class AiRateLimitGuard implements CanActivate {
       .expire(hourKey, AI_RATE_LIMIT_HOUR_WINDOW_SECONDS * 2)
       .exec()
       .then((results) => {
-        if (!results) return [0, 0];
+        if (!results) {return [0, 0];}
         const minute = (results[0][1] as number) ?? 0;
         const hour = (results[2][1] as number) ?? 0;
         return [minute, hour];

@@ -107,7 +107,7 @@ describe('parseUserProperties', () => {
 
     it('filters all noisy properties from $set', () => {
       const setObj: Record<string, string> = {};
-      for (const prop of noisyProps) setObj[prop] = 'value';
+      for (const prop of noisyProps) {setObj[prop] = 'value';}
       const raw = JSON.stringify({ $set: { ...setObj, custom_prop: 'keep' } });
       const result = parseUserProperties(raw);
 
@@ -119,7 +119,7 @@ describe('parseUserProperties', () => {
 
     it('filters all noisy properties from $set_once', () => {
       const setOnceObj: Record<string, string> = {};
-      for (const prop of noisyProps) setOnceObj[prop] = 'value';
+      for (const prop of noisyProps) {setOnceObj[prop] = 'value';}
       const raw = JSON.stringify({ $set_once: { ...setOnceObj, first_seen: '2024-01-01' } });
       const result = parseUserProperties(raw);
 

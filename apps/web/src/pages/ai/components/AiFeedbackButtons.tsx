@@ -62,7 +62,7 @@ export function AiFeedbackButtons({ messageId }: AiFeedbackButtonsProps) {
   }, [submitFeedback, comment]);
 
   const cancelNegativeFeedback = useCallback(() => {
-    if (feedback === 'negative' && !showCommentBox) return;
+    if (feedback === 'negative' && !showCommentBox) {return;}
     setShowCommentBox(false);
     setComment('');
     if (feedback === 'negative') {

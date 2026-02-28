@@ -75,7 +75,7 @@ export function createWidgetDataHook<Config, Response extends CachedResponse, Pa
     }, [widgetId, hash]);
 
     useEffect(() => {
-      if (!query.data || autoRefreshTriggered.current) return;
+      if (!query.data || autoRefreshTriggered.current) {return;}
       const age = Date.now() - new Date(query.data.cached_at).getTime();
       if (age > STALE_AFTER_MS) {
         autoRefreshTriggered.current = true;
