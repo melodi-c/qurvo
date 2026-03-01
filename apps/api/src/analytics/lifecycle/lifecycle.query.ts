@@ -47,7 +47,7 @@ export interface LifecycleQueryParams {
   granularity: LifecycleGranularity;
   date_from: string;
   date_to: string;
-  event_filters?: PropertyFilter[];
+  filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
   timezone?: string;
 }
@@ -168,7 +168,7 @@ export async function queryLifecycle(
         to: params.date_to,
         tz,
         eventName: params.target_event,
-        filters: params.event_filters,
+        filters: params.filters,
         cohortFilters: params.cohort_filters,
         dateTo: cbDateTo, dateFrom: cbDateFrom,
       }),

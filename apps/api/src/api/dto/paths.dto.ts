@@ -98,7 +98,7 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)
-  event_filters?: StepFilterDto[];
+  filters?: StepFilterDto[];
 }
 
 export class PathTransitionDto {

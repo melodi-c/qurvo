@@ -315,8 +315,8 @@ describe('queryStickiness — long periods (30+ days)', () => {
   });
 });
 
-describe('queryStickiness — user_properties event_filters', () => {
-  it('filters by user_properties.* in event_filters', async () => {
+describe('queryStickiness — user_properties filters', () => {
+  it('filters by user_properties.* in filters', async () => {
     const projectId = randomUUID();
     const premiumUser = randomUUID();
     const freeUser = randomUUID();
@@ -338,7 +338,7 @@ describe('queryStickiness — user_properties event_filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
-      event_filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
+      filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
     });
 
     expect(result.granularity).toBe('day');
@@ -372,7 +372,7 @@ describe('queryStickiness — event property filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
-      event_filters: [{ property: 'properties.platform', operator: 'eq', value: 'mobile' }],
+      filters: [{ property: 'properties.platform', operator: 'eq', value: 'mobile' }],
     });
 
     expect(result.granularity).toBe('day');
@@ -396,7 +396,7 @@ describe('queryStickiness — event property filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(1),
-      event_filters: [{ property: 'properties.source', operator: 'eq', value: 'paid' }],
+      filters: [{ property: 'properties.source', operator: 'eq', value: 'paid' }],
     });
 
     expect(result.data).toHaveLength(0);

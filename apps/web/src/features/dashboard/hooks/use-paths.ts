@@ -32,7 +32,7 @@ export const usePathsData = createWidgetDataHook<PathsWidgetConfig, PathsRespons
     ...(config.min_persons ? { min_persons: config.min_persons } : {}),
     ...(config.path_cleaning_rules?.length ? { path_cleaning_rules: config.path_cleaning_rules } : {}),
     ...(config.wildcard_groups?.length ? { wildcard_groups: config.wildcard_groups } : {}),
-    ...(config.filters?.length ? { event_filters: config.filters } : {}),
+    ...(config.filters?.length ? { filters: config.filters } : {}),
     ...(widgetUuid ? { widget_id: widgetUuid } : {}),
     ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
   }),
