@@ -8,7 +8,8 @@ NUMBER="${1:?Usage: prepare-review.sh <NUMBER>}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SM="$SCRIPT_DIR/state-manager.sh"
 
-bash "$SM" issue-status "$NUMBER" READY_FOR_REVIEW
+# Идемпотентно: если solver уже установил READY_FOR_REVIEW, не падать
+bash "$SM" issue-status "$NUMBER" READY_FOR_REVIEW 2>/dev/null || true
 
 gh issue edit "$NUMBER" --add-label "under-review" 2>/dev/null || true
 

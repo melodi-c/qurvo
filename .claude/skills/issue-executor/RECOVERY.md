@@ -41,3 +41,13 @@ fi
 ## 0.3: Продолжи выполнение
 
 После восстановления состояния продолжи с соответствующего шага.
+
+## 0.4: Orphan issue detection
+
+Если issue зарегистрирован в state (PENDING), но отсутствует в `parallel_groups` —
+это orphan от прерванного `add-to-group`:
+```bash
+# Получи declared group из state
+DECLARED_GROUP=$(bash "$SM" get ".issues[\"<ORPHAN_NUMBER>\"].group")
+bash "$SM" add-to-group <ORPHAN_NUMBER> $DECLARED_GROUP
+```

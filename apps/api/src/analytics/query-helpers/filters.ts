@@ -17,7 +17,7 @@ import {
   DIRECT_COLUMNS,
   parsePropertyPath,
 } from '@qurvo/cohort-query';
-import type { PropertySource } from '@qurvo/cohort-query';
+import type { CohortFilterInput, PropertySource } from '@qurvo/cohort-query';
 import { timeRange, toChTs } from './time';
 
 // ── Types ──
@@ -129,7 +129,7 @@ export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
  * Returns undefined if inputs is empty/undefined (allowing and() to skip it).
  */
 export function cohortFilter(
-  inputs: CohortFilterInputLike[] | undefined,
+  inputs: CohortFilterInput[] | undefined,
   projectId: string,
   dateTo?: string,
   dateFrom?: string,
@@ -140,10 +140,8 @@ export function cohortFilter(
   const cohortParams: Record<string, unknown> = {};
   cohortParams['project_id'] = projectId;
 
-  // CohortFilterInputLike is structurally compatible with CohortFilterInput
-  type CohortFilterInputCast = Parameters<typeof buildCohortFilterClause>[0][number];
   const expr = buildCohortFilterClause(
-    inputs as CohortFilterInputCast[],
+    inputs,
     'project_id',
     cohortParams,
     undefined,
@@ -151,18 +149,6 @@ export function cohortFilter(
     dateFrom,
   );
   return expr ?? undefined;
-}
-
-/**
- * Minimal type for cohort filter inputs -- avoids importing the full @qurvo/db types
- * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/cohort-query.
- */
-export interface CohortFilterInputLike {
-  cohort_id: string;
-  definition: unknown;
-  materialized: boolean;
-  is_static: boolean;
-  membership_version?: number | null;
 }
 
 /**
@@ -187,7 +173,7 @@ export function analyticsWhere(opts: {
   eventName?: string;
   eventNames?: string[];
   filters?: PropertyFilter[];
-  cohortFilters?: CohortFilterInputLike[];
+  cohortFilters?: CohortFilterInput[];
   dateTo?: string;
   dateFrom?: string;
 }): Expr {

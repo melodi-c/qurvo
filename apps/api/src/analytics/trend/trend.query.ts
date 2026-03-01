@@ -353,6 +353,7 @@ async function executeTrendQuery(
       .from(unionAll(...topValuesArms))
       .groupBy(col('breakdown_value'))
       .orderBy(col('cnt'), 'DESC')
+      .orderBy(col('breakdown_value'), 'ASC')
       .limit(MAX_BREAKDOWN_VALUES)
       .build();
 

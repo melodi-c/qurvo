@@ -127,6 +127,42 @@ case "$CMD" in
     jq_update --argjson i "$1" '.current_group_index=$i'
     echo "OK" ;;
 
+  add-to-group)
+    NUM="${1:?Usage: add-to-group <number> <group_index>}"
+    GIDX="${2:?}"
+    _log_op "add-to-group $NUM $GIDX"
+
+    # Issue должен быть зарегистрирован
+    EXISTS=$(jq -r --arg n "$NUM" '.issues[$n] // empty' "$STATE_FILE")
+    if [[ -z "$EXISTS" ]]; then
+      echo "ERROR: issue $NUM not found in state (run issue-add first)" >&2; exit 1
+    fi
+
+    # Нельзя добавить в завершённую группу
+    CURRENT_GIDX=$(jq -r '.current_group_index' "$STATE_FILE")
+    if [[ "$GIDX" -lt "$CURRENT_GIDX" ]]; then
+      echo "ERROR: group $GIDX already completed (current=$CURRENT_GIDX)" >&2; exit 1
+    fi
+
+    # Расширить массив групп если нужно
+    GROUPS_LEN=$(jq '.parallel_groups | length' "$STATE_FILE")
+    if [[ "$GIDX" -ge "$GROUPS_LEN" ]]; then
+      jq_update --argjson target "$GIDX" \
+        '.parallel_groups = .parallel_groups + [range(.parallel_groups|length; $target+1) | []]'
+    fi
+
+    # Идемпотентность: если уже в группе — OK
+    DUP=$(jq --argjson g "$GIDX" --argjson n "$NUM" \
+      '[.parallel_groups[$g][] | select(. == $n)] | length' "$STATE_FILE")
+    if [[ "$DUP" -gt 0 ]]; then
+      echo "OK"; exit 0
+    fi
+
+    # Добавить в группу + обновить поле group у issue
+    jq_update --argjson g "$GIDX" --argjson n "$NUM" --arg ns "$NUM" \
+      '(.parallel_groups[$g] += [$n]) | (.issues[$ns].group = $g)'
+    echo "OK" ;;
+
   prune-merged)
     jq_update 'del(.issues[] | select(.status == "MERGED"))'
     echo "OK" ;;

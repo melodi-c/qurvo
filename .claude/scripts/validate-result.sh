@@ -29,8 +29,12 @@ check_field() {
 
 case "$TYPE" in
   solver)
-    check_field "status" "^(READY_FOR_REVIEW|FAILED|NEEDS_USER_INPUT)$"
-    check_field "confidence" "^(high|medium|low)$" ;;
+    check_field "status" "^(READY_FOR_REVIEW|FAILED|NEEDS_USER_INPUT|RUNNING)$"
+    # RUNNING status doesn't have confidence yet
+    STATUS=$(jq -r '.status' "$FILE")
+    if [[ "$STATUS" != "RUNNING" ]]; then
+      check_field "confidence" "^(high|medium|low)$"
+    fi ;;
   reviewer)
     check_field "verdict" "^(APPROVE|REQUEST_CHANGES)$"
     jq -e '.issues | type == "array"' "$FILE" >/dev/null 2>&1 || {

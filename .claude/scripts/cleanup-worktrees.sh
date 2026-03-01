@@ -99,8 +99,23 @@ done
 if [[ "$STATE_VALID" != "true" ]]; then
   echo "WARN: skipping branch cleanup (no valid state)" >&2
 else
-  # Helper: check if branch is protected by state
-  _is_safe() { [[ -n "$SAFE_BRANCHES" ]] && echo "$SAFE_BRANCHES" | grep -qxF "$1" 2>/dev/null; }
+  # Helper: check if branch is protected by state OR has open PRs
+  _is_safe() {
+    # Protected by state (active issue)
+    if [[ -n "$SAFE_BRANCHES" ]] && echo "$SAFE_BRANCHES" | grep -qxF "$1" 2>/dev/null; then
+      return 0
+    fi
+    # feature/* branches with open PRs (base or head) must not be deleted
+    if [[ "$1" == feature/* ]]; then
+      local OPEN_PRS
+      OPEN_PRS=$(gh pr list --base "$1" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+      OPEN_PRS=$((OPEN_PRS + $(gh pr list --head "$1" --state open --json number --jq 'length' 2>/dev/null || echo "0")))
+      if [[ "$OPEN_PRS" -gt 0 ]]; then
+        return 0
+      fi
+    fi
+    return 1
+  }
 
   # Local branches
   while IFS= read -r BRANCH; do
