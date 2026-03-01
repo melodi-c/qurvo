@@ -1,5 +1,5 @@
 import type { AliasExpr, Expr } from '@qurvo/ch-query';
-import { and, func, gte, lte, param, raw } from '@qurvo/ch-query';
+import { and, col, func, gte, literal, lte, param, raw } from '@qurvo/ch-query';
 
 type WithAs = Expr & { as(alias: string): AliasExpr };
 
@@ -99,7 +99,7 @@ export function tsParam(value: string, tz?: string): Expr {
   if (!hasTz) {
     return param('DateTime64(3)', chTs);
   }
-  return func('toDateTime64', param('String', chTs), raw('3'), param('String', tz));
+  return func('toDateTime64', param('String', chTs), literal(3), param('String', tz));
 }
 
 /**
@@ -109,8 +109,8 @@ export function timeRange(from: string, to: string, tz?: string): Expr {
   const fromExpr = tsParam(from, tz);
   const toExpr = tsParam(to.length === 10 ? toChTs(to, true) : to, tz);
   return and(
-    gte(raw('timestamp'), fromExpr),
-    lte(raw('timestamp'), toExpr),
+    gte(col('timestamp'), fromExpr),
+    lte(col('timestamp'), toExpr),
   );
 }
 
@@ -124,24 +124,24 @@ export function timeRange(from: string, to: string, tz?: string): Expr {
  */
 export function bucket(granularity: Granularity, column: string, tz?: string): WithAs {
   const hasTz = !!(tz && tz !== 'UTC');
-  const colExpr = raw(column);
+  const colExpr = col(column);
 
   switch (granularity) {
     case 'hour':
       return hasTz
-        ? func('toStartOfHour', colExpr, raw(`'${tz}'`))
+        ? func('toStartOfHour', colExpr, literal(tz!))
         : func('toStartOfHour', colExpr);
     case 'day':
       return hasTz
-        ? func('toStartOfDay', colExpr, raw(`'${tz}'`))
+        ? func('toStartOfDay', colExpr, literal(tz!))
         : func('toStartOfDay', colExpr);
     case 'week':
       return hasTz
-        ? func('toDateTime', func('toStartOfWeek', colExpr, raw('1'), raw(`'${tz}'`)), raw(`'${tz}'`))
-        : func('toDateTime', func('toStartOfWeek', colExpr, raw('1')));
+        ? func('toDateTime', func('toStartOfWeek', colExpr, literal(1), literal(tz!)), literal(tz!))
+        : func('toDateTime', func('toStartOfWeek', colExpr, literal(1)));
     case 'month':
       return hasTz
-        ? func('toDateTime', func('toStartOfMonth', colExpr, raw(`'${tz}'`)), raw(`'${tz}'`))
+        ? func('toDateTime', func('toStartOfMonth', colExpr, literal(tz!)), literal(tz!))
         : func('toDateTime', func('toStartOfMonth', colExpr));
     default: {
       const _exhaustive: never = granularity;
@@ -176,9 +176,9 @@ export function neighborBucket(
 
   switch (granularity) {
     case 'week':
-      return func('toDateTime', func('toStartOfWeek', shifted, raw('1'), raw(`'${tz}'`)), raw(`'${tz}'`));
+      return func('toDateTime', func('toStartOfWeek', shifted, literal(1), literal(tz!)), literal(tz!));
     case 'month':
-      return func('toDateTime', func('toStartOfMonth', shifted, raw(`'${tz}'`)), raw(`'${tz}'`));
+      return func('toDateTime', func('toStartOfMonth', shifted, literal(tz!)), literal(tz!));
     default: {
       const _exhaustive: never = granularity;
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
@@ -206,6 +206,10 @@ function compileExprInline(expr: Expr): string {
       return expr.sql;
     case 'column':
       return expr.name;
+    case 'literal':
+      if (typeof expr.value === 'string') return `'${expr.value.replace(/'/g, "\\'")}'`;
+      if (typeof expr.value === 'boolean') return expr.value ? '1' : '0';
+      return String(expr.value);
     case 'func': {
       const args = expr.args.map(compileExprInline).join(', ');
       return `${expr.name}(${args})`;

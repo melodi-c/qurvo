@@ -1,9 +1,10 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
   alias,
+  col,
   compile,
   select,
-  raw,
+  literal,
   count,
   neq,
 } from '@qurvo/ch-query';
@@ -47,10 +48,10 @@ export async function queryEventPropertyValues(
     .where(
       projectIs(params.project_id),
       params.event_name ? eventIs(params.event_name) : undefined,
-      neq(propExpr, raw("''")),
+      neq(propExpr, literal('')),
     )
-    .groupBy(raw('value'))
-    .orderBy(raw('count'), 'DESC')
+    .groupBy(col('value'))
+    .orderBy(col('count'), 'DESC')
     .limit(limit);
 
   const node = builder.build();
