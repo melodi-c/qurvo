@@ -8,6 +8,9 @@
  *
  * For retention specifically, we verify that cohort_date labels and period
  * membership shift correctly when timezone is applied.
+ *
+ * Note: cohort_date from ClickHouse is a DateTime string (e.g. "2026-02-23 00:00:00"),
+ * so we use startsWith() for date comparison rather than strict equality.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -56,7 +59,6 @@ describe('queryRetention — timezone support', () => {
     ]);
 
     const dateFromStr = dayD5.toISOString().slice(0, 10);
-    const dateToStr = dayD5.toISOString().slice(0, 10);
 
     // Without timezone: personA enters cohort on day D-5, returns on day D-4.
     const result = await queryRetention(ctx.ch, {
@@ -66,16 +68,16 @@ describe('queryRetention — timezone support', () => {
       granularity: 'day',
       periods: 3,
       date_from: dateFromStr,
-      date_to: dateToStr,
+      date_to: dateFromStr,
     });
 
-    // Should have one cohort (day D-5) with cohort_size = 1
-    expect(result.cohorts.length).toBeGreaterThanOrEqual(1);
-    const cohort = result.cohorts.find((c) => c.cohort_date === dateFromStr);
-    expect(cohort).toBeDefined();
-    expect(cohort!.cohort_size).toBe(1);
+    // Should have one cohort with cohort_size = 1
+    expect(result.cohorts).toHaveLength(1);
+    const cohort = result.cohorts[0];
+    expect(cohort.cohort_date.startsWith(dateFromStr)).toBe(true);
+    expect(cohort.cohort_size).toBe(1);
     // Period 1 should show retention (personA returned the next day)
-    expect(cohort!.periods[1]).toBe(1);
+    expect(cohort.periods[1]).toBe(1);
   });
 
   it('shifts day boundary with Europe/Moscow timezone (UTC+3)', async () => {
@@ -97,7 +99,7 @@ describe('queryRetention — timezone support', () => {
 
     // Next UTC day (where event 1 lands in MSK time)
     const mskDay1 = new Date(eventDay1.getTime() + 86_400_000);
-    const mskDay1Str = mskDay1.toISOString().slice(0, 10); // UTC day D-5 = MSK day of event 1
+    const mskDay1Str = mskDay1.toISOString().slice(0, 10); // D-5 = MSK day of event 1
 
     await insertTestEvents(ctx.ch, [
       buildEvent({
@@ -127,9 +129,8 @@ describe('queryRetention — timezone support', () => {
       date_to: utcDay1Str,
     });
 
-    const cohortUtc = resultUtc.cohorts.find((c) => c.cohort_date === utcDay1Str);
-    expect(cohortUtc).toBeDefined();
-    expect(cohortUtc!.cohort_size).toBe(1);
+    expect(resultUtc.cohorts).toHaveLength(1);
+    expect(resultUtc.cohorts[0].cohort_size).toBe(1);
 
     // WITH timezone=Europe/Moscow: query for UTC day D-6 should find NO cohort
     // (event at 23:30 UTC = 02:30 MSK next day, so it's not in D-6 MSK).
@@ -144,9 +145,9 @@ describe('queryRetention — timezone support', () => {
       timezone: 'Europe/Moscow',
     });
 
-    const cohortMskD6 = resultMskDayD6.cohorts.find((c) => c.cohort_date === utcDay1Str);
-    // Either no cohort at all, or cohort_size is 0
-    expect(cohortMskD6?.cohort_size ?? 0).toBe(0);
+    // Either no cohorts at all, or cohort with size 0
+    const totalSizeMsk = resultMskDayD6.cohorts.reduce((s, c) => s + c.cohort_size, 0);
+    expect(totalSizeMsk).toBe(0);
 
     // WITH timezone=Europe/Moscow: query for the MSK local day (D-5) should find
     // personA in the cohort, with retention on the next MSK day (D-4).
@@ -161,11 +162,10 @@ describe('queryRetention — timezone support', () => {
       timezone: 'Europe/Moscow',
     });
 
-    const cohortMskD5 = resultMskDayD5.cohorts.find((c) => c.cohort_date === mskDay1Str);
-    expect(cohortMskD5).toBeDefined();
-    expect(cohortMskD5!.cohort_size).toBe(1);
+    expect(resultMskDayD5.cohorts).toHaveLength(1);
+    expect(resultMskDayD5.cohorts[0].cohort_size).toBe(1);
     // Period 1: return event is at 02:30 MSK on D-4 (one day later in MSK)
-    expect(cohortMskD5!.periods[1]).toBe(1);
+    expect(resultMskDayD5.cohorts[0].periods[1]).toBe(1);
   });
 
   it('UTC timezone behaves same as no timezone', async () => {
@@ -206,11 +206,9 @@ describe('queryRetention — timezone support', () => {
     const withoutTz = await queryRetention(ctx.ch, params);
     const withUtcTz = await queryRetention(ctx.ch, { ...params, timezone: 'UTC' });
 
-    const r1 = withoutTz.cohorts.find((c) => c.cohort_date === day5Str);
-    const r2 = withUtcTz.cohorts.find((c) => c.cohort_date === day5Str);
-    expect(r1).toBeDefined();
-    expect(r2).toBeDefined();
-    expect(r1!.cohort_size).toBe(r2!.cohort_size);
-    expect(r1!.periods[1]).toBe(r2!.periods[1]);
+    expect(withoutTz.cohorts).toHaveLength(1);
+    expect(withUtcTz.cohorts).toHaveLength(1);
+    expect(withoutTz.cohorts[0].cohort_size).toBe(withUtcTz.cohorts[0].cohort_size);
+    expect(withoutTz.cohorts[0].periods[1]).toBe(withUtcTz.cohorts[0].periods[1]);
   });
 });
