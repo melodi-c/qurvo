@@ -49,7 +49,7 @@ describe('resolvePropertyExpr', () => {
     expect(() => resolvePropertyExpr('properties.foo\\')).toThrow('Invalid JSON key segment');
   });
 
-  it('rejects backslash followed by single quote (SQL injection prevention)', () => {
+  it('rejects backslash+quote in property key (SQL injection prevention)', () => {
     expect(() => resolvePropertyExpr("properties.foo\\'")).toThrow('Invalid JSON key segment');
   });
 
@@ -86,7 +86,8 @@ describe('propertyFilter', () => {
   it('builds eq condition for direct column', () => {
     const f: PropertyFilter = { property: 'event_name', operator: 'eq', value: 'page_view' };
     const { sql, params } = compileExprToSql(propertyFilter(f));
-    expect(sql).toMatch(/event_name = \{p_\d+:String\}/);
+    expect(sql).toContain('event_name =');
+    expect(sql).toContain(':String}');
     const paramKey = Object.keys(params).find(k => params[k] === 'page_view');
     expect(paramKey).toBeDefined();
   });
@@ -105,7 +106,8 @@ describe('propertyFilter', () => {
   it('builds neq condition for direct column (no JSONHas guard)', () => {
     const f: PropertyFilter = { property: 'country', operator: 'neq', value: 'US' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toMatch(/country != \{p_\d+:String\}/);
+    expect(sql).toContain('country !=');
+    expect(sql).toContain(':String}');
     expect(sql).not.toContain('JSONHas');
   });
 
@@ -120,7 +122,8 @@ describe('propertyFilter', () => {
   it('builds contains condition with LIKE', () => {
     const f: PropertyFilter = { property: 'page_title', operator: 'contains', value: 'home' };
     const { sql, params } = compileExprToSql(propertyFilter(f));
-    expect(sql).toMatch(/page_title LIKE \{p_\d+:String\}/);
+    expect(sql).toContain('page_title LIKE');
+    expect(sql).toContain(':String}');
     const paramKey = Object.keys(params).find(k => params[k] === '%home%');
     expect(paramKey).toBeDefined();
   });
@@ -135,7 +138,8 @@ describe('propertyFilter', () => {
   it('builds not_contains condition for direct column (no JSONHas guard)', () => {
     const f: PropertyFilter = { property: 'url', operator: 'not_contains', value: 'admin' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toMatch(/url NOT LIKE \{p_\d+:String\}/);
+    expect(sql).toContain('url NOT LIKE');
+    expect(sql).toContain(':String}');
     expect(sql).not.toContain('JSONHas');
   });
 

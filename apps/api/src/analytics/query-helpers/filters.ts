@@ -104,7 +104,7 @@ export function propertyFilter(filter: PropertyFilter): Expr {
   // However, applyOperator uses namedParam() internally which embeds the param
   // directly in the Expr. The queryParams mutation is ignored by analytics callers.
   const params: Record<string, unknown> = {};
-  const pk = `pf_${filter.property.replace(/\./g, '_')}_${filter.operator}`;
+  const pk = `pf_${filter.property.replace(/[^a-zA-Z0-9_]/g, '_')}_${filter.operator}`;
   const colExpr = resolvePropertyExpr(filter.property);
   return applyOperator(colExpr, filter.operator, pk, params, filter.value, filter.values);
 }

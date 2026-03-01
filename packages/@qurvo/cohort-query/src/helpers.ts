@@ -263,6 +263,10 @@ export function applyOperator(
     case 'not_contains': {
       const likeVal = `%${escapeLikePattern(value ?? '')}%`;
       queryParams[pk] = likeVal;
+      const jsonHasExpr = toJsonHasGuard(expr);
+      if (jsonHasExpr) {
+        return and(jsonHasExpr, notLike(expr, namedParam(pk, 'String', likeVal)));
+      }
       return notLike(expr, namedParam(pk, 'String', likeVal));
     }
     case 'is_set': {
