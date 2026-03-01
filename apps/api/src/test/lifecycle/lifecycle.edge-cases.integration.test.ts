@@ -68,6 +68,7 @@ describe('queryLifecycle — user_properties filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
+      timezone: 'UTC',
       filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
     });
 
@@ -136,6 +137,7 @@ describe('queryLifecycle — event property filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
+      timezone: 'UTC',
       filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
     });
 
@@ -200,6 +202,7 @@ describe('queryLifecycle — prior_active ignores eventFilterClause', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(0),
+      timezone: 'UTC',
       filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
     });
 
@@ -235,6 +238,7 @@ describe('queryLifecycle — prior_active ignores eventFilterClause', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(0),
+      timezone: 'UTC',
       filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
     });
 
@@ -268,6 +272,7 @@ describe('queryLifecycle — multiple resurrection cycles', () => {
       granularity: 'day',
       date_from: daysAgo(8),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     // Day -8: first ever event → new
@@ -327,6 +332,7 @@ describe('queryLifecycle — dormant semantics', () => {
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     const day3 = result.data.find((d) => d.bucket.startsWith(daysAgo(3)));
@@ -399,6 +405,7 @@ describe('queryLifecycle — cohort filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -471,6 +478,7 @@ describe('queryLifecycle — cohort filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
+      timezone: 'UTC',
       cohort_filters: [{ cohort_id: cohortId, definition, materialized: true, is_static: false }],
     });
 
@@ -519,6 +527,7 @@ describe('queryLifecycle — new vs resurrecting with deep history', () => {
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     // Today's bucket: user re-appeared after a 1-day gap -> resurrecting, NOT new
@@ -547,6 +556,7 @@ describe('queryLifecycle — new vs resurrecting with deep history', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     const today = result.data.find((d) => d.bucket.startsWith(daysAgo(0)));
@@ -571,6 +581,7 @@ describe('queryLifecycle — new vs resurrecting with deep history', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     const today = result.data.find((d) => d.bucket.startsWith(daysAgo(0)));
@@ -642,6 +653,7 @@ describe('queryLifecycle — unaligned date_from (issue #577)', () => {
       granularity: 'week',
       date_from: dateFromWed, // unaligned: Wednesday of week0
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     // week1Monday (>= dateFromWed) is the first visible bucket
@@ -721,6 +733,7 @@ describe('queryLifecycle — unaligned date_from (issue #577)', () => {
       granularity: 'month',
       date_from: dateFromMid, // unaligned: 15th of month1Ago
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     // month0 (1st of this month) >= dateFromMid (15th of month1Ago) → visible

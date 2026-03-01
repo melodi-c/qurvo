@@ -91,6 +91,7 @@ describe('queryFunnel — per-window exclusion', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -148,6 +149,7 @@ describe('queryFunnel — per-window exclusion', () => {
       conversion_window_unit: 'second',
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -214,6 +216,7 @@ describe('queryFunnel — exclusion steps', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -332,6 +335,7 @@ describe('queryFunnel — exclusion between non-zero steps', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 1, funnel_to_step: 2 }],
     });
 
@@ -434,6 +438,7 @@ describe('queryFunnel — OR-logic steps as exclusion anchors', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -531,6 +536,7 @@ describe('queryFunnel — OR-logic steps as exclusion anchors', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -606,6 +612,7 @@ describe('queryFunnel — OR-logic steps as exclusion anchors', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -671,6 +678,7 @@ describe('queryFunnel — conversion window units', () => {
       conversion_window_unit: 'minute',
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -752,6 +760,7 @@ describe('queryFunnel — exclusion with property filters', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [
         {
           event_name: 'Purchase',
@@ -834,6 +843,7 @@ describe('queryFunnel — exclusion with property filters', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [
         {
           event_name: 'Refund',
@@ -866,6 +876,7 @@ describe('queryFunnel — exclusion with property filters', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
         exclusions: [
           {
             event_name: 'Purchase', // same as step 0

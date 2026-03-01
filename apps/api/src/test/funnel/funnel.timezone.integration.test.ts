@@ -69,6 +69,7 @@ describe('queryFunnel — timezone support', () => {
       conversion_window_days: 7,
       date_from: dateStr,
       date_to: dateStr,
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -185,16 +186,13 @@ describe('queryFunnel — timezone support', () => {
       conversion_window_days: 7,
       date_from: dateStr,
       date_to: dateStr,
+      timezone: 'UTC',
     };
 
-    const withoutTz = await queryFunnel(ctx.ch, params);
-    const withUtcTz = await queryFunnel(ctx.ch, { ...params, timezone: 'UTC' });
+    const withUtcTz = await queryFunnel(ctx.ch, params);
 
-    const r1 = withoutTz as Extract<typeof withoutTz, { breakdown: false }>;
     const r2 = withUtcTz as Extract<typeof withUtcTz, { breakdown: false }>;
-    expect(r1.steps[0].count).toBe(1);
     expect(r2.steps[0].count).toBe(1);
-    expect(r1.steps[1].count).toBe(1);
     expect(r2.steps[1].count).toBe(1);
   });
 });

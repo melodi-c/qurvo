@@ -63,6 +63,7 @@ describe('queryOverview — KPIs', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.current.unique_visitors).toBe(2);
@@ -110,6 +111,7 @@ describe('queryOverview — KPIs', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     // 1 bounce out of 2 sessions = 50%
@@ -148,6 +150,7 @@ describe('queryOverview — KPIs', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.current.avg_duration_seconds).toBe(30);
@@ -187,6 +190,7 @@ describe('queryOverview — KPIs', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     // Current period should have 1 session
@@ -202,6 +206,7 @@ describe('queryOverview — KPIs', () => {
       project_id: projectId,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.current.unique_visitors).toBe(0);
@@ -220,6 +225,7 @@ describe('queryOverview — auto-granularity', () => {
       project_id: projectId,
       date_from: daysAgo(1),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('hour');
@@ -232,6 +238,7 @@ describe('queryOverview — auto-granularity', () => {
       project_id: projectId,
       date_from: daysAgo(30),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('day');
@@ -244,6 +251,7 @@ describe('queryOverview — auto-granularity', () => {
       project_id: projectId,
       date_from: daysAgo(180),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('week');
@@ -256,6 +264,7 @@ describe('queryOverview — auto-granularity', () => {
       project_id: projectId,
       date_from: daysAgo(400),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('month');
@@ -296,6 +305,7 @@ describe('queryOverview — timeseries', () => {
       project_id: projectId,
       date_from: daysAgo(5),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('day');
@@ -329,6 +339,7 @@ describe('queryOverview — timeseries', () => {
       project_id: projectId,
       date_from: daysAgo(7),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     // Only 1 bucket (the day with actual data) — empty buckets are not synthesized
@@ -373,6 +384,7 @@ describe('queryOverview — PropertyFilter', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
       filters: [{ property: 'page_path', operator: 'eq', value: '/dashboard' }],
     });
 

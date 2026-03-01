@@ -56,6 +56,7 @@ describe('queryOverview — timezone support', () => {
       project_id: projectId,
       date_from: dateStr,
       date_to: dateStr,
+      timezone: 'UTC',
     });
 
     expect(result.current.sessions).toBe(1);
@@ -154,6 +155,7 @@ describe('queryOverview — timezone support', () => {
       project_id: projectId,
       date_from: utcDateStr,
       date_to: nextDateStr,
+      timezone: 'UTC',
     });
 
     const utcTotalSessions = utcResult.timeseries.reduce((s, t) => s + t.sessions, 0);
@@ -206,6 +208,7 @@ describe('queryOverview — timezone support', () => {
       project_id: projectId,
       date_from: dateStr,
       date_to: dateStr,
+      timezone: 'UTC',
     });
 
     const withUtcTz = await queryOverview(ctx.ch, {

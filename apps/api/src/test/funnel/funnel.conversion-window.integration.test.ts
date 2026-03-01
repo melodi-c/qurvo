@@ -79,6 +79,7 @@ describe('queryFunnel — sub-second conversion window (millisecond precision)',
       conversion_window_days: 1,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'ordered',
     });
 
@@ -140,6 +141,7 @@ describe('queryFunnel — sub-second conversion window (millisecond precision)',
       conversion_window_days: 1,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 

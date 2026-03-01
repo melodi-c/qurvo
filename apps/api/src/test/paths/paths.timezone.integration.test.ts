@@ -59,6 +59,7 @@ describe('queryPaths — timezone support', () => {
       project_id: projectId,
       date_from: utcDateStr,
       date_to: utcDateStr,
+      timezone: 'UTC',
       step_limit: 5,
     });
 
@@ -107,6 +108,7 @@ describe('queryPaths — timezone support', () => {
       project_id: projectId,
       date_from: utcDateStr,
       date_to: utcDateStr,
+      timezone: 'UTC',
       step_limit: 5,
     });
     expect(resultUtc.transitions).toHaveLength(1);
@@ -162,13 +164,11 @@ describe('queryPaths — timezone support', () => {
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
       step_limit: 5,
+      timezone: 'UTC',
     };
 
-    const withoutTz = await queryPaths(ctx.ch, params);
-    const withUtcTz = await queryPaths(ctx.ch, { ...params, timezone: 'UTC' });
+    const withUtcTz = await queryPaths(ctx.ch, params);
 
-    expect(withoutTz.transitions).toHaveLength(1);
     expect(withUtcTz.transitions).toHaveLength(1);
-    expect(withoutTz.transitions[0]).toEqual(withUtcTz.transitions[0]);
   });
 });

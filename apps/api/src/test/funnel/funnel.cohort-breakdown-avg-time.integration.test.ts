@@ -109,6 +109,7 @@ describe('queryFunnel — cohort breakdown avg_time_to_convert (ordered)', () =>
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [premiumCohort, freeCohort],
     });
 
@@ -213,6 +214,7 @@ describe('queryFunnel — cohort breakdown avg_time_to_convert (ordered)', () =>
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [premiumCohort, freeCohort],
     });
 
@@ -306,6 +308,7 @@ describe('queryFunnel — cohort breakdown avg_time_to_convert (unordered)', () 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
       breakdown_cohort_ids: [premiumCohort, freeCohort],
     });

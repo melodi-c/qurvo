@@ -38,6 +38,7 @@ describe('queryTrend — hour granularity', () => {
       granularity: 'hour',
       date_from: daysAgo(1),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -73,6 +74,7 @@ describe('queryTrend — hour granularity', () => {
       granularity: 'hour',
       date_from: daysAgo(2),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -114,6 +116,7 @@ describe('queryTrend — hour granularity', () => {
       granularity: 'hour',
       date_from: daysAgo(1),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);

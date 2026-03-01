@@ -215,6 +215,7 @@ describe('queryLifecycle — week granularity with timezone (DST-safe arithmetic
       granularity: 'week',
       date_from: week14Bucket,
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     if (week14Bucket !== week7Bucket) {

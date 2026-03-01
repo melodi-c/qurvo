@@ -55,6 +55,7 @@ describe('queryFunnel — with breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -121,6 +122,7 @@ describe('queryFunnel — aggregate_steps labels with property breakdown', () =>
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -217,6 +219,7 @@ describe('queryFunnel — strict order', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -306,6 +309,7 @@ describe('queryFunnel — unordered', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -374,6 +378,7 @@ describe('queryFunnel — property breakdown empty string vs null', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'properties.plan',
     });
 
@@ -450,6 +455,7 @@ describe('queryFunnel — aggregate_steps with sparse breakdown_property', () =>
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       breakdown_limit: 1,
     });
@@ -525,6 +531,7 @@ describe('queryFunnel — aggregate_steps with sparse breakdown_property', () =>
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'properties.plan',
       breakdown_limit: 1,
       funnel_order_type: 'unordered',
@@ -539,6 +546,7 @@ describe('queryFunnel — aggregate_steps with sparse breakdown_property', () =>
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -594,6 +602,7 @@ describe('queryFunnel — breakdown groups ordered by popularity', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -653,6 +662,7 @@ describe('queryFunnel — (none) does not displace real values from top-N', () =
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'properties.plan',
       breakdown_limit: 5,
     });

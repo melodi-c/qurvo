@@ -77,6 +77,7 @@ describe('queryFunnel — eq filter matches boolean JSON properties', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -141,6 +142,7 @@ describe('queryFunnel — eq filter matches boolean JSON properties', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -205,6 +207,7 @@ describe('queryFunnel — eq filter matches boolean JSON properties', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -271,6 +274,7 @@ describe('queryFunnel — neq filter correctly excludes boolean JSON properties'
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);

@@ -55,6 +55,7 @@ describe('queryFunnel — sampling', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(full.breakdown).toBe(false);
@@ -73,6 +74,7 @@ describe('queryFunnel — sampling', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       sampling_factor: 0.5,
     });
 
@@ -97,6 +99,7 @@ describe('queryFunnel — sampling', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       sampling_factor: 0.5,
     });
 
@@ -151,6 +154,7 @@ describe('queryFunnel — sampling', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     };
 
     // Full scan confirms 20 users, 100% conversion
@@ -207,6 +211,7 @@ describe('queryFunnel — sampling', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       sampling_factor: 0,
     });
 
@@ -248,6 +253,7 @@ describe('queryFunnel — sampling', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     };
 
     const noSampling = await queryFunnel(ctx.ch, params);

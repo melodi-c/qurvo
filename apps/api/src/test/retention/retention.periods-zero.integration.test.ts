@@ -36,6 +36,7 @@ describe('queryRetention — periods: 0', () => {
       periods: 0,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     // Must not throw and must return exactly 1 cohort row
@@ -74,6 +75,7 @@ describe('queryRetention — periods: 0', () => {
       periods: 0,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     // Only newUser qualifies (first event within range)
@@ -97,6 +99,7 @@ describe('queryRetention — periods: 0', () => {
       periods: 0,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(0);

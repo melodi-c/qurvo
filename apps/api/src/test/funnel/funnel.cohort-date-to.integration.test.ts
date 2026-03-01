@@ -128,7 +128,8 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
       ],
       conversion_window_days: 7,
       date_from: daysAgo(50),  // wide window to include all events
-      date_to: daysAgo(15),    // historical date_to — 15 days ago
+      date_to: daysAgo(15),    // historical date_to — 15 days ago,
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -241,6 +242,7 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
       conversion_window_days: 7,
       date_from: daysAgo(30),
       date_to: dateTo,
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -349,6 +351,7 @@ describe('queryFunnel — cohort date_to anchor (issue #466)', () => {
       conversion_window_days: 7,
       date_from: daysAgo(30),
       date_to: daysAgo(15),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -467,6 +470,7 @@ describe('queryFunnel — not_performed_event uses [date_from, date_to] window (
       conversion_window_days: 7,
       date_from: daysAgo(30),
       date_to: daysAgo(10),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -558,6 +562,7 @@ describe('queryFunnel — not_performed_event uses [date_from, date_to] window (
       conversion_window_days: 7,
       date_from: daysAgo(30),
       date_to: daysAgo(10),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 

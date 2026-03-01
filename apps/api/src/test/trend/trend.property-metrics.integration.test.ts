@@ -55,6 +55,7 @@ describe('queryTrend — with series filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -95,6 +96,7 @@ describe('queryTrend — property aggregation', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -133,6 +135,7 @@ describe('queryTrend — property aggregation', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -179,6 +182,7 @@ describe('queryTrend — property aggregation', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(minResult.compare).toBe(false);
@@ -194,6 +198,7 @@ describe('queryTrend — property aggregation', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(maxResult.compare).toBe(false);
@@ -232,6 +237,7 @@ describe('queryTrend — property aggregation', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -284,6 +290,7 @@ describe('queryTrend — filter operator neq', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -336,6 +343,7 @@ describe('queryTrend — filter operators contains and not_contains', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(containsResult.compare).toBe(false);
@@ -355,6 +363,7 @@ describe('queryTrend — filter operators contains and not_contains', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(notContainsResult.compare).toBe(false);
@@ -410,6 +419,7 @@ describe('queryTrend — filter operators is_set and is_not_set', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(isSetResult.compare).toBe(false);
@@ -429,6 +439,7 @@ describe('queryTrend — filter operators is_set and is_not_set', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(isNotSetResult.compare).toBe(false);
@@ -472,6 +483,7 @@ describe('queryTrend — cohort filters', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       cohort_filters: [{
         cohort_id: randomUUID(),
         definition: {
@@ -530,6 +542,7 @@ describe('queryTrend — cohort filters', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       cohort_filters: [{ cohort_id: cohortId, definition, materialized: true, is_static: false }],
     });
 
@@ -583,6 +596,7 @@ describe('queryTrend — person property filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);

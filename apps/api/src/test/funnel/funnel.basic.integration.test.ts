@@ -63,6 +63,7 @@ describe('queryFunnel — non-breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -116,6 +117,7 @@ describe('queryFunnel — non-breakdown', () => {
       conversion_window_days: 1,
       date_from: dateOffset(-7),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -136,6 +138,7 @@ describe('queryFunnel — non-breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-5),
       date_to: dateOffset(-3),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -194,6 +197,7 @@ describe('queryFunnel — non-breakdown', () => {
       conversion_window_days: 1,
       date_from: dateOffset(-7),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -246,6 +250,7 @@ describe('queryFunnel — non-breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);

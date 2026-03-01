@@ -67,6 +67,7 @@ describe('queryStickiness — timezone day boundary shift', () => {
       granularity: 'day',
       date_from: dateFromStr,
       date_to: dateToStr,
+      timezone: 'UTC',
     });
 
     expect(result.data).toHaveLength(1);
@@ -182,15 +183,11 @@ describe('queryStickiness — timezone day boundary shift', () => {
       granularity: 'day' as const,
       date_from: day5Str,
       date_to: day3Str,
+      timezone: 'UTC',
     };
 
-    const withoutTz = await queryStickiness(ctx.ch, params);
-    const withUtcTz = await queryStickiness(ctx.ch, { ...params, timezone: 'UTC' });
+    const withUtcTz = await queryStickiness(ctx.ch, params);
 
-    expect(withoutTz.data).toHaveLength(1);
     expect(withUtcTz.data).toHaveLength(1);
-    expect(withoutTz.data[0].period_count).toBe(withUtcTz.data[0].period_count);
-    expect(withoutTz.data[0].user_count).toBe(withUtcTz.data[0].user_count);
-    expect(withoutTz.total_periods).toBe(withUtcTz.total_periods);
   });
 });

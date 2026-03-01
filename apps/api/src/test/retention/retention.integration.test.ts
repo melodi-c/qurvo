@@ -43,6 +43,7 @@ describe('queryRetention — recurring', () => {
       periods: 3,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     expect(result.retention_type).toBe('recurring');
@@ -79,6 +80,7 @@ describe('queryRetention — recurring', () => {
       periods: 2,
       date_from: daysAgo(6),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(2);
@@ -116,6 +118,7 @@ describe('queryRetention — first_time', () => {
       periods: 3,
       date_from: daysAgo(6),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     // personA's cohort_date is day-10, which is outside our query range → no cohorts
@@ -143,6 +146,7 @@ describe('queryRetention — first_time', () => {
       periods: 2,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(1);
@@ -176,6 +180,7 @@ describe('queryRetention — first_time', () => {
       periods: 2,
       date_from: daysAgo(7),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     // earlyUser is excluded because their first event was day-60 (before date_from).
@@ -215,6 +220,7 @@ describe('queryRetention — week granularity', () => {
       periods: 2,
       date_from: daysAgo(21),
       date_to: daysAgo(7),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('week');
@@ -261,6 +267,7 @@ describe('queryRetention — month granularity', () => {
       periods: 1,
       date_from: daysAgo(60),
       date_to: daysAgo(30),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('month');
@@ -298,6 +305,7 @@ describe('queryRetention — edge cases', () => {
       periods: 3,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(1);
@@ -319,6 +327,7 @@ describe('queryRetention — edge cases', () => {
       periods: 3,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(0);
@@ -362,6 +371,7 @@ describe('queryRetention — edge cases', () => {
       periods: 1,
       date_from: daysAgo(6),
       date_to: daysAgo(4),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(2); // day-6, day-5
@@ -416,6 +426,7 @@ describe('queryRetention — average_retention immature cohort exclusion', () =>
       periods: 2,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(3);
@@ -464,6 +475,7 @@ describe('queryRetention — average_retention immature cohort exclusion', () =>
       periods: 2,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(1);
@@ -528,6 +540,7 @@ describe('queryRetention — event property filters', () => {
       periods: 1,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
       filters: [{ property: 'properties.source', operator: 'eq', value: 'organic' }],
     });
 
@@ -600,6 +613,7 @@ describe('queryRetention — first_time + property filters', () => {
       periods: 2,
       date_from: daysAgo(6),
       date_to: daysAgo(5),
+      timezone: 'UTC',
       filters: [{ property: 'properties.source', operator: 'eq', value: 'organic' }],
     });
 
@@ -658,6 +672,7 @@ describe('queryRetention — first_time + property filters', () => {
       periods: 1,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
       filters: [{ property: 'properties.source', operator: 'eq', value: 'organic' }],
     });
 
@@ -752,7 +767,8 @@ describe('queryRetention — extendedTo computed from truncTo, not date_to', () 
       granularity: 'week',
       periods: 2,
       date_from: week0Date,
-      date_to: week0Thursday, // NOT aligned to Monday
+      date_to: week0Thursday, // NOT aligned to Monday,
+      timezone: 'UTC',
     });
 
     // Only 1 cohort (week0 Monday)
@@ -813,7 +829,8 @@ describe('queryRetention — extendedTo computed from truncTo, not date_to', () 
       granularity: 'month',
       periods: 1,
       date_from: month0Date,
-      date_to: month0Mid, // NOT aligned to 1st
+      date_to: month0Mid, // NOT aligned to 1st,
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(1);
@@ -853,6 +870,7 @@ describe('queryRetention — return_event differs from target_event', () => {
       periods: 1,
       date_from: daysAgo(5),
       date_to: daysAgo(4),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(1);
@@ -899,6 +917,7 @@ describe('queryRetention — return_event differs from target_event', () => {
       periods: 3,
       date_from: daysAgo(7),
       date_to: daysAgo(4),
+      timezone: 'UTC',
     });
 
     expect(result.cohorts).toHaveLength(1);
@@ -974,6 +993,7 @@ describe('queryRetention — first_time + cohort_filters', () => {
       periods: 1,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -1045,6 +1065,7 @@ describe('queryRetention — cohort filters', () => {
       periods: 1,
       date_from: daysAgo(5),
       date_to: daysAgo(5),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 

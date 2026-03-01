@@ -120,6 +120,7 @@ describe('queryFunnel — cohort breakdown not_performed_event uses [date_from, 
       conversion_window_days: 7,
       date_from: daysAgo(30),
       date_to: daysAgo(10),
+      timezone: 'UTC',
       breakdown_cohort_ids: [notPerformedCohort],
     });
 
@@ -220,6 +221,7 @@ describe('queryFunnel — cohort breakdown not_performed_event uses [date_from, 
       conversion_window_days: 7,
       date_from: daysAgo(30),
       date_to: daysAgo(10),
+      timezone: 'UTC',
       breakdown_cohort_ids: [notPerformedCohort],
     });
 
@@ -310,6 +312,7 @@ describe('queryFunnel — cohort breakdown not_performed_event uses [date_from, 
       funnel_order_type: 'unordered',
       date_from: daysAgo(30),
       date_to: daysAgo(10),
+      timezone: 'UTC',
       breakdown_cohort_ids: [notPerformedCohort],
     });
 

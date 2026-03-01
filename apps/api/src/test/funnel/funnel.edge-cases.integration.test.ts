@@ -47,6 +47,7 @@ describe('queryFunnel — 1-step funnel (degenerate case)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -73,6 +74,7 @@ describe('queryFunnel — 1-step funnel (degenerate case)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-5),
       date_to: dateOffset(-3),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -126,6 +128,7 @@ describe('queryFunnel — 1-step funnel (degenerate case)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -228,6 +231,7 @@ describe('queryFunnel — OR-logic steps combined with exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -327,6 +331,7 @@ describe('queryFunnel — OR-logic steps combined with exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -400,6 +405,7 @@ describe('queryFunnel — OR-logic steps combined with exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -545,6 +551,7 @@ describe('queryFunnel — cohort breakdown with exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [premiumCohort, freeCohort],
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
@@ -627,6 +634,7 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -721,6 +729,7 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [premiumCohort, freeCohort],
     });
 
@@ -824,6 +833,7 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [premiumCohort, activeCohort],
     });
 
@@ -875,6 +885,7 @@ describe('queryFunnel — avg_time_to_convert_seconds in breakdown queries', () 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);

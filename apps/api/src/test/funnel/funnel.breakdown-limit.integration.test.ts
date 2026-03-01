@@ -64,6 +64,7 @@ describe('queryFunnel — breakdown_limit', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -84,6 +85,7 @@ describe('queryFunnel — breakdown_limit', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       breakdown_limit: 5,
     });
@@ -130,6 +132,7 @@ describe('queryFunnel — breakdown_limit', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -168,6 +171,7 @@ describe('queryFunnel — breakdown_limit', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       breakdown_limit: 5,
     });
@@ -207,6 +211,7 @@ describe('queryFunnel — breakdown_limit', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       breakdown_limit: 5,
     });
@@ -258,6 +263,7 @@ describe('queryFunnel — breakdown_limit', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'properties.plan',
       breakdown_limit: 5,
       funnel_order_type: 'unordered',

@@ -35,6 +35,7 @@ describe('queryTrend — compare mode', () => {
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       compare: true,
     });
 

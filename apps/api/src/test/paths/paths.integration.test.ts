@@ -37,6 +37,7 @@ describe('queryPaths — basic transitions', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
     });
 
@@ -78,6 +79,7 @@ describe('queryPaths — basic transitions', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
     });
 
@@ -99,6 +101,7 @@ describe('queryPaths — basic transitions', () => {
       project_id: projectId,
       date_from: dateOffset(-5),
       date_to: dateOffset(-3),
+      timezone: 'UTC',
       step_limit: 5,
     });
 
@@ -122,6 +125,7 @@ describe('queryPaths — no events matching start_event', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       start_event: 'nonexistent_start_event',
     });
@@ -149,6 +153,7 @@ describe('queryPaths — start and end event filtering', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       start_event: 'signup',
     });
@@ -175,6 +180,7 @@ describe('queryPaths — start and end event filtering', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       end_event: 'signup',
     });
@@ -209,6 +215,7 @@ describe('queryPaths — exclusions', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       exclusions: ['tooltip_shown'],
     });
@@ -246,6 +253,7 @@ describe('queryPaths — compact before slice', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 3,
     });
 
@@ -277,6 +285,7 @@ describe('queryPaths — compact before slice', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 2,
     });
 
@@ -310,6 +319,7 @@ describe('queryPaths — step limit', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 3,
     });
 
@@ -350,6 +360,7 @@ describe('queryPaths — step limit', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 300,
     });
 
@@ -392,6 +403,7 @@ describe('queryPaths — min_persons filter', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       min_persons: 2,
     });
@@ -423,6 +435,7 @@ describe('queryPaths — path cleaning rules', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       path_cleaning_rules: [
         { regex: '/product/\\d+', alias: 'Product page' },
@@ -454,6 +467,7 @@ describe('queryPaths — wildcard groups', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       wildcard_groups: [
         { pattern: '/docs/*', alias: 'Documentation' },
@@ -484,6 +498,7 @@ describe('queryPaths — project isolation', () => {
       project_id: projectA,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
     });
 
@@ -519,6 +534,7 @@ describe('queryPaths — end_event not found', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       end_event: 'purchase', // 'purchase' never appears in any path
     });
@@ -550,6 +566,7 @@ describe('queryPaths — end_event not found', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       end_event: 'checkout',
     });
@@ -589,6 +606,7 @@ describe('queryPaths — end_event not found', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       end_event: 'checkout',
     });
@@ -684,6 +702,7 @@ describe('queryPaths — cohort filters', () => {
       project_id: projectId,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       step_limit: 5,
       cohort_filters: [cohortFilter],
     });
