@@ -2,8 +2,12 @@ import { Logger } from '@nestjs/common';
 import type { Provider } from '@nestjs/common';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
+import type { Database } from '@qurvo/db';
+import { projects } from '@qurvo/db';
+import { eq } from 'drizzle-orm';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
+import { DRIZZLE } from '../providers/drizzle.provider';
 import { CohortsService } from '../cohorts/cohorts.service';
 import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-cache';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
@@ -21,7 +25,7 @@ export interface AnalyticsQueryService<TParams, TResult> {
 }
 
 export function createAnalyticsQueryProvider<
-  TParams extends { project_id: string; cohort_filters?: unknown },
+  TParams extends { project_id: string; cohort_filters?: unknown; timezone?: string },
   TResult,
 >(
   token: symbol,
@@ -34,6 +38,7 @@ export function createAnalyticsQueryProvider<
       ch: ClickHouseClient,
       redis: Redis,
       cohortsService: CohortsService,
+      db: Database,
     ): AnalyticsQueryService<TParams, TResult> => {
       const logger = new Logger(prefix);
 
@@ -41,6 +46,16 @@ export function createAnalyticsQueryProvider<
         async query(params) {
           const { widget_id, force, cohort_ids, breakdown_type, breakdown_cohort_ids, ...queryParams } = params;
           const mutableParams = queryParams as Record<string, unknown>;
+
+          // Auto-inject project timezone from DB
+          const [project] = await db
+            .select({ timezone: projects.timezone })
+            .from(projects)
+            .where(eq(projects.id, params.project_id))
+            .limit(1);
+          if (project) {
+            mutableParams.timezone = project.timezone;
+          }
 
           if (cohort_ids?.length) {
             // Merge resolved cohort_ids filters with any directly-passed cohort_filters.
@@ -81,6 +96,6 @@ export function createAnalyticsQueryProvider<
         },
       };
     },
-    inject: [CLICKHOUSE, REDIS, CohortsService],
+    inject: [CLICKHOUSE, REDIS, CohortsService, DRIZZLE],
   };
 }
