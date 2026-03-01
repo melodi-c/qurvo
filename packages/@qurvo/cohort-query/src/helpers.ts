@@ -1,9 +1,12 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr, FuncCallExpr } from '@qurvo/ch-query';
 import {
-  and, argMax, col, coalesce, compileExprToSql, dictGetOrNull, eq, escapeLikePattern,
-  func, gte, jsonExtractRaw, jsonExtractString, jsonHas, literal, lte, namedParam,
-  not, now64, raw, rawWithParams, select, toFloat64OrZero, toString, tuple,
+  and, argMax, col, coalesce, dictGetOrNull, eq, escapeLikePattern,
+  func, gt as chGt, gte, inArray, jsonExtractRaw, jsonExtractString, jsonHas,
+  like, literal, lt as chLt, lte, match, multiSearchAny, namedParam,
+  neq, not, notInArray, notLike, now64, or,
+  parseDateTimeBestEffort, parseDateTimeBestEffortOrZero,
+  raw, rawWithParams, select, toDate, toFloat64OrZero, toString, tuple,
 } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
@@ -157,44 +160,14 @@ function toJsonHasGuard(expr: Expr): Expr | null {
   return null;
 }
 
-// ── Legacy string-level helpers (for backward compatibility with raw() callers) ──
+// ── Numeric comparator map ──
 
-/**
- * String-level: replaces JSONExtractString → JSONExtractRaw in SQL string.
- * Returns null if no JSONExtractString found.
- * @deprecated Use toRawExpr() for typed Expr inputs
- */
-function toRawExprStr(sql: string): string | null {
-  if (!sql.includes('JSONExtractString')) return null;
-  return sql.replace(/\bJSONExtractString\b/g, 'JSONExtractRaw');
-}
-
-/**
- * String-level: replaces JSONExtractString → JSONExtractRaw for numeric comparison.
- * @deprecated Use toNumericExpr() for typed Expr inputs
- */
-function toNumericExprStr(sql: string): string {
-  return sql.replace(/\bJSONExtractString\b/g, 'JSONExtractRaw');
-}
-
-/**
- * String-level: converts JSONExtractString(col, 'key') → JSONHas(col, 'key').
- * Returns null if the expression is not a JSONExtractString call.
- * @deprecated Use toJsonHasGuard() for typed Expr inputs
- */
-function toJsonHasExprStr(exprSql: string): string | null {
-  const directMatch = exprSql.match(/^JSONExtractString\((.+)\)$/);
-  if (directMatch) {
-    return `JSONHas(${directMatch[1]})`;
-  }
-  if (exprSql.includes('JSONExtractString(argMax(')) {
-    const innerMatch = exprSql.match(/JSONExtractString\(argMax\(([^,]+),\s*timestamp\),\s*'([^']+)'\)/);
-    if (innerMatch) {
-      return `JSONHas(argMax(${innerMatch[1]}, timestamp), '${innerMatch[2]}')`;
-    }
-  }
-  return null;
-}
+const NUMERIC_CMP_MAP = {
+  gt: chGt,
+  lt: chLt,
+  gte,
+  lte,
+} as const;
 
 // ── Expr-returning public API ──
 
@@ -238,12 +211,164 @@ export function resolveEventPropertyExpr(property: string): Expr {
 }
 
 /**
- * Builds a single ClickHouse comparison clause for a property operator.
- * Accepts an Expr and returns an Expr (with params embedded via rawWithParams).
+ * Pure-AST operator application. Maps a property column expression and an operator
+ * to a typed Expr using ch-query builders. No raw()/rawWithParams()/compileExprToSql().
  *
- * For typed Expr inputs (FuncCallExpr from jsonExtractString, argMax, col), uses
- * AST-level transforms (toNumericExpr, toRawExpr, toJsonHasGuard).
- * For raw() inputs (backward compat), falls back to string-level transforms.
+ * Parameters are embedded via namedParam() and also written to `queryParams` for
+ * backward compatibility with the cohort-query BuildContext.
+ *
+ * Used by both cohort-query (person-level argMax-wrapped exprs) and analytics
+ * (event-level direct column exprs).
+ */
+export function applyOperator(
+  expr: Expr,
+  operator: CohortPropertyOperator,
+  pk: string,
+  queryParams: Record<string, unknown>,
+  value?: string,
+  values?: string[],
+): Expr {
+  switch (operator) {
+    case 'eq': {
+      const v = value ?? '';
+      queryParams[pk] = v;
+      const valP = namedParam(pk, 'String', v);
+      const rawEquiv = toRawExpr(expr);
+      if (rawEquiv) {
+        // JSONExtractString eq: also check toString(JSONExtractRaw) for boolean/number values
+        return or(eq(expr, valP), eq(toString(rawEquiv), valP));
+      }
+      return eq(expr, valP);
+    }
+    case 'neq': {
+      const v = value ?? '';
+      queryParams[pk] = v;
+      const valP = namedParam(pk, 'String', v);
+      const rawEquiv = toRawExpr(expr);
+      const jsonHasExpr = toJsonHasGuard(expr);
+      if (rawEquiv) {
+        const guard = jsonHasExpr ?? undefined;
+        return and(guard, neq(expr, valP), neq(toString(rawEquiv), valP));
+      }
+      if (jsonHasExpr) {
+        return and(jsonHasExpr, neq(expr, valP));
+      }
+      return neq(expr, valP);
+    }
+    case 'contains': {
+      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
+      queryParams[pk] = likeVal;
+      return like(expr, namedParam(pk, 'String', likeVal));
+    }
+    case 'not_contains': {
+      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
+      queryParams[pk] = likeVal;
+      return notLike(expr, namedParam(pk, 'String', likeVal));
+    }
+    case 'is_set': {
+      const jsonHasExpr = toJsonHasGuard(expr);
+      if (jsonHasExpr) return jsonHasExpr;
+      return neq(expr, literal(''));
+    }
+    case 'is_not_set': {
+      const jsonHasExpr = toJsonHasGuard(expr);
+      if (jsonHasExpr) return not(jsonHasExpr);
+      return eq(expr, literal(''));
+    }
+    case 'gt':
+    case 'lt':
+    case 'gte':
+    case 'lte': {
+      const numVal = Number(value ?? 0);
+      queryParams[pk] = numVal;
+      const numExpr = toFloat64OrZero(toNumericExpr(expr));
+      return NUMERIC_CMP_MAP[operator](numExpr, namedParam(pk, 'Float64', numVal));
+    }
+    case 'regex': {
+      const v = value ?? '';
+      queryParams[pk] = v;
+      return match(expr, namedParam(pk, 'String', v));
+    }
+    case 'not_regex': {
+      const v = value ?? '';
+      queryParams[pk] = v;
+      return not(match(expr, namedParam(pk, 'String', v)));
+    }
+    case 'in': {
+      const v = values ?? [];
+      queryParams[pk] = v;
+      return inArray(expr, namedParam(pk, 'Array(String)', v));
+    }
+    case 'not_in': {
+      const v = values ?? [];
+      queryParams[pk] = v;
+      return notInArray(expr, namedParam(pk, 'Array(String)', v));
+    }
+    case 'between': {
+      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+      const minVal = Number(values?.[0] ?? 0);
+      const maxVal = Number(values?.[1] ?? 0);
+      queryParams[minPk] = minVal;
+      queryParams[maxPk] = maxVal;
+      const numExpr = toFloat64OrZero(toNumericExpr(expr));
+      return and(
+        gte(numExpr, namedParam(minPk, 'Float64', minVal)),
+        lte(numExpr, namedParam(maxPk, 'Float64', maxVal)),
+      );
+    }
+    case 'not_between': {
+      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+      const minVal = Number(values?.[0] ?? 0);
+      const maxVal = Number(values?.[1] ?? 0);
+      queryParams[minPk] = minVal;
+      queryParams[maxPk] = maxVal;
+      const numExpr = toFloat64OrZero(toNumericExpr(expr));
+      return or(
+        chLt(numExpr, namedParam(minPk, 'Float64', minVal)),
+        chGt(numExpr, namedParam(maxPk, 'Float64', maxVal)),
+      );
+    }
+    case 'is_date_before': {
+      if (!value) return literal(0);
+      queryParams[pk] = value;
+      const parsed = parseDateTimeBestEffortOrZero(expr);
+      const nonZero = neq(parsed, func('toDateTime', literal(0)));
+      return and(nonZero, chLt(parsed, parseDateTimeBestEffort(namedParam(pk, 'String', value))));
+    }
+    case 'is_date_after': {
+      if (!value) return literal(0);
+      queryParams[pk] = value;
+      const parsed = parseDateTimeBestEffortOrZero(expr);
+      const nonZero = neq(parsed, func('toDateTime', literal(0)));
+      return and(nonZero, chGt(parsed, parseDateTimeBestEffort(namedParam(pk, 'String', value))));
+    }
+    case 'is_date_exact': {
+      if (!value) return literal(0);
+      queryParams[pk] = value;
+      const parsed = parseDateTimeBestEffortOrZero(expr);
+      const nonZero = neq(parsed, func('toDateTime', literal(0)));
+      return and(nonZero, eq(toDate(parsed), toDate(parseDateTimeBestEffort(namedParam(pk, 'String', value)))));
+    }
+    case 'contains_multi': {
+      const v = values ?? [];
+      queryParams[pk] = v;
+      return multiSearchAny(expr, namedParam(pk, 'Array(String)', v));
+    }
+    case 'not_contains_multi': {
+      const v = values ?? [];
+      queryParams[pk] = v;
+      return not(multiSearchAny(expr, namedParam(pk, 'Array(String)', v)));
+    }
+    default: {
+      const _exhaustive: never = operator;
+      throw new Error(`Unhandled operator: ${_exhaustive}`);
+    }
+  }
+}
+
+/**
+ * @deprecated Use applyOperator() instead. Kept temporarily for backward compatibility.
+ * Delegates to applyOperator().
  */
 export function buildOperatorClause(
   expr: Expr,
@@ -253,345 +378,19 @@ export function buildOperatorClause(
   value?: string,
   values?: string[],
 ): Expr {
-  // Try AST-level transforms first. If expr is typed (not raw), use them.
-  const useAstTransforms = expr.type === 'func' || expr.type === 'column';
-
-  if (useAstTransforms) {
-    return buildOperatorClauseTyped(expr, operator, pk, queryParams, value, values);
-  }
-
-  // Fallback: compile to SQL string for legacy raw() inputs
-  const exprSql = compileExprToSql(expr).sql;
-  return buildOperatorClauseRaw(exprSql, operator, pk, queryParams, value, values);
-}
-
-/**
- * Typed path: builds operator clause using AST-level transforms.
- */
-function buildOperatorClauseTyped(
-  expr: Expr,
-  operator: CohortPropertyOperator,
-  pk: string,
-  queryParams: Record<string, unknown>,
-  value?: string,
-  values?: string[],
-): Expr {
-  const valParam = () => namedParam(pk, 'String', value ?? '');
-  const numParam = () => namedParam(pk, 'Float64', Number(value ?? 0));
-
-  switch (operator) {
-    case 'eq': {
-      queryParams[pk] = value ?? '';
-      const rawEquiv = toRawExpr(expr);
-      if (rawEquiv) {
-        // JSONExtractString eq: fallback to toString(JSONExtractRaw) for boolean/number
-        const exprSql = compileExprToSql(expr).sql;
-        const rawSql = compileExprToSql(rawEquiv).sql;
-        return rawWithParams(
-          `(${exprSql} = {${pk}:String} OR toString(${rawSql}) = {${pk}:String})`,
-          { [pk]: value ?? '' },
-        );
-      }
-      return rawWithParams(`${compileExprToSql(expr).sql} = {${pk}:String}`, { [pk]: value ?? '' });
-    }
-    case 'neq': {
-      queryParams[pk] = value ?? '';
-      const rawEquiv = toRawExpr(expr);
-      const jsonHas = toJsonHasGuard(expr);
-      const exprSql = compileExprToSql(expr).sql;
-      if (rawEquiv) {
-        const rawSql = compileExprToSql(rawEquiv).sql;
-        const guard = jsonHas ? `${compileExprToSql(jsonHas).sql} AND ` : '';
-        return rawWithParams(
-          `(${guard}${exprSql} != {${pk}:String} AND toString(${rawSql}) != {${pk}:String})`,
-          { [pk]: value ?? '' },
-        );
-      }
-      if (jsonHas) {
-        return rawWithParams(
-          `${compileExprToSql(jsonHas).sql} AND ${exprSql} != {${pk}:String}`,
-          { [pk]: value ?? '' },
-        );
-      }
-      return rawWithParams(`${exprSql} != {${pk}:String}`, { [pk]: value ?? '' });
-    }
-    case 'contains': {
-      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-      queryParams[pk] = likeVal;
-      return rawWithParams(`${compileExprToSql(expr).sql} LIKE {${pk}:String}`, { [pk]: likeVal });
-    }
-    case 'not_contains': {
-      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-      queryParams[pk] = likeVal;
-      return rawWithParams(`${compileExprToSql(expr).sql} NOT LIKE {${pk}:String}`, { [pk]: likeVal });
-    }
-    case 'is_set': {
-      const jsonHas = toJsonHasGuard(expr);
-      if (jsonHas) return jsonHas;
-      return raw(`${compileExprToSql(expr).sql} != ''`);
-    }
-    case 'is_not_set': {
-      const jsonHas = toJsonHasGuard(expr);
-      if (jsonHas) return not(jsonHas);
-      return raw(`${compileExprToSql(expr).sql} = ''`);
-    }
-    case 'gt':
-    case 'lt':
-    case 'gte':
-    case 'lte': {
-      const numExpr = toFloat64OrZero(toNumericExpr(expr));
-      const compiled = compileExprToSql(numExpr).sql;
-      const opMap = { gt: '>', lt: '<', gte: '>=', lte: '<=' } as const;
-      queryParams[pk] = Number(value ?? 0);
-      return rawWithParams(`${compiled} ${opMap[operator]} {${pk}:Float64}`, { [pk]: Number(value ?? 0) });
-    }
-    case 'regex': {
-      queryParams[pk] = value ?? '';
-      return rawWithParams(`match(${compileExprToSql(expr).sql}, {${pk}:String})`, { [pk]: value ?? '' });
-    }
-    case 'not_regex': {
-      queryParams[pk] = value ?? '';
-      return rawWithParams(`NOT match(${compileExprToSql(expr).sql}, {${pk}:String})`, { [pk]: value ?? '' });
-    }
-    case 'in': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`${compileExprToSql(expr).sql} IN {${pk}:Array(String)}`, { [pk]: values ?? [] });
-    }
-    case 'not_in': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`${compileExprToSql(expr).sql} NOT IN {${pk}:Array(String)}`, { [pk]: values ?? [] });
-    }
-    case 'between': {
-      const numExpr = compileExprToSql(toFloat64OrZero(toNumericExpr(expr))).sql;
-      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-      queryParams[minPk] = Number(values?.[0] ?? 0);
-      queryParams[maxPk] = Number(values?.[1] ?? 0);
-      return rawWithParams(
-        `${numExpr} >= {${minPk}:Float64} AND ${numExpr} <= {${maxPk}:Float64}`,
-        { [minPk]: Number(values?.[0] ?? 0), [maxPk]: Number(values?.[1] ?? 0) },
-      );
-    }
-    case 'not_between': {
-      const numExpr = compileExprToSql(toFloat64OrZero(toNumericExpr(expr))).sql;
-      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-      queryParams[minPk] = Number(values?.[0] ?? 0);
-      queryParams[maxPk] = Number(values?.[1] ?? 0);
-      return rawWithParams(
-        `(${numExpr} < {${minPk}:Float64} OR ${numExpr} > {${maxPk}:Float64})`,
-        { [minPk]: Number(values?.[0] ?? 0), [maxPk]: Number(values?.[1] ?? 0) },
-      );
-    }
-    case 'is_date_before': {
-      if (!value) return raw('1 = 0');
-      queryParams[pk] = value;
-      const exprSql = compileExprToSql(expr).sql;
-      return rawWithParams(
-        `(parseDateTimeBestEffortOrZero(${exprSql}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${exprSql}) < parseDateTimeBestEffort({${pk}:String}))`,
-        { [pk]: value },
-      );
-    }
-    case 'is_date_after': {
-      if (!value) return raw('1 = 0');
-      queryParams[pk] = value;
-      const exprSql = compileExprToSql(expr).sql;
-      return rawWithParams(
-        `(parseDateTimeBestEffortOrZero(${exprSql}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${exprSql}) > parseDateTimeBestEffort({${pk}:String}))`,
-        { [pk]: value },
-      );
-    }
-    case 'is_date_exact': {
-      if (!value) return raw('1 = 0');
-      queryParams[pk] = value;
-      const exprSql = compileExprToSql(expr).sql;
-      return rawWithParams(
-        `(parseDateTimeBestEffortOrZero(${exprSql}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${exprSql})) = toDate(parseDateTimeBestEffort({${pk}:String})))`,
-        { [pk]: value },
-      );
-    }
-    case 'contains_multi': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`multiSearchAny(${compileExprToSql(expr).sql}, {${pk}:Array(String)})`, { [pk]: values ?? [] });
-    }
-    case 'not_contains_multi': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`NOT multiSearchAny(${compileExprToSql(expr).sql}, {${pk}:Array(String)})`, { [pk]: values ?? [] });
-    }
-    default: {
-      const _exhaustive: never = operator;
-      throw new Error(`Unhandled operator: ${_exhaustive}`);
-    }
-  }
-}
-
-/**
- * Legacy path: builds operator clause from compiled SQL string.
- * Used when callers pass raw() expressions (backward compat).
- */
-function buildOperatorClauseRaw(
-  exprSql: string,
-  operator: CohortPropertyOperator,
-  pk: string,
-  queryParams: Record<string, unknown>,
-  value?: string,
-  values?: string[],
-): Expr {
-  switch (operator) {
-    case 'eq': {
-      queryParams[pk] = value ?? '';
-      const rawEqExpr = toRawExprStr(exprSql);
-      if (rawEqExpr) {
-        return rawWithParams(
-          `(${exprSql} = {${pk}:String} OR toString(${rawEqExpr}) = {${pk}:String})`,
-          { [pk]: value ?? '' },
-        );
-      }
-      return rawWithParams(`${exprSql} = {${pk}:String}`, { [pk]: value ?? '' });
-    }
-    case 'neq': {
-      queryParams[pk] = value ?? '';
-      const rawNeqExpr = toRawExprStr(exprSql);
-      const jsonHasGuard = toJsonHasExprStr(exprSql);
-      if (rawNeqExpr) {
-        const guard = jsonHasGuard ? `${jsonHasGuard} AND ` : '';
-        return rawWithParams(
-          `(${guard}${exprSql} != {${pk}:String} AND toString(${rawNeqExpr}) != {${pk}:String})`,
-          { [pk]: value ?? '' },
-        );
-      }
-      if (jsonHasGuard) {
-        return rawWithParams(`${jsonHasGuard} AND ${exprSql} != {${pk}:String}`, { [pk]: value ?? '' });
-      }
-      return rawWithParams(`${exprSql} != {${pk}:String}`, { [pk]: value ?? '' });
-    }
-    case 'contains': {
-      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-      queryParams[pk] = likeVal;
-      return rawWithParams(`${exprSql} LIKE {${pk}:String}`, { [pk]: likeVal });
-    }
-    case 'not_contains': {
-      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-      queryParams[pk] = likeVal;
-      return rawWithParams(`${exprSql} NOT LIKE {${pk}:String}`, { [pk]: likeVal });
-    }
-    case 'is_set': {
-      const jsonHasExpr = toJsonHasExprStr(exprSql);
-      if (jsonHasExpr) {
-        return raw(jsonHasExpr);
-      }
-      return raw(`${exprSql} != ''`);
-    }
-    case 'is_not_set': {
-      const jsonHasExpr = toJsonHasExprStr(exprSql);
-      if (jsonHasExpr) {
-        return raw(`NOT ${jsonHasExpr}`);
-      }
-      return raw(`${exprSql} = ''`);
-    }
-    case 'gt': {
-      const numExpr = toNumericExprStr(exprSql);
-      queryParams[pk] = Number(value ?? 0);
-      return rawWithParams(`toFloat64OrZero(${numExpr}) > {${pk}:Float64}`, { [pk]: Number(value ?? 0) });
-    }
-    case 'lt': {
-      const numExpr = toNumericExprStr(exprSql);
-      queryParams[pk] = Number(value ?? 0);
-      return rawWithParams(`toFloat64OrZero(${numExpr}) < {${pk}:Float64}`, { [pk]: Number(value ?? 0) });
-    }
-    case 'gte': {
-      const numExpr = toNumericExprStr(exprSql);
-      queryParams[pk] = Number(value ?? 0);
-      return rawWithParams(`toFloat64OrZero(${numExpr}) >= {${pk}:Float64}`, { [pk]: Number(value ?? 0) });
-    }
-    case 'lte': {
-      const numExpr = toNumericExprStr(exprSql);
-      queryParams[pk] = Number(value ?? 0);
-      return rawWithParams(`toFloat64OrZero(${numExpr}) <= {${pk}:Float64}`, { [pk]: Number(value ?? 0) });
-    }
-    case 'regex': {
-      queryParams[pk] = value ?? '';
-      return rawWithParams(`match(${exprSql}, {${pk}:String})`, { [pk]: value ?? '' });
-    }
-    case 'not_regex': {
-      queryParams[pk] = value ?? '';
-      return rawWithParams(`NOT match(${exprSql}, {${pk}:String})`, { [pk]: value ?? '' });
-    }
-    case 'in': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`${exprSql} IN {${pk}:Array(String)}`, { [pk]: values ?? [] });
-    }
-    case 'not_in': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`${exprSql} NOT IN {${pk}:Array(String)}`, { [pk]: values ?? [] });
-    }
-    case 'between': {
-      const numExpr = toNumericExprStr(exprSql);
-      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-      queryParams[minPk] = Number(values?.[0] ?? 0);
-      queryParams[maxPk] = Number(values?.[1] ?? 0);
-      return rawWithParams(
-        `toFloat64OrZero(${numExpr}) >= {${minPk}:Float64} AND toFloat64OrZero(${numExpr}) <= {${maxPk}:Float64}`,
-        { [minPk]: Number(values?.[0] ?? 0), [maxPk]: Number(values?.[1] ?? 0) },
-      );
-    }
-    case 'not_between': {
-      const numExpr = toNumericExprStr(exprSql);
-      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-      queryParams[minPk] = Number(values?.[0] ?? 0);
-      queryParams[maxPk] = Number(values?.[1] ?? 0);
-      return rawWithParams(
-        `(toFloat64OrZero(${numExpr}) < {${minPk}:Float64} OR toFloat64OrZero(${numExpr}) > {${maxPk}:Float64})`,
-        { [minPk]: Number(values?.[0] ?? 0), [maxPk]: Number(values?.[1] ?? 0) },
-      );
-    }
-    case 'is_date_before': {
-      if (!value) return raw('1 = 0');
-      queryParams[pk] = value;
-      return rawWithParams(
-        `(parseDateTimeBestEffortOrZero(${exprSql}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${exprSql}) < parseDateTimeBestEffort({${pk}:String}))`,
-        { [pk]: value },
-      );
-    }
-    case 'is_date_after': {
-      if (!value) return raw('1 = 0');
-      queryParams[pk] = value;
-      return rawWithParams(
-        `(parseDateTimeBestEffortOrZero(${exprSql}) != toDateTime(0) AND parseDateTimeBestEffortOrZero(${exprSql}) > parseDateTimeBestEffort({${pk}:String}))`,
-        { [pk]: value },
-      );
-    }
-    case 'is_date_exact': {
-      if (!value) return raw('1 = 0');
-      queryParams[pk] = value;
-      return rawWithParams(
-        `(parseDateTimeBestEffortOrZero(${exprSql}) != toDateTime(0) AND toDate(parseDateTimeBestEffortOrZero(${exprSql})) = toDate(parseDateTimeBestEffort({${pk}:String})))`,
-        { [pk]: value },
-      );
-    }
-    case 'contains_multi': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`multiSearchAny(${exprSql}, {${pk}:Array(String)})`, { [pk]: values ?? [] });
-    }
-    case 'not_contains_multi': {
-      queryParams[pk] = values ?? [];
-      return rawWithParams(`NOT multiSearchAny(${exprSql}, {${pk}:Array(String)})`, { [pk]: values ?? [] });
-    }
-    default: {
-      const _exhaustive: never = operator;
-      throw new Error(`Unhandled operator: ${_exhaustive}`);
-    }
-  }
+  return applyOperator(expr, operator, pk, queryParams, value, values);
 }
 
 /**
  * Returns an Expr for the upper bound datetime of behavioral cohort conditions.
  *
- * When ctx.dateTo is set: rawWithParams('{coh_date_to:DateTime64(3)}', ...)
- * When ctx.dateTo is absent: raw('now64(3)')
+ * When ctx.dateTo is set: namedParam('coh_date_to', 'DateTime64(3)', value)
+ * When ctx.dateTo is absent: now64(3)
  */
 export function resolveDateTo(ctx: BuildContext): Expr {
   if (ctx.dateTo !== undefined) {
     ctx.queryParams['coh_date_to'] = ctx.dateTo;
-    return rawWithParams('{coh_date_to:DateTime64(3)}', { coh_date_to: ctx.dateTo });
+    return namedParam('coh_date_to', 'DateTime64(3)', ctx.dateTo);
   }
   return now64(literal(3));
 }
@@ -602,7 +401,7 @@ export function resolveDateTo(ctx: BuildContext): Expr {
 export function resolveDateFrom(ctx: BuildContext): Expr | undefined {
   if (ctx.dateFrom !== undefined) {
     ctx.queryParams['coh_date_from'] = ctx.dateFrom;
-    return rawWithParams('{coh_date_from:DateTime64(3)}', { coh_date_from: ctx.dateFrom });
+    return namedParam('coh_date_from', 'DateTime64(3)', ctx.dateFrom);
   }
   return undefined;
 }
@@ -623,7 +422,7 @@ export function buildEventFilterClauses(
     const f = filters[i];
     const pk = `${prefix}_ef${i}`;
     const expr = resolveEventPropertyExpr(f.property);
-    parts.push(buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values));
+    parts.push(applyOperator(expr, f.operator, pk, queryParams, f.value, f.values));
   }
 
   return parts.length > 0 ? and(...parts) : undefined;

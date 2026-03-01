@@ -6,6 +6,7 @@ export {
   resolvedPerson,
   resolvePropertyExpr,
   resolveEventPropertyExpr,
+  applyOperator,
   buildOperatorClause,
   resolveDateTo,
   resolveDateFrom,
