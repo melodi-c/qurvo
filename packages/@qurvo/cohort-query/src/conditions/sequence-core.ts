@@ -1,8 +1,8 @@
 import type { CohortEventFilter } from '@qurvo/db';
 import type { Expr } from '@qurvo/ch-query';
 import {
-  and, col, eq, func, groupArray, gt, lambda, literal,
-  multiIf, namedParam, raw, rawWithParams, toUInt32, toUInt64,
+  add, and, arrayFold, col, eq, func, groupArray, gt, ifExpr, lambda,
+  literal, lte, multiIf, namedParam, or, sub, toUInt32, toUInt64,
   toUnixTimestamp64Milli, tuple,
 } from '@qurvo/ch-query';
 import { buildEventFilterClauses, allocCondIdx } from '../helpers';
@@ -77,32 +77,34 @@ export function buildSequenceCore(
   //
   // After fold: result.1 > totalSteps means all steps matched in order within time window.
 
-  // Lambda body uses rawWithParams because lambda params (acc, evt) with tuple
-  // field access (.1, .2) and correct AND/OR precedence require raw SQL.
-  // The window_ms named parameter is the only external dependency.
-  const foldBody = rawWithParams(
-    [
-      'if(',
-      '    evt.2 = acc.1 AND (acc.1 = 1 OR evt.1 - acc.2 <= {' + windowMsPk + ':UInt64}),',
-      '    (toUInt32(acc.1 + 1), evt.1),',
-      '    acc',
-      '  )',
-    ].join('\n          '),
-    { [windowMsPk]: ctx.queryParams[windowMsPk] },
+  // Lambda body — pure AST: tuple element access via tupleElement()
+  const acc1 = func('tupleElement', col('acc'), literal(1));
+  const acc2 = func('tupleElement', col('acc'), literal(2));
+  const evt1 = func('tupleElement', col('evt'), literal(1));
+  const evt2 = func('tupleElement', col('evt'), literal(2));
+
+  const stepMatch = eq(evt2, acc1);
+  const isFirstStep = eq(acc1, toUInt32(literal(1)));
+  const withinWindow = lte(sub(evt1, acc2), namedParam(windowMsPk, 'UInt64', ctx.queryParams[windowMsPk]));
+
+  const foldBody = ifExpr(
+    and(stepMatch, or(isFirstStep, withinWindow)),
+    tuple(toUInt32(add(acc1, literal(1))), evt1),
+    col('acc'),
   );
 
   // Sorted array of (timestamp_ms, step_idx) tuples per person — pure AST
   const tuplePair = tuple(toUInt64(toUnixTimestamp64Milli(col('timestamp'))), col('step_idx'));
   const sortedArray = func('arraySort',
-    lambda(['x'], raw('x.1')),
+    lambda(['x'], func('tupleElement', col('x'), literal(1))),
     groupArray(tuplePair),
   );
 
   // Initial accumulator: (next_step=1, prev_ts=0) — pure AST
   const initialAcc = tuple(toUInt32(literal(1)), toUInt64(literal(0)));
 
-  // arrayFold(lambda, sorted_array, initial_acc) — pure AST wrapping rawWithParams body
-  const foldResult = func('arrayFold',
+  // arrayFold(lambda, sorted_array, initial_acc) — pure AST
+  const foldResult = arrayFold(
     lambda(['acc', 'evt'], foldBody),
     sortedArray,
     initialAcc,
