@@ -344,6 +344,29 @@ describe('builders', () => {
       expect(node.fromAlias).toBe('sub');
     });
 
+    test('from with final option', () => {
+      const node = select(col('person_id')).from('cohort_members', { final: true }).build();
+      expect(node.from).toBe('cohort_members');
+      expect(node.final).toBe(true);
+    });
+
+    test('from with final and alias option', () => {
+      const node = select(col('*')).from('cohort_members', { final: true, alias: 'cm' }).build();
+      expect(node.from).toBe('cohort_members');
+      expect(node.final).toBe(true);
+      expect(node.fromAlias).toBe('cm');
+    });
+
+    test('final() fluent method', () => {
+      const node = select(col('*')).from('events').final().build();
+      expect(node.final).toBe(true);
+    });
+
+    test('final() returns same builder for chaining', () => {
+      const builder = select(col('a'));
+      expect(builder.final()).toBe(builder);
+    });
+
     test('where() auto-ands conditions', () => {
       const node = select(col('*'))
         .from('t')
