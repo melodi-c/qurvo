@@ -178,6 +178,24 @@ describe('shiftDate', () => {
     expect(result).toHaveLength(10);
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it('shifts hours forward', () => {
+    expect(shiftDate('2024-01-15 10:00:00', 3, 'hour')).toBe('2024-01-15 13:00:00');
+  });
+
+  it('shifts hours backward', () => {
+    expect(shiftDate('2024-01-15 10:00:00', -5, 'hour')).toBe('2024-01-15 05:00:00');
+  });
+
+  it('shifts hours across day boundary', () => {
+    expect(shiftDate('2024-01-15 22:00:00', 5, 'hour')).toBe('2024-01-16 03:00:00');
+  });
+
+  it('returns YYYY-MM-DD HH:mm:ss string for hour granularity', () => {
+    const result = shiftDate('2024-01-15 10:00:00', 1, 'hour');
+    expect(result).toHaveLength(19);
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
 });
 
 describe('truncateDate', () => {
@@ -216,6 +234,20 @@ describe('truncateDate', () => {
     const result = truncateDate('2024-06-15', 'month');
     expect(result).toHaveLength(10);
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('truncates to start of hour (zeroes minutes and seconds)', () => {
+    expect(truncateDate('2024-03-15 14:35:42', 'hour')).toBe('2024-03-15 14:00:00');
+  });
+
+  it('hour truncation on already-truncated datetime is identity', () => {
+    expect(truncateDate('2024-03-15 10:00:00', 'hour')).toBe('2024-03-15 10:00:00');
+  });
+
+  it('returns YYYY-MM-DD HH:mm:ss string for hour granularity', () => {
+    const result = truncateDate('2024-06-15 18:45:30', 'hour');
+    expect(result).toHaveLength(19);
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 });
 
