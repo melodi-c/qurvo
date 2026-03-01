@@ -9,7 +9,7 @@ import { DemoBanner } from '@/components/DemoBanner';
 import { useProjectStore } from '@/stores/project';
 import { routes } from '@/lib/routes';
 
-function PageLoadingFallback() {
+export function PageLoadingFallback() {
   return (
     <div className="flex items-center justify-center gap-2 h-full min-h-64 text-muted-foreground">
       <Loader2 className="h-5 w-5 animate-spin" />

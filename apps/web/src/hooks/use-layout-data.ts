@@ -69,11 +69,13 @@ export function useLayoutData() {
   const { data: projects } = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.projectsControllerList(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: myInvites } = useQuery({
     queryKey: ['myInvites'],
     queryFn: () => api.myInvitesControllerGetMyInvites(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const pendingInvitesCount = myInvites?.length ?? 0;

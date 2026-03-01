@@ -6,6 +6,7 @@ import { useDebouncedHash } from '@/hooks/use-debounced-hash';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectRole } from '@/hooks/use-project-role';
+import { useIsDirty } from '@/hooks/use-is-dirty';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { isConditionValid, isGroup, createEmptyGroup, type CohortConditionGroup, type CohortCondition } from '@/features/cohorts/types';
 import { stripClientKeys } from '@/features/cohorts/utils/strip-client-keys';
@@ -31,11 +32,7 @@ export function useCohortEditor() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Track initial state for isDirty computation
-  const initialState = useRef({
-    name: t('defaultName'),
-    description: '',
-    groups: JSON.stringify([createEmptyGroup()]),
-  });
+  const initialState = useRef<unknown[]>([t('defaultName'), '', [createEmptyGroup()]]);
 
   useEffect(() => {
     if (!initialized.current && existingCohort) {
@@ -53,21 +50,12 @@ export function useCohortEditor() {
         parsedGroups = andGroups.length > 0 ? andGroups : [createEmptyGroup()];
       }
       setGroups(parsedGroups);
-      initialState.current = {
-        name: existingCohort.name,
-        description: existingCohort.description ?? '',
-        groups: JSON.stringify(parsedGroups),
-      };
+      initialState.current = [existingCohort.name, existingCohort.description ?? '', parsedGroups];
       initialized.current = true;
     }
   }, [existingCohort]);
 
-  const isDirty = useMemo(() => {
-    const initial = initialState.current;
-    if (name !== initial.name) {return true;}
-    if (description !== initial.description) {return true;}
-    return JSON.stringify(groups) !== initial.groups;
-  }, [name, description, groups]);
+  const isDirty = useIsDirty([name, description, groups], initialState);
 
   const unsavedGuard = useUnsavedChangesGuard(isDirty);
 
@@ -121,7 +109,7 @@ export function useCohortEditor() {
         toast.success(t('cohortUpdated'));
       }
       // Mark current state as clean before navigating away
-      initialState.current = { name, description, groups: JSON.stringify(groups) };
+      initialState.current = [name, description, groups];
       unsavedGuard.markClean();
       void go.cohorts.list();
     } catch (e) {
