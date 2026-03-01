@@ -27,7 +27,7 @@ import {
   toDate,
   toFloat64OrZero,
 } from '@qurvo/ch-query';
-import { buildCohortFilterClause } from '@qurvo/cohort-query';
+import { buildCohortFilterClause, type CohortFilterInput } from '@qurvo/cohort-query';
 import { timeRange, toChTs } from './time';
 
 // ── Types ──
@@ -345,7 +345,7 @@ export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
  * Returns undefined if inputs is empty/undefined (allowing and() to skip it).
  */
 export function cohortFilter(
-  inputs: CohortFilterInputLike[] | undefined,
+  inputs: CohortFilterInput[] | undefined,
   projectId: string,
   dateTo?: string,
   dateFrom?: string,
@@ -357,13 +357,8 @@ export function cohortFilter(
   const cohortParams: Record<string, unknown> = {};
   cohortParams['project_id'] = projectId;
 
-  // CohortFilterInputLike is structurally compatible with CohortFilterInput
-  // but uses `unknown` for the `definition` field to avoid pulling @qurvo/db
-  // types into ch-query. The cast is safe because buildCohortFilterClause only
-  // reads `definition` to pass it to buildCohortSubquery which handles unknown shapes.
-  type CohortFilterInputCast = Parameters<typeof buildCohortFilterClause>[0][number];
   const expr = buildCohortFilterClause(
-    inputs as CohortFilterInputCast[],
+    inputs,
     'project_id',
     cohortParams,
     undefined,
@@ -376,18 +371,6 @@ export function cohortFilter(
   // named parameters (e.g. {coh_mid_0:UUID}) are carried through the outer AST.
   const { sql, params } = compileExprToSql(expr);
   return rawWithParams(sql, { ...cohortParams, ...params });
-}
-
-/**
- * Minimal type for cohort filter inputs -- avoids importing the full @qurvo/db types
- * into the query-helpers package. Compatible with CohortFilterInput from @qurvo/cohort-query.
- */
-export interface CohortFilterInputLike {
-  cohort_id: string;
-  definition: unknown;
-  materialized: boolean;
-  is_static: boolean;
-  membership_version?: number | null;
 }
 
 /**
@@ -412,7 +395,7 @@ export function analyticsWhere(opts: {
   eventName?: string;
   eventNames?: string[];
   filters?: PropertyFilter[];
-  cohortFilters?: CohortFilterInputLike[];
+  cohortFilters?: CohortFilterInput[];
   dateTo?: string;
   dateFrom?: string;
 }): Expr {

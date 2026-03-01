@@ -29,8 +29,8 @@ export {
 export type {
   FilterOperator,
   PropertyFilter,
-  CohortFilterInputLike,
 } from './filters';
+export type { CohortFilterInput } from '@qurvo/cohort-query';
 
 // Resolved person
 export { resolvedPerson, RESOLVED_PERSON } from './resolved-person';
