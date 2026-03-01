@@ -82,6 +82,8 @@ import {
   today,
   unionAll,
   uniqExact,
+  like,
+  notLike,
 } from '../builders';
 import type { SelectNode } from '../ast';
 

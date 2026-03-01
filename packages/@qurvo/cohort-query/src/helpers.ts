@@ -1,10 +1,10 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
-import type { Expr, FuncCallExpr } from '@qurvo/ch-query';
+import type { BinaryExpr, Expr, FuncCallExpr } from '@qurvo/ch-query';
 import {
   and, argMax, col, coalesce, dictGetOrNull, eq, escapeLikePattern,
   func, gt as chGt, gte, inArray, jsonExtractRaw, jsonExtractString, jsonHas,
-  like, literal, lt as chLt, lte, match, multiSearchAny, namedParam,
-  neq, not, notInArray, notLike, now64, or,
+  literal, lt as chLt, lte, match, multiSearchAny, namedParam,
+  neq, not, notInArray, now64, or,
   parseDateTimeBestEffort, parseDateTimeBestEffortOrZero,
   select, toDate, toFloat64OrZero, toString, tuple,
 } from '@qurvo/ch-query';
@@ -208,16 +208,16 @@ const stringOps = {
   contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
     const valP = registerParam(pk, 'String', likeVal, queryParams);
-    return like(expr, valP);
+    return { type: 'binary', op: 'LIKE', left: expr, right: valP } as BinaryExpr;
   },
   not_contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
     const valP = registerParam(pk, 'String', likeVal, queryParams);
     const jsonHasExpr = toJsonHasGuard(expr);
     if (jsonHasExpr) {
-      return and(jsonHasExpr, notLike(expr, valP));
+      return and(jsonHasExpr, { type: 'binary', op: 'NOT LIKE', left: expr, right: valP } as BinaryExpr);
     }
-    return notLike(expr, valP);
+    return { type: 'binary', op: 'NOT LIKE', left: expr, right: valP } as BinaryExpr;
   },
   regex: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const v = value ?? '';

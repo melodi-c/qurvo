@@ -47,7 +47,6 @@ import {
   jsonHas,
   lambda,
   length,
-  like,
   literal,
   lower,
   lt,
@@ -67,7 +66,6 @@ import {
   notEmpty,
   intersect,
   notInSubquery,
-  notLike,
   now64,
   or,
   param,
@@ -103,6 +101,8 @@ import {
   today,
   unionAll,
   uniqExact,
+  like,
+  notLike,
 } from '../builders';
 
 describe('builders', () => {

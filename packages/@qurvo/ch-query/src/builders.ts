@@ -576,11 +576,11 @@ export function lte(left: Expr, right: Expr): BinaryExpr {
   return makeBinary('<=', left, right);
 }
 
-export function like(left: Expr, right: Expr): BinaryExpr {
+function like(left: Expr, right: Expr): BinaryExpr {
   return makeBinary('LIKE', left, right);
 }
 
-export function notLike(left: Expr, right: Expr): BinaryExpr {
+function notLike(left: Expr, right: Expr): BinaryExpr {
   return makeBinary('NOT LIKE', left, right);
 }
 
