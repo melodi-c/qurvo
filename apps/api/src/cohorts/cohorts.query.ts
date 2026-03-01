@@ -1,23 +1,22 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
-import { compile } from '@qurvo/ch-query';
+import {
+  select,
+  col,
+  namedParam,
+  eq,
+  gte,
+  sub as chSub,
+  today,
+  uniqExact,
+  toString as chToString,
+} from '@qurvo/ch-query';
 
 export interface CohortHistoryPoint {
   date: string;
   count: number;
-}
-
-// ── Counting helpers ─────────────────────────────────────────────────────────
-
-async function queryCount(
-  ch: ClickHouseClient,
-  query: string,
-  query_params: Record<string, unknown>,
-): Promise<number> {
-  const result = await ch.query({ query, query_params, format: 'JSONEachRow' });
-  const rows = await result.json<{ cnt: string }>();
-  return Number(rows[0]?.cnt ?? 0);
 }
 
 /**
@@ -36,9 +35,8 @@ export async function countCohortMembers(
 ): Promise<number> {
   const params: Record<string, unknown> = { project_id: projectId };
   const node = buildCohortSubquery(definition, 0, 'project_id', params, resolveCohortIsStatic);
-  const { sql: subquery, params: compiledParams } = compile(node);
-  Object.assign(params, compiledParams);
-  return queryCount(ch, `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`, params);
+  const wrapper = select(uniqExact(col('person_id')).as('cnt')).from(node).build();
+  return new ChQueryExecutor(ch).count(wrapper);
 }
 
 /**
@@ -49,12 +47,14 @@ export async function countCohortMembersFromTable(
   projectId: string,
   cohortId: string,
 ): Promise<number> {
-  return queryCount(ch, `
-    SELECT uniqExact(person_id) AS cnt
-    FROM cohort_members FINAL
-    WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
-    { project_id: projectId, cohort_id: cohortId },
-  );
+  const node = select(uniqExact(col('person_id')).as('cnt'))
+    .from('cohort_members FINAL')
+    .where(
+      eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
+      eq(col('cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
+    )
+    .build();
+  return new ChQueryExecutor(ch).count(node);
 }
 
 /**
@@ -65,12 +65,14 @@ export async function countStaticCohortMembers(
   projectId: string,
   cohortId: string,
 ): Promise<number> {
-  return queryCount(ch, `
-    SELECT uniqExact(person_id) AS cnt
-    FROM person_static_cohort FINAL
-    WHERE project_id = {project_id:UUID} AND cohort_id = {cohort_id:UUID}`,
-    { project_id: projectId, cohort_id: cohortId },
-  );
+  const node = select(uniqExact(col('person_id')).as('cnt'))
+    .from('person_static_cohort FINAL')
+    .where(
+      eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
+      eq(col('cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
+    )
+    .build();
+  return new ChQueryExecutor(ch).count(node);
 }
 
 /**
@@ -83,21 +85,19 @@ export async function queryCohortSizeHistory(
   cohortId: string,
   days: number,
 ): Promise<CohortHistoryPoint[]> {
-  const sql = `
-    SELECT
-      toString(h.date) AS date,
-      h.count AS count
-    FROM cohort_membership_history AS h FINAL
-    WHERE h.project_id = {project_id:UUID}
-      AND h.cohort_id = {cohort_id:UUID}
-      AND h.date >= today() - {days:UInt32}
-    ORDER BY h.date ASC`;
+  const node = select(
+    chToString(col('h.date')).as('date'),
+    col('h.count'),
+  )
+    .from('cohort_membership_history FINAL', 'h')
+    .where(
+      eq(col('h.project_id'), namedParam('project_id', 'UUID', projectId)),
+      eq(col('h.cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
+      gte(col('h.date'), chSub(today(), namedParam('days', 'UInt32', days))),
+    )
+    .orderBy(col('h.date'), 'ASC')
+    .build();
 
-  const result = await ch.query({
-    query: sql,
-    query_params: { project_id: projectId, cohort_id: cohortId, days },
-    format: 'JSONEachRow',
-  });
-  const rows = await result.json<{ date: string; count: string }>();
+  const rows = await new ChQueryExecutor(ch).rows<{ date: string; count: string }>(node);
   return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
 }

@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
   param,
@@ -51,13 +51,5 @@ export async function queryPersonEvents(
     .offset(params.offset)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-
-  const result = await ch.query({
-    query: sql,
-    query_params: queryParams,
-    format: 'JSONEachRow',
-  });
-
-  return result.json<EventDetailRow>();
+  return new ChQueryExecutor(ch).rows<EventDetailRow>(node);
 }

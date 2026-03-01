@@ -2,9 +2,10 @@ import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
 import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { compile, select } from '@qurvo/ch-query';
+import { select } from '@qurvo/ch-query';
 import {
   analyticsWhere,
   baseMetricColumns,
@@ -69,9 +70,7 @@ async function querySegment(
     )
     .build();
 
-  const { sql, params } = compile(node);
-  const res = await ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
-  const rows = await res.json<RawRow>();
+  const rows = await new ChQueryExecutor(ch).rows<RawRow>(node);
   const row = rows[0] ?? { raw_value: '0', uniq_value: '0' };
   return { raw: Number(row.raw_value), uniq: Number(row.uniq_value) };
 }
