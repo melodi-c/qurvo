@@ -43,7 +43,7 @@ export interface WebAnalyticsQueryParams {
   project_id: string;
   date_from: string;
   date_to: string;
-  timezone?: string;
+  timezone: string;
   filters?: PropertyFilter[];
 }
 

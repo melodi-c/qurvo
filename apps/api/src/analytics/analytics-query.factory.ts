@@ -14,7 +14,7 @@ import { AppBadRequestException } from '../exceptions/app-bad-request.exception'
 
 export interface AnalyticsQueryService<TParams, TResult> {
   query(
-    params: Omit<TParams, 'cohort_filters' | 'breakdown_cohort_ids'> & {
+    params: Omit<TParams, 'cohort_filters' | 'breakdown_cohort_ids' | 'timezone'> & {
       widget_id?: string;
       force?: boolean;
       cohort_ids?: string[];
@@ -25,7 +25,7 @@ export interface AnalyticsQueryService<TParams, TResult> {
 }
 
 export function createAnalyticsQueryProvider<
-  TParams extends { project_id: string; cohort_filters?: unknown; timezone?: string },
+  TParams extends { project_id: string; cohort_filters?: unknown; timezone: string },
   TResult,
 >(
   token: symbol,
@@ -53,9 +53,10 @@ export function createAnalyticsQueryProvider<
             .from(projects)
             .where(eq(projects.id, params.project_id))
             .limit(1);
-          if (project) {
-            mutableParams.timezone = project.timezone;
+          if (!project) {
+            throw new AppBadRequestException(`Project ${params.project_id} not found`);
           }
+          mutableParams.timezone = project.timezone;
 
           if (cohort_ids?.length) {
             // Merge resolved cohort_ids filters with any directly-passed cohort_filters.

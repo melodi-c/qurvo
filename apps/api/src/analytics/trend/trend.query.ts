@@ -52,7 +52,7 @@ export interface TrendQueryParams {
   breakdown_cohort_ids?: CohortBreakdownEntry[];
   compare?: boolean;
   cohort_filters?: CohortFilterInput[];
-  timezone?: string;
+  timezone: string;
 }
 
 export interface TrendDataPoint {

@@ -8,6 +8,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { withAnalyticsCache, type AnalyticsCacheResult } from '../analytics/with-analytics-cache';
+import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import {
   queryOverview,
   queryTopPages,
@@ -22,6 +23,9 @@ import {
   type GeographyResult,
 } from './web-analytics.query';
 
+/** Input type for WebAnalyticsService methods — timezone is injected from DB, not provided by callers. */
+type WebAnalyticsInput = Omit<WebAnalyticsQueryParams, 'timezone'> & { force?: boolean };
+
 @Injectable()
 export class WebAnalyticsService {
   private readonly logger = new Logger(WebAnalyticsService.name);
@@ -32,32 +36,32 @@ export class WebAnalyticsService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  async getOverview(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<OverviewResult>> {
+  async getOverview(params: WebAnalyticsInput): Promise<AnalyticsCacheResult<OverviewResult>> {
     return this.runQuery(params, 'wa:overview', queryOverview);
   }
 
-  async getPaths(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<PathsResult>> {
+  async getPaths(params: WebAnalyticsInput): Promise<AnalyticsCacheResult<PathsResult>> {
     return this.runQuery(params, 'wa:paths', queryTopPages);
   }
 
-  async getSources(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<SourcesResult>> {
+  async getSources(params: WebAnalyticsInput): Promise<AnalyticsCacheResult<SourcesResult>> {
     return this.runQuery(params, 'wa:sources', querySources);
   }
 
-  async getDevices(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<DevicesResult>> {
+  async getDevices(params: WebAnalyticsInput): Promise<AnalyticsCacheResult<DevicesResult>> {
     return this.runQuery(params, 'wa:devices', queryDevices);
   }
 
-  async getGeography(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<GeographyResult>> {
+  async getGeography(params: WebAnalyticsInput): Promise<AnalyticsCacheResult<GeographyResult>> {
     return this.runQuery(params, 'wa:geography', queryGeography);
   }
 
   private async runQuery<T>(
-    params: WebAnalyticsQueryParams & { force?: boolean },
+    params: WebAnalyticsInput,
     prefix: string,
     queryFn: (ch: ClickHouseClient, p: WebAnalyticsQueryParams) => Promise<T>,
   ): Promise<AnalyticsCacheResult<T>> {
-    const { force, ...queryParams } = params;
+    const { force, ...rest } = params;
 
     // Auto-inject project timezone from DB
     const [project] = await this.db
@@ -65,9 +69,10 @@ export class WebAnalyticsService {
       .from(projects)
       .where(eq(projects.id, params.project_id))
       .limit(1);
-    if (project) {
-      queryParams.timezone = project.timezone;
+    if (!project) {
+      throw new AppBadRequestException(`Project ${params.project_id} not found`);
     }
+    const queryParams: WebAnalyticsQueryParams = { ...rest, timezone: project.timezone };
 
     return withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger });
   }
