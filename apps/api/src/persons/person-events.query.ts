@@ -38,14 +38,14 @@ export async function queryPersonEvents(
     .where(
       projectIs(params.project_id),
       or(
-        eq(raw('events.person_id'), personIdParam),
+        eq(col('events.person_id'), personIdParam),
         eq(
           raw(`dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id))`),
           param('UUID', params.person_id),
         ),
       ),
     )
-    .orderBy(raw('events.timestamp'), 'DESC')
+    .orderBy(col('events.timestamp'), 'DESC')
     .limit(params.limit)
     .offset(params.offset)
     .build();

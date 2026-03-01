@@ -1,9 +1,11 @@
 import type { Expr } from '@qurvo/ch-query';
 import {
   and,
+  col,
   eq,
   inArray,
   like,
+  literal,
   neq,
   not,
   notLike,
@@ -118,17 +120,17 @@ function resolvePropertyColumnExpr(prop: string): string {
 
 /** project_id = {p_N:UUID} */
 export function projectIs(projectId: string): Expr {
-  return eq(raw('project_id'), param('UUID', projectId));
+  return eq(col('project_id'), param('UUID', projectId));
 }
 
 /** event_name = {p_N:String} */
 export function eventIs(eventName: string): Expr {
-  return eq(raw('event_name'), param('String', eventName));
+  return eq(col('event_name'), param('String', eventName));
 }
 
 /** event_name IN ({p_N:Array(String)}) */
 export function eventIn(eventNames: string[]): Expr {
-  return inArray(raw('event_name'), param('Array(String)', eventNames));
+  return inArray(col('event_name'), param('Array(String)', eventNames));
 }
 
 /**
@@ -185,13 +187,13 @@ export function propertyFilter(filter: PropertyFilter): Expr {
       if (source) {
         return raw(buildJsonHasExpr(source.jsonColumn, source.segments));
       }
-      return neq(colExpr, raw("''"));
+      return neq(colExpr, literal(''));
     }
     case 'is_not_set': {
       if (source) {
         return not(raw(buildJsonHasExpr(source.jsonColumn, source.segments)));
       }
-      return eq(colExpr, raw("''"));
+      return eq(colExpr, literal(''));
     }
     default: {
       const _exhaustive: never = filter.operator;

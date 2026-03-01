@@ -3,7 +3,7 @@ import {
   compile,
   select,
   col,
-  raw,
+  literal,
   param,
   func,
   eq,
@@ -79,7 +79,7 @@ export const EVENT_BASE_COLUMNS = [
   col('distinct_id'),
   func('toString', col('person_id')).as('person_id'),
   col('session_id'),
-  func('formatDateTime', raw('events.timestamp'), raw(`'${FORMAT_DATETIME_ISO}'`), raw("'UTC'")).as('timestamp'),
+  func('formatDateTime', col('events.timestamp'), literal(FORMAT_DATETIME_ISO), literal('UTC')).as('timestamp'),
   col('url'),
   col('referrer'),
   col('page_title'),
@@ -127,7 +127,7 @@ export async function queryEvents(
   const node = select(...EVENT_BASE_COLUMNS)
     .from('events')
     .where(whereExpr)
-    .orderBy(raw('events.timestamp'), 'DESC')
+    .orderBy(col('events.timestamp'), 'DESC')
     .limit(limit)
     .offset(offset)
     .build();
@@ -165,9 +165,9 @@ export async function queryEventDetail(
     .from('events')
     .where(
       projectIs(params.project_id),
-      eq(raw('event_id'), param('UUID', params.event_id)),
-      gte(raw('events.timestamp'), param('DateTime', tsFrom)),
-      lte(raw('events.timestamp'), param('DateTime', tsTo)),
+      eq(col('event_id'), param('UUID', params.event_id)),
+      gte(col('events.timestamp'), param('DateTime', tsFrom)),
+      lte(col('events.timestamp'), param('DateTime', tsTo)),
     )
     .limit(1)
     .build();

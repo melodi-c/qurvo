@@ -145,7 +145,7 @@ export async function queryPaths(
       projectIs(params.project_id),
       timeRange(params.date_from, params.date_to),
       params.exclusions?.length
-        ? notInArray(raw('event_name'), param('Array(String)', params.exclusions))
+        ? notInArray(col('event_name'), param('Array(String)', params.exclusions))
         : undefined,
       params.event_filters?.length ? propertyFilters(params.event_filters) : undefined,
       cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom),
@@ -211,7 +211,7 @@ export async function queryPaths(
   )
     .withAll(sharedCTEs)
     .from('final_paths')
-    .arrayJoin(raw('arrayEnumerate(path)'), 'idx')
+    .arrayJoin(func('arrayEnumerate', col('path')), 'idx')
     .where(
       lt(col('idx'), func('length', col('path'))),
       lte(col('idx'), stepLimitParam),
