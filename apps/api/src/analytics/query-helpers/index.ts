@@ -33,7 +33,7 @@ export type {
 export type { CohortFilterInput } from '@qurvo/cohort-query';
 
 // Resolved person — re-exported from @qurvo/cohort-query (single source of truth)
-export { resolvedPerson, RESOLVED_PERSON } from '@qurvo/cohort-query';
+export { resolvedPerson } from '@qurvo/cohort-query';
 
 export {
   baseMetricColumns,

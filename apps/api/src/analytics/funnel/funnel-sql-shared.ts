@@ -10,7 +10,7 @@
  *   funnel-cte-dispatch.ts  — buildFunnelCTEs ordered/unordered dispatch helper
  */
 
-export { type FunnelChQueryParams, funnelTsParamExpr, buildBaseQueryParams, RESOLVED_PERSON, toChTs } from './funnel-params';
+export { type FunnelChQueryParams, funnelTsParamExpr, buildBaseQueryParams, toChTs } from './funnel-params';
 export { resolveWindowSeconds } from './funnel-window';
 export { resolveStepEventNames, buildStepCondition, buildAllEventNames } from './funnel-steps';
 export { validateExclusions, buildExclusionColumns, buildExcludedUsersCTE, extractExclColumnAliases } from './funnel-exclusions';

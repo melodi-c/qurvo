@@ -132,7 +132,7 @@ Query functions live in `src/analytics/{type}/{type}.query.ts`:
 `src/analytics/query-helpers/` — canonical source for all ClickHouse query utilities:
 - `time.ts` — `toChTs()`, `shiftDate()`, `truncateDate()`, `shiftPeriod()`, `bucket()` (AST), `granularityTruncExpr()` (string), `tsParam()` (AST), `tsExpr()` (string), `granularityInterval()`, `buildFilterClause()`
 - `filters.ts` — `propertyFilter()` / `propertyFilters()` (AST), `buildPropertyFilterConditions()` (string), `resolvePropertyExpr()` (AST), `resolvePropertyExprStr()` (string), `cohortFilter()` (AST), `buildCohortClause()` (string), `DIRECT_COLUMNS`, `FilterOperator`, `PropertyFilter`
-- `resolved-person.ts` — `RESOLVED_PERSON` SQL constant, `resolvedPerson()` AST builder
+- `resolved-person.ts` — `resolvedPerson()` AST builder (re-exported from `@qurvo/cohort-query`)
 - `aggregations.ts` — `baseMetricColumns()`, `aggColumn()`, `numericProperty()`
 - `index.ts` — barrel re-exports for all of the above
 

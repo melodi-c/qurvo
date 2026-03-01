@@ -1,7 +1,7 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, interval } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
+import { select, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, interval } from '@qurvo/ch-query';
+import { resolvedPerson, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -30,7 +30,7 @@ export function buildStoppedPerformingSubquery(
   const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
 
   // Recent performers subquery (to exclude via NOT IN)
-  const recentPerformers = select(raw(RESOLVED_PERSON))
+  const recentPerformers = select(resolvedPerson())
     .from('events')
     .where(
       ctxProjectIdExpr(ctx),
@@ -42,7 +42,7 @@ export function buildStoppedPerformingSubquery(
     .build();
 
   // Historical performers NOT IN recent performers
-  return select(raw(RESOLVED_PERSON).as('person_id'))
+  return select(resolvedPerson().as('person_id'))
     .from('events')
     .where(
       ctxProjectIdExpr(ctx),

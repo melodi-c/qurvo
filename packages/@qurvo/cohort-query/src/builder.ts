@@ -1,8 +1,8 @@
 import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
 import type { Expr, QueryNode, SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, namedParam, eq, and, intersect, unionDistinct, inSubquery, toUUID, literal } from '@qurvo/ch-query';
-import { RESOLVED_PERSON } from './helpers';
+import { select, col, namedParam, eq, and, intersect, unionDistinct, inSubquery, toUUID, literal } from '@qurvo/ch-query';
+import { resolvedPerson } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
 import { buildPropertyConditionSubquery } from './conditions/property';
 import { buildEventConditionSubquery } from './conditions/event';
@@ -192,7 +192,7 @@ export function buildCohortFilterClause(
       c, paramKey, projectIdParam, queryParams, idx,
       resolveCohortIsStatic, dateTo, dateFrom,
     );
-    return inSubquery(raw(RESOLVED_PERSON), node);
+    return inSubquery(resolvedPerson(), node);
   });
 
   return exprs.length === 1 ? exprs[0] : and(...exprs);

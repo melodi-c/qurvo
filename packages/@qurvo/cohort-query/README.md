@@ -113,7 +113,6 @@ const levels = groupCohortsByLevel(sorted);
 
 | Constant | Value | Description |
 |---|---|---|
-| `RESOLVED_PERSON` | `'resolved_person'` | Column name for resolved person ID |
 | `MAX_TOTAL_CONDITIONS` | `50` | Maximum total leaf conditions allowed |
 | `MAX_NESTING_DEPTH` | `4` | Maximum nesting depth for condition groups |
 

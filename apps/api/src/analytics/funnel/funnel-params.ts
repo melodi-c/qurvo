@@ -4,11 +4,11 @@ import {
   literal,
   type Expr,
 } from '@qurvo/ch-query';
-import { toChTs, RESOLVED_PERSON } from '../query-helpers';
+import { toChTs } from '../query-helpers';
 import type { FunnelStep } from './funnel.types';
 import { resolveWindowSeconds } from './funnel-window';
 
-export { RESOLVED_PERSON, toChTs };
+export { toChTs };
 
 // ── ClickHouse query parameter types ─────────────────────────────────────────
 
