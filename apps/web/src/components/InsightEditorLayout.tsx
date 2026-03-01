@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { SlidersHorizontal, X, Download, Check } from 'lucide-react';
+import { Download, Check } from 'lucide-react';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MobileQueryPanelToggle } from '@/components/MobileQueryPanelToggle';
 import { cn } from '@/lib/utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightEditorLayout.translations';
@@ -100,7 +101,6 @@ export function InsightEditorLayout({
 }: InsightEditorLayoutProps): ReactNode {
   const { t } = useLocalTranslation(translations);
   const { t: tGuard } = useLocalTranslation(guardTranslations);
-  const [panelOpen, setPanelOpen] = useState(false);
   const hasResults = isConfigValid && !showSkeleton && !isEmpty;
 
   return (
@@ -120,37 +120,17 @@ export function InsightEditorLayout({
         saveError={saveError}
       />
 
-      <div className="lg:hidden border-b border-border px-4 py-2 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground gap-1.5"
-          onClick={() => setPanelOpen((prev) => !prev)}
-        >
-          {panelOpen ? (
-            <>
-              <X className="h-4 w-4" />
-              {t('hideSettings')}
-            </>
-          ) : (
-            <>
-              <SlidersHorizontal className="h-4 w-4" />
-              {t('settings')}
-            </>
-          )}
-        </Button>
-        {panelOpen && hasResults && (
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Check className="h-3 w-3" />
-            {t('resultsReady')}
-          </Badge>
-        )}
-      </div>
-
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
-        <div className={cn(panelOpen ? 'block' : 'hidden', 'lg:contents')}>
+        <MobileQueryPanelToggle
+          extraToolbar={hasResults ? (
+            <Badge variant="secondary" className="gap-1 text-xs">
+              <Check className="h-3 w-3" />
+              {t('resultsReady')}
+            </Badge>
+          ) : undefined}
+        >
           {queryPanel}
-        </div>
+        </MobileQueryPanelToggle>
 
         <main className="flex-1 overflow-auto flex flex-col">
           {!isConfigValid && configureIcon && (
