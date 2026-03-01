@@ -11,8 +11,6 @@ function roundRate(numerator: number, denominator: number): number {
   return Math.round((numerator / denominator) * 1000) / 10;
 }
 
-// ── Raw row types from ClickHouse ────────────────────────────────────────────
-
 export interface RawFunnelRow {
   step_num: string;
   entered: string;
@@ -26,7 +24,7 @@ export interface RawBreakdownRow extends RawFunnelRow {
   total_bd_count?: string;
 }
 
-// ── Step result computation ──────────────────────────────────────────────────
+// Step result computation
 
 /**
  * Converts raw ClickHouse rows into FunnelStepResult[].

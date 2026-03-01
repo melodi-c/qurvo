@@ -10,7 +10,7 @@ import {
 } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
-// ── Column sets ──
+// Column sets
 
 /**
  * Person-level top-level columns (not JSON-extracted).
@@ -36,7 +36,7 @@ export const DIRECT_COLUMNS = new Set([
   'sdk_name', 'sdk_version',
 ]);
 
-// ── RESOLVED_PERSON ──
+// RESOLVED_PERSON
 
 /**
  * The raw SQL expression for resolving a person's canonical ID via the
@@ -59,7 +59,7 @@ export function resolvedPerson(): Expr & { as(alias: string): import('@qurvo/ch-
   );
 }
 
-// ── JSON key validation & escaping ──
+// JSON key validation & escaping
 
 /**
  * Strict validation for JSON path key segments.
@@ -86,7 +86,7 @@ export function escapeJsonKey(segment: string): string {
   return segment.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-// ── Property path parsing ──
+// Property path parsing
 
 export interface PropertySource {
   jsonColumn: string;
@@ -117,7 +117,7 @@ export function parsePropertyPath(prop: string): PropertySource | null {
   return { jsonColumn, segments };
 }
 
-// ── AST-level expression transforms ──
+// AST-level expression transforms
 
 /**
  * Checks whether an Expr is a FuncCallExpr with the given name.
@@ -160,7 +160,7 @@ function toJsonHasGuard(expr: Expr): Expr | null {
   return null;
 }
 
-// ── Numeric comparator map ──
+// Numeric comparator map
 
 const NUMERIC_CMP_MAP = {
   gt: chGt,
@@ -169,7 +169,7 @@ const NUMERIC_CMP_MAP = {
   lte,
 } as const;
 
-// ── Expr-returning public API ──
+// Expr-returning public API
 
 /**
  * Resolves a person property to its typed Expr (for cohort GROUP BY / HAVING context).
@@ -432,7 +432,7 @@ export function buildEventFilterClauses(
   return parts.length > 0 ? and(...parts) : undefined;
 }
 
-// ── Condition builder micro-helpers ──
+// Condition builder micro-helpers
 
 /**
  * Allocates a condition index and returns commonly-needed param keys.

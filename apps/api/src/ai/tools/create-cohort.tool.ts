@@ -5,16 +5,16 @@ import { CohortsService } from '../../cohorts/cohorts.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 
-// ── Zod schemas for CohortConditionGroup ────────────────────────────────────
+// Zod schemas for CohortConditionGroup
 //
 // DeepSeek Reasoner rejects tool schemas that contain:
 //   1. anyOf branches without a top-level "type" field
 //   2. $ref / recursive ($lazy) schemas that expand into nested anyOf
 //
 // To avoid both issues, we use a flat two-level structure:
-//   - Top level: a single group { type: 'AND'|'OR', values: [...items] }
-//   - Items: discriminatedUnion of all leaf conditions + inner AND/OR groups
-//   - Inner groups contain only leaf conditions (no further recursion)
+// Top level: a single group { type: 'AND'|'OR', values: [...items] }
+// Items: discriminatedUnion of all leaf conditions + inner AND/OR groups
+// Inner groups contain only leaf conditions (no further recursion)
 //
 // This matches the real CohortConditionGroup type from @qurvo/db for all
 // practical AI-generated cohorts (LLMs rarely produce >2 levels of nesting).
@@ -37,7 +37,7 @@ const cohortEventFilterSchema = z.object({
   values: z.array(z.string()).nullish().describe('Multiple values for "in"/"not_in"/"contains_multi"/"not_contains_multi" operators'),
 });
 
-// ── Leaf condition schemas (no nesting) ─────────────────────────────────────
+// Leaf condition schemas (no nesting)
 
 const eventConditionSchema = z.object({
   type: z.literal('event'),
@@ -140,7 +140,7 @@ const leafConditionOptions = [
 // Flat discriminated union of leaf conditions only (no nested anyOf)
 const leafConditionUnionSchema = z.discriminatedUnion('type', leafConditionOptions);
 
-// ── Inner groups (can contain leaf conditions only) ──────────────────────────
+// Inner groups (can contain leaf conditions only)
 // Using type literals 'AND' and 'OR' as separate objects so that the
 // discriminatedUnion for items is flat — each branch has a top-level "type".
 
@@ -154,7 +154,7 @@ const innerOrGroupSchema = z.object({
   values: z.array(leafConditionUnionSchema).min(1).describe('Conditions combined with OR'),
 });
 
-// ── Items schema: leaf condition OR inner group ──────────────────────────────
+// Items schema: leaf condition OR inner group
 // Using discriminatedUnion ensures every anyOf branch has a "type" field,
 // which is required for DeepSeek Reasoner compatibility.
 
@@ -164,7 +164,7 @@ const cohortItemSchema = z.discriminatedUnion('type', [
   innerOrGroupSchema,
 ]);
 
-// ── Top-level definition (always a group) ────────────────────────────────────
+// Top-level definition (always a group)
 
 const definitionSchema = z.object({
   type: z.enum(['AND', 'OR']).describe('Logical operator combining the top-level items'),

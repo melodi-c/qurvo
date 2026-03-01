@@ -57,7 +57,7 @@ async function createWorkerContext(): Promise<ContainerContext> {
   const workerId = Number(process.env.VITEST_POOL_ID ?? '1');
   const dbName = `qurvo_worker_${workerId}`;
 
-  // --- PostgreSQL: create worker database ---
+  // PostgreSQL: create worker database
   const adminPgUrl = `postgresql://${pgUser}:${pgPassword}@${pgHost}:${pgPort}/postgres`;
   const adminClient = new Client({ connectionString: adminPgUrl });
   await adminClient.connect();
@@ -69,7 +69,7 @@ async function createWorkerContext(): Promise<ContainerContext> {
   await applyPostgresMigration(pgUrl);
   const db = createDb(pgUrl);
 
-  // --- ClickHouse: create worker database ---
+  // ClickHouse: create worker database
   const clickhouseUrl = `http://${chHost}:${chPort}`;
   const adminCh = createClickHouse({
     url: clickhouseUrl,
@@ -96,7 +96,7 @@ async function createWorkerContext(): Promise<ContainerContext> {
             VALUES ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000', '__warmup__', 'track', '__warmup__', '00000000-0000-0000-0000-000000000000', now())`,
   });
 
-  // --- Redis: use database N for isolation ---
+  // Redis: use database N for isolation
   const redisUrl = `redis://${redisHost}:${redisPort}/${workerId}`;
   const redis = new Redis(redisUrl);
   await redis.flushdb();

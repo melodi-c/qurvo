@@ -79,26 +79,26 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   // Build step conditions as Expr
   const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));
 
-  // ---- Step 1: groupArrayIf columns per step ----
+  // Step 1: groupArrayIf columns per step
   const groupArrayCols: Expr[] = stepCondExprs.map((cond, i) =>
     groupArrayIf(tsExpr, cond).as(`t${i}_arr`),
   );
 
-  // ---- Steps 2-4: coverage, max_step, anchor_ms -- shared with TTC unordered ----
+  // Steps 2-4: coverage, max_step, anchor_ms -- shared with TTC unordered
   const { maxStepExpr, anchorMsExpr } =
     buildUnorderedCoverageExprsAST(N, winExprAST, steps);
 
-  // ---- Step 5: breakdown_value ----
+  // Step 5: breakdown_value
   const breakdownArrCol: Expr[] = breakdownExpr
     ? [groupArrayIf(breakdownExpr, stepCondExprs[0]).as('t0_bv_arr')]
     : [];
 
-  // ---- Step 6: exclusion array columns ----
+  // Step 6: exclusion array columns
   const exclCols: Expr[] = exclusions.length > 0
     ? buildExclusionColumns(exclusions, steps)
     : [];
 
-  // ---- Base WHERE ----
+  // Base WHERE
   const baseWhere = and(
     funnelProjectIdExpr(queryParams),
     gte(col('timestamp'), fromExpr),
@@ -108,13 +108,13 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     samplingExpr,
   );
 
-  // ---- Forward columns from step_times into anchor_per_user ----
+  // Forward columns from step_times into anchor_per_user
   const breakdownArrForward: Expr[] = breakdownExpr ? [col('t0_bv_arr')] : [];
   const exclColAliases = extractExclColumnAliases(exclCols);
   const exclColForwardExprs: Expr[] = exclColAliases.map(a => col(a));
   const stepArrCols: Expr[] = steps.map((_, i) => col(`t${i}_arr`));
 
-  // ---- Step 7: last_step_ms -- latest step in the winning window ----
+  // Step 7: last_step_ms -- latest step in the winning window
   // For each step j: arrayMax(lt -> if(lt >= anchor_ms AND lt <= anchor_ms + win, lt, 0), t_j_arr)
   const stepLastInWindowExprs: Expr[] = steps.map((_, j) =>
     func('arrayMax',
@@ -133,12 +133,12 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     ? stepLastInWindowExprs[0]
     : greatest(...stepLastInWindowExprs);
 
-  // ---- breakdown_value from anchor ----
+  // breakdown_value from anchor
   const breakdownValueExpr: Expr[] = breakdownExpr
     ? [arrayElement(col('t0_bv_arr'), indexOf(col('t0_arr'), col('anchor_ms'))).as('breakdown_value')]
     : [];
 
-  // ---- Build CTEs as QueryNodes ----
+  // Build CTEs as QueryNodes
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
   // CTE 1: step_times -- aggregates per person with groupArrayIf per step

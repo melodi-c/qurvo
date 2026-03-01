@@ -1,6 +1,6 @@
 import type { TrendSeriesResult, TrendDataPoint } from '@/api/generated/Api';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 /**
  * Generate an array of ISO date strings (YYYY-MM-DD) ending today.
@@ -41,7 +41,7 @@ export function makeSeries(
   };
 }
 
-// ── Shared bucket sets ────────────────────────────────────────────────────────
+// Shared bucket sets
 
 export const BUCKETS_14 = makeBuckets(14);
 
@@ -51,7 +51,7 @@ export const BUCKETS_14_WITH_TODAY = [
   new Date().toISOString().slice(0, 10),
 ];
 
-// ── Named datasets ────────────────────────────────────────────────────────────
+// Named datasets
 
 /** Single pageview series over 14 days. */
 export const TREND_SERIES_14D: TrendSeriesResult[] = [

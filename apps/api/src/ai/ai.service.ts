@@ -89,7 +89,6 @@ export class AiService implements OnModuleInit {
   ): AsyncGenerator<AiStreamChunk> {
     const client = this.getClient();
 
-    // Create or load conversation
     let conversation: { id: string; title: string; history_summary?: string | null; summary_failed?: boolean | null };
     let isNew = false;
 
@@ -109,10 +108,8 @@ export class AiService implements OnModuleInit {
       const { messages, seq: initialSeq, shouldSummarize, existingSummary, summaryFailed, totalMessageCount } =
         await this.messageHistoryBuilder.build(conversation, isNew, params, userId);
 
-      // Run tool-call loop
       const { seq, totalInputTokens, totalOutputTokens, totalCachedTokens } = yield* this.runToolCallLoop(client, messages, conversation.id, initialSeq, userId, params.project_id);
 
-      // Persist cumulative token usage for this request
       if (totalInputTokens > 0 || totalOutputTokens > 0) {
         await this.chatService.incrementTokenUsage(conversation.id, totalInputTokens, totalOutputTokens, totalCachedTokens);
       }
@@ -160,7 +157,6 @@ export class AiService implements OnModuleInit {
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
       const { assistantContent, toolCalls, usage } = yield* this.streamOneTurn(client, messages);
 
-      // Calculate token cost if usage data is available
       const costFields = usage
         ? {
             prompt_tokens: usage.promptTokens,
@@ -200,7 +196,6 @@ export class AiService implements OnModuleInit {
         break;
       }
 
-      // Save assistant message with tool calls
       const serializedToolCalls = toolCalls.map((tc) => ({
         id: tc.id,
         type: 'function' as const,
@@ -224,7 +219,6 @@ export class AiService implements OnModuleInit {
         ...costFields,
       });
 
-      // Execute tool calls and append results to messages
       const results = yield* this.toolDispatcher.dispatch(toolCalls, userId, projectId);
 
       for (const r of results) {

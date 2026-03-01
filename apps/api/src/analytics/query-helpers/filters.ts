@@ -20,7 +20,7 @@ import {
 import type { CohortFilterInput, PropertySource } from '@qurvo/cohort-query';
 import { timeRange, toChTs } from './time';
 
-// ── Types ──
+// Types
 
 export type FilterOperator =
   | 'eq' | 'neq'
@@ -44,7 +44,7 @@ export interface PropertyFilter {
 // Re-export DIRECT_COLUMNS from cohort-query for consumers that import from here
 export { DIRECT_COLUMNS } from '@qurvo/cohort-query';
 
-// ── Public API ──
+// Public API
 
 /** project_id = {p_N:UUID} */
 export function projectIs(projectId: string): Expr {

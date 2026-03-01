@@ -3,12 +3,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { PaginatedQueryDto } from './shared/paginated-query.dto';
 
-// ── Shared constants ──────────────────────────────────────────────────────────
+// Shared constants
 
 export const PROPERTY_TYPE = { event: 'event', person: 'person' } as const;
 export type PropertyTypeValue = (typeof PROPERTY_TYPE)[keyof typeof PROPERTY_TYPE];
 
-// ── Request DTOs ──────────────────────────────────────────────────────────────
+// Request DTOs
 
 export class UpsertPropertyDefinitionDto {
   @IsString()
@@ -63,7 +63,7 @@ export class PropertyDefinitionQueryDto extends PaginatedQueryDto {
   order_by?: 'last_seen_at' | 'property_name' | 'created_at' | 'updated_at' = 'last_seen_at';
 }
 
-// ── Response DTOs ─────────────────────────────────────────────────────────────
+// Response DTOs
 
 export class PropertyDefinitionDto {
   @ApiProperty() property_name: string;

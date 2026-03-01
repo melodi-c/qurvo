@@ -31,7 +31,7 @@ export function MembersTab({ projectId }: { projectId: string }) {
     cancellingInviteId,
   } = useMembers(projectId);
 
-  // ── Remove member confirm ──
+  // Remove member confirm
   const confirmDelete = useConfirmDelete();
 
   const handleRemove = useCallback(async () => {

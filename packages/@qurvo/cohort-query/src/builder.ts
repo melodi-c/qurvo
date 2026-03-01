@@ -16,7 +16,7 @@ import { buildRestartedPerformingSubquery } from './conditions/restarted';
 import { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
 import { validateDefinitionComplexity } from './validation';
 
-// ── Strategy registry ────────────────────────────────────────────────────────
+// Strategy registry
 
 type ConditionType = CohortCondition['type'];
 
@@ -44,7 +44,7 @@ const CONDITION_BUILDERS: { [K in ConditionType]: ConditionBuilder<Extract<Cohor
   not_performed_event_sequence: (cond, ctx) => buildNotPerformedEventSequenceSubquery(cond, ctx),
 };
 
-// ── Single condition dispatch ────────────────────────────────────────────────
+// Single condition dispatch
 
 function buildConditionSubquery(
   cond: CohortCondition,
@@ -58,7 +58,7 @@ function buildConditionSubquery(
   return builder(cond, ctx, resolveCohortIsStatic);
 }
 
-// ── Recursive group builder ──────────────────────────────────────────────────
+// Recursive group builder
 
 /**
  * Builds a QueryNode returning person_ids matching a nested AND/OR group.
@@ -93,7 +93,7 @@ function buildGroupSubquery(
     : unionDistinct(...subqueries);
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+// Entry point
 
 /**
  * Builds a QueryNode from a CohortConditionGroup definition.
@@ -124,7 +124,7 @@ export function buildCohortSubquery(
   return buildGroupSubquery(definition, ctx, resolveCohortIsStatic);
 }
 
-// ── Filter clause builder ────────────────────────────────────────────────────
+// Filter clause builder
 
 /**
  * Builds a WHERE clause Expr: `RESOLVED_PERSON IN (cohort subquery)` for each cohort.

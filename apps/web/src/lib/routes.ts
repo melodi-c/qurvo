@@ -9,9 +9,7 @@ const INSIGHT_TYPE_SLUGS: Record<InsightType, string> = {
   paths: 'paths',
 };
 
-// ---------------------------------------------------------------------------
 // route() helper — single source of truth for path pattern + builder function
-// ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic function constraint requires any
 type Route<F extends (...args: any[]) => string> = F & { pattern: string };
@@ -30,9 +28,7 @@ function route(
   return fn;
 }
 
-// ---------------------------------------------------------------------------
 // routes — call for navigation, read .pattern for <Route path="">
-// ---------------------------------------------------------------------------
 
 /** Pure path builders — no projectId, no navigation. */
 export const routes = {

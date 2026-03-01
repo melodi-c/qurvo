@@ -217,7 +217,7 @@ export class StaticCohortsService {
     return { data, total };
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────────
+  // Private helpers
 
   private async resolveDistinctIdsToPersonIds(projectId: string, distinctIds: string[]): Promise<string[]> {
     const result = await this.ch.query({

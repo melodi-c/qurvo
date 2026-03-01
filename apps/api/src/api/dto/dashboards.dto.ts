@@ -6,7 +6,7 @@ import { FunnelStepDto, FunnelExclusionDto } from './funnel.dto';
 import { TrendSeriesDto } from './trend.dto';
 import { InsightDto } from './insights.dto';
 
-// ── Shared ────────────────────────────────────────────────────────────────────
+// Shared
 
 export class CreateDashboardDto {
   @IsString()
@@ -41,7 +41,7 @@ export class WidgetLayoutDto {
   h: number;
 }
 
-// ── Widget config DTOs (for oneOf discriminator) ──────────────────────────────
+// Widget config DTOs (for oneOf discriminator)
 
 export class FunnelWidgetConfigDto {
   @ApiProperty({ enum: ['funnel'] })
@@ -189,7 +189,7 @@ export class PathsWidgetConfigDto {
   @ApiPropertyOptional({ type: [String] }) cohort_ids?: string[];
 }
 
-// ── Create / Update Widget DTOs ─────────────────────────────────────────────
+// Create / Update Widget DTOs
 
 export class CreateWidgetDto {
   @IsUUID()
@@ -224,7 +224,7 @@ export class UpdateWidgetDto {
   content?: string;
 }
 
-// ── Response DTOs ─────────────────────────────────────────────────────────────
+// Response DTOs
 
 export class DashboardDto {
   id: string;

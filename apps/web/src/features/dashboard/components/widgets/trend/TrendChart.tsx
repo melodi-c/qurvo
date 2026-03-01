@@ -31,7 +31,7 @@ const COLORS = CHART_COLORS_HSL;
 const COMPARE_COLORS = CHART_COMPARE_COLORS_HSL;
 const FORMULA_COLORS = CHART_FORMULA_COLORS_HSL;
 
-// ── Types ──
+// Types
 
 interface TrendChartProps {
   series: TrendSeriesResult[];
@@ -43,7 +43,7 @@ interface TrendChartProps {
   annotations?: Annotation[];
 }
 
-// ── Shared rendering helpers ──
+// Shared rendering helpers
 
 interface SeriesRenderProps {
   visibleSeriesKeys: string[];
@@ -82,7 +82,7 @@ function renderFormulaSeries({ visibleFormulaKeys, compact }: SeriesRenderProps)
   ));
 }
 
-// ── Annotation rendering helper ──
+// Annotation rendering helper
 
 function renderAnnotations(annotations: Annotation[] | undefined, granularity: string, compact?: boolean) {
   if (!annotations?.length) {return null;}
@@ -97,7 +97,7 @@ function renderAnnotations(annotations: Annotation[] | undefined, granularity: s
   ));
 }
 
-// ── Component ──
+// Component
 
 export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations }: TrendChartProps) {
   const { t } = useLocalTranslation(translations);

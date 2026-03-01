@@ -74,7 +74,7 @@ export class SavedInsightsController {
     await this.insightsService.remove(projectId, insightId);
   }
 
-  // ── Share tokens ───────────────────────────────────────────────────────────
+  // Share tokens
 
   @RequireRole('editor')
   @Post(':insightId/share')

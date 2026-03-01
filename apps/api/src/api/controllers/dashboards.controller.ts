@@ -101,7 +101,7 @@ export class DashboardsController {
     await this.dashboardsService.removeWidget(projectId, dashboardId, widgetId);
   }
 
-  // ── Share tokens ───────────────────────────────────────────────────────────
+  // Share tokens
 
   @RequireRole('editor')
   @Post(':dashboardId/share')

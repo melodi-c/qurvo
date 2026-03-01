@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProjectId } from '@/hooks/use-project-id';
 import { routes } from '@/lib/routes';
 
-// ---------------------------------------------------------------------------
 // Type helpers — strip the first (projectId) argument from route functions
-// ---------------------------------------------------------------------------
 
 type CurriedRoutes<T, R> = {
   [K in keyof T]: T[K] extends (...args: infer A) => string
@@ -17,12 +15,10 @@ type CurriedRoutes<T, R> = {
       : never;
 };
 
-// ---------------------------------------------------------------------------
 // Helper: recursively wrap route functions, auto-prepending projectId.
 // The runtime obj is always a plain object with function/object leaves,
 // but TypeScript cannot narrow `typeof routes` structurally inside a loop.
 // We keep the internal casts minimal — only at property access boundaries.
-// ---------------------------------------------------------------------------
 
 function curryRoutes<R>(
   obj: typeof routes,
@@ -48,9 +44,7 @@ function curryRoutes<R>(
   return rec(obj as Record<string, unknown>) as CurriedRoutes<typeof routes, R>;
 }
 
-// ---------------------------------------------------------------------------
 // Hook
-// ---------------------------------------------------------------------------
 
 export function useAppNavigate() {
   const navigate = useNavigate();

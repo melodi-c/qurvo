@@ -56,7 +56,6 @@ export default function PublicDashboardPage() {
 
   const isExpiredOrNotFound = isError;
 
-  // Detect 404 vs other errors
   const is404 = isError && error instanceof AxiosError && error.response?.status === 404;
 
   return (
