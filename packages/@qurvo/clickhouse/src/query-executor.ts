@@ -47,4 +47,25 @@ export class ChQueryExecutor {
     const row = await this.one<Record<string, string>>(node);
     return row ? Number(row[field]) : 0;
   }
+
+  /**
+   * Execute `INSERT INTO <table> (<columns>) SELECT ...` from an AST node.
+   *
+   * Compiles the SELECT node, prepends the INSERT clause, and runs via
+   * `ch.command()`. Accepts optional ClickHouse settings (e.g. timeouts).
+   */
+  async insertFromSelect(
+    table: string,
+    columns: string[],
+    selectNode: QueryNode,
+    settings?: Record<string, unknown>,
+  ): Promise<void> {
+    const { sql, params } = compile(selectNode);
+    const insertSql = `INSERT INTO ${table} (${columns.join(', ')}) ${sql}`;
+    await this.ch.command({
+      query: insertSql,
+      query_params: params,
+      clickhouse_settings: settings,
+    });
+  }
 }
