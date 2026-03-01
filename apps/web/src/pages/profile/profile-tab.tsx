@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +6,9 @@ import { Label } from '@/components/ui/label';
 import { InlineEditField } from '@/components/ui/inline-edit-field';
 import { useAuthStore } from '@/stores/auth';
 import { api } from '@/api/client';
-import { toast } from 'sonner';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { extractApiErrorMessage } from '@/lib/utils';
+import { useMutationWithToast } from '@/hooks/use-mutation-with-toast';
 import translations from './profile-tab.translations';
 
 export function ProfileTab() {
@@ -22,28 +20,28 @@ export function ProfileTab() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const updateProfileMutation = useMutation({
-    mutationFn: (data: { display_name: string }) => api.authControllerUpdateProfile(data),
-    onSuccess: (res) => {
-      setUser(res.user);
-      toast.success(t('profileUpdated'));
+  const updateProfileMutation = useMutationWithToast(
+    (data: { display_name: string }) => api.authControllerUpdateProfile(data),
+    {
+      successMessage: t('profileUpdated'),
+      errorMessage: t('updateFailed'),
+      onSuccess: (res) => setUser(res.user),
     },
-    onError: () => toast.error(t('updateFailed')),
-  });
+  );
 
-  const changePasswordMutation = useMutation({
-    mutationFn: (data: { current_password: string; new_password: string }) =>
+  const changePasswordMutation = useMutationWithToast(
+    (data: { current_password: string; new_password: string }) =>
       api.authControllerChangePassword(data),
-    onSuccess: () => {
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      toast.success(t('passwordChanged'));
+    {
+      successMessage: t('passwordChanged'),
+      errorMessage: t('passwordChangeFailed'),
+      onSuccess: () => {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      },
     },
-    onError: (err) => {
-      toast.error(extractApiErrorMessage(err, t('passwordChangeFailed')));
-    },
-  });
+  );
 
   const canChangePassword =
     currentPassword.length >= 8 &&
