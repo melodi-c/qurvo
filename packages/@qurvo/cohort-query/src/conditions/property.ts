@@ -1,6 +1,6 @@
 import type { CohortPropertyCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, lte } from '@qurvo/ch-query';
+import { select, raw, col, namedParam, eq, lte } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, resolvePropertyExpr, buildOperatorClause, allocCondIdx, resolveDateTo } from '../helpers';
 import type { BuildContext } from '../types';
 
@@ -17,10 +17,10 @@ export function buildPropertyConditionSubquery(
   return select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      lte(raw('timestamp'), upperBound),
+      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      lte(col('timestamp'), upperBound),
     )
-    .groupBy(raw('person_id'))
+    .groupBy(col('person_id'))
     .having(havingExpr)
     .build();
 }

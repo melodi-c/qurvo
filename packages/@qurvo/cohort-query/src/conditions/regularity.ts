@@ -1,8 +1,7 @@
 import type { CohortPerformedRegularlyCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw } from '@qurvo/ch-query';
+import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, sub, uniqExact } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
-import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
 function periodBucketExpr(periodType: 'day' | 'week' | 'month'): string {
@@ -29,18 +28,18 @@ export function buildPerformedRegularlySubquery(
   const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const bucketExpr = periodBucketExpr(cond.period_type);
   const upperBound = resolveDateTo(ctx);
-  const upperSql = compileExprToSql(upperBound).sql;
+  const windowInterval = rawWithParams(`INTERVAL {${windowPk}:UInt32} DAY`, { [windowPk]: cond.time_window_days });
 
   return select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`event_name = {${eventPk}:String}`),
-      raw(`timestamp >= ${upperSql} - INTERVAL {${windowPk}:UInt32} DAY`),
-      raw(`timestamp <= ${upperSql}`),
+      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      eq(col('event_name'), namedParam(eventPk, 'String', cond.event_name)),
+      gte(col('timestamp'), sub(upperBound, windowInterval)),
+      lte(col('timestamp'), upperBound),
       filterExpr,
     )
-    .groupBy(raw('person_id'))
-    .having(raw(`uniqExact(${bucketExpr}) >= {${minPk}:UInt32}`))
+    .groupBy(col('person_id'))
+    .having(gte(uniqExact(raw(bucketExpr)), namedParam(minPk, 'UInt32', cond.min_periods)))
     .build();
 }

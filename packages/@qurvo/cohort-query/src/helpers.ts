@@ -112,8 +112,10 @@ export function resolveEventPropertyExpr(property: string): Expr {
  * Builds a single ClickHouse comparison clause for a property operator.
  * Accepts an Expr and returns an Expr (with params embedded via rawWithParams).
  *
- * For backward compatibility with condition builders that still construct raw SQL,
- * the queryParams object is also populated as a side-effect.
+ * Note: This function uses compileExprToSql internally because the operator logic
+ * needs to inspect and transform the SQL string (e.g., JSONExtractString -> JSONExtractRaw
+ * for numeric comparisons, JSONHas for is_set/neq guards). This is a legitimate use
+ * of raw SQL manipulation, not the anti-pattern being eliminated in conditions/.
  */
 export function buildOperatorClause(
   expr: Expr,
@@ -123,7 +125,7 @@ export function buildOperatorClause(
   value?: string,
   values?: string[],
 ): Expr {
-  // Compile the incoming Expr to a SQL string for embedding in raw() templates.
+  // Compile the incoming Expr to a SQL string for string-level transformations.
   const exprSql = compileExprToSql(expr).sql;
 
   switch (operator) {
@@ -139,8 +141,6 @@ export function buildOperatorClause(
       return rawWithParams(`${exprSql} = {${pk}:String}`, { [pk]: value ?? '' });
     }
     case 'neq': {
-      // Aligned with analytics filters: add JSONHas guard so that rows without
-      // the key are excluded (consistent with analytics filters.ts neq behavior).
       queryParams[pk] = value ?? '';
       const rawNeqExpr = toRawExprStr(exprSql);
       const jsonHasGuard = toJsonHasExpr(exprSql);
@@ -167,8 +167,6 @@ export function buildOperatorClause(
       return rawWithParams(`${exprSql} NOT LIKE {${pk}:String}`, { [pk]: likeVal });
     }
     case 'is_set': {
-      // Aligned with analytics filters: use JSONHas() to check key existence.
-      // Previously used JSONExtractRaw NOT IN ('', 'null', '""') which checked value.
       const jsonHasExpr = toJsonHasExpr(exprSql);
       if (jsonHasExpr) {
         return raw(jsonHasExpr);
@@ -176,7 +174,6 @@ export function buildOperatorClause(
       return raw(`${exprSql} != ''`);
     }
     case 'is_not_set': {
-      // Aligned with analytics filters: use NOT JSONHas() to check key absence.
       const jsonHasExpr = toJsonHasExpr(exprSql);
       if (jsonHasExpr) {
         return raw(`NOT ${jsonHasExpr}`);
@@ -347,56 +344,9 @@ export function allocCondIdx(ctx: BuildContext): {
   };
 }
 
-/**
- * Builds the countIf condition string: `event_name = {pk:String} [AND filter1 AND filter2 ...]`.
- * Shared between event.ts (buildEventZeroCountSubquery) and not-performed.ts.
- */
-export function buildCountIfCondStr(
-  eventPk: string,
-  condIdx: number,
-  filters: import('@qurvo/db').CohortEventFilter[] | undefined,
-  queryParams: Record<string, unknown>,
-): string {
-  const parts: string[] = [`event_name = {${eventPk}:String}`];
-  if (filters && filters.length > 0) {
-    for (let i = 0; i < filters.length; i++) {
-      const f = filters[i];
-      const pk = `coh_${condIdx}_ef${i}`;
-      const expr = resolveEventPropertyExpr(f.property);
-      const clauseExpr = buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values);
-      parts.push(compileExprToSql(clauseExpr).sql);
-    }
-  }
-  return parts.join(' AND ');
-}
-
-/**
- * Builds a standard events-table base SELECT for cohort conditions.
- * Pattern: `SELECT RESOLVED_PERSON AS person_id FROM events WHERE project_id + timestamp window`.
- *
- * Many condition builders repeat this exact pattern 9+ times. This factory
- * produces the SelectBuilder with WHERE conditions pre-applied, letting callers
- * add .groupBy() and .having() as needed.
- */
-export function buildEventsBaseSelect(
-  ctx: BuildContext,
-  upperSql: string,
-  lowerSql: string,
-  extraWhere?: (Expr | undefined)[],
-) {
-  return select(raw(RESOLVED_PERSON).as('person_id'))
-    .from('events')
-    .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`timestamp >= ${lowerSql}`),
-      raw(`timestamp <= ${upperSql}`),
-      ...(extraWhere ?? []),
-    );
-}
-
-// ── String-returning bridge functions ──
-// Used by condition builders that still produce raw SQL strings.
-// These compile Expr results back to SQL strings for backward compatibility.
+// ── Deprecated string-returning bridge functions ──
+// These are kept for external backward compatibility but are no longer used
+// by internal condition builders.
 
 /** Compile an Expr to its SQL string representation. */
 function exprToSql(expr: Expr): string {
@@ -451,4 +401,47 @@ export function buildEventFilterClausesStr(
   const result = buildEventFilterClauses(filters, prefix, queryParams);
   if (!result) return '';
   return ' AND ' + exprToSql(result);
+}
+
+/**
+ * Builds the countIf condition string: `event_name = {pk:String} [AND filter1 AND filter2 ...]`.
+ * @deprecated No longer used internally; kept for external backward compat.
+ */
+export function buildCountIfCondStr(
+  eventPk: string,
+  condIdx: number,
+  filters: import('@qurvo/db').CohortEventFilter[] | undefined,
+  queryParams: Record<string, unknown>,
+): string {
+  const parts: string[] = [`event_name = {${eventPk}:String}`];
+  if (filters && filters.length > 0) {
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const pk = `coh_${condIdx}_ef${i}`;
+      const expr = resolveEventPropertyExpr(f.property);
+      const clauseExpr = buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values);
+      parts.push(compileExprToSql(clauseExpr).sql);
+    }
+  }
+  return parts.join(' AND ');
+}
+
+/**
+ * Builds a standard events-table base SELECT for cohort conditions.
+ * @deprecated No longer used internally; condition builders now use col/eq/namedParam directly.
+ */
+export function buildEventsBaseSelect(
+  ctx: BuildContext,
+  upperSql: string,
+  lowerSql: string,
+  extraWhere?: (Expr | undefined)[],
+) {
+  return select(raw(RESOLVED_PERSON).as('person_id'))
+    .from('events')
+    .where(
+      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
+      raw(`timestamp >= ${lowerSql}`),
+      raw(`timestamp <= ${upperSql}`),
+      ...(extraWhere ?? []),
+    );
 }

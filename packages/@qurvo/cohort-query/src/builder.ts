@@ -1,7 +1,7 @@
 import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
 import type { Expr, QueryNode, SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, and, intersect, unionDistinct, inSubquery } from '@qurvo/ch-query';
+import { select, raw, col, namedParam, eq, rawWithParams, and, intersect, unionDistinct, inSubquery } from '@qurvo/ch-query';
 import { compile } from '@qurvo/ch-query';
 import { RESOLVED_PERSON } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
@@ -147,11 +147,11 @@ export function buildCohortFilterClause(
     if (c.materialized) {
       const idParam = `coh_mid_${idx}`;
       queryParams[idParam] = c.cohort_id;
-      const memberQuery = select(raw('person_id'))
+      const memberQuery = select(col('person_id'))
         .from('cohort_members', { final: true })
         .where(
-          raw(`cohort_id = {${idParam}:UUID}`),
-          raw(`project_id = {${projectIdParam}:UUID}`),
+          eq(col('cohort_id'), namedParam(idParam, 'UUID', c.cohort_id)),
+          eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
         )
         .build();
       return inSubquery(raw(RESOLVED_PERSON), memberQuery);
@@ -159,11 +159,11 @@ export function buildCohortFilterClause(
     if (c.is_static) {
       const idParam = `coh_sid_${idx}`;
       queryParams[idParam] = c.cohort_id;
-      const memberQuery = select(raw('person_id'))
+      const memberQuery = select(col('person_id'))
         .from('person_static_cohort', { final: true })
         .where(
-          raw(`cohort_id = {${idParam}:UUID}`),
-          raw(`project_id = {${projectIdParam}:UUID}`),
+          eq(col('cohort_id'), namedParam(idParam, 'UUID', c.cohort_id)),
+          eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
         )
         .build();
       return inSubquery(raw(RESOLVED_PERSON), memberQuery);
