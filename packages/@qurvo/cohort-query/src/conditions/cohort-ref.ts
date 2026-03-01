@@ -17,7 +17,7 @@ export function buildCohortRefConditionSubquery(
   const table = isStatic ? 'person_static_cohort' : 'cohort_members';
 
   const memberSelect = select(col('person_id'))
-    .from(table, { final: true })
+    .from(`${table} FINAL`)
     .where(
       eq(col('cohort_id'), namedParam(idPk, 'UUID', cond.cohort_id)),
       eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
