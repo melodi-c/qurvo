@@ -281,11 +281,11 @@ describe('analytics/filters', () => {
           value: 'pro',
         });
         const { sql, params } = compileWhere(expr);
-        expect(sql).toContain("JSONExtractString(properties, 'plan') = {p_0:String}");
-        expect(sql).toContain("toString(JSONExtractRaw(properties, 'plan')) = {p_1:String}");
+        expect(sql).toContain("JSONExtractString(properties, 'plan')");
+        expect(sql).toContain("toString(JSONExtractRaw(properties, 'plan'))");
         expect(sql).toContain(' OR ');
-        expect(params.p_0).toBe('pro');
-        expect(params.p_1).toBe('pro');
+        const paramKey = Object.keys(params).find(k => params[k] === 'pro');
+        expect(paramKey).toBeDefined();
       });
 
       test('direct column: simple equality', () => {
@@ -295,7 +295,8 @@ describe('analytics/filters', () => {
           value: 'Chrome',
         });
         const { sql } = compileWhere(expr);
-        expect(sql).toContain('browser = {p_0:String}');
+        expect(sql).toContain('browser =');
+        expect(sql).toContain(':String}');
         expect(sql).not.toContain('JSONExtract');
       });
 
@@ -319,8 +320,8 @@ describe('analytics/filters', () => {
         });
         const { sql } = compileWhere(expr);
         expect(sql).toContain("JSONHas(properties, 'plan')");
-        expect(sql).toContain("JSONExtractString(properties, 'plan') != {p_0:String}");
-        expect(sql).toContain("toString(JSONExtractRaw(properties, 'plan')) != {p_1:String}");
+        expect(sql).toContain("JSONExtractString(properties, 'plan') !=");
+        expect(sql).toContain("toString(JSONExtractRaw(properties, 'plan')) !=");
       });
 
       test('direct column: simple inequality', () => {
@@ -330,7 +331,8 @@ describe('analytics/filters', () => {
           value: 'Firefox',
         });
         const { sql } = compileWhere(expr);
-        expect(sql).toContain('browser != {p_0:String}');
+        expect(sql).toContain('browser !=');
+        expect(sql).toContain(':String}');
         expect(sql).not.toContain('JSONHas');
       });
     });
@@ -343,8 +345,9 @@ describe('analytics/filters', () => {
           value: 'test%value',
         });
         const { sql, params } = compileWhere(expr);
-        expect(sql).toContain("JSONExtractString(properties, 'name') LIKE {p_0:String}");
-        expect(params.p_0).toBe('%test\\%value%');
+        expect(sql).toContain("JSONExtractString(properties, 'name') LIKE");
+        const paramKey = Object.keys(params).find(k => params[k] === '%test\\%value%');
+        expect(paramKey).toBeDefined();
       });
     });
 
@@ -367,7 +370,8 @@ describe('analytics/filters', () => {
           value: 'admin',
         });
         const { sql } = compileWhere(expr);
-        expect(sql).toContain('url NOT LIKE {p_0:String}');
+        expect(sql).toContain('url NOT LIKE');
+        expect(sql).toContain(':String}');
         expect(sql).not.toContain('JSONHas');
       });
     });
@@ -445,8 +449,8 @@ describe('analytics/filters', () => {
         { property: 'country', operator: 'eq', value: 'RU' },
       ])!;
       const { sql } = compileWhere(expr);
-      expect(sql).toContain('browser = {p_0:String}');
-      expect(sql).toContain('country = {p_1:String}');
+      expect(sql).toContain('browser =');
+      expect(sql).toContain('country =');
       expect(sql).toContain('AND');
     });
   });
@@ -625,7 +629,8 @@ describe('analytics/filters', () => {
         ],
       });
       const { sql } = compileWhere(expr);
-      expect(sql).toContain('browser = {p_3:String}');
+      expect(sql).toContain('browser =');
+      expect(sql).toContain(':String}');
     });
   });
 

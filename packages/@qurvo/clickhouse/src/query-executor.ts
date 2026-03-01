@@ -1,4 +1,4 @@
-import type { ClickHouseClient } from '@clickhouse/client';
+import type { ClickHouseClient, ClickHouseSettings } from '@clickhouse/client';
 import type { QueryNode } from '@qurvo/ch-query';
 import { compile } from '@qurvo/ch-query';
 
@@ -46,5 +46,26 @@ export class ChQueryExecutor {
   async count(node: QueryNode, field = 'cnt'): Promise<number> {
     const row = await this.one<Record<string, string>>(node);
     return row ? Number(row[field]) : 0;
+  }
+
+  /**
+   * Execute `INSERT INTO <table> (<columns>) SELECT ...` from an AST node.
+   *
+   * Compiles the SELECT node, prepends the INSERT clause, and runs via
+   * `ch.command()`. Accepts optional ClickHouse settings (e.g. timeouts).
+   */
+  async insertFromSelect(
+    table: string,
+    columns: string[],
+    selectNode: QueryNode,
+    settings?: ClickHouseSettings,
+  ): Promise<void> {
+    const { sql, params } = compile(selectNode);
+    const insertSql = `INSERT INTO ${table} (${columns.join(', ')}) ${sql}`;
+    await this.ch.command({
+      query: insertSql,
+      query_params: params,
+      clickhouse_settings: settings,
+    });
   }
 }

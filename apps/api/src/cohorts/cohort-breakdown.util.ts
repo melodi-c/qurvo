@@ -1,8 +1,8 @@
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import type { Expr } from '@qurvo/ch-query';
-import { compile, select, col, eq, namedParam, inSubquery, rawWithParams, raw } from '@qurvo/ch-query';
+import { select, col, eq, namedParam, inSubquery } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { RESOLVED_PERSON, resolvedPerson } from '../analytics/query-helpers';
+import { resolvedPerson } from '../analytics/query-helpers';
 
 export interface CohortBreakdownEntry {
   cohort_id: string;
@@ -54,7 +54,7 @@ export function buildCohortFilterForBreakdown(
         eq(col('project_id'), namedParam('project_id', 'UUID', queryParams['project_id'])),
       )
       .build();
-    return inSubquery(raw(RESOLVED_PERSON), memberQuery);
+    return inSubquery(resolvedPerson(), memberQuery);
   }
   if (cb.materialized) {
     const memberQuery = select(col('person_id'))
@@ -64,10 +64,8 @@ export function buildCohortFilterForBreakdown(
         eq(col('project_id'), namedParam('project_id', 'UUID', queryParams['project_id'])),
       )
       .build();
-    return inSubquery(raw(RESOLVED_PERSON), memberQuery);
+    return inSubquery(resolvedPerson(), memberQuery);
   }
   const node = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo, dateFrom);
-  const { sql: subquery, params: compiledParams } = compile(node);
-  Object.assign(queryParams, compiledParams);
-  return rawWithParams(`${RESOLVED_PERSON} IN (${subquery})`, compiledParams);
+  return inSubquery(resolvedPerson(), node);
 }

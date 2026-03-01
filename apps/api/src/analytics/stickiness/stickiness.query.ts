@@ -1,7 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import {
-  select, col, count, uniqExact, compile,
+  select, col, count, uniqExact,
 } from '@qurvo/ch-query';
 import {
   analyticsWhere, bucket, resolvedPerson, cohortBounds,
@@ -144,9 +145,7 @@ export async function queryStickiness(
     .orderBy(col('active_periods'))
     .build();
 
-  const { sql, params: queryParams } = compile(query);
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  const rows = await result.json<RawStickinessRow>();
+  const rows = await new ChQueryExecutor(ch).rows<RawStickinessRow>(query);
 
   const totalPeriods = computeTotalPeriods(params.date_from, params.date_to, params.granularity, params.timezone);
 

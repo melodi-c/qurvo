@@ -1,6 +1,6 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, lt, sub, notInSubquery } from '@qurvo/ch-query';
+import { select, raw, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, interval } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
@@ -25,8 +25,8 @@ export function buildStoppedPerformingSubquery(
 
   const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const upperBound = resolveDateTo(ctx);
-  const recentInterval = rawWithParams(`INTERVAL {${recentPk}:UInt32} DAY`, { [recentPk]: cond.recent_window_days });
-  const histInterval = rawWithParams(`INTERVAL {${histPk}:UInt32} DAY`, { [histPk]: cond.historical_window_days });
+  const recentInterval = interval(namedParam(recentPk, 'UInt32', cond.recent_window_days), 'DAY');
+  const histInterval = interval(namedParam(histPk, 'UInt32', cond.historical_window_days), 'DAY');
   const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
 
   // Recent performers subquery (to exclude via NOT IN)

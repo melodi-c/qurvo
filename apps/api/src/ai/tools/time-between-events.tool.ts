@@ -2,10 +2,27 @@ import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
 import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { compile } from '@qurvo/ch-query';
-import { toChTs, RESOLVED_PERSON } from '../../analytics/query-helpers';
+import {
+  select,
+  col,
+  literal,
+  namedParam,
+  param,
+  min,
+  eq,
+  gt,
+  lte,
+  toInt64,
+  toUnixTimestamp64Milli,
+  sub,
+  div,
+  mul,
+} from '@qurvo/ch-query';
+import { toChTs } from '../../analytics/query-helpers';
+import { resolvedPerson } from '../../analytics/query-helpers';
 import { firstEventCte } from './first-event-cte';
 
 const argsSchema = z.object({
@@ -127,60 +144,51 @@ export class TimeBetweenEventsTool implements AiTool {
     const fromTs = toChTs(args.date_from);
     const toTs = toChTs(args.date_to, true);
 
-    // Build the "first_a" CTE via the shared firstEventCte helper
+    // CTE: first occurrence of event_a per user
     const firstANode = firstEventCte({
       projectId,
       eventName: args.event_a,
       from: fromTs,
       to: toTs,
     });
-    const firstACompiled = compile(firstANode);
 
-    // Manual params for the remaining CTEs
-    const queryParams: Record<string, unknown> = {
-      ...firstACompiled.params,
-      project_id: projectId,
-      to: toTs,
-      event_b: args.event_b,
-      max_seconds: maxSeconds,
-    };
+    // CTE: first occurrence of event_b AFTER event_a, within max_seconds
+    const firstBNode = select(
+      resolvedPerson().as('pid'),
+      min(col('e.timestamp')).as('end_ts'),
+    )
+      .from('events', 'e')
+      .join('INNER', 'first_a', undefined, eq(resolvedPerson(), col('first_a.pid')))
+      .where(
+        eq(col('e.project_id'), namedParam('project_id', 'UUID', projectId)),
+        eq(col('e.event_name'), namedParam('event_b', 'String', args.event_b)),
+        gt(col('e.timestamp'), col('first_a.start_ts')),
+        lte(col('e.timestamp'), param('DateTime64(3)', toTs)),
+        lte(
+          sub(toUnixTimestamp64Milli(col('e.timestamp')), toUnixTimestamp64Milli(col('first_a.start_ts'))),
+          mul(toInt64(namedParam('max_seconds', 'UInt64', maxSeconds)), literal(1000)),
+        ),
+      )
+      .groupBy(col('pid'))
+      .build();
 
-    // Strategy:
-    // 1. first_a CTE (shared helper): per user first occurrence of event_a in date range
-    // 2. first_b: per user first occurrence of event_b AFTER start_ts within max_seconds
-    // 3. Return diff_seconds for each qualifying pair
-    //
-    // We avoid FINAL and use IN/NOT IN patterns per ClickHouse gotchas.
-    // CTEs are not materialised -- use minimal references.
-    const sql = `
-      WITH
-        first_a AS (${firstACompiled.sql}),
-        first_b AS (
-          SELECT
-            ${RESOLVED_PERSON} AS pid,
-            min(e.timestamp) AS end_ts
-          FROM events e
-          INNER JOIN first_a ON ${RESOLVED_PERSON} = first_a.pid
-          WHERE
-            e.project_id = {project_id:UUID}
-            AND e.event_name = {event_b:String}
-            AND e.timestamp > first_a.start_ts
-            AND e.timestamp <= {to:DateTime64(3)}
-            AND toUnixTimestamp64Milli(e.timestamp) - toUnixTimestamp64Milli(first_a.start_ts)
-                <= toInt64({max_seconds:UInt64}) * 1000
-          GROUP BY pid
-        )
-      SELECT
-        first_a.pid AS pid,
-        toInt64(
-          (toUnixTimestamp64Milli(first_b.end_ts) - toUnixTimestamp64Milli(first_a.start_ts)) / 1000
-        ) AS diff_seconds
-      FROM first_a
-      INNER JOIN first_b ON first_a.pid = first_b.pid
-    `;
+    // Final query: compute diff_seconds for each qualifying pair
+    const query = select(
+      col('first_a.pid').as('pid'),
+      toInt64(
+        div(
+          sub(toUnixTimestamp64Milli(col('first_b.end_ts')), toUnixTimestamp64Milli(col('first_a.start_ts'))),
+          literal(1000),
+        ),
+      ).as('diff_seconds'),
+    )
+      .from('first_a')
+      .join('INNER', 'first_b', undefined, eq(col('first_a.pid'), col('first_b.pid')))
+      .with('first_a', firstANode)
+      .with('first_b', firstBNode)
+      .build();
 
-    const res = await this.ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-    const rows = await res.json<RawPairRow>();
+    const rows = await new ChQueryExecutor(this.ch).rows<RawPairRow>(query);
 
     const diffs = rows
       .map((r) => Number(r.diff_seconds))

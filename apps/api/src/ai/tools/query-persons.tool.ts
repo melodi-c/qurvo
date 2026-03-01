@@ -2,18 +2,23 @@ import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
 import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import {
-  compile,
   select,
   col,
   literal,
-  rawWithParams,
   count,
   func,
   argMax,
   toString as chToString,
+  gte,
+  lt,
+  add,
+  interval,
+  namedParam,
+  parseDateTimeBestEffort,
 } from '@qurvo/ch-query';
 import {
   projectIs,
@@ -110,10 +115,10 @@ export class QueryPersonsTool implements AiTool {
         projectIs(projectId),
         args.event_name ? eventIs(args.event_name) : undefined,
         args.date_from
-          ? rawWithParams(`timestamp >= parseDateTimeBestEffort({date_from:String})`, { date_from: args.date_from })
+          ? gte(col('timestamp'), parseDateTimeBestEffort(namedParam('date_from', 'String', args.date_from)))
           : undefined,
         args.date_to
-          ? rawWithParams(`timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY`, { date_to: args.date_to })
+          ? lt(col('timestamp'), add(parseDateTimeBestEffort(namedParam('date_to', 'String', args.date_to)), interval(1, 'DAY')))
           : undefined,
         args.filters?.length
           ? propertyFilters(args.filters as PropertyFilter[])
@@ -128,10 +133,7 @@ export class QueryPersonsTool implements AiTool {
     builder.orderBy(orderExpr, 'DESC');
     builder.limit(limit);
 
-    const { sql, params } = compile(builder.build());
-
-    const res = await this.ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
-    const rows = await res.json<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>();
+    const rows = await new ChQueryExecutor(this.ch).rows<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>(builder.build());
 
     const persons: PersonRow[] = rows.map((r) => {
       const rawProps: Record<string, unknown> = typeof r.user_properties === 'string'

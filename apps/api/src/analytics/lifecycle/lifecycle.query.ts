@@ -1,8 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { AliasExpr, Expr } from '@qurvo/ch-query';
 import {
-  compile,
   select,
   unionAll,
   col,
@@ -262,12 +262,6 @@ export async function queryLifecycle(
     .orderBy(col('status'))
     .build();
 
-  const compiled = compile(query);
-  const result = await ch.query({
-    query: compiled.sql,
-    query_params: compiled.params,
-    format: 'JSONEachRow',
-  });
-  const rows = await result.json<RawLifecycleRow>();
+  const rows = await new ChQueryExecutor(ch).rows<RawLifecycleRow>(query);
   return assembleLifecycleResult(rows, params.granularity);
 }

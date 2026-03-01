@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
   literal,
@@ -130,15 +130,7 @@ export async function queryEvents(
     .offset(offset)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-
-  const result = await ch.query({
-    query: sql,
-    query_params: queryParams,
-    format: 'JSONEachRow',
-  });
-
-  return result.json<EventRow>();
+  return new ChQueryExecutor(ch).rows<EventRow>(node);
 }
 
 interface EventDetailParams {
@@ -170,14 +162,5 @@ export async function queryEventDetail(
     .limit(1)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-
-  const result = await ch.query({
-    query: sql,
-    query_params: queryParams,
-    format: 'JSONEachRow',
-  });
-
-  const rows = await result.json<EventDetailRow>();
-  return rows[0] ?? null;
+  return new ChQueryExecutor(ch).one<EventDetailRow>(node);
 }

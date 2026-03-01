@@ -1,11 +1,11 @@
 import type { CohortNotPerformedEventCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import {
-  rawWithParams, col, namedParam, literal,
+  col, namedParam, literal, interval,
   eq, sub, and, countIf,
 } from '@qurvo/ch-query';
 import {
-  buildOperatorClause,
+  applyOperator,
   resolveEventPropertyExpr,
   allocCondIdx,
   resolveDateTo,
@@ -32,14 +32,14 @@ export function buildNotPerformedEventSubquery(
       const f = cond.event_filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
       const expr = resolveEventPropertyExpr(f.property);
-      countIfParts.push(buildOperatorClause(expr, f.operator, pk, ctx.queryParams, f.value, f.values));
+      countIfParts.push(applyOperator(expr, f.operator, pk, ctx.queryParams, f.value, f.values));
     }
   }
   const countIfCondExpr = and(...countIfParts);
 
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
-  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
   const lowerExpr = lowerBound ?? sub(upperBound, daysInterval);
 
   return eventsBaseSelect(ctx, lowerExpr)
