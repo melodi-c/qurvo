@@ -153,6 +153,8 @@ export {
   gte,
   lt,
   lte,
+  like,
+  notLike,
   not,
   add,
   sub,
