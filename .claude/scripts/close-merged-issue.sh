@@ -31,7 +31,8 @@ done
 
 if [[ "$CLOSE_OK" == "true" ]]; then
   # State обновляется ТОЛЬКО после успешного close
-  bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_HASH"
+  # Идемпотентно: executor может уже установить MERGED до вызова close
+  bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_HASH" 2>/dev/null || true
   echo "CLOSED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
 else
   echo "CLOSE_FAILED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH" >&2

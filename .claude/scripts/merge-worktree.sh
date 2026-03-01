@@ -157,10 +157,17 @@ _log "PR created: $PR_URL"
 # ── Шаг 4: Auto-merge PR (если AUTO_MERGE=true) ─────────────────────
 if [[ "$AUTO_MERGE" == "true" ]]; then
   _log "Merging PR..."
-  gh pr merge "$PR_URL" --merge --delete-branch 2>/dev/null || {
-    echo "PR_MERGE_FAILED: не удалось смержить PR $PR_URL" >&2
-    exit 5
-  }
+  if ! gh pr merge "$PR_URL" --merge --delete-branch 2>/dev/null; then
+    # Race condition: gh pr merge может вернуть ошибку даже если PR уже merged
+    sleep 2
+    PR_STATE=$(gh pr view "$PR_URL" --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+    if [[ "$PR_STATE" == "MERGED" ]]; then
+      _log "PR already merged (race condition detected), continuing..."
+    else
+      echo "PR_MERGE_FAILED: не удалось смержить PR $PR_URL (state=$PR_STATE)" >&2
+      exit 5
+    fi
+  fi
   _log "PR merged."
 
   # ── Шаг 5: Получить точный merge commit hash из GitHub ──────────

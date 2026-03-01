@@ -68,7 +68,8 @@ if [[ "$DATA_ONLY" != "true" ]]; then
 fi
 
 # Check existing state (after acquiring lock — now race-free)
-if [[ -f "$STATE_FILE" ]]; then
+# DATA_ONLY mode skips state check — it only writes issue-N.json files
+if [[ "$DATA_ONLY" != "true" && -f "$STATE_FILE" ]]; then
   EXISTING_PHASE=$(jq -r '.phase // "UNKNOWN"' "$STATE_FILE" 2>/dev/null)
   if [[ "$EXISTING_PHASE" != "COMPLETED" && "$EXISTING_PHASE" != "UNKNOWN" ]]; then
     echo "ERROR: Previous execution not completed (phase=$EXISTING_PHASE). State file exists at $STATE_FILE" >&2
