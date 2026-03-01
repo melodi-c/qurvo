@@ -1,5 +1,4 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
@@ -12,6 +11,9 @@ import {
 } from '@qurvo/db';
 import { detectCircularDependency, extractCohortReferences, validateDefinitionComplexity } from '@qurvo/cohort-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
+import { CohortDefinitionRequiredException } from './exceptions/cohort-definition-required.exception';
+import { StaticCohortOperationException } from './exceptions/static-cohort-operation.exception';
+import { CircularCohortReferenceException } from './exceptions/circular-cohort-reference.exception';
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
@@ -63,7 +65,7 @@ export class CohortsService {
     const definition = isStatic ? null : (input.definition ?? null);
 
     if (!definition && !isStatic) {
-      throw new AppBadRequestException('definition is required for dynamic cohorts');
+      throw new CohortDefinitionRequiredException();
     }
 
     // Validate definition complexity (total leaf conditions + nesting depth)
@@ -110,7 +112,7 @@ export class CohortsService {
     const definition = input.definition;
 
     if (definition !== undefined && existing[0].is_static) {
-      throw new AppBadRequestException('Cannot set a definition on a static cohort');
+      throw new StaticCohortOperationException('Cannot set a definition on a static cohort');
     }
 
     // Validate definition complexity (total leaf conditions + nesting depth)
@@ -350,7 +352,7 @@ export class CohortsService {
     );
 
     if (isCircular) {
-      throw new AppBadRequestException('Circular cohort reference detected');
+      throw new CircularCohortReferenceException();
     }
   }
 }

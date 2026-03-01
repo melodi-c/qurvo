@@ -1,5 +1,5 @@
 import { parse } from 'csv-parse/sync';
-import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
+import { CohortCsvParseException } from './exceptions/cohort-csv-parse.exception';
 
 interface ParsedCohortCsv {
   idType: 'distinct_id' | 'email';
@@ -31,7 +31,7 @@ export function parseCohortCsv(content: string): ParsedCohortCsv {
     idType = 'email';
     startRow = 1;
   } else {
-    throw new AppBadRequestException(
+    throw new CohortCsvParseException(
       'CSV must have a recognised header in the first row: person_id, distinct_id, id, user_id, or email',
     );
   }
