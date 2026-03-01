@@ -282,9 +282,21 @@ fi
 
 **Лимит параллелизма**: Запускай НЕ БОЛЕЕ 3 solver-агентов одновременно. Если в группе >3 issues — разбей на под-батчи по 3 и выполняй под-батчи последовательно.
 3. **НЕ жди завершения всех.** По мере завершения каждого background-подагента (система уведомит автоматически) — **немедленно** начинай его review pipeline (Шаг 6: lint → migration → review+security → merge). Issues в одной группе не пересекаются (гарантия intersection-analyzer), поэтому review и мерж безопасны параллельно.
-4. После обработки **ВСЕХ** issues группы → **Dependency watcher** (Шаг 6.3) + post-merge verification (Шаг 6.5)
-5. `bash "$SM" prune-merged` — очисти MERGED issues из state
-6. Только после этого запусти следующую группу
+4. **Перед завершением группы**: перечитай состав группы из state:
+   ```bash
+   CURRENT_ISSUES=$(bash "$SM" get ".parallel_groups[$GROUP_INDEX]")
+   ```
+   Если появились новые PENDING issues (добавленные через Шаг 5.4) — запусти их solver и обработай результаты перед переходом к dependency watcher.
+5. После обработки **ВСЕХ** issues группы → **Dependency watcher** (Шаг 6.3) + post-merge verification (Шаг 6.5)
+6. `bash "$SM" prune-merged` — очисти MERGED issues из state
+7. **Перезагрузи данные** следующей группы перед её запуском — issues могли измениться (новые комментарии, обновлённые labels, изменённый body):
+   ```bash
+   NEXT_ISSUES=$(bash "$SM" get ".parallel_groups[$((GROUP_INDEX + 1))]" | jq -r '.[]' | paste -sd,)
+   if [[ -n "$NEXT_ISSUES" ]]; then
+     bash "$CLAUDE_PROJECT_DIR/.claude/scripts/fetch-issues.sh" --numbers "$NEXT_ISSUES" --data-only
+   fi
+   ```
+8. Только после этого запусти следующую группу
 
 ### 5.2.1 Competing solutions для critical issues
 
@@ -307,6 +319,40 @@ fi
 4. Удали worktree проигравшего solver'а: `git worktree remove <path> --force`
 
 **Лимит**: competing solutions тратят 2 solver invocations за раз. Учитывай это при проверке `solver-invocations` cap.
+
+### 5.4 Динамическое добавление issues в текущую группу
+
+Пользователь может попросить добавить новый issue во время выполнения группы.
+
+**Протокол:**
+
+1. Загрузи данные:
+   ```bash
+   bash "$CLAUDE_PROJECT_DIR/.claude/scripts/fetch-issues.sh" --numbers <N> --data-only
+   ```
+
+2. Валидация (issue-validator, haiku, foreground).
+
+3. Проверка пересечений с in-flight issues:
+   - Сравни affected apps (из labels) нового issue с каждым SOLVING/REVIEWING issue в текущей группе
+   - Пересечение apps ИЛИ оба has-migrations → конфликт
+
+4. Размещение:
+   - **Нет конфликта** → добавь в текущую группу и запусти solver:
+     ```bash
+     bash "$SM" batch \
+       "issue-add <N> <TITLE> $CURRENT_GROUP_IDX" \
+       "add-to-group <N> $CURRENT_GROUP_IDX"
+     ```
+   - **Есть конфликт** → добавь в следующую группу:
+     ```bash
+     NEXT=$((CURRENT_GROUP_IDX + 1))
+     bash "$SM" batch \
+       "issue-add <N> <TITLE> $NEXT" \
+       "add-to-group <N> $NEXT"
+     ```
+
+5. Лимит параллелизма: если SOLVING issues >= 3, оставь новый в PENDING — запустится после освобождения слота.
 
 ### Промпт для каждого issue-solver подагента
 

@@ -67,9 +67,9 @@ describe('resolveNumericPropertyExpr', () => {
     expect(exprSql(resolveNumericPropertyExpr('user_properties.age'))).toBe("toFloat64OrZero(JSONExtractRaw(user_properties, 'age'))");
   });
 
-  it('resolves nested dot-notation numeric to chained JSONExtractRaw', () => {
+  it('resolves nested dot-notation numeric to variadic JSONExtractRaw', () => {
     expect(exprSql(resolveNumericPropertyExpr('properties.meta.price'))).toBe(
-      "toFloat64OrZero(JSONExtractRaw(JSONExtractRaw(properties, 'meta'), 'price'))",
+      "toFloat64OrZero(JSONExtractRaw(properties, 'meta', 'price'))",
     );
   });
 
@@ -217,26 +217,26 @@ describe('propertyFilter — nested dot-notation paths', () => {
     const { sql } = compileExprToSql(propertyFilter(f));
     expect(sql).toContain("JSONExtractString(properties, 'address', 'city')");
     expect(sql).toContain(' OR ');
-    expect(sql).toContain("toString(JSONExtractRaw(JSONExtractRaw(properties, 'address'), 'city'))");
+    expect(sql).toContain("toString(JSONExtractRaw(properties, 'address', 'city'))");
   });
 
-  it('neq on nested path uses JSONHas parent traversal guard', () => {
+  it('neq on nested path uses variadic JSONHas guard', () => {
     const f: PropertyFilter = { property: 'properties.address.city', operator: 'neq', value: 'London' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toContain("JSONHas(JSONExtractRaw(properties, 'address'), 'city')");
+    expect(sql).toContain("JSONHas(properties, 'address', 'city')");
     expect(sql).toContain("JSONExtractString(properties, 'address', 'city')");
   });
 
-  it('is_set on nested path uses JSONHas with parent traversal', () => {
+  it('is_set on nested path uses variadic JSONHas', () => {
     const f: PropertyFilter = { property: 'user_properties.location.country', operator: 'is_set' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toBe("JSONHas(JSONExtractRaw(user_properties, 'location'), 'country')");
+    expect(sql).toBe("JSONHas(user_properties, 'location', 'country')");
   });
 
-  it('properties.address.city is_set generates JSONHas(JSONExtractRaw(properties, address), city)', () => {
+  it('properties.address.city is_set generates variadic JSONHas(properties, address, city)', () => {
     const f: PropertyFilter = { property: 'properties.address.city', operator: 'is_set' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toBe("JSONHas(JSONExtractRaw(properties, 'address'), 'city')");
+    expect(sql).toBe("JSONHas(properties, 'address', 'city')");
   });
 
   it('properties.city is_set (flat key) generates plain JSONHas(properties, city)', () => {
@@ -245,10 +245,10 @@ describe('propertyFilter — nested dot-notation paths', () => {
     expect(sql).toBe("JSONHas(properties, 'city')");
   });
 
-  it('is_not_set on nested path uses NOT JSONHas with parent traversal', () => {
+  it('is_not_set on nested path uses variadic NOT JSONHas', () => {
     const f: PropertyFilter = { property: 'properties.meta.score', operator: 'is_not_set' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toBe("NOT JSONHas(JSONExtractRaw(properties, 'meta'), 'score')");
+    expect(sql).toBe("NOT JSONHas(properties, 'meta', 'score')");
   });
 
   it('contains on nested path uses variadic JSONExtractString', () => {
@@ -258,10 +258,10 @@ describe('propertyFilter — nested dot-notation paths', () => {
     expect(sql).toContain('LIKE');
   });
 
-  it('not_contains on nested path uses JSONHas parent traversal guard', () => {
+  it('not_contains on nested path uses variadic JSONHas guard', () => {
     const f: PropertyFilter = { property: 'properties.address.city', operator: 'not_contains', value: 'osc' };
     const { sql } = compileExprToSql(propertyFilter(f));
-    expect(sql).toContain("JSONHas(JSONExtractRaw(properties, 'address'), 'city')");
+    expect(sql).toContain("JSONHas(properties, 'address', 'city')");
     expect(sql).toContain('NOT LIKE');
   });
 
@@ -269,6 +269,6 @@ describe('propertyFilter — nested dot-notation paths', () => {
     const f: PropertyFilter = { property: 'properties.a.b.c', operator: 'eq', value: 'val' };
     const { sql } = compileExprToSql(propertyFilter(f));
     expect(sql).toContain("JSONExtractString(properties, 'a', 'b', 'c')");
-    expect(sql).toContain("toString(JSONExtractRaw(JSONExtractRaw(JSONExtractRaw(properties, 'a'), 'b'), 'c'))");
+    expect(sql).toContain("toString(JSONExtractRaw(properties, 'a', 'b', 'c'))");
   });
 });

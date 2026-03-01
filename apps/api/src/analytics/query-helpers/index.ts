@@ -32,8 +32,8 @@ export type {
 } from './filters';
 export type { CohortFilterInput } from '@qurvo/cohort-query';
 
-// Resolved person
-export { resolvedPerson, RESOLVED_PERSON } from './resolved-person';
+// Resolved person — re-exported from @qurvo/cohort-query (single source of truth)
+export { resolvedPerson, RESOLVED_PERSON } from '@qurvo/cohort-query';
 
 // Aggregations
 export {

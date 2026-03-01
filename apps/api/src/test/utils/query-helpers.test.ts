@@ -423,13 +423,13 @@ describe('analytics/filters', () => {
         expect(sql).toContain("JSONExtractString(properties, 'address', 'city')");
       });
 
-      test('nested JSONHas navigates via JSONExtractRaw', () => {
+      test('nested JSONHas uses variadic form', () => {
         const expr = propertyFilter({
           property: 'properties.address.city',
           operator: 'is_set',
         });
         const { sql } = compileWhere(expr);
-        expect(sql).toContain("JSONHas(JSONExtractRaw(properties, 'address'), 'city')");
+        expect(sql).toContain("JSONHas(properties, 'address', 'city')");
       });
     });
   });

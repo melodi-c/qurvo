@@ -68,6 +68,14 @@ if [ ! -d node_modules ]; then
 fi
 ```
 
+**Немедленная запись RUNNING-статуса** — сразу после инициализации запиши начальный статус в `RESULT_FILE` (путь получен из промпта). Это позволяет оркестратору отличить "агент работает" от "агент потерялся":
+```bash
+mkdir -p "$(dirname "$RESULT_FILE")"
+cat > "$RESULT_FILE" <<RUNNING_JSON
+{"status": "RUNNING", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+RUNNING_JSON
+```
+
 **Изоляция гарантирована**: все файловые инструменты (Edit, Write, Read, Glob, Grep) работают относительно `$WORKTREE_PATH`. Ты физически не можешь изменить файлы в `$REPO_ROOT` через эти инструменты — они разрешаются в `$WORKTREE_PATH`.
 
 Для Bash-команд всё равно используй `cd "$WORKTREE_PATH" && <команда>` — это защита от случайного дрейфа cwd.

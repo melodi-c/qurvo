@@ -3,6 +3,12 @@ import {
   resolvePropertyExpr,
   resolveEventPropertyExpr,
   buildOperatorClause,
+  validateJsonKey,
+  escapeJsonKey,
+  parsePropertyPath,
+  resolvedPerson,
+  DIRECT_COLUMNS,
+  TOP_LEVEL_COLUMNS,
 } from '../helpers';
 import { compileExprToSql } from '@qurvo/ch-query';
 import { raw } from '@qurvo/ch-query';
@@ -11,6 +17,120 @@ import { raw } from '@qurvo/ch-query';
 function sql(expr: ReturnType<typeof resolvePropertyExpr>): string {
   return compileExprToSql(expr).sql;
 }
+
+describe('validateJsonKey', () => {
+  it('accepts alphanumeric key', () => {
+    expect(() => validateJsonKey('plan')).not.toThrow();
+  });
+
+  it('accepts key with underscores, hyphens, dots', () => {
+    expect(() => validateJsonKey('my-key_2.nested')).not.toThrow();
+  });
+
+  it('rejects key with single quote (SQL injection risk)', () => {
+    expect(() => validateJsonKey("user's_key")).toThrow('Invalid JSON key segment');
+  });
+
+  it('rejects key with backslash', () => {
+    expect(() => validateJsonKey('foo\\')).toThrow('Invalid JSON key segment');
+  });
+
+  it('rejects key with newline', () => {
+    expect(() => validateJsonKey('foo\nbar')).toThrow('Invalid JSON key segment');
+  });
+
+  it('rejects key with tab', () => {
+    expect(() => validateJsonKey('foo\tbar')).toThrow('Invalid JSON key segment');
+  });
+
+  it('rejects key with null byte', () => {
+    expect(() => validateJsonKey('foo\0bar')).toThrow('Invalid JSON key segment');
+  });
+
+  it('rejects key with carriage return', () => {
+    expect(() => validateJsonKey('foo\rbar')).toThrow('Invalid JSON key segment');
+  });
+
+  it('rejects empty string', () => {
+    expect(() => validateJsonKey('')).toThrow('Invalid JSON key segment');
+  });
+});
+
+describe('escapeJsonKey', () => {
+  it('returns safe key unchanged', () => {
+    expect(escapeJsonKey('my_key')).toBe('my_key');
+  });
+
+  it('accepts key with hyphens and dots', () => {
+    expect(escapeJsonKey('my-key.nested')).toBe('my-key.nested');
+  });
+
+  it('rejects unsafe characters', () => {
+    expect(() => escapeJsonKey("user's_key")).toThrow('Invalid JSON key segment');
+    expect(() => escapeJsonKey('foo\\')).toThrow('Invalid JSON key segment');
+  });
+});
+
+describe('parsePropertyPath', () => {
+  it('parses properties.* path', () => {
+    expect(parsePropertyPath('properties.plan')).toEqual({
+      jsonColumn: 'properties',
+      segments: ['plan'],
+    });
+  });
+
+  it('parses nested properties path', () => {
+    expect(parsePropertyPath('properties.foo.bar')).toEqual({
+      jsonColumn: 'properties',
+      segments: ['foo', 'bar'],
+    });
+  });
+
+  it('parses user_properties.* path', () => {
+    expect(parsePropertyPath('user_properties.email')).toEqual({
+      jsonColumn: 'user_properties',
+      segments: ['email'],
+    });
+  });
+
+  it('returns null for direct columns', () => {
+    expect(parsePropertyPath('country')).toBeNull();
+  });
+
+  it('returns null for unknown prefix', () => {
+    expect(parsePropertyPath('event_name')).toBeNull();
+  });
+});
+
+describe('resolvedPerson', () => {
+  it('returns the coalesce+dictGetOrNull expression', () => {
+    const expr = resolvedPerson();
+    const compiled = compileExprToSql(expr).sql;
+    expect(compiled).toContain('dictGetOrNull');
+    expect(compiled).toContain('person_id');
+    expect(compiled).toContain('coalesce');
+  });
+
+  it('supports .as() alias', () => {
+    const expr = resolvedPerson().as('pid');
+    const compiled = compileExprToSql(expr).sql;
+    expect(compiled).toContain('AS pid');
+  });
+});
+
+describe('DIRECT_COLUMNS and TOP_LEVEL_COLUMNS', () => {
+  it('TOP_LEVEL_COLUMNS is a subset of DIRECT_COLUMNS', () => {
+    for (const col of TOP_LEVEL_COLUMNS) {
+      expect(DIRECT_COLUMNS.has(col)).toBe(true);
+    }
+  });
+
+  it('DIRECT_COLUMNS contains event-specific columns', () => {
+    expect(DIRECT_COLUMNS.has('event_name')).toBe(true);
+    expect(DIRECT_COLUMNS.has('url')).toBe(true);
+    expect(DIRECT_COLUMNS.has('referrer')).toBe(true);
+  });
+});
 
 describe('resolvePropertyExpr (cohort-query helpers)', () => {
   it('resolves top-level column with argMax', () => {
@@ -25,51 +145,19 @@ describe('resolvePropertyExpr (cohort-query helpers)', () => {
     expect(sql(resolvePropertyExpr('user_properties.email'))).toBe("JSONExtractString(argMax(user_properties, timestamp), 'email')");
   });
 
-  it('escapes single quote in property key', () => {
-    expect(sql(resolvePropertyExpr("properties.user's_key"))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'user\\'s_key')",
+  it('resolves nested properties with multiple keys', () => {
+    expect(sql(resolvePropertyExpr('properties.foo.bar'))).toBe(
+      "JSONExtractString(argMax(properties, timestamp), 'foo', 'bar')",
     );
   });
 
-  it('escapes backslash in property key', () => {
-    expect(sql(resolvePropertyExpr('properties.foo\\'))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'foo\\\\')",
-    );
-  });
-
-  it('escapes backslash followed by single quote (SQL injection vector)', () => {
-    expect(sql(resolvePropertyExpr("properties.foo\\'"))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'foo\\\\\\'')");
-  });
-
-  it('escapes newline in property key', () => {
-    expect(sql(resolvePropertyExpr('properties.foo\nbar'))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'foo\\nbar')",
-    );
-  });
-
-  it('escapes carriage return in property key', () => {
-    expect(sql(resolvePropertyExpr('properties.foo\rbar'))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'foo\\rbar')",
-    );
-  });
-
-  it('escapes tab in property key', () => {
-    expect(sql(resolvePropertyExpr('properties.foo\tbar'))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'foo\\tbar')",
-    );
-  });
-
-  it('escapes null byte in property key', () => {
-    expect(sql(resolvePropertyExpr('properties.foo\0bar'))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'foo\\0bar')",
-    );
-  });
-
-  it('property key ending with backslash is correctly escaped (path\\ case)', () => {
-    expect(sql(resolvePropertyExpr('properties.path\\'))).toBe(
-      "JSONExtractString(argMax(properties, timestamp), 'path\\\\')",
-    );
+  it('rejects unsafe characters in property keys (security validation)', () => {
+    expect(() => resolvePropertyExpr("properties.user's_key")).toThrow('Invalid JSON key segment');
+    expect(() => resolvePropertyExpr('properties.foo\\')).toThrow('Invalid JSON key segment');
+    expect(() => resolvePropertyExpr('properties.foo\nbar')).toThrow('Invalid JSON key segment');
+    expect(() => resolvePropertyExpr('properties.foo\rbar')).toThrow('Invalid JSON key segment');
+    expect(() => resolvePropertyExpr('properties.foo\tbar')).toThrow('Invalid JSON key segment');
+    expect(() => resolvePropertyExpr('properties.foo\0bar')).toThrow('Invalid JSON key segment');
   });
 });
 
@@ -82,31 +170,159 @@ describe('resolveEventPropertyExpr (cohort-query helpers)', () => {
     expect(sql(resolveEventPropertyExpr('properties.plan'))).toBe("JSONExtractString(properties, 'plan')");
   });
 
-  it('escapes backslash in property key', () => {
-    expect(sql(resolveEventPropertyExpr('properties.foo\\'))).toBe(
-      "JSONExtractString(properties, 'foo\\\\')",
+  it('resolves nested properties with multiple keys', () => {
+    expect(sql(resolveEventPropertyExpr('properties.foo.bar'))).toBe(
+      "JSONExtractString(properties, 'foo', 'bar')",
     );
   });
 
-  it('escapes backslash+quote (SQL injection vector)', () => {
-    expect(sql(resolveEventPropertyExpr("user_properties.foo\\'"))).toBe(
-      "JSONExtractString(user_properties, 'foo\\\\\\'')");
-  });
-
-  it('escapes newline in event property key', () => {
-    expect(sql(resolveEventPropertyExpr('properties.foo\nbar'))).toBe(
-      "JSONExtractString(properties, 'foo\\nbar')",
-    );
-  });
-
-  it('escapes tab in event property key', () => {
-    expect(sql(resolveEventPropertyExpr('properties.key\twith\ttabs'))).toBe(
-      "JSONExtractString(properties, 'key\\twith\\ttabs')",
-    );
+  it('rejects unsafe characters in property keys (security validation)', () => {
+    expect(() => resolveEventPropertyExpr("user_properties.foo\\'")).toThrow('Invalid JSON key segment');
+    expect(() => resolveEventPropertyExpr('properties.foo\nbar')).toThrow('Invalid JSON key segment');
+    expect(() => resolveEventPropertyExpr('properties.key\twith\ttabs')).toThrow('Invalid JSON key segment');
   });
 });
 
-describe('buildOperatorClause — eq/neq with JSON expressions use OR/AND with JSONExtractRaw for boolean/number support', () => {
+describe('buildOperatorClause — typed Expr path (func/column inputs)', () => {
+  it('eq: uses OR with JSONExtractRaw when expr is JSONExtractString', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('user_properties.is_premium');
+    const clause = sql(buildOperatorClause(expr, 'eq', 'p0', params, 'true'));
+    expect(clause).toBe(
+      "(JSONExtractString(argMax(user_properties, timestamp), 'is_premium') = {p0:String} OR toString(JSONExtractRaw(argMax(user_properties, timestamp), 'is_premium')) = {p0:String})",
+    );
+    expect(params['p0']).toBe('true');
+  });
+
+  it('eq: does NOT add OR fallback for top-level column (argMax)', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('country');
+    const clause = sql(buildOperatorClause(expr, 'eq', 'p0', params, 'US'));
+    expect(clause).toBe('argMax(country, timestamp) = {p0:String}');
+    expect(params['p0']).toBe('US');
+  });
+
+  it('neq: uses JSONHas guard AND with JSONExtractRaw when expr is JSONExtractString', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('properties.active');
+    const clause = sql(buildOperatorClause(expr, 'neq', 'p0', params, 'false'));
+    expect(clause).toBe(
+      "(JSONHas(argMax(properties, timestamp), 'active') AND JSONExtractString(argMax(properties, timestamp), 'active') != {p0:String} AND toString(JSONExtractRaw(argMax(properties, timestamp), 'active')) != {p0:String})",
+    );
+    expect(params['p0']).toBe('false');
+  });
+
+  it('neq: does NOT add AND guard for top-level column', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('country');
+    const clause = sql(buildOperatorClause(expr, 'neq', 'p0', params, 'US'));
+    expect(clause).toBe('argMax(country, timestamp) != {p0:String}');
+    expect(params['p0']).toBe('US');
+  });
+
+  it('gt: uses JSONExtractRaw for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('user_properties.price');
+    const clause = sql(buildOperatorClause(expr, 'gt', 'p0', params, '10'));
+    expect(clause).toBe(
+      "toFloat64OrZero(JSONExtractRaw(argMax(user_properties, timestamp), 'price')) > {p0:Float64}",
+    );
+    expect(params['p0']).toBe(10);
+  });
+
+  it('lt: uses JSONExtractRaw for event-level properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.count');
+    const clause = sql(buildOperatorClause(expr, 'lt', 'p0', params, '5'));
+    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'count')) < {p0:Float64}");
+    expect(params['p0']).toBe(5);
+  });
+
+  it('gte: uses JSONExtractRaw for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.score');
+    const clause = sql(buildOperatorClause(expr, 'gte', 'p0', params, '5'));
+    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'score')) >= {p0:Float64}");
+  });
+
+  it('lte: uses JSONExtractRaw for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.amount');
+    const clause = sql(buildOperatorClause(expr, 'lte', 'p0', params, '100'));
+    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'amount')) <= {p0:Float64}");
+  });
+
+  it('between: uses JSONExtractRaw for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.price');
+    const clause = sql(buildOperatorClause(expr, 'between', 'p0', params, undefined, ['10', '50']));
+    expect(clause).toBe(
+      "toFloat64OrZero(JSONExtractRaw(properties, 'price')) >= {p0_min:Float64} AND toFloat64OrZero(JSONExtractRaw(properties, 'price')) <= {p0_max:Float64}",
+    );
+    expect(params['p0_min']).toBe(10);
+    expect(params['p0_max']).toBe(50);
+  });
+
+  it('not_between: uses JSONExtractRaw for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.age');
+    const clause = sql(buildOperatorClause(expr, 'not_between', 'p0', params, undefined, ['18', '65']));
+    expect(clause).toBe(
+      "(toFloat64OrZero(JSONExtractRaw(properties, 'age')) < {p0_min:Float64} OR toFloat64OrZero(JSONExtractRaw(properties, 'age')) > {p0_max:Float64})",
+    );
+  });
+
+  it('gt: does NOT replace non-JSON expressions (top-level column)', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('country');
+    const clause = sql(buildOperatorClause(expr, 'gt', 'p0', params, '0'));
+    expect(clause).toBe('toFloat64OrZero(argMax(country, timestamp)) > {p0:Float64}');
+  });
+
+  it('is_set: uses JSONHas for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('user_properties.active');
+    const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
+    expect(clause).toBe("JSONHas(argMax(user_properties, timestamp), 'active')");
+    expect(Object.keys(params)).toHaveLength(0);
+  });
+
+  it('is_not_set: uses NOT JSONHas for JSON properties', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolvePropertyExpr('user_properties.active');
+    const clause = sql(buildOperatorClause(expr, 'is_not_set', 'p0', params));
+    expect(clause).toBe("NOT JSONHas(argMax(user_properties, timestamp), 'active')");
+    expect(Object.keys(params)).toHaveLength(0);
+  });
+
+  it('is_set: uses JSONHas for event properties JSON expression', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.score');
+    const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
+    expect(clause).toBe("JSONHas(properties, 'score')");
+  });
+
+  it('is_not_set: uses NOT JSONHas for event properties JSON expression', () => {
+    const params: Record<string, unknown> = {};
+    const expr = resolveEventPropertyExpr('properties.score');
+    const clause = sql(buildOperatorClause(expr, 'is_not_set', 'p0', params));
+    expect(clause).toBe("NOT JSONHas(properties, 'score')");
+  });
+
+  it('is_set: falls back to != empty for top-level column', () => {
+    const params: Record<string, unknown> = {};
+    const clause = sql(buildOperatorClause(resolvePropertyExpr('country'), 'is_set', 'p0', params));
+    expect(clause).toBe("argMax(country, timestamp) != ''");
+  });
+
+  it('is_not_set: falls back to = empty for top-level column', () => {
+    const params: Record<string, unknown> = {};
+    const clause = sql(buildOperatorClause(resolvePropertyExpr('country'), 'is_not_set', 'p0', params));
+    expect(clause).toBe("argMax(country, timestamp) = ''");
+  });
+});
+
+describe('buildOperatorClause — legacy raw() path (backward compatibility)', () => {
   it('eq: uses OR with JSONExtractRaw when expr contains JSONExtractString', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(user_properties, timestamp), 'is_premium')");
@@ -129,7 +345,6 @@ describe('buildOperatorClause — eq/neq with JSON expressions use OR/AND with J
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(properties, timestamp), 'active')");
     const clause = sql(buildOperatorClause(expr, 'neq', 'p0', params, 'false'));
-    // Aligned with analytics filters: neq now includes JSONHas guard for consistency.
     expect(clause).toBe(
       "(JSONHas(argMax(properties, timestamp), 'active') AND JSONExtractString(argMax(properties, timestamp), 'active') != {p0:String} AND toString(JSONExtractRaw(argMax(properties, timestamp), 'active')) != {p0:String})",
     );
@@ -155,7 +370,7 @@ describe('buildOperatorClause — eq/neq with JSON expressions use OR/AND with J
 });
 
 describe('buildOperatorClause — numeric operators use JSONExtractRaw (not JSONExtractString)', () => {
-  it('gt: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+  it('gt: replaces JSONExtractString with JSONExtractRaw in raw expr', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(user_properties, timestamp), 'price')");
     const clause = sql(buildOperatorClause(expr, 'gt', 'p0', params, '10'));
@@ -165,7 +380,7 @@ describe('buildOperatorClause — numeric operators use JSONExtractRaw (not JSON
     expect(params['p0']).toBe(10);
   });
 
-  it('lt: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+  it('lt: replaces JSONExtractString with JSONExtractRaw in raw expr', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'count')");
     const clause = sql(buildOperatorClause(expr, 'lt', 'p0', params, '5'));
@@ -173,21 +388,21 @@ describe('buildOperatorClause — numeric operators use JSONExtractRaw (not JSON
     expect(params['p0']).toBe(5);
   });
 
-  it('gte: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+  it('gte: replaces JSONExtractString with JSONExtractRaw in raw expr', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'score')");
     const clause = sql(buildOperatorClause(expr, 'gte', 'p0', params, '5'));
     expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'score')) >= {p0:Float64}");
   });
 
-  it('lte: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+  it('lte: replaces JSONExtractString with JSONExtractRaw in raw expr', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'amount')");
     const clause = sql(buildOperatorClause(expr, 'lte', 'p0', params, '100'));
     expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'amount')) <= {p0:Float64}");
   });
 
-  it('between: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+  it('between: replaces JSONExtractString with JSONExtractRaw in raw expr', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'price')");
     const clause = sql(buildOperatorClause(expr, 'between', 'p0', params, undefined, ['10', '50']));
@@ -198,7 +413,7 @@ describe('buildOperatorClause — numeric operators use JSONExtractRaw (not JSON
     expect(params['p0_max']).toBe(50);
   });
 
-  it('not_between: replaces JSONExtractString with JSONExtractRaw in expr', () => {
+  it('not_between: replaces JSONExtractString with JSONExtractRaw in raw expr', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'age')");
     const clause = sql(buildOperatorClause(expr, 'not_between', 'p0', params, undefined, ['18', '65']));
@@ -321,9 +536,7 @@ describe('buildOperatorClause — date operators guard against empty value and e
 });
 
 describe('buildOperatorClause — is_set / is_not_set with JSON expressions use JSONHas', () => {
-  // D3 semantic alignment: is_set/is_not_set now use JSONHas (key existence check),
-  // aligned with analytics filters behavior.
-  it('is_set: uses JSONHas for user_properties JSON expression', () => {
+  it('is_set: uses JSONHas for user_properties JSON expression (raw path)', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(user_properties, timestamp), 'active')");
     const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
@@ -331,7 +544,7 @@ describe('buildOperatorClause — is_set / is_not_set with JSON expressions use 
     expect(Object.keys(params)).toHaveLength(0);
   });
 
-  it('is_not_set: uses NOT JSONHas for user_properties JSON expression', () => {
+  it('is_not_set: uses NOT JSONHas for user_properties JSON expression (raw path)', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(argMax(user_properties, timestamp), 'active')");
     const clause = sql(buildOperatorClause(expr, 'is_not_set', 'p0', params));
@@ -339,14 +552,14 @@ describe('buildOperatorClause — is_set / is_not_set with JSON expressions use 
     expect(Object.keys(params)).toHaveLength(0);
   });
 
-  it('is_set: uses JSONHas for event properties JSON expression', () => {
+  it('is_set: uses JSONHas for event properties JSON expression (raw path)', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'score')");
     const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
     expect(clause).toBe("JSONHas(properties, 'score')");
   });
 
-  it('is_not_set: uses NOT JSONHas for event properties JSON expression', () => {
+  it('is_not_set: uses NOT JSONHas for event properties JSON expression (raw path)', () => {
     const params: Record<string, unknown> = {};
     const expr = raw("JSONExtractString(properties, 'score')");
     const clause = sql(buildOperatorClause(expr, 'is_not_set', 'p0', params));
