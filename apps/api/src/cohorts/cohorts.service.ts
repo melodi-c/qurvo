@@ -3,9 +3,7 @@ import { AppBadRequestException } from '../exceptions/app-bad-request.exception'
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
-import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import type Redis from 'ioredis';
 import {
   cohorts,
   isConditionGroup,
@@ -18,7 +16,7 @@ import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembe
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
-import { analyticsProjectCachePattern } from '../analytics/with-analytics-cache';
+import { AnalyticsCacheService } from '../analytics/analytics-cache.service';
 
 @Injectable()
 export class CohortsService {
@@ -27,7 +25,7 @@ export class CohortsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
-    @Inject(REDIS) private readonly redis: Redis,
+    private readonly cacheService: AnalyticsCacheService,
   ) {}
 
   async list(projectId: string) {
@@ -148,42 +146,9 @@ export class CohortsService {
     // Invalidate all analytics cache entries for this project so that dashboards
     // immediately reflect the updated cohort definition instead of serving
     // stale results for up to ANALYTICS_CACHE_TTL_SECONDS (3600s).
-    this.invalidateAnalyticsCache(projectId);
+    this.cacheService.invalidateProjectCache(projectId);
 
     return rows[0];
-  }
-
-  /**
-   * Scans Redis for all analytics cache keys belonging to `projectId` and
-   * deletes them in a single pipeline. Fire-and-forget — errors are logged
-   * but never propagated to the caller.
-   */
-  private invalidateAnalyticsCache(projectId: string): void {
-    const pattern = analyticsProjectCachePattern(projectId);
-
-    const scanAndDelete = async () => {
-      const pipeline = this.redis.pipeline();
-      let keysDeleted = 0;
-      let cursor = '0';
-
-      do {
-        const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
-        cursor = nextCursor;
-        if (keys.length > 0) {
-          pipeline.del(...(keys as [string, ...string[]]));
-          keysDeleted += keys.length;
-        }
-      } while (cursor !== '0');
-
-      if (keysDeleted > 0) {
-        await pipeline.exec();
-        this.logger.debug({ projectId, keysDeleted }, 'Analytics cache invalidated after cohort update');
-      }
-    };
-
-    scanAndDelete().catch((err: unknown) => {
-      this.logger.warn({ err, projectId }, 'Failed to invalidate analytics cache after cohort update');
-    });
   }
 
   async remove(projectId: string, cohortId: string) {

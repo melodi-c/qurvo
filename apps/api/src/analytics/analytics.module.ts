@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { CohortsModule } from '../cohorts/cohorts.module';
 import { createAnalyticsQueryProvider } from './analytics-query.factory';
+import { AnalyticsCacheService } from './analytics-cache.service';
 import { queryTrend } from './trend/trend.query';
 import { queryFunnel, queryFunnelTimeToConvert } from './funnel/funnel.query';
 import { queryRetention } from './retention/retention.query';
@@ -25,8 +26,9 @@ const stickinessProvider = createAnalyticsQueryProvider(STICKINESS_SERVICE, 'sti
 const pathsProvider = createAnalyticsQueryProvider(PATHS_SERVICE, 'paths', queryPaths);
 
 @Module({
-  imports: [CohortsModule],
+  imports: [forwardRef(() => CohortsModule)],
   providers: [
+    AnalyticsCacheService,
     trendProvider,
     funnelProvider,
     funnelTtcProvider,
@@ -36,6 +38,7 @@ const pathsProvider = createAnalyticsQueryProvider(PATHS_SERVICE, 'paths', query
     pathsProvider,
   ],
   exports: [
+    AnalyticsCacheService,
     TREND_SERVICE,
     FUNNEL_SERVICE,
     FUNNEL_TTC_SERVICE,
