@@ -18,8 +18,9 @@ ISSUE_TITLE="${5:-}"
 ISSUE_TITLE="${ISSUE_TITLE//\$/\\\$}"
 ISSUE_TITLE="${ISSUE_TITLE//\`/\\\`}"
 AFFECTED_APPS_RAW="${6:-}"
-# Нормализация: убираем apps/ prefix если передан (apps/api → api)
-AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|apps/||g')
+# Нормализация путей в короткие имена пакетов:
+#   apps/api → api,  packages/@qurvo/ch-query → ch-query,  @qurvo/db → db
+AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed -e 's|packages/@qurvo/||g' -e 's|apps/||g' -e 's|@qurvo/||g')
 ISSUE_NUMBER="${7:-}"
 AUTO_MERGE="${8:-true}"
 QUIET="${9:-false}"
