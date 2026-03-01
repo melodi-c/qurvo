@@ -33,6 +33,8 @@ import {
   buildStrictUserFilterExpr,
   funnelTsParamExpr,
   extractExclColumnAliases,
+  windowMsExpr,
+  funnelProjectIdExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 import { resolvedPerson } from '../query-helpers';
@@ -108,7 +110,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
 
   // Base WHERE conditions shared by all CTE variants
   const baseWhere = and(
-    eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+    funnelProjectIdExpr(queryParams),
     gte(col('timestamp'), fromExpr),
     lte(col('timestamp'), toExpr),
     eventNameFilterExpr,
@@ -144,7 +146,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
 
     // first_step_ms: pick step_0 timestamp where last_step_ms falls within [t0, t0 + window]
     const arrayAggFn = orderType === 'strict' ? 'arrayMax' : 'arrayMin';
-    const winMs = mul(namedParam('window', 'UInt64', queryParams.window), literal(1000));
+    const winMs = windowMsExpr(queryParams);
     const filterLambda = lambda(['t0'], and(
       lte(col('t0'), col('last_step_ms')),
       lte(col('last_step_ms'), add(col('t0'), winMs)),

@@ -237,16 +237,13 @@ async function executeTrendQuery(
     const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
 
     // Cohort breakdown uses rawWithParams for the cohort filter predicates
-    // because buildCohortFilterForBreakdown returns raw SQL with named params.
     // project_id must be in queryParams because the cohort SQL references {project_id:UUID}.
     const queryParams: Record<string, unknown> = { project_id: params.project_id };
     const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
     const arms = params.series.flatMap((s, seriesIdx) => {
-      // Build series-level event + filter conditions via the old path
-      // because we need to mix raw cohort SQL into the WHERE.
       return cohortBreakdowns.map((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
-        const cohortFilterSql = buildCohortFilterForBreakdown(
+        const cohortFilterExpr = buildCohortFilterForBreakdown(
           cb, paramKey, 900 + cbIdx, queryParams,
           cbDateTo, cbDateFrom,
         );
@@ -263,7 +260,7 @@ async function executeTrendQuery(
           .from('events')
           .where(
             seriesWhere(s, params, dateFrom, dateTo),
-            rawWithParams(cohortFilterSql, queryParams),
+            cohortFilterExpr,
           )
           .groupBy(col('bucket'))
           .build();

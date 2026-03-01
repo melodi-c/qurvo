@@ -1,7 +1,8 @@
 import { buildCohortSubquery } from '@qurvo/cohort-query';
-import { compile } from '@qurvo/ch-query';
+import type { Expr } from '@qurvo/ch-query';
+import { compile, select, col, eq, namedParam, inSubquery, rawWithParams, raw } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { RESOLVED_PERSON } from '../analytics/query-helpers';
+import { RESOLVED_PERSON, resolvedPerson } from '../analytics/query-helpers';
 
 export interface CohortBreakdownEntry {
   cohort_id: string;
@@ -19,8 +20,11 @@ export interface CohortBreakdownEntry {
 }
 
 /**
- * Builds the SQL predicate for filtering by a single cohort breakdown entry.
- * Returns a bare predicate (no leading " AND ") — callers prepend that themselves.
+ * Builds the filter Expr for a single cohort breakdown entry:
+ * `RESOLVED_PERSON IN (SELECT person_id FROM ... WHERE ...)`
+ *
+ * Returns an Expr AST node instead of a raw SQL string, eliminating the
+ * string→raw() round-trip at call sites.
  *
  * Mutates queryParams with the cohort param key and any inline subquery params.
  *
@@ -39,23 +43,31 @@ export function buildCohortFilterForBreakdown(
   queryParams: Record<string, unknown>,
   dateTo?: string,
   dateFrom?: string,
-): string {
+): Expr {
   queryParams[paramKey] = cb.cohort_id;
 
   if (cb.is_static) {
-    return `${RESOLVED_PERSON} IN (
-          SELECT person_id FROM person_static_cohort FINAL
-          WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
-        )`;
+    const memberQuery = select(col('person_id'))
+      .from('person_static_cohort FINAL')
+      .where(
+        eq(col('cohort_id'), namedParam(paramKey, 'UUID', cb.cohort_id)),
+        eq(col('project_id'), namedParam('project_id', 'UUID', queryParams['project_id'])),
+      )
+      .build();
+    return inSubquery(raw(RESOLVED_PERSON), memberQuery);
   }
   if (cb.materialized) {
-    return `${RESOLVED_PERSON} IN (
-          SELECT person_id FROM cohort_members FINAL
-          WHERE cohort_id = {${paramKey}:UUID} AND project_id = {project_id:UUID}
-        )`;
+    const memberQuery = select(col('person_id'))
+      .from('cohort_members FINAL')
+      .where(
+        eq(col('cohort_id'), namedParam(paramKey, 'UUID', cb.cohort_id)),
+        eq(col('project_id'), namedParam('project_id', 'UUID', queryParams['project_id'])),
+      )
+      .build();
+    return inSubquery(raw(RESOLVED_PERSON), memberQuery);
   }
   const node = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo, dateFrom);
   const { sql: subquery, params: compiledParams } = compile(node);
   Object.assign(queryParams, compiledParams);
-  return `${RESOLVED_PERSON} IN (${subquery})`;
+  return rawWithParams(`${RESOLVED_PERSON} IN (${subquery})`, compiledParams);
 }

@@ -1,7 +1,7 @@
 import type { CohortFirstTimeEventCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, namedParam, eq, lte, gte, sub, func } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
+import { rawWithParams, col, namedParam, eq, gte, sub, func } from '@qurvo/ch-query';
+import { buildEventFilterClauses, allocCondIdx, resolveDateTo, eventsBaseSelect } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildFirstTimeEventSubquery(
@@ -17,12 +17,8 @@ export function buildFirstTimeEventSubquery(
   const upperBound = resolveDateTo(ctx);
   const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
 
-  return select(raw(RESOLVED_PERSON).as('person_id'))
-    .from('events')
-    .where(
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+  return eventsBaseSelect(ctx, undefined,
       eq(col('event_name'), namedParam(eventPk, 'String', cond.event_name)),
-      lte(col('timestamp'), upperBound),
       filterExpr,
     )
     .groupBy(col('person_id'))

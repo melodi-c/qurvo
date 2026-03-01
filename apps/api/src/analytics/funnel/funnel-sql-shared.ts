@@ -16,6 +16,7 @@ import {
   namedParam,
   inArray,
   inSubquery,
+  notInSubquery,
   groupArrayIf,
   toUnixTimestamp64Milli,
   toInt64,
@@ -367,62 +368,11 @@ export function extractExclColumnAliases(exprs: Expr[]): string[] {
 // ── Unordered coverage expressions ───────────────────────────────────────────
 
 /**
- * Builds the three unordered coverage expressions that are shared between
- * funnel-unordered.sql.ts and funnel-time-to-convert.ts (unordered path).
+ * Builds Expr AST nodes for the unordered funnel coverage logic:
+ * max_step (maximum steps coverable from any candidate anchor) and
+ * anchor_ms (timestamp of the best anchor).
  *
- * @param N           Total number of steps.
- * @param winExpr     ClickHouse expression for the window in milliseconds (e.g. `toInt64({window:UInt64}) * 1000`).
- * @param stepsOrConds Array of length N used only for .map index iteration.
- * @returns coverageExpr, maxStepExpr, anchorMsExpr
- */
-export function buildUnorderedCoverageExprs(
-  N: number,
-  winExpr: string,
-  stepsOrConds: readonly unknown[],
-): {
-  /** Closure returning the coverage sum expression for a given anchor variable. */
-  coverageExpr: (anchorVar: string) => string;
-  /** Expression for max achievable step from any candidate anchor. */
-  maxStepExpr: string;
-  /** Expression for the anchor millisecond timestamp. */
-  anchorMsExpr: string;
-} {
-  const coverageExpr = (anchorVar: string): string =>
-    stepsOrConds.map((_, j) =>
-      `if(arrayExists(t${j} -> t${j} >= ${anchorVar} AND t${j} <= ${anchorVar} + ${winExpr}, t${j}_arr), 1, 0)`,
-    ).join(' + ');
-
-  const maxFromEachStep = stepsOrConds.map((_, i) =>
-    `arrayMax(a${i} -> toInt64(${coverageExpr(`a${i}`)}), t${i}_arr)`,
-  );
-  const maxStepExpr = maxFromEachStep.length === 1
-    ? maxFromEachStep[0]
-    : `greatest(${maxFromEachStep.join(', ')})`;
-
-  let anchorMsExpr: string;
-  if (N === 1) {
-    anchorMsExpr = `if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))`;
-  } else {
-    const fullCovPred = (i: number): string =>
-      `a${i} -> (${coverageExpr(`a${i}`)}) = ${N}`;
-    const maxes = stepsOrConds.map((_, i) =>
-      `arrayMax(arrayFilter(${fullCovPred(i)}, t${i}_arr))`,
-    );
-    let expr = `toInt64(0)`;
-    for (let i = maxes.length - 1; i >= 0; i--) {
-      expr = `if(toInt64(${maxes[i]}) != 0, toInt64(${maxes[i]}), ${expr})`;
-    }
-    anchorMsExpr = expr;
-  }
-
-  return { coverageExpr, maxStepExpr, anchorMsExpr };
-}
-
-/**
- * AST version of buildUnorderedCoverageExprs.
- *
- * Returns Expr AST nodes for max_step and anchor_ms, eliminating the need
- * for raw() wrappers. Used by funnel-unordered.sql.ts (pure AST path).
+ * Used by funnel-unordered.sql.ts and funnel-time-to-convert.ts (unordered path).
  *
  * @param N        Total number of steps.
  * @param winExpr  Expr AST for the window in milliseconds.
@@ -569,6 +519,31 @@ export function stepsSubquery(): SelectNode {
   )
     .from('numbers({num_steps:UInt64})')
     .build();
+}
+
+// ── Window milliseconds expression ──────────────────────────────────────────
+
+/** `toInt64({window:UInt64}) * 1000` — window duration in milliseconds as an Expr AST node. */
+export function windowMsExpr(queryParams: FunnelChQueryParams): Expr {
+  return mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
+}
+
+// ── Shared funnel predicate helpers ─────────────────────────────────────────
+
+/**
+ * `person_id NOT IN (SELECT person_id FROM excluded_users)` — reusable exclusion filter.
+ * Used in 5+ places across funnel query/TTC/cohort-breakdown files.
+ */
+export function notInExcludedUsers(): Expr {
+  return notInSubquery(col('person_id'), select(col('person_id')).from('excluded_users').build());
+}
+
+/**
+ * `project_id = {project_id:UUID}` — reusable funnel project_id filter.
+ * Used in 4+ places across funnel files.
+ */
+export function funnelProjectIdExpr(queryParams: FunnelChQueryParams): Expr {
+  return eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id));
 }
 
 // ── Empty step results ──────────────────────────────────────────────────────
