@@ -89,22 +89,25 @@ export function resolveNumericPropertyExpr(prop: string): Expr {
 }
 
 /**
+ * Monotonic counter for unique named-param keys.
+ *
+ * `applyOperator()` embeds filter values via `namedParam(pk, ...)` — if two calls
+ * share the same `pk` but different values, the compiler's `mergeParams()` overwrites
+ * the first value. A per-call counter suffix guarantees uniqueness even when the same
+ * property+operator pair appears in multiple series arms of a UNION ALL.
+ */
+let _pfCounter = 0;
+
+/**
  * Single property filter -> Expr.
  *
  * Delegates to the shared `applyOperator()` from `@qurvo/cohort-query`.
- * Uses auto-incrementing param keys (p_N style via `param()`) for analytics
- * queries (no named params needed — the compiler auto-assigns names).
- *
- * For operators that don't need named params (analytics uses compile() which
- * auto-names), we pass a throwaway params object.
+ * Each call gets a unique param key to avoid collisions when the same
+ * property+operator appears in different series with different values.
  */
 export function propertyFilter(filter: PropertyFilter): Expr {
-  // applyOperator needs a queryParams bag + a named param key.
-  // Analytics queries don't use named params — they use auto-incrementing p_N.
-  // However, applyOperator uses namedParam() internally which embeds the param
-  // directly in the Expr. The queryParams mutation is ignored by analytics callers.
   const params: Record<string, unknown> = {};
-  const pk = `pf_${filter.property.replace(/[^a-zA-Z0-9_]/g, '_')}_${filter.operator}`;
+  const pk = `pf_${filter.property.replace(/[^a-zA-Z0-9_]/g, '_')}_${filter.operator}_${_pfCounter++}`;
   const colExpr = resolvePropertyExpr(filter.property);
   return applyOperator(colExpr, filter.operator, pk, params, filter.value, filter.values);
 }
@@ -114,7 +117,7 @@ export function propertyFilter(filter: PropertyFilter): Expr {
  * Returns undefined for empty arrays (allowing and() to skip it).
  */
 export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
-  if (filters.length === 0) return undefined;
+  if (filters.length === 0) {return undefined;}
   return and(...filters.map(propertyFilter));
 }
 
@@ -134,7 +137,7 @@ export function cohortFilter(
   dateTo?: string,
   dateFrom?: string,
 ): Expr | undefined {
-  if (!inputs?.length) return undefined;
+  if (!inputs?.length) {return undefined;}
 
   // Collect params populated by buildCohortFilterClause into a local object.
   const cohortParams: Record<string, unknown> = {};
