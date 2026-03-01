@@ -1,7 +1,7 @@
 import type { CohortNotPerformedEventCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import {
-  rawWithParams, col, namedParam, literal,
+  col, namedParam, literal, interval,
   eq, sub, and, countIf,
 } from '@qurvo/ch-query';
 import {
@@ -39,7 +39,7 @@ export function buildNotPerformedEventSubquery(
 
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
-  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
   const lowerExpr = lowerBound ?? sub(upperBound, daysInterval);
 
   return eventsBaseSelect(ctx, lowerExpr)

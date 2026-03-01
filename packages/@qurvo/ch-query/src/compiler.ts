@@ -150,6 +150,31 @@ function compileNamedParam(expr: NamedParamExpr, ctx: CompilerContext): string {
   return `{${expr.key}:${expr.chType}}`;
 }
 
+/** Operator precedence for arithmetic / comparison operators (higher = binds tighter). */
+const OP_PRECEDENCE: Record<string, number> = {
+  'OR': 1,
+  'AND': 2,
+  '=': 3, '!=': 3, '<': 3, '>': 3, '<=': 3, '>=': 3, 'LIKE': 3, 'NOT LIKE': 3,
+  '+': 4, '-': 4,
+  '*': 5, '/': 5, '%': 5,
+};
+
+/**
+ * Compile a child expression, wrapping in parentheses if it is a binary expression
+ * with lower precedence than the parent operator.
+ */
+function compileBinaryOperand(child: Expr, parentOp: string, ctx: CompilerContext): string {
+  const sql = compileExpr(child, ctx);
+  if (child.type === 'binary' && child.op !== 'AND' && child.op !== 'OR') {
+    const childPrec = OP_PRECEDENCE[child.op] ?? 0;
+    const parentPrec = OP_PRECEDENCE[parentOp] ?? 0;
+    if (childPrec < parentPrec) {
+      return `(${sql})`;
+    }
+  }
+  return sql;
+}
+
 function compileBinary(expr: BinaryExpr, ctx: CompilerContext): string {
   const op = expr.op;
 
@@ -158,8 +183,8 @@ function compileBinary(expr: BinaryExpr, ctx: CompilerContext): string {
     return flattenBinaryChain(expr, ctx);
   }
 
-  const left = compileExpr(expr.left, ctx);
-  const right = compileExpr(expr.right, ctx);
+  const left = compileBinaryOperand(expr.left, op, ctx);
+  const right = compileBinaryOperand(expr.right, op, ctx);
   return `${left} ${op} ${right}`;
 }
 

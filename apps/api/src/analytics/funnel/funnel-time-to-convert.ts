@@ -24,7 +24,6 @@ import {
   gte,
   lte,
   sub,
-  mul,
   add,
   inArray,
   type Expr,
@@ -163,7 +162,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   } = options;
 
   // AST expressions for windowFunnel and timestamps
-  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs);
+  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs, queryParams);
   const fromExprAst = funnelTsParamExpr('from', queryParams);
   const toExprAst = funnelTsParamExpr('to', queryParams);
 
@@ -276,7 +275,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   // ── CTE: excluded_users (if exclusions present) ──
   if (exclusions.length > 0) {
-    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions) });
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, false, queryParams) });
   }
 
   // ── CTE: converted ──
@@ -530,7 +529,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   // ── CTE: excluded_users (if exclusions present) — anchorFilter=true for unordered (#497) ──
   if (exclusions.length > 0) {
-    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true) });
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true, queryParams) });
   }
 
   // ── CTE: converted ──
