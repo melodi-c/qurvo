@@ -680,7 +680,7 @@ export function safeNotLike(expr: Expr, substring: string, mode: SafeLikeMode = 
 // SelectBuilder (fluent chain)
 
 export class SelectBuilder {
-  private node: Partial<SelectNode> & { type: 'select'; columns: Expr[] };
+  private node: SelectNode;
 
   constructor(columns: Expr[]) {
     this.node = { type: 'select', columns };
@@ -837,7 +837,7 @@ export class SelectBuilder {
   }
 
   build(): SelectNode {
-    return this.node as SelectNode;
+    return this.node;
   }
 }
 
