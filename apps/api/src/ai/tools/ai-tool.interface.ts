@@ -33,6 +33,12 @@ export interface AiTool {
  * `zodFunction()` from the openai SDK produces `$ref` entries when serialising
  * `z.discriminatedUnion()` — this normalisation step resolves them in-place so
  * every branch carries its own full schema.
+ *
+ * Additionally cleans up Zod v4 compat (3.25.x) artifacts: `.nullish()` fields
+ * serialised through `$ref` produce `{ "anyOf": [{"not":{}}, {self-$ref}] }`.
+ * After $ref resolution the self-ref collapses to `{}`, leaving `anyOf` branches
+ * without `type`. The `cleanAnyOf` post-pass strips these artifacts so every
+ * branch carries a valid `type`.
  */
 export function normalizeJsonSchema(
   schema: Record<string, unknown>,
@@ -92,7 +98,64 @@ export function normalizeJsonSchema(
     return result;
   }
 
-  return walk(schema) as Record<string, unknown>;
+  /**
+   * Post-pass: clean up broken `anyOf` branches produced by Zod v4 compat
+   * `.nullish()` serialisation. Removes:
+   * - `{"not":{}}` — Zod v4 artifact representing undefined/void
+   * - `{}` — result of stripped self-referencing `$ref`
+   * If one branch remains after cleanup, unwrap it. If zero remain, return `{}`.
+   */
+  function cleanAnyOf(node: unknown): unknown {
+    if (!node || typeof node !== 'object') {return node;}
+    if (Array.isArray(node)) {return node.map(cleanAnyOf);}
+
+    const obj = node as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+
+    for (const [key, val] of Object.entries(obj)) {
+      if (key === 'anyOf' && Array.isArray(val)) {
+        const cleaned = val
+          .filter((branch) => !isEmptyObject(branch) && !isNotEmpty(branch))
+          .map(cleanAnyOf);
+
+        if (cleaned.length === 0) {
+          // All branches were artifacts — replace with permissive `{}`
+          Object.assign(result, {});
+        } else if (cleaned.length === 1) {
+          // Single remaining branch — unwrap anyOf
+          const single = cleaned[0] as Record<string, unknown>;
+          Object.assign(result, single);
+        } else {
+          result[key] = cleaned;
+        }
+      } else {
+        result[key] = cleanAnyOf(val);
+      }
+    }
+
+    return result;
+  }
+
+  /** Check if a value is `{}` (empty object — no own keys). */
+  function isEmptyObject(val: unknown): boolean {
+    return (
+      !!val &&
+      typeof val === 'object' &&
+      !Array.isArray(val) &&
+      Object.keys(val as Record<string, unknown>).length === 0
+    );
+  }
+
+  /** Check if a value is `{"not":{}}` — Zod v4 artifact for undefined/void. */
+  function isNotEmpty(val: unknown): boolean {
+    if (!val || typeof val !== 'object' || Array.isArray(val)) {return false;}
+    const obj = val as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    return keys.length === 1 && keys[0] === 'not' && isEmptyObject(obj.not);
+  }
+
+  const resolved = walk(schema) as Record<string, unknown>;
+  return cleanAnyOf(resolved) as Record<string, unknown>;
 }
 
 /**
