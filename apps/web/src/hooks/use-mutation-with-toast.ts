@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, type QueryKey, type UseMutationOptions } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { extractApiErrorMessage } from '@/lib/utils';
 
@@ -10,11 +10,11 @@ interface UseMutationWithToastOptions<TData, TVariables> {
   /** Query keys to invalidate after successful mutation. */
   invalidateKeys?: QueryKey[];
   /** Additional callback after success (runs after toast + invalidation). */
-  onSuccess?: UseMutationOptions<TData, unknown, TVariables>['onSuccess'];
+  onSuccess?: (data: TData, variables: TVariables) => void;
   /** Custom error handler. If provided, replaces the default toast.error behavior. */
-  onError?: UseMutationOptions<TData, unknown, TVariables>['onError'];
+  onError?: (error: unknown, variables: TVariables) => void;
   /** Called on both success and error (after other callbacks). */
-  onSettled?: UseMutationOptions<TData, unknown, TVariables>['onSettled'];
+  onSettled?: (data: TData | undefined, error: unknown | null, variables: TVariables) => void;
 }
 
 /**
@@ -34,7 +34,7 @@ export function useMutationWithToast<TData = unknown, TVariables = void>(
 
   return useMutation<TData, unknown, TVariables>({
     mutationFn,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables) => {
       if (options?.successMessage) {
         toast.success(options.successMessage);
       }
@@ -45,15 +45,17 @@ export function useMutationWithToast<TData = unknown, TVariables = void>(
         }
       }
 
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables);
     },
-    onError: (error, variables, context) => {
+    onError: (error, variables) => {
       if (options?.onError) {
-        options.onError(error, variables, context);
+        options.onError(error, variables);
       } else if (options?.errorMessage) {
         toast.error(extractApiErrorMessage(error, options.errorMessage));
       }
     },
-    onSettled: options?.onSettled,
+    onSettled: options?.onSettled
+      ? (data, error, variables) => options.onSettled!(data, error, variables)
+      : undefined,
   });
 }
