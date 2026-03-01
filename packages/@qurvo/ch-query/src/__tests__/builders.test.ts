@@ -1014,6 +1014,278 @@ describe('builders', () => {
     });
   });
 
+  describe('SelectBuilder.addSelect()', () => {
+    test('appends columns to existing select list', () => {
+      const node = select(col('a'))
+        .addSelect(col('b'), col('c'))
+        .from('t')
+        .build();
+      expect(node.columns).toHaveLength(3);
+      expect(node.columns[0]).toEqual(expect.objectContaining({ type: 'column', name: 'a' }));
+      expect(node.columns[1]).toEqual(expect.objectContaining({ type: 'column', name: 'b' }));
+      expect(node.columns[2]).toEqual(expect.objectContaining({ type: 'column', name: 'c' }));
+    });
+
+    test('skips undefined arguments', () => {
+      const node = select(col('a'))
+        .addSelect(undefined, col('b'), undefined)
+        .from('t')
+        .build();
+      expect(node.columns).toHaveLength(2);
+      expect(node.columns[1]).toEqual(expect.objectContaining({ type: 'column', name: 'b' }));
+    });
+
+    test('all undefined results in no change', () => {
+      const node = select(col('a'))
+        .addSelect(undefined, undefined)
+        .from('t')
+        .build();
+      expect(node.columns).toHaveLength(1);
+    });
+
+    test('returns same builder for chaining', () => {
+      const builder = select(col('a'));
+      expect(builder.addSelect(col('b'))).toBe(builder);
+    });
+
+    test('works with aliased expressions', () => {
+      const node = select(col('a'))
+        .addSelect(count().as('total'))
+        .from('t')
+        .build();
+      expect(node.columns).toHaveLength(2);
+      expect(node.columns[1]).toEqual(expect.objectContaining({ type: 'alias', alias: 'total' }));
+    });
+  });
+
+  describe('SelectBuilder.addWhere()', () => {
+    test('sets WHERE when empty', () => {
+      const node = select(col('*'))
+        .from('t')
+        .addWhere(eq(col('a'), literal(1)))
+        .build();
+      expect(node.where).toEqual(expect.objectContaining({ type: 'binary', op: '=' }));
+    });
+
+    test('ANDs with existing WHERE', () => {
+      const node = select(col('*'))
+        .from('t')
+        .where(eq(col('a'), literal(1)))
+        .addWhere(eq(col('b'), literal(2)))
+        .build();
+      expect(node.where).toEqual(expect.objectContaining({ type: 'binary', op: 'AND' }));
+    });
+
+    test('multiple addWhere calls chain correctly', () => {
+      const node = select(col('*'))
+        .from('t')
+        .addWhere(eq(col('a'), literal(1)))
+        .addWhere(eq(col('b'), literal(2)))
+        .addWhere(eq(col('c'), literal(3)))
+        .build();
+      // Should be ((a=1 AND b=2) AND c=3)
+      expect(node.where).toBeDefined();
+      expect(node.where!.type).toBe('binary');
+    });
+
+    test('skips undefined arguments', () => {
+      const node = select(col('*'))
+        .from('t')
+        .where(eq(col('a'), literal(1)))
+        .addWhere(undefined, undefined)
+        .build();
+      // WHERE unchanged — still the original eq()
+      expect(node.where).toEqual(expect.objectContaining({ type: 'binary', op: '=' }));
+    });
+
+    test('all undefined on empty WHERE leaves WHERE unset', () => {
+      const node = select(col('*'))
+        .from('t')
+        .addWhere(undefined)
+        .build();
+      expect(node.where).toBeUndefined();
+    });
+
+    test('addWhere with multiple conditions ANDs them together', () => {
+      const node = select(col('*'))
+        .from('t')
+        .addWhere(eq(col('a'), literal(1)), gt(col('b'), literal(0)))
+        .build();
+      expect(node.where).toEqual(expect.objectContaining({ type: 'binary', op: 'AND' }));
+    });
+
+    test('returns same builder for chaining', () => {
+      const builder = select(col('*')).from('t');
+      expect(builder.addWhere(eq(col('a'), literal(1)))).toBe(builder);
+    });
+  });
+
+  describe('SelectBuilder.addGroupBy()', () => {
+    test('sets GROUP BY when empty', () => {
+      const node = select(col('a'), count())
+        .from('t')
+        .addGroupBy(col('a'))
+        .build();
+      expect(node.groupBy).toHaveLength(1);
+    });
+
+    test('appends to existing GROUP BY', () => {
+      const node = select(col('a'), col('b'), count())
+        .from('t')
+        .groupBy(col('a'))
+        .addGroupBy(col('b'))
+        .build();
+      expect(node.groupBy).toHaveLength(2);
+      expect(node.groupBy![0]).toEqual(expect.objectContaining({ type: 'column', name: 'a' }));
+      expect(node.groupBy![1]).toEqual(expect.objectContaining({ type: 'column', name: 'b' }));
+    });
+
+    test('skips undefined arguments', () => {
+      const node = select(col('a'), count())
+        .from('t')
+        .groupBy(col('a'))
+        .addGroupBy(undefined, col('b'), undefined)
+        .build();
+      expect(node.groupBy).toHaveLength(2);
+    });
+
+    test('all undefined results in no change', () => {
+      const node = select(col('a'), count())
+        .from('t')
+        .addGroupBy(undefined)
+        .build();
+      expect(node.groupBy).toBeUndefined();
+    });
+
+    test('returns same builder for chaining', () => {
+      const builder = select(col('a'), count()).from('t');
+      expect(builder.addGroupBy(col('a'))).toBe(builder);
+    });
+  });
+
+  describe('SelectBuilder.addHaving()', () => {
+    test('sets HAVING when empty', () => {
+      const node = select(col('a'), count().as('cnt'))
+        .from('t')
+        .groupBy(col('a'))
+        .addHaving(gt(count(), literal(5)))
+        .build();
+      expect(node.having).toBeDefined();
+    });
+
+    test('ANDs with existing HAVING', () => {
+      const node = select(col('a'), count().as('cnt'))
+        .from('t')
+        .groupBy(col('a'))
+        .having(gt(count(), literal(5)))
+        .addHaving(lt(count(), literal(100)))
+        .build();
+      expect(node.having).toEqual(expect.objectContaining({ type: 'binary', op: 'AND' }));
+    });
+
+    test('returns same builder for chaining', () => {
+      const builder = select(col('a'), count()).from('t').groupBy(col('a'));
+      expect(builder.addHaving(gt(count(), literal(1)))).toBe(builder);
+    });
+  });
+
+  describe('SelectBuilder.clone()', () => {
+    test('creates independent copy', () => {
+      const original = select(col('a'), col('b'))
+        .from('events')
+        .where(eq(col('a'), literal(1)))
+        .groupBy(col('a'));
+
+      const cloned = original.clone();
+
+      // Mutate clone
+      cloned.addSelect(col('c'));
+      cloned.addWhere(eq(col('b'), literal(2)));
+      cloned.addGroupBy(col('b'));
+
+      // Original should be unaffected
+      const origNode = original.build();
+      const cloneNode = cloned.build();
+
+      expect(origNode.columns).toHaveLength(2);
+      expect(cloneNode.columns).toHaveLength(3);
+
+      expect(origNode.groupBy).toHaveLength(1);
+      expect(cloneNode.groupBy).toHaveLength(2);
+
+      // WHERE: original has eq only, clone has AND
+      expect(origNode.where).toEqual(expect.objectContaining({ type: 'binary', op: '=' }));
+      expect(cloneNode.where).toEqual(expect.objectContaining({ type: 'binary', op: 'AND' }));
+    });
+
+    test('clone preserves all builder state', () => {
+      const cte = select(count().as('cnt')).from('events').build();
+
+      const original = select(col('a'))
+        .distinct()
+        .with('counts', cte)
+        .from('events', 'e')
+        .innerJoin('t2', 'j', eq(col('e.id'), col('j.id')))
+        .where(eq(col('a'), literal(1)))
+        .prewhere(gt(col('ts'), literal('2024-01-01')))
+        .groupBy(col('a'))
+        .having(gt(count(), literal(5)))
+        .orderBy(col('a'), 'DESC')
+        .limit(100)
+        .offset(50)
+        .arrayJoin(col('arr'), 'item');
+
+      const cloned = original.clone();
+      const origNode = original.build();
+      const cloneNode = cloned.build();
+
+      // Compare data structure via JSON (clone strips .as() helper methods, which is fine)
+      expect(JSON.parse(JSON.stringify(cloneNode))).toEqual(JSON.parse(JSON.stringify(origNode)));
+      // But they should not be the same object
+      expect(cloneNode).not.toBe(origNode);
+      expect(cloneNode.columns).not.toBe(origNode.columns);
+    });
+
+    test('mutating original does not affect clone', () => {
+      const original = select(col('a')).from('t');
+      const cloned = original.clone();
+
+      original.addSelect(col('b'));
+
+      expect(original.build().columns).toHaveLength(2);
+      expect(cloned.build().columns).toHaveLength(1);
+    });
+
+    test('query branching pattern works', () => {
+      // Pattern from the issue: build base query, then branch
+      const base = select(col('series_idx'), col('bucket'), count().as('total'))
+        .from('events')
+        .where(eq(col('project_id'), param('UUID', '123')))
+        .groupBy(col('bucket'));
+
+      const arm1 = base.build();
+      const arm2 = base.clone()
+        .addSelect(col('breakdown_value'))
+        .addGroupBy(col('breakdown_value'))
+        .build();
+
+      // arm1: 3 columns, 1 groupBy
+      expect(arm1.columns).toHaveLength(3);
+      expect(arm1.groupBy).toHaveLength(1);
+
+      // arm2: 4 columns, 2 groupBy
+      expect(arm2.columns).toHaveLength(4);
+      expect(arm2.groupBy).toHaveLength(2);
+
+      // base should still have original state (3 cols, 1 groupBy)
+      // Note: base.build() was called before clone modifications,
+      // but base itself was mutated... let's verify
+      // Actually base was NOT mutated since clone() creates a new builder
+      expect(base.build().columns).toHaveLength(3);
+      expect(base.build().groupBy).toHaveLength(1);
+    });
+  });
+
   describe('input validation (security)', () => {
     test('lambda() rejects invalid param names', () => {
       expect(() => lambda(['x; DROP TABLE'], gt(col('x'), literal(0)))).toThrow(
