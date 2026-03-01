@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
   literal,
@@ -24,7 +24,6 @@ import {
   gte,
   lte,
   sub,
-  mul,
   add,
   inArray,
   type Expr,
@@ -163,7 +162,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   } = options;
 
   // AST expressions for windowFunnel and timestamps
-  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs);
+  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs, queryParams);
   const fromExprAst = funnelTsParamExpr('from', queryParams);
   const toExprAst = funnelTsParamExpr('to', queryParams);
 
@@ -276,7 +275,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   // ── CTE: excluded_users (if exclusions present) ──
   if (exclusions.length > 0) {
-    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions) });
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, false, queryParams) });
   }
 
   // ── CTE: converted ──
@@ -313,9 +312,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
     .from('converted')
     .build();
 
-  const compiled = compile(finalQuery);
-  const queryResult = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await queryResult.json<TtcAggRow>();
+  const rows = await new ChQueryExecutor(ch).rows<TtcAggRow>(finalQuery);
 
   return parseTtcRows(rows, fromStep, toStep);
 }
@@ -530,7 +527,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   // ── CTE: excluded_users (if exclusions present) — anchorFilter=true for unordered (#497) ──
   if (exclusions.length > 0) {
-    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true) });
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true, queryParams) });
   }
 
   // ── CTE: converted ──
@@ -569,8 +566,6 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     .from('converted')
     .build();
 
-  const compiled = compile(finalQuery);
-  const queryResult = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await queryResult.json<TtcAggRow>();
+  const rows = await new ChQueryExecutor(ch).rows<TtcAggRow>(finalQuery);
   return parseTtcRows(rows, fromStep, toStep);
 }

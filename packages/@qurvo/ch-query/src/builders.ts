@@ -396,6 +396,15 @@ export function arrayMax(lambdaExpr: LambdaExpr, arrayExpr: Expr): WithAlias<Fun
   return func('arrayMax', lambdaExpr, arrayExpr);
 }
 
+/**
+ * arrayFold(lambda, arrayExpr, initialAcc) — folds array with accumulator.
+ * e.g. arrayFold(lambda(['acc', 'x'], add(col('acc'), col('x'))), col('arr'), literal(0))
+ *      → arrayFold((acc, x) -> acc + x, arr, 0)
+ */
+export function arrayFold(lambdaExpr: LambdaExpr, arrayExpr: Expr, initialAcc: Expr): WithAlias<FuncCallExpr> {
+  return func('arrayFold', lambdaExpr, arrayExpr, initialAcc);
+}
+
 // ── HIGH priority function shortcuts ──
 
 /** length(expr) — returns length of string or array */

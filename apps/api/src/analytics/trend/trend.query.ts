@@ -11,7 +11,7 @@ import {
   col,
   literal,
   param,
-  rawWithParams,
+  namedParam,
   count,
   inArray,
   inSubquery,
@@ -236,7 +236,7 @@ async function executeTrendQuery(
     const cohortBreakdowns = params.breakdown_cohort_ids ?? [];
     const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
 
-    // Cohort breakdown uses rawWithParams for the cohort filter predicates
+    // Cohort breakdown uses namedParam for the cohort filter predicates
     // project_id must be in queryParams because the cohort SQL references {project_id:UUID}.
     const queryParams: Record<string, unknown> = { project_id: params.project_id };
     const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
@@ -252,7 +252,7 @@ async function executeTrendQuery(
 
         return select(
           literal(seriesIdx).as('series_idx'),
-          rawWithParams(`{${cohortIdKey}:String}`, { [cohortIdKey]: cb.cohort_id }).as('breakdown_value'),
+          namedParam(cohortIdKey, 'String', cb.cohort_id).as('breakdown_value'),
           alias(bucketExpr, 'bucket'),
           ...baseMetricColumns(),
           aggCol,

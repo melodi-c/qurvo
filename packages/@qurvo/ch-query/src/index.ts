@@ -100,6 +100,7 @@ export {
   arrayExists,
   arrayMin,
   arrayMax,
+  arrayFold,
 } from './builders';
 
 // Builders — new function shortcuts (HIGH priority)

@@ -4,9 +4,10 @@ import { AppBadRequestException } from '../exceptions/app-bad-request.exception'
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { cohorts, type Database } from '@qurvo/db';
-import { RESOLVED_PERSON, resolvePropertyExpr } from '../analytics/query-helpers';
-import { compileExprToSql } from '@qurvo/ch-query';
+import { resolvedPerson, resolvePropertyExpr } from '../analytics/query-helpers';
+import { select, col, eq as chEq, param, lower, inArray } from '@qurvo/ch-query';
 import { CohortsService } from './cohorts.service';
 import { parseCohortCsv } from './parse-cohort-csv';
 
@@ -242,16 +243,16 @@ export class StaticCohortsService {
     const normalizedEmails = emails.map((e) => e.toLowerCase());
 
     // Resolve via ClickHouse events — latest user_properties email
-    const result = await this.ch.query({
-      query: `
-        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
-        FROM events
-        WHERE project_id = {project_id:UUID}
-          AND lower(${compileExprToSql(resolvePropertyExpr('user_properties.email')).sql}) IN {emails:Array(String)}`,
-      query_params: { project_id: projectId, emails: normalizedEmails },
-      format: 'JSONEachRow',
-    });
-    const rows = await result.json<{ resolved_person_id: string }>();
+    const node = select(resolvedPerson().as('resolved_person_id'))
+      .distinct()
+      .from('events')
+      .where(
+        chEq(col('project_id'), param('UUID', projectId)),
+        inArray(lower(resolvePropertyExpr('user_properties.email')), param('Array(String)', normalizedEmails)),
+      )
+      .build();
+
+    const rows = await new ChQueryExecutor(this.ch).rows<{ resolved_person_id: string }>(node);
     return rows.map((r) => r.resolved_person_id);
   }
 

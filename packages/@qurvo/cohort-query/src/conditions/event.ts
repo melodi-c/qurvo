@@ -1,13 +1,13 @@
 import type { CohortAggregationType, CohortEventCondition, CohortEventFilter } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import {
-  rawWithParams, col, namedParam, literal,
-  eq, gte, lte, sub, func, and, countIf, parametricFunc,
-  toFloat64OrZero,
+  col, namedParam, literal, interval,
+  eq, gte, lte, sub, and, countIf, parametricFunc,
+  toFloat64OrZero, count, sum, avg, min, max,
 } from '@qurvo/ch-query';
 import {
   buildEventFilterClauses,
-  buildOperatorClause,
+  applyOperator,
   resolveEventPropertyExpr,
   allocCondIdx,
   resolveDateTo,
@@ -17,14 +17,14 @@ import {
 import type { BuildContext } from '../types';
 
 function buildAggregationExpr(type: CohortAggregationType | undefined, property: string | undefined): Expr {
-  if (!type || type === 'count') return func('count');
+  if (!type || type === 'count') return count();
   const propExpr = resolveEventPropertyExpr(property ?? '');
   const numExpr = toFloat64OrZero(propExpr);
   switch (type) {
-    case 'sum': return func('sum', numExpr);
-    case 'avg': return func('avg', numExpr);
-    case 'min': return func('min', numExpr);
-    case 'max': return func('max', numExpr);
+    case 'sum': return sum(numExpr);
+    case 'avg': return avg(numExpr);
+    case 'min': return min(numExpr);
+    case 'max': return max(numExpr);
     case 'median': return parametricFunc('quantile', [literal(0.50)], [numExpr]);
     case 'p75': return parametricFunc('quantile', [literal(0.75)], [numExpr]);
     case 'p90': return parametricFunc('quantile', [literal(0.90)], [numExpr]);
@@ -62,7 +62,7 @@ function buildCountIfCondExpr(
       const f = filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
       const expr = resolveEventPropertyExpr(f.property);
-      parts.push(buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values));
+      parts.push(applyOperator(expr, f.operator, pk, queryParams, f.value, f.values));
     }
   }
   return and(...parts);
@@ -80,7 +80,7 @@ function buildEventZeroCountSubquery(
 ): SelectNode {
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
-  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
   const lowerExpr = lowerBound ?? sub(upperBound, daysInterval);
 
   const countIfCond = buildCountIfCondExpr(eventPk, cond.event_name, condIdx, cond.event_filters, ctx.queryParams);
@@ -112,7 +112,7 @@ export function buildEventConditionSubquery(
   const aggExpr = buildAggregationExpr(cond.aggregation_type, cond.aggregation_property);
   const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const thresholdType = isCount ? 'UInt64' : 'Float64';
-  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
   const lowerExpr = sub(resolveDateTo(ctx), daysInterval);
 
   return eventsBaseSelect(ctx, lowerExpr,

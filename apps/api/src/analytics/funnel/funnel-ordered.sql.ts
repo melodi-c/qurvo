@@ -2,13 +2,10 @@ import {
   select,
   col,
   and,
-  eq,
   gt,
   gte,
   lte,
   add,
-  mul,
-  namedParam,
   toInt64,
   toUnixTimestamp64Milli,
   groupArrayIf,
@@ -89,7 +86,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
   const lastStepCond = buildStepCondition(steps[numSteps - 1], numSteps - 1);
 
   // windowFunnel expression
-  const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
+  const wfExpr = buildWindowFunnelExpr(orderType, stepConditions, queryParams);
 
   // Timestamp expression for groupArrayIf / minIf
   const tsExpr = toUnixTimestamp64Milli(col('timestamp'));
@@ -198,7 +195,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
 
   // excluded_users CTE (if exclusions are present)
   if (exclusions.length > 0) {
-    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions) });
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, false, queryParams) });
   }
 
   return { ctes, hasExclusions: exclusions.length > 0 };

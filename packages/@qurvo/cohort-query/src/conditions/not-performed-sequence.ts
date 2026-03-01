@@ -1,7 +1,7 @@
 import type { CohortNotPerformedEventSequenceCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, gte, lte, sub, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
+import { select, alias, col, gte, lte, sub, notInSubquery, gt, eq, literal, interval, namedParam } from '@qurvo/ch-query';
+import { resolvedPerson, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -12,13 +12,13 @@ export function buildNotPerformedEventSequenceSubquery(
   const { stepIndexExpr, seqMatchExpr, daysPk } = buildSequenceCore(cond, ctx);
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
-  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
 
   const rollingLower = sub(upperBound, daysInterval);
 
   if (lowerBound) {
     // Active persons in the rolling window
-    const activePersons = select(raw(RESOLVED_PERSON).as('person_id'))
+    const activePersons = select(resolvedPerson().as('person_id'))
       .from('events')
       .where(
         ctxProjectIdExpr(ctx),
@@ -29,9 +29,9 @@ export function buildNotPerformedEventSequenceSubquery(
 
     // Sequence completion check restricted to [dateFrom, dateTo]
     const innerEvents = select(
-      raw(RESOLVED_PERSON).as('person_id'),
+      resolvedPerson().as('person_id'),
       col('timestamp'),
-      raw(`${stepIndexExpr}`).as('step_idx'),
+      alias(stepIndexExpr, 'step_idx'),
     )
       .from('events')
       .where(
@@ -43,20 +43,21 @@ export function buildNotPerformedEventSequenceSubquery(
 
     const seqCompleted = select(
       col('person_id'),
-      raw(`${seqMatchExpr}`).as('seq_match'),
+      alias(seqMatchExpr, 'seq_match'),
     )
       .from(innerEvents)
-      .where(raw('step_idx > 0'))
+      .where(gt(col('step_idx'), literal(0)))
       .groupBy(col('person_id'))
       .build();
 
     const completedPersons = select(col('person_id'))
       .from(seqCompleted)
-      .where(raw('seq_match = 1'))
+      .where(eq(col('seq_match'), literal(1)))
       .build();
 
     // Two-window NOT IN: active persons who did NOT complete the sequence in [dateFrom, dateTo]
-    return select(raw('DISTINCT person_id'))
+    return select(col('person_id'))
+      .distinct()
       .from(activePersons)
       .where(notInSubquery(col('person_id'), completedPersons))
       .build();
@@ -64,9 +65,9 @@ export function buildNotPerformedEventSequenceSubquery(
 
   // Single scan: persons active in window whose events do NOT match the sequence
   const innerSelect = select(
-    raw(RESOLVED_PERSON).as('person_id'),
+    resolvedPerson().as('person_id'),
     col('timestamp'),
-    raw(`${stepIndexExpr}`).as('step_idx'),
+    alias(stepIndexExpr, 'step_idx'),
   )
     .from('events')
     .where(
@@ -78,15 +79,15 @@ export function buildNotPerformedEventSequenceSubquery(
 
   const middleSelect = select(
     col('person_id'),
-    raw(`${seqMatchExpr}`).as('seq_match'),
+    alias(seqMatchExpr, 'seq_match'),
   )
     .from(innerSelect)
-    .where(raw('step_idx > 0'))
+    .where(gt(col('step_idx'), literal(0)))
     .groupBy(col('person_id'))
     .build();
 
   return select(col('person_id'))
     .from(middleSelect)
-    .where(raw('seq_match = 0'))
+    .where(eq(col('seq_match'), literal(0)))
     .build();
 }

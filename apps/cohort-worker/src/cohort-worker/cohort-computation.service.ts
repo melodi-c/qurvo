@@ -2,9 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { eq, and, or, isNull, lt, sql } from 'drizzle-orm';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { type Database, cohorts, type CohortConditionGroup } from '@qurvo/db';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
-import { compile } from '@qurvo/ch-query';
+import { select, col, namedParam } from '@qurvo/ch-query';
 import { CLICKHOUSE, DRIZZLE } from '@qurvo/nestjs-infra';
 import { COHORT_STALE_THRESHOLD_MINUTES, COHORT_MAX_ERRORS } from '../constants';
 
@@ -54,30 +55,29 @@ export class CohortComputationService {
     version: number,
   ): Promise<void> {
     const queryParams: Record<string, unknown> = { project_id: projectId };
-    const node = buildCohortSubquery(definition, 0, 'project_id', queryParams);
-    const { sql: subquery, params: compiledParams } = compile(node);
-    Object.assign(queryParams, compiledParams);
+    const cohortNode = buildCohortSubquery(definition, 0, 'project_id', queryParams);
 
-    // Insert new membership rows with current version
-    const insertSql = `
-      INSERT INTO cohort_members (cohort_id, project_id, person_id, version)
-      SELECT
-        {cm_cohort_id:UUID} AS cohort_id,
-        {cm_project_id:UUID} AS project_id,
-        person_id,
-        {cm_version:UInt64} AS version
-      FROM (${subquery})`;
+    // Build the SELECT that will feed INTO cohort_members
+    const selectNode = select(
+      namedParam('cm_cohort_id', 'UUID', cohortId).as('cohort_id'),
+      namedParam('cm_project_id', 'UUID', projectId).as('project_id'),
+      col('person_id'),
+      namedParam('cm_version', 'UInt64', version).as('version'),
+    )
+      .from(cohortNode)
+      .build();
 
-    await this.ch.command({
-      query: insertSql,
-      query_params: { ...queryParams, cm_cohort_id: cohortId, cm_project_id: projectId, cm_version: version },
-      clickhouse_settings: {
+    await new ChQueryExecutor(this.ch).insertFromSelect(
+      'cohort_members',
+      ['cohort_id', 'project_id', 'person_id', 'version'],
+      selectNode,
+      {
         max_execution_time: 600,
         optimize_on_insert: 0,
         max_bytes_before_external_group_by: '1000000000',
         max_bytes_before_external_sort: '1000000000',
       },
-    });
+    );
 
     this.logger.debug({ cohortId, projectId, version }, 'Computed cohort membership');
   }

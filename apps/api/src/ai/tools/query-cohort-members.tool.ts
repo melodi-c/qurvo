@@ -2,12 +2,22 @@ import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
 import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import { buildCohortSubquery } from '@qurvo/cohort-query';
-import { compile } from '@qurvo/ch-query';
+import type { QueryNode } from '@qurvo/ch-query';
+import {
+  select,
+  col,
+  namedParam,
+  eq,
+  inSubquery,
+  argMax,
+  toString as chToString,
+} from '@qurvo/ch-query';
 
 const argsSchema = z.object({
   cohort_id: z.string().uuid().describe('UUID of the cohort to query'),
@@ -83,50 +93,46 @@ export class QueryCohortMembersTool implements AiTool {
     definition: CohortConditionGroup,
     limit: number,
   ): Promise<MemberRow[]> {
+    const projectIdParam = namedParam('project_id', 'UUID', projectId);
+    const cohortIdParam = namedParam('cohort_id', 'UUID', cohortId);
+
     // Build the subquery that yields person_id rows for this cohort
-    let personIdSubquery: string;
-    const params: Record<string, unknown> = { project_id: projectId, cohort_id: cohortId, limit };
+    let personIdNode: QueryNode;
 
     if (isStatic) {
-      personIdSubquery = `
-        SELECT person_id
-        FROM person_static_cohort FINAL
-        WHERE project_id = {project_id:UUID}
-          AND cohort_id = {cohort_id:UUID}
-        LIMIT {limit:UInt32}`;
+      personIdNode = select(col('person_id'))
+        .from('person_static_cohort FINAL')
+        .where(eq(col('project_id'), projectIdParam), eq(col('cohort_id'), cohortIdParam))
+        .limit(limit)
+        .build();
     } else if (isMaterialized) {
-      personIdSubquery = `
-        SELECT person_id
-        FROM cohort_members FINAL
-        WHERE project_id = {project_id:UUID}
-          AND cohort_id = {cohort_id:UUID}
-        LIMIT {limit:UInt32}`;
+      personIdNode = select(col('person_id'))
+        .from('cohort_members FINAL')
+        .where(eq(col('project_id'), projectIdParam), eq(col('cohort_id'), cohortIdParam))
+        .limit(limit)
+        .build();
     } else {
       // Inline cohort definition — build dynamic subquery
       const innerParams: Record<string, unknown> = { project_id: projectId };
-      const node = buildCohortSubquery(definition, 0, 'project_id', innerParams);
-      const { sql: definitionSubquery, params: compiledParams } = compile(node);
-      // Merge inner params (may add numbered params like p0, p1, ...) into outer params
-      Object.assign(params, innerParams, compiledParams);
-      personIdSubquery = `
-        SELECT person_id
-        FROM (${definitionSubquery})
-        LIMIT {limit:UInt32}`;
+      const innerNode = buildCohortSubquery(definition, 0, 'project_id', innerParams);
+      personIdNode = select(col('person_id')).from(innerNode).limit(limit).build();
     }
 
-    // Join against the events table to get latest user_properties per person
-    const sql = `
-      SELECT
-        toString(e.person_id) AS person_id,
-        argMax(e.user_properties, e.timestamp) AS user_properties
-      FROM events AS e
-      WHERE e.project_id = {project_id:UUID}
-        AND e.person_id IN (${personIdSubquery})
-      GROUP BY e.person_id
-      LIMIT {limit:UInt32}`;
+    // Build outer query: latest user_properties per person from events
+    const node = select(
+      chToString(col('e.person_id')).as('person_id'),
+      argMax(col('e.user_properties'), col('e.timestamp')).as('user_properties'),
+    )
+      .from('events', 'e')
+      .where(
+        eq(col('e.project_id'), projectIdParam),
+        inSubquery(col('e.person_id'), personIdNode),
+      )
+      .groupBy(col('e.person_id'))
+      .limit(limit)
+      .build();
 
-    const res = await this.ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
-    const rows = await res.json<{ person_id: string; user_properties: string }>();
+    const rows = await new ChQueryExecutor(this.ch).rows<{ person_id: string; user_properties: string }>(node);
 
     return rows.map((r) => ({
       person_id: r.person_id,

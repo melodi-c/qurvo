@@ -1,12 +1,13 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
-  raw,
   param,
   eq,
   or,
+  dictGetOrNull,
+  tuple,
 } from '@qurvo/ch-query';
 import { projectIs } from '../analytics/query-helpers';
 import type { EventDetailRow } from '../events/events.query';
@@ -40,7 +41,7 @@ export async function queryPersonEvents(
       or(
         eq(col('events.person_id'), personIdParam),
         eq(
-          raw(`dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id))`),
+          dictGetOrNull('person_overrides_dict', 'person_id', tuple(col('project_id'), col('distinct_id'))),
           param('UUID', params.person_id),
         ),
       ),
@@ -50,13 +51,5 @@ export async function queryPersonEvents(
     .offset(params.offset)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-
-  const result = await ch.query({
-    query: sql,
-    query_params: queryParams,
-    format: 'JSONEachRow',
-  });
-
-  return result.json<EventDetailRow>();
+  return new ChQueryExecutor(ch).rows<EventDetailRow>(node);
 }
