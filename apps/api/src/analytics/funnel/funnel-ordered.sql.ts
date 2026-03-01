@@ -1,31 +1,53 @@
-import type { CompilerContext} from '@qurvo/ch-query';
-import { compileExprToSql, rawWithParams, select, raw, type Expr, type QueryNode } from '@qurvo/ch-query';
+import {
+  select,
+  col,
+  and,
+  eq,
+  gt,
+  gte,
+  lte,
+  add,
+  mul,
+  namedParam,
+  toInt64,
+  toUnixTimestamp64Milli,
+  groupArrayIf,
+  minIf,
+  argMinIf,
+  argMaxIf,
+  func,
+  lambda,
+  ifExpr,
+  notEmpty,
+  literal,
+  alias,
+  type Expr,
+  type QueryNode,
+} from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
-  RESOLVED_PERSON,
   buildWindowFunnelExpr,
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildStepCondition,
   buildStrictUserFilterExpr,
   funnelTsParamExpr,
-  compileExprsToSqlColumns,
+  extractExclColumnAliases,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
+import { resolvedPerson } from '../query-helpers';
 
 export interface OrderedCTEOptions {
   steps: FunnelStep[];
   orderType: 'ordered' | 'strict';
   stepConditions: Expr[];
   exclusions: FunnelExclusion[];
-  cohortClause: string;
-  samplingClause: string;
+  cohortExpr?: Expr;
+  samplingExpr?: Expr;
   numSteps: number;
   queryParams: FunnelChQueryParams;
-  breakdownExpr?: string;
+  breakdownExpr?: Expr;
   includeTimestampCols?: boolean;
-  /** Shared CompilerContext to avoid p_N param collisions across multiple compileExprToSql calls. */
-  ctx?: CompilerContext;
 }
 
 /**
@@ -35,7 +57,7 @@ export interface OrderedCTEOptions {
 export interface OrderedCTEResult {
   /** Named CTEs in dependency order (funnel_raw?, funnel_per_user, excluded_users?) */
   ctes: Array<{ name: string; query: QueryNode }>;
-  /** Whether exclusions are active — caller uses this to build WHERE clause */
+  /** Whether exclusions are active -- caller uses this to build WHERE clause */
   hasExclusions: boolean;
 }
 
@@ -43,117 +65,130 @@ export interface OrderedCTEResult {
  * Builds the ordered/strict funnel CTEs using windowFunnel().
  *
  * Returns an array of named QueryNode CTEs that the caller attaches via .withAll().
- * CTE bodies are built as raw SQL via rawWithParams() — windowFunnel(), arrayFilter(),
- * and groupArrayIf() have no typed builder equivalents.
+ * CTE bodies use the ch-query AST builder -- no raw SQL concatenation.
  */
 export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTEResult {
   const {
-    steps, orderType, stepConditions, exclusions, cohortClause,
-    samplingClause, numSteps, queryParams, breakdownExpr, includeTimestampCols, ctx,
+    steps, orderType, stepConditions, exclusions, cohortExpr,
+    samplingExpr, numSteps, queryParams, breakdownExpr, includeTimestampCols,
   } = options;
 
-  // Compile the windowFunnel Expr to SQL string for embedding in raw CTE body
-  const wfExprAst = buildWindowFunnelExpr(orderType, stepConditions);
-  const wfExpr = compileExprToSql(wfExprAst, queryParams, ctx).sql;
-  const fromExprAst = funnelTsParamExpr('from', queryParams);
-  const toExprAst = funnelTsParamExpr('to', queryParams);
-  const fromExpr = compileExprToSql(fromExprAst, queryParams, ctx).sql;
-  const toExpr = compileExprToSql(toExprAst, queryParams, ctx).sql;
+  const fromExpr = funnelTsParamExpr('from', queryParams);
+  const toExpr = funnelTsParamExpr('to', queryParams);
 
-  // Ordered mode: filter to only funnel-relevant events (step + exclusion names) for efficiency.
-  // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
-  // doesn't match the current or next expected step. So it must see ALL events for correctness.
-  // However, we still pre-filter to users who have at least one funnel step event.
-  const eventNameFilterExpr = buildStrictUserFilterExpr(fromExprAst, toExprAst, 'all_event_names', queryParams.all_event_names, queryParams.project_id, orderType);
-  const eventNameFilter = '\n                AND ' + compileExprToSql(eventNameFilterExpr, queryParams, ctx).sql;
+  // Event name filter expression (strict-mode subquery or simple IN clause)
+  const eventNameFilterExpr = buildStrictUserFilterExpr(
+    fromExpr, toExpr, 'all_event_names', queryParams.all_event_names,
+    queryParams.project_id, orderType,
+  );
 
-  // Compile step 0 and last step conditions to SQL for use in raw CTE body
-  const step0Cond = compileExprToSql(buildStepCondition(steps[0], 0), queryParams, ctx).sql;
-  const lastStepCond = compileExprToSql(buildStepCondition(steps[numSteps - 1], numSteps - 1), queryParams, ctx).sql;
+  // Step 0 and last step conditions for timestamp collection
+  const step0Cond = buildStepCondition(steps[0], 0);
+  const lastStepCond = buildStepCondition(steps[numSteps - 1], numSteps - 1);
 
-  // Optional breakdown column.
-  const breakdownCol = breakdownExpr
-    ? `,\n              ${orderType === 'strict' ? 'argMaxIf' : 'argMinIf'}(${breakdownExpr}, timestamp, ${step0Cond}) AS breakdown_value`
-    : '';
+  // windowFunnel expression
+  const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
 
-  // Exclusion columns — compile Expr[] to SQL strings for raw CTE body
-  const exclExprList = exclusions.length > 0
+  // Timestamp expression for groupArrayIf / minIf
+  const tsExpr = toUnixTimestamp64Milli(col('timestamp'));
+
+  // Breakdown column
+  const breakdownCols: Expr[] = breakdownExpr
+    ? [
+      (orderType === 'strict' ? argMaxIf : argMinIf)(
+        breakdownExpr, col('timestamp'), step0Cond,
+      ).as('breakdown_value'),
+    ]
+    : [];
+
+  // Exclusion columns (already Expr[] with aliases)
+  const exclCols: Expr[] = exclusions.length > 0
     ? buildExclusionColumns(exclusions, steps)
     : [];
-  const exclColumnsSql = exclExprList.length > 0
-    ? compileExprsToSqlColumns(exclExprList, queryParams, ctx)
-    : [];
-  const exclColumnsSQL = exclColumnsSql.length > 0
-    ? ',\n              ' + exclColumnsSql.join(',\n              ')
-    : '';
+
+  // Base WHERE conditions shared by all CTE variants
+  const baseWhere = and(
+    eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+    gte(col('timestamp'), fromExpr),
+    lte(col('timestamp'), toExpr),
+    eventNameFilterExpr,
+    cohortExpr,
+    samplingExpr,
+  );
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
   if (includeTimestampCols && (orderType === 'ordered' || orderType === 'strict')) {
-    // Two-CTE approach for ordered and strict modes: collect step_0 timestamps + last_step_ms
-    // in raw CTE, then derive the correct first_step_ms in funnel_per_user.
-    const winMs = `toInt64({window:UInt64}) * 1000`;
+    // Two-CTE approach: collect step_0 timestamps + last_step_ms in funnel_raw,
+    // then derive first_step_ms in funnel_per_user.
 
-    // funnel_raw CTE: aggregates per person with windowFunnel + timestamp arrays.
-    // Built as raw SQL — windowFunnel() and groupArrayIf() have no builder equivalent.
-    const funnelRawNode = select(rawWithParams(`
-              ${RESOLVED_PERSON} AS person_id,
-              ${wfExpr} AS max_step${breakdownCol},
-              groupArrayIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS t0_arr,
-              toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond})) AS last_step_ms${exclColumnsSQL}
-            FROM events
-            WHERE
-              project_id = {project_id:UUID}
-              AND timestamp >= ${fromExpr}
-              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
-            GROUP BY person_id`, queryParams))
+    const funnelRawNode = select(
+      resolvedPerson().as('person_id'),
+      alias(wfExpr, 'max_step'),
+      ...breakdownCols,
+      groupArrayIf(tsExpr, step0Cond).as('t0_arr'),
+      toInt64(minIf(tsExpr, lastStepCond)).as('last_step_ms'),
+      ...exclCols,
+    )
+      .from('events')
+      .where(baseWhere)
+      .groupBy(col('person_id'))
       .build();
 
     ctes.push({ name: 'funnel_raw', query: funnelRawNode });
 
-    // Forward exclusion column names from raw CTE into funnel_per_user.
-    const exclColsForward = exclColumnsSql.length > 0
-      ? ',\n              ' + exclColumnsSql.map(c => {
-        const m = / AS (\w+)$/.exec(c);
-        return m ? m[1] : c;
-      }).join(',\n              ')
-      : '';
+    // Forward exclusion column aliases from funnel_raw into funnel_per_user
+    const exclColForwardExprs: Expr[] = extractExclColumnAliases(exclCols).map(a => col(a));
 
-    const breakdownForward = breakdownExpr ? ',\n              breakdown_value' : '';
+    const breakdownForward: Expr[] = breakdownExpr ? [col('breakdown_value')] : [];
 
-    // first_step_ms: step_0 timestamp where last_step_ms falls within [t0, t0 + window].
-    const arrayAgg = orderType === 'strict' ? 'arrayMax' : 'arrayMin';
-    const firstStepMsExpr = `if(
-              notEmpty(arrayFilter(t0 -> t0 <= last_step_ms AND last_step_ms <= t0 + ${winMs} AND last_step_ms > 0, t0_arr)),
-              toInt64(${arrayAgg}(arrayFilter(t0 -> t0 <= last_step_ms AND last_step_ms <= t0 + ${winMs} AND last_step_ms > 0, t0_arr))),
-              toInt64(0)
-            )`;
+    // first_step_ms: pick step_0 timestamp where last_step_ms falls within [t0, t0 + window]
+    const arrayAggFn = orderType === 'strict' ? 'arrayMax' : 'arrayMin';
+    const winMs = mul(namedParam('window', 'UInt64', queryParams.window), literal(1000));
+    const filterLambda = lambda(['t0'], and(
+      lte(col('t0'), col('last_step_ms')),
+      lte(col('last_step_ms'), add(col('t0'), winMs)),
+      gt(col('last_step_ms'), literal(0)),
+    ));
+    const filteredArr = func('arrayFilter', filterLambda, col('t0_arr'));
 
-    const funnelPerUserNode = select(raw(`
-              person_id,
-              max_step${breakdownForward},
-              ${firstStepMsExpr} AS first_step_ms,
-              last_step_ms${exclColsForward}
-            FROM funnel_raw`))
+    const firstStepMsExpr = ifExpr(
+      notEmpty(filteredArr),
+      toInt64(func(arrayAggFn, filteredArr)),
+      toInt64(literal(0)),
+    ).as('first_step_ms');
+
+    const funnelPerUserNode = select(
+      col('person_id'),
+      col('max_step'),
+      ...breakdownForward,
+      firstStepMsExpr,
+      col('last_step_ms'),
+      ...exclColForwardExprs,
+    )
+      .from('funnel_raw')
       .build();
 
     ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
   } else {
-    // Single-CTE approach: no timestamp columns needed or unordered mode.
-    const timestampCols = includeTimestampCols
-      ? `,\n              minIf(toUnixTimestamp64Milli(timestamp), ${step0Cond}) AS first_step_ms,\n              minIf(toUnixTimestamp64Milli(timestamp), ${lastStepCond}) AS last_step_ms`
-      : '';
+    // Single-CTE approach: no timestamp columns needed or unordered mode
+    const timestampCols: Expr[] = includeTimestampCols
+      ? [
+        minIf(tsExpr, step0Cond).as('first_step_ms'),
+        minIf(tsExpr, lastStepCond).as('last_step_ms'),
+      ]
+      : [];
 
-    // Single CTE: built as raw SQL — windowFunnel() has no builder equivalent.
-    const funnelPerUserNode = select(rawWithParams(`
-              ${RESOLVED_PERSON} AS person_id,
-              ${wfExpr} AS max_step${breakdownCol}${timestampCols}${exclColumnsSQL}
-            FROM events
-            WHERE
-              project_id = {project_id:UUID}
-              AND timestamp >= ${fromExpr}
-              AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
-            GROUP BY person_id`, queryParams))
+    const funnelPerUserNode = select(
+      resolvedPerson().as('person_id'),
+      alias(wfExpr, 'max_step'),
+      ...breakdownCols,
+      ...timestampCols,
+      ...exclCols,
+    )
+      .from('events')
+      .where(baseWhere)
+      .groupBy(col('person_id'))
       .build();
 
     ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
