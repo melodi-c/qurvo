@@ -7,7 +7,7 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildUnorderedCoverageExprs,
-  funnelTsExprSql,
+  funnelTsParamExpr,
   compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
@@ -52,8 +52,8 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr, ctx } = options;
   const N = steps.length;
   const winExpr = `toInt64({window:UInt64}) * 1000`;
-  const fromExpr = funnelTsExprSql('from', queryParams, ctx);
-  const toExpr = funnelTsExprSql('to', queryParams, ctx);
+  const fromExpr = compileExprToSql(funnelTsParamExpr('from', queryParams), queryParams, ctx).sql;
+  const toExpr = compileExprToSql(funnelTsParamExpr('to', queryParams), queryParams, ctx).sql;
 
   // Build step conditions as Expr, then compile to SQL strings for raw CTE body
   const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));

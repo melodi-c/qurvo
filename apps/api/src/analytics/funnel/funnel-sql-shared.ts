@@ -11,10 +11,12 @@ import {
   gte,
   gt,
   eq,
+  lte,
   literal,
   add,
   namedParam,
   inArray,
+  inSubquery,
   groupArrayIf,
   toUnixTimestamp64Milli,
   parametricFunc,
@@ -60,12 +62,29 @@ export interface FunnelChQueryParams {
 }
 
 /**
+ * Returns the timestamp parameter as an Expr AST node.
+ * When the query params include a `tz` value, wraps with toDateTime64(..., tz).
+ *
+ * Uses fixed parameter names (`from`, `to`, `tz`) matching the keys in queryParams,
+ * not auto-incrementing p_N, to avoid parameter collisions when called without a shared
+ * CompilerContext (e.g. cohort breakdown loop).
+ */
+export function funnelTsParamExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): Expr {
+  const hasTz = !!queryParams.tz;
+  return hasTz
+    ? rawWithParams(`toDateTime64({${paramName}:String}, 3, {tz:String})`, { [paramName]: queryParams[paramName], tz: queryParams.tz })
+    : rawWithParams(`{${paramName}:DateTime64(3)}`, { [paramName]: queryParams[paramName] });
+}
+
+/**
  * Returns the SQL expression to compare `timestamp` against the {from} or {to} parameter.
  * When the query params include a `tz` value, wraps the string param with toDateTime64(..., tz).
  *
  * Uses fixed parameter names (`from`, `to`, `tz`) matching the keys in queryParams,
  * not auto-incrementing p_N, to avoid parameter collisions when called without a shared
  * CompilerContext (e.g. cohort breakdown loop).
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function funnelTsExprSql(paramName: 'from' | 'to', queryParams: FunnelChQueryParams, _ctx?: CompilerContext): string {
   const hasTz = !!queryParams.tz;
@@ -187,6 +206,8 @@ export function buildSamplingClause(
  * Returns the raw SQL string for sampling clause, for use in raw CTE body strings.
  * Returns '' when sampling is inactive, or the AND clause when active.
  * This is the "escape hatch" version for complex CTE bodies that are built as raw strings.
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function buildSamplingClauseRaw(
   samplingFactor: number | undefined,
@@ -362,6 +383,8 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
  * Returns the excluded_users CTE body as a raw SQL string.
  * Used by funnel-time-to-convert.ts where the entire query is built as raw SQL.
  * Delegates to the shared buildExcludedUsersWhereConditions.
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function buildExcludedUsersCTERaw(exclusions: FunnelExclusion[], anchorFilter = false): string {
   return `excluded_users AS (
@@ -428,12 +451,47 @@ export function buildUnorderedCoverageExprs(
 // ── Strict user filter ──────────────────────────────────────────────────────
 
 /**
+ * Builds the strict-mode user pre-filter as an Expr AST node.
+ *
+ * For strict mode: returns a `distinct_id IN (SELECT DISTINCT distinct_id FROM events WHERE ...)`
+ * subquery that limits to users with at least one step event.
+ * For non-strict: returns `event_name IN ({paramName:Array(String)})`.
+ */
+export function buildStrictUserFilterExpr(
+  fromExpr: Expr,
+  toExpr: Expr,
+  paramName: string,
+  allEventNames: string[],
+  projectId: string,
+  orderType: FunnelOrderType,
+): Expr {
+  if (orderType === 'strict') {
+    const subQ = select(col('distinct_id'))
+      .distinct()
+      .from('events')
+      .where(
+        and(
+          eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
+          gte(col('timestamp'), fromExpr),
+          lte(col('timestamp'), toExpr),
+          inArray(col('event_name'), namedParam(paramName, 'Array(String)', allEventNames)),
+        ),
+      )
+      .build();
+    return inSubquery(col('distinct_id'), subQ);
+  }
+  return inArray(col('event_name'), namedParam(paramName, 'Array(String)', allEventNames));
+}
+
+/**
  * Builds the strict-mode user pre-filter subquery.
  *
  * For strict mode: returns a distinct_id IN subquery that limits to users with at least one step event.
  * For non-strict: returns a simple AND event_name IN clause.
  *
  * Both cases return raw SQL strings for injection into CTE body strings.
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function buildStrictUserFilter(
   fromExpr: string,

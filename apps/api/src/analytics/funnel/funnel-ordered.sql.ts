@@ -7,8 +7,8 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildStepCondition,
-  buildStrictUserFilter,
-  funnelTsExprSql,
+  buildStrictUserFilterExpr,
+  funnelTsParamExpr,
   compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
@@ -55,14 +55,17 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
   // Compile the windowFunnel Expr to SQL string for embedding in raw CTE body
   const wfExprAst = buildWindowFunnelExpr(orderType, stepConditions);
   const wfExpr = compileExprToSql(wfExprAst, queryParams, ctx).sql;
-  const fromExpr = funnelTsExprSql('from', queryParams, ctx);
-  const toExpr = funnelTsExprSql('to', queryParams, ctx);
+  const fromExprAst = funnelTsParamExpr('from', queryParams);
+  const toExprAst = funnelTsParamExpr('to', queryParams);
+  const fromExpr = compileExprToSql(fromExprAst, queryParams, ctx).sql;
+  const toExpr = compileExprToSql(toExprAst, queryParams, ctx).sql;
 
   // Ordered mode: filter to only funnel-relevant events (step + exclusion names) for efficiency.
   // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
   // doesn't match the current or next expected step. So it must see ALL events for correctness.
   // However, we still pre-filter to users who have at least one funnel step event.
-  const eventNameFilter = buildStrictUserFilter(fromExpr, toExpr, 'all_event_names', orderType);
+  const eventNameFilterExpr = buildStrictUserFilterExpr(fromExprAst, toExprAst, 'all_event_names', queryParams.all_event_names, queryParams.project_id, orderType);
+  const eventNameFilter = '\n                AND ' + compileExprToSql(eventNameFilterExpr, queryParams, ctx).sql;
 
   // Compile step 0 and last step conditions to SQL for use in raw CTE body
   const step0Cond = compileExprToSql(buildStepCondition(steps[0], 0), queryParams, ctx).sql;
