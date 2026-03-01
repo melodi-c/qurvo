@@ -1,4 +1,3 @@
-// Time expressions
 export {
   toChTs,
   shiftDate,
@@ -14,7 +13,6 @@ export {
 } from './time';
 export type { Granularity } from './time';
 
-// Filters
 export {
   projectIs,
   eventIs,
@@ -37,7 +35,6 @@ export type { CohortFilterInput } from '@qurvo/cohort-query';
 // Resolved person — re-exported from @qurvo/cohort-query (single source of truth)
 export { resolvedPerson, RESOLVED_PERSON } from '@qurvo/cohort-query';
 
-// Aggregations
 export {
   baseMetricColumns,
   aggColumn,
@@ -45,7 +42,7 @@ export {
 } from './aggregations';
 export type { TrendMetric } from './aggregations';
 
-// ── Shared breakdown helpers ─────────────────────────────────────────────────
+// Shared breakdown helpers
 
 /**
  * Normalizes a breakdown value, replacing null/undefined/empty with '(none)'.

@@ -69,7 +69,6 @@ export class DemoSeedService {
       this.logger.log(`Seeded ${events.length} events for project ${projectId} (scenario: ${scenarioName})`);
     }
 
-    // Upsert event definitions in Postgres
     if (definitions.length > 0) {
       const now = new Date();
       await this.db
@@ -88,7 +87,6 @@ export class DemoSeedService {
         });
     }
 
-    // Upsert property definitions in Postgres
     if (propDefs.length > 0) {
       const now = new Date();
       await this.db
@@ -108,7 +106,6 @@ export class DemoSeedService {
         });
     }
 
-    // Upsert persons in Postgres
     if (personRows.length > 0) {
       const now = new Date();
       await this.db
@@ -131,7 +128,6 @@ export class DemoSeedService {
         });
     }
 
-    // Upsert person distinct IDs in Postgres
     if (distinctIdRows.length > 0) {
       await this.db
         .insert(personDistinctIds)
@@ -145,7 +141,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert dashboards
     if (dashboardRows.length > 0) {
       await this.db
         .insert(dashboards)
@@ -160,7 +155,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert insights
     if (insightRows.length > 0) {
       await this.db
         .insert(insights)
@@ -179,7 +173,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert widgets
     if (widgetRows.length > 0) {
       await this.db
         .insert(widgets)
@@ -193,7 +186,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert cohorts
     if (cohortRows.length > 0) {
       await this.db
         .insert(cohorts)
@@ -211,7 +203,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert marketing channels
     if (channelRows.length > 0) {
       await this.db
         .insert(marketingChannels)
@@ -228,7 +219,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert ad spend
     if (adSpendRows.length > 0) {
       await this.db
         .insert(adSpend)
@@ -251,7 +241,6 @@ export class DemoSeedService {
    * for the given project.
    */
   async clear(projectId: string): Promise<void> {
-    // Delete events from ClickHouse
     await this.ch.command({
       query: `ALTER TABLE events DELETE WHERE project_id = {project_id:UUID}`,
       query_params: { project_id: projectId },
@@ -268,7 +257,6 @@ export class DemoSeedService {
       .delete(insights)
       .where(eq(insights.project_id, projectId));
 
-    // Delete cohorts
     await this.db
       .delete(cohorts)
       .where(eq(cohorts.project_id, projectId));
@@ -278,17 +266,14 @@ export class DemoSeedService {
       .delete(adSpend)
       .where(eq(adSpend.project_id, projectId));
 
-    // Delete marketing channels
     await this.db
       .delete(marketingChannels)
       .where(eq(marketingChannels.project_id, projectId));
 
-    // Delete event definitions from Postgres
     await this.db
       .delete(eventDefinitions)
       .where(eq(eventDefinitions.project_id, projectId));
 
-    // Delete property definitions from Postgres
     await this.db
       .delete(propertyDefinitions)
       .where(eq(propertyDefinitions.project_id, projectId));
@@ -298,7 +283,6 @@ export class DemoSeedService {
       .delete(personDistinctIds)
       .where(eq(personDistinctIds.project_id, projectId));
 
-    // Delete persons from Postgres
     await this.db
       .delete(persons)
       .where(eq(persons.project_id, projectId));
@@ -386,7 +370,6 @@ export class DemoSeedService {
         });
     }
 
-    // Upsert persons in Postgres
     if (personRows.length > 0) {
       const now = new Date();
       await this.db
@@ -409,7 +392,6 @@ export class DemoSeedService {
         });
     }
 
-    // Upsert person distinct IDs in Postgres
     if (distinctIdRows.length > 0) {
       await this.db
         .insert(personDistinctIds)
@@ -423,7 +405,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert dashboards
     if (dashboardRows.length > 0) {
       await this.db
         .insert(dashboards)
@@ -438,7 +419,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert insights
     if (insightRows.length > 0) {
       await this.db
         .insert(insights)
@@ -457,7 +437,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert widgets
     if (widgetRows.length > 0) {
       await this.db
         .insert(widgets)
@@ -471,7 +450,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert cohorts
     if (cohortRows.length > 0) {
       await this.db
         .insert(cohorts)
@@ -489,7 +467,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert marketing channels
     if (channelRows.length > 0) {
       await this.db
         .insert(marketingChannels)
@@ -506,7 +483,6 @@ export class DemoSeedService {
         .onConflictDoNothing();
     }
 
-    // Insert ad spend
     if (adSpendRows.length > 0) {
       await this.db
         .insert(adSpend)

@@ -49,7 +49,7 @@ function parseSafe(json: string | undefined): Record<string, unknown> {
   try { return JSON.parse(json) as Record<string, unknown>; } catch { return {}; }
 }
 
-// --- value renderers ---
+// value renderers
 
 function ExternalLinkValue({ value }: { value: string }) {
   if (!value) {return null;}
@@ -87,7 +87,7 @@ function PersonLink({ personId, projectId }: { personId: string; projectId?: str
   return <span className="font-mono break-all">{personId}</span>;
 }
 
-// --- EventDetail panel ---
+// EventDetail panel
 
 type DetailTab = 'event' | 'person';
 

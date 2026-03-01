@@ -1,4 +1,4 @@
-// ── Token types ──
+// Token types
 
 type TokenType = 'number' | 'letter' | 'op' | 'lparen' | 'rparen';
 
@@ -7,7 +7,7 @@ interface Token {
   value: string;
 }
 
-// ── Tokenizer ──
+// Tokenizer
 
 // eslint-disable-next-line complexity -- lexer state machine with character-level branching
 export function tokenize(expression: string): Token[] {
@@ -73,7 +73,7 @@ export function tokenize(expression: string): Token[] {
   return tokens;
 }
 
-// ── Recursive descent parser ──
+// Recursive descent parser
 // expr     → term (('+' | '-') term)*
 // term     → factor (('*' | '/') factor)*
 // factor   → NUMBER | LETTER | '(' expr ')' | ('-' factor)
@@ -157,7 +157,7 @@ function parse(tokens: Token[]): ASTNode {
   return ast;
 }
 
-// ── Evaluator ──
+// Evaluator
 
 function evaluateAST(node: ASTNode, values: Map<string, number>): number {
   switch (node.type) {
@@ -182,7 +182,7 @@ function evaluateAST(node: ASTNode, values: Map<string, number>): number {
   }
 }
 
-// ── Public API ──
+// Public API
 
 export interface FormulaDataPoint {
   bucket: string;

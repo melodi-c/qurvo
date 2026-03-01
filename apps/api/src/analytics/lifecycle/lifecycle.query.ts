@@ -38,7 +38,7 @@ import {
   type PropertyFilter,
 } from '../query-helpers';
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// Public types
 
 export type LifecycleGranularity = 'day' | 'week' | 'month';
 export type LifecycleStatus = 'new' | 'returning' | 'resurrecting' | 'dormant';
@@ -73,7 +73,7 @@ export interface LifecycleQueryResult {
   };
 }
 
-// ── Raw row type ─────────────────────────────────────────────────────────────
+// Raw row type
 
 interface RawLifecycleRow {
   period: string;
@@ -81,7 +81,7 @@ interface RawLifecycleRow {
   count: string;
 }
 
-// ── Result assembly ──────────────────────────────────────────────────────────
+// Result assembly
 
 function assembleLifecycleResult(
   rows: RawLifecycleRow[],
@@ -118,13 +118,13 @@ function assembleLifecycleResult(
   return { granularity, data, totals };
 }
 
-// ── Alias helper ─────────────────────────────────────────────────────────────
+// Alias helper
 
 function alias(expr: Expr, name: string): AliasExpr {
   return { type: 'alias', expr, alias: name };
 }
 
-// ── Core query ───────────────────────────────────────────────────────────────
+// Core query
 //
 // Two-CTE approach:
 //   person_buckets  — per-person sorted bucket array over [extended_from, to].

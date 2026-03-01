@@ -273,7 +273,7 @@ export class AiChatService {
     return row ?? null;
   }
 
-  // ─── Authorized CRUD (projectId scope) ────────────────────────────────────
+  // Authorized CRUD (projectId scope)
 
   async getConversationAuthorized(
     userId: string,

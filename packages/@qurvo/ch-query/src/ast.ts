@@ -1,4 +1,4 @@
-// ── Expressions ──
+// Expressions
 
 export interface ColumnExpr {
   type: 'column';
@@ -167,7 +167,7 @@ export type Expr =
   | SubqueryExpr
   | TupleExpr;
 
-// ── Queries ──
+// Queries
 
 export interface OrderByItem {
   expr: Expr;

@@ -2,7 +2,7 @@ import { pgTable, uuid, varchar, timestamp, jsonb, index, bigint, boolean } from
 import { projects } from './projects';
 import { users } from './users';
 
-// ── Cohort definition types ──────────────────────────────────────────────────
+// Cohort definition types
 
 export type CohortPropertyOperator =
   | 'eq' | 'neq' | 'contains' | 'not_contains'
@@ -18,7 +18,7 @@ export type CohortAggregationType = 'count' | 'sum' | 'avg' | 'min' | 'max' | 'm
 
 export type CohortCountOperator = 'gte' | 'lte' | 'eq';
 
-// ── Event filter (sub-filter on event conditions) ────────────────────────────
+// Event filter (sub-filter on event conditions)
 
 export interface CohortEventFilter {
   property: string;
@@ -27,7 +27,7 @@ export interface CohortEventFilter {
   values?: string[];
 }
 
-// ── Condition types ──────────────────────────────────────────────────────────
+// Condition types
 
 export interface CohortPropertyCondition {
   type: 'person_property';
@@ -126,20 +126,20 @@ export type CohortCondition =
   | CohortStoppedPerformingCondition
   | CohortRestartedPerformingCondition;
 
-// ── Nested group definition ──────────────────────────────────────────────────
+// Nested group definition
 
 export interface CohortConditionGroup {
   type: 'AND' | 'OR';
   values: (CohortCondition | CohortConditionGroup)[];
 }
 
-// ── Type guards ──────────────────────────────────────────────────────────────
+// Type guards
 
 export function isConditionGroup(val: CohortCondition | CohortConditionGroup): val is CohortConditionGroup {
   return 'type' in val && (val.type === 'AND' || val.type === 'OR') && 'values' in val;
 }
 
-// ── Table ────────────────────────────────────────────────────────────────────
+// Table
 
 export const cohorts = pgTable('cohorts', {
   id: uuid('id').primaryKey().defaultRandom(),

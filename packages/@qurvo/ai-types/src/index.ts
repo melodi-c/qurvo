@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-// ---------------------------------------------------------------------------
 // Shared sub-schemas reused by multiple tools
-// ---------------------------------------------------------------------------
 
 const trendDataPointSchema = z.object({
   bucket: z.string(),
@@ -28,9 +26,7 @@ const funnelStepResultSchema = z.object({
   avg_time_to_convert_seconds: z.number().nullable(),
 });
 
-// ---------------------------------------------------------------------------
 // trend_chart
-// ---------------------------------------------------------------------------
 
 export const trendToolOutputSchema = z.object({
   series: z.array(trendSeriesResultSchema),
@@ -40,9 +36,7 @@ export const trendToolOutputSchema = z.object({
 
 export type TrendToolOutput = z.infer<typeof trendToolOutputSchema>;
 
-// ---------------------------------------------------------------------------
 // funnel_chart
-// ---------------------------------------------------------------------------
 
 const funnelBreakdownStepResultSchema = funnelStepResultSchema.extend({
   breakdown_value: z.string(),
@@ -56,9 +50,7 @@ export const funnelToolOutputSchema = z.object({
 
 export type FunnelToolOutput = z.infer<typeof funnelToolOutputSchema>;
 
-// ---------------------------------------------------------------------------
 // segment_compare_chart
-// ---------------------------------------------------------------------------
 
 const segmentCompareSegmentSchema = z.object({
   name: z.string(),
@@ -83,9 +75,7 @@ export const segmentCompareOutputSchema = z.object({
 
 export type SegmentCompareOutput = z.infer<typeof segmentCompareOutputSchema>;
 
-// ---------------------------------------------------------------------------
 // histogram_chart
-// ---------------------------------------------------------------------------
 
 const histogramBucketSchema = z.object({
   label: z.string(),
@@ -113,9 +103,7 @@ export const histogramToolOutputSchema = z.object({
 
 export type HistogramToolOutput = z.infer<typeof histogramToolOutputSchema>;
 
-// ---------------------------------------------------------------------------
 // root_cause_chart
-// ---------------------------------------------------------------------------
 
 export const rootCauseSegmentSchema = z.object({
   dimension: z.string(),
@@ -154,9 +142,7 @@ export type RootCauseToolOutput = z.infer<typeof rootCauseToolOutputSchema>;
 export type RootCauseSegment = z.infer<typeof rootCauseSegmentSchema>;
 export type RootCauseOverall = z.infer<typeof rootCauseOverallSchema>;
 
-// ---------------------------------------------------------------------------
 // funnel_gap_chart
-// ---------------------------------------------------------------------------
 
 export const funnelGapItemSchema = z.object({
   event_name: z.string(),

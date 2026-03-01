@@ -211,8 +211,6 @@ export class StaticCohortsService {
     return { data, total };
   }
 
-  // ── Guards ──────────────────────────────────────────────────────────────
-
   private assertStaticCohort(
     cohort: { is_static: boolean },
     operation: string,
@@ -221,8 +219,6 @@ export class StaticCohortsService {
       throw new StaticCohortOperationException(`Cannot ${operation} a dynamic cohort`);
     }
   }
-
-  // ── Private helpers ──────────────────────────────────────────────────────
 
   private async resolveDistinctIdsToPersonIds(projectId: string, distinctIds: string[]): Promise<string[]> {
     const result = await this.ch.query({

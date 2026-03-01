@@ -30,9 +30,17 @@ check_field() {
 case "$TYPE" in
   solver)
     check_field "status" "^(READY_FOR_REVIEW|FAILED|NEEDS_USER_INPUT|RUNNING)$"
-    # RUNNING status doesn't have confidence yet
     STATUS=$(jq -r '.status' "$FILE")
-    if [[ "$STATUS" != "RUNNING" ]]; then
+    if [[ "$STATUS" == "RUNNING" ]]; then
+      # Phase optional for backward compat (bare RUNNING still valid)
+      PHASE=$(jq -r '.phase // empty' "$FILE")
+      if [[ -n "$PHASE" ]]; then
+        KNOWN="INIT|ANALYZING|PLANNING|IMPLEMENTING|TESTING|BUILDING|LINTING|FINALIZING"
+        if ! echo "$PHASE" | grep -qE "^($KNOWN)$"; then
+          echo "WARN: unknown solver phase '$PHASE' in $FILE" >&2
+        fi
+      fi
+    else
       check_field "confidence" "^(high|medium|low)$"
     fi ;;
   reviewer)

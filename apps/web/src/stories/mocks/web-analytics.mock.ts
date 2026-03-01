@@ -4,7 +4,7 @@ import type {
   WebAnalyticsDimensionRow,
 } from '@/api/generated/Api';
 
-// ── KPIs ──────────────────────────────────────────────────────────────────────
+// KPIs
 
 /** Current-period KPIs for the web analytics overview. */
 export const WEB_KPIS_CURRENT: WebAnalyticsKPIs = {
@@ -24,7 +24,7 @@ export const WEB_KPIS_PREVIOUS: WebAnalyticsKPIs = {
   bounce_rate: 50.1,
 };
 
-// ── Timeseries ────────────────────────────────────────────────────────────────
+// Timeseries
 
 /**
  * 30-day timeseries with deterministic sinusoidal + offset values.
@@ -54,7 +54,7 @@ function makeWebTimeseries(days: number): WebAnalyticsTimeseriesPoint[] {
 
 export const TIMESERIES_30D: WebAnalyticsTimeseriesPoint[] = makeWebTimeseries(30);
 
-// ── Page rows ─────────────────────────────────────────────────────────────────
+// Page rows
 
 export const PAGE_ROWS: WebAnalyticsDimensionRow[] = [
   { name: '/home', visitors: 4200, pageviews: 6100 },
@@ -76,7 +76,7 @@ export const EXIT_PAGE_ROWS: WebAnalyticsDimensionRow[] = [
   { name: '/home', visitors: 620, pageviews: 750 },
 ];
 
-// ── Source rows ───────────────────────────────────────────────────────────────
+// Source rows
 
 export const SOURCE_ROWS: WebAnalyticsDimensionRow[] = [
   { name: 'google.com', visitors: 5400, pageviews: 9200 },

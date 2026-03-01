@@ -16,7 +16,7 @@ import { buildRestartedPerformingSubquery } from './conditions/restarted';
 import { buildNotPerformedEventSequenceSubquery } from './conditions/not-performed-sequence';
 import { validateDefinitionComplexity } from './validation';
 
-// ── Strategy registry ────────────────────────────────────────────────────────
+// Strategy registry
 
 type ConditionType = CohortCondition['type'];
 
@@ -44,7 +44,7 @@ const CONDITION_BUILDERS: { [K in ConditionType]: ConditionBuilder<Extract<Cohor
   not_performed_event_sequence: (cond, ctx) => buildNotPerformedEventSequenceSubquery(cond, ctx),
 };
 
-// ── Single condition dispatch ────────────────────────────────────────────────
+// Single condition dispatch
 
 function buildConditionSubquery(
   cond: CohortCondition,
@@ -58,7 +58,7 @@ function buildConditionSubquery(
   return builder(cond, ctx, resolveCohortIsStatic);
 }
 
-// ── Recursive group builder ──────────────────────────────────────────────────
+// Recursive group builder
 
 /**
  * Builds a QueryNode returning person_ids matching a nested AND/OR group.
@@ -93,7 +93,7 @@ function buildGroupSubquery(
     : unionDistinct(...subqueries);
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+// Entry point
 
 /**
  * Builds a QueryNode from a CohortConditionGroup definition.
@@ -124,25 +124,14 @@ export function buildCohortSubquery(
   return buildGroupSubquery(definition, ctx, resolveCohortIsStatic);
 }
 
-// ── Unified member subquery builder ──────────────────────────────────────────
-
 /**
  * Single source-of-truth for routing a cohort to the correct person_id subquery.
  *
- * - `is_static` → `SELECT person_id FROM person_static_cohort FINAL WHERE ...`
- * - `materialized` → `SELECT person_id FROM cohort_members FINAL WHERE ...`
- * - otherwise → inline `buildCohortSubquery(definition, ...)`
+ * - `is_static` -> `SELECT person_id FROM person_static_cohort FINAL WHERE ...`
+ * - `materialized` -> `SELECT person_id FROM cohort_members FINAL WHERE ...`
+ * - otherwise -> inline `buildCohortSubquery(definition, ...)`
  *
  * Returns a QueryNode that yields `person_id` rows.
- *
- * @param input             Cohort metadata (id, definition, materialized, is_static)
- * @param cohortParamKey    Unique param key for the cohort_id binding (e.g. `coh_mid_0`)
- * @param projectIdParam    Param key used for project_id (e.g. `project_id`)
- * @param queryParams       Mutable params dict — the function writes cohort_id into it
- * @param subqueryOffset    Index offset passed to buildCohortSubquery for param uniqueness
- * @param resolveCohortIsStatic  Optional callback for nested cohort-ref conditions
- * @param dateTo            Optional upper bound for behavioral conditions
- * @param dateFrom          Optional lower bound for not_performed_event condition
  */
 export function buildCohortMemberSubquery(
   input: CohortFilterInput,
@@ -179,8 +168,6 @@ export function buildCohortMemberSubquery(
     resolveCohortIsStatic, dateTo, dateFrom,
   );
 }
-
-// ── Filter clause builder ────────────────────────────────────────────────────
 
 /**
  * Builds a WHERE clause Expr: `RESOLVED_PERSON IN (cohort subquery)` for each cohort.

@@ -2,7 +2,7 @@ import { IsString, IsOptional, IsBoolean, IsArray, IsIn } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginatedQueryDto } from './shared/paginated-query.dto';
 
-// ── Request DTOs ──────────────────────────────────────────────────────────────
+// Request DTOs
 
 export class UpsertEventDefinitionDto {
   @IsString()
@@ -30,7 +30,7 @@ export class EventDefinitionsQueryDto extends PaginatedQueryDto {
   order_by?: 'last_seen_at' | 'event_name' | 'created_at' | 'updated_at' = 'last_seen_at';
 }
 
-// ── Response DTOs ─────────────────────────────────────────────────────────────
+// Response DTOs
 
 export class EventDefinitionDto {
   @ApiProperty() event_name: string;

@@ -1,6 +1,6 @@
 import type { FunnelStepResult } from '@/api/generated/Api';
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// Helper
 
 /**
  * Build a FunnelStepResult with derived conversion/drop-off metrics.
@@ -47,7 +47,7 @@ export function makeStep(
   };
 }
 
-// ── Datasets ──────────────────────────────────────────────────────────────────
+// Datasets
 
 /** Minimal two-step funnel: Landing → Sign Up. */
 export const TWO_STEPS: FunnelStepResult[] = [
@@ -72,7 +72,7 @@ export const COMPACT_STEPS: FunnelStepResult[] = [
   makeStep(4, 'Checkout', 'checkout', 490, 8400, 1100),
 ];
 
-// ── Breakdown helpers ─────────────────────────────────────────────────────────
+// Breakdown helpers
 
 function makeBreakdownGroup(
   breakdownValue: string,

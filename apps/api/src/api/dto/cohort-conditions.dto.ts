@@ -174,7 +174,7 @@ const COHORT_OPERATORS = [
 
 type CohortOperator = typeof COHORT_OPERATORS[number];
 
-// ── Event filter DTO ────────────────────────────────────────────────────────
+// Event filter DTO
 
 export class CohortEventFilterDto {
   @IsString()
@@ -198,7 +198,7 @@ export class CohortEventFilterDto {
   values?: string[];
 }
 
-// ── Condition DTOs ───────────────────────────────────────────────────────────
+// Condition DTOs
 
 export class CohortPropertyConditionDto {
   @ApiProperty({ enum: ['person_property'] })
@@ -510,7 +510,7 @@ export class CohortRestartedPerformingConditionDto {
   event_filters?: CohortEventFilterDto[];
 }
 
-// ── Condition Group DTO (recursive nested AND/OR) ────────────────────────────
+// Condition Group DTO (recursive nested AND/OR)
 
 type CohortConditionValue =
   | CohortPropertyConditionDto

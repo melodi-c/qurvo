@@ -11,10 +11,10 @@ export {
   type TelegramChannelConfig,
 } from './notification/notification.service';
 
-// ── Shared stream constants (used by both ingest and processor) ─────────────
+// Shared stream constants (used by both ingest and processor)
 export const REDIS_STREAM_EVENTS = 'events:incoming';
 
-// ── Shared Redis key builders (single source of truth across apps) ───────────
+// Shared Redis key builders (single source of truth across apps)
 export const REDIS_KEY = {
   /** Cache key for event names list for a project. Written by API, invalidated by processor. */
   eventNames: (projectId: string) => `event_names:${projectId}`,

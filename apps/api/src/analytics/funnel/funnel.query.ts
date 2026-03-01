@@ -31,10 +31,9 @@ import {
   validateExclusions,
   validateUnorderedSteps,
   notInExcludedUsers,
+  buildFunnelCTEs,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
-import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
-import { buildUnorderedFunnelCTEs } from './funnel-unordered.sql';
 import { runFunnelCohortBreakdown } from './funnel-cohort-breakdown';
 import {
   computeStepResults,
@@ -47,7 +46,7 @@ import {
 export * from './funnel.types';
 export { queryFunnelTimeToConvert } from './funnel-time-to-convert';
 
-// ── Main funnel query ────────────────────────────────────────────────────────
+// Main funnel query
 
 export async function queryFunnel(
   ch: ClickHouseClient,
@@ -70,15 +69,14 @@ export async function queryFunnel(
 
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
-  // Sampling clause as Expr AST
-  const samplingExpr = buildSamplingClause(params.sampling_factor, queryParams);
-  // Mirror the same guard used in buildSamplingClause: sampling is active only when
-  // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
-  const sf = params.sampling_factor;
-  const samplingResult = sf !== null && sf !== undefined && !isNaN(sf) && sf < 1
-    ? { sampling_factor: sf } : {};
+  // Sampling clause as Expr AST (no side-effect — destructure explicitly)
+  const samplingResult_raw = buildSamplingClause(params.sampling_factor);
+  const samplingExpr = samplingResult_raw?.expr;
+  if (samplingResult_raw) {queryParams.sample_pct = samplingResult_raw.samplePct;}
+  const samplingResult = samplingResult_raw
+    ? { sampling_factor: params.sampling_factor } : {};
 
-  // ── Cohort breakdown ────────────────────────────────────────────────────
+  // Cohort breakdown
   if (params.breakdown_cohort_ids?.length) {
     const { steps: bdSteps, aggregate_steps } = await runFunnelCohortBreakdown(
       ch, params, queryParams, stepConditions, cohortExpr, samplingExpr,
@@ -92,14 +90,14 @@ export async function queryFunnel(
     };
   }
 
-  // ── Non-breakdown funnel ────────────────────────────────────────────────
+  // Non-breakdown funnel
   if (!params.breakdown_property) {
     const node = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, undefined);
     const rows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(node);
     return { breakdown: false, steps: computeStepResults(rows, steps, numSteps), ...samplingResult };
   }
 
-  // ── Property breakdown funnel ───────────────────────────────────────────
+  // Property breakdown funnel
   const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
   queryParams.breakdown_limit = breakdownLimit;
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
@@ -125,7 +123,7 @@ export async function queryFunnel(
   };
 }
 
-// ── SQL assembly using ch-query builder ──────────────────────────────────────
+// SQL assembly using ch-query builder
 
 function buildFunnelQuery(
   orderType: 'ordered' | 'strict' | 'unordered',
@@ -142,26 +140,10 @@ function buildFunnelQuery(
   const includeTimestampCols = !hasBreakdown;
 
   // Build CTEs from the appropriate strategy
-  let cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean };
-
-  if (orderType === 'unordered') {
-    cteResult = buildUnorderedFunnelCTEs({
-      steps, exclusions, cohortExpr, samplingExpr, queryParams, breakdownExpr,
-    });
-  } else {
-    cteResult = buildOrderedFunnelCTEs({
-      steps,
-      orderType,
-      stepConditions,
-      exclusions,
-      cohortExpr,
-      samplingExpr,
-      numSteps,
-      queryParams,
-      breakdownExpr,
-      includeTimestampCols,
-    });
-  }
+  const cteResult = buildFunnelCTEs(orderType, {
+    steps, exclusions, cohortExpr, samplingExpr, queryParams,
+    stepConditions, numSteps, breakdownExpr, includeTimestampCols,
+  });
 
   // Build SELECT columns
   const selectColumns: Expr[] = [];
@@ -241,7 +223,7 @@ function buildFunnelQuery(
   return builder.build();
 }
 
-// ── Breakdown CTEs ───────────────────────────────────────────────────────────
+// Breakdown CTEs
 
 /**
  * Builds the top_breakdown_values and breakdown_total CTEs as QueryNodes.

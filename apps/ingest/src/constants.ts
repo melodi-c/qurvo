@@ -1,4 +1,3 @@
-// DI tokens
 export const REDIS = Symbol('REDIS');
 export const DRIZZLE = Symbol('DRIZZLE');
 
