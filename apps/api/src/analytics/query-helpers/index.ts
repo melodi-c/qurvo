@@ -54,7 +54,3 @@ export {
   numericProperty,
 } from './aggregations';
 export type { TrendMetric } from './aggregations';
-
-// Breakdown
-export { normalizeBreakdownValue } from './breakdown';
-export type { BreakdownQueryParams } from './breakdown';

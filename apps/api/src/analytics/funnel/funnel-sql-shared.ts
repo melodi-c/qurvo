@@ -10,13 +10,23 @@ import {
   and,
   gte,
   gt,
+  eq,
+  lte,
   literal,
   add,
+  namedParam,
+  inArray,
+  inSubquery,
+  groupArrayIf,
+  toUnixTimestamp64Milli,
+  parametricFunc,
+  toUInt64,
+  mul,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
 import { toChTs, RESOLVED_PERSON, propertyFilters } from '../query-helpers';
-import type { FunnelStep, FunnelExclusion, FunnelOrderType } from './funnel.types';
+import type { FunnelStep, FunnelExclusion, FunnelOrderType, FunnelStepResult } from './funnel.types';
 
 export { RESOLVED_PERSON, toChTs, CompilerContext };
 
@@ -24,7 +34,8 @@ export { RESOLVED_PERSON, toChTs, CompilerContext };
 
 /**
  * Static base parameters shared by all funnel queries.
- * Dynamic per-step and per-filter keys are captured by the index signature.
+ * After the Expr AST migration, dynamic per-step and per-filter keys are no
+ * longer injected manually — they are embedded in the AST via `namedParam()`.
  *
  * Static keys:
  *   project_id     — UUID of the project
@@ -33,17 +44,9 @@ export { RESOLVED_PERSON, toChTs, CompilerContext };
  *   window         — conversion window in seconds (UInt64)
  *   num_steps      — total number of funnel steps (UInt64)
  *   all_event_names — all event names across steps and exclusions (Array(String))
- *
- * Dynamic keys added by other builders:
- *   step_{i}             — primary event name for step i (String)
- *   step_{i}_names       — all event names for step i when using OR-logic (Array(String))
- *   step_{i}_{prefix}_f{j}_v — filter value for step i, filter j
- *   excl_{i}_name             — exclusion event name (String)
- *   excl_{i}_from_step_name   — from-step event name for exclusion i, single-event steps (String)
- *   excl_{i}_from_step_names  — from-step event names for exclusion i, OR-logic steps (Array(String))
- *   excl_{i}_to_step_name     — to-step event name for exclusion i, single-event steps (String)
- *   excl_{i}_to_step_names    — to-step event names for exclusion i, OR-logic steps (Array(String))
- *   sample_pct           — sampling percentage 0-100 (UInt8), present only when sampling
+ *   tz             — IANA timezone name (optional, only when tz != 'UTC')
+ *   sample_pct     — sampling percentage 0-100 (UInt8, only when sampling is active)
+ *   breakdown_limit — max breakdown groups (optional)
  */
 export interface FunnelChQueryParams {
   project_id: string;
@@ -59,10 +62,31 @@ export interface FunnelChQueryParams {
 }
 
 /**
+ * Returns the timestamp parameter as an Expr AST node.
+ * When the query params include a `tz` value, wraps with toDateTime64(..., tz).
+ *
+ * Uses fixed parameter names (`from`, `to`, `tz`) matching the keys in queryParams,
+ * not auto-incrementing p_N, to avoid parameter collisions when called without a shared
+ * CompilerContext (e.g. cohort breakdown loop).
+ */
+export function funnelTsParamExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): Expr {
+  const hasTz = !!queryParams.tz;
+  return hasTz
+    ? rawWithParams(`toDateTime64({${paramName}:String}, 3, {tz:String})`, { [paramName]: queryParams[paramName], tz: queryParams.tz })
+    : rawWithParams(`{${paramName}:DateTime64(3)}`, { [paramName]: queryParams[paramName] });
+}
+
+/**
  * Returns the SQL expression to compare `timestamp` against the {from} or {to} parameter.
  * When the query params include a `tz` value, wraps the string param with toDateTime64(..., tz).
+ *
+ * Uses fixed parameter names (`from`, `to`, `tz`) matching the keys in queryParams,
+ * not auto-incrementing p_N, to avoid parameter collisions when called without a shared
+ * CompilerContext (e.g. cohort breakdown loop).
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
-export function funnelTsExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): string {
+export function funnelTsExprSql(paramName: 'from' | 'to', queryParams: FunnelChQueryParams, _ctx?: CompilerContext): string {
   const hasTz = !!queryParams.tz;
   return hasTz
     ? `toDateTime64({${paramName}:String}, 3, {tz:String})`
@@ -123,28 +147,25 @@ export function resolveStepEventNames(step: FunnelStep): string[] {
   return [step.event_name];
 }
 
-/** Builds the windowFunnel condition for one step, injecting filter params into queryParams.
+/**
+ * Builds the windowFunnel condition for one step as an Expr AST node.
  *
- * An optional `ctx` (CompilerContext) can be passed to share the param counter across
- * multiple buildStepCondition / buildExclusionColumns calls for the same query —
- * prevents p_0 collisions when each call would otherwise start its own counter.
+ * Uses `namedParam()` to embed step event names directly in the AST — the compiler
+ * extracts parameters automatically, eliminating manual queryParams mutation.
  */
 export function buildStepCondition(
   step: FunnelStep,
   idx: number,
-  queryParams: FunnelChQueryParams,
-  ctx?: CompilerContext,
-): string {
+): Expr {
   const names = resolveStepEventNames(step);
-  const eventCond = names.length === 1
-    ? `event_name = {step_${idx}:String}`
-    : `event_name IN ({step_${idx}_names:Array(String)})`;
+  const eventCond: Expr = names.length === 1
+    ? eq(col('event_name'), namedParam(`step_${idx}`, 'String', names[0]))
+    : inArray(col('event_name'), namedParam(`step_${idx}_names`, 'Array(String)', names));
 
   const filtersExpr = propertyFilters(step.filters ?? []);
   if (!filtersExpr) {return eventCond;}
 
-  const { sql: filterSql } = compileExprToSql(filtersExpr, queryParams, ctx);
-  return `${eventCond} AND ${filterSql}`;
+  return and(eventCond, filtersExpr);
 }
 
 /** Collects all unique event names across steps and exclusions. */
@@ -185,6 +206,8 @@ export function buildSamplingClause(
  * Returns the raw SQL string for sampling clause, for use in raw CTE body strings.
  * Returns '' when sampling is inactive, or the AND clause when active.
  * This is the "escape hatch" version for complex CTE bodies that are built as raw strings.
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function buildSamplingClauseRaw(
   samplingFactor: number | undefined,
@@ -198,11 +221,20 @@ export function buildSamplingClauseRaw(
 
 // ── windowFunnel expression ──────────────────────────────────────────────────
 
-export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: string): string {
-  if (orderType === 'strict') {
-    return `windowFunnel({window:UInt64} * 1000, 'strict_order')(toUInt64(toUnixTimestamp64Milli(timestamp)), ${stepConditions})`;
-  }
-  return `windowFunnel({window:UInt64} * 1000)(toUInt64(toUnixTimestamp64Milli(timestamp)), ${stepConditions})`;
+/**
+ * Builds the windowFunnel() call as an Expr AST node.
+ *
+ * @param orderType  'ordered' | 'strict' — determines whether 'strict_order' param is added
+ * @param stepConditions  Array of Expr conditions, one per funnel step
+ * @returns Expr: `windowFunnel(window * 1000[, 'strict_order'])(toUInt64(toUnixTimestamp64Milli(timestamp)), cond0, cond1, ...)`
+ */
+export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: Expr[]): Expr {
+  const windowMs = mul(raw('{window:UInt64}'), literal(1000));
+  const params: Expr[] = orderType === 'strict'
+    ? [windowMs, literal('strict_order')]
+    : [windowMs];
+  const tsArg = toUInt64(toUnixTimestamp64Milli(col('timestamp')));
+  return parametricFunc('windowFunnel', params, [tsArg, ...stepConditions]);
 }
 
 // ── Unordered funnel validation ───────────────────────────────────────────────
@@ -257,60 +289,47 @@ export function validateExclusions(
 }
 
 /**
- * Builds per-user array columns for exclusion checking.
+ * Builds per-user array columns for exclusion checking as Expr AST nodes.
  *
- * An optional `ctx` (CompilerContext) can be passed to share the param counter across
- * multiple buildStepCondition / buildExclusionColumns calls for the same query.
+ * Returns an array of aliased Expr nodes:
+ *   groupArrayIf(toUnixTimestamp64Milli(timestamp), fromCond) AS excl_0_from_arr
+ *   groupArrayIf(toUnixTimestamp64Milli(timestamp), toCond) AS excl_0_to_arr
+ *   groupArrayIf(toUnixTimestamp64Milli(timestamp), exclCond) AS excl_0_arr
  */
 export function buildExclusionColumns(
   exclusions: FunnelExclusion[],
   steps: FunnelStep[],
-  queryParams: FunnelChQueryParams,
-  ctx?: CompilerContext,
-): string[] {
-  const lines: string[] = [];
+): Expr[] {
+  const exprs: Expr[] = [];
   for (const [i, excl] of exclusions.entries()) {
-    queryParams[`excl_${i}_name`] = excl.event_name;
-
     const fromNames = resolveStepEventNames(steps[excl.funnel_from_step]);
     const toNames = resolveStepEventNames(steps[excl.funnel_to_step]);
 
-    let fromCond: string;
-    if (fromNames.length === 1) {
-      queryParams[`excl_${i}_from_step_name`] = fromNames[0];
-      fromCond = `event_name = {excl_${i}_from_step_name:String}`;
-    } else {
-      queryParams[`excl_${i}_from_step_names`] = fromNames;
-      fromCond = `event_name IN ({excl_${i}_from_step_names:Array(String)})`;
-    }
+    const fromCond: Expr = fromNames.length === 1
+      ? eq(col('event_name'), namedParam(`excl_${i}_from_step_name`, 'String', fromNames[0]))
+      : inArray(col('event_name'), namedParam(`excl_${i}_from_step_names`, 'Array(String)', fromNames));
 
-    let toCond: string;
-    if (toNames.length === 1) {
-      queryParams[`excl_${i}_to_step_name`] = toNames[0];
-      toCond = `event_name = {excl_${i}_to_step_name:String}`;
-    } else {
-      queryParams[`excl_${i}_to_step_names`] = toNames;
-      toCond = `event_name IN ({excl_${i}_to_step_names:Array(String)})`;
-    }
+    const toCond: Expr = toNames.length === 1
+      ? eq(col('event_name'), namedParam(`excl_${i}_to_step_name`, 'String', toNames[0]))
+      : inArray(col('event_name'), namedParam(`excl_${i}_to_step_names`, 'Array(String)', toNames));
 
     const exclFiltersExpr = propertyFilters(excl.filters ?? []);
-    let exclCond = `event_name = {excl_${i}_name:String}`;
-    if (exclFiltersExpr) {
-      const { sql: exclFilterSql } = compileExprToSql(exclFiltersExpr, queryParams, ctx);
-      exclCond += ` AND ${exclFilterSql}`;
-    }
+    const exclCond: Expr = exclFiltersExpr
+      ? and(eq(col('event_name'), namedParam(`excl_${i}_name`, 'String', excl.event_name)), exclFiltersExpr)
+      : eq(col('event_name'), namedParam(`excl_${i}_name`, 'String', excl.event_name));
 
-    lines.push(
-      `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${fromCond}) AS excl_${i}_from_arr`,
-      `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${toCond}) AS excl_${i}_to_arr`,
-      `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${exclCond}) AS excl_${i}_arr`,
+    const tsExpr = toUnixTimestamp64Milli(col('timestamp'));
+    exprs.push(
+      groupArrayIf(tsExpr, fromCond).as(`excl_${i}_from_arr`),
+      groupArrayIf(tsExpr, toCond).as(`excl_${i}_to_arr`),
+      groupArrayIf(tsExpr, exclCond).as(`excl_${i}_arr`),
     );
   }
-  return lines;
+  return exprs;
 }
 
 /**
- * Builds the excluded_users WHERE condition SQL string.
+ * Builds the excluded_users WHERE condition as a raw SQL string.
  *
  * A user is placed in excluded_users if, for exclusion i:
  *  - There exists at least one (from_ts, to_ts) conversion window attempt
@@ -364,6 +383,8 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
  * Returns the excluded_users CTE body as a raw SQL string.
  * Used by funnel-time-to-convert.ts where the entire query is built as raw SQL.
  * Delegates to the shared buildExcludedUsersWhereConditions.
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function buildExcludedUsersCTERaw(exclusions: FunnelExclusion[], anchorFilter = false): string {
   return `excluded_users AS (
@@ -430,11 +451,47 @@ export function buildUnorderedCoverageExprs(
 // ── Strict user filter ──────────────────────────────────────────────────────
 
 /**
+ * Builds the strict-mode user pre-filter as an Expr AST node.
+ *
+ * For strict mode: returns a `distinct_id IN (SELECT DISTINCT distinct_id FROM events WHERE ...)`
+ * subquery that limits to users with at least one step event.
+ * For non-strict: returns `event_name IN ({paramName:Array(String)})`.
+ */
+export function buildStrictUserFilterExpr(
+  fromExpr: Expr,
+  toExpr: Expr,
+  paramName: string,
+  allEventNames: string[],
+  projectId: string,
+  orderType: FunnelOrderType,
+): Expr {
+  if (orderType === 'strict') {
+    const subQ = select(col('distinct_id'))
+      .distinct()
+      .from('events')
+      .where(
+        and(
+          eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
+          gte(col('timestamp'), fromExpr),
+          lte(col('timestamp'), toExpr),
+          inArray(col('event_name'), namedParam(paramName, 'Array(String)', allEventNames)),
+        ),
+      )
+      .build();
+    return inSubquery(col('distinct_id'), subQ);
+  }
+  return inArray(col('event_name'), namedParam(paramName, 'Array(String)', allEventNames));
+}
+
+/**
  * Builds the strict-mode user pre-filter subquery.
- * Duplicated in funnel-ordered.sql.ts and funnel-time-to-convert.ts.
  *
  * For strict mode: returns a distinct_id IN subquery that limits to users with at least one step event.
  * For non-strict: returns a simple AND event_name IN clause.
+ *
+ * Both cases return raw SQL strings for injection into CTE body strings.
+ *
+ * // TODO(#775): remove after funnel-time-to-convert migration
  */
 export function buildStrictUserFilter(
   fromExpr: string,
@@ -493,7 +550,7 @@ export function stepsSubquery(): SelectNode {
  * Generates N zero-valued step results for empty funnels.
  * Single source of truth for both computeStepResults and computeAggregateSteps.
  */
-export function buildEmptyStepResults(steps: FunnelStep[]): import('./funnel.types').FunnelStepResult[] {
+export function buildEmptyStepResults(steps: FunnelStep[]): FunnelStepResult[] {
   return steps.map((s, i) => ({
     step: i + 1,
     label: s.label ?? '',
@@ -532,12 +589,22 @@ export function buildBaseQueryParams(
     all_event_names: allEventNames,
   };
   if (hasTz) {queryParams.tz = params.timezone;}
-  params.steps.forEach((s, i) => {
-    const names = resolveStepEventNames(s);
-    queryParams[`step_${i}`] = names[0];
-    if (names.length > 1) {
-      queryParams[`step_${i}_names`] = names;
-    }
-  });
+  // Step event name params are no longer injected here — buildStepCondition()
+  // uses namedParam() to embed them directly in the AST.
   return queryParams;
+}
+
+// ── Expr-to-SQL helpers for raw CTE body builders ────────────────────────────
+
+/**
+ * Compiles an array of Expr nodes into SQL column strings for embedding in raw SQL.
+ * Each Expr is compiled to its SQL representation; aliased exprs produce "sql AS alias".
+ * Returns the compiled strings and merges extracted params into queryParams.
+ */
+export function compileExprsToSqlColumns(
+  exprs: Expr[],
+  queryParams: FunnelChQueryParams,
+  ctx?: CompilerContext,
+): string[] {
+  return exprs.map(expr => compileExprToSql(expr, queryParams, ctx).sql);
 }

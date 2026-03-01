@@ -7,7 +7,6 @@ import {
   RESOLVED_PERSON,
   toChTs,
   resolveWindowSeconds,
-  resolveStepEventNames,
   buildStepCondition,
   buildSamplingClauseRaw,
   buildWindowFunnelExpr,
@@ -18,7 +17,8 @@ import {
   buildStrictUserFilter,
   validateExclusions,
   validateUnorderedSteps,
-  funnelTsExpr,
+  funnelTsExprSql,
+  compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -34,10 +34,8 @@ import {
  *   to_step_num  — 1-based target step number (UInt64)
  *
  * Dynamic keys:
- *   step_{i}           — primary event name for step i (String)
- *   step_{i}_names     — all event names for step i when using OR-logic (Array(String))
- *   step_{i}_{prefix}_f{j}_v — filter value for step i, filter j
  *   sample_pct         — sampling percentage 0-100 (UInt8), present only when sampling
+ *   (step_N/filter params are embedded via namedParam in Expr AST)
  */
 interface TtcChQueryParams extends FunnelChQueryParams {
   step_names: string[];
@@ -107,13 +105,7 @@ export async function queryFunnelTimeToConvert(
     window_seconds: windowSeconds,
   };
   if (hasTz) {queryParams.tz = params.timezone;}
-  steps.forEach((s, i) => {
-    const names = resolveStepEventNames(s);
-    queryParams[`step_${i}`] = names[0];
-    if (names.length > 1) {
-      queryParams[`step_${i}_names`] = names;
-    }
-  });
+  // Step event names are no longer injected here — buildStepCondition() uses namedParam()
 
   const ctx = new CompilerContext();
   const { dateTo, dateFrom } = cohortBounds(params);
@@ -122,31 +114,26 @@ export async function queryFunnelTimeToConvert(
 
   const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
 
-  // Build step conditions once and reuse
-  const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx));
-  const stepConditions = stepConds.join(', ');
+  // Build step conditions as Expr, then compile to SQL strings for raw SQL embedding
+  const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));
+  const stepConds = stepCondExprs.map(expr => compileExprToSql(expr, queryParams, ctx).sql);
 
-  // Build exclusion columns and CTE (same pattern as ordered/unordered funnel)
-  const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams, ctx)
+  // Build exclusion columns as Expr[], then compile to SQL strings
+  const exclExprList = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps)
+    : [];
+  const exclColumnsSql = exclExprList.length > 0
+    ? compileExprsToSqlColumns(exclExprList, queryParams, ctx)
     : [];
 
   if (orderType === 'unordered') {
-    return buildUnorderedTtcSql(ch, queryParams, stepConds, exclColumns, exclusions, fromStep, toStep, cohortClause, samplingClause);
+    return buildUnorderedTtcSql(ch, queryParams, stepConds, exclColumnsSql, exclusions, fromStep, toStep, cohortClause, samplingClause, ctx);
   }
 
-  // Per-step timestamp arrays — collect all timestamps per step in a single scan.
-  // We use groupArrayIf to get all occurrences so we can find the first one
-  // that comes after the previous step (i.e. matches the windowFunnel sequence).
-  // Step 0 uses an anchor-aware formula (see seq_step_0 below). For step i > 0 we derive the
-  // "sequence-aware" timestamp in the step_timestamps CTE.
-  //
-  // Also collect last_step_prelim_ms = global min of step_{toStep} timestamps.
-  // This is used in seq_step_0 to identify the correct step_0 anchor for the successful
-  // conversion window — matching the approach used in funnel-ordered.sql.ts for first_step_ms.
-  // Without this, step_0_ms = arrayMin(step_0_arr) could pick an early step_0 that is outside
-  // the conversion window of the later step_toStep, causing TTC to be overstated or the user
-  // to be wrongly excluded by the duration_seconds <= window_seconds filter (issue #498).
+  // Compile windowFunnel Expr to SQL for raw CTE body
+  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs);
+  const wfExprSql = compileExprToSql(wfExprAst, queryParams, ctx).sql;
+
   const stepArrayCols = stepConds.map(
     (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_arr`,
   ).join(',\n            ');
@@ -155,11 +142,11 @@ export async function queryFunnelTimeToConvert(
   const toCol = `step_${toStep}_ms`;
 
   // Aggregation expressions for funnel_raw (e.g. "groupArrayIf(...) AS excl_0_from_arr")
-  const exclColumnsSQL = exclColumns.length > 0
-    ? ',\n            ' + exclColumns.join(',\n            ')
+  const exclColumnsSQL = exclColumnsSql.length > 0
+    ? ',\n            ' + exclColumnsSql.join(',\n            ')
     : '';
   // Pass-through aliases for funnel_per_user (e.g. "excl_0_from_arr")
-  const exclColumnAliases = exclColumns.map((expr) => {
+  const exclColumnAliases = exclColumnsSql.map((expr) => {
     const match = /AS (\w+)$/.exec(expr.trim());
     return match ? match[1] : expr;
   });
@@ -174,38 +161,6 @@ export async function queryFunnelTimeToConvert(
     ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
 
-  // Build a chain of per-step CTEs to compute sequence-aware step timestamps without
-  // exponential SQL growth. The old approach inlined prevExpr twice per level, causing
-  // O(2^n) SQL size. This approach introduces one CTE per step where each step refers
-  // to the previous step's column alias — giving O(n) SQL size regardless of step count.
-  //
-  // CTE chain structure:
-  //   funnel_raw       — per-person windowFunnel + per-step timestamp arrays + last_step_prelim_ms (one full scan)
-  //   seq_step_0       — step_0_ms = anchor-aware formula using last_step_prelim_ms (issue #498)
-  //   seq_step_1       — step_1_ms = first step_1_arr element >= step_0_ms
-  //   seq_step_i       — step_i_ms = first step_i_arr element >= step_{i-1}_ms
-  //   funnel_per_user  — selects all step_{i}_ms columns + max_step from the last seq CTE
-  //
-  // Each seq_step CTE adds exactly one column (O(1) text). References to the previous
-  // step use a simple alias name ("step_{i-1}_ms"), not an inline expression.
-  //
-  // Step 0 uses an anchor-aware formula instead of a bare arrayMin (issue #498):
-  //   step_0_ms = earliest step_0 whose distance to last_step_prelim_ms is <= window.
-  //   This matches the anchor that windowFunnel('ordered') actually used for the successful
-  //   conversion sequence. Without this, when a user has multiple step_0 events and only
-  //   a later step_0 can anchor a valid chain, arrayMin would pick the earlier step_0,
-  //   making the computed TTC exceed the window and wrongly excluding the user from stats.
-  //
-  // last_step_prelim_ms is the global minIf of step_{toStep} timestamps collected in
-  //   funnel_raw. Using the global min (without sequencing) mirrors the approach in
-  //   funnel-ordered.sql.ts (first_step_ms fix for issue #493) and is correct because:
-  //   windowFunnel picks the earliest step_0 from which the chain reaches the last step —
-  //   filtering step_0 by window distance to the earliest last-step timestamp gives exactly
-  //   the set of valid anchors, and arrayMin selects the one windowFunnel used.
-  //
-  // Steps i > 0 use: if(notEmpty(filtered), arrayMin(filtered), 0)
-  //   where filtered = arrayFilter(t -> t >= step_{i-1}_ms, step_i_arr)
-  //   The filtered array is computed once per lambda call, eliminating the duplication.
   const winMsExpr = `toInt64({window:UInt64}) * 1000`;
   const seqStepCTEs: string[] = [];
   for (let i = 0; i < numSteps; i++) {
@@ -224,23 +179,9 @@ export async function queryFunnelTimeToConvert(
 
     let stepMsExpr: string;
     if (i === 0) {
-      // Anchor-aware step_0_ms: find the earliest step_0 that is within window of
-      // last_step_prelim_ms (the global minIf of step_{toStep} timestamps).
-      //
-      // This is the same approach used for first_step_ms in funnel-ordered.sql.ts (issue #493):
-      //   filter t0_arr to t0 <= last_step_ms AND last_step_ms - t0 <= window
-      //   then take arrayMin of the filtered set.
-      //
-      // Example (window=30s): step_0@T=0 (failed: step_1@T=35s > window), step_0@T=25s (ok)
-      //   last_step_prelim_ms = 35s, step_0_arr = [0ms, 25000ms]
-      //   filtered = [25000ms] (0ms excluded: 35000-0 = 35000 > 30000)
-      //   step_0_ms = 25000ms ✓  (not 0ms, which would give TTC=35s, wrongly excluded)
       stepMsExpr =
         `if(\n          notEmpty(arrayFilter(t0 -> t0 <= last_step_prelim_ms AND last_step_prelim_ms - t0 <= ${winMsExpr} AND last_step_prelim_ms > 0, step_0_arr)),\n          toInt64(arrayMin(arrayFilter(t0 -> t0 <= last_step_prelim_ms AND last_step_prelim_ms - t0 <= ${winMsExpr} AND last_step_prelim_ms > 0, step_0_arr))),\n          toInt64(0)\n        ) AS step_0_ms`;
     } else {
-      // Reference to step_{i-1}_ms is a simple column alias from the previous CTE —
-      // O(1) text per step regardless of chain depth. The double arrayFilter here
-      // is fine: each CTE level references the alias name, not a growing inline expression.
       stepMsExpr =
         `if(notEmpty(arrayFilter(t${i} -> t${i} >= step_${i - 1}_ms, step_${i}_arr)),` +
         ` arrayMin(arrayFilter(t${i} -> t${i} >= step_${i - 1}_ms, step_${i}_arr)),` +
@@ -255,29 +196,8 @@ export async function queryFunnelTimeToConvert(
   const lastSeqCTE = `seq_step_${numSteps - 1}`;
   const stepMsCols = Array.from({ length: numSteps }, (_, i) => `step_${i}_ms`).join(',\n        ');
 
-  // Single query: scan events once, compute both stats and raw durations.
-  //
-  // CTE chain structure (linear SQL growth — O(n) not O(2^n)):
-  //   funnel_raw    — per-person windowFunnel + per-step arrays + last_step_prelim_ms (one full scan)
-  //   seq_step_0    — add step_0_ms = anchor-aware formula using last_step_prelim_ms (issue #498)
-  //   seq_step_i    — add step_i_ms = min(step_i_arr elements >= step_{i-1}_ms)
-  //   funnel_per_user — select step_*_ms + max_step from last seq CTE (drops last_step_prelim_ms)
-  //   converted     — filter to users who completed to_step; compute duration
-  //   final SELECT  — aggregates stats + collects durations for histogram binning in JS
-  //
-  // Histogram binning is performed in JS using a simple loop:
-  //   - bin_count = max(1, min(MAX_BINS, ceil(cbrt(sample_size)))) — same as before
-  //   - bin_width = range == 0 ? 60 : max(1, ceil(range / bin_count))  — same as before
-  //   - each duration is binned with: clamp(floor((d - min) / bin_width), 0, bin_count-1)
-  // This avoids the V8 spread-argument stack overflow (no Math.min/max spread) because
-  // min and max are returned from ClickHouse as scalar values, not derived from the array.
-
-  // Strict mode requires scanning ALL events for qualifying users (not just step events),
-  // so that windowFunnel('strict_order') can detect and reset on intervening events.
-  // We pre-filter to users who have at least one funnel step event (same pattern as the
-  // main ordered-funnel query).
-  const fromExpr = funnelTsExpr('from', queryParams);
-  const toExpr = funnelTsExpr('to', queryParams);
+  const fromExpr = funnelTsExprSql('from', queryParams, ctx);
+  const toExpr = funnelTsExprSql('to', queryParams, ctx);
 
   const strictUserFilter = buildStrictUserFilter(fromExpr, toExpr, 'step_names', orderType);
 
@@ -285,7 +205,7 @@ export async function queryFunnelTimeToConvert(
     WITH funnel_raw AS (
       SELECT
         ${RESOLVED_PERSON} AS person_id,
-        ${buildWindowFunnelExpr(orderType, stepConditions)} AS max_step,
+        ${wfExprSql} AS max_step,
         ${stepArrayCols},
         toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]})) AS last_step_prelim_ms${exclColumnsSQL}
       FROM events
@@ -421,12 +341,13 @@ async function buildUnorderedTtcSql(
   ch: ClickHouseClient,
   queryParams: TtcChQueryParams,
   stepConds: string[],
-  exclColumns: string[],
+  exclColumnsSql: string[],
   exclusions: NonNullable<TimeToConvertParams['exclusions']>,
   fromStep: number,
   toStep: number,
   cohortClause: string,
   samplingClause: string,
+  ctx?: CompilerContext,
 ): Promise<TimeToConvertResult> {
   const N = stepConds.length;
   const winExpr = `toInt64({window:UInt64}) * 1000`;
@@ -437,8 +358,8 @@ async function buildUnorderedTtcSql(
   ).join(',\n        ');
 
   // Exclusion array columns.
-  const exclColsSQL = exclColumns.length > 0
-    ? ',\n        ' + exclColumns.join(',\n        ')
+  const exclColsSQL = exclColumnsSql.length > 0
+    ? ',\n        ' + exclColumnsSql.join(',\n        ')
     : '';
 
   // Coverage, max_step, anchor_ms — shared with funnel-unordered.sql.ts
@@ -446,7 +367,10 @@ async function buildUnorderedTtcSql(
     buildUnorderedCoverageExprs(N, winExpr, stepConds);
 
   // Pass-through exclusion aliases from step_times to anchor_per_user.
-  const exclColAliases = exclColumns.map(col => col.split(' AS ')[1]);
+  const exclColAliases = exclColumnsSql.map(c => {
+    const m = /AS (\w+)$/.exec(c.trim());
+    return m ? m[1] : c;
+  });
   const exclColsForward = exclColAliases.length > 0
     ? ',\n        ' + exclColAliases.join(',\n        ')
     : '';
@@ -467,8 +391,8 @@ async function buildUnorderedTtcSql(
     ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
     : '';
 
-  const fromExprU = funnelTsExpr('from', queryParams);
-  const toExprU = funnelTsExpr('to', queryParams);
+  const fromExprU = funnelTsExprSql('from', queryParams, ctx);
+  const toExprU = funnelTsExprSql('to', queryParams, ctx);
 
   const sql = `
     WITH step_times AS (
