@@ -434,9 +434,25 @@ export class SelectBuilder {
     return this;
   }
 
-  from(table: string | QueryNode, alias?: string): this {
+  from(table: string, opts: { final?: boolean; alias?: string }): this;
+  from(table: string | QueryNode, alias?: string): this;
+  from(
+    table: string | QueryNode,
+    aliasOrOpts?: string | { final?: boolean; alias?: string },
+  ): this {
     this.node.from = table;
-    if (alias) this.node.fromAlias = alias;
+    if (typeof aliasOrOpts === 'string') {
+      this.node.fromAlias = aliasOrOpts;
+    } else if (aliasOrOpts) {
+      if (aliasOrOpts.alias) this.node.fromAlias = aliasOrOpts.alias;
+      if (aliasOrOpts.final) this.node.final = true;
+    }
+    return this;
+  }
+
+  /** Appends FINAL modifier to the FROM clause (only valid for table names, not subqueries) */
+  final(): this {
+    this.node.final = true;
     return this;
   }
 

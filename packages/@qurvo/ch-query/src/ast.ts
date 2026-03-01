@@ -180,6 +180,8 @@ export interface SelectNode {
   columns: Expr[];
   from?: string | QueryNode;
   fromAlias?: string;
+  /** When true, appends FINAL modifier after the table name in FROM clause */
+  final?: boolean;
   joins?: JoinClause[];
   where?: Expr;
   prewhere?: Expr;
