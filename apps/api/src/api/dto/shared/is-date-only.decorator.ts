@@ -37,3 +37,43 @@ export function IsDateOnly(validationOptions?: ValidationOptions) {
     });
   };
 }
+
+/**
+ * Relative date tokens accepted by analytics queries.
+ * - `-Nd`  — N days ago (e.g. `-7d`, `-30d`, `-180d`)
+ * - `-Ny`  — N years ago (e.g. `-1y`)
+ * - `mStart` — start of current month
+ * - `yStart` — start of current year
+ */
+const RELATIVE_DATE_REGEX = /^-\d+[dy]$/;
+const RELATIVE_ANCHORS = new Set(['mStart', 'yStart']);
+
+function isDateRange(value: string): boolean {
+  return isSemanticDateOnly(value) || RELATIVE_DATE_REGEX.test(value) || RELATIVE_ANCHORS.has(value);
+}
+
+/**
+ * Validates that a string is either a `YYYY-MM-DD` absolute date or a
+ * relative date token (`-7d`, `-30d`, `-1y`, `mStart`, `yStart`).
+ *
+ * Use on analytics query DTOs where saved insights need relative ranges.
+ * For annotation/event DTOs that require concrete dates, keep `@IsDateOnly()`.
+ */
+export function IsDateRange(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isDateRange',
+      target: object.constructor,
+      propertyName,
+      options: {
+        message: `${propertyName} must be a valid date (YYYY-MM-DD) or a relative date range (-7d, -30d, -1y, mStart, yStart)`,
+        ...validationOptions,
+      },
+      validator: {
+        validate(value: unknown) {
+          return typeof value === 'string' && isDateRange(value);
+        },
+      },
+    });
+  };
+}

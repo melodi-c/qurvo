@@ -9,16 +9,16 @@ import {
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { parseJsonArray } from './transforms';
-import { IsDateOnly } from './is-date-only.decorator';
+import { IsDateRange } from './is-date-only.decorator';
 
 export class CoreQueryDto {
   @IsUUID()
   project_id: string;
 
-  @IsDateOnly()
+  @IsDateRange()
   date_from: string;
 
-  @IsDateOnly()
+  @IsDateRange()
   date_to: string;
 
   @Transform(({ value }) => value === 'true' || value === true)
