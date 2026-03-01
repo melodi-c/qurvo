@@ -193,6 +193,7 @@ export interface StepFilter {
   property: string;
   operator: StepFilterDtoOperatorEnum;
   value?: string;
+  values?: string[];
 }
 
 export interface FunnelExclusion {
@@ -1466,7 +1467,22 @@ export type StepFilterDtoOperatorEnum =
   | "contains"
   | "not_contains"
   | "is_set"
-  | "is_not_set";
+  | "is_not_set"
+  | "gt"
+  | "lt"
+  | "gte"
+  | "lte"
+  | "regex"
+  | "not_regex"
+  | "in"
+  | "not_in"
+  | "between"
+  | "not_between"
+  | "is_date_before"
+  | "is_date_after"
+  | "is_date_exact"
+  | "contains_multi"
+  | "not_contains_multi";
 
 export type RetentionResultDtoRetentionTypeEnum = "first_time" | "recurring";
 
@@ -1580,7 +1596,6 @@ export interface ProjectsControllerRotateTokenParams {
 }
 
 export interface FunnelControllerGetFunnelParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -1659,7 +1674,6 @@ export type FunnelControllerGetFunnelParams1FunnelOrderTypeEnum =
   | "unordered";
 
 export interface FunnelControllerGetFunnelTimeToConvertParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -1767,7 +1781,6 @@ export interface EventsControllerGetEventPropertyNamesParams {
 }
 
 export interface TrendControllerGetTrendParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -1801,7 +1814,6 @@ export type TrendControllerGetTrendParams1BreakdownTypeEnum =
   | "cohort";
 
 export interface RetentionControllerGetRetentionParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -1828,7 +1840,6 @@ export interface RetentionControllerGetRetentionParams {
 }
 
 export interface LifecycleControllerGetLifecycleParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -1847,7 +1858,6 @@ export interface LifecycleControllerGetLifecycleParams {
 }
 
 export interface StickinessControllerGetStickinessParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -1866,7 +1876,6 @@ export interface StickinessControllerGetStickinessParams {
 }
 
 export interface PathsControllerGetPathsParams {
-  timezone?: string;
   /**
    * @maxItems 20
    * @uniqueItems true
@@ -2336,7 +2345,6 @@ export interface PropertyDefinitionsControllerRemoveParams {
 }
 
 export interface WebAnalyticsControllerGetOverviewParams {
-  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2346,7 +2354,6 @@ export interface WebAnalyticsControllerGetOverviewParams {
 }
 
 export interface WebAnalyticsControllerGetPathsParams {
-  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2356,7 +2363,6 @@ export interface WebAnalyticsControllerGetPathsParams {
 }
 
 export interface WebAnalyticsControllerGetSourcesParams {
-  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2366,7 +2372,6 @@ export interface WebAnalyticsControllerGetSourcesParams {
 }
 
 export interface WebAnalyticsControllerGetDevicesParams {
-  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
@@ -2376,7 +2381,6 @@ export interface WebAnalyticsControllerGetDevicesParams {
 }
 
 export interface WebAnalyticsControllerGetGeographyParams {
-  timezone?: string;
   filters?: StepFilter[];
   /** @format uuid */
   project_id: string;
