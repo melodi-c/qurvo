@@ -2,6 +2,8 @@ import {
   Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe, HttpCode,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { InferSelectModel } from 'drizzle-orm';
+import { cohorts } from '@qurvo/db';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { CurrentUser, RequestUser } from '../decorators/current-user.decorator';
 import { RequireRole } from '../decorators/require-role.decorator';
@@ -16,21 +18,7 @@ import {
 } from '../dto/cohorts.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
-type CohortRow = {
-  id: string;
-  project_id: string;
-  created_by: string;
-  name: string;
-  description: string | null;
-  definition: unknown;
-  is_static: boolean;
-  errors_calculating: number;
-  last_error_at: Date | null;
-  last_error_message: string | null;
-  created_at: Date;
-  updated_at: Date;
-  [key: string]: unknown;
-};
+type CohortRow = InferSelectModel<typeof cohorts>;
 
 function mapCohortRow(row: CohortRow): CohortDto {
   return {
@@ -39,13 +27,13 @@ function mapCohortRow(row: CohortRow): CohortDto {
     created_by: row.created_by,
     name: row.name,
     description: row.description,
-    definition: row.definition as CohortDto['definition'],
+    definition: row.definition,
     is_static: row.is_static,
     errors_calculating: row.errors_calculating,
     last_error_at: row.last_error_at ? row.last_error_at.toISOString() : null,
     last_error_message: row.last_error_message,
-    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string),
-    updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string),
+    created_at: row.created_at.toISOString(),
+    updated_at: row.updated_at.toISOString(),
   };
 }
 
@@ -61,7 +49,7 @@ export class CohortsController {
     @Param('projectId') projectId: string,
   ): Promise<CohortDto[]> {
     const rows = await this.cohortsService.list(projectId);
-    return rows.map((r) => mapCohortRow(r as CohortRow));
+    return rows.map((r) => mapCohortRow(r));
   }
 
   @RequireRole('editor')
@@ -72,7 +60,7 @@ export class CohortsController {
     @Body() body: CreateCohortDto,
   ): Promise<CohortDto> {
     const row = await this.cohortsService.create(user.user_id, projectId, body);
-    return mapCohortRow(row as CohortRow);
+    return mapCohortRow(row);
   }
 
   @Get(':cohortId')
@@ -81,7 +69,7 @@ export class CohortsController {
     @Param('cohortId', ParseUUIDPipe) cohortId: string,
   ): Promise<CohortDto> {
     const row = await this.cohortsService.getById(projectId, cohortId);
-    return mapCohortRow(row as CohortRow);
+    return mapCohortRow(row);
   }
 
   @RequireRole('editor')
@@ -92,7 +80,7 @@ export class CohortsController {
     @Body() body: UpdateCohortDto,
   ): Promise<CohortDto> {
     const row = await this.cohortsService.update(projectId, cohortId, body);
-    return mapCohortRow(row as CohortRow);
+    return mapCohortRow(row);
   }
 
   @RequireRole('editor')
