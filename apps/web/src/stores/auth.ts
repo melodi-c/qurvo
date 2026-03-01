@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { useLanguageStore } from './language';
-import type { User as GeneratedUser } from '../api/generated/Api';
+import type { User as GeneratedUser, SessionUser } from '../api/generated/Api';
 import type { Language } from '@/i18n/types';
 
 export type User = GeneratedUser & { is_staff?: boolean };
@@ -76,6 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         display_name: s.display_name,
         language: s.language,
         email_verified: s.email_verified,
+        is_staff: (s as SessionUser & { is_staff?: boolean }).is_staff,
       };
       syncLanguage(user.language);
       set({
