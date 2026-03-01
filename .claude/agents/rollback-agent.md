@@ -66,12 +66,34 @@ pnpm turbo build --filter=@qurvo/<app1> --filter=@qurvo/<app2>
 
 ---
 
-## Шаг 2.6: Push + sync local
+## Шаг 2.6: Push через PR
 
 ```bash
 cd "$REPO_ROOT"
-git push origin "$BASE_BRANCH"
-# Sync local ref после push (executor может продолжить работу)
+ROLLBACK_BRANCH="rollback/$(date +%Y%m%d-%H%M%S)"
+git checkout -b "$ROLLBACK_BRANCH"
+git push origin "$ROLLBACK_BRANCH"
+```
+
+Создай PR:
+```bash
+gh pr create \
+  --title "revert: rollback regression from issues $ISSUE_NUMBERS" \
+  --body "Automated rollback due to post-merge regression." \
+  --base "$BASE_BRANCH" \
+  --head "$ROLLBACK_BRANCH"
+```
+
+Если в репозитории нет branch protection — автомерж:
+```bash
+gh pr merge --auto --merge --delete-branch
+```
+
+Если есть branch protection — оставь PR для ручного review и добавь label `urgent`.
+
+Sync local ref после merge (executor может продолжить работу):
+```bash
+git checkout "$BASE_BRANCH"
 git pull origin "$BASE_BRANCH" 2>/dev/null || true
 ```
 

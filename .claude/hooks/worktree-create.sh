@@ -19,7 +19,7 @@ BASE_REF="${WORKTREE_BASE_BRANCH:-main}"
 
 # Ensure the base ref exists locally (fetch if it's a remote-only branch)
 if ! git -C "$CWD" rev-parse --verify "$BASE_REF" &>/dev/null; then
-  git -C "$CWD" fetch origin "$BASE_REF" >&2 2>/dev/null || true
+  git -C "$CWD" fetch origin "$BASE_REF" 2>/dev/null || true
   # Try origin/<ref> if local ref still doesn't exist
   if ! git -C "$CWD" rev-parse --verify "$BASE_REF" &>/dev/null; then
     BASE_REF="origin/$BASE_REF"

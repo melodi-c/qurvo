@@ -240,6 +240,10 @@ Sub-issues одного parent запускаются РАНЬШЕ осталь�
    bash "$CLAUDE_PROJECT_DIR/.claude/scripts/start-group.sh" <GROUP_INDEX> "<ISSUE_NUMBERS_CSV>"
    ```
 2. Запусти всех подагентов группы **одновременно** (`run_in_background: true`, `subagent_type: "issue-solver"`, **`isolation: "worktree"`**). Ответ Task tool сразу содержит `WORKTREE_PATH` — сохрани его в state (см. ниже). **НЕ вызывай TaskOutput** — система сама уведомит о завершении каждого подагента.
+
+**Timeout**: Устанавливай `max_turns: 200` при запуске solver-агентов. Если агент не завершился за 200 turns — считай его FAILED и переходи к следующему issue.
+
+**Лимит параллелизма**: Запускай НЕ БОЛЕЕ 3 solver-агентов одновременно. Если в группе >3 issues — разбей на под-батчи по 3 и выполняй под-батчи последовательно.
 3. **НЕ жди завершения всех.** По мере завершения каждого background-подагента (система уведомит автоматически) — **немедленно** начинай его review pipeline (Шаг 6: lint → migration → review+security → merge). Issues в одной группе не пересекаются (гарантия intersection-analyzer), поэтому review и мерж безопасны параллельно.
 4. После обработки **ВСЕХ** issues группы → **Dependency watcher** (Шаг 6.3) + post-merge verification (Шаг 6.5)
 5. `bash "$SM" prune-merged` — очисти MERGED issues из state
@@ -505,6 +509,7 @@ prompt: |
   model: sonnet
   run_in_background: false
   prompt: |
+    REPO_ROOT: $CLAUDE_PROJECT_DIR
     ISSUE_NUMBER: <NUMBER>
     ISSUE_TITLE: <значение ISSUE_TITLE>
     ISSUE_BODY: <значение ISSUE_BODY>
@@ -529,7 +534,11 @@ bash "$SM" issue-status <NUMBER> <NEW_STATUS>
 
 ### 6.4 Мерж
 
-Обнови state: `bash "$SM" batch "issue-status <N> MERGING" "phase MERGING"`
+Обнови state:
+```bash
+bash "$SM" issue-status <N> MERGING
+bash "$SM" phase MERGING
+```
 
 Определи AUTO_MERGE: если issue имеет label `size:l` или `needs-review` → `AUTO_MERGE="false"`.
 
@@ -590,8 +599,14 @@ gh issue edit <N> --remove-label "in-progress" --add-label "merge-failed"
 **Только при exit 0** закрой issue через `close-merged-issue.sh`:
 ```bash
 bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
-  "<NUMBER>" "$PR_URL" "$COMMIT_HASH" "$BASE_BRANCH"
+  "<NUMBER>" "$PR_URL" "$COMMIT_HASH" "$BASE_BRANCH" || CLOSE_EXIT=$?
 ```
+
+Если `close-merged-issue.sh` вернул exit code 1 (CLOSE_FAILED):
+1. Логируй предупреждение
+2. Добавь issue к списку `CLOSE_RETRY`
+3. После обработки всей группы — повтори close для issues из `CLOSE_RETRY`
+4. Если повторная попытка тоже провалилась — оставь issue открытым, добавь label `needs-review`
 
 ### Webvizio auto-close
 

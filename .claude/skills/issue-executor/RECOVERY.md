@@ -13,7 +13,7 @@ bash "$SM" read-active
 
 Вывод содержит: текущую фазу, active issues (не MERGED), их статусы и worktree_path. Продолжи с соответствующего шага.
 
-**Валидация версии**: если `schema_version` < 3 или отсутствует — state устаревший, используй fallback (0.2).
+**Валидация версии**: если `schema_version` != 3 или отсутствует — state устаревший, используй fallback (0.2).
 
 ## 0.2: Fallback — если state файла нет
 

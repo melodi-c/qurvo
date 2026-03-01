@@ -48,9 +48,13 @@ WORKTREE_PATH=$(git rev-parse --show-toplevel)
 REPO_ROOT=$(git worktree list | awk 'NR==1 {print $1}')
 BRANCH_NAME="fix/issue-<ISSUE_NUMBER>"
 
-# Переименовываем ветку в нужное имя
-git checkout -b "$BRANCH_NAME" 2>/dev/null \
-  || { echo "Ветка $BRANCH_NAME уже существует, переключаемся"; git checkout "$BRANCH_NAME"; }
+# Переименовываем ветку в нужное имя (если текущая ветка уже правильная — пропускаем)
+CURRENT_BRANCH=$(git branch --show-current)
+if [[ "$CURRENT_BRANCH" != "$BRANCH_NAME" ]]; then
+  git checkout -b "$BRANCH_NAME" 2>/dev/null \
+    || git branch -m "$BRANCH_NAME" 2>/dev/null \
+    || echo "WARN: Could not rename branch to $BRANCH_NAME, continuing on $CURRENT_BRANCH"
+fi
 
 # Проверка
 echo "WORKTREE_PATH: $WORKTREE_PATH"

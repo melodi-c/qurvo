@@ -14,8 +14,9 @@ shift
 # Portable lock: mkdir is atomic on POSIX (macOS не имеет flock)
 # Skip lock if already held by parent (batch recursive calls)
 LOCK_DIR="${STATE_FILE}.lock.d"
-if [[ "${_STATE_LOCK_HELD:-}" != "1" ]]; then
-  _lock_acquired=false
+acquire_lock() {
+  if [[ "${_STATE_LOCK_HELD:-}" == "1" ]]; then return 0; fi
+  local _lock_acquired=false
   for _i in $(seq 1 10); do
     if mkdir "$LOCK_DIR" 2>/dev/null; then
       _lock_acquired=true
@@ -27,8 +28,27 @@ if [[ "${_STATE_LOCK_HELD:-}" != "1" ]]; then
   if ! $_lock_acquired; then
     echo "ERROR: cannot acquire state lock" >&2; exit 1
   fi
+  rm -f "$STATE_FILE.tmp" 2>/dev/null || true
   export _STATE_LOCK_HELD=1
-fi
+}
+
+validate_transition() {
+  local FROM="$1" TO="$2"
+  case "$FROM→$TO" in
+    PENDING→SOLVING|SOLVING→READY_FOR_REVIEW|SOLVING→NEEDS_USER_INPUT|SOLVING→FAILED|\
+    READY_FOR_REVIEW→REVIEW_PASSED|READY_FOR_REVIEW→REVIEW_FAILED|\
+    REVIEW_PASSED→MERGING|REVIEW_FAILED→SOLVING|\
+    MERGING→MERGED|MERGING→MERGE_FAILED|MERGING→PR_CREATED|\
+    MERGE_FAILED→SOLVING|MERGE_FAILED→MERGING|NEEDS_USER_INPUT→SOLVING|\
+    PENDING→FAILED|*→PENDING)
+      return 0 ;;
+    *)
+      echo "ERROR: Invalid state transition: $FROM → $TO for issue" >&2
+      return 1 ;;
+  esac
+}
+
+acquire_lock
 
 case "$CMD" in
   init)
@@ -49,6 +69,11 @@ case "$CMD" in
 
   issue-status)
     NUM="${1:?}"; STATUS="${2:?}"; shift 2
+    # Validate state transition if STATUS looks like an uppercase status word
+    if [[ "$STATUS" =~ ^[A-Z_]+$ ]]; then
+      CURRENT_STATUS=$(jq -r ".issues[\"$NUM\"].status // \"PENDING\"" "$STATE_FILE")
+      validate_transition "$CURRENT_STATUS" "$STATUS"
+    fi
     JQ_EXPR='(.issues[$n].status=$s)'
     JQ_ARGS=(--arg n "$NUM" --arg s "$STATUS")
     for KV in "$@"; do
@@ -83,13 +108,19 @@ case "$CMD" in
     jq "${1:-.}" "$STATE_FILE" ;;
 
   batch)
-    # Each subcmd is a space-separated string like "phase EXECUTING_GROUP".
-    # NOTE: values with spaces (e.g. issue titles) must NOT go through batch —
-    # use direct calls (issue-add, issue-status) for those.
+    acquire_lock
+    export _STATE_LOCK_HELD=1
     COUNT=0
     for subcmd in "$@"; do
-      read -ra ARGS <<< "$subcmd"
-      bash "$0" "${ARGS[@]}"
+      # Extract command (first word) and argument (rest of string)
+      _BCMD="${subcmd%% *}"
+      _BARG="${subcmd#* }"
+      if [[ "$_BCMD" == "$_BARG" ]]; then
+        # No space found — command without arguments
+        bash "$0" "$_BCMD"
+      else
+        bash "$0" "$_BCMD" "$_BARG"
+      fi
       COUNT=$((COUNT + 1))
     done
     echo "OK ($COUNT commands)" ;;

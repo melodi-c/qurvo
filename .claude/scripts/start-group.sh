@@ -9,6 +9,14 @@ ISSUES_CSV="${2:?Usage: start-group.sh <GROUP_INDEX> <ISSUE_NUMBERS_CSV>}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SM="$SCRIPT_DIR/state-manager.sh"
 
+_LABELED_ISSUES=()
+cleanup_labels() {
+  for n in "${_LABELED_ISSUES[@]}"; do
+    gh issue edit "$n" --remove-label "in-progress" 2>/dev/null || true
+  done
+}
+trap cleanup_labels ERR
+
 IFS=',' read -ra NUMS <<< "$ISSUES_CSV"
 
 for N in "${NUMS[@]}"; do
@@ -19,6 +27,7 @@ for N in "${NUMS[@]}"; do
     continue
   fi
   gh issue edit "$N" --add-label "in-progress" 2>/dev/null || true
+  _LABELED_ISSUES+=("$N")
 done
 
 bash "$SM" batch \

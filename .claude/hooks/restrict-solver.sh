@@ -27,6 +27,9 @@ DANGEROUS_WORKTREE_PATTERN='git[[:space:]]+-C[[:space:]]+[^[:space:]].*[[:space:
 # --- 2. Bare git checkout/switch/reset --hard (без -C) ---
 # Solver работает ТОЛЬКО в своём worktree. Если worktree исчез — solver должен упасть,
 # а НЕ переключаться на main repo через checkout.
+# Allow: git checkout -b <new-branch> (branch creation in worktree)
+# Block: git checkout <existing-branch> (switching branches)
+CHECKOUT_CREATE_PATTERN='(^|[;&|]+[[:space:]]*)git[[:space:]]+checkout[[:space:]]+-b[[:space:]]'
 BARE_CHECKOUT_PATTERN='(^|[;&|]+[[:space:]]*)git[[:space:]]+(checkout|switch)[[:space:]]'
 BARE_RESET_HARD_PATTERN='(^|[;&|]+[[:space:]]*)git[[:space:]]+reset[[:space:]]+--hard'
 
@@ -46,7 +49,9 @@ elif echo "$COMMAND" | grep -qE "$DANGEROUS_BRANCH_PATTERN"; then
 elif echo "$COMMAND" | grep -qE "$DANGEROUS_WORKTREE_PATTERN"; then
   BLOCKED="управление worktree из solver"
 elif echo "$COMMAND" | grep -qE "$BARE_CHECKOUT_PATTERN"; then
-  BLOCKED="git checkout/switch запрещён — solver работает только в своём worktree"
+  if ! echo "$COMMAND" | grep -qE "$CHECKOUT_CREATE_PATTERN"; then
+    BLOCKED="git checkout/switch запрещён — solver работает только в своём worktree"
+  fi
 elif echo "$COMMAND" | grep -qE "$BARE_RESET_HARD_PATTERN"; then
   BLOCKED="git reset --hard запрещён — solver не должен сбрасывать состояние"
 elif echo "$COMMAND" | grep -qE "$BARE_PUSH_PATTERN"; then

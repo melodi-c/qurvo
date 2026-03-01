@@ -13,7 +13,9 @@ SM="$SCRIPT_DIR/state-manager.sh"
 
 gh issue edit "$NUMBER" --remove-label "in-progress" --remove-label "under-review" --remove-label "merge-failed" 2>/dev/null || true
 
-if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
+CLOSE_OK=false
+for attempt in 1 2; do
+  if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
 ## Смерджено
 
 **PR**: $PR_URL
@@ -21,11 +23,17 @@ if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
 **Ветка**: \`$BASE_BRANCH\`
 COMMENT
 )" 2>/dev/null; then
+    CLOSE_OK=true
+    break
+  fi
+  [[ $attempt -lt 2 ]] && sleep 2
+done
+
+if [[ "$CLOSE_OK" == "true" ]]; then
   # State обновляется ТОЛЬКО после успешного close
   bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_HASH"
   echo "CLOSED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
 else
-  echo "WARN: gh issue close failed for #$NUMBER" >&2
-  # State остаётся в MERGING — executor увидит inconsistency и может retry
-  echo "CLOSE_FAILED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
+  echo "CLOSE_FAILED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH" >&2
+  exit 1
 fi

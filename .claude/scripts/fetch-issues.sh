@@ -10,7 +10,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SM="$SCRIPT_DIR/state-manager.sh"
 RESULTS_DIR="/tmp/claude-results"
+STATE_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/state"
+STATE_FILE="$STATE_DIR/execution-state.json"
 REPO=""
+
+# Guard against concurrent executors
+if [[ -f "$STATE_FILE" ]]; then
+  EXISTING_PHASE=$(jq -r '.phase // "UNKNOWN"' "$STATE_FILE" 2>/dev/null)
+  if [[ "$EXISTING_PHASE" != "COMPLETED" && "$EXISTING_PHASE" != "UNKNOWN" ]]; then
+    echo "ERROR: Another executor is running (phase=$EXISTING_PHASE). State file exists at $STATE_FILE" >&2
+    echo "To force restart, delete the state file: rm $STATE_FILE" >&2
+    exit 1
+  fi
+fi
 
 # --- helpers ---
 get_repo() {

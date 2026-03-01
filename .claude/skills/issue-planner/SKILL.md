@@ -63,7 +63,7 @@ gh pr list --state open --json number,title,headRefName --limit 20
 
 ### Режим `bug-report` — облегчённое исследование
 
-Запусти `Explore` в **foreground** с облегчённым промптом:
+Запусти подагента (subagent_type: "Explore") в **foreground** с облегчённым промптом:
 
 ```
 Быстрый анализ бага:
@@ -83,7 +83,7 @@ gh pr list --state open --json number,title,headRefName --limit 20
 
 ### Режим `audit` и `feature` — полное исследование
 
-Запусти подагента `Explore` в **foreground** (дождись результата перед Шагом 4).
+Запусти подагента (subagent_type: "Explore") в **foreground** (дождись результата перед Шагом 4).
 
 Промпт зависит от режима:
 
@@ -291,13 +291,14 @@ Labels: `epic` + scope
 
 **Для режимов `feature` и `audit`** (не для `bug-report` — фиксы багов объединены в 1 issue с чеклистом).
 
-Для каждого сформированного issue (не эпика) в режиме `feature` оцени: затрагивает ли он 3+ несвязанных модуля или требует изменений в 2+ приложениях одновременно? Если да — запусти `issue-decomposer` в **foreground**:
+Для каждого сформированного issue (не эпика) в режиме `feature` или `audit` оцени: затрагивает ли он 3+ несвязанных модуля или требует изменений в 2+ приложениях одновременно? Если да — запусти `issue-decomposer` в **foreground**:
 
 ```
 subagent_type: "issue-decomposer"
 model: sonnet
 run_in_background: false
 prompt: |
+  REPO_ROOT: $CLAUDE_PROJECT_DIR
   ISSUE_NUMBER: 0
   ISSUE_TITLE: <заголовок>
   ISSUE_BODY: <тело>
@@ -306,7 +307,8 @@ prompt: |
 
 - Если вернул `"atomic": true` → оставь issue как есть
 - Если вернул список `sub_issues` → замени исходный issue на эти sub-issues в черновиках:
-  - Транслируй `depends_on` (0-based индекс в массиве `sub_issues`) в `Depends on: #PLACEHOLDER-<N>`, где `<N>` — порядковый номер sub-issue в черновиках (начиная с текущей позиции). Пример: `depends_on: 0` → `Depends on: #PLACEHOLDER-<позиция первого sub-issue>`
+  - Транслируй `depends_on` в `Depends on: #PLACEHOLDER:<title_slug>`, где `<title_slug>` — первые 50 символов title в kebab-case (пробелы → дефисы, lowercase). Пример: `depends_on: 0` (title: "feat(db): add monitors table") → `Depends on: #PLACEHOLDER:feat(db):-add-monitors-table`
+  - При создании в Шаге 6 заменяй `#PLACEHOLDER:<slug>` на реальный `#<NUMBER>`, сопоставляя по title
   - Если sub-issues 3+ — автоматически оформи как эпик (применяй правила Шага 4)
   - Перенеси labels из каждого sub-issue в черновики
 
@@ -359,6 +361,23 @@ Sub-issues:
 
 ---
 
+### Шаг 5.5: Проверка лейблов
+
+Перед созданием issues убедись, что все нужные лейблы существуют:
+
+```bash
+bash "$CLAUDE_PROJECT_DIR/.claude/scripts/setup-labels.sh"
+```
+
+Если скрипт недоступен — создай лейблы вручную:
+```bash
+for label in bug enhancement refactor web api "ux/ui" "size:xs" "size:s" "size:m" "size:l" epic "has-migrations"; do
+  gh label create "$label" --color "ededed" 2>/dev/null || true
+done
+```
+
+---
+
 ## Шаг 6: Создать issues в GitHub
 
 Создавай **последовательно** (чтобы отслеживать реальные номера для зависимостей).
@@ -369,6 +388,12 @@ gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
 ```
 
 ### Создание обычного issue:
+
+**Важно**: Экранируй спецсимволы в `--title`:
+- Backticks `` ` `` → `\``
+- `$` → `\$`
+- Используй single-quoted heredoc для body (уже используется `<<'BODY'`)
+
 ```bash
 gh issue create \
   --title "type(scope): описание" \
@@ -381,7 +406,7 @@ gh issue create \
 P2
 BODY
 )" \
-  --label "web,ux/ui"
+  --label "web" --label "ux/ui"
 ```
 
 После создания каждого issue — сохрани его номер. Если следующий issue имел `Depends on: #PLACEHOLDER-X` — замени на реальный номер перед созданием.
@@ -397,9 +422,9 @@ BODY
    ```
 4. Привязать каждый sub-issue к эпику:
    ```bash
-   gh api repos/OWNER/REPO/issues/EPIC_NUMBER/sub_issues \
+   gh api repos/{owner}/{repo}/issues/$EPIC_NUMBER/sub_issues \
      --method POST \
-     -F sub_issue_id=INTERNAL_ID
+     --field sub_issue_id="$SUB_ISSUE_ID"
    ```
 
 **Важно:**
@@ -421,9 +446,12 @@ BODY
   ↳ #63 — refactor(web): Вынести логику в хук      [web]       P3
 ✓ #64 — perf(api): ...  (обычный issue)            [api]       P2
 
-Для выполнения запусти:
-  /issue-executor --label ready
-  /issue-executor 61 62 63 64
+Если среди созданных issues есть dependency chain (`Depends on: #N`):
+  Для выполнения запусти с номерами всех issues:
+    /issue-executor <номера через пробел>
+Иначе:
+  Для выполнения запусти:
+    /issue-executor --label ready
 ```
 
 Issues создаются по строгому шаблону с acceptance criteria — отдельная валидация не нужна. Executor автоматически запустит `issue-validator` перед выполнением для issues без лейбла `ready`.
