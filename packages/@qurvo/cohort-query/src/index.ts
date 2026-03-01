@@ -2,6 +2,8 @@
 export {
   RESOLVED_PERSON,
   TOP_LEVEL_COLUMNS,
+  DIRECT_COLUMNS,
+  resolvedPerson,
   resolvePropertyExpr,
   resolveEventPropertyExpr,
   buildOperatorClause,
@@ -11,7 +13,12 @@ export {
   allocCondIdx,
   ctxProjectIdExpr,
   eventsBaseSelect,
+  // Property path helpers (shared with analytics)
+  validateJsonKey,
+  escapeJsonKey,
+  parsePropertyPath,
 } from './helpers';
+export type { PropertySource } from './helpers';
 
 // Builder
 export { buildCohortSubquery, buildCohortFilterClause } from './builder';
