@@ -44,6 +44,7 @@ export interface PathsQueryParams {
   date_from: string;
   date_to: string;
   step_limit: number;
+  timezone?: string;
   start_event?: string;
   end_event?: string;
   exclusions?: string[];
@@ -143,7 +144,7 @@ export async function queryPaths(
     .from('events')
     .where(
       projectIs(params.project_id),
-      timeRange(params.date_from, params.date_to),
+      timeRange(params.date_from, params.date_to, params.timezone),
       params.exclusions?.length
         ? notInArray(col('event_name'), param('Array(String)', params.exclusions))
         : undefined,
