@@ -1,7 +1,7 @@
 import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
 import type { Expr, QueryNode, SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, namedParam, eq, rawWithParams, and, intersect, unionDistinct, inSubquery } from '@qurvo/ch-query';
+import { select, raw, col, namedParam, eq, rawWithParams, and, intersect, unionDistinct, inSubquery, toUUID, literal } from '@qurvo/ch-query';
 import { compile } from '@qurvo/ch-query';
 import { RESOLVED_PERSON } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
@@ -71,8 +71,8 @@ function buildGroupSubquery(
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): QueryNode {
   if (group.values.length === 0) {
-    return select(raw(`toUUID('00000000-0000-0000-0000-000000000000')`).as('person_id'))
-      .where(raw('0'))
+    return select(toUUID(literal('00000000-0000-0000-0000-000000000000')).as('person_id'))
+      .where(literal(0))
       .build();
   }
 

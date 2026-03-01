@@ -1,6 +1,6 @@
 import type { CohortRestartedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, inSubquery } from '@qurvo/ch-query';
+import { select, raw, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, inSubquery, interval } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
@@ -32,10 +32,10 @@ export function buildRestartedPerformingSubquery(
   ctx.queryParams[gapStartPk] = cond.recent_window_days + cond.gap_window_days;
   ctx.queryParams[gapEndPk] = cond.recent_window_days;
 
-  const histInterval = rawWithParams(`INTERVAL {${histPk}:UInt32} DAY`, { [histPk]: cond.historical_window_days });
-  const recentInterval = rawWithParams(`INTERVAL {${recentPk}:UInt32} DAY`, { [recentPk]: cond.recent_window_days });
-  const gapStartInterval = rawWithParams(`INTERVAL {${gapStartPk}:UInt32} DAY`, { [gapStartPk]: cond.recent_window_days + cond.gap_window_days });
-  const gapEndInterval = rawWithParams(`INTERVAL {${gapEndPk}:UInt32} DAY`, { [gapEndPk]: cond.recent_window_days });
+  const histInterval = interval(namedParam(histPk, 'UInt32', cond.historical_window_days), 'DAY');
+  const recentInterval = interval(namedParam(recentPk, 'UInt32', cond.recent_window_days), 'DAY');
+  const gapStartInterval = interval(namedParam(gapStartPk, 'UInt32', cond.recent_window_days + cond.gap_window_days), 'DAY');
+  const gapEndInterval = interval(namedParam(gapEndPk, 'UInt32', cond.recent_window_days), 'DAY');
   const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
 
   // Historical performers (far past)
