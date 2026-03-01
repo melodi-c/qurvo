@@ -15,6 +15,7 @@ import {
   count,
   inArray,
   inSubquery,
+  type Expr,
 } from '@qurvo/ch-query';
 import {
   analyticsWhere,
@@ -92,76 +93,89 @@ interface RawBreakdownRow extends RawTrendRow {
 
 // ── Result assembly ───────────────────────────────────────────────────────────
 
-function assembleValue(metric: TrendMetric, rawVal: string, uniq: string, agg: string): number {
-  if (metric.startsWith('property_')) {return Number(agg);}
-  if (metric === 'total_events') {return Number(rawVal);}
-  if (metric === 'unique_users') {return Number(uniq);}
+/** Extract the numeric value from a raw ClickHouse row based on the metric type. */
+function rowToValue(metric: TrendMetric, row: RawTrendRow): number {
+  if (metric.startsWith('property_')) { return Number(row.agg_value); }
+  if (metric === 'total_events') { return Number(row.raw_value); }
+  if (metric === 'unique_users') { return Number(row.uniq_value); }
   // events_per_user
-  const u = Number(uniq);
-  return u > 0 ? Math.round((Number(rawVal) / u) * 100) / 100 : 0;
+  const u = Number(row.uniq_value);
+  return u > 0 ? Math.round((Number(row.raw_value) / u) * 100) / 100 : 0;
 }
 
-function assembleNonBreakdown(
+/**
+ * Assemble raw ClickHouse rows into TrendSeriesResult[].
+ * Handles both breakdown and non-breakdown rows: detects breakdown by checking
+ * for `breakdown_value` in the first row (or the `isBreakdown` hint for empty results).
+ */
+function assembleRows(
   rows: RawTrendRow[],
   metric: TrendMetric,
   seriesMeta: TrendSeries[],
+  opts?: { cohortLabelMap?: Map<string, string>; isBreakdown?: boolean },
 ): TrendSeriesResult[] {
-  const grouped = new Map<number, TrendDataPoint[]>();
-  for (const row of rows) {
-    const idx = Number(row.series_idx);
-    const existing = grouped.get(idx);
-    if (existing) {
-      existing.push({ bucket: row.bucket, value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value) });
-    } else {
-      grouped.set(idx, [{ bucket: row.bucket, value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value) }]);
-    }
-  }
-  return seriesMeta.map((s, idx) => ({
-    series_idx: idx,
-    label: s.label,
-    event_name: s.event_name,
-    data: grouped.get(idx) ?? [],
-  }));
-}
+  const isBreakdown = rows.length > 0
+    ? 'breakdown_value' in rows[0]
+    : !!opts?.isBreakdown;
 
-function assembleBreakdown(
-  rows: RawBreakdownRow[],
-  metric: TrendMetric,
-  seriesMeta: TrendSeries[],
-  cohortLabelMap?: Map<string, string>,
-): TrendSeriesResult[] {
-  const grouped = new Map<string, TrendDataPoint[]>();
-  const keyMeta = new Map<string, { series_idx: number; breakdown_value: string }>();
-  for (const row of rows) {
+  if (rows.length === 0) {
+    // Breakdown with no rows → nothing to group.
+    // Non-breakdown with no rows → one empty result per series.
+    if (isBreakdown) { return []; }
+    return seriesMeta.map((s, idx) => ({
+      series_idx: idx,
+      label: s.label,
+      event_name: s.event_name,
+      data: [],
+    }));
+  }
+
+  if (!isBreakdown) {
+    // ── Non-breakdown path ──
+    const grouped = new Map<number, TrendDataPoint[]>();
+    for (const row of rows) {
+      const idx = Number(row.series_idx);
+      const point: TrendDataPoint = { bucket: row.bucket, value: rowToValue(metric, row) };
+      const existing = grouped.get(idx);
+      if (existing) {
+        existing.push(point);
+      } else {
+        grouped.set(idx, [point]);
+      }
+    }
+    return seriesMeta.map((s, idx) => ({
+      series_idx: idx,
+      label: s.label,
+      event_name: s.event_name,
+      data: grouped.get(idx) ?? [],
+    }));
+  }
+
+  // ── Breakdown path ──
+  const grouped = new Map<string, { idx: number; bv: string; data: TrendDataPoint[] }>();
+  for (const row of rows as RawBreakdownRow[]) {
     const idx = Number(row.series_idx);
     const bv = normalizeBreakdownValue(row.breakdown_value);
     const key = `${idx}::${bv}`;
-    const existing = grouped.get(key);
-    if (existing) {
-      existing.push({
-        bucket: row.bucket,
-        value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
-      });
+    const entry = grouped.get(key);
+    const point: TrendDataPoint = { bucket: row.bucket, value: rowToValue(metric, row) };
+    if (entry) {
+      entry.data.push(point);
     } else {
-      grouped.set(key, [{
-        bucket: row.bucket,
-        value: assembleValue(metric, row.raw_value, row.uniq_value, row.agg_value),
-      }]);
-      keyMeta.set(key, { series_idx: idx, breakdown_value: bv });
+      grouped.set(key, { idx, bv, data: [point] });
     }
   }
+
   const results: TrendSeriesResult[] = [];
-  for (const [key, data] of grouped) {
-    const meta = keyMeta.get(key);
-    if (!meta) { continue; }
-    const s = seriesMeta[meta.series_idx];
-    const breakdownLabel = cohortLabelMap?.get(meta.breakdown_value);
+  for (const { idx, bv, data } of grouped.values()) {
+    const s = seriesMeta[idx];
+    const breakdownLabel = opts?.cohortLabelMap?.get(bv);
     results.push({
-      series_idx: meta.series_idx,
+      series_idx: idx,
       label: s?.label ?? '',
       event_name: s?.event_name ?? '',
       data,
-      breakdown_value: meta.breakdown_value,
+      breakdown_value: bv,
       ...(breakdownLabel !== undefined ? { breakdown_label: breakdownLabel } : {}),
     });
   }
@@ -204,6 +218,41 @@ function buildAggColumnExpr(metric: TrendMetric, metricProperty?: string) {
     throw new AppBadRequestException('metric_property is required for property aggregation metrics');
   }
   return alias(aggColumn(metric, metricProperty), 'agg_value');
+}
+
+// ── Series arm builder ──────────────────────────────────────────────────────────
+
+/**
+ * Build a single SELECT arm for one series. Shared by branches 2 (non-breakdown)
+ * and 3 (property breakdown). When `breakdownExpr` is provided, adds
+ * `breakdown_value` column and groups by it.
+ */
+function buildSeriesArm(
+  idx: number,
+  s: TrendSeries,
+  params: TrendQueryParams,
+  dateFrom: string,
+  dateTo: string,
+  bucketExpr: Expr,
+  aggCol: Expr,
+  breakdownExpr?: Expr,
+) {
+  const columns: Expr[] = [
+    literal(idx).as('series_idx'),
+    ...(breakdownExpr ? [alias(breakdownExpr, 'breakdown_value')] : []),
+    alias(bucketExpr, 'bucket'),
+    ...baseMetricColumns(),
+    aggCol,
+  ];
+  const groupByExprs: Expr[] = [col('bucket')];
+  if (breakdownExpr) {
+    groupByExprs.unshift(col('breakdown_value'));
+  }
+  return select(...columns)
+    .from('events')
+    .where(seriesWhere(s, params, dateFrom, dateTo))
+    .groupBy(...groupByExprs)
+    .build();
 }
 
 // ── Core query executor ───────────────────────────────────────────────────────
@@ -278,22 +327,13 @@ async function executeTrendQuery(
       .build();
 
     const rows = await chx.rows<RawBreakdownRow>(query);
-    return assembleBreakdown(rows, params.metric, params.series, cohortLabelMap);
+    return assembleRows(rows, params.metric, params.series, { cohortLabelMap, isBreakdown: true });
   }
 
   // ── Branch 2: Non-breakdown ──
   if (!hasBreakdown) {
     const arms = params.series.map((s, idx) =>
-      select(
-        literal(idx).as('series_idx'),
-        alias(bucketExpr, 'bucket'),
-        ...baseMetricColumns(),
-        aggCol,
-      )
-        .from('events')
-        .where(seriesWhere(s, params, dateFrom, dateTo))
-        .groupBy(col('bucket'))
-        .build(),
+      buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, aggCol),
     );
 
     const query = select(
@@ -306,39 +346,32 @@ async function executeTrendQuery(
       .build();
 
     const rows = await chx.rows<RawTrendRow>(query);
-    return assembleNonBreakdown(rows, params.metric, params.series);
+    return assembleRows(rows, params.metric, params.series);
   }
 
   // ── Branch 3: Property breakdown ──
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property ?? '');
 
   const arms = params.series.map((s, idx) =>
-    select(
-      literal(idx).as('series_idx'),
-      alias(breakdownExpr, 'breakdown_value'),
-      alias(bucketExpr, 'bucket'),
-      ...baseMetricColumns(),
-      aggCol,
-    )
-      .from('events')
-      .where(seriesWhere(s, params, dateFrom, dateTo))
-      .groupBy(col('breakdown_value'), col('bucket'))
-      .build(),
+    buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, aggCol, breakdownExpr),
   );
+
+  // Build the outer query once, then clone for the two sub-paths.
+  const baseOuter = select(
+    col('series_idx'), col('breakdown_value'), col('bucket'),
+    col('raw_value'), col('uniq_value'), col('agg_value'),
+  )
+    .from(unionAll(...arms))
+    .orderBy(col('series_idx'))
+    .orderBy(col('breakdown_value'))
+    .orderBy(col('bucket'));
 
   let query;
 
   if (fixedBreakdownValues) {
     // Compare mode: filter by the fixed set of breakdown values from the current period.
-    query = select(
-      col('series_idx'), col('breakdown_value'), col('bucket'),
-      col('raw_value'), col('uniq_value'), col('agg_value'),
-    )
-      .from(unionAll(...arms))
+    query = baseOuter.clone()
       .where(inArray(col('breakdown_value'), param('Array(String)', fixedBreakdownValues)))
-      .orderBy(col('series_idx'))
-      .orderBy(col('breakdown_value'))
-      .orderBy(col('bucket'))
       .build();
   } else {
     // Top-N CTE: select breakdown values by frequency across all series.
@@ -359,21 +392,14 @@ async function executeTrendQuery(
 
     const topValuesRef = select(col('breakdown_value')).from('top_values').build();
 
-    query = select(
-      col('series_idx'), col('breakdown_value'), col('bucket'),
-      col('raw_value'), col('uniq_value'), col('agg_value'),
-    )
-      .from(unionAll(...arms))
+    query = baseOuter.clone()
       .where(inSubquery(col('breakdown_value'), topValuesRef))
       .with('top_values', topValuesCte)
-      .orderBy(col('series_idx'))
-      .orderBy(col('breakdown_value'))
-      .orderBy(col('bucket'))
       .build();
   }
 
   const rows = await chx.rows<RawBreakdownRow>(query);
-  return assembleBreakdown(rows, params.metric, params.series);
+  return assembleRows(rows, params.metric, params.series, { isBreakdown: true });
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -425,7 +451,9 @@ export async function queryTrend(
     fixedBreakdownValues = [
       ...new Set(
         currentSeries.map((s) => {
-          const bv = s.breakdown_value ?? '(none)';
+          const bv = s.breakdown_value ?? '';
+          // De-normalize: '(none)' was produced by normalizeBreakdownValue('') in assembleRows.
+          // The actual ClickHouse stored value is '' — use it for the IN filter.
           return bv === '(none)' ? '' : bv;
         }),
       ),
@@ -436,21 +464,19 @@ export async function queryTrend(
 
   // Fill gaps for breakdown values absent in the previous period.
   if (hasPropertyBreakdown) {
-    const prevIndex = new Set(previousSeries.map((s) => `${s.series_idx}::${s.breakdown_value ?? '(none)'}`));
-    const gaps: TrendSeriesResult[] = [];
-    for (const cur of currentSeries) {
-      const key = `${cur.series_idx}::${cur.breakdown_value ?? '(none)'}`;
-      if (!prevIndex.has(key)) {
-        gaps.push({
-          series_idx: cur.series_idx,
-          label: cur.label,
-          event_name: cur.event_name,
-          data: [],
-          breakdown_value: cur.breakdown_value,
-          ...(cur.breakdown_label !== undefined ? { breakdown_label: cur.breakdown_label } : {}),
-        });
-      }
-    }
+    const prevIndex = new Set(
+      previousSeries.map((s) => `${s.series_idx}::${s.breakdown_value ?? ''}`),
+    );
+    const gaps = currentSeries
+      .filter((cur) => !prevIndex.has(`${cur.series_idx}::${cur.breakdown_value ?? ''}`))
+      .map((cur) => ({
+        series_idx: cur.series_idx,
+        label: cur.label,
+        event_name: cur.event_name,
+        data: [],
+        breakdown_value: cur.breakdown_value,
+        ...(cur.breakdown_label !== undefined ? { breakdown_label: cur.breakdown_label } : {}),
+      }));
     if (gaps.length > 0) {
       previousSeries = [...previousSeries, ...gaps];
     }
