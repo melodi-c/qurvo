@@ -1,15 +1,22 @@
 import { Global, Inject, Logger, Module, OnApplicationShutdown } from '@nestjs/common';
 import Redis from 'ioredis';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor, CH_EXECUTOR } from '@qurvo/clickhouse';
 import type { Database } from '@qurvo/db';
 import { DrizzleProvider, DRIZZLE } from '../providers/drizzle.provider';
 import { ClickHouseProvider, CLICKHOUSE } from '../providers/clickhouse.provider';
 import { RedisProvider, REDIS } from '../providers/redis.provider';
 
+const ChExecutorProvider = {
+  provide: CH_EXECUTOR,
+  useFactory: (ch: ClickHouseClient) => new ChQueryExecutor(ch),
+  inject: [CLICKHOUSE],
+};
+
 @Global()
 @Module({
-  providers: [DrizzleProvider, ClickHouseProvider, RedisProvider],
-  exports: [DRIZZLE, CLICKHOUSE, REDIS],
+  providers: [DrizzleProvider, ClickHouseProvider, RedisProvider, ChExecutorProvider],
+  exports: [DRIZZLE, CLICKHOUSE, REDIS, CH_EXECUTOR],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   private readonly logger = new Logger(DatabaseModule.name);

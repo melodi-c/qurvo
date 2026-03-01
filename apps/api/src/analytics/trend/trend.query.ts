@@ -1,10 +1,10 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import {
-  compile,
   select,
   unionAll,
   alias,
@@ -220,7 +220,7 @@ function buildAggColumnExpr(metric: TrendMetric, metricProperty?: string) {
  *   filter by this pre-computed set of breakdown values instead.
  */
 async function executeTrendQuery(
-  ch: ClickHouseClient,
+  chx: ChQueryExecutor,
   params: TrendQueryParams,
   dateFrom: string,
   dateTo: string,
@@ -279,9 +279,7 @@ async function executeTrendQuery(
       .orderBy(col('bucket'))
       .build();
 
-    const compiled = compile(query);
-    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-    const rows = await result.json<RawBreakdownRow>();
+    const rows = await chx.rows<RawBreakdownRow>(query);
     return assembleBreakdown(rows, params.metric, params.series, cohortLabelMap);
   }
 
@@ -309,9 +307,7 @@ async function executeTrendQuery(
       .orderBy(col('bucket'))
       .build();
 
-    const compiled = compile(query);
-    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-    const rows = await result.json<RawTrendRow>();
+    const rows = await chx.rows<RawTrendRow>(query);
     return assembleNonBreakdown(rows, params.metric, params.series);
   }
 
@@ -377,9 +373,7 @@ async function executeTrendQuery(
       .build();
   }
 
-  const compiled = compile(query);
-  const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await result.json<RawBreakdownRow>();
+  const rows = await chx.rows<RawBreakdownRow>(query);
   return assembleBreakdown(rows, params.metric, params.series);
 }
 
@@ -389,7 +383,8 @@ export async function queryTrend(
   ch: ClickHouseClient,
   params: TrendQueryParams,
 ): Promise<TrendQueryResult> {
-  const currentSeries = await executeTrendQuery(ch, params, params.date_from, params.date_to);
+  const chx = new ChQueryExecutor(ch);
+  const currentSeries = await executeTrendQuery(chx, params, params.date_from, params.date_to);
 
   const hasAnyBreakdown = !!params.breakdown_property || !!params.breakdown_cohort_ids?.length;
   const breakdownLabel = params.breakdown_cohort_ids?.length ? '$cohort' : params.breakdown_property;
@@ -423,7 +418,7 @@ export async function queryTrend(
     ];
   }
 
-  let previousSeries = await executeTrendQuery(ch, params, prev.from, prev.to, fixedBreakdownValues);
+  let previousSeries = await executeTrendQuery(chx, params, prev.from, prev.to, fixedBreakdownValues);
 
   // Fill gaps for breakdown values absent in the previous period.
   if (hasPropertyBreakdown) {

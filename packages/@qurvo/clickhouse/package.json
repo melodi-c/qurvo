@@ -12,12 +12,14 @@
     "ch:generate": "tsx src/generate.ts"
   },
   "dependencies": {
-    "@clickhouse/client": "^1.8.0"
+    "@clickhouse/client": "^1.8.0",
+    "@qurvo/ch-query": "workspace:*"
   },
   "devDependencies": {
     "@qurvo/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
