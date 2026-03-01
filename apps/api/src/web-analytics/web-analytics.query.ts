@@ -5,14 +5,25 @@ import {
   compile,
   select,
   col,
-  raw,
+  literal,
   count,
+  countIf,
   uniqExact,
   sum,
   avg,
-  func,
+  avgIf,
+  min,
+  max,
+  any,
+  dateDiff,
+  argMinIf,
+  argMaxIf,
   eq,
+  neq,
+  and,
+  gt,
   jsonExtractString,
+  ifExpr,
 } from '@qurvo/ch-query';
 import {
   analyticsWhere,
@@ -134,18 +145,26 @@ function waWherePageview(params: WebAnalyticsQueryParams): Expr {
  * Returns: session_id, pageview_count, session_start, duration_seconds, is_bounce, resolved_person
  */
 function buildKpiSessionCTE(params: WebAnalyticsQueryParams) {
+  const pageviewCond = eq(col('event_name'), literal('$pageview'));
   return select(
     col('session_id'),
-    func('countIf', eq(raw('event_name'), raw("'$pageview'"))).as('pageview_count'),
-    func('min', raw('timestamp')).as('session_start'),
-    func('dateDiff', raw("'second'"), func('min', raw('timestamp')), func('max', raw('timestamp'))).as('duration_seconds'),
-    raw(`if(countIf(event_name = '$pageview') = 1 AND dateDiff('second', min(timestamp), max(timestamp)) < 10, 1, 0)`).as('is_bounce'),
-    func('any', resolvedPerson()).as('resolved_person'),
+    countIf(pageviewCond).as('pageview_count'),
+    min(col('timestamp')).as('session_start'),
+    dateDiff('second', min(col('timestamp')), max(col('timestamp'))).as('duration_seconds'),
+    ifExpr(
+      and(
+        eq(countIf(pageviewCond), literal(1)),
+        gt(literal(10), dateDiff('second', min(col('timestamp')), max(col('timestamp')))),
+      ),
+      literal(1),
+      literal(0),
+    ).as('is_bounce'),
+    any(resolvedPerson()).as('resolved_person'),
   )
     .from('events')
     .where(waWhere(params))
     .groupBy(col('session_id'))
-    .having(raw('pageview_count > 0'))
+    .having(gt(col('pageview_count'), literal(0)))
     .build();
 }
 
@@ -153,17 +172,18 @@ function buildKpiSessionCTE(params: WebAnalyticsQueryParams) {
  * Session CTE with entry/exit page columns. Used only by paths query.
  */
 function buildPathsSessionCTE(params: WebAnalyticsQueryParams) {
+  const pageviewCond = eq(col('event_name'), literal('$pageview'));
   return select(
     col('session_id'),
-    func('countIf', eq(raw('event_name'), raw("'$pageview'"))).as('pageview_count'),
-    func('argMinIf', col('page_path'), raw('timestamp'), eq(raw('event_name'), raw("'$pageview'"))).as('entry_page'),
-    func('argMaxIf', col('page_path'), raw('timestamp'), eq(raw('event_name'), raw("'$pageview'"))).as('exit_page'),
-    func('any', resolvedPerson()).as('resolved_person'),
+    countIf(pageviewCond).as('pageview_count'),
+    argMinIf(col('page_path'), col('timestamp'), pageviewCond).as('entry_page'),
+    argMaxIf(col('page_path'), col('timestamp'), pageviewCond).as('exit_page'),
+    any(resolvedPerson()).as('resolved_person'),
   )
     .from('events')
     .where(waWhere(params))
     .groupBy(col('session_id'))
-    .having(raw('pageview_count > 0'))
+    .having(gt(col('pageview_count'), literal(0)))
     .build();
 }
 
@@ -204,7 +224,7 @@ async function queryKPIs(
     sum(col('pageview_count')).as('pageviews'),
     count().as('sessions'),
     avg(col('duration_seconds')).as('avg_duration_seconds'),
-    func('avgIf', col('is_bounce'), raw('1')).as('bounce_rate'),
+    avgIf(col('is_bounce'), literal(1)).as('bounce_rate'),
   )
     .from('session_stats')
     .with('session_stats', buildKpiSessionCTE(params))
@@ -240,8 +260,8 @@ export async function queryOverview(
   )
     .from('session_stats')
     .with('session_stats', buildKpiSessionCTE(params))
-    .groupBy(raw('bucket'))
-    .orderBy(raw('bucket'), 'ASC')
+    .groupBy(col('bucket'))
+    .orderBy(col('bucket'), 'ASC')
     .build();
 
   const tsCompiled = compile(tsNode);
@@ -291,15 +311,15 @@ async function querySessionDimension(
   limit = 20,
 ): Promise<DimensionRow[]> {
   const node = select(
-    raw(dimensionExpr).as('name'),
+    col(dimensionExpr).as('name'),
     uniqExact(col('resolved_person')).as('visitors'),
     sum(col('pageview_count')).as('pageviews'),
   )
     .from('session_stats')
     .with('session_stats', buildPathsSessionCTE(params))
-    .where(raw("name != ''"))
-    .groupBy(raw('name'))
-    .orderBy(raw('visitors'), 'DESC')
+    .where(neq(col('name'), literal('')))
+    .groupBy(col('name'))
+    .orderBy(col('visitors'), 'DESC')
     .limit(limit)
     .build();
 
@@ -327,10 +347,10 @@ async function queryDirectDimension(
     .from('events')
     .where(
       waWherePageview(params),
-      raw("name != ''"),
+      neq(col('name'), literal('')),
     )
-    .groupBy(raw('name'))
-    .orderBy(raw('visitors'), 'DESC')
+    .groupBy(col('name'))
+    .orderBy(col('visitors'), 'DESC')
     .limit(limit)
     .build();
 
@@ -366,10 +386,10 @@ async function queryTopPagesDimension(
     .from('events')
     .where(
       waWherePageview(params),
-      raw("page_path != ''"),
+      neq(col('page_path'), literal('')),
     )
-    .groupBy(raw('name'))
-    .orderBy(raw('pageviews'), 'DESC')
+    .groupBy(col('name'))
+    .orderBy(col('pageviews'), 'DESC')
     .limit(MAX_PATH_NODES)
     .build();
 

@@ -7,11 +7,13 @@ import {
   col,
   literal,
   param,
-  func,
+  min,
   and,
+  dateDiff,
   eq,
   gte,
   lte,
+  toInt32,
   uniqExact,
   toString as chToString,
 } from '@qurvo/ch-query';
@@ -219,8 +221,8 @@ export async function queryRetention(
       ))
       .groupBy(col('person_id'))
       .having(and(
-        gte(func('min', col('timestamp')), tsParam(truncFromTs, tz)),
-        lte(func('min', col('timestamp')), tsParam(truncToTs, tz)),
+        gte(min(col('timestamp')), tsParam(truncFromTs, tz)),
+        lte(min(col('timestamp')), tsParam(truncToTs, tz)),
       ))
       .build();
   }
@@ -249,14 +251,14 @@ export async function queryRetention(
   const retentionRaw = select(
     col('i.cohort_period'),
     col('i.person_id'),
-    func('dateDiff', literal(unit), col('i.cohort_period'), col('r.return_period')).as('period_offset'),
+    dateDiff(unit, col('i.cohort_period'), col('r.return_period')).as('period_offset'),
   )
     .from('initial_events', 'i')
     .innerJoin('return_events', 'r', eq(col('i.person_id'), col('r.person_id')))
     .where(
       gte(col('r.return_period'), col('i.cohort_period')),
       lte(
-        func('dateDiff', literal(unit), col('i.cohort_period'), col('r.return_period')),
+        dateDiff(unit, col('i.cohort_period'), col('r.return_period')),
         param('UInt32', params.periods),
       ),
     )
@@ -265,7 +267,7 @@ export async function queryRetention(
   // ── Sentinel rows (cohort size, period_offset = -1) ──
   const sentinelQuery = select(
     chToString(col('cohort_period')).as('cohort_period'),
-    func('toInt32', literal(-1)).as('period_offset'),
+    toInt32(literal(-1)).as('period_offset'),
     uniqExact(col('person_id')).as('user_count'),
   )
     .from('initial_events')

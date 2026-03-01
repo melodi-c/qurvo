@@ -24,6 +24,7 @@ import {
   shiftPeriod,
   aggColumn,
   baseMetricColumns,
+  normalizeBreakdownValue,
   type PropertyFilter,
   type TrendMetric,
 } from '../query-helpers';
@@ -133,7 +134,7 @@ function assembleBreakdown(
   const keyMeta = new Map<string, { series_idx: number; breakdown_value: string }>();
   for (const row of rows) {
     const idx = Number(row.series_idx);
-    const bv = (row.breakdown_value !== null && row.breakdown_value !== undefined && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
+    const bv = normalizeBreakdownValue(row.breakdown_value);
     const key = `${idx}::${bv}`;
     const existing = grouped.get(key);
     if (existing) {

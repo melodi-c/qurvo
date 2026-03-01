@@ -217,13 +217,13 @@ describe('analytics/time', () => {
     test('week with tz: re-snaps to local Monday', () => {
       const expr = neighborBucket('week', raw('ts_bucket'), 1, 'America/New_York');
       const { sql } = compileExpr(expr);
-      expect(sql).toContain("toDateTime(toStartOfWeek((ts_bucket + INTERVAL 7 DAY), 1, 'America/New_York'), 'America/New_York')");
+      expect(sql).toContain("toDateTime(toStartOfWeek(ts_bucket + INTERVAL 7 DAY, 1, 'America/New_York'), 'America/New_York')");
     });
 
     test('month with tz: re-snaps to start of month', () => {
       const expr = neighborBucket('month', raw('ts_bucket'), -1, 'Europe/Moscow');
       const { sql } = compileExpr(expr);
-      expect(sql).toContain("toDateTime(toStartOfMonth((ts_bucket - INTERVAL 1 MONTH), 'Europe/Moscow'), 'Europe/Moscow')");
+      expect(sql).toContain("toDateTime(toStartOfMonth(ts_bucket - INTERVAL 1 MONTH, 'Europe/Moscow'), 'Europe/Moscow')");
     });
 
     test('day with tz: still simple arithmetic (DST-safe)', () => {

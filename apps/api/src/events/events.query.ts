@@ -16,6 +16,7 @@ import {
   toChTs,
   type PropertyFilter,
 } from '../analytics/query-helpers';
+import { FORMAT_DATETIME_ISO } from '../constants';
 
 export interface EventsQueryParams {
   project_id: string;
@@ -64,9 +65,6 @@ export interface EventDetailRow extends EventRow {
   properties: string;
   user_properties: string;
 }
-
-/** ISO datetime format pattern for ClickHouse formatDateTime (UTC, milliseconds always `.000`). */
-export const FORMAT_DATETIME_ISO = '%Y-%m-%dT%H:%i:%S.000Z';
 
 /**
  * Base columns shared by events list and person events queries.
