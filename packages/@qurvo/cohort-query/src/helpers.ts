@@ -181,8 +181,8 @@ const NUMERIC_CMP_MAP = {
 
 // Operator handlers grouped by behavior
 
-const stringOps: Record<string, OperatorHandler> = {
-  eq: ({ expr, pk, queryParams, value }) => {
+const stringOps = {
+  eq: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const v = value ?? '';
     const valP = registerParam(pk, 'String', v, queryParams);
     const rawEquiv = toRawExpr(expr);
@@ -191,7 +191,7 @@ const stringOps: Record<string, OperatorHandler> = {
     }
     return eq(expr, valP);
   },
-  neq: ({ expr, pk, queryParams, value }) => {
+  neq: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const v = value ?? '';
     const valP = registerParam(pk, 'String', v, queryParams);
     const rawEquiv = toRawExpr(expr);
@@ -205,12 +205,12 @@ const stringOps: Record<string, OperatorHandler> = {
     }
     return neq(expr, valP);
   },
-  contains: ({ expr, pk, queryParams, value }) => {
+  contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
     const valP = registerParam(pk, 'String', likeVal, queryParams);
     return like(expr, valP);
   },
-  not_contains: ({ expr, pk, queryParams, value }) => {
+  not_contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
     const valP = registerParam(pk, 'String', likeVal, queryParams);
     const jsonHasExpr = toJsonHasGuard(expr);
@@ -219,40 +219,40 @@ const stringOps: Record<string, OperatorHandler> = {
     }
     return notLike(expr, valP);
   },
-  regex: ({ expr, pk, queryParams, value }) => {
+  regex: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const v = value ?? '';
     const valP = registerParam(pk, 'String', v, queryParams);
     return match(expr, valP);
   },
-  not_regex: ({ expr, pk, queryParams, value }) => {
+  not_regex: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const v = value ?? '';
     const valP = registerParam(pk, 'String', v, queryParams);
     return not(match(expr, valP));
   },
 };
 
-const numericOps: Record<string, OperatorHandler> = {
-  gt: ({ expr, pk, queryParams, value }) => {
+const numericOps = {
+  gt: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
     return chGt(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
   },
-  lt: ({ expr, pk, queryParams, value }) => {
+  lt: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
     return chLt(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
   },
-  gte: ({ expr, pk, queryParams, value }) => {
+  gte: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
     return gte(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
   },
-  lte: ({ expr, pk, queryParams, value }) => {
+  lte: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
     return lte(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
   },
-  between: ({ expr, pk, queryParams, values }) => {
+  between: ({ expr, pk, queryParams, values }: OperatorContext) => {
     const minPk = `${pk}_min`, maxPk = `${pk}_max`;
     const minVal = Number(values?.[0] ?? 0);
     const maxVal = Number(values?.[1] ?? 0);
@@ -262,7 +262,7 @@ const numericOps: Record<string, OperatorHandler> = {
       lte(numExpr, registerParam(maxPk, 'Float64', maxVal, queryParams)),
     );
   },
-  not_between: ({ expr, pk, queryParams, values }) => {
+  not_between: ({ expr, pk, queryParams, values }: OperatorContext) => {
     const minPk = `${pk}_min`, maxPk = `${pk}_max`;
     const minVal = Number(values?.[0] ?? 0);
     const maxVal = Number(values?.[1] ?? 0);
@@ -274,22 +274,22 @@ const numericOps: Record<string, OperatorHandler> = {
   },
 };
 
-const dateOps: Record<string, OperatorHandler> = {
-  is_date_before: ({ expr, pk, queryParams, value }) => {
+const dateOps = {
+  is_date_before: ({ expr, pk, queryParams, value }: OperatorContext) => {
     if (!value) return literal(0);
     const valP = registerParam(pk, 'String', value, queryParams);
     const parsed = parseDateTimeBestEffortOrZero(expr);
     const nonZero = neq(parsed, func('toDateTime', literal(0)));
     return and(nonZero, chLt(parsed, parseDateTimeBestEffort(valP)));
   },
-  is_date_after: ({ expr, pk, queryParams, value }) => {
+  is_date_after: ({ expr, pk, queryParams, value }: OperatorContext) => {
     if (!value) return literal(0);
     const valP = registerParam(pk, 'String', value, queryParams);
     const parsed = parseDateTimeBestEffortOrZero(expr);
     const nonZero = neq(parsed, func('toDateTime', literal(0)));
     return and(nonZero, chGt(parsed, parseDateTimeBestEffort(valP)));
   },
-  is_date_exact: ({ expr, pk, queryParams, value }) => {
+  is_date_exact: ({ expr, pk, queryParams, value }: OperatorContext) => {
     if (!value) return literal(0);
     const valP = registerParam(pk, 'String', value, queryParams);
     const parsed = parseDateTimeBestEffortOrZero(expr);
@@ -298,32 +298,32 @@ const dateOps: Record<string, OperatorHandler> = {
   },
 };
 
-const arrayOps: Record<string, OperatorHandler> = {
-  in: ({ expr, pk, queryParams, values }) => {
+const arrayOps = {
+  in: ({ expr, pk, queryParams, values }: OperatorContext) => {
     const v = values ?? [];
     return inArray(expr, registerParam(pk, 'Array(String)', v, queryParams));
   },
-  not_in: ({ expr, pk, queryParams, values }) => {
+  not_in: ({ expr, pk, queryParams, values }: OperatorContext) => {
     const v = values ?? [];
     return notInArray(expr, registerParam(pk, 'Array(String)', v, queryParams));
   },
-  contains_multi: ({ expr, pk, queryParams, values }) => {
+  contains_multi: ({ expr, pk, queryParams, values }: OperatorContext) => {
     const v = values ?? [];
     return multiSearchAny(expr, registerParam(pk, 'Array(String)', v, queryParams));
   },
-  not_contains_multi: ({ expr, pk, queryParams, values }) => {
+  not_contains_multi: ({ expr, pk, queryParams, values }: OperatorContext) => {
     const v = values ?? [];
     return not(multiSearchAny(expr, registerParam(pk, 'Array(String)', v, queryParams)));
   },
 };
 
-const existenceOps: Record<string, OperatorHandler> = {
-  is_set: ({ expr }) => {
+const existenceOps = {
+  is_set: ({ expr }: OperatorContext) => {
     const jsonHasExpr = toJsonHasGuard(expr);
     if (jsonHasExpr) return jsonHasExpr;
     return neq(expr, literal(''));
   },
-  is_not_set: ({ expr }) => {
+  is_not_set: ({ expr }: OperatorContext) => {
     const jsonHasExpr = toJsonHasGuard(expr);
     if (jsonHasExpr) return not(jsonHasExpr);
     return eq(expr, literal(''));
