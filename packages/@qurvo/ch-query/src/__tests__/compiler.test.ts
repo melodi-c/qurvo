@@ -30,6 +30,7 @@ import {
   has,
   inArray,
   inSubquery,
+  intersect,
   interval,
   jsonExtractRaw,
   jsonExtractString,
@@ -57,12 +58,14 @@ import {
   parametricFunc,
   parseDateTimeBestEffort,
   parseDateTimeBestEffortOrZero,
+  quantile,
   raw,
   safeLike,
   safeNotLike,
   select,
   sub,
   subquery,
+  tuple,
   sumIf,
   toDate,
   toDateTime,
@@ -1454,6 +1457,157 @@ describe('compiler', () => {
       const q = select(col('*')).from('events').where(gte(col('date'), today())).build();
       const { sql } = compile(q);
       expect(sql).toContain('date >= today()');
+    });
+  });
+
+  describe('tuple() compilation', () => {
+    test('tuple compiles to parenthesized comma-separated list', () => {
+      const q = select(tuple(col('a'), col('b'))).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('(a, b)');
+    });
+
+    test('tuple with single element', () => {
+      const { sql } = compileExprToSql(tuple(col('x')));
+      expect(sql).toBe('(x)');
+    });
+
+    test('tuple with literals', () => {
+      const { sql } = compileExprToSql(tuple(literal(1), literal('hello')));
+      expect(sql).toBe("(1, 'hello')");
+    });
+
+    test('tuple with params', () => {
+      const { sql, params } = compileExprToSql(tuple(param('UUID', 'pid'), col('distinct_id')));
+      expect(sql).toBe('({p_0:UUID}, distinct_id)');
+      expect(params).toEqual({ p_0: 'pid' });
+    });
+
+    test('tuple in IN subquery (resolved person pattern)', () => {
+      const sub = select(col('project_id'), col('distinct_id')).from('persons').build();
+      const q = select(col('*'))
+        .from('events')
+        .where(inSubquery(tuple(col('project_id'), col('distinct_id')), sub))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('(project_id, distinct_id) IN (');
+    });
+
+    test('tuple with alias', () => {
+      const q = select(tuple(col('a'), col('b')).as('pair')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('(a, b) AS pair');
+    });
+
+    test('empty tuple', () => {
+      const { sql } = compileExprToSql(tuple());
+      expect(sql).toBe('()');
+    });
+  });
+
+  describe('quantile() compilation', () => {
+    test('quantile compiles to parametric function syntax', () => {
+      const q = select(quantile(0.5, col('x')).as('median')).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('quantile(0.5)(x) AS median');
+    });
+
+    test('quantile with different percentile', () => {
+      const { sql } = compileExprToSql(quantile(0.95, col('duration')));
+      expect(sql).toBe('quantile(0.95)(duration)');
+    });
+
+    test('quantile with aliased column', () => {
+      const q = select(quantile(0.5, col('response_time')).as('p50')).from('requests').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('quantile(0.5)(response_time) AS p50');
+    });
+  });
+
+  describe('safeLike/safeNotLike mode compilation', () => {
+    test('safeLike default mode compiles with %val%', () => {
+      const q = select(col('*')).from('t').where(safeLike(col('name'), 'test')).build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('name LIKE {p_0:String}');
+      expect(params).toEqual({ p_0: '%test%' });
+    });
+
+    test('safeLike startsWith compiles with val%', () => {
+      const q = select(col('*')).from('t').where(safeLike(col('name'), 'test', 'startsWith')).build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('name LIKE {p_0:String}');
+      expect(params).toEqual({ p_0: 'test%' });
+    });
+
+    test('safeLike endsWith compiles with %val', () => {
+      const q = select(col('*')).from('t').where(safeLike(col('name'), 'test', 'endsWith')).build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('name LIKE {p_0:String}');
+      expect(params).toEqual({ p_0: '%test' });
+    });
+
+    test('safeNotLike startsWith compiles correctly', () => {
+      const q = select(col('*')).from('t').where(safeNotLike(col('name'), 'prefix', 'startsWith')).build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('name NOT LIKE {p_0:String}');
+      expect(params).toEqual({ p_0: 'prefix%' });
+    });
+
+    test('safeLike startsWith with special chars escapes properly', () => {
+      const q = select(col('*')).from('t').where(safeLike(col('x'), '100%', 'startsWith')).build();
+      const { params } = compile(q);
+      expect(params).toEqual({ p_0: '100\\%%' });
+    });
+  });
+
+  describe('inSubquery with QueryNode (SetOperationNode)', () => {
+    test('inSubquery with INTERSECT compiles correctly', () => {
+      const q1 = select(col('person_id')).from('cohort_a').build();
+      const q2 = select(col('person_id')).from('cohort_b').build();
+      const q = select(col('*'))
+        .from('events')
+        .where(inSubquery(col('person_id'), intersect(q1, q2)))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('person_id IN (');
+      expect(sql).toContain('INTERSECT');
+      expect(sql).toContain('cohort_a');
+      expect(sql).toContain('cohort_b');
+    });
+
+    test('notInSubquery with INTERSECT compiles correctly', () => {
+      const q1 = select(col('id')).from('t1').build();
+      const q2 = select(col('id')).from('t2').build();
+      const q = select(col('*'))
+        .from('events')
+        .where(notInSubquery(col('id'), intersect(q1, q2)))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('id NOT IN (');
+      expect(sql).toContain('INTERSECT');
+    });
+
+    test('inSubquery with union_all compiles correctly', () => {
+      const q1 = select(col('id')).from('t1').build();
+      const q2 = select(col('id')).from('t2').build();
+      const q = select(col('*'))
+        .from('events')
+        .where(inSubquery(col('id'), unionAll(q1, q2)))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('id IN (');
+      expect(sql).toContain('UNION ALL');
+    });
+
+    test('inSubquery with SelectNode still works (backward compat)', () => {
+      const sub = select(col('person_id')).from('cohort').build();
+      const q = select(col('*'))
+        .from('events')
+        .where(inSubquery(col('person_id'), sub))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('person_id IN (');
+      expect(sql).toContain('cohort');
     });
   });
 

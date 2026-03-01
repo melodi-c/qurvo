@@ -21,6 +21,7 @@ import type {
   SelectNode,
   SetOperationNode,
   SubqueryExpr,
+  TupleExpr,
   UnionAllNode,
 } from './ast';
 
@@ -90,6 +91,14 @@ export function funcDistinct(name: string, ...args: Expr[]): WithAlias<FuncCallE
 
 export function subquery(query: SelectNode): WithAlias<SubqueryExpr> {
   return withAlias({ type: 'subquery', query });
+}
+
+/**
+ * Tuple expression: tuple(col('a'), col('b')) → (a, b)
+ * Used for ClickHouse tuple comparisons, e.g. (project_id, distinct_id) IN subquery.
+ */
+export function tuple(...elements: Expr[]): WithAlias<TupleExpr> {
+  return withAlias({ type: 'tuple', elements });
 }
 
 /**
@@ -281,6 +290,14 @@ export function argMinIf(expr: Expr, orderByExpr: Expr, condition: Expr): WithAl
 
 export function argMaxIf(expr: Expr, orderByExpr: Expr, condition: Expr): WithAlias<FuncCallExpr> {
   return func('argMaxIf', expr, orderByExpr, condition);
+}
+
+/**
+ * quantile(p)(expr) — parametric aggregate function.
+ * e.g. quantile(0.5, col('duration')) → quantile(0.50)(duration)
+ */
+export function quantile(p: number, expr: Expr): WithAlias<ParametricFuncCallExpr> {
+  return parametricFunc('quantile', [literal(p)], [expr]);
 }
 
 // ── Dictionary functions ──
@@ -582,11 +599,11 @@ export function mod(left: Expr, right: Expr): WithAlias<BinaryExpr> {
   return withAlias(makeBinary('%', left, right));
 }
 
-export function inSubquery(expr: Expr, query: SelectNode): InExpr {
+export function inSubquery(expr: Expr, query: QueryNode): InExpr {
   return { type: 'in', expr, target: query };
 }
 
-export function notInSubquery(expr: Expr, query: SelectNode): InExpr {
+export function notInSubquery(expr: Expr, query: QueryNode): InExpr {
   return { type: 'in', expr, target: query, negated: true };
 }
 
@@ -615,21 +632,39 @@ export function escapeLikePattern(s: string): string {
   return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
 }
 
+export type SafeLikeMode = 'contains' | 'startsWith' | 'endsWith';
+
+/** Wrap an escaped LIKE pattern according to the search mode */
+function wrapLikePattern(escaped: string, mode: SafeLikeMode): string {
+  switch (mode) {
+    case 'contains':
+      return `%${escaped}%`;
+    case 'startsWith':
+      return `${escaped}%`;
+    case 'endsWith':
+      return `%${escaped}`;
+  }
+}
+
 /**
- * Safe LIKE: escapes user input and wraps with `%...%`, producing:
+ * Safe LIKE: escapes user input and wraps according to `mode`, producing:
  * `expr LIKE {p_N:String}` with the value properly escaped.
+ *
+ * @param mode - 'contains' (default) wraps `%val%`, 'startsWith' wraps `val%`, 'endsWith' wraps `%val`
  */
-export function safeLike(expr: Expr, substring: string): BinaryExpr {
-  const escaped = `%${escapeLikePattern(substring)}%`;
+export function safeLike(expr: Expr, substring: string, mode: SafeLikeMode = 'contains'): BinaryExpr {
+  const escaped = wrapLikePattern(escapeLikePattern(substring), mode);
   return like(expr, param('String', escaped));
 }
 
 /**
- * Safe NOT LIKE: escapes user input and wraps with `%...%`, producing:
+ * Safe NOT LIKE: escapes user input and wraps according to `mode`, producing:
  * `expr NOT LIKE {p_N:String}` with the value properly escaped.
+ *
+ * @param mode - 'contains' (default) wraps `%val%`, 'startsWith' wraps `val%`, 'endsWith' wraps `%val`
  */
-export function safeNotLike(expr: Expr, substring: string): BinaryExpr {
-  const escaped = `%${escapeLikePattern(substring)}%`;
+export function safeNotLike(expr: Expr, substring: string, mode: SafeLikeMode = 'contains'): BinaryExpr {
+  const escaped = wrapLikePattern(escapeLikePattern(substring), mode);
   return notLike(expr, param('String', escaped));
 }
 

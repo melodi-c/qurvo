@@ -118,7 +118,7 @@ export interface NotExpr {
 export interface InExpr {
   type: 'in';
   expr: Expr;
-  target: SelectNode | Expr;
+  target: QueryNode | Expr;
   negated?: boolean;
 }
 
@@ -141,6 +141,12 @@ export interface SubqueryExpr {
   query: SelectNode;
 }
 
+/** Tuple expression: (expr1, expr2, ...) */
+export interface TupleExpr {
+  type: 'tuple';
+  elements: Expr[];
+}
+
 export type Expr =
   | ColumnExpr
   | LiteralExpr
@@ -158,7 +164,8 @@ export type Expr =
   | InExpr
   | CaseExpr
   | ArrayJoinExpr
-  | SubqueryExpr;
+  | SubqueryExpr
+  | TupleExpr;
 
 // ── Queries ──
 

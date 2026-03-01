@@ -13,6 +13,7 @@ import type {
   QueryNode,
   SelectNode,
   SetOperationNode,
+  TupleExpr,
   UnionAllNode,
 } from './ast';
 
@@ -166,9 +167,9 @@ function compileIn(expr: InExpr, ctx: CompilerContext): string {
   const left = compileExpr(expr.expr, ctx);
   const keyword = expr.negated ? 'NOT IN' : 'IN';
 
-  // target can be a SelectNode (subquery) or an Expr (e.g. array param)
-  if ('type' in expr.target && expr.target.type === 'select') {
-    const subSql = compileSelect(expr.target as SelectNode, ctx);
+  // target can be a QueryNode (select, union_all, set_operation) or an Expr (e.g. array param)
+  if ('type' in expr.target && (expr.target.type === 'select' || expr.target.type === 'union_all' || expr.target.type === 'set_operation')) {
+    const subSql = compileQuery(expr.target as QueryNode, ctx);
     return `${left} ${keyword} (${subSql})`;
   }
 
@@ -188,6 +189,11 @@ function compileCase(expr: CaseExpr, ctx: CompilerContext): string {
 
 function compileArrayJoin(expr: ArrayJoinExpr, ctx: CompilerContext): string {
   return `${compileExpr(expr.arrayExpr, ctx)} AS ${expr.itemAlias}`;
+}
+
+function compileTuple(expr: TupleExpr, ctx: CompilerContext): string {
+  const elements = expr.elements.map((e) => compileExpr(e, ctx)).join(', ');
+  return `(${elements})`;
 }
 
 function compileExpr(expr: Expr, ctx: CompilerContext): string {
@@ -227,6 +233,8 @@ function compileExpr(expr: Expr, ctx: CompilerContext): string {
       return compileArrayJoin(expr, ctx);
     case 'subquery':
       return `(${compileQuery(expr.query, ctx)})`;
+    case 'tuple':
+      return compileTuple(expr, ctx);
   }
 }
 

@@ -65,6 +65,7 @@ import {
   neq,
   not,
   notEmpty,
+  intersect,
   notInSubquery,
   notLike,
   now64,
@@ -73,6 +74,7 @@ import {
   parametricFunc,
   parseDateTimeBestEffort,
   parseDateTimeBestEffortOrZero,
+  quantile,
   raw,
   safeLike,
   safeNotLike,
@@ -80,6 +82,7 @@ import {
   sipHash64,
   sub,
   subquery,
+  tuple,
   sum,
   sumIf,
   toDate,
@@ -1283,6 +1286,137 @@ describe('builders', () => {
       // Actually base was NOT mutated since clone() creates a new builder
       expect(base.build().columns).toHaveLength(3);
       expect(base.build().groupBy).toHaveLength(1);
+    });
+  });
+
+  describe('tuple()', () => {
+    test('creates TupleExpr with elements', () => {
+      const t = tuple(col('a'), col('b'));
+      expect(t.type).toBe('tuple');
+      expect(t.elements).toHaveLength(2);
+      expect(t.elements[0]).toEqual(expect.objectContaining({ type: 'column', name: 'a' }));
+      expect(t.elements[1]).toEqual(expect.objectContaining({ type: 'column', name: 'b' }));
+    });
+
+    test('tuple().as() creates AliasExpr', () => {
+      const a = tuple(col('a'), col('b')).as('pair');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('pair');
+    });
+
+    test('empty tuple', () => {
+      const t = tuple();
+      expect(t.type).toBe('tuple');
+      expect(t.elements).toHaveLength(0);
+    });
+
+    test('single element tuple', () => {
+      const t = tuple(col('x'));
+      expect(t.type).toBe('tuple');
+      expect(t.elements).toHaveLength(1);
+    });
+  });
+
+  describe('quantile()', () => {
+    test('creates ParametricFuncCallExpr', () => {
+      const q = quantile(0.5, col('duration'));
+      expect(q.type).toBe('parametric_func');
+      expect(q.name).toBe('quantile');
+      expect(q.params).toHaveLength(1);
+      expect(q.params[0]).toEqual(expect.objectContaining({ type: 'literal', value: 0.5 }));
+      expect(q.args).toHaveLength(1);
+    });
+
+    test('quantile().as() creates AliasExpr', () => {
+      const a = quantile(0.5, col('x')).as('median');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('median');
+    });
+  });
+
+  describe('safeLike mode parameter', () => {
+    test('safeLike() default mode is contains (%val%)', () => {
+      const expr = safeLike(col('x'), 'test');
+      expect(expr.right).toEqual(expect.objectContaining({
+        type: 'param',
+        chType: 'String',
+        value: '%test%',
+      }));
+    });
+
+    test('safeLike() contains mode wraps %val%', () => {
+      const expr = safeLike(col('x'), 'test', 'contains');
+      expect(expr.right).toEqual(expect.objectContaining({
+        value: '%test%',
+      }));
+    });
+
+    test('safeLike() startsWith mode wraps val%', () => {
+      const expr = safeLike(col('x'), 'test', 'startsWith');
+      expect(expr.right).toEqual(expect.objectContaining({
+        value: 'test%',
+      }));
+    });
+
+    test('safeLike() endsWith mode wraps %val', () => {
+      const expr = safeLike(col('x'), 'test', 'endsWith');
+      expect(expr.right).toEqual(expect.objectContaining({
+        value: '%test',
+      }));
+    });
+
+    test('safeLike() startsWith with special chars escapes properly', () => {
+      const expr = safeLike(col('x'), '100%', 'startsWith');
+      expect(expr.right).toEqual(expect.objectContaining({
+        value: '100\\%%',
+      }));
+    });
+
+    test('safeNotLike() startsWith mode', () => {
+      const expr = safeNotLike(col('x'), 'prefix', 'startsWith');
+      expect(expr.op).toBe('NOT LIKE');
+      expect(expr.right).toEqual(expect.objectContaining({
+        value: 'prefix%',
+      }));
+    });
+
+    test('safeNotLike() endsWith mode', () => {
+      const expr = safeNotLike(col('x'), 'suffix', 'endsWith');
+      expect(expr.op).toBe('NOT LIKE');
+      expect(expr.right).toEqual(expect.objectContaining({
+        value: '%suffix',
+      }));
+    });
+  });
+
+  describe('inSubquery/notInSubquery with QueryNode', () => {
+    test('inSubquery() accepts SelectNode (backward compat)', () => {
+      const q = select(col('id')).from('t').build();
+      const expr = inSubquery(col('a'), q);
+      expect(expr.type).toBe('in');
+      expect(expr.negated).toBeUndefined();
+    });
+
+    test('inSubquery() accepts SetOperationNode (INTERSECT)', () => {
+      const q1 = select(col('id')).from('t1').build();
+      const q2 = select(col('id')).from('t2').build();
+      const expr = inSubquery(col('a'), intersect(q1, q2));
+      expect(expr.type).toBe('in');
+      expect(expr.target).toEqual(expect.objectContaining({
+        type: 'set_operation',
+        operator: 'INTERSECT',
+      }));
+    });
+
+    test('notInSubquery() accepts SetOperationNode', () => {
+      const q1 = select(col('id')).from('t1').build();
+      const q2 = select(col('id')).from('t2').build();
+      const expr = notInSubquery(col('a'), intersect(q1, q2));
+      expect(expr.type).toBe('in');
+      expect(expr.negated).toBe(true);
+      expect(expr.target).toEqual(expect.objectContaining({
+        type: 'set_operation',
+      }));
     });
   });
 

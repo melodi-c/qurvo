@@ -18,6 +18,7 @@ export type {
   CaseExpr,
   ArrayJoinExpr,
   SubqueryExpr,
+  TupleExpr,
   Expr,
   OrderByItem,
   JoinClause,
@@ -42,6 +43,7 @@ export {
   func,
   funcDistinct,
   subquery,
+  tuple,
   parametricFunc,
   lambda,
   interval,
@@ -83,6 +85,7 @@ export {
   argMax,
   argMinIf,
   argMaxIf,
+  quantile,
   dictGetOrNull,
   lower,
   match,
@@ -137,6 +140,7 @@ export {
   safeLike,
   safeNotLike,
 } from './builders';
+export type { SafeLikeMode } from './builders';
 
 // Builders — condition builders
 export {
