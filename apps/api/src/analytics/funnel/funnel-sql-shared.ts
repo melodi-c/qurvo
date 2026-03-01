@@ -4,13 +4,12 @@ import {
   raw,
   select,
   col,
-  compileExprToSql,
-  CompilerContext,
   avgIf,
   and,
   gte,
   gt,
   eq,
+  neq,
   lte,
   literal,
   add,
@@ -19,16 +18,24 @@ import {
   inSubquery,
   groupArrayIf,
   toUnixTimestamp64Milli,
+  toInt64,
   parametricFunc,
   toUInt64,
   mul,
+  ifExpr,
+  lambda,
+  arrayExists,
+  arrayMax,
+  arrayMin,
+  greatest,
+  func,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
 import { toChTs, RESOLVED_PERSON, propertyFilters } from '../query-helpers';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType, FunnelStepResult } from './funnel.types';
 
-export { RESOLVED_PERSON, toChTs, CompilerContext };
+export { RESOLVED_PERSON, toChTs };
 
 // ── ClickHouse query parameter types ─────────────────────────────────────────
 
@@ -185,7 +192,6 @@ export function buildSamplingClause(
     { sample_pct: pct },
   );
 }
-
 
 // ── windowFunnel expression ──────────────────────────────────────────────────
 
@@ -347,6 +353,15 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
     .build();
 }
 
+/**
+ * Extracts alias names from an array of Expr nodes (typically exclusion columns).
+ * Each node is expected to be an AliasExpr with a string alias field.
+ */
+export function extractExclColumnAliases(exprs: Expr[]): string[] {
+  return exprs
+    .map(e => (e as { type: string; alias?: string }).type === 'alias' ? (e as { alias: string }).alias : undefined)
+    .filter((a): a is string => !!a);
+}
 
 // ── Unordered coverage expressions ───────────────────────────────────────────
 
@@ -400,6 +415,94 @@ export function buildUnorderedCoverageExprs(
   }
 
   return { coverageExpr, maxStepExpr, anchorMsExpr };
+}
+
+/**
+ * AST version of buildUnorderedCoverageExprs.
+ *
+ * Returns Expr AST nodes for max_step and anchor_ms, eliminating the need
+ * for raw() wrappers. Used by funnel-unordered.sql.ts (pure AST path).
+ *
+ * @param N        Total number of steps.
+ * @param winExpr  Expr AST for the window in milliseconds.
+ * @param stepsOrConds Array of length N used only for .map index iteration.
+ */
+export function buildUnorderedCoverageExprsAST(
+  N: number,
+  winExpr: Expr,
+  stepsOrConds: readonly unknown[],
+): {
+  /** Expr for max achievable step from any candidate anchor. */
+  maxStepExpr: Expr;
+  /** Expr for the anchor millisecond timestamp. */
+  anchorMsExpr: Expr;
+} {
+  /**
+   * Coverage sum for a given anchor variable name.
+   * For each step j: if(arrayExists(tJ -> tJ >= anchor AND tJ <= anchor + win, tJ_arr), 1, 0)
+   * Summed across all steps via add().
+   */
+  const coverageSum = (anchorVarName: string): Expr => {
+    const terms: Expr[] = stepsOrConds.map((_, j) =>
+      ifExpr(
+        arrayExists(
+          lambda([`t${j}`], and(
+            gte(col(`t${j}`), col(anchorVarName)),
+            lte(col(`t${j}`), add(col(anchorVarName), winExpr)),
+          )),
+          col(`t${j}_arr`),
+        ),
+        literal(1),
+        literal(0),
+      ),
+    );
+    if (terms.length === 1) {return terms[0];}
+    return terms.reduce((acc, term) => add(acc, term));
+  };
+
+  // maxStepExpr: greatest( arrayMax(a0 -> toInt64(coverage(a0)), t0_arr), ... )
+  const maxFromEachStep: Expr[] = stepsOrConds.map((_, i) =>
+    arrayMax(
+      lambda([`a${i}`], toInt64(coverageSum(`a${i}`))),
+      col(`t${i}_arr`),
+    ),
+  );
+  const maxStepExpr: Expr = maxFromEachStep.length === 1
+    ? maxFromEachStep[0]
+    : greatest(...maxFromEachStep);
+
+  // anchorMsExpr
+  let anchorMsExpr: Expr;
+  if (N === 1) {
+    // if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))
+    anchorMsExpr = ifExpr(
+      gt(func('length', col('t0_arr')), literal(0)),
+      arrayMin(col('t0_arr')),
+      toInt64(literal(0)),
+    );
+  } else {
+    // For each step i: arrayMax(arrayFilter(aI -> coverage(aI) = N, tI_arr))
+    // Nested if-chain: if(toInt64(maxes[i]) != 0, toInt64(maxes[i]), <fallback>)
+    const filteredMaxes: Expr[] = stepsOrConds.map((_, i) =>
+      func('arrayMax',
+        func('arrayFilter',
+          lambda([`a${i}`], eq(coverageSum(`a${i}`), literal(N))),
+          col(`t${i}_arr`),
+        ),
+      ),
+    );
+
+    anchorMsExpr = toInt64(literal(0));
+    for (let i = filteredMaxes.length - 1; i >= 0; i--) {
+      anchorMsExpr = ifExpr(
+        neq(toInt64(filteredMaxes[i]), literal(0)),
+        toInt64(filteredMaxes[i]),
+        anchorMsExpr,
+      );
+    }
+  }
+
+  return { maxStepExpr, anchorMsExpr };
 }
 
 // ── Strict user filter ──────────────────────────────────────────────────────
@@ -517,17 +620,3 @@ export function buildBaseQueryParams(
   return queryParams;
 }
 
-// ── Expr-to-SQL helpers for raw CTE body builders ────────────────────────────
-
-/**
- * Compiles an array of Expr nodes into SQL column strings for embedding in raw SQL.
- * Each Expr is compiled to its SQL representation; aliased exprs produce "sql AS alias".
- * Returns the compiled strings and merges extracted params into queryParams.
- */
-export function compileExprsToSqlColumns(
-  exprs: Expr[],
-  queryParams: FunnelChQueryParams,
-  ctx?: CompilerContext,
-): string[] {
-  return exprs.map(expr => compileExprToSql(expr, queryParams, ctx).sql);
-}
