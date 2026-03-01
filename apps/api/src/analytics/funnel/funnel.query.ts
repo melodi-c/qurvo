@@ -191,7 +191,7 @@ function buildFunnelQuery(
   }
 
   // Build the CROSS JOIN subquery for step numbers
-  const stepsSubquery = buildStepsSubquery();
+  const stepsSubquery = buildStepsSubquery(numSteps);
 
   // Build WHERE conditions
   const whereConditions: (Expr | undefined)[] = [];

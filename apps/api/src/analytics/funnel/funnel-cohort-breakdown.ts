@@ -44,6 +44,7 @@ interface CohortBreakdownResult {
 function buildCohortFunnelNode(
   cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean },
   queryParams: FunnelChQueryParams,
+  numSteps: number,
 ): QueryNode {
   const whereConditions: Expr[] = [];
   if (cteResult.hasExclusions) {
@@ -58,7 +59,7 @@ function buildCohortFunnelNode(
   )
     .withAll(cteResult.ctes)
     .from('funnel_per_user')
-    .crossJoin(buildStepsSubquery(), 'steps');
+    .crossJoin(buildStepsSubquery(numSteps), 'steps');
 
   if (whereConditions.length > 0) {
     builder.where(...whereConditions);
@@ -129,7 +130,7 @@ export async function runFunnelCohortBreakdown(
       });
     }
 
-    const node = buildCohortFunnelNode(cteResult, cbQueryParams);
+    const node = buildCohortFunnelNode(cteResult, cbQueryParams, numSteps);
     const rows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(node);
     perCohortResults.push(computeCohortBreakdownStepResults(rows, steps, numSteps, cb.cohort_id, cb.name));
   }
@@ -162,7 +163,7 @@ export async function runFunnelCohortBreakdown(
     });
   }
 
-  const aggregateNode = buildCohortFunnelNode(aggregateCteResult, aggregateQueryParams);
+  const aggregateNode = buildCohortFunnelNode(aggregateCteResult, aggregateQueryParams, numSteps);
   const aggregateRows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(aggregateNode);
   const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
 

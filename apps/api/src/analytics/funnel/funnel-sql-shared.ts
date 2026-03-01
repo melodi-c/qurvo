@@ -563,12 +563,15 @@ export function avgTimeSecondsExpr(queryParams: FunnelChQueryParams): Expr {
 /**
  * Builds the CROSS JOIN subquery for step numbers: SELECT number + 1 AS step_num FROM numbers(N).
  * Shared between funnel-query.ts and funnel-cohort-breakdown.ts.
+ *
+ * `numSteps` is inlined directly into the SQL (safe — always a TypeScript number from `steps.length`).
+ * This avoids a raw ClickHouse `{num_steps:UInt64}` parameter that would not be captured by `compile()`.
  */
-export function stepsSubquery(): SelectNode {
+export function stepsSubquery(numSteps: number): SelectNode {
   return select(
     add(col('number'), literal(1)).as('step_num'),
   )
-    .from('numbers({num_steps:UInt64})')
+    .from(`numbers(${numSteps})`)
     .build();
 }
 
