@@ -25,7 +25,7 @@ import {
   baseMetricColumns,
   aggColumn,
   numericProperty,
-  type CohortFilterInputLike,
+  type CohortFilterInput,
 } from '../../analytics/query-helpers';
 
 // Helper to compile a single expression within a SELECT for inspection
@@ -500,9 +500,9 @@ describe('analytics/filters', () => {
     });
 
     test('materialized cohort generates IN subquery with params in AST', () => {
-      const inputs: CohortFilterInputLike[] = [{
+      const inputs: CohortFilterInput[] = [{
         cohort_id: 'cohort-1',
-        definition: {},
+        definition: { type: 'AND', values: [] },
         materialized: true,
         is_static: false,
       }];
@@ -517,9 +517,9 @@ describe('analytics/filters', () => {
     });
 
     test('static cohort generates IN subquery with person_static_cohort', () => {
-      const inputs: CohortFilterInputLike[] = [{
+      const inputs: CohortFilterInput[] = [{
         cohort_id: 'cohort-static-1',
-        definition: {},
+        definition: { type: 'AND', values: [] },
         materialized: false,
         is_static: true,
       }];
@@ -542,7 +542,7 @@ describe('analytics/filters', () => {
         to: '2026-01-31',
         cohortFilters: [{
           cohort_id: 'cohort-abc',
-          definition: {},
+          definition: { type: 'AND', values: [] },
           materialized: true,
           is_static: false,
         }],
