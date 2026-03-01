@@ -44,12 +44,7 @@ export function useDeleteWithConfirm<TData = unknown>(
       confirmState.close();
       options?.onSuccess?.(data);
     },
-    onError: (error) => {
-      confirmState.close();
-      if (options?.onError) {
-        options.onError(error);
-      }
-    },
+    onError: options?.onError,
   });
 
   const handleDelete = useCallback(async () => {

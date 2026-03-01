@@ -47,6 +47,7 @@ export default function AdminPlansPage() {
       successMessage: t('deleteSuccess'),
       invalidateKeys: [['admin', 'plans']],
       onError: (error: unknown) => {
+        confirmDelete.close();
         const status = (error as { response?: { status?: number } })?.response?.status;
         if (status === 409) {
           toast.error(t('deleteConflict'));
