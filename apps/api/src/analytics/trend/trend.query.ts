@@ -433,9 +433,15 @@ export async function queryTrend(
   const hasPropertyBreakdown = !!params.breakdown_property && !params.breakdown_cohort_ids?.length;
   let fixedBreakdownValues: string[] | undefined;
   if (hasPropertyBreakdown) {
-    // For breakdown series, breakdown_value is always a string (never undefined).
     fixedBreakdownValues = [
-      ...new Set(currentSeries.map((s) => s.breakdown_value ?? '')),
+      ...new Set(
+        currentSeries.map((s) => {
+          const bv = s.breakdown_value ?? '';
+          // De-normalize: '(none)' was produced by normalizeBreakdownValue('') in assembleRows.
+          // The actual ClickHouse stored value is '' — use it for the IN filter.
+          return bv === '(none)' ? '' : bv;
+        }),
+      ),
     ];
   }
 
