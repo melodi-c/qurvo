@@ -70,7 +70,6 @@ export class AiMessageHistoryBuilder {
       { role: 'system', content: buildContextMessage(today, projectContext, params.language) },
     ];
 
-    // Load history with summarization
     let totalMessageCount = 0;
     let existingSummary: string | null = null;
     let summaryFailed = false;
@@ -84,7 +83,6 @@ export class AiMessageHistoryBuilder {
         existingSummary = conversation.history_summary ?? null;
         summaryFailed = conversation.summary_failed ?? false;
 
-        // Inject cached summary as a system message if available
         if (existingSummary) {
           messages.push({
             role: 'system',
@@ -109,7 +107,6 @@ export class AiMessageHistoryBuilder {
       // seq starts right after the edited message (all later messages were deleted)
       seq = params.edit_sequence + 1;
     } else {
-      // Add user message normally
       messages.push({ role: 'user', content: params.message });
       seq = await this.chatService.getNextSequence(conversation.id);
       await this.chatService.saveMessage(conversation.id, seq++, {

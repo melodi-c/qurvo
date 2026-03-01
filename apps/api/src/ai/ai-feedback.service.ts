@@ -18,7 +18,6 @@ export class AiFeedbackService {
     rating: FeedbackRating,
     comment?: string,
   ) {
-    // Verify the message exists
     const [message] = await this.db
       .select({ id: aiMessages.id })
       .from(aiMessages)

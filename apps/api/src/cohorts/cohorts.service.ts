@@ -243,7 +243,7 @@ export class CohortsService {
     return queryCohortSizeHistory(this.ch, projectId, cohortId, days);
   }
 
-  // ── Cohort resolution for analytics queries ────────────────────────────────
+  // Cohort resolution for analytics queries
 
   async resolveCohortFilters(
     projectId: string,
@@ -282,7 +282,7 @@ export class CohortsService {
     );
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────────
+  // Private helpers
 
   private async getByIds(projectId: string, cohortIds: string[]) {
     if (cohortIds.length === 0) {return [];}

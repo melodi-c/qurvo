@@ -30,7 +30,7 @@ import {
   type TrendMetric,
 } from '../query-helpers';
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// Public types
 
 export type { TrendMetric };
 export type TrendGranularity = 'hour' | 'day' | 'week' | 'month';
@@ -77,7 +77,7 @@ export type TrendQueryResult =
   | { compare: true; breakdown: false; series: TrendSeriesResult[]; series_previous: TrendSeriesResult[] }
   | { compare: true; breakdown: true; breakdown_property: string; series: TrendSeriesResult[]; series_previous: TrendSeriesResult[] };
 
-// ── Raw row types from ClickHouse ─────────────────────────────────────────────
+// Raw row types from ClickHouse
 
 interface RawTrendRow {
   series_idx: string;
@@ -91,14 +91,13 @@ interface RawBreakdownRow extends RawTrendRow {
   breakdown_value: string;
 }
 
-// ── Result assembly ───────────────────────────────────────────────────────────
+// Result assembly
 
 /** Extract the numeric value from a raw ClickHouse row based on the metric type. */
 function rowToValue(metric: TrendMetric, row: RawTrendRow): number {
   if (metric.startsWith('property_')) { return Number(row.agg_value); }
   if (metric === 'total_events') { return Number(row.raw_value); }
   if (metric === 'unique_users') { return Number(row.uniq_value); }
-  // events_per_user
   const u = Number(row.uniq_value);
   return u > 0 ? Math.round((Number(row.raw_value) / u) * 100) / 100 : 0;
 }
@@ -131,7 +130,7 @@ function assembleRows(
   }
 
   if (!isBreakdown) {
-    // ── Non-breakdown path ──
+    // Non-breakdown path
     const grouped = new Map<number, TrendDataPoint[]>();
     for (const row of rows) {
       const idx = Number(row.series_idx);
@@ -151,7 +150,7 @@ function assembleRows(
     }));
   }
 
-  // ── Breakdown path ──
+  // Breakdown path
   const grouped = new Map<string, { idx: number; bv: string; data: TrendDataPoint[] }>();
   for (const row of rows as RawBreakdownRow[]) {
     const idx = Number(row.series_idx);
@@ -182,7 +181,7 @@ function assembleRows(
   return results;
 }
 
-// ── Series WHERE builder ──────────────────────────────────────────────────────
+// Series WHERE builder
 
 /**
  * Builds the WHERE clause for a single series arm, combining:
@@ -211,7 +210,7 @@ function seriesWhere(
   });
 }
 
-// ── Agg column with validation ────────────────────────────────────────────────
+// Agg column with validation
 
 function buildAggColumnExpr(metric: TrendMetric, metricProperty?: string) {
   if (metric.startsWith('property_') && !metricProperty) {
@@ -220,7 +219,7 @@ function buildAggColumnExpr(metric: TrendMetric, metricProperty?: string) {
   return alias(aggColumn(metric, metricProperty), 'agg_value');
 }
 
-// ── Series arm builder ──────────────────────────────────────────────────────────
+// Series arm builder
 
 /**
  * Build a single SELECT arm for one series. Shared by branches 2 (non-breakdown)
@@ -255,7 +254,7 @@ function buildSeriesArm(
     .build();
 }
 
-// ── Core query executor ───────────────────────────────────────────────────────
+// Core query executor
 
 /**
  * Execute the trend query using the ch-query AST builder.
@@ -280,7 +279,7 @@ async function executeTrendQuery(
   const bucketExpr = bucket(params.granularity, 'timestamp', params.timezone);
   const aggCol = buildAggColumnExpr(params.metric, params.metric_property);
 
-  // ── Branch 1: Cohort breakdown ──
+  // Branch 1: Cohort breakdown
   if (hasCohortBreakdown) {
     const cohortBreakdowns = params.breakdown_cohort_ids ?? [];
     const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
@@ -330,7 +329,7 @@ async function executeTrendQuery(
     return assembleRows(rows, params.metric, params.series, { cohortLabelMap, isBreakdown: true });
   }
 
-  // ── Branch 2: Non-breakdown ──
+  // Branch 2: Non-breakdown
   if (!hasBreakdown) {
     const arms = params.series.map((s, idx) =>
       buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, aggCol),
@@ -349,7 +348,7 @@ async function executeTrendQuery(
     return assembleRows(rows, params.metric, params.series);
   }
 
-  // ── Branch 3: Property breakdown ──
+  // Branch 3: Property breakdown
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property ?? '');
 
   const arms = params.series.map((s, idx) =>
@@ -402,7 +401,7 @@ async function executeTrendQuery(
   return assembleRows(rows, params.metric, params.series, { isBreakdown: true });
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
+// Public entry point
 
 /** Maximum number of days allowed for hour granularity (7 days = 168 hour buckets). */
 const MAX_HOURLY_RANGE_DAYS = 7;

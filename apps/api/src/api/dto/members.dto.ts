@@ -2,7 +2,7 @@ import { IsEmail, IsIn, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ProjectRole } from '../../constants';
 
-// ── Input DTOs ────────────────────────────────────────────────────────────────
+// Input DTOs
 
 export class CreateInviteDto {
   @IsEmail()
@@ -20,7 +20,7 @@ export class UpdateMemberRoleDto {
   role: 'editor' | 'viewer';
 }
 
-// ── Response DTOs ─────────────────────────────────────────────────────────────
+// Response DTOs
 
 export class MemberUserDto {
   id: string;

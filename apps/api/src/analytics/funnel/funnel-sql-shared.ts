@@ -46,7 +46,7 @@ import type { FunnelStep, FunnelExclusion, FunnelOrderType, FunnelStepResult } f
 
 export { RESOLVED_PERSON, toChTs };
 
-// ── ClickHouse query parameter types ─────────────────────────────────────────
+// ClickHouse query parameter types
 
 /**
  * Static base parameters shared by all funnel queries.
@@ -92,8 +92,7 @@ export function funnelTsParamExpr(paramName: 'from' | 'to', queryParams: FunnelC
     : namedParam(paramName, 'DateTime64(3)', queryParams[paramName]);
 }
 
-
-// ── Conversion window ────────────────────────────────────────────────────────
+// Conversion window
 
 const UNIT_TO_SECONDS: Record<string, number> = {
   second: 1,
@@ -139,7 +138,7 @@ export function resolveWindowSeconds(params: {
   return params.conversion_window_days * 86400;
 }
 
-// ── Step helpers ─────────────────────────────────────────────────────────────
+// Step helpers
 
 /** Returns all event names for a step (supports OR-logic via event_names). */
 export function resolveStepEventNames(step: FunnelStep): string[] {
@@ -178,7 +177,7 @@ export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclus
   return Array.from(names);
 }
 
-// ── Sampling ─────────────────────────────────────────────────────────────────
+// Sampling
 
 /**
  * WHERE-based sampling: deterministic per person_id (after identity merge), no SAMPLE BY needed.
@@ -202,7 +201,7 @@ export function buildSamplingClause(
   );
 }
 
-// ── windowFunnel expression ──────────────────────────────────────────────────
+// windowFunnel expression
 
 /**
  * Builds the windowFunnel() call as an Expr AST node.
@@ -220,7 +219,7 @@ export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions
   return parametricFunc('windowFunnel', params, [tsArg, ...stepConditions]);
 }
 
-// ── Unordered funnel validation ───────────────────────────────────────────────
+// Unordered funnel validation
 
 export function validateUnorderedSteps(steps: FunnelStep[]): void {
   for (let i = 0; i < steps.length; i++) {
@@ -238,7 +237,7 @@ export function validateUnorderedSteps(steps: FunnelStep[]): void {
   }
 }
 
-// ── Exclusion helpers ────────────────────────────────────────────────────────
+// Exclusion helpers
 
 export function validateExclusions(
   exclusions: FunnelExclusion[],
@@ -416,7 +415,7 @@ export function extractExclColumnAliases(exprs: Expr[]): string[] {
     .filter((a): a is string => !!a);
 }
 
-// ── Unordered coverage expressions ───────────────────────────────────────────
+// Unordered coverage expressions
 
 /**
  * Builds Expr AST nodes for the unordered funnel coverage logic:
@@ -507,7 +506,7 @@ export function buildUnorderedCoverageExprsAST(
   return { maxStepExpr, anchorMsExpr };
 }
 
-// ── Strict user filter ──────────────────────────────────────────────────────
+// Strict user filter
 
 /**
  * Builds the strict-mode user pre-filter as an Expr AST node.
@@ -542,8 +541,7 @@ export function buildStrictUserFilterExpr(
   return inArray(col('event_name'), namedParam(paramName, 'Array(String)', allEventNames));
 }
 
-
-// ── Shared funnel AST expressions ───────────────────────────────────────────
+// Shared funnel AST expressions
 
 /**
  * Builds the avg_time_seconds AST expression, shared between funnel-query.ts and funnel-cohort-breakdown.ts.
@@ -575,14 +573,14 @@ export function stepsSubquery(numSteps: number): SelectNode {
     .build();
 }
 
-// ── Window milliseconds expression ──────────────────────────────────────────
+// Window milliseconds expression
 
 /** `toInt64({window:UInt64}) * 1000` — window duration in milliseconds as an Expr AST node. */
 export function windowMsExpr(queryParams: FunnelChQueryParams): Expr {
   return mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
 }
 
-// ── Shared funnel predicate helpers ─────────────────────────────────────────
+// Shared funnel predicate helpers
 
 /**
  * `person_id NOT IN (SELECT person_id FROM excluded_users)` — reusable exclusion filter.
@@ -600,7 +598,7 @@ export function funnelProjectIdExpr(queryParams: FunnelChQueryParams): Expr {
   return eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id));
 }
 
-// ── Empty step results ──────────────────────────────────────────────────────
+// Empty step results
 
 /**
  * Generates N zero-valued step results for empty funnels.
@@ -619,7 +617,7 @@ export function buildEmptyStepResults(steps: FunnelStep[]): FunnelStepResult[] {
   }));
 }
 
-// ── Base query params builder ────────────────────────────────────────────────
+// Base query params builder
 
 export function buildBaseQueryParams(
   params: {

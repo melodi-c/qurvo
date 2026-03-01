@@ -1,6 +1,6 @@
 import type { PathTransition, TopPath } from '@/api/generated/Api';
 
-// ── Few-nodes fixture ─────────────────────────────────────────────────────────
+// Few-nodes fixture
 // 3 steps: Landing → [Product, Blog] → [Sign Up, Contact]
 
 export const FEW_TRANSITIONS: PathTransition[] = [
@@ -19,7 +19,7 @@ export const FEW_TOP_PATHS: TopPath[] = [
   { path: ['/', '/blog', '/contact'], person_count: 40 },
 ];
 
-// ── Many-nodes fixture ────────────────────────────────────────────────────────
+// Many-nodes fixture
 // 4 steps with many branches — stresses the Sankey layout engine.
 
 export const MANY_TRANSITIONS: PathTransition[] = [

@@ -138,8 +138,7 @@ export async function queryFunnelTimeToConvert(
   return buildOrderedTtc({ ...shared, numSteps, orderType });
 }
 
-
-// ── Ordered TTC ──────────────────────────────────────────────────────────────
+// Ordered TTC
 
 interface OrderedTtcOptions {
   ch: ClickHouseClient;
@@ -187,7 +186,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
-  // ── CTE: funnel_raw ──
+  // CTE: funnel_raw
   const funnelRawNode = select(
     resolvedPerson().as('person_id'),
     alias(wfExprAst, 'max_step'),
@@ -209,7 +208,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   ctes.push({ name: 'funnel_raw', query: funnelRawNode });
 
-  // ── CTEs: seq_step_0 .. seq_step_{N-1} ──
+  // CTEs: seq_step_0 .. seq_step_{N-1}
   for (let i = 0; i < numSteps; i++) {
     const prevCTE = i === 0 ? 'funnel_raw' : `seq_step_${i - 1}`;
 
@@ -260,7 +259,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
     ctes.push({ name: `seq_step_${i}`, query: seqStepNode });
   }
 
-  // ── CTE: funnel_per_user ──
+  // CTE: funnel_per_user
   const lastSeqCTE = `seq_step_${numSteps - 1}`;
   const funnelPerUserNode = select(
     col('person_id'),
@@ -273,12 +272,12 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
 
-  // ── CTE: excluded_users (if exclusions present) ──
+  // CTE: excluded_users (if exclusions present)
   if (exclusions.length > 0) {
     ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, false, queryParams) });
   }
 
-  // ── CTE: converted ──
+  // CTE: converted
   const exclAndCondition = exclusions.length > 0
     ? notInExcludedUsers()
     : undefined;
@@ -295,7 +294,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   ctes.push({ name: 'converted', query: convertedNode });
 
-  // ── Final SELECT ──
+  // Final SELECT
   const durationFilter = and(
     gte(col('duration_seconds'), literal(0)),
     lte(col('duration_seconds'), namedParam('window_seconds', 'Float64', queryParams.window_seconds)),
@@ -317,7 +316,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   return parseTtcRows(rows, fromStep, toStep);
 }
 
-// ── Shared result-row types and parser ───────────────────────────────────────
+// Shared result-row types and parser
 
 /** @internal Exported for unit testing only. */
 export interface TtcAggRow {
@@ -395,7 +394,7 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
   return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: sampleSize, bins };
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 /**
  * Extracts alias names from exclusion Expr list.
@@ -408,7 +407,7 @@ function extractExclAliases(exclExprList: Expr[]): string[] {
   }).filter(Boolean);
 }
 
-// ── Unordered TTC ────────────────────────────────────────────────────────────
+// Unordered TTC
 
 /**
  * Builds and executes the TTC query for unordered funnels.
@@ -462,7 +461,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
-  // ── CTE: step_times ──
+  // CTE: step_times
   const stepTimesNode = select(
     resolvedPerson().as('person_id'),
     ...groupArrayColExprs,
@@ -482,7 +481,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   ctes.push({ name: 'step_times', query: stepTimesNode });
 
-  // ── CTE: anchor_per_user ──
+  // CTE: anchor_per_user
   const anchorPerUserNode = select(
     col('person_id'),
     toInt64(maxStepExpr).as('max_step'),
@@ -496,7 +495,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });
 
-  // ── CTE: funnel_per_user ──
+  // CTE: funnel_per_user
   // from_step_ms and to_step_ms: first timestamp in [anchor_ms, anchor_ms + window] from respective step arrays
   const buildStepMsInWindowExpr = (varName: string, stepIdx: number): Expr => {
     const filterCond = and(
@@ -525,12 +524,12 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
 
-  // ── CTE: excluded_users (if exclusions present) — anchorFilter=true for unordered (#497) ──
+  // CTE: excluded_users (if exclusions present) — anchorFilter=true for unordered (#497)
   if (exclusions.length > 0) {
     ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true, queryParams) });
   }
 
-  // ── CTE: converted ──
+  // CTE: converted
   const exclAndCondition = exclusions.length > 0
     ? notInExcludedUsers()
     : undefined;
@@ -549,7 +548,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   ctes.push({ name: 'converted', query: convertedNode });
 
-  // ── Final SELECT ──
+  // Final SELECT
   const durationFilter = and(
     gte(col('duration_seconds'), literal(0)),
     lte(col('duration_seconds'), namedParam('window_seconds', 'Float64', queryParams.window_seconds)),

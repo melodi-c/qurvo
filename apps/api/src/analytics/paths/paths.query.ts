@@ -38,7 +38,7 @@ import {
 import type { PropertyFilter } from '../query-helpers';
 import { MAX_PATH_NODES } from '../../constants';
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// Public types
 
 export interface PathCleaningRule {
   regex: string;
@@ -83,7 +83,7 @@ export interface PathsQueryResult {
   top_paths: TopPath[];
 }
 
-// ── Path cleaning expression ──────────────────────────────────────────────────
+// Path cleaning expression
 
 function buildCleaningExpr(
   rules?: PathCleaningRule[],
@@ -117,7 +117,7 @@ function buildCleaningExpr(
   return multiIf(branches, col('event_name'));
 }
 
-// ── Raw row types ─────────────────────────────────────────────────────────────
+// Raw row types
 
 interface RawTransitionRow {
   step: string;
@@ -131,7 +131,7 @@ interface RawTopPathRow {
   person_count: string;
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
+// Public entry point
 
 export async function queryPaths(
   ch: ClickHouseClient,

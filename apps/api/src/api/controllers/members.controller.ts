@@ -12,7 +12,7 @@ import {
 } from '../dto/members.dto';
 import { ProjectMemberGuard } from '../guards/project-member.guard';
 
-// ── Project-scoped member management ──────────────────────────────────────────
+// Project-scoped member management
 
 @ApiTags('Members')
 @ApiBearerAuth()
@@ -48,7 +48,7 @@ export class MembersController {
   }
 }
 
-// ── Project-scoped invite management ──────────────────────────────────────────
+// Project-scoped invite management
 
 @ApiTags('Invites')
 @ApiBearerAuth()
@@ -85,7 +85,7 @@ export class InvitesController {
   }
 }
 
-// ── User-scoped invite inbox ───────────────────────────────────────────────────
+// User-scoped invite inbox
 
 @ApiTags('Invites')
 @ApiBearerAuth()

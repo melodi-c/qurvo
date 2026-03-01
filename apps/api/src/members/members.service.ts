@@ -46,7 +46,7 @@ export class MembersService {
     @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
-  // ── Members ────────────────────────────────────────────────────────────────
+  // Members
 
   async listMembers(projectId: string) {
     return this.db
@@ -86,7 +86,7 @@ export class MembersService {
     this.logger.log({ memberId, projectId }, 'Member removed');
   }
 
-  // ── Invites ────────────────────────────────────────────────────────────────
+  // Invites
 
   async listInvites(projectId: string) {
     return this.db
@@ -153,7 +153,7 @@ export class MembersService {
     this.logger.log({ inviteId, projectId }, 'Invite cancelled');
   }
 
-  // ── Recipient side ─────────────────────────────────────────────────────────
+  // Recipient side
 
   async getMyInvites(email: string) {
     return this.db
@@ -200,7 +200,7 @@ export class MembersService {
     this.logger.log({ inviteId, userId, action }, 'Invite responded');
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
+  // Private helpers
 
   private async hydrateMember(memberId: string) {
     const [hydrated] = await this.db

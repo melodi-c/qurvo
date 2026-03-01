@@ -36,12 +36,10 @@ export interface EventRow {
   person_id: string;
   session_id: string;
   timestamp: string;
-  // Page
   url: string;
   referrer: string;
   page_title: string;
   page_path: string;
-  // Device & Browser
   device_type: string;
   browser: string;
   browser_version: string;
@@ -49,14 +47,11 @@ export interface EventRow {
   os_version: string;
   screen_width: number;
   screen_height: number;
-  // Geo
   country: string;
   region: string;
   city: string;
-  // User context
   language: string;
   timezone: string;
-  // SDK
   sdk_name: string;
   sdk_version: string;
 }

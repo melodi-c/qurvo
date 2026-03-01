@@ -2,7 +2,7 @@ import type { FunnelStep, FunnelStepResult, FunnelBreakdownStepResult } from './
 import { buildEmptyStepResults } from './funnel-sql-shared';
 import { normalizeBreakdownValue } from '../query-helpers';
 
-// ── Raw row types from ClickHouse ────────────────────────────────────────────
+// Raw row types from ClickHouse
 
 export interface RawFunnelRow {
   step_num: string;
@@ -17,7 +17,7 @@ export interface RawBreakdownRow extends RawFunnelRow {
   total_bd_count?: string;
 }
 
-// ── Step result computation ──────────────────────────────────────────────────
+// Step result computation
 
 /**
  * Converts raw ClickHouse rows into FunnelStepResult[].
