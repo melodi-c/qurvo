@@ -1,5 +1,27 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
-import { compileExprToSql, CompilerContext } from '@qurvo/ch-query';
+import {
+  compile,
+  compileExprToSql,
+  CompilerContext,
+  select,
+  raw,
+  rawWithParams,
+  col,
+  literal,
+  avgIf,
+  countIf,
+  minIf,
+  maxIf,
+  toInt64,
+  and,
+  gt,
+  gte,
+  lte,
+  notInSubquery,
+  groupArrayIf,
+  type Expr,
+  type QueryNode,
+} from '@qurvo/ch-query';
 import { cohortFilter, cohortBounds } from '../query-helpers';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
@@ -8,40 +30,19 @@ import {
   toChTs,
   resolveWindowSeconds,
   buildStepCondition,
-  buildSamplingClauseRaw,
+  buildSamplingClause,
   buildWindowFunnelExpr,
   buildAllEventNames,
   buildExclusionColumns,
-  buildExcludedUsersCTERaw,
+  buildExcludedUsersCTE,
   buildUnorderedCoverageExprs,
-  buildStrictUserFilter,
+  buildStrictUserFilterExpr,
   validateExclusions,
   validateUnorderedSteps,
-  funnelTsExprSql,
+  funnelTsParamExpr,
   compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
-
-/**
- * ClickHouse query parameters for the time-to-convert query.
- *
- * Static keys:
- *   project_id   — UUID of the project
- *   from         — start of the date range (ClickHouse DateTime string)
- *   to           — end of the date range (ClickHouse DateTime string)
- *   window       — conversion window in seconds (UInt64)
- *   step_names   — flat list of all step event names (Array(String))
- *   to_step_num  — 1-based target step number (UInt64)
- *
- * Dynamic keys:
- *   sample_pct         — sampling percentage 0-100 (UInt8), present only when sampling
- *   (step_N/filter params are embedded via namedParam in Expr AST)
- */
-interface TtcChQueryParams extends FunnelChQueryParams {
-  step_names: string[];
-  to_step_num: number;
-  window_seconds: number;
-}
 
 /** Maximum number of bins in the histogram. */
 const MAX_BINS = 60;
@@ -93,28 +94,33 @@ export async function queryFunnelTimeToConvert(
   const allEventNames = buildAllEventNames(steps, exclusions);
 
   const hasTz = !!(params.timezone && params.timezone !== 'UTC');
-  const queryParams: TtcChQueryParams = {
+  const queryParams: FunnelChQueryParams = {
     project_id,
     from: toChTs(params.date_from),
     to: toChTs(params.date_to, true),
     window: windowSeconds,
     num_steps: steps.length,
     all_event_names: allEventNames,
+    // TTC-specific params
     step_names: allEventNames,
     to_step_num: toStep + 1,
     window_seconds: windowSeconds,
   };
   if (hasTz) {queryParams.tz = params.timezone;}
-  // Step event names are no longer injected here — buildStepCondition() uses namedParam()
 
   const ctx = new CompilerContext();
+
+  // Compile cohort, sampling, and timestamp expressions via AST
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
   const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams, ctx).sql : '';
 
-  const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
+  const samplingExpr = buildSamplingClause(params.sampling_factor, queryParams);
+  const samplingClause = samplingExpr
+    ? '\n                AND ' + compileExprToSql(samplingExpr, queryParams, ctx).sql
+    : '';
 
-  // Build step conditions as Expr, then compile to SQL strings for raw SQL embedding
+  // Build step conditions as Expr, then compile to SQL strings
   const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));
   const stepConds = stepCondExprs.map(expr => compileExprToSql(expr, queryParams, ctx).sql);
 
@@ -126,13 +132,51 @@ export async function queryFunnelTimeToConvert(
     ? compileExprsToSqlColumns(exclExprList, queryParams, ctx)
     : [];
 
+  const shared = { ch, queryParams, stepConds, exclColumnsSql, exclusions, fromStep, toStep, cohortClause, samplingClause, ctx };
+
   if (orderType === 'unordered') {
-    return buildUnorderedTtcSql(ch, queryParams, stepConds, exclColumnsSql, exclusions, fromStep, toStep, cohortClause, samplingClause, ctx);
+    return buildUnorderedTtc(shared);
   }
 
-  // Compile windowFunnel Expr to SQL for raw CTE body
+  return buildOrderedTtc({ ...shared, stepCondExprs, numSteps, orderType });
+}
+
+// ── Ordered TTC ──────────────────────────────────────────────────────────────
+
+interface OrderedTtcOptions {
+  ch: ClickHouseClient;
+  queryParams: FunnelChQueryParams;
+  stepConds: string[];
+  stepCondExprs: Expr[];
+  exclColumnsSql: string[];
+  exclusions: NonNullable<TimeToConvertParams['exclusions']>;
+  fromStep: number;
+  toStep: number;
+  numSteps: number;
+  orderType: FunnelOrderType;
+  cohortClause: string;
+  samplingClause: string;
+  ctx: CompilerContext;
+}
+
+async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConvertResult> {
+  const {
+    ch, queryParams, stepConds, stepCondExprs, exclColumnsSql, exclusions,
+    fromStep, toStep, numSteps, orderType, cohortClause, samplingClause, ctx,
+  } = options;
+  // Compile windowFunnel Expr to SQL
   const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs);
   const wfExprSql = compileExprToSql(wfExprAst, queryParams, ctx).sql;
+
+  // Timestamp param expressions (AST)
+  const fromExprAst = funnelTsParamExpr('from', queryParams);
+  const toExprAst = funnelTsParamExpr('to', queryParams);
+  const fromExpr = compileExprToSql(fromExprAst, queryParams, ctx).sql;
+  const toExpr = compileExprToSql(toExprAst, queryParams, ctx).sql;
+
+  // Strict user filter via AST
+  const eventNameFilterExpr = buildStrictUserFilterExpr(fromExprAst, toExprAst, 'step_names', queryParams.all_event_names, queryParams.project_id, orderType);
+  const eventNameFilter = '\n                AND ' + compileExprToSql(eventNameFilterExpr, queryParams, ctx).sql;
 
   const stepArrayCols = stepConds.map(
     (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_arr`,
@@ -153,27 +197,36 @@ export async function queryFunnelTimeToConvert(
   const exclAliasSQL = exclColumnAliases.length > 0
     ? ',\n      ' + exclColumnAliases.join(',\n      ')
     : '';
-  const excludedUsersCTE = exclusions.length > 0
-    ? buildExcludedUsersCTERaw(exclusions) + ',\n  '
-    : '';
-  // Extra AND condition appended to the WHERE clause in the `converted` CTE
-  const exclAndCondition = exclusions.length > 0
-    ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
-    : '';
 
+  const ctes: Array<{ name: string; query: QueryNode }> = [];
+
+  // ── CTE: funnel_raw ──
   const winMsExpr = `toInt64({window:UInt64}) * 1000`;
-  const seqStepCTEs: string[] = [];
+
+  const funnelRawNode = select(rawWithParams(`
+            ${RESOLVED_PERSON} AS person_id,
+            ${wfExprSql} AS max_step,
+            ${stepArrayCols},
+            toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]})) AS last_step_prelim_ms${exclColumnsSQL}
+          FROM events
+          WHERE
+            project_id = {project_id:UUID}
+            AND timestamp >= ${fromExpr}
+            AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
+          GROUP BY person_id`, queryParams))
+    .build();
+
+  ctes.push({ name: 'funnel_raw', query: funnelRawNode });
+
+  // ── CTEs: seq_step_0 .. seq_step_{N-1} ──
   for (let i = 0; i < numSteps; i++) {
     const prevCTE = i === 0 ? 'funnel_raw' : `seq_step_${i - 1}`;
     const passThrough = [
       'person_id',
       'max_step',
       'last_step_prelim_ms',
-      // pass through all step arrays
       ...Array.from({ length: numSteps }, (_, j) => `step_${j}_arr`),
-      // pass through previously computed step_ms columns
       ...Array.from({ length: i }, (_, j) => `step_${j}_ms`),
-      // pass through exclusion aliases
       ...exclColumnAliases,
     ].join(',\n        ');
 
@@ -188,57 +241,69 @@ export async function queryFunnelTimeToConvert(
         ` 0) AS step_${i}_ms`;
     }
 
-    seqStepCTEs.push(
-      `seq_step_${i} AS (\n      SELECT\n        ${passThrough},\n        ${stepMsExpr}\n      FROM ${prevCTE}\n    )`,
-    );
+    const seqStepNode = select(raw(`
+        ${passThrough},
+        ${stepMsExpr}
+      FROM ${prevCTE}`))
+      .build();
+
+    ctes.push({ name: `seq_step_${i}`, query: seqStepNode });
   }
 
+  // ── CTE: funnel_per_user ──
   const lastSeqCTE = `seq_step_${numSteps - 1}`;
   const stepMsCols = Array.from({ length: numSteps }, (_, i) => `step_${i}_ms`).join(',\n        ');
 
-  const fromExpr = funnelTsExprSql('from', queryParams, ctx);
-  const toExpr = funnelTsExprSql('to', queryParams, ctx);
-
-  const strictUserFilter = buildStrictUserFilter(fromExpr, toExpr, 'step_names', orderType);
-
-  const sql = `
-    WITH funnel_raw AS (
-      SELECT
-        ${RESOLVED_PERSON} AS person_id,
-        ${wfExprSql} AS max_step,
-        ${stepArrayCols},
-        toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]})) AS last_step_prelim_ms${exclColumnsSQL}
-      FROM events
-      WHERE
-        project_id = {project_id:UUID}
-        AND timestamp >= ${fromExpr}
-        AND timestamp <= ${toExpr}${strictUserFilter}${cohortClause}${samplingClause}
-      GROUP BY person_id
-    ),
-    ${seqStepCTEs.join(',\n    ')},
-    funnel_per_user AS (
-      SELECT
+  const funnelPerUserNode = select(raw(`
         person_id,
         max_step,
         ${stepMsCols}${exclAliasSQL}
-      FROM ${lastSeqCTE}
-    ),
-    ${excludedUsersCTE}converted AS (
-      SELECT
-        (${toCol} - ${fromCol}) / 1000.0 AS duration_seconds
-      FROM funnel_per_user
-      WHERE max_step >= {to_step_num:UInt64}${exclAndCondition}
-    )
-    SELECT
-      avgIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-      toInt64(countIf(duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
-      minIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
-      maxIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
-      groupArrayIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
-    FROM converted
-  `;
+      FROM ${lastSeqCTE}`))
+    .build();
 
-  const queryResult = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
+
+  // ── CTE: excluded_users (if exclusions present) ──
+  if (exclusions.length > 0) {
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions) });
+  }
+
+  // ── CTE: converted ──
+  const exclAndCondition = exclusions.length > 0
+    ? notInSubquery(col('person_id'), select(col('person_id')).from('excluded_users').build())
+    : undefined;
+
+  const convertedNode = select(
+    raw(`(${toCol} - ${fromCol}) / 1000.0`).as('duration_seconds'),
+  )
+    .from('funnel_per_user')
+    .where(
+      gte(col('max_step'), raw('{to_step_num:UInt64}')),
+      exclAndCondition,
+    )
+    .build();
+
+  ctes.push({ name: 'converted', query: convertedNode });
+
+  // ── Final SELECT ──
+  const durationFilter = and(
+    gte(col('duration_seconds'), literal(0)),
+    lte(col('duration_seconds'), raw('{window_seconds:Float64}')),
+  );
+
+  const finalQuery = select(
+    avgIf(col('duration_seconds'), durationFilter).as('avg_seconds'),
+    toInt64(countIf(durationFilter)).as('sample_size'),
+    minIf(col('duration_seconds'), durationFilter).as('min_seconds'),
+    maxIf(col('duration_seconds'), durationFilter).as('max_seconds'),
+    groupArrayIf(col('duration_seconds'), durationFilter).as('durations'),
+  )
+    .withAll(ctes)
+    .from('converted')
+    .build();
+
+  const compiled = compile(finalQuery);
+  const queryResult = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await queryResult.json<TtcAggRow>();
 
   return parseTtcRows(rows, fromStep, toStep);
@@ -337,20 +402,32 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
  * This matches the corrected unordered funnel semantics: the duration is measured
  * from the anchor of the successful conversion window.
  */
-async function buildUnorderedTtcSql(
-  ch: ClickHouseClient,
-  queryParams: TtcChQueryParams,
-  stepConds: string[],
-  exclColumnsSql: string[],
-  exclusions: NonNullable<TimeToConvertParams['exclusions']>,
-  fromStep: number,
-  toStep: number,
-  cohortClause: string,
-  samplingClause: string,
-  ctx?: CompilerContext,
-): Promise<TimeToConvertResult> {
+interface UnorderedTtcOptions {
+  ch: ClickHouseClient;
+  queryParams: FunnelChQueryParams;
+  stepConds: string[];
+  exclColumnsSql: string[];
+  exclusions: NonNullable<TimeToConvertParams['exclusions']>;
+  fromStep: number;
+  toStep: number;
+  cohortClause: string;
+  samplingClause: string;
+  ctx: CompilerContext;
+}
+
+async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToConvertResult> {
+  const {
+    ch, queryParams, stepConds, exclColumnsSql, exclusions,
+    fromStep, toStep, cohortClause, samplingClause, ctx,
+  } = options;
   const N = stepConds.length;
   const winExpr = `toInt64({window:UInt64}) * 1000`;
+
+  // Timestamp param expressions (AST)
+  const fromExprAst = funnelTsParamExpr('from', queryParams);
+  const toExprAst = funnelTsParamExpr('to', queryParams);
+  const fromExprSql = compileExprToSql(fromExprAst, queryParams, ctx).sql;
+  const toExprSql = compileExprToSql(toExprAst, queryParams, ctx).sql;
 
   // Collect all timestamps per step as arrays.
   const groupArrayCols = stepConds.map(
@@ -375,49 +452,40 @@ async function buildUnorderedTtcSql(
     ? ',\n        ' + exclColAliases.join(',\n        ')
     : '';
 
-  // Guard on step-0 (anchor step) only — users without step-0 cannot enter the funnel,
-  // even if they have events for other steps. Using OR across all steps would include
-  // users who skipped step-0, producing incorrect TTC sample sizes and durations.
+  // Guard on step-0 (anchor step) only — users without step-0 cannot enter the funnel.
   const anyStepNonEmpty = `length(t0_arr) > 0`;
 
-  // anchorFilter=true: restrict exclusion checks to (f, t) pairs where f >= first_step_ms
-  // (the anchor window). This prevents historical clean sessions outside the anchor window
-  // from masking tainted conversions within it — same fix as funnel-unordered.sql.ts (issue #497).
-  const excludedUsersCTE = exclusions.length > 0
-    ? ',\n  ' + buildExcludedUsersCTERaw(exclusions, true)
-    : '';
+  const ctes: Array<{ name: string; query: QueryNode }> = [];
 
-  const exclAndCondition = exclusions.length > 0
-    ? '\n        AND person_id NOT IN (SELECT person_id FROM excluded_users)'
-    : '';
-
-  const fromExprU = funnelTsExprSql('from', queryParams, ctx);
-  const toExprU = funnelTsExprSql('to', queryParams, ctx);
-
-  const sql = `
-    WITH step_times AS (
-      SELECT
+  // ── CTE: step_times ──
+  const stepTimesNode = select(rawWithParams(`
         ${RESOLVED_PERSON} AS person_id,
         ${groupArrayCols}${exclColsSQL}
       FROM events
       WHERE
         project_id = {project_id:UUID}
-        AND timestamp >= ${fromExprU}
-        AND timestamp <= ${toExprU}
+        AND timestamp >= ${fromExprSql}
+        AND timestamp <= ${toExprSql}
         AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
-      GROUP BY person_id
-    ),
-    anchor_per_user AS (
-      SELECT
+      GROUP BY person_id`, queryParams))
+    .build();
+
+  ctes.push({ name: 'step_times', query: stepTimesNode });
+
+  // ── CTE: anchor_per_user ──
+  const anchorPerUserNode = select(raw(`
         person_id,
         toInt64(${maxStepExpr}) AS max_step,
         toInt64(${anchorMsExpr}) AS anchor_ms${exclColsForward},
         ${Array.from({ length: N }, (_, i) => `t${i}_arr`).join(', ')}
       FROM step_times
-      WHERE ${anyStepNonEmpty}
-    ),
-    funnel_per_user AS (
-      SELECT
+      WHERE ${anyStepNonEmpty}`))
+    .build();
+
+  ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });
+
+  // ── CTE: funnel_per_user ──
+  const funnelPerUserNode = select(raw(`
         person_id,
         max_step,
         anchor_ms,
@@ -432,26 +500,54 @@ async function buildUnorderedTtcSql(
           arrayMin(arrayFilter(tv -> tv >= anchor_ms AND tv <= anchor_ms + ${winExpr}, t${toStep}_arr)),
           toInt64(0)
         )) AS to_step_ms${exclColsForward}
-      FROM anchor_per_user
-    )${excludedUsersCTE},
-    converted AS (
-      SELECT
-        (to_step_ms - from_step_ms) / 1000.0 AS duration_seconds
-      FROM funnel_per_user
-      WHERE max_step >= {to_step_num:UInt64}
-        AND to_step_ms >= from_step_ms
-        AND from_step_ms > 0${exclAndCondition}
-    )
-    SELECT
-      avgIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS avg_seconds,
-      toInt64(countIf(duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64})) AS sample_size,
-      minIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS min_seconds,
-      maxIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS max_seconds,
-      groupArrayIf(duration_seconds, duration_seconds >= 0 AND duration_seconds <= {window_seconds:Float64}) AS durations
-    FROM converted
-  `;
+      FROM anchor_per_user`))
+    .build();
 
-  const queryResult = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
+  ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
+
+  // ── CTE: excluded_users (if exclusions present) — anchorFilter=true for unordered (#497) ──
+  if (exclusions.length > 0) {
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true) });
+  }
+
+  // ── CTE: converted ──
+  const exclAndCondition = exclusions.length > 0
+    ? notInSubquery(col('person_id'), select(col('person_id')).from('excluded_users').build())
+    : undefined;
+
+  const convertedNode = select(
+    raw('(to_step_ms - from_step_ms) / 1000.0').as('duration_seconds'),
+  )
+    .from('funnel_per_user')
+    .where(
+      gte(col('max_step'), raw('{to_step_num:UInt64}')),
+      gte(col('to_step_ms'), col('from_step_ms')),
+      gt(col('from_step_ms'), literal(0)),
+      exclAndCondition,
+    )
+    .build();
+
+  ctes.push({ name: 'converted', query: convertedNode });
+
+  // ── Final SELECT ──
+  const durationFilter = and(
+    gte(col('duration_seconds'), literal(0)),
+    lte(col('duration_seconds'), raw('{window_seconds:Float64}')),
+  );
+
+  const finalQuery = select(
+    avgIf(col('duration_seconds'), durationFilter).as('avg_seconds'),
+    toInt64(countIf(durationFilter)).as('sample_size'),
+    minIf(col('duration_seconds'), durationFilter).as('min_seconds'),
+    maxIf(col('duration_seconds'), durationFilter).as('max_seconds'),
+    groupArrayIf(col('duration_seconds'), durationFilter).as('durations'),
+  )
+    .withAll(ctes)
+    .from('converted')
+    .build();
+
+  const compiled = compile(finalQuery);
+  const queryResult = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await queryResult.json<TtcAggRow>();
   return parseTtcRows(rows, fromStep, toStep);
 }
