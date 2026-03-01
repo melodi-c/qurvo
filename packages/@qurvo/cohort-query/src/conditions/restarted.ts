@@ -1,8 +1,7 @@
 import type { CohortRestartedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, notInSubquery, inSubquery, and } from '@qurvo/ch-query';
+import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, inSubquery } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
-import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -26,7 +25,6 @@ export function buildRestartedPerformingSubquery(
 
   const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const upperBound = resolveDateTo(ctx);
-  const upperSql = compileExprToSql(upperBound).sql;
 
   const gapStartPk = `coh_${condIdx}_gapStart`;
   const gapEndPk = `coh_${condIdx}_gapEnd`;
@@ -34,27 +32,34 @@ export function buildRestartedPerformingSubquery(
   ctx.queryParams[gapStartPk] = cond.recent_window_days + cond.gap_window_days;
   ctx.queryParams[gapEndPk] = cond.recent_window_days;
 
+  const histInterval = rawWithParams(`INTERVAL {${histPk}:UInt32} DAY`, { [histPk]: cond.historical_window_days });
+  const recentInterval = rawWithParams(`INTERVAL {${recentPk}:UInt32} DAY`, { [recentPk]: cond.recent_window_days });
+  const gapStartInterval = rawWithParams(`INTERVAL {${gapStartPk}:UInt32} DAY`, { [gapStartPk]: cond.recent_window_days + cond.gap_window_days });
+  const gapEndInterval = rawWithParams(`INTERVAL {${gapEndPk}:UInt32} DAY`, { [gapEndPk]: cond.recent_window_days });
+  const projectIdExpr = namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]);
+  const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
+
   // Historical performers (far past)
   const historicalSelect = select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`event_name = {${eventPk}:String}`),
-      raw(`timestamp >= ${upperSql} - INTERVAL {${histPk}:UInt32} DAY`),
-      raw(`timestamp < ${upperSql} - INTERVAL {${gapStartPk}:UInt32} DAY`),
+      eq(col('project_id'), projectIdExpr),
+      eq(col('event_name'), eventNameExpr),
+      gte(col('timestamp'), sub(upperBound, histInterval)),
+      lt(col('timestamp'), sub(upperBound, gapStartInterval)),
       filterExpr,
     )
-    .groupBy(raw('person_id'))
+    .groupBy(col('person_id'))
     .build();
 
   // Gap performers (should NOT have performed during gap)
   const gapSelect = select(raw(RESOLVED_PERSON))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`event_name = {${eventPk}:String}`),
-      raw(`timestamp >= ${upperSql} - INTERVAL {${gapStartPk}:UInt32} DAY`),
-      raw(`timestamp < ${upperSql} - INTERVAL {${gapEndPk}:UInt32} DAY`),
+      eq(col('project_id'), projectIdExpr),
+      eq(col('event_name'), eventNameExpr),
+      gte(col('timestamp'), sub(upperBound, gapStartInterval)),
+      lt(col('timestamp'), sub(upperBound, gapEndInterval)),
       filterExpr,
     )
     .build();
@@ -63,20 +68,20 @@ export function buildRestartedPerformingSubquery(
   const recentSelect = select(raw(RESOLVED_PERSON))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`event_name = {${eventPk}:String}`),
-      raw(`timestamp >= ${upperSql} - INTERVAL {${recentPk}:UInt32} DAY`),
-      raw(`timestamp <= ${upperSql}`),
+      eq(col('project_id'), projectIdExpr),
+      eq(col('event_name'), eventNameExpr),
+      gte(col('timestamp'), sub(upperBound, recentInterval)),
+      lte(col('timestamp'), upperBound),
       filterExpr,
     )
     .build();
 
   // Outer: historical persons NOT IN gap AND IN recent
-  return select(raw('person_id'))
+  return select(col('person_id'))
     .from(historicalSelect)
     .where(
-      notInSubquery(raw('person_id'), gapSelect),
-      inSubquery(raw('person_id'), recentSelect),
+      notInSubquery(col('person_id'), gapSelect),
+      inSubquery(col('person_id'), recentSelect),
     )
     .build();
 }

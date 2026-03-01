@@ -1,39 +1,71 @@
-import type { CohortAggregationType, CohortEventCondition } from '@qurvo/db';
+import type { CohortAggregationType, CohortEventCondition, CohortEventFilter } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
-import { select, raw } from '@qurvo/ch-query';
+import {
+  select, raw, rawWithParams, col, namedParam, literal,
+  eq, gte, lte, sub, func, and, countIf, parametricFunc,
+  toFloat64OrZero,
+} from '@qurvo/ch-query';
 import {
   RESOLVED_PERSON,
   buildEventFilterClauses,
+  buildOperatorClause,
   resolveEventPropertyExpr,
-  buildCountIfCondStr,
   allocCondIdx,
-  buildEventsBaseSelect,
   resolveDateTo,
   resolveDateFrom,
 } from '../helpers';
-import { compileExprToSql } from '@qurvo/ch-query';
 import type { BuildContext } from '../types';
 
 function buildAggregationExpr(type: CohortAggregationType | undefined, property: string | undefined): Expr {
-  if (!type || type === 'count') return raw('count()');
+  if (!type || type === 'count') return func('count');
   const propExpr = resolveEventPropertyExpr(property ?? '');
-  const propSql = compileExprToSql(propExpr).sql;
-  const numExpr = `toFloat64OrZero(${propSql})`;
+  const numExpr = toFloat64OrZero(propExpr);
   switch (type) {
-    case 'sum': return raw(`sum(${numExpr})`);
-    case 'avg': return raw(`avg(${numExpr})`);
-    case 'min': return raw(`min(${numExpr})`);
-    case 'max': return raw(`max(${numExpr})`);
-    case 'median': return raw(`quantile(0.50)(${numExpr})`);
-    case 'p75': return raw(`quantile(0.75)(${numExpr})`);
-    case 'p90': return raw(`quantile(0.90)(${numExpr})`);
-    case 'p95': return raw(`quantile(0.95)(${numExpr})`);
-    case 'p99': return raw(`quantile(0.99)(${numExpr})`);
+    case 'sum': return func('sum', numExpr);
+    case 'avg': return func('avg', numExpr);
+    case 'min': return func('min', numExpr);
+    case 'max': return func('max', numExpr);
+    case 'median': return parametricFunc('quantile', [literal(0.50)], [numExpr]);
+    case 'p75': return parametricFunc('quantile', [literal(0.75)], [numExpr]);
+    case 'p90': return parametricFunc('quantile', [literal(0.90)], [numExpr]);
+    case 'p95': return parametricFunc('quantile', [literal(0.95)], [numExpr]);
+    case 'p99': return parametricFunc('quantile', [literal(0.99)], [numExpr]);
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unhandled aggregation type: ${_exhaustive}`);
     }
   }
+}
+
+/** Maps count_operator to a binary comparator. */
+function comparator(op: 'gte' | 'lte' | 'eq'): (left: Expr, right: Expr) => Expr {
+  switch (op) {
+    case 'gte': return gte;
+    case 'lte': return lte;
+    case 'eq':  return eq;
+  }
+}
+
+/**
+ * Builds a countIf condition Expr: event_name = {pk:String} [AND filter1 AND filter2 ...]
+ */
+function buildCountIfCondExpr(
+  eventPk: string,
+  eventName: string,
+  condIdx: number,
+  filters: CohortEventFilter[] | undefined,
+  queryParams: Record<string, unknown>,
+): Expr {
+  const parts: Expr[] = [eq(col('event_name'), namedParam(eventPk, 'String', eventName))];
+  if (filters && filters.length > 0) {
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const pk = `coh_${condIdx}_ef${i}`;
+      const expr = resolveEventPropertyExpr(f.property);
+      parts.push(buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values));
+    }
+  }
+  return and(...parts);
 }
 
 /**
@@ -48,16 +80,20 @@ function buildEventZeroCountSubquery(
 ): SelectNode {
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
-  const upperSql = compileExprToSql(upperBound).sql;
-  const lowerBoundSql = lowerBound
-    ? compileExprToSql(lowerBound).sql
-    : `${upperSql} - INTERVAL {${daysPk}:UInt32} DAY`;
+  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const lowerExpr = lowerBound ?? sub(upperBound, daysInterval);
 
-  const countIfCond = buildCountIfCondStr(eventPk, condIdx, cond.event_filters, ctx.queryParams);
+  const countIfCond = buildCountIfCondExpr(eventPk, cond.event_name, condIdx, cond.event_filters, ctx.queryParams);
 
-  return buildEventsBaseSelect(ctx, upperSql, lowerBoundSql)
-    .groupBy(raw('person_id'))
-    .having(raw(`countIf(${countIfCond}) = 0`))
+  return select(raw(RESOLVED_PERSON).as('person_id'))
+    .from('events')
+    .where(
+      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      gte(col('timestamp'), lowerExpr),
+      lte(col('timestamp'), upperBound),
+    )
+    .groupBy(col('person_id'))
+    .having(eq(countIf(countIfCond), literal(0)))
     .build();
 }
 
@@ -78,30 +114,23 @@ export function buildEventConditionSubquery(
     return buildEventZeroCountSubquery(cond, ctx, condIdx, eventPk, daysPk);
   }
 
-  let countOp: string;
-  switch (cond.count_operator) {
-    case 'gte': countOp = '>='; break;
-    case 'lte': countOp = '<='; break;
-    case 'eq':  countOp = '=';  break;
-  }
-
+  const cmp = comparator(cond.count_operator);
   const aggExpr = buildAggregationExpr(cond.aggregation_type, cond.aggregation_property);
   const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const thresholdType = isCount ? 'UInt64' : 'Float64';
   const upperBound = resolveDateTo(ctx);
-  const upperSql = compileExprToSql(upperBound).sql;
-  const aggSql = compileExprToSql(aggExpr).sql;
+  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
 
   return select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`event_name = {${eventPk}:String}`),
-      raw(`timestamp >= ${upperSql} - INTERVAL {${daysPk}:UInt32} DAY`),
-      raw(`timestamp <= ${upperSql}`),
+      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      eq(col('event_name'), namedParam(eventPk, 'String', cond.event_name)),
+      gte(col('timestamp'), sub(upperBound, daysInterval)),
+      lte(col('timestamp'), upperBound),
       filterExpr,
     )
-    .groupBy(raw('person_id'))
-    .having(raw(`${aggSql} ${countOp} {${countPk}:${thresholdType}}`))
+    .groupBy(col('person_id'))
+    .having(cmp(aggExpr, namedParam(countPk, thresholdType, cond.count)))
     .build();
 }

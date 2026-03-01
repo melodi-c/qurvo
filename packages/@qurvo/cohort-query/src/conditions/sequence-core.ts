@@ -47,11 +47,7 @@ export function buildSequenceCore(
 
     let filterExpr = `event_name = {${stepEventPk}:String}`;
     if (step.event_filters && step.event_filters.length > 0) {
-      filterExpr += buildEventFilterClausesStr(
-        step.event_filters,
-        `coh_${condIdx}_s${i}`,
-        ctx.queryParams,
-      );
+      filterExpr += buildEventFilterClausesStr(step.event_filters, `coh_${condIdx}_s${i}`, ctx.queryParams);
     }
     multiIfBranches.push(filterExpr, String(i + 1));
   });
