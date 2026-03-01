@@ -184,7 +184,7 @@ function buildFunnelQuery(
 
   // Time columns for avg_time_to_convert (only for non-breakdown).
   if (includeTimestampCols) {
-    selectColumns.push(avgTimeSecondsExpr());
+    selectColumns.push(avgTimeSecondsExpr(queryParams));
   }
 
   // total_bd_count from breakdown_total CTE (for truncation detection)

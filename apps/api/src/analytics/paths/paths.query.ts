@@ -1,23 +1,30 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import type { QueryNode } from '@qurvo/ch-query';
+import type { Expr, QueryNode } from '@qurvo/ch-query';
 import {
+  add,
+  alias,
   arrayCompact,
+  arrayElement,
   arrayEnumerate,
   arraySlice,
   col,
   compile,
   groupArray,
   gte,
+  has,
+  ifExpr,
+  indexOf,
   length,
+  literal,
   lt,
   lte,
-  literal,
+  match,
+  multiIf,
   notInArray,
   param,
-  raw,
-  rawWithParams,
   select,
+  sub,
   uniqExact,
 } from '@qurvo/ch-query';
 import {
@@ -81,7 +88,7 @@ export interface PathsQueryResult {
 function buildCleaningExpr(
   rules?: PathCleaningRule[],
   wildcards?: WildcardGroup[],
-): string {
+): Expr {
   const arms: { pattern: string; alias: string }[] = [];
 
   if (wildcards?.length) {
@@ -101,16 +108,13 @@ function buildCleaningExpr(
     }
   }
 
-  if (arms.length === 0) {return 'event_name';}
+  if (arms.length === 0) { return col('event_name'); }
 
-  const cases = arms
-    .map((a) => {
-      const escapedPattern = a.pattern.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      const escapedAlias = a.alias.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      return `match(event_name, '${escapedPattern}'), '${escapedAlias}'`;
-    })
-    .join(', ');
-  return `multiIf(${cases}, event_name)`;
+  const branches = arms.map((a) => ({
+    condition: match(col('event_name'), literal(a.pattern)),
+    result: literal(a.alias),
+  }));
+  return multiIf(branches, col('event_name'));
 }
 
 // ── Raw row types ─────────────────────────────────────────────────────────────
@@ -142,7 +146,7 @@ export async function queryPaths(
   // CTE 1: ordered_events
   const orderedEvents = select(
     resolvedPerson().as('pid'),
-    raw(cleaningExpr).as('cleaned_name'),
+    alias(cleaningExpr, 'cleaned_name'),
     col('timestamp'),
   )
     .from('events')
@@ -173,12 +177,11 @@ export async function queryPaths(
     .build();
 
   // CTE 3: trimmed_paths (conditional start_event trim)
-  // Uses rawWithParams for the if(has(...)) pattern since the same param
-  // is referenced multiple times within the expression.
   const trimmedPathCol = params.start_event
-    ? rawWithParams(
-        'if(has(raw_path, {start_event:String}), arraySlice(raw_path, indexOf(raw_path, {start_event:String})), [])',
-        { start_event: params.start_event },
+    ? ifExpr(
+        has(col('raw_path'), param('String', params.start_event)),
+        arraySlice(col('raw_path'), indexOf(col('raw_path'), param('String', params.start_event))),
+        param('Array(String)', []),
       ).as('p1')
     : col('raw_path').as('p1');
 
@@ -188,9 +191,14 @@ export async function queryPaths(
 
   // CTE 4: final_paths (conditional end_event trim)
   const finalPathCol = params.end_event
-    ? rawWithParams(
-        'if(has(p1, {end_event:String}), arraySlice(p1, 1, indexOf(p1, {end_event:String}) - 1), [])',
-        { end_event: params.end_event },
+    ? ifExpr(
+        has(col('p1'), param('String', params.end_event)),
+        arraySlice(
+          col('p1'),
+          literal(1),
+          sub(indexOf(col('p1'), param('String', params.end_event)), literal(1)),
+        ),
+        param('Array(String)', []),
       ).as('path')
     : col('p1').as('path');
 
@@ -210,8 +218,8 @@ export async function queryPaths(
   // Query 1: Transitions
   const transitionsNode = select(
     col('idx').as('step'),
-    raw('path[idx]').as('source'),
-    raw('path[idx + 1]').as('target'),
+    arrayElement(col('path'), col('idx')).as('source'),
+    arrayElement(col('path'), add(col('idx'), literal(1))).as('target'),
     uniqExact(col('pid')).as('person_count'),
   )
     .withAll(sharedCTEs)

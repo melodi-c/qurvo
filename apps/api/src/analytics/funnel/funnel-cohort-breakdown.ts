@@ -54,7 +54,7 @@ function buildCohortFunnelCompiled(
     col('step_num'),
     countIf(gte(col('max_step'), col('step_num'))).as('entered'),
     countIf(gte(col('max_step'), add(col('step_num'), literal(1)))).as('next_step'),
-    avgTimeSecondsExpr(),
+    avgTimeSecondsExpr(queryParams),
   )
     .withAll(cteResult.ctes)
     .from('funnel_per_user')
