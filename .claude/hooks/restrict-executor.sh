@@ -40,7 +40,7 @@ fi
 BLOCKED=""
 
 # Helper: check if command contains a git subcommand (handles -C, --git-dir, etc.)
-has_git_cmd() { echo "$COMMAND" | grep -qE "(^|[;&|[:space:]])git[[:space:]].*[[:space:]]$1"; }
+has_git_cmd() { echo "$COMMAND" | grep -qE "(^|[;&|[:space:]])git[[:space:]]+(.*[[:space:]])?$1"; }
 
 # Destructive git commands — blocked unconditionally
 if has_git_cmd '(checkout|switch)[[:space:]]'; then
