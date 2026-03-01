@@ -150,6 +150,26 @@ function toJsonHasGuard(expr: Expr): Expr | null {
   return null;
 }
 
+// Operator strategy map types & helpers
+
+interface OperatorContext {
+  expr: Expr;
+  pk: string;
+  queryParams: Record<string, unknown>;
+  value?: string;
+  values?: string[];
+}
+
+type OperatorHandler = (ctx: OperatorContext) => Expr;
+
+/**
+ * Registers a named parameter in queryParams and returns the corresponding NamedParamExpr.
+ */
+function registerParam(pk: string, chType: string, val: unknown, queryParams: Record<string, unknown>) {
+  queryParams[pk] = val;
+  return namedParam(pk, chType, val);
+}
+
 // Numeric comparator map
 
 const NUMERIC_CMP_MAP = {
@@ -158,6 +178,165 @@ const NUMERIC_CMP_MAP = {
   gte,
   lte,
 } as const;
+
+// Operator handlers grouped by behavior
+
+const stringOps: Record<string, OperatorHandler> = {
+  eq: ({ expr, pk, queryParams, value }) => {
+    const v = value ?? '';
+    const valP = registerParam(pk, 'String', v, queryParams);
+    const rawEquiv = toRawExpr(expr);
+    if (rawEquiv) {
+      return or(eq(expr, valP), eq(toString(rawEquiv), valP));
+    }
+    return eq(expr, valP);
+  },
+  neq: ({ expr, pk, queryParams, value }) => {
+    const v = value ?? '';
+    const valP = registerParam(pk, 'String', v, queryParams);
+    const rawEquiv = toRawExpr(expr);
+    const jsonHasExpr = toJsonHasGuard(expr);
+    if (rawEquiv) {
+      const guard = jsonHasExpr ?? undefined;
+      return and(guard, neq(expr, valP), neq(toString(rawEquiv), valP));
+    }
+    if (jsonHasExpr) {
+      return and(jsonHasExpr, neq(expr, valP));
+    }
+    return neq(expr, valP);
+  },
+  contains: ({ expr, pk, queryParams, value }) => {
+    const likeVal = `%${escapeLikePattern(value ?? '')}%`;
+    const valP = registerParam(pk, 'String', likeVal, queryParams);
+    return like(expr, valP);
+  },
+  not_contains: ({ expr, pk, queryParams, value }) => {
+    const likeVal = `%${escapeLikePattern(value ?? '')}%`;
+    const valP = registerParam(pk, 'String', likeVal, queryParams);
+    const jsonHasExpr = toJsonHasGuard(expr);
+    if (jsonHasExpr) {
+      return and(jsonHasExpr, notLike(expr, valP));
+    }
+    return notLike(expr, valP);
+  },
+  regex: ({ expr, pk, queryParams, value }) => {
+    const v = value ?? '';
+    const valP = registerParam(pk, 'String', v, queryParams);
+    return match(expr, valP);
+  },
+  not_regex: ({ expr, pk, queryParams, value }) => {
+    const v = value ?? '';
+    const valP = registerParam(pk, 'String', v, queryParams);
+    return not(match(expr, valP));
+  },
+};
+
+const numericOps: Record<string, OperatorHandler> = {
+  gt: ({ expr, pk, queryParams, value }) => {
+    const numVal = Number(value ?? 0);
+    const numExpr = toFloat64OrZero(toNumericExpr(expr));
+    return chGt(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+  },
+  lt: ({ expr, pk, queryParams, value }) => {
+    const numVal = Number(value ?? 0);
+    const numExpr = toFloat64OrZero(toNumericExpr(expr));
+    return chLt(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+  },
+  gte: ({ expr, pk, queryParams, value }) => {
+    const numVal = Number(value ?? 0);
+    const numExpr = toFloat64OrZero(toNumericExpr(expr));
+    return gte(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+  },
+  lte: ({ expr, pk, queryParams, value }) => {
+    const numVal = Number(value ?? 0);
+    const numExpr = toFloat64OrZero(toNumericExpr(expr));
+    return lte(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+  },
+  between: ({ expr, pk, queryParams, values }) => {
+    const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+    const minVal = Number(values?.[0] ?? 0);
+    const maxVal = Number(values?.[1] ?? 0);
+    const numExpr = toFloat64OrZero(toNumericExpr(expr));
+    return and(
+      gte(numExpr, registerParam(minPk, 'Float64', minVal, queryParams)),
+      lte(numExpr, registerParam(maxPk, 'Float64', maxVal, queryParams)),
+    );
+  },
+  not_between: ({ expr, pk, queryParams, values }) => {
+    const minPk = `${pk}_min`, maxPk = `${pk}_max`;
+    const minVal = Number(values?.[0] ?? 0);
+    const maxVal = Number(values?.[1] ?? 0);
+    const numExpr = toFloat64OrZero(toNumericExpr(expr));
+    return or(
+      chLt(numExpr, registerParam(minPk, 'Float64', minVal, queryParams)),
+      chGt(numExpr, registerParam(maxPk, 'Float64', maxVal, queryParams)),
+    );
+  },
+};
+
+const dateOps: Record<string, OperatorHandler> = {
+  is_date_before: ({ expr, pk, queryParams, value }) => {
+    if (!value) return literal(0);
+    const valP = registerParam(pk, 'String', value, queryParams);
+    const parsed = parseDateTimeBestEffortOrZero(expr);
+    const nonZero = neq(parsed, func('toDateTime', literal(0)));
+    return and(nonZero, chLt(parsed, parseDateTimeBestEffort(valP)));
+  },
+  is_date_after: ({ expr, pk, queryParams, value }) => {
+    if (!value) return literal(0);
+    const valP = registerParam(pk, 'String', value, queryParams);
+    const parsed = parseDateTimeBestEffortOrZero(expr);
+    const nonZero = neq(parsed, func('toDateTime', literal(0)));
+    return and(nonZero, chGt(parsed, parseDateTimeBestEffort(valP)));
+  },
+  is_date_exact: ({ expr, pk, queryParams, value }) => {
+    if (!value) return literal(0);
+    const valP = registerParam(pk, 'String', value, queryParams);
+    const parsed = parseDateTimeBestEffortOrZero(expr);
+    const nonZero = neq(parsed, func('toDateTime', literal(0)));
+    return and(nonZero, eq(toDate(parsed), toDate(parseDateTimeBestEffort(valP))));
+  },
+};
+
+const arrayOps: Record<string, OperatorHandler> = {
+  in: ({ expr, pk, queryParams, values }) => {
+    const v = values ?? [];
+    return inArray(expr, registerParam(pk, 'Array(String)', v, queryParams));
+  },
+  not_in: ({ expr, pk, queryParams, values }) => {
+    const v = values ?? [];
+    return notInArray(expr, registerParam(pk, 'Array(String)', v, queryParams));
+  },
+  contains_multi: ({ expr, pk, queryParams, values }) => {
+    const v = values ?? [];
+    return multiSearchAny(expr, registerParam(pk, 'Array(String)', v, queryParams));
+  },
+  not_contains_multi: ({ expr, pk, queryParams, values }) => {
+    const v = values ?? [];
+    return not(multiSearchAny(expr, registerParam(pk, 'Array(String)', v, queryParams)));
+  },
+};
+
+const existenceOps: Record<string, OperatorHandler> = {
+  is_set: ({ expr }) => {
+    const jsonHasExpr = toJsonHasGuard(expr);
+    if (jsonHasExpr) return jsonHasExpr;
+    return neq(expr, literal(''));
+  },
+  is_not_set: ({ expr }) => {
+    const jsonHasExpr = toJsonHasGuard(expr);
+    if (jsonHasExpr) return not(jsonHasExpr);
+    return eq(expr, literal(''));
+  },
+};
+
+const OPERATOR_MAP: Record<CohortPropertyOperator, OperatorHandler> = {
+  ...stringOps,
+  ...numericOps,
+  ...dateOps,
+  ...arrayOps,
+  ...existenceOps,
+};
 
 // Expr-returning public API
 
@@ -218,161 +397,8 @@ export function applyOperator(
   value?: string,
   values?: string[],
 ): Expr {
-  switch (operator) {
-    case 'eq': {
-      const v = value ?? '';
-      queryParams[pk] = v;
-      const valP = namedParam(pk, 'String', v);
-      const rawEquiv = toRawExpr(expr);
-      if (rawEquiv) {
-        // JSONExtractString eq: also check toString(JSONExtractRaw) for boolean/number values
-        return or(eq(expr, valP), eq(toString(rawEquiv), valP));
-      }
-      return eq(expr, valP);
-    }
-    case 'neq': {
-      const v = value ?? '';
-      queryParams[pk] = v;
-      const valP = namedParam(pk, 'String', v);
-      const rawEquiv = toRawExpr(expr);
-      const jsonHasExpr = toJsonHasGuard(expr);
-      if (rawEquiv) {
-        const guard = jsonHasExpr ?? undefined;
-        return and(guard, neq(expr, valP), neq(toString(rawEquiv), valP));
-      }
-      if (jsonHasExpr) {
-        return and(jsonHasExpr, neq(expr, valP));
-      }
-      return neq(expr, valP);
-    }
-    case 'contains': {
-      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-      queryParams[pk] = likeVal;
-      return like(expr, namedParam(pk, 'String', likeVal));
-    }
-    case 'not_contains': {
-      const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-      queryParams[pk] = likeVal;
-      const jsonHasExpr = toJsonHasGuard(expr);
-      if (jsonHasExpr) {
-        return and(jsonHasExpr, notLike(expr, namedParam(pk, 'String', likeVal)));
-      }
-      return notLike(expr, namedParam(pk, 'String', likeVal));
-    }
-    case 'is_set': {
-      const jsonHasExpr = toJsonHasGuard(expr);
-      if (jsonHasExpr) return jsonHasExpr;
-      return neq(expr, literal(''));
-    }
-    case 'is_not_set': {
-      const jsonHasExpr = toJsonHasGuard(expr);
-      if (jsonHasExpr) return not(jsonHasExpr);
-      return eq(expr, literal(''));
-    }
-    case 'gt':
-    case 'lt':
-    case 'gte':
-    case 'lte': {
-      const numVal = Number(value ?? 0);
-      queryParams[pk] = numVal;
-      const numExpr = toFloat64OrZero(toNumericExpr(expr));
-      return NUMERIC_CMP_MAP[operator](numExpr, namedParam(pk, 'Float64', numVal));
-    }
-    case 'regex': {
-      const v = value ?? '';
-      queryParams[pk] = v;
-      return match(expr, namedParam(pk, 'String', v));
-    }
-    case 'not_regex': {
-      const v = value ?? '';
-      queryParams[pk] = v;
-      return not(match(expr, namedParam(pk, 'String', v)));
-    }
-    case 'in': {
-      const v = values ?? [];
-      queryParams[pk] = v;
-      return inArray(expr, namedParam(pk, 'Array(String)', v));
-    }
-    case 'not_in': {
-      const v = values ?? [];
-      queryParams[pk] = v;
-      return notInArray(expr, namedParam(pk, 'Array(String)', v));
-    }
-    case 'between': {
-      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-      const minVal = Number(values?.[0] ?? 0);
-      const maxVal = Number(values?.[1] ?? 0);
-      queryParams[minPk] = minVal;
-      queryParams[maxPk] = maxVal;
-      const numExpr = toFloat64OrZero(toNumericExpr(expr));
-      return and(
-        gte(numExpr, namedParam(minPk, 'Float64', minVal)),
-        lte(numExpr, namedParam(maxPk, 'Float64', maxVal)),
-      );
-    }
-    case 'not_between': {
-      const minPk = `${pk}_min`, maxPk = `${pk}_max`;
-      const minVal = Number(values?.[0] ?? 0);
-      const maxVal = Number(values?.[1] ?? 0);
-      queryParams[minPk] = minVal;
-      queryParams[maxPk] = maxVal;
-      const numExpr = toFloat64OrZero(toNumericExpr(expr));
-      return or(
-        chLt(numExpr, namedParam(minPk, 'Float64', minVal)),
-        chGt(numExpr, namedParam(maxPk, 'Float64', maxVal)),
-      );
-    }
-    case 'is_date_before': {
-      if (!value) return literal(0);
-      queryParams[pk] = value;
-      const parsed = parseDateTimeBestEffortOrZero(expr);
-      const nonZero = neq(parsed, func('toDateTime', literal(0)));
-      return and(nonZero, chLt(parsed, parseDateTimeBestEffort(namedParam(pk, 'String', value))));
-    }
-    case 'is_date_after': {
-      if (!value) return literal(0);
-      queryParams[pk] = value;
-      const parsed = parseDateTimeBestEffortOrZero(expr);
-      const nonZero = neq(parsed, func('toDateTime', literal(0)));
-      return and(nonZero, chGt(parsed, parseDateTimeBestEffort(namedParam(pk, 'String', value))));
-    }
-    case 'is_date_exact': {
-      if (!value) return literal(0);
-      queryParams[pk] = value;
-      const parsed = parseDateTimeBestEffortOrZero(expr);
-      const nonZero = neq(parsed, func('toDateTime', literal(0)));
-      return and(nonZero, eq(toDate(parsed), toDate(parseDateTimeBestEffort(namedParam(pk, 'String', value)))));
-    }
-    case 'contains_multi': {
-      const v = values ?? [];
-      queryParams[pk] = v;
-      return multiSearchAny(expr, namedParam(pk, 'Array(String)', v));
-    }
-    case 'not_contains_multi': {
-      const v = values ?? [];
-      queryParams[pk] = v;
-      return not(multiSearchAny(expr, namedParam(pk, 'Array(String)', v)));
-    }
-    default: {
-      const _exhaustive: never = operator;
-      throw new Error(`Unhandled operator: ${_exhaustive}`);
-    }
-  }
-}
-
-/**
- * @deprecated Use applyOperator() instead. Kept temporarily for backward compatibility.
- * Delegates to applyOperator().
- */
-export function buildOperatorClause(
-  expr: Expr,
-  operator: CohortPropertyOperator,
-  pk: string,
-  queryParams: Record<string, unknown>,
-  value?: string,
-  values?: string[],
-): Expr {
-  return applyOperator(expr, operator, pk, queryParams, value, values);
+  const handler = OPERATOR_MAP[operator];
+  return handler({ expr, pk, queryParams, value, values });
 }
 
 /**

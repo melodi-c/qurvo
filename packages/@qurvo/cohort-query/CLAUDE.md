@@ -50,7 +50,6 @@ import {
   resolvePropertyExpr,
   resolveEventPropertyExpr,
   applyOperator,
-  buildOperatorClause,
   resolveDateTo,
   resolveDateFrom,
   buildEventFilterClauses,
