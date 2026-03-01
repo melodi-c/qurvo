@@ -9,11 +9,9 @@ export {
   resolveDateFrom,
   buildEventFilterClauses,
   allocCondIdx,
-  buildCountIfCondStr,
-  buildEventsBaseSelect,
 } from './helpers';
 
-// String-returning bridge functions (backward compat for condition builders)
+// Deprecated string-returning bridge functions (backward compat for external consumers)
 export {
   resolvePropertyExprStr,
   resolveEventPropertyExprStr,
@@ -21,6 +19,8 @@ export {
   resolveDateToStr,
   resolveDateFromStr,
   buildEventFilterClausesStr,
+  buildCountIfCondStr,
+  buildEventsBaseSelect,
 } from './helpers';
 
 // Builder
