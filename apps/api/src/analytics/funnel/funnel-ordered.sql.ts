@@ -1,5 +1,5 @@
 import type { CompilerContext} from '@qurvo/ch-query';
-import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
+import { compileExprToSql, rawWithParams, select, raw, type Expr, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -8,14 +8,15 @@ import {
   buildExcludedUsersCTE,
   buildStepCondition,
   buildStrictUserFilter,
-  funnelTsExpr,
+  funnelTsExprSql,
+  compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
 export interface OrderedCTEOptions {
   steps: FunnelStep[];
   orderType: 'ordered' | 'strict';
-  stepConditions: string;
+  stepConditions: Expr[];
   exclusions: FunnelExclusion[];
   cohortClause: string;
   samplingClause: string;
@@ -51,9 +52,11 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     samplingClause, numSteps, queryParams, breakdownExpr, includeTimestampCols, ctx,
   } = options;
 
-  const wfExpr = buildWindowFunnelExpr(orderType, stepConditions);
-  const fromExpr = funnelTsExpr('from', queryParams);
-  const toExpr = funnelTsExpr('to', queryParams);
+  // Compile the windowFunnel Expr to SQL string for embedding in raw CTE body
+  const wfExprAst = buildWindowFunnelExpr(orderType, stepConditions);
+  const wfExpr = compileExprToSql(wfExprAst, queryParams, ctx).sql;
+  const fromExpr = funnelTsExprSql('from', queryParams, ctx);
+  const toExpr = funnelTsExprSql('to', queryParams, ctx);
 
   // Ordered mode: filter to only funnel-relevant events (step + exclusion names) for efficiency.
   // Strict mode: windowFunnel('strict_order') resets progress on any intervening event that
@@ -61,21 +64,24 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
   // However, we still pre-filter to users who have at least one funnel step event.
   const eventNameFilter = buildStrictUserFilter(fromExpr, toExpr, 'all_event_names', orderType);
 
-  // Build full step conditions for step 0 and last step.
-  const step0Cond = buildStepCondition(steps[0], 0, queryParams, ctx);
-  const lastStepCond = buildStepCondition(steps[numSteps - 1], numSteps - 1, queryParams, ctx);
+  // Compile step 0 and last step conditions to SQL for use in raw CTE body
+  const step0Cond = compileExprToSql(buildStepCondition(steps[0], 0), queryParams, ctx).sql;
+  const lastStepCond = compileExprToSql(buildStepCondition(steps[numSteps - 1], numSteps - 1), queryParams, ctx).sql;
 
   // Optional breakdown column.
   const breakdownCol = breakdownExpr
     ? `,\n              ${orderType === 'strict' ? 'argMaxIf' : 'argMinIf'}(${breakdownExpr}, timestamp, ${step0Cond}) AS breakdown_value`
     : '';
 
-  // Exclusion columns
-  const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams, ctx)
+  // Exclusion columns — compile Expr[] to SQL strings for raw CTE body
+  const exclExprList = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps)
     : [];
-  const exclColumnsSQL = exclColumns.length > 0
-    ? ',\n              ' + exclColumns.join(',\n              ')
+  const exclColumnsSql = exclExprList.length > 0
+    ? compileExprsToSqlColumns(exclExprList, queryParams, ctx)
+    : [];
+  const exclColumnsSQL = exclColumnsSql.length > 0
+    ? ',\n              ' + exclColumnsSql.join(',\n              ')
     : '';
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
@@ -103,8 +109,11 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     ctes.push({ name: 'funnel_raw', query: funnelRawNode });
 
     // Forward exclusion column names from raw CTE into funnel_per_user.
-    const exclColsForward = exclColumns.length > 0
-      ? ',\n              ' + exclColumns.map(c => c.split(' AS ')[1]).join(',\n              ')
+    const exclColsForward = exclColumnsSql.length > 0
+      ? ',\n              ' + exclColumnsSql.map(c => {
+        const m = / AS (\w+)$/.exec(c);
+        return m ? m[1] : c;
+      }).join(',\n              ')
       : '';
 
     const breakdownForward = breakdownExpr ? ',\n              breakdown_value' : '';

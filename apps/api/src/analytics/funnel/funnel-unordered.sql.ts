@@ -1,5 +1,5 @@
 import type { CompilerContext} from '@qurvo/ch-query';
-import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
+import { compileExprToSql, rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
   RESOLVED_PERSON,
@@ -7,7 +7,8 @@ import {
   buildExclusionColumns,
   buildExcludedUsersCTE,
   buildUnorderedCoverageExprs,
-  funnelTsExpr,
+  funnelTsExprSql,
+  compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -51,10 +52,12 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr, ctx } = options;
   const N = steps.length;
   const winExpr = `toInt64({window:UInt64}) * 1000`;
-  const fromExpr = funnelTsExpr('from', queryParams);
-  const toExpr = funnelTsExpr('to', queryParams);
+  const fromExpr = funnelTsExprSql('from', queryParams, ctx);
+  const toExpr = funnelTsExprSql('to', queryParams, ctx);
 
-  const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx));
+  // Build step conditions as Expr, then compile to SQL strings for raw CTE body
+  const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));
+  const stepConds = stepCondExprs.map(expr => compileExprToSql(expr, queryParams, ctx).sql);
 
   // ── Step 1: collect all timestamps per step as arrays ────────────────────
   const groupArrayCols = stepConds.map((cond, i) =>
@@ -62,7 +65,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   ).join(',\n        ');
 
   // ── Steps 2-4: coverage, max_step, anchor_ms — shared with TTC unordered ──
-  const { coverageExpr, maxStepExpr, anchorMsExpr } =
+  const { maxStepExpr, anchorMsExpr } =
     buildUnorderedCoverageExprs(N, winExpr, steps);
 
   // ── Step 5: breakdown_value ───────────────────────────────────────────────
@@ -71,17 +74,24 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     : '';
 
   // ── Step 6: exclusion array columns ──────────────────────────────────────
-  const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams, ctx)
+  const exclExprList = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps)
     : [];
-  const exclColsSQL = exclColumns.length > 0
-    ? ',\n        ' + exclColumns.join(',\n        ')
+  const exclColumnsSql = exclExprList.length > 0
+    ? compileExprsToSqlColumns(exclExprList, queryParams, ctx)
+    : [];
+  const exclColsSQL = exclColumnsSql.length > 0
+    ? ',\n        ' + exclColumnsSql.join(',\n        ')
     : '';
 
   // ── Forward columns from step_times into anchor_per_user ─────────────────
   const breakdownArrForward = breakdownExpr ? ',\n        t0_bv_arr' : '';
-  const exclColsForward = exclColumns.length > 0
-    ? ',\n        ' + exclColumns.map(c => c.split(' AS ')[1]).join(',\n        ')
+  const exclColAliases = exclColumnsSql.map(c => {
+    const m = / AS (\w+)$/.exec(c);
+    return m ? m[1] : c;
+  });
+  const exclColsForward = exclColAliases.length > 0
+    ? ',\n        ' + exclColAliases.join(',\n        ')
     : '';
 
   const breakdownValueExpr = breakdownExpr

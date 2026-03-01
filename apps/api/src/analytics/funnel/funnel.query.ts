@@ -5,7 +5,6 @@ import {
   CompilerContext,
   select,
   col,
-  raw,
   count,
   countIf,
   and,
@@ -33,7 +32,6 @@ import {
   buildStepCondition,
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
-  toChTs,
   validateExclusions,
   validateUnorderedSteps,
   type FunnelChQueryParams,
@@ -71,7 +69,8 @@ export async function queryFunnel(
   const allEventNames = buildAllEventNames(steps, exclusions);
   const queryParams = buildBaseQueryParams(params, allEventNames);
   const ctx = new CompilerContext();
-  const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx)).join(', ');
+  // Build step conditions as Expr AST nodes
+  const stepConditions: Expr[] = steps.map((s, i) => buildStepCondition(s, i));
 
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
@@ -140,7 +139,7 @@ function buildFunnelQuery(
   orderType: 'ordered' | 'strict' | 'unordered',
   steps: FunnelQueryParams['steps'],
   exclusions: NonNullable<FunnelQueryParams['exclusions']>,
-  stepConditions: string,
+  stepConditions: Expr[],
   cohortClause: string,
   samplingClause: string,
   numSteps: number,

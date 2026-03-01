@@ -474,11 +474,11 @@ export function notInSubquery(expr: Expr, query: SelectNode): InExpr {
   return { type: 'in', expr, target: query, negated: true };
 }
 
-export function inArray(expr: Expr, arrayParam: ParamExpr): InExpr {
+export function inArray(expr: Expr, arrayParam: Expr): InExpr {
   return { type: 'in', expr, target: arrayParam };
 }
 
-export function notInArray(expr: Expr, arrayParam: ParamExpr): InExpr {
+export function notInArray(expr: Expr, arrayParam: Expr): InExpr {
   return { type: 'in', expr, target: arrayParam, negated: true };
 }
 
