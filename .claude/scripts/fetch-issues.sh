@@ -14,10 +14,35 @@ STATE_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/state"
 STATE_FILE="$STATE_DIR/execution-state.json"
 REPO=""
 
+# --- parse args (early, before lock guard needs DATA_ONLY) ---
+MODE=""
+NUMBERS=""
+DATA_ONLY=false
+GH_ARGS=()
+
+_ARGS_COPY=("$@")
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --data-only)
+      DATA_ONLY=true
+      shift ;;
+    --numbers)
+      MODE="numbers"
+      NUMBERS="$2"
+      shift 2 ;;
+    --label|--state|--limit|--assignee|--milestone)
+      GH_ARGS+=("$1" "$2")
+      shift 2 ;;
+    *)
+      GH_ARGS+=("$1")
+      shift ;;
+  esac
+done
+
 # Guard against concurrent executors (atomic mkdir-based lock)
 EXECUTOR_LOCK="${STATE_DIR}/executor.lock.d"
 _executor_lock_acquired=false
-if [[ "$DATA_ONLY" != true ]]; then
+if [[ "$DATA_ONLY" != "true" ]]; then
   for _try in $(seq 1 5); do
     if mkdir "$EXECUTOR_LOCK" 2>/dev/null; then
       _executor_lock_acquired=true
@@ -50,6 +75,16 @@ if [[ -f "$STATE_FILE" ]]; then
     echo "To force restart, delete the state file: rm $STATE_FILE" >&2
     rmdir "$EXECUTOR_LOCK" 2>/dev/null || true
     exit 1
+  fi
+fi
+
+# Cleanup stale worktree-base-branch file (persists on crash — causes wrong base for next run)
+_BASE_BRANCH_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/state/worktree-base-branch"
+if [[ -f "$_BASE_BRANCH_FILE" ]]; then
+  _bb_age=$(( $(date +%s) - $(stat -f %m "$_BASE_BRANCH_FILE" 2>/dev/null || echo "0") ))
+  if [[ "$_bb_age" -gt 300 ]]; then
+    echo "WARN: stale worktree-base-branch detected (${_bb_age}s old, value=$(cat "$_BASE_BRANCH_FILE")), removing" >&2
+    rm -f "$_BASE_BRANCH_FILE"
   fi
 fi
 
@@ -123,29 +158,7 @@ extract_labels_csv() {
   echo "$JSON" | jq -r '[.labels[]?.name // empty] | join(",")' 2>/dev/null || echo ""
 }
 
-# --- parse args ---
-MODE=""
-NUMBERS=""
-DATA_ONLY=false
-GH_ARGS=()
-
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --data-only)
-      DATA_ONLY=true
-      shift ;;
-    --numbers)
-      MODE="numbers"
-      NUMBERS="$2"
-      shift 2 ;;
-    --label|--state|--limit|--assignee|--milestone)
-      GH_ARGS+=("$1" "$2")
-      shift 2 ;;
-    *)
-      GH_ARGS+=("$1")
-      shift ;;
-  esac
-done
+# (args already parsed above, before lock guard)
 
 # --- init ---
 if [ "$DATA_ONLY" = false ]; then
@@ -161,7 +174,6 @@ ISSUES_JSON="[]"
 if [ "$MODE" = "numbers" ]; then
   # Fetch each issue individually, build JSON array safely with jq
   ISSUES_TMP=$(mktemp)
-  trap 'rm -f "$ISSUES_TMP"' EXIT
   IFS=',' read -ra NUMS <<< "$NUMBERS"
   for N in "${NUMS[@]}"; do
     N=$(echo "$N" | tr -d ' ')
@@ -170,7 +182,6 @@ if [ "$MODE" = "numbers" ]; then
   done
   ISSUES_JSON=$(jq -s '.' "$ISSUES_TMP")
   rm -f "$ISSUES_TMP"
-  trap - EXIT
 else
   # Default: list with filters
   if [ ${#GH_ARGS[@]} -eq 0 ]; then

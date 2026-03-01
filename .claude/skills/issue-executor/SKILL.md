@@ -63,8 +63,16 @@ disable-model-invocation: true
 **Поток:**
 1. Запусти подагент с `RESULT_FILE: <путь>` в промпте
 2. Дождись завершения (система уведомит автоматически)
-3. Прочитай `RESULT_FILE` через Read tool (5-10 строк JSON)
-4. Если файл не найден — fallback на AGENT_META из issue comment
+3. **Валидируй** result file перед чтением:
+   ```bash
+   bash "$CLAUDE_PROJECT_DIR/.claude/scripts/validate-result.sh" <type> <RESULT_FILE>
+   ```
+   Типы: `solver`, `reviewer`, `lint`, `security`, `migration`, `conflict`, `validator`, `intersection`, `decomposer`.
+   - `OK` → продолжай
+   - Exit 1 (invalid) → retry подагент 1 раз. Если повторно invalid → считай FAILED
+   - Exit 2 (file not found) → fallback на AGENT_META из issue comment
+4. Прочитай `RESULT_FILE` через Read tool (5-10 строк JSON)
+5. Если файл не найден — fallback на AGENT_META из issue comment
 
 ---
 
@@ -161,6 +169,23 @@ prompt: |
 Для issues с warning `size:l` — предложи пользователю запустить decomposer.
 
 Обнови state: `bash "$SM" phase PREFLIGHT`
+
+---
+
+## Шаг 1.9: Fast path для тривиальных issues
+
+Если **ВСЕ issues** имеют label `size:xs`:
+1. **Пропусти** Шаг 2 (анализ пересечений) — все issues выполняются последовательно (одна группа, по одному)
+2. **Пропусти** validation (Шаг 1.7 уже выполнен)
+3. Каждый issue проходит **упрощённый pipeline**:
+   - Solver (с `max_turns: 100`) → прочитай result
+   - Если `confidence: "high"` → **пропусти весь review loop** (lint, migration, reviewer, security) → сразу merge
+   - Если `confidence: "medium"` → только lint-checker → merge (skip reviewer + security)
+   - Если `confidence: "low"` → полный pipeline как обычно
+
+Обнови phase: `bash "$SM" phase FAST_PATH`
+
+Это экономит 4-6 agent invocations на каждый `size:xs` issue.
 
 ---
 
@@ -611,7 +636,9 @@ BASE_BRANCH=$(bash "$SM" get ".issues[\"$N\"].base_branch" | tr -d '"')
 
 ```bash
 cd "$CLAUDE_PROJECT_DIR"
-MERGE_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/merge-worktree.sh" \
+# RUN_TESTS=true запускает pre-merge integration тесты для affected apps (в дополнение к build).
+# Пропусти RUN_TESTS для fast path (size:xs + high confidence).
+MERGE_RESULT=$(RUN_TESTS=true bash "$CLAUDE_PROJECT_DIR/.claude/scripts/merge-worktree.sh" \
   "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$CLAUDE_PROJECT_DIR" "<ISSUE_TITLE>" \
   "<AFFECTED_APPS>" "<ISSUE_NUMBER>" "$AUTO_MERGE" "true" 2>/dev/null) || EXIT_CODE=$?
 COMMIT_HASH=$(echo "$MERGE_RESULT" | grep -o 'COMMIT_HASH=[^ ]*' | cut -d= -f2)
@@ -661,11 +688,20 @@ bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
   "<NUMBER>" "$PR_URL" "$COMMIT_HASH" "$BASE_BRANCH" || CLOSE_EXIT=$?
 ```
 
+**После успешного close** — очисти worktree (вынесено из merge-worktree.sh для предотвращения MERGING stuck):
+```bash
+if [[ -z "$CLOSE_EXIT" || "$CLOSE_EXIT" -eq 0 ]]; then
+  git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
+  git branch -D "$BRANCH" 2>/dev/null || true
+fi
+```
+
 Если `close-merged-issue.sh` вернул exit code 1 (CLOSE_FAILED):
-1. Логируй предупреждение
+1. Логируй предупреждение (worktree НЕ удаляется — доступен для диагностики)
 2. Добавь issue к списку `CLOSE_RETRY`
 3. После обработки всей группы — повтори close для issues из `CLOSE_RETRY`
-4. Если повторная попытка тоже провалилась — оставь issue открытым, добавь label `needs-review`
+4. При успешном retry — удали worktree: `git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true`
+5. Если повторная попытка тоже провалилась — оставь issue открытым, добавь label `needs-review`. Worktree будет очищен `cleanup-worktrees.sh`
 
 ### Webvizio auto-close
 

@@ -59,18 +59,29 @@ grep -rn "functionName" apps/ packages/ --include='*.ts' -l
 
 ---
 
+## Шаг 1.5: Извлечь зависимости `Depends on:`
+
+Для каждого issue:
+1. Найди в body паттерн `Depends on: #N` или `Depends on: #N, #M` (любой формат)
+2. Построй граф зависимостей: `{42: [41], 44: [42, 43]}`
+3. Зависимость означает: issue B (зависящий) НЕ МОЖЕТ быть в одной группе с issue A (от которого зависит), и ДОЛЖЕН быть в БОЛЕЕ ПОЗДНЕЙ группе
+
+---
+
 ## Шаг 2: Построить группы параллелизации
 
 Правила:
 1. **Пересекающиеся ресурсы** → ПОСЛЕДОВАТЕЛЬНО (в разных группах)
 2. **Оба с миграциями** (`packages/@qurvo/db` или `packages/@qurvo/clickhouse`) → ВСЕГДА ПОСЛЕДОВАТЕЛЬНО
 3. **Shared packages** (`@qurvo/worker-core`, `@qurvo/testing`) → последовательно если оба модифицируют (не только используют)
-4. **Нет пересечений** → ПАРАЛЛЕЛЬНО (в одной группе)
+4. **`Depends on:` зависимости** → зависимый issue в БОЛЕЕ ПОЗДНЕЙ группе (никогда в одной группе с dependency)
+5. **Нет пересечений и нет зависимостей** → ПАРАЛЛЕЛЬНО (в одной группе)
 
-Алгоритм (жадный):
-- Для каждого issue пытаемся добавить в существующую группу
+Алгоритм (с учётом зависимостей):
+- Сначала: topological sort по `Depends on:` зависимостям → определить минимальный "уровень" каждого issue
+- Затем: для каждого issue (в порядке уровней) пытаемся добавить в существующую группу НА ЕГО УРОВНЕ ИЛИ ПОЗЖЕ
 - Проверяем конфликт ресурсов со ВСЕМИ issues уже в группе
-- Если конфликт — создаём новую группу
+- Если конфликт — создаём новую группу (после текущего уровня)
 
 **Детекция полного пересечения**: если все 4+ issues оказались в разных группах (каждая группа = 1 issue) → добавь `suggest_decomposition: true` в output и рекомендацию в `reasoning`: "Все issues пересекаются — рассмотрите декомпозицию или последовательное выполнение."
 
@@ -88,17 +99,22 @@ grep -rn "functionName" apps/ packages/ --include='*.ts' -l
     "42": {
       "title": "fix(web): button alignment",
       "affected": ["apps/web"],
-      "has_migrations": false
+      "has_migrations": false,
+      "depends_on": []
     },
     "43": {
       "title": "feat(api): add export endpoint",
       "affected": ["apps/api", "packages/@qurvo/db"],
-      "has_migrations": true
+      "has_migrations": true,
+      "depends_on": [42]
     }
   },
   "parallel_groups": [[42, 44], [43], [45, 46]],
   "conflicts": [
     {"issues": [43, 45], "resource": "packages/@qurvo/db", "reason": "обе issues меняют DB schema"}
+  ],
+  "dependency_order": [
+    {"from": 42, "to": 43, "reason": "Depends on: #42 in issue body"}
   ]
 }
 ```

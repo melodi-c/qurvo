@@ -22,14 +22,11 @@ else
   BASE_REF="main"
 fi
 
-# Ensure the base ref exists locally (fetch if it's a remote-only branch)
-if ! git -C "$CWD" rev-parse --verify "$BASE_REF" &>/dev/null; then
-  git -C "$CWD" fetch origin "$BASE_REF" 2>/dev/null || true
-  # Try origin/<ref> if local ref still doesn't exist
-  if ! git -C "$CWD" rev-parse --verify "$BASE_REF" &>/dev/null; then
-    BASE_REF="origin/$BASE_REF"
-  fi
-fi
+# Always fetch latest from remote before creating worktree.
+# Without this, worktree is created from stale local ref (missing recent PRs).
+git -C "$CWD" fetch origin "$BASE_REF" 2>/dev/null || true
+# Use origin/<ref> to guarantee latest remote state
+BASE_REF="origin/$BASE_REF"
 
 # Guard against branch name collision from previous failed runs
 if git -C "$CWD" rev-parse --verify "$NAME" &>/dev/null; then

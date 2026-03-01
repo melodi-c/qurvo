@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Мерж ветки из worktree в целевую ветку через PR с pre-merge verification.
 # Использование: bash merge-worktree.sh <WORKTREE_PATH> <BRANCH> <BASE_BRANCH> <REPO_ROOT> <ISSUE_TITLE> [AFFECTED_APPS] [ISSUE_NUMBER] [AUTO_MERGE] [QUIET]
+# Env: RUN_TESTS=true — запустить integration тесты affected apps перед merge (в дополнение к build).
 # AFFECTED_APPS: опционально, через запятую (например "api,web" или "apps/api,apps/web"). apps/ prefix удаляется автоматически.
 # ISSUE_NUMBER: опционально, для "Closes #N" в PR body.
 # AUTO_MERGE: "true" (default) — мержит PR автоматически. "false" — создаёт PR но не мержит.
 # QUIET: "true" — подавить verbose output (для экономии контекста executor). По умолчанию "false".
-# Вывод (stdout): COMMIT_HASH=<hash> и PR_URL=<url> при успехе.
+# Вывод (stdout): COMMIT_HASH=<hash>, PR_URL=<url>, WORKTREE_PATH=<path> при успехе.
 # Exit codes: 0 = success, 1 = merge conflict, 2 = pre-merge verification failed, 3 = push failed, 4 = PR create failed, 5 = PR merge failed.
 set -euo pipefail
 
@@ -17,6 +18,7 @@ ISSUE_TITLE="${5:-}"
 # Sanitize title to prevent accidental shell expansion in heredocs
 ISSUE_TITLE="${ISSUE_TITLE//\$/\\\$}"
 ISSUE_TITLE="${ISSUE_TITLE//\`/\\\`}"
+ISSUE_TITLE="${ISSUE_TITLE//\"/\\\"}"
 AFFECTED_APPS_RAW="${6:-}"
 # Нормализация путей в короткие имена пакетов:
 #   apps/api → api,  packages/@qurvo/ch-query → ch-query,  @qurvo/db → db
@@ -39,6 +41,11 @@ _log() {
 # в конфликтном состоянии, и conflict-resolver может работать с ним напрямую.
 # Также устраняет race condition при параллельных мержах.
 cd "$WORKTREE_PATH"
+
+# Pull latest changes (picks up conflict-resolver's push on retry)
+git fetch origin "$BRANCH" 2>/dev/null || true
+git reset --hard "origin/$BRANCH" 2>/dev/null || true
+
 BRANCH_BEFORE=$(git rev-parse HEAD)
 
 _log "Fetching $BASE_BRANCH for pre-merge check..."
@@ -86,6 +93,31 @@ if ! pre_merge_build; then
     git reset --hard "$BRANCH_BEFORE" 2>/dev/null
     exit 2
   fi
+fi
+
+# ── Шаг 1.5: Pre-merge tests (optional, env RUN_TESTS=true) ──────
+if [[ "${RUN_TESTS:-false}" == "true" && -n "$AFFECTED_APPS" ]]; then
+  _log "Pre-merge tests: running integration tests for affected apps..."
+  IFS=',' read -ra TEST_APPS <<< "$AFFECTED_APPS"
+  TESTS_PASSED=true
+  for APP in "${TEST_APPS[@]}"; do
+    APP=$(echo "$APP" | xargs)
+    # Only run tests for apps that have integration test config
+    if [[ -f "$WORKTREE_PATH/apps/$APP/vitest.integration.config.ts" ]]; then
+      _log "Testing @qurvo/$APP..."
+      if ! timeout 300 pnpm --filter "@qurvo/$APP" exec vitest run --config vitest.integration.config.ts 2>/dev/null; then
+        echo "PRE_MERGE_TEST_FAILED: @qurvo/$APP" >&2
+        TESTS_PASSED=false
+        break
+      fi
+    fi
+  done
+  if [[ "$TESTS_PASSED" != "true" ]]; then
+    echo "PRE_MERGE_TESTS_FAILED" >&2
+    git reset --hard "$BRANCH_BEFORE" 2>/dev/null
+    exit 2
+  fi
+  _log "Pre-merge tests: OK"
 fi
 
 # Откатить локальный pre-merge check — PR сделает merge через GitHub
@@ -163,16 +195,14 @@ if [[ "$AUTO_MERGE" == "true" ]]; then
     exit 5
   fi
 
-  # ── Вывод результата ПЕРЕД очисткой worktree ─────────────────────
-  # Executor должен получить данные до удаления worktree.
-  # Если executor упадёт после получения данных но до cleanup — worktree
-  # будет удалён cleanup-worktrees.sh при следующем запуске.
+  # ── Вывод результата ─────────────────────────────────────────────
+  # Worktree cleanup вынесен в executor (после close-merged-issue.sh).
+  # Это предотвращает MERGING stuck: если close фейлится, worktree
+  # остаётся доступным для диагностики. cleanup-worktrees.sh подберёт
+  # orphaned worktrees при следующем запуске.
   echo "COMMIT_HASH=$COMMIT_HASH"
   echo "PR_URL=$PR_URL"
-
-  # ── Шаг 6: Очистка worktree (после вывода результата) ────────────
-  git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
-  git branch -D "$BRANCH" 2>/dev/null || true
+  echo "WORKTREE_PATH=$WORKTREE_PATH"
 else
   _log "AUTO_MERGE=false: PR создан, мерж пропущен."
   echo "COMMIT_HASH=pending"

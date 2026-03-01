@@ -7,6 +7,10 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty')
 if [ -z "$FILE_PATH" ]; then exit 0; fi
 
+# Normalize path to prevent traversal attacks (e.g. solver-../../secrets.txt)
+# Use Python for portable realpath (macOS readlink -f requires coreutils)
+FILE_PATH=$(python3 -c "import os; print(os.path.realpath('$FILE_PATH'))" 2>/dev/null || echo "$FILE_PATH")
+
 # Определяем worktree и repo root
 WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 REPO_ROOT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}' || echo "")

@@ -78,6 +78,13 @@ git commit --no-edit
 # Build (используй AFFECTED_APPS из входных данных)
 # Для каждого app из AFFECTED_APPS:
 pnpm turbo build --filter=@qurvo/<app>
+
+# ВАЖНО: Push ветку после резолюции конфликта.
+# merge-worktree.sh при retry делает git reset --hard к pre-merge состоянию.
+# Если не запушить — резолюция будет потеряна. Push гарантирует что при
+# повторном вызове merge-worktree.sh подтянет резолюцию через git fetch + pull.
+BRANCH=$(git branch --show-current)
+git push origin "$BRANCH" 2>/dev/null || git push origin "$BRANCH" --force-with-lease 2>/dev/null
 ```
 
 ---
