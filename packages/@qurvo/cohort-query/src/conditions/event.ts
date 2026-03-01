@@ -7,7 +7,7 @@ import {
 } from '@qurvo/ch-query';
 import {
   buildEventFilterClauses,
-  buildOperatorClause,
+  applyOperator,
   resolveEventPropertyExpr,
   allocCondIdx,
   resolveDateTo,
@@ -62,7 +62,7 @@ function buildCountIfCondExpr(
       const f = filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
       const expr = resolveEventPropertyExpr(f.property);
-      parts.push(buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values));
+      parts.push(applyOperator(expr, f.operator, pk, queryParams, f.value, f.values));
     }
   }
   return and(...parts);

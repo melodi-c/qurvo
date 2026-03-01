@@ -1,8 +1,7 @@
 import type { CohortCondition, CohortConditionGroup } from '@qurvo/db';
 import { isConditionGroup } from '@qurvo/db';
 import type { Expr, QueryNode, SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, namedParam, eq, rawWithParams, and, intersect, unionDistinct, inSubquery, toUUID, literal } from '@qurvo/ch-query';
-import { compile } from '@qurvo/ch-query';
+import { select, raw, col, namedParam, eq, and, intersect, unionDistinct, inSubquery, toUUID, literal } from '@qurvo/ch-query';
 import { RESOLVED_PERSON } from './helpers';
 import type { BuildContext, CohortFilterInput } from './types';
 import { buildPropertyConditionSubquery } from './conditions/property';
@@ -169,17 +168,8 @@ export function buildCohortFilterClause(
       return inSubquery(raw(RESOLVED_PERSON), memberQuery);
     }
     const subqueryNode = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
-    // Since buildCohortSubquery may return a SetOperationNode (INTERSECT/UNION DISTINCT),
-    // we need a SelectNode for inSubquery. Wrap it in a subselect if needed.
-    if (subqueryNode.type === 'select') {
-      return inSubquery(raw(RESOLVED_PERSON), subqueryNode);
-    }
-    // For set operations, wrap in a subselect: SELECT * FROM (... INTERSECT/UNION ...)
-    // Actually, IN (... INTERSECT/UNION ...) is valid in ClickHouse.
-    // Use raw SQL to embed the compiled set operation.
-    const compiled = compile(subqueryNode);
-    Object.assign(queryParams, compiled.params);
-    return rawWithParams(`${RESOLVED_PERSON} IN (${compiled.sql})`, compiled.params);
+    // inSubquery accepts any QueryNode (SelectNode, UnionAllNode, SetOperationNode)
+    return inSubquery(raw(RESOLVED_PERSON), subqueryNode);
   });
 
   return exprs.length === 1 ? exprs[0] : and(...exprs);
