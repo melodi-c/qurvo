@@ -1,6 +1,6 @@
 import { eq, and, desc, sql, inArray, type SQL } from 'drizzle-orm';
 import { persons, personDistinctIds, type Database } from '@qurvo/db';
-import { escapeLikePattern } from '../utils/escape-like';
+import { escapeLikePattern } from '@qurvo/ch-query';
 import { buildPgPropertyFilterConditions } from '../utils/pg-property-filter';
 import type { PropertyFilter } from '../analytics/query-helpers';
 

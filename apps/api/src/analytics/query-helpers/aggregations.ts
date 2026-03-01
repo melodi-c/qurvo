@@ -1,6 +1,6 @@
 import type { Expr } from '@qurvo/ch-query';
 import { avg, count, div, max, min, sum, uniqExact } from '@qurvo/ch-query';
-import { resolvedPerson } from './resolved-person';
+import { resolvedPerson } from '@qurvo/cohort-query';
 import { resolveNumericPropertyExpr } from './filters';
 
 export type TrendMetric =
