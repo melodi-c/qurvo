@@ -1,7 +1,7 @@
 import type { CohortNotPerformedEventSequenceCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, gte, lte, sub, notInSubquery, gt, eq, literal, interval, namedParam } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
+import { select, alias, col, gte, lte, sub, notInSubquery, gt, eq, literal, interval, namedParam } from '@qurvo/ch-query';
+import { resolvedPerson, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -18,7 +18,7 @@ export function buildNotPerformedEventSequenceSubquery(
 
   if (lowerBound) {
     // Active persons in the rolling window
-    const activePersons = select(raw(RESOLVED_PERSON).as('person_id'))
+    const activePersons = select(resolvedPerson().as('person_id'))
       .from('events')
       .where(
         ctxProjectIdExpr(ctx),
@@ -29,9 +29,9 @@ export function buildNotPerformedEventSequenceSubquery(
 
     // Sequence completion check restricted to [dateFrom, dateTo]
     const innerEvents = select(
-      raw(RESOLVED_PERSON).as('person_id'),
+      resolvedPerson().as('person_id'),
       col('timestamp'),
-      raw(`${stepIndexExpr}`).as('step_idx'),
+      alias(stepIndexExpr, 'step_idx'),
     )
       .from('events')
       .where(
@@ -43,7 +43,7 @@ export function buildNotPerformedEventSequenceSubquery(
 
     const seqCompleted = select(
       col('person_id'),
-      raw(`${seqMatchExpr}`).as('seq_match'),
+      alias(seqMatchExpr, 'seq_match'),
     )
       .from(innerEvents)
       .where(gt(col('step_idx'), literal(0)))
@@ -65,9 +65,9 @@ export function buildNotPerformedEventSequenceSubquery(
 
   // Single scan: persons active in window whose events do NOT match the sequence
   const innerSelect = select(
-    raw(RESOLVED_PERSON).as('person_id'),
+    resolvedPerson().as('person_id'),
     col('timestamp'),
-    raw(`${stepIndexExpr}`).as('step_idx'),
+    alias(stepIndexExpr, 'step_idx'),
   )
     .from('events')
     .where(
@@ -79,7 +79,7 @@ export function buildNotPerformedEventSequenceSubquery(
 
   const middleSelect = select(
     col('person_id'),
-    raw(`${seqMatchExpr}`).as('seq_match'),
+    alias(seqMatchExpr, 'seq_match'),
   )
     .from(innerSelect)
     .where(gt(col('step_idx'), literal(0)))
