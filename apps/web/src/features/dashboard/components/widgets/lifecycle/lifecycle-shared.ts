@@ -1,14 +1,13 @@
 import type { LifecycleWidgetConfig } from '@/api/generated/Api';
-import { defaultDateRange } from '@/lib/date-utils';
+import { todayIso } from '@/lib/date-utils';
 
 export function defaultLifecycleConfig(): LifecycleWidgetConfig {
-  const { from, to } = defaultDateRange();
   return {
     type: 'lifecycle',
     target_event: '',
     granularity: 'day',
-    date_from: from,
-    date_to: to,
+    date_from: '-30d',
+    date_to: todayIso(),
   };
 }
 

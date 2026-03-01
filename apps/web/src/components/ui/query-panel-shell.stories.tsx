@@ -4,7 +4,7 @@ import { QueryPanelShell } from './query-panel-shell';
 import { DateRangeSection } from './date-range-section';
 import { Separator } from './separator';
 import { SectionHeader } from './section-header';
-import { daysAgoIso, todayIso } from '@/lib/date-utils';
+import { todayIso } from '@/lib/date-utils';
 import { BarChart2, Filter } from 'lucide-react';
 import { Input } from './input';
 
@@ -19,7 +19,7 @@ type Story = StoryObj<typeof QueryPanelShell>;
 
 export const WithDateRange: Story = {
   render: () => {
-    const [dateFrom, setDateFrom] = useState(daysAgoIso(30));
+    const [dateFrom, setDateFrom] = useState('-30d');
     const [dateTo, setDateTo] = useState(todayIso());
 
     return (
@@ -42,7 +42,7 @@ export const WithDateRange: Story = {
 
 export const WithDateRangeAndSeparator: Story = {
   render: () => {
-    const [dateFrom, setDateFrom] = useState(daysAgoIso(7));
+    const [dateFrom, setDateFrom] = useState('-7d');
     const [dateTo, setDateTo] = useState(todayIso());
     const [eventName, setEventName] = useState('');
 
@@ -75,7 +75,7 @@ export const WithDateRangeAndSeparator: Story = {
 
 export const MultipleSections: Story = {
   render: () => {
-    const [dateFrom, setDateFrom] = useState(daysAgoIso(30));
+    const [dateFrom, setDateFrom] = useState('-30d');
     const [dateTo, setDateTo] = useState(todayIso());
 
     return (
