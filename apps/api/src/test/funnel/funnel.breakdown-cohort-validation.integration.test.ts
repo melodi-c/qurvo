@@ -35,6 +35,19 @@ function makeRedisStub() {
   } as unknown as Redis;
 }
 
+// Minimal DB stub — returns UTC timezone for any project
+function makeDbStub() {
+  return {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ timezone: 'UTC' }]),
+        }),
+      }),
+    }),
+  };
+}
+
 // Instantiate the analytics query service from the factory, using test infrastructure
 function buildService(queryFn: (...args: unknown[]) => unknown = vi.fn().mockResolvedValue({})) {
   const provider = createAnalyticsQueryProvider(
@@ -49,6 +62,7 @@ function buildService(queryFn: (...args: unknown[]) => unknown = vi.fn().mockRes
     ctx.ch,
     makeRedisStub(),
     cohortsService,
+    makeDbStub(),
   ) as {
     query: (params: Record<string, unknown>) => Promise<unknown>;
   };

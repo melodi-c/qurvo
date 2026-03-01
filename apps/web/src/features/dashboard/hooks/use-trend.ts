@@ -30,14 +30,13 @@ export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendRespons
   isEnabled: (config) =>
     config.series.length >= 1 &&
     config.series.every((s) => s.event_name.trim() !== ''),
-  buildParams: (config, projectId, widgetUuid, timezone) => ({
+  buildParams: (config, projectId, widgetUuid) => ({
     project_id: projectId,
     series: cleanSeries(config),
     metric: config.metric,
     granularity: config.granularity,
     date_from: config.date_from,
     date_to: config.date_to,
-    ...(timezone && timezone !== 'UTC' ? { timezone } : {}),
     ...(config.metric_property ? { metric_property: config.metric_property } : {}),
     ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
     ...(config.compare ? { compare: true } : {}),

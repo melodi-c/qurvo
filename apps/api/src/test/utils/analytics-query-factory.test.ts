@@ -12,6 +12,15 @@ function buildService() {
     resolveCohortFilters: vi.fn().mockResolvedValue([]),
     resolveCohortBreakdowns: vi.fn().mockResolvedValue([]),
   } as any;
+  const db = {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ timezone: 'UTC' }]),
+        }),
+      }),
+    }),
+  } as any;
 
   const queryFn = vi.fn().mockResolvedValue([]);
 
@@ -19,8 +28,8 @@ function buildService() {
   const provider = createAnalyticsQueryProvider(token, 'test', queryFn);
 
   // Extract the factory function and call it with mocked deps
-  const service = (provider as any).useFactory(ch, redis, cohortsService);
-  return { service, cohortsService, queryFn, redis };
+  const service = (provider as any).useFactory(ch, redis, cohortsService, db);
+  return { service, cohortsService, queryFn, redis, db };
 }
 
 const baseParams = {

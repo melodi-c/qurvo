@@ -33,13 +33,12 @@ export function createTargetEventHook<
         ...options.extraHash?.(config),
       }),
     isEnabled: (config) => config.target_event.trim() !== '',
-    buildParams: (config, projectId, widgetUuid, timezone) => ({
+    buildParams: (config, projectId, widgetUuid) => ({
       project_id: projectId,
       target_event: config.target_event,
       granularity: config.granularity,
       date_from: config.date_from,
       date_to: config.date_to,
-      ...(timezone && timezone !== 'UTC' ? { timezone } : {}),
       ...(widgetUuid ? { widget_id: widgetUuid } : {}),
       ...(config.cohort_ids?.length ? { cohort_ids: config.cohort_ids } : {}),
       ...(config.filters?.length ? { filters: config.filters } : {}),

@@ -1,6 +1,10 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
+import { projects } from '@qurvo/db';
+import type { Database } from '@qurvo/db';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { REDIS } from '../providers/redis.provider';
+import { DRIZZLE } from '../providers/drizzle.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type Redis from 'ioredis';
 import { withAnalyticsCache, type AnalyticsCacheResult } from '../analytics/with-analytics-cache';
@@ -25,6 +29,7 @@ export class WebAnalyticsService {
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(REDIS) private readonly redis: Redis,
+    @Inject(DRIZZLE) private readonly db: Database,
   ) {}
 
   async getOverview(params: WebAnalyticsQueryParams & { force?: boolean }): Promise<AnalyticsCacheResult<OverviewResult>> {
@@ -53,6 +58,17 @@ export class WebAnalyticsService {
     queryFn: (ch: ClickHouseClient, p: WebAnalyticsQueryParams) => Promise<T>,
   ): Promise<AnalyticsCacheResult<T>> {
     const { force, ...queryParams } = params;
+
+    // Auto-inject project timezone from DB
+    const [project] = await this.db
+      .select({ timezone: projects.timezone })
+      .from(projects)
+      .where(eq(projects.id, params.project_id))
+      .limit(1);
+    if (project) {
+      (queryParams as Record<string, unknown>).timezone = project.timezone;
+    }
+
     return withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger });
   }
 }
