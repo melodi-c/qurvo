@@ -52,12 +52,23 @@ get_repo() {
 fetch_sub_issues() {
   local NUMBER="$1"
   get_repo
-  gh api "repos/$REPO/issues/$NUMBER/sub_issues" \
-    --jq '[.[] | {number, title, state}]' 2>/dev/null || echo "[]"
+  local _RESULT
+  # gh api при 404 выводит JSON-ошибку в stdout ПЕРЕД exit, поэтому
+  # || echo "[]" склеивает stdout ошибки с "[]" → невалидный JSON.
+  # Решение: захватить stdout, проверить exit code, валидировать JSON.
+  _RESULT=$(gh api "repos/$REPO/issues/$NUMBER/sub_issues" \
+    --jq '[.[] | {number, title, state}]' 2>/dev/null) || _RESULT="[]"
+  # Проверить что результат — валидный JSON-массив
+  if ! echo "$_RESULT" | jq -e 'type == "array"' >/dev/null 2>&1; then
+    _RESULT="[]"
+  fi
+  echo "$_RESULT"
 }
 
 _CACHED_SUB_ISSUES=""
 
+# Sets _CACHED_SUB_ISSUES and _CACHED_TOPOLOGY as side effects.
+# Must NOT be called inside $() — subshell won't propagate globals.
 determine_topology() {
   local NUMBER="$1"
   _CACHED_SUB_ISSUES=$(fetch_sub_issues "$NUMBER")
@@ -65,9 +76,9 @@ determine_topology() {
   COUNT=$(echo "$_CACHED_SUB_ISSUES" | jq 'length')
 
   if [ "$COUNT" -gt 0 ]; then
-    echo "parent"
+    _CACHED_TOPOLOGY="parent"
   else
-    echo "standalone"
+    _CACHED_TOPOLOGY="standalone"
   fi
 }
 
@@ -164,8 +175,9 @@ for i in $(seq 0 $((COUNT - 1))); do
   TITLE=$(echo "$ISSUE" | jq -r '.title')
   LABELS_CSV=$(extract_labels_csv "$ISSUE")
 
-  # Determine topology
-  TOPOLOGY=$(determine_topology "$NUMBER")
+  # Determine topology (called directly, not in subshell, to preserve _CACHED_*)
+  determine_topology "$NUMBER"
+  TOPOLOGY="$_CACHED_TOPOLOGY"
   SUB_ISSUES_JSON="$_CACHED_SUB_ISSUES"
 
   # Check if this issue is a sub-issue of another (heuristic: check body for "parent" or task list ref)
