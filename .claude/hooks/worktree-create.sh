@@ -22,11 +22,11 @@ else
   BASE_REF="main"
 fi
 
-# Always fetch latest from remote before creating worktree.
-# Without this, worktree is created from stale local ref (missing recent PRs).
+# Fetch latest from remote and fast-forward local branch to include remote changes.
+# Then create worktree from LOCAL branch so local-only commits are included too.
 git -C "$CWD" fetch origin "$BASE_REF" 2>/dev/null || true
-# Use origin/<ref> to guarantee latest remote state
-BASE_REF="origin/$BASE_REF"
+git -C "$CWD" merge-base --is-ancestor "origin/$BASE_REF" "$BASE_REF" 2>/dev/null || \
+  git -C "$CWD" branch -f "$BASE_REF" "origin/$BASE_REF" 2>/dev/null || true
 
 # Guard against branch name collision from previous failed runs
 if git -C "$CWD" rev-parse --verify "$NAME" &>/dev/null; then
