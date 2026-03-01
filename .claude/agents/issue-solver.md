@@ -71,10 +71,21 @@ fi
 **Немедленная запись RUNNING-статуса** — сразу после инициализации запиши начальный статус в `RESULT_FILE` (путь получен из промпта). Это позволяет оркестратору отличить "агент работает" от "агент потерялся":
 ```bash
 mkdir -p "$(dirname "$RESULT_FILE")"
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 cat > "$RESULT_FILE" <<RUNNING_JSON
-{"status": "RUNNING", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+{"status": "RUNNING", "phase": "INIT", "message": "Initializing environment", "started_at": "$STARTED_AT", "phase_started_at": "$STARTED_AT", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
 RUNNING_JSON
 ```
+
+**Обновление фазы**: перед каждым крупным шагом обнови `RESULT_FILE`. Shell state не сохраняется между Bash-вызовами — вставляй inline. `BRANCH_NAME` и `WORKTREE_PATH` запомни из Шага 1 и передавай в каждый Bash-вызов. Шаблон:
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "<PHASE>", "message": "<MSG>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
+
+Фазы: `INIT` → `ANALYZING` → `PLANNING` → `IMPLEMENTING` → `TESTING` → `BUILDING` → `LINTING` → `FINALIZING`
 
 **Изоляция гарантирована**: все файловые инструменты (Edit, Write, Read, Glob, Grep) работают относительно `$WORKTREE_PATH`. Ты физически не можешь изменить файлы в `$REPO_ROOT` через эти инструменты — они разрешаются в `$WORKTREE_PATH`.
 
@@ -94,6 +105,14 @@ BASE_BRANCH="main"  # или значение из промпта
 
 ## Шаг 2: Проверить актуальность issue
 
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "ANALYZING", "message": "Reading issue #<ISSUE_NUMBER> and checking relevance", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
+
 До начала реализации:
 1. Прочитай описание и **все комментарии** issue: `gh issue view <ISSUE_NUMBER> --json title,body,comments,state`
    - Комментарии могут содержать уточнения, правки требований или указание что issue переоткрыт намеренно
@@ -106,6 +125,14 @@ BASE_BRANCH="main"  # или значение из промпта
 ---
 
 ## Шаг 2.5: Фаза планирования
+
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "PLANNING", "message": "Designing implementation plan for #<ISSUE_NUMBER>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
 
 **Обязательна для всех issue.** Перед написанием кода:
 
@@ -139,6 +166,14 @@ PLAN
 
 ## Шаг 3: Реализация
 
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "IMPLEMENTING", "message": "Implementing changes for #<ISSUE_NUMBER>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
+
 - Реализуй задачу в worktree по плану из Шага 2.5
 - НЕ делай деструктивных git-операций (--force, reset --hard, checkout ., clean -f)
 - Следуй CLAUDE.md соответствующего приложения (если есть)
@@ -170,6 +205,14 @@ cd "$WORKTREE_PATH" && pnpm exec eslint --no-error-on-unmatched-pattern --fix <�
 
 ### 4.1 Тесты
 
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "TESTING", "message": "Running tests for #<ISSUE_NUMBER>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
+
 Запусти тесты и сохрани вывод.
 
 Unit-тесты:
@@ -189,6 +232,14 @@ Testcontainers не требуют `infra:up`. Ryuk прибирает конт�
 
 ### 4.2 Build
 
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "BUILDING", "message": "Building affected apps for #<ISSUE_NUMBER>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
+
 Собери только затронутые приложения из AFFECTED_APPS через `pnpm turbo build --filter` — turbo автоматически перебилдит зависимые пакеты (`"dependsOn": ["^build"]` в turbo.json). **Не запускай `tsc --noEmit` отдельно** — build-скрипты уже включают TypeScript:
 - `@qurvo/web`: `build` = `tsc -b && vite build`
 - NestJS apps: `build` = `nest build` (включает tsc)
@@ -207,6 +258,14 @@ Docker build — **пропускай**. Docker-верификация выпо�
 
 ### 4.3 ESLint --fix
 
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "LINTING", "message": "Running ESLint on changed files for #<ISSUE_NUMBER>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
+
 Запусти eslint на изменённых файлах:
 ```bash
 cd "$WORKTREE_PATH"
@@ -221,6 +280,14 @@ fi
 ```
 
 ### 4.4 Финальный коммит
+
+**Обнови фазу:**
+```bash
+STARTED_AT=$(jq -r '.started_at' "$RESULT_FILE" 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > "$RESULT_FILE" <<PHASE_JSON
+{"status": "RUNNING", "phase": "FINALIZING", "message": "Final commit and result for #<ISSUE_NUMBER>", "started_at": "$STARTED_AT", "phase_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "branch": "$BRANCH_NAME", "worktree_path": "$WORKTREE_PATH"}
+PHASE_JSON
+```
 
 ```bash
 cd "$WORKTREE_PATH" && git add <конкретные файлы>

@@ -35,6 +35,19 @@ if [ ! -f "$RESULT_FILE" ]; then
 fi
 ```
 
+- **Issue открыт + STATUS=RUNNING** → проверь фазу solver'а для точного recovery:
+  ```bash
+  if [[ "$STATUS" == "RUNNING" ]]; then
+    PHASE=$(jq -r '.phase // "UNKNOWN"' "$RESULT_FILE" 2>/dev/null)
+    WORKTREE=$(jq -r '.worktree_path // empty' "$RESULT_FILE" 2>/dev/null)
+    echo "Solver #$ISSUE_NUMBER was in phase: $PHASE, worktree: $WORKTREE"
+  fi
+  ```
+  Матрица решений по фазе:
+  - **INIT / ANALYZING / PLANNING** → перезапуск с новым worktree (код ещё не менялся)
+  - **IMPLEMENTING** → перезапуск в существующем worktree `$WORKTREE` (есть частичные изменения)
+  - **TESTING / BUILDING / LINTING / FINALIZING** → перезапуск в существующем worktree `$WORKTREE` (код готов, нужен DoD)
+  - **UNKNOWN / нет phase (legacy)** → перезапуск с новым worktree (безопасный fallback)
 - **Issue открыт + STATUS=READY_FOR_REVIEW** → нужен review + мерж (Шаг 6)
 - **Issue открыт + нет AGENT_META** → перезапусти через Шаг 5
 
