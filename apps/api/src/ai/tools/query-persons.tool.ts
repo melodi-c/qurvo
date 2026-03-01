@@ -2,10 +2,10 @@ import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
 import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import {
-  compile,
   select,
   col,
   literal,
@@ -133,10 +133,7 @@ export class QueryPersonsTool implements AiTool {
     builder.orderBy(orderExpr, 'DESC');
     builder.limit(limit);
 
-    const { sql, params } = compile(builder.build());
-
-    const res = await this.ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
-    const rows = await res.json<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>();
+    const rows = await new ChQueryExecutor(this.ch).rows<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>(builder.build());
 
     const persons: PersonRow[] = rows.map((r) => {
       const rawProps: Record<string, unknown> = typeof r.user_properties === 'string'

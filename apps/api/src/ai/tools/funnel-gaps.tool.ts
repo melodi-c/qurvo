@@ -2,10 +2,28 @@ import { Injectable, Inject } from '@nestjs/common';
 import { z } from 'zod';
 import { CLICKHOUSE } from '../../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { compile } from '@qurvo/ch-query';
-import { toChTs, RESOLVED_PERSON } from '../../analytics/query-helpers';
+import {
+  select,
+  col,
+  namedParam,
+  param,
+  eq,
+  neq,
+  gt,
+  gte,
+  lte,
+  func,
+  sub,
+  div,
+  uniqExact,
+  subquery,
+  inSubquery,
+} from '@qurvo/ch-query';
+import { toChTs } from '../../analytics/query-helpers';
+import { resolvedPerson } from '../../analytics/query-helpers';
 import { firstEventCte } from './first-event-cte';
 import type { FunnelGapToolOutput } from '@qurvo/ai-types';
 
@@ -63,96 +81,107 @@ export class FunnelGapsTool implements AiTool {
     const fromTs = toChTs(args.date_from);
     const toTs = toChTs(args.date_to, true);
 
-    // Build the "entrants" CTE via the shared firstEventCte helper
+    const projectIdParam = namedParam('project_id', 'UUID', projectId);
+    const toParam = param('DateTime64(3)', toTs);
+    const startEventParam = namedParam('start_event', 'String', args.start_event);
+    const endEventParam = namedParam('end_event', 'String', args.end_event);
+    const minSampleParam = namedParam('min_sample', 'UInt32', 30);
+
+    // CTE 1: entrants — first occurrence of start_event per user
     const entrantsNode = firstEventCte({
       projectId,
       eventName: args.start_event,
       from: fromTs,
       to: toTs,
     });
-    const entrantsCompiled = compile(entrantsNode);
 
-    // Manual params for the remaining CTEs (no collisions with auto-generated p_N names)
-    const queryParams: Record<string, unknown> = {
-      ...entrantsCompiled.params,
-      project_id: projectId,
-      to: toTs,
-      start_event: args.start_event,
-      end_event: args.end_event,
-      min_sample: 30,
-      max_results: maxResults,
-    };
+    // CTE 2: converters — entrants who also fired end_event AFTER start_event
+    const convertersNode = select(resolvedPerson().as('pid'))
+      .distinct()
+      .from('events')
+      .join('INNER', 'entrants', undefined, eq(resolvedPerson(), col('entrants.pid')))
+      .where(
+        eq(col('project_id'), projectIdParam),
+        eq(col('event_name'), endEventParam),
+        gt(col('timestamp'), col('entrants.start_ts')),
+        lte(col('timestamp'), toParam),
+      )
+      .build();
 
-    // Strategy:
-    // 1. entrants CTE (shared helper): first occurrence of start_event per user
-    // 2. converters: entrants who also fired end_event AFTER start_event
-    // 3. intermediate: distinct events per entrant between start_ts and window end
-    // 4. per_event: saw counts and conversion counts per intermediate event
-    // 5. Filter by min_sample >= 30, rank by |lift|
-    //
-    // ClickHouse note: CTEs are not materialised (inlined like views).
-    // We avoid multi-CTE references by using subqueries or IN/NOT IN patterns.
+    // CTE 3: intermediate — distinct events per entrant between start_ts and window end
+    const intermediateNode = select(
+      col('e.event_name'),
+      resolvedPerson().as('pid'),
+    )
+      .distinct()
+      .from('events', 'e')
+      .join('INNER', 'entrants', undefined, eq(resolvedPerson(), col('entrants.pid')))
+      .where(
+        eq(col('e.project_id'), projectIdParam),
+        neq(col('e.event_name'), startEventParam),
+        neq(col('e.event_name'), endEventParam),
+        gt(col('e.timestamp'), col('entrants.start_ts')),
+        lte(col('e.timestamp'), toParam),
+      )
+      .build();
 
-    const sql = `
-      WITH
-        entrants AS (${entrantsCompiled.sql}),
-        converters AS (
-          SELECT DISTINCT ${RESOLVED_PERSON} AS pid
-          FROM events
-          INNER JOIN entrants ON ${RESOLVED_PERSON} = entrants.pid
-          WHERE
-            project_id = {project_id:UUID}
-            AND event_name = {end_event:String}
-            AND timestamp > entrants.start_ts
-            AND timestamp <= {to:DateTime64(3)}
+    // CTE 4: total_entrants — total unique entrants count
+    const totalEntrantsNode = select(uniqExact(col('pid')).as('n'))
+      .from('entrants')
+      .build();
+
+    // CTE 5: per_event — saw counts and conversion counts per intermediate event
+    // uniqExactIf(pid, pid IN (SELECT pid FROM converters))
+    const convertersPidSubquery = select(col('pid')).from('converters').build();
+    const perEventNode = select(
+      col('i.event_name'),
+      uniqExact(col('i.pid')).as('saw_count'),
+      func('uniqExactIf', col('i.pid'), inSubquery(col('i.pid'), convertersPidSubquery)).as('saw_converted'),
+    )
+      .from('intermediate', 'i')
+      .groupBy(col('i.event_name'))
+      .build();
+
+    // Scalar subqueries for the final SELECT and WHERE
+    const totalN = subquery(select(col('n')).from('total_entrants').build());
+    const totalConverted = subquery(
+      select(uniqExact(col('pid'))).from('converters').build(),
+    );
+
+    // Final query: compute no_saw_count and no_saw_converted, filter by min_sample, order by |lift|
+    const query = select(
+      col('pe.event_name'),
+      col('pe.saw_count'),
+      col('pe.saw_converted'),
+      sub(totalN, col('pe.saw_count')).as('no_saw_count'),
+      sub(totalConverted, col('pe.saw_converted')).as('no_saw_converted'),
+    )
+      .from('per_event', 'pe')
+      .where(
+        gte(col('pe.saw_count'), minSampleParam),
+        gte(sub(totalN, col('pe.saw_count')), minSampleParam),
+      )
+      .orderBy(
+        func('abs',
+          sub(
+            div(col('pe.saw_converted'), col('pe.saw_count')),
+            div(
+              sub(totalConverted, col('pe.saw_converted')),
+              sub(totalN, col('pe.saw_count')),
+            ),
+          ),
         ),
-        intermediate AS (
-          SELECT DISTINCT
-            e.event_name,
-            ${RESOLVED_PERSON} AS pid
-          FROM events e
-          INNER JOIN entrants ON ${RESOLVED_PERSON} = entrants.pid
-          WHERE
-            e.project_id = {project_id:UUID}
-            AND e.event_name != {start_event:String}
-            AND e.event_name != {end_event:String}
-            AND e.timestamp > entrants.start_ts
-            AND e.timestamp <= {to:DateTime64(3)}
-        ),
-        total_entrants AS (
-          SELECT uniqExact(pid) AS n FROM entrants
-        ),
-        per_event AS (
-          SELECT
-            i.event_name,
-            uniqExact(i.pid) AS saw_count,
-            uniqExactIf(i.pid, i.pid IN (SELECT pid FROM converters)) AS saw_converted
-          FROM intermediate i
-          GROUP BY i.event_name
-        )
-      SELECT
-        pe.event_name,
-        pe.saw_count,
-        pe.saw_converted,
-        (SELECT n FROM total_entrants) - pe.saw_count AS no_saw_count,
-        (SELECT uniqExact(pid) FROM converters) - pe.saw_converted AS no_saw_converted
-      FROM per_event pe
-      WHERE
-        pe.saw_count >= {min_sample:UInt32}
-        AND ((SELECT n FROM total_entrants) - pe.saw_count) >= {min_sample:UInt32}
-      ORDER BY
-        abs(
-          (pe.saw_converted / pe.saw_count) -
-          (
-            ((SELECT uniqExact(pid) FROM converters) - pe.saw_converted) /
-            ((SELECT n FROM total_entrants) - pe.saw_count)
-          )
-        ) DESC
-      LIMIT {max_results:UInt32}
-    `;
+        'DESC',
+      )
+      .limit(maxResults)
+      .with('entrants', entrantsNode)
+      .with('converters', convertersNode)
+      .with('intermediate', intermediateNode)
+      .with('total_entrants', totalEntrantsNode)
+      .with('per_event', perEventNode)
+      .build();
 
-    const res = await this.ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-    const rows = await res.json<RawGapRow>();
+    const rows = await new ChQueryExecutor(this.ch).rows<RawGapRow>(query);
 
     const items: FunnelGapItem[] = rows.map((r) => {
       const sawCount = Number(r.saw_count);

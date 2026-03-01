@@ -1,8 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
   alias,
   col,
-  compile,
   select,
   literal,
   count,
@@ -54,15 +54,6 @@ export async function queryEventPropertyValues(
     .orderBy(col('count'), 'DESC')
     .limit(limit);
 
-  const node = builder.build();
-  const { sql, params: queryParams } = compile(node);
-
-  const result = await ch.query({
-    query: sql,
-    query_params: queryParams,
-    format: 'JSONEachRow',
-  });
-
-  const rows = await result.json<{ value: string; count: string }>();
+  const rows = await new ChQueryExecutor(ch).rows<{ value: string; count: string }>(builder.build());
   return rows.map((r) => ({ value: r.value, count: Number(r.count) }));
 }

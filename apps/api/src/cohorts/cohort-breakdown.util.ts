@@ -1,6 +1,6 @@
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import type { Expr } from '@qurvo/ch-query';
-import { compile, select, col, eq, namedParam, inSubquery } from '@qurvo/ch-query';
+import { select, col, eq, namedParam, inSubquery } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { resolvedPerson } from '../analytics/query-helpers';
 

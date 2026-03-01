@@ -4,9 +4,10 @@ import { AppBadRequestException } from '../exceptions/app-bad-request.exception'
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { cohorts, type Database } from '@qurvo/db';
 import { resolvedPerson, resolvePropertyExpr } from '../analytics/query-helpers';
-import { compile, select, col, eq as chEq, param, lower, inArray } from '@qurvo/ch-query';
+import { select, col, eq as chEq, param, lower, inArray } from '@qurvo/ch-query';
 import { CohortsService } from './cohorts.service';
 import { parseCohortCsv } from './parse-cohort-csv';
 
@@ -251,13 +252,7 @@ export class StaticCohortsService {
       )
       .build();
 
-    const { sql, params: queryParams } = compile(node);
-    const result = await this.ch.query({
-      query: sql,
-      query_params: queryParams,
-      format: 'JSONEachRow',
-    });
-    const rows = await result.json<{ resolved_person_id: string }>();
+    const rows = await new ChQueryExecutor(this.ch).rows<{ resolved_person_id: string }>(node);
     return rows.map((r) => r.resolved_person_id);
   }
 
