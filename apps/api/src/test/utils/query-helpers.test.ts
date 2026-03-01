@@ -23,7 +23,6 @@ import {
   resolvePropertyExpr,
   resolveNumericPropertyExpr,
   resolvedPerson,
-  RESOLVED_PERSON,
   baseMetricColumns,
   aggColumn,
   numericProperty,
@@ -637,8 +636,8 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const { sql, params } = compileWhere(expr!);
+       
+      const { sql, params } = compileWhere(expr);
       expect(sql).toContain('cohort_members');
       expect(sql).toContain('{coh_mid_0:UUID}');
       expect(params.coh_mid_0).toBe('cohort-1');
@@ -655,8 +654,8 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const { sql, params } = compileWhere(expr!);
+       
+      const { sql, params } = compileWhere(expr);
       expect(sql).toContain('person_static_cohort');
       expect(sql).toContain('{coh_sid_0:UUID}');
       expect(params.coh_sid_0).toBe('cohort-static-1');
@@ -794,10 +793,6 @@ describe('analytics/resolved-person', () => {
     expect(sql).toContain("coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)");
   });
 
-  test('RESOLVED_PERSON constant matches raw SQL', () => {
-    expect(RESOLVED_PERSON).toContain('dictGetOrNull');
-    expect(RESOLVED_PERSON).toContain('person_id');
-  });
 });
 
 describe('analytics/aggregations', () => {
