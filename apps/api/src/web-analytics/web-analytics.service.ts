@@ -66,7 +66,7 @@ export class WebAnalyticsService {
       .where(eq(projects.id, params.project_id))
       .limit(1);
     if (project) {
-      (queryParams as Record<string, unknown>).timezone = project.timezone;
+      queryParams.timezone = project.timezone;
     }
 
     return withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger });
