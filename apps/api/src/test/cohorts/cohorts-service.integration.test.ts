@@ -4,10 +4,14 @@ import { createTestProject, insertTestEvents, buildEvent, msAgo, pollUntil, date
 import { eq } from 'drizzle-orm';
 import { cohorts } from '@qurvo/db';
 import { getTestContext, type ContainerContext } from '../context';
+import { CohortEnrichmentService } from '../../cohorts/cohort-enrichment.service';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
+import { AnalyticsCacheService } from '../../analytics/analytics-cache.service';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
-import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
+import { CohortNotComputedException } from '../../cohorts/exceptions/cohort-not-computed.exception';
+import { CircularCohortReferenceException } from '../../cohorts/exceptions/circular-cohort-reference.exception';
+import { StaticCohortOperationException } from '../../cohorts/exceptions/static-cohort-operation.exception';
 import { materializeCohort, insertStaticCohortMembers } from './helpers';
 import { queryTrend } from '../../analytics/trend/trend.query';
 
@@ -17,7 +21,9 @@ let staticService: StaticCohortsService;
 
 beforeAll(async () => {
   ctx = await getTestContext();
-  service = new CohortsService(ctx.db as any, ctx.ch as any, ctx.redis as any);
+  const cacheService = new AnalyticsCacheService(ctx.redis as any);
+  const enrichmentService = new CohortEnrichmentService(ctx.db as any);
+  service = new CohortsService(ctx.db as any, ctx.ch as any, cacheService, enrichmentService);
   staticService = new StaticCohortsService(ctx.db as any, ctx.ch as any, service);
 }, 120_000);
 
@@ -105,7 +111,7 @@ describe('CohortsService.create — static cohort definition override', () => {
 // ── duplicateAsStatic(): throws 400 for un-materialized dynamic cohort ────────
 
 describe('StaticCohortsService.duplicateAsStatic — non-materialized guard', () => {
-  it('throws AppBadRequestException when source dynamic cohort has membership_version === null', async () => {
+  it('throws CohortNotComputedException when source dynamic cohort has membership_version === null', async () => {
     const { projectId, userId } = await createTestProject(ctx.db);
 
     const dynamic = await service.create(userId, projectId, {
@@ -118,7 +124,7 @@ describe('StaticCohortsService.duplicateAsStatic — non-materialized guard', ()
 
     await expect(
       staticService.duplicateAsStatic(userId, projectId, dynamic.id),
-    ).rejects.toThrow(AppBadRequestException);
+    ).rejects.toThrow(CohortNotComputedException);
 
     await expect(
       staticService.duplicateAsStatic(userId, projectId, dynamic.id),
@@ -465,7 +471,7 @@ describe('CohortsService.remove — ClickHouse cleanup', () => {
 // ── circular dependency detection (via CohortsService) ───────────────────────
 
 describe('CohortsService — circular dependency detection', () => {
-  it('update() throws AppBadRequestException when adding a definition creates a cycle (A → B → A)', async () => {
+  it('update() throws CircularCohortReferenceException when adding a definition creates a cycle (A → B → A)', async () => {
     const { projectId, userId } = await createTestProject(ctx.db);
 
     // Create cohortA with a simple property filter
@@ -494,7 +500,7 @@ describe('CohortsService — circular dependency detection', () => {
           values: [{ type: 'cohort', cohort_id: cohortB.id, negated: false }],
         },
       }),
-    ).rejects.toThrow(AppBadRequestException);
+    ).rejects.toThrow(CircularCohortReferenceException);
 
     // cohortA definition must remain unchanged
     const unchanged = await service.getById(projectId, cohortA.id);
@@ -504,7 +510,7 @@ describe('CohortsService — circular dependency detection', () => {
     });
   });
 
-  it('update() throws AppBadRequestException for a 3-level cycle (X → Y → Z → X)', async () => {
+  it('update() throws CircularCohortReferenceException for a 3-level cycle (X → Y → Z → X)', async () => {
     const { projectId, userId } = await createTestProject(ctx.db);
 
     const cohortX = await service.create(userId, projectId, {
@@ -539,7 +545,7 @@ describe('CohortsService — circular dependency detection', () => {
           values: [{ type: 'cohort', cohort_id: cohortZ.id, negated: false }],
         },
       }),
-    ).rejects.toThrow(AppBadRequestException);
+    ).rejects.toThrow(CircularCohortReferenceException);
   });
 
   it('create() does not throw when definition references existing cohorts without cycles', async () => {
@@ -639,7 +645,7 @@ describe('CohortsService.update — definition change side effects', () => {
 // ── update(): cannot set definition on static cohort ─────────────────────────
 
 describe('CohortsService.update — static cohort definition guard', () => {
-  it('throws AppBadRequestException when trying to set definition on a static cohort', async () => {
+  it('throws StaticCohortOperationException when trying to set definition on a static cohort', async () => {
     const { projectId, userId } = await createTestProject(ctx.db);
 
     const cohort = await service.create(userId, projectId, {
@@ -654,7 +660,7 @@ describe('CohortsService.update — static cohort definition guard', () => {
           values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }],
         },
       }),
-    ).rejects.toThrow(AppBadRequestException);
+    ).rejects.toThrow(StaticCohortOperationException);
   });
 
   it('allows updating name on a static cohort without throwing', async () => {

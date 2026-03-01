@@ -124,13 +124,57 @@ export function buildCohortSubquery(
   return buildGroupSubquery(definition, ctx, resolveCohortIsStatic);
 }
 
-// Filter clause builder
+/**
+ * Single source-of-truth for routing a cohort to the correct person_id subquery.
+ *
+ * - `is_static` -> `SELECT person_id FROM person_static_cohort FINAL WHERE ...`
+ * - `materialized` -> `SELECT person_id FROM cohort_members FINAL WHERE ...`
+ * - otherwise -> inline `buildCohortSubquery(definition, ...)`
+ *
+ * Returns a QueryNode that yields `person_id` rows.
+ */
+export function buildCohortMemberSubquery(
+  input: CohortFilterInput,
+  cohortParamKey: string,
+  projectIdParam: string,
+  queryParams: Record<string, unknown>,
+  subqueryOffset: number = 0,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
+  dateTo?: string,
+  dateFrom?: string,
+): QueryNode {
+  if (input.is_static) {
+    queryParams[cohortParamKey] = input.cohort_id;
+    return select(col('person_id'))
+      .from('person_static_cohort FINAL')
+      .where(
+        eq(col('cohort_id'), namedParam(cohortParamKey, 'UUID', input.cohort_id)),
+        eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
+      )
+      .build();
+  }
+  if (input.materialized) {
+    queryParams[cohortParamKey] = input.cohort_id;
+    return select(col('person_id'))
+      .from('cohort_members FINAL')
+      .where(
+        eq(col('cohort_id'), namedParam(cohortParamKey, 'UUID', input.cohort_id)),
+        eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
+      )
+      .build();
+  }
+  return buildCohortSubquery(
+    input.definition, subqueryOffset, projectIdParam, queryParams,
+    resolveCohortIsStatic, dateTo, dateFrom,
+  );
+}
 
 /**
  * Builds a WHERE clause Expr: `RESOLVED_PERSON IN (cohort subquery)` for each cohort.
  * Returns an Expr (ANDed together) or undefined if no cohorts.
  *
  * Uses pre-computed tables when materialized, inline subquery otherwise.
+ * Delegates routing to `buildCohortMemberSubquery`.
  */
 export function buildCohortFilterClause(
   cohorts: CohortFilterInput[],
@@ -143,33 +187,12 @@ export function buildCohortFilterClause(
   if (cohorts.length === 0) return undefined;
 
   const exprs: Expr[] = cohorts.map((c, idx) => {
-    if (c.materialized) {
-      const idParam = `coh_mid_${idx}`;
-      queryParams[idParam] = c.cohort_id;
-      const memberQuery = select(col('person_id'))
-        .from('cohort_members FINAL')
-        .where(
-          eq(col('cohort_id'), namedParam(idParam, 'UUID', c.cohort_id)),
-          eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
-        )
-        .build();
-      return inSubquery(raw(RESOLVED_PERSON), memberQuery);
-    }
-    if (c.is_static) {
-      const idParam = `coh_sid_${idx}`;
-      queryParams[idParam] = c.cohort_id;
-      const memberQuery = select(col('person_id'))
-        .from('person_static_cohort FINAL')
-        .where(
-          eq(col('cohort_id'), namedParam(idParam, 'UUID', c.cohort_id)),
-          eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
-        )
-        .build();
-      return inSubquery(raw(RESOLVED_PERSON), memberQuery);
-    }
-    const subqueryNode = buildCohortSubquery(c.definition, idx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
-    // inSubquery accepts any QueryNode (SelectNode, UnionAllNode, SetOperationNode)
-    return inSubquery(raw(RESOLVED_PERSON), subqueryNode);
+    const paramKey = c.is_static ? `coh_sid_${idx}` : c.materialized ? `coh_mid_${idx}` : `coh_inline_${idx}`;
+    const node = buildCohortMemberSubquery(
+      c, paramKey, projectIdParam, queryParams, idx,
+      resolveCohortIsStatic, dateTo, dateFrom,
+    );
+    return inSubquery(raw(RESOLVED_PERSON), node);
   });
 
   return exprs.length === 1 ? exprs[0] : and(...exprs);

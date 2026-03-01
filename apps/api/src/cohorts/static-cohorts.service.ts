@@ -1,6 +1,8 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
-import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
+import { StaticCohortOperationException } from './exceptions/static-cohort-operation.exception';
+import { CohortNotComputedException } from './exceptions/cohort-not-computed.exception';
+import { CohortCsvParseException } from './exceptions/cohort-csv-parse.exception';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
@@ -54,7 +56,7 @@ export class StaticCohortsService {
     // computed membership the INSERT…SELECT would silently copy zero rows and
     // produce a misleading empty static cohort.
     if (!source.is_static && source.membership_version === null) {
-      throw new AppBadRequestException('Cohort has not been computed yet');
+      throw new CohortNotComputedException();
     }
 
     // Create static cohort in PostgreSQL first, then copy members to ClickHouse.
@@ -109,17 +111,13 @@ export class StaticCohortsService {
 
   async addStaticMembers(projectId: string, cohortId: string, personIds: string[]) {
     const cohort = await this.cohortsService.getById(projectId, cohortId);
-    if (!cohort.is_static) {
-      throw new AppBadRequestException('Cannot add members to a dynamic cohort');
-    }
+    this.assertStaticCohort(cohort, 'add members to');
     await this.insertStaticMembers(projectId, cohortId, personIds);
   }
 
   async removeStaticMembers(projectId: string, cohortId: string, personIds: string[]) {
     const cohort = await this.cohortsService.getById(projectId, cohortId);
-    if (!cohort.is_static) {
-      throw new AppBadRequestException('Cannot remove members from a dynamic cohort');
-    }
+    this.assertStaticCohort(cohort, 'remove members from');
 
     await this.ch.command({
       query: `ALTER TABLE person_static_cohort DELETE
@@ -136,14 +134,12 @@ export class StaticCohortsService {
     csvContent: string,
   ) {
     const cohort = await this.cohortsService.getById(projectId, cohortId);
-    if (!cohort.is_static) {
-      throw new AppBadRequestException('Cannot import CSV to a dynamic cohort');
-    }
+    this.assertStaticCohort(cohort, 'import CSV to');
 
     const { idType, ids } = parseCohortCsv(csvContent);
 
     if (ids.length === 0) {
-      throw new AppBadRequestException('CSV file is empty or contains no valid IDs');
+      throw new CohortCsvParseException('CSV file is empty or contains no valid IDs');
     }
 
     let personIds: string[];
@@ -168,9 +164,7 @@ export class StaticCohortsService {
     offset: number,
   ): Promise<{ data: { person_id: string; user_properties: Record<string, unknown> }[]; total: number }> {
     const cohort = await this.cohortsService.getById(projectId, cohortId);
-    if (!cohort.is_static) {
-      throw new AppBadRequestException('Cannot list members of a dynamic cohort');
-    }
+    this.assertStaticCohort(cohort, 'list members of');
 
     // Count total members in this static cohort
     const countResult = await this.ch.query({
@@ -217,7 +211,14 @@ export class StaticCohortsService {
     return { data, total };
   }
 
-  // Private helpers
+  private assertStaticCohort(
+    cohort: { is_static: boolean },
+    operation: string,
+  ): asserts cohort is { is_static: true } {
+    if (!cohort.is_static) {
+      throw new StaticCohortOperationException(`Cannot ${operation} a dynamic cohort`);
+    }
+  }
 
   private async resolveDistinctIdsToPersonIds(projectId: string, distinctIds: string[]): Promise<string[]> {
     const result = await this.ch.query({

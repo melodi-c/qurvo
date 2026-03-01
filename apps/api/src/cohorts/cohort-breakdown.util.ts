@@ -1,6 +1,7 @@
-import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { buildCohortMemberSubquery } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { Expr } from '@qurvo/ch-query';
-import { select, col, eq, namedParam, inSubquery } from '@qurvo/ch-query';
+import { inSubquery } from '@qurvo/ch-query';
 import type { CohortConditionGroup } from '@qurvo/db';
 import { resolvedPerson } from '../analytics/query-helpers';
 
@@ -24,9 +25,12 @@ export interface CohortBreakdownEntry {
  * `RESOLVED_PERSON IN (SELECT person_id FROM ... WHERE ...)`
  *
  * Returns an Expr AST node instead of a raw SQL string, eliminating the
- * string→raw() round-trip at call sites.
+ * string->raw() round-trip at call sites.
  *
  * Mutates queryParams with the cohort param key and any inline subquery params.
+ *
+ * Delegates routing (static / materialized / inline) to the unified
+ * `buildCohortMemberSubquery` from @qurvo/cohort-query.
  *
  * @param dateTo - Optional datetime string (e.g. "2025-01-31 23:59:59") used as
  *   the upper bound for behavioral conditions instead of `now()`.
@@ -44,28 +48,17 @@ export function buildCohortFilterForBreakdown(
   dateTo?: string,
   dateFrom?: string,
 ): Expr {
-  queryParams[paramKey] = cb.cohort_id;
+  const input: CohortFilterInput = {
+    cohort_id: cb.cohort_id,
+    definition: cb.definition,
+    materialized: cb.materialized,
+    is_static: cb.is_static,
+    membership_version: cb.membership_version,
+  };
 
-  if (cb.is_static) {
-    const memberQuery = select(col('person_id'))
-      .from('person_static_cohort FINAL')
-      .where(
-        eq(col('cohort_id'), namedParam(paramKey, 'UUID', cb.cohort_id)),
-        eq(col('project_id'), namedParam('project_id', 'UUID', queryParams['project_id'])),
-      )
-      .build();
-    return inSubquery(resolvedPerson(), memberQuery);
-  }
-  if (cb.materialized) {
-    const memberQuery = select(col('person_id'))
-      .from('cohort_members FINAL')
-      .where(
-        eq(col('cohort_id'), namedParam(paramKey, 'UUID', cb.cohort_id)),
-        eq(col('project_id'), namedParam('project_id', 'UUID', queryParams['project_id'])),
-      )
-      .build();
-    return inSubquery(resolvedPerson(), memberQuery);
-  }
-  const node = buildCohortSubquery(cb.definition, subqueryOffset, 'project_id', queryParams, undefined, dateTo, dateFrom);
+  const node = buildCohortMemberSubquery(
+    input, paramKey, 'project_id', queryParams, subqueryOffset,
+    undefined, dateTo, dateFrom,
+  );
   return inSubquery(resolvedPerson(), node);
 }

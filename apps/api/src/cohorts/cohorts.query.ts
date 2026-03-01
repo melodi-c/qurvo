@@ -1,7 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortConditionGroup } from '@qurvo/db';
-import { buildCohortSubquery } from '@qurvo/cohort-query';
+import { buildCohortSubquery, buildCohortMemberSubquery } from '@qurvo/cohort-query';
+import type { CohortFilterInput } from '@qurvo/cohort-query';
 import {
   select,
   col,
@@ -100,4 +101,26 @@ export async function queryCohortSizeHistory(
 
   const rows = await new ChQueryExecutor(ch).rows<{ dt: string; count: string }>(node);
   return rows.map((r) => ({ date: r.dt, count: Number(r.count) }));
+}
+
+/**
+ * Counts unique persons matching any cohort type (static, materialized, or inline).
+ *
+ * Uses `buildCohortMemberSubquery` as the single routing source-of-truth.
+ * This is the preferred function for counting cohort members — callers do not
+ * need to know which storage backend the cohort uses.
+ */
+export async function countCohortMembersUnified(
+  ch: ClickHouseClient,
+  projectId: string,
+  input: CohortFilterInput,
+  resolveCohortIsStatic?: (cohortId: string) => boolean,
+): Promise<number> {
+  const params: Record<string, unknown> = { project_id: projectId };
+  const node = buildCohortMemberSubquery(
+    input, 'cohort_id', 'project_id', params, 0,
+    resolveCohortIsStatic,
+  );
+  const wrapper = select(uniqExact(col('person_id')).as('cnt')).from(node).build();
+  return new ChQueryExecutor(ch).count(wrapper);
 }
