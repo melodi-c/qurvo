@@ -84,17 +84,25 @@ gh pr create \
   --head "$ROLLBACK_BRANCH"
 ```
 
-Если в репозитории нет branch protection — автомерж:
+Попытайся прямой мерж. Если не получается (branch protection) — используй `--auto`:
 ```bash
-gh pr merge --auto --merge --delete-branch
+# Сначала пробуем прямой merge (без ожидания checks)
+if ! gh pr merge --merge --delete-branch 2>/dev/null; then
+  # Branch protection — ставим auto-merge и НЕ делаем git pull сразу
+  gh pr merge --auto --merge --delete-branch 2>/dev/null || true
+  echo "WARN: auto-merge requested, PR may not be merged yet" >&2
+  gh pr edit --add-label "urgent" 2>/dev/null || true
+fi
 ```
 
-Если есть branch protection — оставь PR для ручного review и добавь label `urgent`.
-
-Sync local ref после merge (executor может продолжить работу):
+Sync local ref после merge (только если PR уже смержен):
 ```bash
-git checkout "$BASE_BRANCH"
-git pull origin "$BASE_BRANCH" 2>/dev/null || true
+# Проверяем что PR действительно замержен перед pull
+PR_STATE=$(gh pr view "$ROLLBACK_BRANCH" --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+if [[ "$PR_STATE" == "MERGED" ]]; then
+  git checkout "$BASE_BRANCH"
+  git pull origin "$BASE_BRANCH" 2>/dev/null || true
+fi
 ```
 
 ---

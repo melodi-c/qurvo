@@ -26,6 +26,14 @@ if ! git -C "$CWD" rev-parse --verify "$BASE_REF" &>/dev/null; then
   fi
 fi
 
+# Guard against branch name collision from previous failed runs
+if git -C "$CWD" rev-parse --verify "$NAME" &>/dev/null; then
+  echo "WARN: branch '$NAME' already exists, removing stale branch" >&2
+  # Remove any existing worktree using this branch first
+  git -C "$CWD" worktree remove "$TARGET" --force 2>/dev/null || true
+  git -C "$CWD" branch -D "$NAME" 2>/dev/null || true
+fi
+
 git -C "$CWD" worktree add "$TARGET" -b "$NAME" "$BASE_REF" >&2
 
 # Print path to stdout — this is what Claude Code reads

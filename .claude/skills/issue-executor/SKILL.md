@@ -261,6 +261,28 @@ fi
 5. `bash "$SM" prune-merged` — очисти MERGED issues из state
 6. Только после этого запусти следующую группу
 
+### 5.2.1 Competing solutions для critical issues
+
+Для issues с лейблом `critical` или `size:l` — запусти **2 solver'а параллельно** с разными подходами для повышения вероятности успеха:
+
+1. **Solver A** — стандартный промпт (как обычно)
+2. **Solver B** — альтернативный промпт с hint'ом:
+   ```
+   APPROACH_HINT: Используй альтернативный подход к решению. Если основной подход — изменение существующего кода, попробуй рефакторинг с новыми абстракциями. Если основной — добавление нового модуля, попробуй расширение существующего.
+   ```
+
+Оба solver'а получают разные `RESULT_FILE`:
+- `solver-<NUMBER>.json` (основной)
+- `solver-<NUMBER>-alt.json` (альтернативный)
+
+**После завершения обоих:**
+1. Если один FAILED, другой READY_FOR_REVIEW → используй успешный
+2. Если оба READY_FOR_REVIEW → запусти reviewer на оба diff'а, выбери тот что получил APPROVE (или меньше issues)
+3. Если оба FAILED → эскалируй пользователю
+4. Удали worktree проигравшего solver'а: `git worktree remove <path> --force`
+
+**Лимит**: competing solutions тратят 2 solver invocations за раз. Учитывай это при проверке `solver-invocations` cap.
+
 ### Промпт для каждого issue-solver подагента
 
 Для **standalone issues** (BASE_BRANCH = main):
@@ -354,6 +376,19 @@ gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализован
 
 ### STATUS: READY_FOR_REVIEW — Review Loop
 
+Прочитай `confidence` из solver result file:
+- **`confidence: "low"`** → эскалируй пользователю немедленно. Solver сам не уверен в решении — review будет тратой ресурсов.
+  ```bash
+  bash "$SM" issue-status <N> NEEDS_USER_INPUT
+  gh issue edit <N> --remove-label "in-progress" --add-label "needs-review"
+  gh issue comment <N> --body "Solver завершил с низкой уверенностью. Требуется ручная проверка."
+  ```
+  Пропусти review loop, добавь в отчёт как "Low confidence — escalated".
+
+- **`confidence: "high"` + issue имеет label `size:xs`** → skip lint-checker (Шаг 6.1), перейди сразу к 6.2. Lint инлайн уже проверен solver'ом.
+
+- **Остальные случаи** → полный review loop.
+
 Подготовь review:
 ```bash
 bash "$CLAUDE_PROJECT_DIR/.claude/scripts/prepare-review.sh" <NUMBER>
@@ -443,10 +478,19 @@ prompt: |
 Дождись завершения обоих. Прочитай оба `RESULT_FILE`. Обработка:
 
 - **Оба APPROVE/PASS** → issue status → `REVIEW_PASSED` → переходи к 6.4 (мерж)
-- **reviewer: REQUEST_CHANGES** или **security: FAIL** → проверь regression counter:
+- **reviewer: REQUEST_CHANGES** или **security: FAIL** → проверь regression counter и stuck detector:
+
+  **Regression counter:**
   - Подсчитай `issues_found` (число проблем в текущем review) и `issues_fixed` (из предыдущей итерации)
   - Если `issues_found >= issues_fixed` (solver не прогрессирует, или регрессирует) → **эскалируй пользователю немедленно**, не делай retry
-  - Иначе → structured feedback → re-launch solver **в существующем worktree** (max 2 итерации)
+
+  **Ping-pong detector (stuck detection):**
+  - Сравни конкретные issues из текущего review с issues из предыдущего:
+    - Если issue A было в review N-1, solver "исправил" его, но issue A снова появилось в review N → **ping-pong detected** → эскалируй немедленно
+    - Если issue A исправлено, но появилось новое issue B в том же файле/функции → возможный ping-pong → сохрани для следующей итерации
+  - Для сравнения используй `file` + `line` + `description` из JSON результатов обоих review'ов
+
+  **Если нет regression и нет ping-pong** → structured feedback → re-launch solver **в существующем worktree** (max 2 итерации)
 
 **Structured feedback protocol** (передаётся solver'у при retry):
 ```
@@ -751,7 +795,9 @@ rm -rf /tmp/claude-results
 9. Parent issue закрывается оркестратором (Шаг 5.3), не подагентом.
 10. Post-merge верификация — только для групп из 2+ issues.
 11. При compact recovery — `bash "$SM" read-active`, fallback на AGENT_META.
-12. Retry FAILED issues максимум 1 раз. Review retry — максимум 2 итерации. **Total solver invocations — максимум 4** (проверяй через `solver-invocations` команду state-manager).
+12. Retry FAILED issues максимум 1 раз. Review retry — максимум 2 итерации. **Total solver invocations — максимум 4** (проверяй через `solver-invocations` команду state-manager). Competing solutions (5.2.1) тратят 2 invocations — учитывай при подсчёте.
+13. **Confidence handling**: solver с `confidence: "low"` → эскалация без review. `confidence: "high"` + `size:xs` → skip lint-checker.
+14. **Stuck detection**: ping-pong fixes (issue A → fix → issue B → fix → issue A снова) → немедленная эскалация, не retry.
 13. Issues с `size:l` или `needs-review` → `AUTO_MERGE="false"` (PR без автомержа).
 14. OpenAPI regeneration — после мержа issues, затрагивающих `apps/api` (Шаг 6.7).
 15. Вызовы merge-worktree.sh и verify-post-merge.sh — с `2>/dev/null` для подавления stderr.

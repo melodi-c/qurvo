@@ -14,12 +14,41 @@ STATE_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/state"
 STATE_FILE="$STATE_DIR/execution-state.json"
 REPO=""
 
-# Guard against concurrent executors
+# Guard against concurrent executors (atomic mkdir-based lock)
+EXECUTOR_LOCK="${STATE_DIR}/executor.lock.d"
+_executor_lock_acquired=false
+if [[ "$DATA_ONLY" != true ]]; then
+  for _try in $(seq 1 5); do
+    if mkdir "$EXECUTOR_LOCK" 2>/dev/null; then
+      _executor_lock_acquired=true
+      trap 'rmdir "$EXECUTOR_LOCK" 2>/dev/null || true' EXIT
+      break
+    fi
+    # Staleness check: if lock is older than 10 minutes, force-break
+    if [[ -d "$EXECUTOR_LOCK" ]]; then
+      _lock_age=$(( $(date +%s) - $(stat -f %m "$EXECUTOR_LOCK" 2>/dev/null || echo "0") ))
+      if [[ "$_lock_age" -gt 600 ]]; then
+        echo "WARN: stale executor lock detected (${_lock_age}s old), force-breaking" >&2
+        rmdir "$EXECUTOR_LOCK" 2>/dev/null || rm -rf "$EXECUTOR_LOCK" 2>/dev/null || true
+        continue
+      fi
+    fi
+    sleep 1
+  done
+  if ! $_executor_lock_acquired; then
+    echo "ERROR: Cannot acquire executor lock. Another executor may be running." >&2
+    echo "To force restart: rmdir $EXECUTOR_LOCK && rm -f $STATE_FILE" >&2
+    exit 1
+  fi
+fi
+
+# Check existing state (after acquiring lock — now race-free)
 if [[ -f "$STATE_FILE" ]]; then
   EXISTING_PHASE=$(jq -r '.phase // "UNKNOWN"' "$STATE_FILE" 2>/dev/null)
   if [[ "$EXISTING_PHASE" != "COMPLETED" && "$EXISTING_PHASE" != "UNKNOWN" ]]; then
-    echo "ERROR: Another executor is running (phase=$EXISTING_PHASE). State file exists at $STATE_FILE" >&2
+    echo "ERROR: Previous execution not completed (phase=$EXISTING_PHASE). State file exists at $STATE_FILE" >&2
     echo "To force restart, delete the state file: rm $STATE_FILE" >&2
+    rmdir "$EXECUTOR_LOCK" 2>/dev/null || true
     exit 1
   fi
 fi
