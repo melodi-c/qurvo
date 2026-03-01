@@ -8,7 +8,6 @@ import {
   and,
   gte,
   or,
-  notInSubquery,
   inSubquery,
   eq,
   neq,
@@ -32,6 +31,7 @@ import {
   stepsSubquery as buildStepsSubquery,
   validateExclusions,
   validateUnorderedSteps,
+  notInExcludedUsers,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
@@ -201,8 +201,7 @@ function buildFunnelQuery(
   const whereConditions: (Expr | undefined)[] = [];
 
   if (cteResult.hasExclusions) {
-    const excludedRef = select(col('person_id')).from('excluded_users').build();
-    whereConditions.push(notInSubquery(col('person_id'), excludedRef));
+    whereConditions.push(notInExcludedUsers());
   }
 
   if (hasBreakdown) {
@@ -272,8 +271,7 @@ function buildTopBreakdownCTEs(
 
   // Add exclusion filter if applicable
   if (hasExclusions) {
-    const excludedRef = select(col('person_id')).from('excluded_users').build();
-    baseConditions.push(notInSubquery(col('person_id'), excludedRef));
+    baseConditions.push(notInExcludedUsers());
   }
 
   // top_breakdown_values: top-N by count DESC

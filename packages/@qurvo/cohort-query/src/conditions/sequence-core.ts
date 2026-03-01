@@ -1,5 +1,6 @@
 import type { CohortEventFilter } from '@qurvo/db';
-import { buildEventFilterClausesStr, allocCondIdx } from '../helpers';
+import { compileExprToSql } from '@qurvo/ch-query';
+import { buildEventFilterClauses, allocCondIdx } from '../helpers';
 import type { BuildContext } from '../types';
 
 interface SequenceCondition {
@@ -46,8 +47,9 @@ export function buildSequenceCore(
     ctx.queryParams[stepEventPk] = step.event_name;
 
     let filterExpr = `event_name = {${stepEventPk}:String}`;
-    if (step.event_filters && step.event_filters.length > 0) {
-      filterExpr += buildEventFilterClausesStr(step.event_filters, `coh_${condIdx}_s${i}`, ctx.queryParams);
+    const filterClause = buildEventFilterClauses(step.event_filters, `coh_${condIdx}_s${i}`, ctx.queryParams);
+    if (filterClause) {
+      filterExpr += ' AND ' + compileExprToSql(filterClause).sql;
     }
     multiIfBranches.push(filterExpr, String(i + 1));
   });

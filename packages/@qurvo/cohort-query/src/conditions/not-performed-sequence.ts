@@ -1,7 +1,7 @@
 import type { CohortNotPerformedEventSequenceCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, sub, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom } from '../helpers';
+import { select, raw, rawWithParams, col, gte, lte, sub, notInSubquery } from '@qurvo/ch-query';
+import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -15,14 +15,13 @@ export function buildNotPerformedEventSequenceSubquery(
   const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
 
   const rollingLower = sub(upperBound, daysInterval);
-  const projectIdExpr = namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]);
 
   if (lowerBound) {
     // Active persons in the rolling window
     const activePersons = select(raw(RESOLVED_PERSON).as('person_id'))
       .from('events')
       .where(
-        eq(col('project_id'), projectIdExpr),
+        ctxProjectIdExpr(ctx),
         gte(col('timestamp'), rollingLower),
         lte(col('timestamp'), upperBound),
       )
@@ -36,7 +35,7 @@ export function buildNotPerformedEventSequenceSubquery(
     )
       .from('events')
       .where(
-        eq(col('project_id'), projectIdExpr),
+        ctxProjectIdExpr(ctx),
         gte(col('timestamp'), lowerBound),
         lte(col('timestamp'), upperBound),
       )
@@ -71,7 +70,7 @@ export function buildNotPerformedEventSequenceSubquery(
   )
     .from('events')
     .where(
-      eq(col('project_id'), projectIdExpr),
+      ctxProjectIdExpr(ctx),
       gte(col('timestamp'), rollingLower),
       lte(col('timestamp'), upperBound),
     )

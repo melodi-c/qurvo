@@ -1,7 +1,7 @@
 import type { CohortRestartedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
 import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, inSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -36,14 +36,13 @@ export function buildRestartedPerformingSubquery(
   const recentInterval = rawWithParams(`INTERVAL {${recentPk}:UInt32} DAY`, { [recentPk]: cond.recent_window_days });
   const gapStartInterval = rawWithParams(`INTERVAL {${gapStartPk}:UInt32} DAY`, { [gapStartPk]: cond.recent_window_days + cond.gap_window_days });
   const gapEndInterval = rawWithParams(`INTERVAL {${gapEndPk}:UInt32} DAY`, { [gapEndPk]: cond.recent_window_days });
-  const projectIdExpr = namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]);
   const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
 
   // Historical performers (far past)
   const historicalSelect = select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      eq(col('project_id'), projectIdExpr),
+      ctxProjectIdExpr(ctx),
       eq(col('event_name'), eventNameExpr),
       gte(col('timestamp'), sub(upperBound, histInterval)),
       lt(col('timestamp'), sub(upperBound, gapStartInterval)),
@@ -56,7 +55,7 @@ export function buildRestartedPerformingSubquery(
   const gapSelect = select(raw(RESOLVED_PERSON))
     .from('events')
     .where(
-      eq(col('project_id'), projectIdExpr),
+      ctxProjectIdExpr(ctx),
       eq(col('event_name'), eventNameExpr),
       gte(col('timestamp'), sub(upperBound, gapStartInterval)),
       lt(col('timestamp'), sub(upperBound, gapEndInterval)),
@@ -68,7 +67,7 @@ export function buildRestartedPerformingSubquery(
   const recentSelect = select(raw(RESOLVED_PERSON))
     .from('events')
     .where(
-      eq(col('project_id'), projectIdExpr),
+      ctxProjectIdExpr(ctx),
       eq(col('event_name'), eventNameExpr),
       gte(col('timestamp'), sub(upperBound, recentInterval)),
       lte(col('timestamp'), upperBound),

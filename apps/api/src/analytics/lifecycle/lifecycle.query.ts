@@ -7,12 +7,14 @@ import {
   unionAll,
   col,
   literal,
-  func,
   and,
   eq,
   gte,
+  groupUniqArray,
+  has,
   lt,
   lte,
+  min,
   not,
   multiIf,
   uniqExact,
@@ -47,7 +49,7 @@ export interface LifecycleQueryParams {
   granularity: LifecycleGranularity;
   date_from: string;
   date_to: string;
-  event_filters?: PropertyFilter[];
+  filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
   timezone?: string;
 }
@@ -157,8 +159,8 @@ export async function queryLifecycle(
   // CTE: person_buckets — per-person sorted bucket array over [extended_from, to]
   const personBuckets = select(
     resolvedPerson().as('person_id'),
-    arraySort(func('groupUniqArray', bucketExpr)).as('buckets'),
-    func('min', bucketExpr).as('first_bucket'),
+    arraySort(groupUniqArray(bucketExpr)).as('buckets'),
+    min(bucketExpr).as('first_bucket'),
   )
     .from('events')
     .where(
@@ -168,7 +170,7 @@ export async function queryLifecycle(
         to: params.date_to,
         tz,
         eventName: params.target_event,
-        filters: params.event_filters,
+        filters: params.filters,
         cohortFilters: params.cohort_filters,
         dateTo: cbDateTo, dateFrom: cbDateFrom,
       }),
@@ -219,7 +221,7 @@ export async function queryLifecycle(
           result: literal('new'),
         },
         {
-          condition: func('has', col('buckets'), prevBucketExpr),
+          condition: has(col('buckets'), prevBucketExpr),
           result: literal('returning'),
         },
       ],
@@ -240,7 +242,7 @@ export async function queryLifecycle(
     .from('person_buckets')
     .arrayJoin(col('buckets'), 'bucket')
     .where(and(
-      not(func('has', col('buckets'), nextBucketExpr)),
+      not(has(col('buckets'), nextBucketExpr)),
       gte(nextBucketExpr, fromParam),
       lte(nextBucketExpr, toParam),
     ))

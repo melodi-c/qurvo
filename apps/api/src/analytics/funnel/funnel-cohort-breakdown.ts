@@ -6,10 +6,8 @@ import {
   countIf,
   gte,
   literal,
-  notInSubquery,
   add,
   and,
-  raw,
   type Expr,
   type QueryNode,
 } from '@qurvo/ch-query';
@@ -30,6 +28,7 @@ import { cohortBounds } from '../query-helpers';
 import {
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
+  notInExcludedUsers,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -48,8 +47,7 @@ function buildCohortFunnelCompiled(
 ): { sql: string; params: Record<string, unknown> } {
   const whereConditions: Expr[] = [];
   if (cteResult.hasExclusions) {
-    const excludedRef = select(col('person_id')).from('excluded_users').build();
-    whereConditions.push(notInSubquery(col('person_id'), excludedRef));
+    whereConditions.push(notInExcludedUsers());
   }
 
   const builder = select(
@@ -103,13 +101,13 @@ export async function runFunnelCohortBreakdown(
     const cbQueryParams = { ...baseQueryParams };
 
     const { dateTo, dateFrom } = cohortBounds(params);
-    const cohortFilterPredicate = buildCohortFilterForBreakdown(
+    const cohortFilterExpr = buildCohortFilterForBreakdown(
       cb, cbParamKey, 900 + cbIdx, cbQueryParams, dateTo, dateFrom,
     );
-    // Combine base cohort filter with per-breakdown cohort filter as raw SQL
+    // Combine base cohort filter with per-breakdown cohort filter
     const combinedCohortExpr = cohortExpr
-      ? and(cohortExpr, raw(cohortFilterPredicate))
-      : raw(cohortFilterPredicate);
+      ? and(cohortExpr, cohortFilterExpr)
+      : cohortFilterExpr;
 
     let cteResult;
 

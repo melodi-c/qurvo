@@ -9,18 +9,8 @@ export {
   resolveDateFrom,
   buildEventFilterClauses,
   allocCondIdx,
-} from './helpers';
-
-// Deprecated string-returning bridge functions (backward compat for external consumers)
-export {
-  resolvePropertyExprStr,
-  resolveEventPropertyExprStr,
-  buildOperatorClauseStr,
-  resolveDateToStr,
-  resolveDateFromStr,
-  buildEventFilterClausesStr,
-  buildCountIfCondStr,
-  buildEventsBaseSelect,
+  ctxProjectIdExpr,
+  eventsBaseSelect,
 } from './helpers';
 
 // Builder

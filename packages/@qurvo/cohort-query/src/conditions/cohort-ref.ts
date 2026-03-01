@@ -1,7 +1,7 @@
 import type { CohortCohortCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import { select, raw, col, namedParam, eq, lte, gte, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, allocCondIdx, resolveDateTo, resolveDateFrom } from '../helpers';
+import { RESOLVED_PERSON, allocCondIdx, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildCohortRefConditionSubquery(
@@ -20,7 +20,7 @@ export function buildCohortRefConditionSubquery(
     .from(`${table} FINAL`)
     .where(
       eq(col('cohort_id'), namedParam(idPk, 'UUID', cond.cohort_id)),
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      ctxProjectIdExpr(ctx),
     )
     .build();
 
@@ -29,7 +29,7 @@ export function buildCohortRefConditionSubquery(
     const lowerBound = resolveDateFrom(ctx);
 
     const whereConditions: (Expr | undefined | false)[] = [
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      ctxProjectIdExpr(ctx),
       lte(col('timestamp'), upperBound),
     ];
 

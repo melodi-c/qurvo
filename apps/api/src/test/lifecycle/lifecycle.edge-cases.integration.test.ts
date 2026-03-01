@@ -19,8 +19,8 @@ beforeAll(async () => {
   ctx = await getTestContext();
 }, 120_000);
 
-describe('queryLifecycle — user_properties event_filters', () => {
-  it('filters by user_properties.* in event_filters', async () => {
+describe('queryLifecycle — user_properties filters', () => {
+  it('filters by user_properties.* in filters', async () => {
     const projectId = randomUUID();
     const premiumUser = randomUUID();
     const freeUser = randomUUID();
@@ -68,7 +68,7 @@ describe('queryLifecycle — user_properties event_filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
-      event_filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
+      filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
     });
 
     // Only premiumUser's events satisfy the user_properties filter — freeUser must be excluded
@@ -136,7 +136,7 @@ describe('queryLifecycle — event property filters', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
-      event_filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
+      filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
     });
 
     // Only premiumUser's events satisfy the filter — freeUser must be excluded
@@ -162,7 +162,7 @@ describe('queryLifecycle — prior_active ignores eventFilterClause', () => {
     // that don't match the filter to be misclassified as 'new' instead of 'resurrecting'.
     //
     // Scenario:
-    //   - The query has event_filter: properties.plan = 'premium'
+    //   - The query has filter: properties.plan = 'premium'
     //   - The user fired the target event with plan='free' 10 days ago (before the range)
     //   - During the visible range the user fires the event with plan='premium'
     //
@@ -200,7 +200,7 @@ describe('queryLifecycle — prior_active ignores eventFilterClause', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(0),
-      event_filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
+      filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
     });
 
     // The user should appear once (day-1) with plan='premium' matching the filter
@@ -235,7 +235,7 @@ describe('queryLifecycle — prior_active ignores eventFilterClause', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(0),
-      event_filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
+      filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
     });
 
     const day1 = result.data.find((d) => d.bucket.startsWith(daysAgo(1)));
