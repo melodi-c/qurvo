@@ -86,18 +86,18 @@ export async function queryCohortSizeHistory(
   days: number,
 ): Promise<CohortHistoryPoint[]> {
   const node = select(
-    chToString(col('h.date')).as('date'),
-    col('h.count'),
+    chToString(col('date')).as('dt'),
+    col('count'),
   )
-    .from('cohort_membership_history FINAL', 'h')
+    .from('cohort_membership_history FINAL')
     .where(
-      eq(col('h.project_id'), namedParam('project_id', 'UUID', projectId)),
-      eq(col('h.cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
-      gte(col('h.date'), chSub(today(), namedParam('days', 'UInt32', days))),
+      eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
+      eq(col('cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
+      gte(col('date'), chSub(today(), namedParam('days', 'UInt32', days))),
     )
-    .orderBy(col('h.date'), 'ASC')
+    .orderBy(col('date'), 'ASC')
     .build();
 
-  const rows = await new ChQueryExecutor(ch).rows<{ date: string; count: string }>(node);
-  return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
+  const rows = await new ChQueryExecutor(ch).rows<{ dt: string; count: string }>(node);
+  return rows.map((r) => ({ date: r.dt, count: Number(r.count) }));
 }
