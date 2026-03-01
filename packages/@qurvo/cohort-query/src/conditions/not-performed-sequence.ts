@@ -1,6 +1,6 @@
 import type { CohortNotPerformedEventSequenceCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, gte, lte, sub, notInSubquery } from '@qurvo/ch-query';
+import { select, raw, col, gte, lte, sub, notInSubquery, gt, eq, literal, interval, namedParam } from '@qurvo/ch-query';
 import { RESOLVED_PERSON, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
@@ -12,7 +12,7 @@ export function buildNotPerformedEventSequenceSubquery(
   const { stepIndexExpr, seqMatchExpr, daysPk } = buildSequenceCore(cond, ctx);
   const upperBound = resolveDateTo(ctx);
   const lowerBound = resolveDateFrom(ctx);
-  const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
 
   const rollingLower = sub(upperBound, daysInterval);
 
@@ -46,17 +46,18 @@ export function buildNotPerformedEventSequenceSubquery(
       raw(`${seqMatchExpr}`).as('seq_match'),
     )
       .from(innerEvents)
-      .where(raw('step_idx > 0'))
+      .where(gt(col('step_idx'), literal(0)))
       .groupBy(col('person_id'))
       .build();
 
     const completedPersons = select(col('person_id'))
       .from(seqCompleted)
-      .where(raw('seq_match = 1'))
+      .where(eq(col('seq_match'), literal(1)))
       .build();
 
     // Two-window NOT IN: active persons who did NOT complete the sequence in [dateFrom, dateTo]
-    return select(raw('DISTINCT person_id'))
+    return select(col('person_id'))
+      .distinct()
       .from(activePersons)
       .where(notInSubquery(col('person_id'), completedPersons))
       .build();
@@ -81,12 +82,12 @@ export function buildNotPerformedEventSequenceSubquery(
     raw(`${seqMatchExpr}`).as('seq_match'),
   )
     .from(innerSelect)
-    .where(raw('step_idx > 0'))
+    .where(gt(col('step_idx'), literal(0)))
     .groupBy(col('person_id'))
     .build();
 
   return select(col('person_id'))
     .from(middleSelect)
-    .where(raw('seq_match = 0'))
+    .where(eq(col('seq_match'), literal(0)))
     .build();
 }
