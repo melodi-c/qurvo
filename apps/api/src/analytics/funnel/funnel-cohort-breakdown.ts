@@ -79,7 +79,7 @@ export async function runFunnelCohortBreakdown(
   ch: ClickHouseClient,
   params: FunnelQueryParams,
   baseQueryParams: FunnelChQueryParams,
-  stepConditions: string,
+  stepConditions: Expr[],
   cohortClause: string,
   samplingClause: string,
 ): Promise<CohortBreakdownResult> {

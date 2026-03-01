@@ -5,7 +5,6 @@ import {
   CompilerContext,
   select,
   col,
-  raw,
   count,
   countIf,
   and,
@@ -29,11 +28,10 @@ import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
   buildAllEventNames,
   buildBaseQueryParams,
-  buildSamplingClauseRaw,
+  buildSamplingClause,
   buildStepCondition,
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
-  toChTs,
   validateExclusions,
   validateUnorderedSteps,
   type FunnelChQueryParams,
@@ -71,13 +69,17 @@ export async function queryFunnel(
   const allEventNames = buildAllEventNames(steps, exclusions);
   const queryParams = buildBaseQueryParams(params, allEventNames);
   const ctx = new CompilerContext();
-  const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx)).join(', ');
+  // Build step conditions as Expr AST nodes
+  const stepConditions: Expr[] = steps.map((s, i) => buildStepCondition(s, i));
 
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
   const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams, ctx).sql : '';
-  // Raw sampling clause for CTE body builders (string-based escape hatch)
-  const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
+  // Sampling clause via Expr AST, compiled to SQL string for CTE body builders
+  const samplingExpr = buildSamplingClause(params.sampling_factor, queryParams);
+  const samplingClause = samplingExpr
+    ? '\n                AND ' + compileExprToSql(samplingExpr, queryParams, ctx).sql
+    : '';
   // Mirror the same guard used in buildSamplingClause: sampling is active only when
   // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
   const sf = params.sampling_factor;
@@ -140,7 +142,7 @@ function buildFunnelQuery(
   orderType: 'ordered' | 'strict' | 'unordered',
   steps: FunnelQueryParams['steps'],
   exclusions: NonNullable<FunnelQueryParams['exclusions']>,
-  stepConditions: string,
+  stepConditions: Expr[],
   cohortClause: string,
   samplingClause: string,
   numSteps: number,
