@@ -6,7 +6,7 @@ import {
   like, literal, lt as chLt, lte, match, multiSearchAny, namedParam,
   neq, not, notInArray, notLike, now64, or,
   parseDateTimeBestEffort, parseDateTimeBestEffortOrZero,
-  raw, rawWithParams, select, toDate, toFloat64OrZero, toString, tuple,
+  select, toDate, toFloat64OrZero, toString, tuple,
 } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
@@ -39,20 +39,10 @@ export const DIRECT_COLUMNS = new Set([
 // RESOLVED_PERSON
 
 /**
- * The raw SQL expression for resolving a person's canonical ID via the
- * person_overrides_dict dictionary.
- *
- * String constant kept for backward compatibility with code that embeds it
- * in template literals (ai/tools, funnel-sql-shared, static-cohorts).
- */
-export const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
-
-/**
- * Returns a typed Expr for RESOLVED_PERSON with .as() support:
+ * Returns a typed Expr for the resolved person ID:
  * coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)
  */
-export function resolvedPerson(): Expr & { as(alias: string): import('@qurvo/ch-query').AliasExpr } {
+export function resolvedPerson() {
   return coalesce(
     dictGetOrNull('person_overrides_dict', 'person_id', tuple(col('project_id'), col('distinct_id'))),
     col('person_id'),
@@ -486,7 +476,7 @@ export function ctxProjectIdExpr(ctx: BuildContext): Expr {
  */
 export function eventsBaseSelect(ctx: BuildContext, lowerExpr?: Expr, ...extraWhere: (Expr | undefined)[]) {
   const upperBound = resolveDateTo(ctx);
-  return select(raw(RESOLVED_PERSON).as('person_id'))
+  return select(resolvedPerson().as('person_id'))
     .from('events')
     .where(
       ctxProjectIdExpr(ctx),

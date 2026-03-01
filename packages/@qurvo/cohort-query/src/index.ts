@@ -1,6 +1,5 @@
 // Expr-returning helpers (primary API)
 export {
-  RESOLVED_PERSON,
   TOP_LEVEL_COLUMNS,
   DIRECT_COLUMNS,
   resolvedPerson,

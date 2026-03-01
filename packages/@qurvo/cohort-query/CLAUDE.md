@@ -44,7 +44,6 @@ import type { CohortFilterInput, BuildContext } from '@qurvo/cohort-query';
 
 // Helpers — property resolution, operator clauses, event filters
 import {
-  RESOLVED_PERSON,
   TOP_LEVEL_COLUMNS,
   DIRECT_COLUMNS,
   resolvedPerson,

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveWindowSeconds,
   buildSamplingClause,
-  RESOLVED_PERSON,
 } from '../../analytics/funnel/funnel-sql-shared';
 import { compile, select, raw, type Expr } from '@qurvo/ch-query';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
@@ -43,11 +42,11 @@ describe('buildSamplingClause', () => {
     expect(sql).toContain('{sample_pct:UInt8}');
   });
 
-  it('produces an Expr referencing RESOLVED_PERSON (person_id), not bare distinct_id', () => {
+  it('produces an Expr referencing resolvedPerson (coalesce/dictGetOrNull), not bare distinct_id', () => {
     const result = buildSamplingClause(0.5);
     expect(result).toBeDefined();
     const sql = compileSamplingExpr(result!.expr);
-    expect(sql).toContain(RESOLVED_PERSON);
+    expect(sql).toContain('coalesce(dictGetOrNull(');
     expect(sql).not.toContain('sipHash64(toString(distinct_id))');
   });
 

@@ -12,6 +12,8 @@ import {
   queryCohortSizeHistory,
 } from '../../cohorts/cohorts.query';
 import type { CohortConditionGroup } from '@qurvo/db';
+import { compileExprToSql } from '@qurvo/ch-query';
+import { resolvedPerson } from '@qurvo/cohort-query';
 import { materializeCohort, insertStaticCohortMembers } from './helpers';
 
 let ctx: ContainerContext;
@@ -488,10 +490,9 @@ describe('queryCohortSizeHistory', () => {
 // module (Drizzle DB, CohortsService, etc.). These integration tests use bare
 // container clients from @qurvo/testing, so we replicate the service's
 // resolveEmailsToPersonIds query directly. The queries below mirror the SQL in
-// StaticCohortsService.resolveEmailsToPersonIds (including lower() and RESOLVED_PERSON).
+// StaticCohortsService.resolveEmailsToPersonIds (including lower() and resolvedPerson()).
 
-const RESOLVED_PERSON =
-  `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
+const RESOLVED_PERSON_SQL = compileExprToSql(resolvedPerson()).sql;
 
 describe('importStaticCohortCsv — email resolution', () => {
   it('resolves email to person_id via ClickHouse events', async () => {
@@ -525,7 +526,7 @@ describe('importStaticCohortCsv — email resolution', () => {
     const normalizedEmails = emails.map((e) => e.toLowerCase());
     const result = await ctx.ch.query({
       query: `
-        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        SELECT DISTINCT ${RESOLVED_PERSON_SQL} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
           AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
@@ -567,7 +568,7 @@ describe('importStaticCohortCsv — email resolution', () => {
     const normalizedEmails = emails.map((e) => e.toLowerCase());
     const result = await ctx.ch.query({
       query: `
-        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        SELECT DISTINCT ${RESOLVED_PERSON_SQL} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
           AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
@@ -603,7 +604,7 @@ describe('importStaticCohortCsv — email resolution', () => {
 
     const result = await ctx.ch.query({
       query: `
-        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        SELECT DISTINCT ${RESOLVED_PERSON_SQL} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
           AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,
@@ -638,7 +639,7 @@ describe('importStaticCohortCsv — email resolution', () => {
 
     const result = await ctx.ch.query({
       query: `
-        SELECT DISTINCT ${RESOLVED_PERSON} AS resolved_person_id
+        SELECT DISTINCT ${RESOLVED_PERSON_SQL} AS resolved_person_id
         FROM events
         WHERE project_id = {project_id:UUID}
           AND lower(JSONExtractString(user_properties, 'email')) IN {emails:Array(String)}`,

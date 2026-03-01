@@ -1,7 +1,7 @@
 import type { CohortCohortCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, namedParam, eq, lte, gte, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, allocCondIdx, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
+import { select, col, namedParam, eq, lte, gte, notInSubquery } from '@qurvo/ch-query';
+import { resolvedPerson, allocCondIdx, resolveDateTo, resolveDateFrom, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 
 export function buildCohortRefConditionSubquery(
@@ -37,9 +37,10 @@ export function buildCohortRefConditionSubquery(
       whereConditions.push(gte(col('timestamp'), lowerBound));
     }
 
-    whereConditions.push(notInSubquery(raw(RESOLVED_PERSON), memberSelect));
+    whereConditions.push(notInSubquery(resolvedPerson(), memberSelect));
 
-    return select(raw(`DISTINCT ${RESOLVED_PERSON}`).as('person_id'))
+    return select(resolvedPerson().as('person_id'))
+      .distinct()
       .from('events')
       .where(...whereConditions)
       .build();

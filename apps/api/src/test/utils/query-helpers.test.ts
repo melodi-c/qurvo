@@ -23,7 +23,6 @@ import {
   resolvePropertyExpr,
   resolveNumericPropertyExpr,
   resolvedPerson,
-  RESOLVED_PERSON,
   baseMetricColumns,
   aggColumn,
   numericProperty,
@@ -794,10 +793,6 @@ describe('analytics/resolved-person', () => {
     expect(sql).toContain("coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)");
   });
 
-  test('RESOLVED_PERSON constant matches raw SQL', () => {
-    expect(RESOLVED_PERSON).toContain('dictGetOrNull');
-    expect(RESOLVED_PERSON).toContain('person_id');
-  });
 });
 
 describe('analytics/aggregations', () => {

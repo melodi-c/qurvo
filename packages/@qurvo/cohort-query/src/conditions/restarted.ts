@@ -1,7 +1,7 @@
 import type { CohortRestartedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, inSubquery, interval } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
+import { select, col, namedParam, eq, gte, lte, lt, sub, notInSubquery, inSubquery, interval } from '@qurvo/ch-query';
+import { resolvedPerson, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -39,7 +39,7 @@ export function buildRestartedPerformingSubquery(
   const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
 
   // Historical performers (far past)
-  const historicalSelect = select(raw(RESOLVED_PERSON).as('person_id'))
+  const historicalSelect = select(resolvedPerson().as('person_id'))
     .from('events')
     .where(
       ctxProjectIdExpr(ctx),
@@ -52,7 +52,7 @@ export function buildRestartedPerformingSubquery(
     .build();
 
   // Gap performers (should NOT have performed during gap)
-  const gapSelect = select(raw(RESOLVED_PERSON))
+  const gapSelect = select(resolvedPerson())
     .from('events')
     .where(
       ctxProjectIdExpr(ctx),
@@ -64,7 +64,7 @@ export function buildRestartedPerformingSubquery(
     .build();
 
   // Recent performers (must have performed recently)
-  const recentSelect = select(raw(RESOLVED_PERSON))
+  const recentSelect = select(resolvedPerson())
     .from('events')
     .where(
       ctxProjectIdExpr(ctx),
