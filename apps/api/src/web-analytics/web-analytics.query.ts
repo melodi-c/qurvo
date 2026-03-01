@@ -1,8 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { Expr } from '@qurvo/ch-query';
 import {
   alias,
-  compile,
   select,
   col,
   literal,
@@ -233,9 +233,7 @@ async function queryKPIs(
     .with('session_stats', buildKpiSessionCTE(params))
     .build();
 
-  const { sql, params: queryParams } = compile(kpiNode);
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  const rows = await result.json<RawKPIRow>();
+  const rows = await new ChQueryExecutor(ch).rows<RawKPIRow>(kpiNode);
   return parseKPIs(rows[0]);
 }
 
@@ -267,16 +265,12 @@ export async function queryOverview(
     .orderBy(col('bucket'), 'ASC')
     .build();
 
-  const tsCompiled = compile(tsNode);
-
   // Run all three independent queries in parallel
-  const [current, previous, tsResult] = await Promise.all([
+  const [current, previous, tsRows] = await Promise.all([
     queryKPIs(ch, params),
     queryKPIs(ch, prevParams),
-    ch.query({ query: tsCompiled.sql, query_params: tsCompiled.params, format: 'JSONEachRow' }),
+    new ChQueryExecutor(ch).rows<RawTimeseriesRow>(tsNode),
   ]);
-
-  const tsRows = await tsResult.json<RawTimeseriesRow>();
   const timeseries: TimeseriesPoint[] = tsRows.map((r) => ({
     bucket: r.bucket,
     unique_visitors: Number(r.unique_visitors),
@@ -326,9 +320,7 @@ async function querySessionDimension(
     .limit(limit)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  return parseDimensionRows(await result.json<RawDimensionRow>());
+  return parseDimensionRows(await new ChQueryExecutor(ch).rows<RawDimensionRow>(node));
 }
 
 /**
@@ -357,9 +349,7 @@ async function queryDirectDimension(
     .limit(limit)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  return parseDimensionRows(await result.json<RawDimensionRow>());
+  return parseDimensionRows(await new ChQueryExecutor(ch).rows<RawDimensionRow>(node));
 }
 
 // ── Paths Query ───────────────────────────────────────────────────────────────
@@ -396,9 +386,7 @@ async function queryTopPagesDimension(
     .limit(MAX_PATH_NODES)
     .build();
 
-  const { sql, params: queryParams } = compile(node);
-  const result = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
-  return parseDimensionRows(await result.json<RawDimensionRow>());
+  return parseDimensionRows(await new ChQueryExecutor(ch).rows<RawDimensionRow>(node));
 }
 
 // ── Sources Query ─────────────────────────────────────────────────────────────

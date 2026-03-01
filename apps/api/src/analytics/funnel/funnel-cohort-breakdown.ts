@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
   countIf,
@@ -38,13 +38,13 @@ interface CohortBreakdownResult {
 }
 
 /**
- * Builds a compiled cohort funnel query from CTEs.
+ * Builds a cohort funnel query node from CTEs.
  * Shared between per-cohort and aggregate paths.
  */
-function buildCohortFunnelCompiled(
+function buildCohortFunnelNode(
   cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean },
   queryParams: FunnelChQueryParams,
-): { sql: string; params: Record<string, unknown> } {
+): QueryNode {
   const whereConditions: Expr[] = [];
   if (cteResult.hasExclusions) {
     whereConditions.push(notInExcludedUsers());
@@ -68,11 +68,7 @@ function buildCohortFunnelCompiled(
     .groupBy(col('step_num'))
     .orderBy(col('step_num'));
 
-  const compiled = compile(builder.build());
-  return {
-    sql: compiled.sql,
-    params: { ...queryParams, ...compiled.params },
-  };
+  return builder.build();
 }
 
 /**
@@ -133,9 +129,8 @@ export async function runFunnelCohortBreakdown(
       });
     }
 
-    const compiled = buildCohortFunnelCompiled(cteResult, cbQueryParams);
-    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-    const rows = await result.json<RawFunnelRow>();
+    const node = buildCohortFunnelNode(cteResult, cbQueryParams);
+    const rows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(node);
     perCohortResults.push(computeCohortBreakdownStepResults(rows, steps, numSteps, cb.cohort_id, cb.name));
   }
 
@@ -167,13 +162,8 @@ export async function runFunnelCohortBreakdown(
     });
   }
 
-  const aggregateCompiled = buildCohortFunnelCompiled(aggregateCteResult, aggregateQueryParams);
-  const aggregateResult = await ch.query({
-    query: aggregateCompiled.sql,
-    query_params: aggregateCompiled.params,
-    format: 'JSONEachRow',
-  });
-  const aggregateRows = await aggregateResult.json<RawFunnelRow>();
+  const aggregateNode = buildCohortFunnelNode(aggregateCteResult, aggregateQueryParams);
+  const aggregateRows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(aggregateNode);
   const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
 
   return {

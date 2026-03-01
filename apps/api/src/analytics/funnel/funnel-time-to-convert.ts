@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
   literal,
@@ -312,9 +312,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
     .from('converted')
     .build();
 
-  const compiled = compile(finalQuery);
-  const queryResult = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await queryResult.json<TtcAggRow>();
+  const rows = await new ChQueryExecutor(ch).rows<TtcAggRow>(finalQuery);
 
   return parseTtcRows(rows, fromStep, toStep);
 }
@@ -568,8 +566,6 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     .from('converted')
     .build();
 
-  const compiled = compile(finalQuery);
-  const queryResult = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await queryResult.json<TtcAggRow>();
+  const rows = await new ChQueryExecutor(ch).rows<TtcAggRow>(finalQuery);
   return parseTtcRows(rows, fromStep, toStep);
 }

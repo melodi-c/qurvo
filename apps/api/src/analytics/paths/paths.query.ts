@@ -1,4 +1,5 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { Expr, QueryNode } from '@qurvo/ch-query';
 import {
@@ -9,7 +10,6 @@ import {
   arrayEnumerate,
   arraySlice,
   col,
-  compile,
   groupArray,
   gte,
   has,
@@ -249,17 +249,12 @@ export async function queryPaths(
     .limit(MAX_PATH_NODES)
     .build();
 
-  // Compile and execute both queries in parallel
-  const compiled1 = compile(transitionsNode);
-  const compiled2 = compile(topPathsNode);
-
-  const [transitionsResult, topPathsResult] = await Promise.all([
-    ch.query({ query: compiled1.sql, query_params: compiled1.params, format: 'JSONEachRow' }),
-    ch.query({ query: compiled2.sql, query_params: compiled2.params, format: 'JSONEachRow' }),
+  // Execute both queries in parallel
+  const chx = new ChQueryExecutor(ch);
+  const [transitionRows, topPathRows] = await Promise.all([
+    chx.rows<RawTransitionRow>(transitionsNode),
+    chx.rows<RawTopPathRow>(topPathsNode),
   ]);
-
-  const transitionRows = await transitionsResult.json<RawTransitionRow>();
-  const topPathRows = await topPathsResult.json<RawTopPathRow>();
 
   const transitions: PathTransition[] = transitionRows.map((r) => ({
     step: Number(r.step),
