@@ -3,7 +3,6 @@ import {
   resolveWindowSeconds,
   buildSamplingClause,
   RESOLVED_PERSON,
-  type FunnelChQueryParams,
 } from '../../analytics/funnel/funnel-sql-shared';
 import { compile, select, raw, type Expr } from '@qurvo/ch-query';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
@@ -20,76 +19,58 @@ function compileSamplingExpr(expr: Expr): string {
 // ── buildSamplingClause ───────────────────────────────────────────────────────
 
 describe('buildSamplingClause', () => {
-  const makeParams = (): FunnelChQueryParams => ({
-    project_id: 'proj',
-    from: '2024-01-01',
-    to: '2024-01-31',
-    window: 86400,
-    num_steps: 2,
-    all_event_names: ['a'],
-  });
-
   it('returns undefined when samplingFactor is undefined', () => {
-    const qp = makeParams();
-    expect(buildSamplingClause(undefined, qp)).toBeUndefined();
-    expect(qp.sample_pct).toBeUndefined();
+    expect(buildSamplingClause(undefined)).toBeUndefined();
   });
 
   it('returns undefined when samplingFactor is 1 (full scan)', () => {
-    const qp = makeParams();
-    expect(buildSamplingClause(1, qp)).toBeUndefined();
-    expect(qp.sample_pct).toBeUndefined();
+    expect(buildSamplingClause(1)).toBeUndefined();
   });
 
   it('returns undefined when samplingFactor > 1', () => {
-    const qp = makeParams();
-    expect(buildSamplingClause(2, qp)).toBeUndefined();
-    expect(qp.sample_pct).toBeUndefined();
+    expect(buildSamplingClause(2)).toBeUndefined();
   });
 
   it('returns undefined when samplingFactor is NaN (not silently a full scan)', () => {
-    const qp = makeParams();
-    expect(buildSamplingClause(NaN, qp)).toBeUndefined();
-    expect(qp.sample_pct).toBeUndefined();
+    expect(buildSamplingClause(NaN)).toBeUndefined();
   });
 
-  it('returns Expr with pct=0 when samplingFactor is 0 (empty sample)', () => {
-    const qp = makeParams();
-    const expr = buildSamplingClause(0, qp);
-    expect(expr).toBeDefined();
-    expect(qp.sample_pct).toBe(0);
-    const sql = compileSamplingExpr(expr!);
+  it('returns { expr, samplePct } with pct=0 when samplingFactor is 0 (empty sample)', () => {
+    const result = buildSamplingClause(0);
+    expect(result).toBeDefined();
+    expect(result!.samplePct).toBe(0);
+    const sql = compileSamplingExpr(result!.expr);
     expect(sql).toContain('{sample_pct:UInt8}');
   });
 
   it('produces an Expr referencing RESOLVED_PERSON (person_id), not bare distinct_id', () => {
-    const qp = makeParams();
-    const expr = buildSamplingClause(0.5, qp);
-    expect(expr).toBeDefined();
-    const sql = compileSamplingExpr(expr!);
+    const result = buildSamplingClause(0.5);
+    expect(result).toBeDefined();
+    const sql = compileSamplingExpr(result!.expr);
     expect(sql).toContain(RESOLVED_PERSON);
     expect(sql).not.toContain('sipHash64(toString(distinct_id))');
   });
 
-  it('sets sample_pct to rounded percentage for 0.5', () => {
-    const qp = makeParams();
-    buildSamplingClause(0.5, qp);
-    expect(qp.sample_pct).toBe(50);
+  it('returns samplePct as rounded percentage for 0.5', () => {
+    const result = buildSamplingClause(0.5);
+    expect(result!.samplePct).toBe(50);
   });
 
-  it('sets sample_pct to rounded percentage for 0.333', () => {
-    const qp = makeParams();
-    buildSamplingClause(0.333, qp);
-    expect(qp.sample_pct).toBe(33);
+  it('returns samplePct as rounded percentage for 0.333', () => {
+    const result = buildSamplingClause(0.333);
+    expect(result!.samplePct).toBe(33);
   });
 
   it('returns a valid ClickHouse WHERE fragment for 10% sampling', () => {
-    const qp = makeParams();
-    const expr = buildSamplingClause(0.1, qp);
-    expect(qp.sample_pct).toBe(10);
-    expect(expr).toBeDefined();
-    const sql = compileSamplingExpr(expr!);
+    const result = buildSamplingClause(0.1);
+    expect(result!.samplePct).toBe(10);
+    const sql = compileSamplingExpr(result!.expr);
     expect(sql).toContain('% 100 < {sample_pct:UInt8}');
+  });
+
+  it('does not mutate any external state — returns pure data', () => {
+    const result = buildSamplingClause(0.25);
+    expect(result).toEqual({ expr: expect.any(Object), samplePct: 25 });
   });
 });
 

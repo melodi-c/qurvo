@@ -191,15 +191,16 @@ export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclus
  */
 export function buildSamplingClause(
   samplingFactor: number | undefined,
-  queryParams: FunnelChQueryParams,
-): Expr | undefined {
+): { expr: Expr; samplePct: number } | undefined {
   if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return undefined;}
   const pct = Math.round(samplingFactor * 100);
-  queryParams.sample_pct = pct;
-  return lt(
-    mod(sipHash64(toString(resolvedPerson())), literal(100)),
-    namedParam('sample_pct', 'UInt8', pct),
-  );
+  return {
+    expr: lt(
+      mod(sipHash64(toString(resolvedPerson())), literal(100)),
+      namedParam('sample_pct', 'UInt8', pct),
+    ),
+    samplePct: pct,
+  };
 }
 
 // ── windowFunnel expression ──────────────────────────────────────────────────
