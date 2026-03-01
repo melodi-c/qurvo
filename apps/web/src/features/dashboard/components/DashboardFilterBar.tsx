@@ -6,7 +6,7 @@ import { FilterListSection } from '@/components/FilterListSection';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useDashboardStore } from '../store';
 import { hasActiveOverrides } from '../lib/filter-overrides';
-import { todayIso, daysAgoIso } from '@/lib/date-utils';
+import { todayIso, resolveRelativeDate } from '@/lib/date-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './DashboardFilterBar.translations';
 import { formatDate } from '@/lib/formatting';
@@ -28,8 +28,8 @@ export function DashboardFilterBar() {
   if (!isEditing && hasOverrides) {
     const parts: string[] = [];
     if (hasDateOverride) {
-      const from = filterOverrides.dateFrom ? formatDate(filterOverrides.dateFrom) : '';
-      const to = filterOverrides.dateTo ? formatDate(filterOverrides.dateTo) : '';
+      const from = filterOverrides.dateFrom ? formatDate(resolveRelativeDate(filterOverrides.dateFrom)) : '';
+      const to = filterOverrides.dateTo ? formatDate(resolveRelativeDate(filterOverrides.dateTo)) : '';
       parts.push(`${from} — ${to}`);
     }
     if (hasPropertyOverrides) {
@@ -70,7 +70,7 @@ export function DashboardFilterBar() {
       </div>
 
       <DateRangeSection
-        dateFrom={filterOverrides.dateFrom ?? daysAgoIso(30)}
+        dateFrom={filterOverrides.dateFrom ?? '-30d'}
         dateTo={filterOverrides.dateTo ?? todayIso()}
         onChange={(from, to) => setFilterOverrides({ dateFrom: from, dateTo: to })}
       />

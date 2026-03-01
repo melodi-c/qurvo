@@ -1,16 +1,15 @@
 import type { RetentionWidgetConfig } from '@/api/generated/Api';
-import { defaultDateRange } from '@/lib/date-utils';
+import { todayIso } from '@/lib/date-utils';
 
 export function defaultRetentionConfig(): RetentionWidgetConfig {
-  const { from, to } = defaultDateRange();
   return {
     type: 'retention',
     target_event: '',
     retention_type: 'first_time',
     granularity: 'day',
     periods: 11,
-    date_from: from,
-    date_to: to,
+    date_from: '-30d',
+    date_to: todayIso(),
   };
 }
 
