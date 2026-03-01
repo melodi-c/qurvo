@@ -9,7 +9,11 @@ interface CohortPreviewCountProps {
   previewQuery: UseQueryResult<CohortMemberCount>;
   canPreview: boolean;
   hasValidConditions: boolean;
-  /** Optional fallback count shown when preview data is unavailable (e.g. existing cohort memberCount) */
+  /** Optional fallback count shown when preview data is unavailable (e.g. existing cohort memberCount).
+   *  - `undefined` (not provided): no fallback — shows generic EmptyState placeholder
+   *  - `null`: data loading — shows em dash '—' with "current members" label
+   *  - `number`: loaded — shows the number with "current members" label
+   */
   fallbackCount?: number | null;
 }
 
@@ -21,18 +25,21 @@ interface CohortPreviewCountProps {
  * 4. Error — error message
  * 5. Data — count display
  *
- * When `fallbackCount` is provided and preview is not available,
- * shows the fallback count with "current members" label instead of placeholder.
+ * When `fallbackCount` is provided (including null) and preview is not available,
+ * shows the fallback count (or em dash while loading) with "current members" label.
  */
 export function CohortPreviewCount({ previewQuery, canPreview, hasValidConditions, fallbackCount }: CohortPreviewCountProps) {
   const { t } = useLocalTranslation(translations);
 
+  // fallbackCount was explicitly passed (even as null) — distinct from "not provided" (undefined)
+  const hasFallback = fallbackCount !== undefined;
+
   if (!canPreview) {
-    if (fallbackCount !== null && fallbackCount !== undefined) {
+    if (hasFallback) {
       return (
         <div className="text-center">
           <p className="text-4xl font-bold tabular-nums text-primary">
-            {fallbackCount.toLocaleString()}
+            {fallbackCount !== null ? fallbackCount.toLocaleString() : '\u2014'}
           </p>
           <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
         </div>
@@ -48,11 +55,11 @@ export function CohortPreviewCount({ previewQuery, canPreview, hasValidCondition
   }
 
   if (!hasValidConditions) {
-    if (fallbackCount !== null && fallbackCount !== undefined) {
+    if (hasFallback) {
       return (
         <div className="text-center">
           <p className="text-4xl font-bold tabular-nums text-primary">
-            {fallbackCount.toLocaleString()}
+            {fallbackCount !== null ? fallbackCount.toLocaleString() : '\u2014'}
           </p>
           <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
         </div>
@@ -101,11 +108,11 @@ export function CohortPreviewCount({ previewQuery, canPreview, hasValidCondition
     );
   }
 
-  if (fallbackCount !== null && fallbackCount !== undefined) {
+  if (hasFallback) {
     return (
       <div className="text-center">
         <p className="text-4xl font-bold tabular-nums text-primary">
-          {fallbackCount.toLocaleString()}
+          {fallbackCount !== null ? fallbackCount.toLocaleString() : '\u2014'}
         </p>
         <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
       </div>
