@@ -43,6 +43,7 @@ export interface WebAnalyticsQueryParams {
   project_id: string;
   date_from: string;
   date_to: string;
+  timezone?: string;
   filters?: PropertyFilter[];
 }
 
@@ -120,6 +121,7 @@ function waWhere(params: WebAnalyticsQueryParams): Expr {
     projectId: params.project_id,
     from: params.date_from,
     to: toChTs(params.date_to, true),
+    tz: params.timezone,
     eventNames: ['$pageview', '$pageleave'],
     filters: params.filters,
   });
@@ -133,6 +135,7 @@ function waWherePageview(params: WebAnalyticsQueryParams): Expr {
     projectId: params.project_id,
     from: params.date_from,
     to: toChTs(params.date_to, true),
+    tz: params.timezone,
     eventName: '$pageview',
     filters: params.filters,
   });
@@ -251,7 +254,7 @@ export async function queryOverview(
   };
 
   // Timeseries query
-  const bucketExpr = bucket(granularity, 'session_start');
+  const bucketExpr = bucket(granularity, 'session_start', params.timezone);
   const tsNode = select(
     bucketExpr.as('bucket'),
     uniqExact(col('resolved_person')).as('unique_visitors'),
