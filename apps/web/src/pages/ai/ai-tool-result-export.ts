@@ -15,8 +15,6 @@ import type {
   FunnelGapToolOutput,
 } from '@qurvo/ai-types';
 
-// Types
-
 interface TrendToolResult {
   series: TrendSeriesResult[];
   series_previous?: TrendSeriesResult[];

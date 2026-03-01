@@ -99,7 +99,6 @@ export class MembersService {
 
   async createInvite(userId: string, projectId: string, input: { email: string; role: 'editor' | 'viewer' }) {
     const invite = await this.db.transaction(async (tx) => {
-      // Verify user exists
       const [targetUser] = await tx
         .select({ id: users.id })
         .from(users)
@@ -107,7 +106,6 @@ export class MembersService {
         .limit(1);
       if (!targetUser) {throw new AppBadRequestException('Unable to invite this email');}
 
-      // Check if already a member
       const [existingMember] = await tx
         .select({ id: projectMembers.id })
         .from(projectMembers)
@@ -115,7 +113,6 @@ export class MembersService {
         .limit(1);
       if (existingMember) {throw new AlreadyMemberException();}
 
-      // Check for existing pending invite
       const [existingInvite] = await tx
         .select({ id: projectInvites.id })
         .from(projectInvites)

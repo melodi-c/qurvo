@@ -146,7 +146,6 @@ export function PathsChart({ transitions, topPaths, compact }: PathsChartProps) 
     );
   }
 
-  // Count unique steps to calculate minimum width
   const maxStep = transitions.reduce((m, tr) => Math.max(m, tr.step), 0);
   const stepCount = maxStep + 1; // +1 for the target column
   const minWidth = Math.max(stepCount * MIN_WIDTH_PER_STEP, MIN_SANKEY_WIDTH);

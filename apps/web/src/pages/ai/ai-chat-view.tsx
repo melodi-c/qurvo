@@ -41,7 +41,6 @@ export function AiChatView({ chatId, projectId }: { chatId: string | null; proje
 
   const toggleSharedMutation = useToggleSharedConversation(projectId, setIsShared);
 
-  // Load existing conversation on mount
   const loadedRef = useRef(false);
   useEffect(() => {
     if (chatId && !loadedRef.current) {

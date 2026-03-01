@@ -274,7 +274,6 @@ export class OnlineSchoolScenario extends BaseScenario {
     const BASE_DATE = new Date();
     const dayMs = 24 * 60 * 60 * 1000;
 
-    // Build deterministic students
     const students: Student[] = this.buildStudents(BASE_DATE);
 
     const addEvent = (
@@ -1060,7 +1059,6 @@ export class OnlineSchoolScenario extends BaseScenario {
       { eventName: '', propertyName: 'reason', description: 'Причина запроса возврата' },
     ];
 
-    // Build persons and personDistinctIds from students
     const persons = students.map((student) => ({
       id: this.makePersonId(projectId, student.email),
       properties: studentLatestProps.get(student.email) ?? {},
