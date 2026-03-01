@@ -12,7 +12,7 @@ import {
   type CohortConditionGroup,
   type Database,
 } from '@qurvo/db';
-import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/cohort-query';
+import { detectCircularDependency, extractCohortReferences, validateDefinitionComplexity } from '@qurvo/cohort-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
 import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
@@ -309,24 +309,6 @@ export class CohortsService {
   }
 
   /**
-   * Collects all unique cohort IDs referenced by `{ type: 'cohort' }` conditions
-   * anywhere inside a definition tree (recursive).
-   */
-  private static collectCohortRefIds(
-    group: CohortConditionGroup,
-    result: Set<string> = new Set(),
-  ): Set<string> {
-    for (const val of group.values) {
-      if (isConditionGroup(val)) {
-        CohortsService.collectCohortRefIds(val, result);
-      } else if ((val).type === 'cohort') {
-        result.add((val).cohort_id);
-      }
-    }
-    return result;
-  }
-
-  /**
    * Traverses a definition tree and stamps `is_static` on every
    * `{ type: 'cohort' }` condition using the provided lookup map.
    * Mutates the definition in-place (definition is already a copy
@@ -355,7 +337,7 @@ export class CohortsService {
     projectId: string,
     definition: CohortConditionGroup,
   ): Promise<Map<string, boolean>> {
-    const refIds = CohortsService.collectCohortRefIds(definition);
+    const refIds = new Set(extractCohortReferences(definition));
     if (refIds.size === 0) {return new Map();}
 
     const rows = await this.db
@@ -375,7 +357,7 @@ export class CohortsService {
     definition: CohortConditionGroup,
   ): Promise<CohortConditionGroup> {
     // Deep clone so we don't mutate the caller's object.
-    const clone: CohortConditionGroup = JSON.parse(JSON.stringify(definition));
+    const clone: CohortConditionGroup = structuredClone(definition);
     const staticMap = await this.resolveStaticMapForDefinition(projectId, clone);
     if (staticMap.size > 0) {
       CohortsService.stampStaticFlags(clone, staticMap);
