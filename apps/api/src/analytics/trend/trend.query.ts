@@ -106,16 +106,22 @@ function rowToValue(metric: TrendMetric, row: RawTrendRow): number {
 /**
  * Assemble raw ClickHouse rows into TrendSeriesResult[].
  * Handles both breakdown and non-breakdown rows: detects breakdown by checking
- * for `breakdown_value` in the first row.
+ * for `breakdown_value` in the first row (or the `isBreakdown` hint for empty results).
  */
 function assembleRows(
   rows: RawTrendRow[],
   metric: TrendMetric,
   seriesMeta: TrendSeries[],
-  opts?: { cohortLabelMap?: Map<string, string> },
+  opts?: { cohortLabelMap?: Map<string, string>; isBreakdown?: boolean },
 ): TrendSeriesResult[] {
+  const isBreakdown = rows.length > 0
+    ? 'breakdown_value' in rows[0]
+    : !!opts?.isBreakdown;
+
   if (rows.length === 0) {
-    // Non-breakdown: return one empty result per series. Breakdown: nothing to group.
+    // Breakdown with no rows → nothing to group.
+    // Non-breakdown with no rows → one empty result per series.
+    if (isBreakdown) { return []; }
     return seriesMeta.map((s, idx) => ({
       series_idx: idx,
       label: s.label,
@@ -123,8 +129,6 @@ function assembleRows(
       data: [],
     }));
   }
-
-  const isBreakdown = 'breakdown_value' in rows[0];
 
   if (!isBreakdown) {
     // ── Non-breakdown path ──
@@ -323,7 +327,7 @@ async function executeTrendQuery(
       .build();
 
     const rows = await chx.rows<RawBreakdownRow>(query);
-    return assembleRows(rows, params.metric, params.series, { cohortLabelMap });
+    return assembleRows(rows, params.metric, params.series, { cohortLabelMap, isBreakdown: true });
   }
 
   // ── Branch 2: Non-breakdown ──
@@ -395,7 +399,7 @@ async function executeTrendQuery(
   }
 
   const rows = await chx.rows<RawBreakdownRow>(query);
-  return assembleRows(rows, params.metric, params.series);
+  return assembleRows(rows, params.metric, params.series, { isBreakdown: true });
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────
