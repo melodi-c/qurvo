@@ -39,55 +39,31 @@ fi
 
 BLOCKED=""
 
-# Паттерн: git [произвольные флаги/аргументы]* <субкоманда>
-# Флаги git перед субкомандой: -C <path>, -c <key=val>, --git-dir=..., и т.д.
-GIT_OPTS='([[:space:]]+(-[Cc][[:space:]]+[^[:space:]]+|--git-dir(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)|--work-tree(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)|--namespace(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)|--bare|--no-pager|--no-replace-objects))*'
+# Helper: check if command contains a git subcommand (handles -C, --git-dir, etc.)
+has_git_cmd() { echo "$COMMAND" | grep -qE "(^|[;&|[:space:]])git[[:space:]].*[[:space:]]$1"; }
 
-# git checkout / switch (меняет HEAD — ломает worktree creation)
-if echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+(checkout|switch)[[:space:]]"; then
-  BLOCKED="git checkout/switch — меняет HEAD, ломает создание worktree"
-
-# git cherry-pick (вносит коммиты вне контролируемого flow)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+cherry-pick"; then
-  BLOCKED="git cherry-pick — запрещён, используй solver для изменений"
-
-# git rebase (переписывает историю)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+rebase"; then
-  BLOCKED="git rebase — запрещён для executor"
-
-# git merge (прямой, не через merge-worktree.sh)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+merge[[:space:]]" \
-  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
+# Destructive git commands — blocked unconditionally
+if has_git_cmd '(checkout|switch)[[:space:]]'; then
+  BLOCKED="git checkout/switch"
+elif has_git_cmd 'cherry-pick'; then
+  BLOCKED="git cherry-pick"
+elif has_git_cmd 'rebase'; then
+  BLOCKED="git rebase"
+elif has_git_cmd 'reset[[:space:]]+--hard'; then
+  BLOCKED="git reset --hard"
+elif has_git_cmd 'stash'; then
+  BLOCKED="git stash"
+elif has_git_cmd 'merge[[:space:]]' && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
   BLOCKED="git merge — используй merge-worktree.sh"
-
-# git reset --hard (теряет изменения)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+reset[[:space:]]+--hard"; then
-  BLOCKED="git reset --hard — запрещён для executor"
-
-# git stash (скрывает состояние)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+stash"; then
-  BLOCKED="git stash — запрещён для executor"
-
-# git push (блокируем только прямой push в main/master)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)git${GIT_OPTS}[[:space:]]+push"; then
-  # Разрешаем push через merge-worktree.sh
-  if echo "$COMMAND" | grep -qE 'merge-worktree\.sh'; then
+elif has_git_cmd 'push'; then
+  # Allow: merge-worktree.sh, swagger/OpenAPI regen, fix/feature/hotfix branches
+  if echo "$COMMAND" | grep -qE 'merge-worktree\.sh|swagger.*generate|generate-api|regenerate OpenAPI'; then
     :
-  # Разрешаем push для swagger/OpenAPI regeneration
-  elif echo "$COMMAND" | grep -qE 'swagger.*generate|generate-api|regenerate OpenAPI'; then
+  elif echo "$COMMAND" | grep -qE 'push[[:space:]]+\S+[[:space:]]+(fix|feature|hotfix)/issue-[0-9]'; then
     :
-  # Разрешаем push в feature/fix/hotfix ветки (только issue-* паттерн)
-  elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+(fix/issue-|feature/issue-|hotfix/issue-)[0-9]"; then
-    :
-  # Блокируем прямой push в main/master (учитываем -C и другие флаги)
-  elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+(main|master)\b"; then
-    BLOCKED="direct push to main/master — запрещён"
+  elif echo "$COMMAND" | grep -qE 'push[[:space:]]+\S+[[:space:]]+(main|master)\b'; then
+    BLOCKED="direct push to main/master"
   fi
-  # Остальные push (например, push текущей ветки после OpenAPI update) — разрешены
-
-# gh pr create/merge (разрешаем — executor создаёт PR для feature-веток и sub-issues)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+[[:space:]]*)gh[[:space:]]+pr[[:space:]]+(create|merge)"; then
-  :  # разрешено
 fi
 
 if [ -n "$BLOCKED" ]; then

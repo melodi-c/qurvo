@@ -48,6 +48,9 @@ _log_op() {
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" >> "$OPS_LOG" 2>/dev/null || true
 }
 
+# Atomic state write: jq expression → tmp → mv (used by all mutation commands)
+jq_update() { jq "$@" "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"; }
+
 validate_transition() {
   local FROM="$1" TO="$2"
   case "${FROM}→${TO}" in
@@ -78,24 +81,20 @@ case "$CMD" in
 
   phase)
     _log_op "phase $1"
-    jq --arg p "$1" '.phase=$p' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update --arg p "$1" '.phase=$p'
     echo "OK" ;;
 
   issue-add)
     NUM="$1"; TITLE="$2"; GROUP="$3"; BRANCH="${4:-fix/issue-$NUM}"
-    jq --arg n "$NUM" --arg t "$TITLE" --argjson g "$GROUP" --arg b "$BRANCH" \
-      '.issues[$n]={"title":$t,"status":"PENDING","branch":$b,"group":$g}' \
-      "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update --arg n "$NUM" --arg t "$TITLE" --argjson g "$GROUP" --arg b "$BRANCH" \
+      '.issues[$n]={"title":$t,"status":"PENDING","branch":$b,"group":$g}'
     echo "OK" ;;
 
   solver-invocations)
-    # Инкрементирует и возвращает счётчик запусков solver для issue.
-    # Используется executor'ом для проверки лимита (max 4).
     NUM="${1:?}"
     CURRENT=$(jq -r ".issues[\"$NUM\"].solver_invocations // 0" "$STATE_FILE")
     NEXT=$((CURRENT + 1))
-    jq --arg n "$NUM" --argjson v "$NEXT" '.issues[$n].solver_invocations=$v' \
-      "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update --arg n "$NUM" --argjson v "$NEXT" '.issues[$n].solver_invocations=$v'
     echo "$NEXT" ;;
 
   issue-status)
@@ -117,20 +116,19 @@ case "$CMD" in
       JQ_EXPR="$JQ_EXPR | (.issues[\$n].${KEY}=\$v_${KEY})"
       JQ_ARGS+=(--arg "v_${KEY}" "$VAL")
     done
-    jq "${JQ_ARGS[@]}" "$JQ_EXPR" "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update "${JQ_ARGS[@]}" "$JQ_EXPR"
     echo "OK" ;;
 
   groups)
-    jq --argjson g "$1" '.parallel_groups=$g' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update --argjson g "$1" '.parallel_groups=$g'
     echo "OK" ;;
 
   group-index)
-    jq --argjson i "$1" '.current_group_index=$i' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update --argjson i "$1" '.current_group_index=$i'
     echo "OK" ;;
 
   prune-merged)
-    jq 'del(.issues[] | select(.status == "MERGED"))' \
-      "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq_update 'del(.issues[] | select(.status == "MERGED"))'
     echo "OK" ;;
 
   read-active)

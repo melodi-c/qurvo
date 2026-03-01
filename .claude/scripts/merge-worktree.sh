@@ -20,9 +20,8 @@ ISSUE_TITLE="${ISSUE_TITLE//\$/\\\$}"
 ISSUE_TITLE="${ISSUE_TITLE//\`/\\\`}"
 ISSUE_TITLE="${ISSUE_TITLE//\"/\\\"}"
 AFFECTED_APPS_RAW="${6:-}"
-# Нормализация путей в короткие имена пакетов:
-#   apps/api → api,  packages/@qurvo/ch-query → ch-query,  @qurvo/db → db
-AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed -e 's|packages/@qurvo/||g' -e 's|apps/||g' -e 's|@qurvo/||g')
+# Normalize: apps/api → api, packages/@qurvo/ch-query → ch-query, @qurvo/db → db
+AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|packages/@qurvo/||g;s|apps/||g;s|@qurvo/||g')
 ISSUE_NUMBER="${7:-}"
 AUTO_MERGE="${8:-true}"
 QUIET="${9:-false}"
@@ -57,22 +56,28 @@ if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check: $BRANCH + $BAS
   exit 1
 fi
 
+# Iterate comma-separated apps, calling a function for each: for_each_app <apps_csv> <fn>
+for_each_app() {
+  local csv="$1"; shift
+  IFS=',' read -ra _APPS <<< "$csv"
+  for _APP in "${_APPS[@]}"; do
+    _APP=$(echo "$_APP" | xargs)
+    [[ -n "$_APP" ]] || continue
+    "$@" "$_APP" || return $?
+  done
+}
+
 pre_merge_build() {
   if [[ -z "$AFFECTED_APPS" ]]; then return 0; fi
   _log "Pre-merge verification: installing dependencies..."
   pnpm install --frozen-lockfile 2>/dev/null || pnpm install 2>/dev/null || true
   _log "Pre-merge verification: building affected apps..."
-  IFS=',' read -ra APPS <<< "$AFFECTED_APPS"
-  for APP in "${APPS[@]}"; do
-    APP=$(echo "$APP" | xargs)
-    _log "Building @qurvo/$APP..."
-    if ! pnpm turbo build --filter="@qurvo/$APP" 2>/dev/null; then
-      echo "PRE_MERGE_BUILD_FAILED: @qurvo/$APP" >&2
-      return 1
-    fi
-  done
+  _build_app() {
+    _log "Building @qurvo/$1..."
+    pnpm turbo build --filter="@qurvo/$1" 2>/dev/null || { echo "PRE_MERGE_BUILD_FAILED: @qurvo/$1" >&2; return 1; }
+  }
+  for_each_app "$AFFECTED_APPS" _build_app
   _log "Pre-merge verification: OK"
-  return 0
 }
 
 if ! pre_merge_build; then
@@ -98,22 +103,13 @@ fi
 # ── Шаг 1.5: Pre-merge tests (optional, env RUN_TESTS=true) ──────
 if [[ "${RUN_TESTS:-false}" == "true" && -n "$AFFECTED_APPS" ]]; then
   _log "Pre-merge tests: running integration tests for affected apps..."
-  IFS=',' read -ra TEST_APPS <<< "$AFFECTED_APPS"
-  TESTS_PASSED=true
-  for APP in "${TEST_APPS[@]}"; do
-    APP=$(echo "$APP" | xargs)
-    # Only run tests for apps that have integration test config
-    if [[ -f "$WORKTREE_PATH/apps/$APP/vitest.integration.config.ts" ]]; then
-      _log "Testing @qurvo/$APP..."
-      if ! timeout 300 pnpm --filter "@qurvo/$APP" exec vitest run --config vitest.integration.config.ts 2>/dev/null; then
-        echo "PRE_MERGE_TEST_FAILED: @qurvo/$APP" >&2
-        TESTS_PASSED=false
-        break
-      fi
-    fi
-  done
-  if [[ "$TESTS_PASSED" != "true" ]]; then
-    echo "PRE_MERGE_TESTS_FAILED" >&2
+  _test_app() {
+    [[ -f "$WORKTREE_PATH/apps/$1/vitest.integration.config.ts" ]] || return 0
+    _log "Testing @qurvo/$1..."
+    timeout 300 pnpm --filter "@qurvo/$1" exec vitest run --config vitest.integration.config.ts 2>/dev/null \
+      || { echo "PRE_MERGE_TEST_FAILED: @qurvo/$1" >&2; return 1; }
+  }
+  if ! for_each_app "$AFFECTED_APPS" _test_app; then
     git reset --hard "$BRANCH_BEFORE" 2>/dev/null
     exit 2
   fi

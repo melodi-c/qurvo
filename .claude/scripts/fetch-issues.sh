@@ -39,6 +39,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Helper: age of a file/dir in seconds (macOS-compatible)
+_age_s() { echo $(( $(date +%s) - $(stat -f %m "$1" 2>/dev/null || echo "0") )); }
+
 # Guard against concurrent executors (atomic mkdir-based lock)
 EXECUTOR_LOCK="${STATE_DIR}/executor.lock.d"
 _executor_lock_acquired=false
@@ -50,13 +53,10 @@ if [[ "$DATA_ONLY" != "true" ]]; then
       break
     fi
     # Staleness check: if lock is older than 10 minutes, force-break
-    if [[ -d "$EXECUTOR_LOCK" ]]; then
-      _lock_age=$(( $(date +%s) - $(stat -f %m "$EXECUTOR_LOCK" 2>/dev/null || echo "0") ))
-      if [[ "$_lock_age" -gt 600 ]]; then
-        echo "WARN: stale executor lock detected (${_lock_age}s old), force-breaking" >&2
-        rmdir "$EXECUTOR_LOCK" 2>/dev/null || rm -rf "$EXECUTOR_LOCK" 2>/dev/null || true
-        continue
-      fi
+    if [[ -d "$EXECUTOR_LOCK" ]] && [[ $(_age_s "$EXECUTOR_LOCK") -gt 600 ]]; then
+      echo "WARN: stale executor lock ($(_age_s "$EXECUTOR_LOCK")s old), force-breaking" >&2
+      rmdir "$EXECUTOR_LOCK" 2>/dev/null || rm -rf "$EXECUTOR_LOCK" 2>/dev/null || true
+      continue
     fi
     sleep 1
   done
@@ -80,32 +80,22 @@ fi
 
 # Cleanup stale worktree-base-branch file (persists on crash — causes wrong base for next run)
 _BASE_BRANCH_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/state/worktree-base-branch"
-if [[ -f "$_BASE_BRANCH_FILE" ]]; then
-  _bb_age=$(( $(date +%s) - $(stat -f %m "$_BASE_BRANCH_FILE" 2>/dev/null || echo "0") ))
-  if [[ "$_bb_age" -gt 300 ]]; then
-    echo "WARN: stale worktree-base-branch detected (${_bb_age}s old, value=$(cat "$_BASE_BRANCH_FILE")), removing" >&2
-    rm -f "$_BASE_BRANCH_FILE"
-  fi
+if [[ -f "$_BASE_BRANCH_FILE" ]] && [[ $(_age_s "$_BASE_BRANCH_FILE") -gt 300 ]]; then
+  echo "WARN: stale worktree-base-branch ($(_age_s "$_BASE_BRANCH_FILE")s old), removing" >&2
+  rm -f "$_BASE_BRANCH_FILE"
 fi
 
-# Stale worktree detection: предупреждаем об orphaned worktrees
-WORKTREES_BASE="$HOME/worktrees"
-if [[ -d "$WORKTREES_BASE" ]]; then
-  STALE_COUNT=0
-  for _wt_dir in "$WORKTREES_BASE"/*/; do
-    [[ -d "$_wt_dir" ]] || continue
-    _wt_name=$(basename "$_wt_dir")
-    case "$_wt_name" in agent-*|fix-*|feature-*) ;; *) continue ;; esac
-    _wt_age=$(( $(date +%s) - $(stat -f %m "$_wt_dir" 2>/dev/null || echo "0") ))
-    if [[ "$_wt_age" -gt 7200 ]]; then
-      echo "WARN: stale worktree detected: $_wt_dir (age: $((_wt_age / 60))min)" >&2
-      STALE_COUNT=$((STALE_COUNT + 1))
-    fi
-  done
-  if [[ "$STALE_COUNT" -gt 0 ]]; then
-    echo "WARN: $STALE_COUNT stale worktree(s) found. Consider running cleanup-worktrees.sh" >&2
+# Stale worktree detection
+STALE_COUNT=0
+for _wt_dir in "$HOME/worktrees"/*/; do
+  [[ -d "$_wt_dir" ]] || continue
+  case "$(basename "$_wt_dir")" in agent-*|fix-*|feature-*) ;; *) continue ;; esac
+  if [[ $(_age_s "$_wt_dir") -gt 7200 ]]; then
+    echo "WARN: stale worktree: $_wt_dir ($(( $(_age_s "$_wt_dir") / 60 ))min)" >&2
+    STALE_COUNT=$((STALE_COUNT + 1))
   fi
-fi
+done
+[[ "$STALE_COUNT" -eq 0 ]] || echo "WARN: $STALE_COUNT stale worktree(s). Run cleanup-worktrees.sh" >&2
 
 # --- helpers ---
 get_repo() {
@@ -144,13 +134,6 @@ determine_topology() {
   else
     _CACHED_TOPOLOGY="standalone"
   fi
-}
-
-write_issue_file() {
-  local JSON="$1"
-  local NUMBER
-  NUMBER=$(echo "$JSON" | jq -r '.number')
-  echo "$JSON" > "$RESULTS_DIR/issue-${NUMBER}.json"
 }
 
 extract_labels_csv() {
@@ -206,7 +189,6 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 
 # --- process each issue ---
-MANIFEST="[]"
 GROUP=0
 
 for i in $(seq 0 $((COUNT - 1))); do
@@ -220,9 +202,6 @@ for i in $(seq 0 $((COUNT - 1))); do
   TOPOLOGY="$_CACHED_TOPOLOGY"
   SUB_ISSUES_JSON="$_CACHED_SUB_ISSUES"
 
-  # Check if this issue is a sub-issue of another (heuristic: check body for "parent" or task list ref)
-  # For now we rely on the sub_issues API from the parent side
-
   # Write issue data file
   echo "$ISSUE" | jq --arg topology "$TOPOLOGY" --argjson sub_issues "$SUB_ISSUES_JSON" \
     '. + {topology: $topology, sub_issues: $sub_issues}' > "$RESULTS_DIR/issue-${NUMBER}.json"
@@ -232,18 +211,14 @@ for i in $(seq 0 $((COUNT - 1))); do
     bash "$SM" issue-add "$NUMBER" "$TITLE" "$GROUP"
   fi
 
-  # Build manifest entry
-  MANIFEST=$(echo "$MANIFEST" | jq --argjson n "$NUMBER" --arg t "$TITLE" \
-    --arg top "$TOPOLOGY" --arg l "$LABELS_CSV" \
-    '. + [{number: $n, title: $t, topology: $top, labels: $l}]')
-
   # Output compact line
   COMMENTS_COUNT=$(echo "$ISSUE" | jq '(.comments // []) | length')
   printf '%s\t%s\t%s\t%s\t%s\n' "$NUMBER" "$TITLE" "$TOPOLOGY" "$LABELS_CSV" "$COMMENTS_COUNT"
 done
 
-# --- write manifest ---
-echo "$MANIFEST" > "$RESULTS_DIR/issues-manifest.json"
+# --- write manifest (single jq pass over written files, not O(n²) append) ---
+jq -s '[.[] | {number, title, topology, labels: ([.labels[]?.name // empty] | join(","))}]' \
+  "$RESULTS_DIR"/issue-*.json > "$RESULTS_DIR/issues-manifest.json"
 
 # --- summary ---
 echo "ISSUES_COUNT=$COUNT"

@@ -94,52 +94,35 @@ for WORKTREES_DIR in "$WORKTREES_BASE" "$WORKTREES_CLAUDE"; do
   fi
 done
 
-# ── 3. Оставшиеся локальные ветки fix/issue-* и feature/issue-* ──────
-# Пропускаем если state невалиден — без state не знаем какие ветки безопасны
+# ── 3+4. Local + remote branch cleanup ────────────────────────────────
+# Requires valid state to know which branches are safe (active)
 if [[ "$STATE_VALID" != "true" ]]; then
-  echo "WARN: skipping local branch cleanup (no valid state)" >&2
-fi
+  echo "WARN: skipping branch cleanup (no valid state)" >&2
+else
+  # Helper: check if branch is protected by state
+  _is_safe() { [[ -n "$SAFE_BRANCHES" ]] && echo "$SAFE_BRANCHES" | grep -qxF "$1" 2>/dev/null; }
 
-# Пропускаем ветки, защищённые state (PR_CREATED, SOLVING и т.д.)
-while IFS= read -r BRANCH; do
-  [[ "$STATE_VALID" == "true" ]] || continue
-  [[ -n "$BRANCH" ]] || continue
-  BRANCH=$(echo "$BRANCH" | xargs)  # trim whitespace
+  # Local branches
+  while IFS= read -r BRANCH; do
+    [[ -n "$BRANCH" ]] || continue
+    BRANCH=$(echo "$BRANCH" | xargs)
+    if _is_safe "$BRANCH"; then
+      echo "Skipping active local branch: $BRANCH" >&2
+      continue
+    fi
+    git -C "$REPO_ROOT" branch -D "$BRANCH" 2>/dev/null || true
+    CLEANED_LOCAL=$((CLEANED_LOCAL + 1))
+    echo "Deleted local branch: $BRANCH" >&2
+  done < <(git -C "$REPO_ROOT" branch --list 'fix/issue-*' 'feature/issue-*' 2>/dev/null)
 
-  # Пропускаем ветки, активные в state
-  if [[ -n "$SAFE_BRANCHES" ]] && echo "$SAFE_BRANCHES" | grep -qxF "$BRANCH" 2>/dev/null; then
-    echo "Skipping active local branch: $BRANCH" >&2
-    continue
-  fi
-
-  git -C "$REPO_ROOT" branch -D "$BRANCH" 2>/dev/null || true
-  CLEANED_LOCAL=$((CLEANED_LOCAL + 1))
-  echo "Deleted local branch: $BRANCH" >&2
-done < <(git -C "$REPO_ROOT" branch --list 'fix/issue-*' 'feature/issue-*' 2>/dev/null)
-
-# ── 4. Оставшиеся remote ветки fix/issue-* и feature/issue-* ────────
-# Пропускаем если state невалиден
-if [[ "$STATE_VALID" != "true" ]]; then
-  echo "WARN: skipping remote branch cleanup (no valid state)" >&2
-fi
-
-# Detect default branch dynamically (не хардкодим main)
-DEFAULT_BRANCH=$(git -C "$REPO_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|origin/||' || echo "main")
-DEFAULT_SHA=$(git -C "$REPO_ROOT" rev-parse "$DEFAULT_BRANCH" 2>/dev/null || true)
-
-if [[ -n "$DEFAULT_SHA" && "$STATE_VALID" == "true" ]]; then
+  # Remote branches
   while IFS= read -r REMOTE_BRANCH; do
     [[ -n "$REMOTE_BRANCH" ]] || continue
-    REMOTE_BRANCH=$(echo "$REMOTE_BRANCH" | xargs)  # trim
-    SHORT="${REMOTE_BRANCH#origin/}"
-    SHORT="${SHORT#remotes/origin/}"  # fallback for different git formats
-
-    # Пропускаем если ветка защищена state
-    if [[ -n "$SAFE_BRANCHES" ]] && echo "$SAFE_BRANCHES" | grep -qxF "$SHORT" 2>/dev/null; then
+    SHORT=$(echo "$REMOTE_BRANCH" | xargs | sed 's|^remotes/origin/||;s|^origin/||')
+    if _is_safe "$SHORT"; then
       echo "Skipping active branch: $SHORT" >&2
       continue
     fi
-
     git -C "$REPO_ROOT" push origin --delete "$SHORT" 2>/dev/null || true
     CLEANED_REMOTE=$((CLEANED_REMOTE + 1))
     echo "Deleted remote branch: $SHORT" >&2

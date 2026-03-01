@@ -9,9 +9,8 @@ set -euo pipefail
 [[ -z "${1:-}" ]] && { echo "ALL_GREEN (no apps)"; exit 0; }
 
 AFFECTED_APPS_RAW="$1"
-# Нормализация путей в короткие имена пакетов:
-#   apps/api → api,  packages/@qurvo/ch-query → ch-query,  @qurvo/db → db
-AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed -e 's|packages/@qurvo/||g' -e 's|apps/||g' -e 's|@qurvo/||g')
+# Normalize: apps/api → api, packages/@qurvo/ch-query → ch-query, @qurvo/db → db
+AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|packages/@qurvo/||g;s|apps/||g;s|@qurvo/||g')
 MERGED_ISSUES="${2:-}"
 
 # Timeout per command: 10 минут для build, 10 минут для тестов
