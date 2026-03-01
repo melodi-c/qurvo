@@ -304,7 +304,7 @@ export function useAiChat(projectId: string) {
     if (!convId || isLoadingMoreRef.current || !hasMoreRef.current) {return;}
 
     const oldestSeq = oldestSequenceRef.current;
-    if (!oldestSeq) {return;}
+    if (oldestSeq === undefined) {return;}
 
     isLoadingMoreRef.current = true;
     setState((prev) => ({ ...prev, isLoadingMore: true }));
