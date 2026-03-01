@@ -414,9 +414,10 @@ export function toDateTime(...args: Expr[]): WithAlias<FuncCallExpr> {
   return func('toDateTime', ...args);
 }
 
-/** dateDiff(unit, start, end) — difference between two dates/datetimes */
-export function dateDiff(unit: Expr, start: Expr, end: Expr): WithAlias<FuncCallExpr> {
-  return func('dateDiff', unit, start, end);
+/** dateDiff(unit, start, end) — difference between two dates/datetimes. Unit can be a string (auto-wrapped in literal()) or an Expr. */
+export function dateDiff(unit: string | Expr, start: Expr, end: Expr): WithAlias<FuncCallExpr> {
+  const unitExpr = typeof unit === 'string' ? literal(unit) : unit;
+  return func('dateDiff', unitExpr, start, end);
 }
 
 // ── MEDIUM priority function shortcuts ──

@@ -874,10 +874,20 @@ describe('builders', () => {
       expect(f.args).toHaveLength(2);
     });
 
-    test('dateDiff()', () => {
+    test('dateDiff() with Expr unit', () => {
       const f = dateDiff(literal('day'), col('start'), col('end'));
       expect(f.name).toBe('dateDiff');
       expect(f.args).toHaveLength(3);
+      // Unit passed as Expr should be used as-is
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'literal', value: 'day' }));
+    });
+
+    test('dateDiff() with string unit (auto-wrapped in literal)', () => {
+      const f = dateDiff('day', col('start'), col('end'));
+      expect(f.name).toBe('dateDiff');
+      expect(f.args).toHaveLength(3);
+      // String unit should be auto-wrapped in literal()
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'literal', value: 'day' }));
     });
   });
 
