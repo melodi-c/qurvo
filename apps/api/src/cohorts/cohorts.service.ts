@@ -5,11 +5,10 @@ import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
   cohorts,
-  isConditionGroup,
   type CohortConditionGroup,
   type Database,
 } from '@qurvo/db';
-import { detectCircularDependency, extractCohortReferences, validateDefinitionComplexity } from '@qurvo/cohort-query';
+import { detectCircularDependency, validateDefinitionComplexity } from '@qurvo/cohort-query';
 import { CohortNotFoundException } from './exceptions/cohort-not-found.exception';
 import { CohortDefinitionRequiredException } from './exceptions/cohort-definition-required.exception';
 import { StaticCohortOperationException } from './exceptions/static-cohort-operation.exception';
@@ -19,6 +18,7 @@ import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 import { AnalyticsCacheService } from '../analytics/analytics-cache.service';
+import { CohortEnrichmentService } from './cohort-enrichment.service';
 
 @Injectable()
 export class CohortsService {
@@ -28,6 +28,7 @@ export class CohortsService {
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     private readonly cacheService: AnalyticsCacheService,
+    private readonly enrichmentService: CohortEnrichmentService,
   ) {}
 
   async list(projectId: string) {
@@ -182,7 +183,7 @@ export class CohortsService {
 
   async getMemberCount(projectId: string, cohortId: string): Promise<number> {
     const cohort = await this.getById(projectId, cohortId);
-    const enriched = await this.enrichDefinition(projectId, cohort.definition);
+    const enriched = await this.enrichmentService.enrichDefinition(projectId, cohort.definition);
     return countCohortMembersUnified(this.ch, projectId, {
       cohort_id: cohortId,
       definition: enriched,
@@ -196,7 +197,7 @@ export class CohortsService {
     definition: CohortConditionGroup,
   ): Promise<number> {
     validateDefinitionComplexity(definition);
-    const enriched = await this.enrichDefinition(projectId, definition);
+    const enriched = await this.enrichmentService.enrichDefinition(projectId, definition);
     return countCohortMembers(this.ch, projectId, enriched);
   }
 
@@ -219,7 +220,7 @@ export class CohortsService {
     return Promise.all(
       rows.map(async (c) => ({
         cohort_id: c.id,
-        definition: await this.enrichDefinition(projectId, c.definition),
+        definition: await this.enrichmentService.enrichDefinition(projectId, c.definition),
         materialized: c.membership_version !== null,
         is_static: c.is_static,
         // Include membership_version so that analytics cache keys embed the
@@ -241,7 +242,7 @@ export class CohortsService {
         name: c.name,
         is_static: c.is_static,
         materialized: c.membership_version !== null,
-        definition: await this.enrichDefinition(projectId, c.definition),
+        definition: await this.enrichmentService.enrichDefinition(projectId, c.definition),
         // Same cache-invalidation rationale as resolveCohortFilters above.
         membership_version: c.membership_version ?? null,
       })),
@@ -272,63 +273,6 @@ export class CohortsService {
     rows.sort((a, b) => (indexMap.get(a.id) ?? 0) - (indexMap.get(b.id) ?? 0));
 
     return rows;
-  }
-
-  /**
-   * Traverses a definition tree and stamps `is_static` on every
-   * `{ type: 'cohort' }` condition using the provided lookup map.
-   * Mutates the definition in-place (definition is already a copy
-   * constructed from DB JSON, so mutation is safe).
-   */
-  private static stampStaticFlags(
-    group: CohortConditionGroup,
-    staticMap: Map<string, boolean>,
-  ): void {
-    for (const val of group.values) {
-      if (isConditionGroup(val)) {
-        CohortsService.stampStaticFlags(val, staticMap);
-      } else if ((val).type === 'cohort') {
-        const cond = val;
-        cond.is_static = staticMap.get(cond.cohort_id) ?? false;
-      }
-    }
-  }
-
-  /**
-   * Fetches the `is_static` flag for every cohort ID referenced inside
-   * `definition` and returns a map `cohort_id → is_static`.
-   * Only queries the DB when the definition actually contains `cohort` conditions.
-   */
-  private async resolveStaticMapForDefinition(
-    projectId: string,
-    definition: CohortConditionGroup,
-  ): Promise<Map<string, boolean>> {
-    const refIds = new Set(extractCohortReferences(definition));
-    if (refIds.size === 0) {return new Map();}
-
-    const rows = await this.db
-      .select({ id: cohorts.id, is_static: cohorts.is_static })
-      .from(cohorts)
-      .where(and(eq(cohorts.project_id, projectId), inArray(cohorts.id, [...refIds])));
-
-    return new Map(rows.map((r) => [r.id, r.is_static]));
-  }
-
-  /**
-   * Returns a copy of `definition` with `is_static` stamped onto every
-   * nested `{ type: 'cohort' }` condition.
-   */
-  async enrichDefinition(
-    projectId: string,
-    definition: CohortConditionGroup,
-  ): Promise<CohortConditionGroup> {
-    // Deep clone so we don't mutate the caller's object.
-    const clone: CohortConditionGroup = structuredClone(definition);
-    const staticMap = await this.resolveStaticMapForDefinition(projectId, clone);
-    if (staticMap.size > 0) {
-      CohortsService.stampStaticFlags(clone, staticMap);
-    }
-    return clone;
   }
 
   private async checkCircularDependency(
