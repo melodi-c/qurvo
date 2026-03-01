@@ -1,35 +1,20 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, CreditCard, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, CreditCard } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { api } from '@/api/client';
-import type { AdminPlan, CreateAdminPlan, PatchAdminPlan, CreatePlanFeatures } from '@/api/generated/Api';
+import type { AdminPlan, CreatePlanFeatures } from '@/api/generated/Api';
+import { PlanDialog } from './PlanDialog';
 import translations from './admin-plans-page.translations';
-
-// Helpers
-
-function formatLimit(value: number | null | undefined, unlimited: string): string {
-  if (value === null || value === undefined || value === -1) {return unlimited;}
-  return value.toLocaleString();
-}
 
 const FEATURE_KEYS: (keyof CreatePlanFeatures)[] = [
   'cohorts',
@@ -39,310 +24,10 @@ const FEATURE_KEYS: (keyof CreatePlanFeatures)[] = [
   'ai_insights',
 ];
 
-type FeatureTranslationKey =
-  | 'featureCohorts'
-  | 'featureLifecycle'
-  | 'featureStickiness'
-  | 'featureApiExport'
-  | 'featureAiInsights';
-
-const FEATURE_LABEL_MAP: Record<keyof CreatePlanFeatures, FeatureTranslationKey> = {
-  cohorts: 'featureCohorts',
-  lifecycle: 'featureLifecycle',
-  stickiness: 'featureStickiness',
-  api_export: 'featureApiExport',
-  ai_insights: 'featureAiInsights',
-};
-
-// Plan form state
-
-interface PlanFormValues {
-  name: string;
-  slug: string;
-  events_limit: string;
-  data_retention_days: string;
-  max_projects: string;
-  ai_messages_per_month: string;
-  is_public: boolean;
-  features: CreatePlanFeatures;
+function formatLimit(value: number | null | undefined, unlimited: string): string {
+  if (value === null || value === undefined || value === -1) {return unlimited;}
+  return value.toLocaleString();
 }
-
-function defaultFormValues(): PlanFormValues {
-  return {
-    name: '',
-    slug: '',
-    events_limit: '',
-    data_retention_days: '',
-    max_projects: '',
-    ai_messages_per_month: '',
-    is_public: false,
-    features: {
-      cohorts: false,
-      lifecycle: false,
-      stickiness: false,
-      api_export: false,
-      ai_insights: false,
-    },
-  };
-}
-
-function planToFormValues(plan: AdminPlan): PlanFormValues {
-  return {
-    name: plan.name,
-    slug: plan.slug,
-    events_limit: plan.events_limit !== null && plan.events_limit !== undefined ? String(plan.events_limit) : '',
-    data_retention_days:
-      plan.data_retention_days !== null && plan.data_retention_days !== undefined
-        ? String(plan.data_retention_days)
-        : '',
-    max_projects: plan.max_projects !== null && plan.max_projects !== undefined ? String(plan.max_projects) : '',
-    ai_messages_per_month:
-      plan.ai_messages_per_month !== null && plan.ai_messages_per_month !== undefined
-        ? String(plan.ai_messages_per_month)
-        : '',
-    is_public: plan.is_public,
-    features: { ...plan.features },
-  };
-}
-
-function parseOptionalInt(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === '') {return null;}
-  const parsed = parseInt(trimmed, 10);
-  return isNaN(parsed) ? null : parsed;
-}
-
-// Plan Dialog
-
-interface PlanDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  plan?: AdminPlan; // if provided → edit mode
-  onSuccess: () => void;
-}
-
-function PlanDialog({ open, onOpenChange, plan, onSuccess }: PlanDialogProps) {
-  const { t } = useLocalTranslation(translations);
-  const isEdit = !!plan;
-
-  const [values, setValues] = useState<PlanFormValues>(() =>
-    plan ? planToFormValues(plan) : defaultFormValues(),
-  );
-
-  // Reset form when dialog opens
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (nextOpen) {
-        setValues(plan ? planToFormValues(plan) : defaultFormValues());
-      }
-      onOpenChange(nextOpen);
-    },
-    [plan, onOpenChange],
-  );
-
-  const createMutation = useMutation({
-    mutationFn: (data: CreateAdminPlan) => api.adminPlansControllerCreatePlan(data),
-    onSuccess: () => {
-      toast.success(t('createSuccess'));
-      onOpenChange(false);
-      onSuccess();
-    },
-    onError: () => toast.error(t('createError')),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (data: PatchAdminPlan) =>
-      api.adminPlansControllerPatchPlan({ id: plan!.id }, data),
-    onSuccess: () => {
-      toast.success(t('updateSuccess'));
-      onOpenChange(false);
-      onSuccess();
-    },
-    onError: () => toast.error(t('updateError')),
-  });
-
-  const isPending = createMutation.isPending || updateMutation.isPending;
-
-  const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (isEdit) {
-        const payload: PatchAdminPlan = {
-          name: values.name,
-          events_limit: parseOptionalInt(values.events_limit),
-          data_retention_days: parseOptionalInt(values.data_retention_days),
-          max_projects: parseOptionalInt(values.max_projects),
-          ai_messages_per_month: parseOptionalInt(values.ai_messages_per_month),
-          is_public: values.is_public,
-          features: values.features,
-        };
-        updateMutation.mutate(payload);
-      } else {
-        const payload: CreateAdminPlan = {
-          name: values.name,
-          slug: values.slug,
-          events_limit: parseOptionalInt(values.events_limit),
-          data_retention_days: parseOptionalInt(values.data_retention_days),
-          max_projects: parseOptionalInt(values.max_projects),
-          ai_messages_per_month: parseOptionalInt(values.ai_messages_per_month),
-          is_public: values.is_public,
-          features: values.features,
-        };
-        createMutation.mutate(payload);
-      }
-    },
-    [isEdit, values, createMutation, updateMutation],
-  );
-
-  const toggleFeature = useCallback((key: keyof CreatePlanFeatures) => {
-    setValues((prev) => ({
-      ...prev,
-      features: { ...prev.features, [key]: !prev.features[key] },
-    }));
-  }, []);
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t('editTitle') : t('createTitle')}</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="plan-name">{t('name')}</Label>
-            <Input
-              id="plan-name"
-              value={values.name}
-              onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
-              placeholder={t('namePlaceholder')}
-              required
-              autoFocus
-            />
-          </div>
-
-          {/* Slug — only shown on create */}
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label htmlFor="plan-slug">{t('slug')}</Label>
-              <Input
-                id="plan-slug"
-                value={values.slug}
-                onChange={(e) =>
-                  setValues((v) => ({
-                    ...v,
-                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-                  }))
-                }
-                placeholder={t('slugPlaceholder')}
-                pattern="[a-z0-9_-]+"
-                title={t('slugPattern')}
-                required
-              />
-            </div>
-          )}
-
-          {/* Events limit */}
-          <div className="space-y-1.5">
-            <Label htmlFor="plan-events-limit">{t('eventsLimit')}</Label>
-            <Input
-              id="plan-events-limit"
-              type="number"
-              min={0}
-              value={values.events_limit}
-              onChange={(e) => setValues((v) => ({ ...v, events_limit: e.target.value }))}
-              placeholder={t('eventsLimitPlaceholder')}
-            />
-          </div>
-
-          {/* Data retention */}
-          <div className="space-y-1.5">
-            <Label htmlFor="plan-retention">{t('dataRetentionDays')}</Label>
-            <Input
-              id="plan-retention"
-              type="number"
-              min={1}
-              value={values.data_retention_days}
-              onChange={(e) => setValues((v) => ({ ...v, data_retention_days: e.target.value }))}
-              placeholder={t('dataRetentionDaysPlaceholder')}
-            />
-          </div>
-
-          {/* Max projects */}
-          <div className="space-y-1.5">
-            <Label htmlFor="plan-max-projects">{t('maxProjects')}</Label>
-            <Input
-              id="plan-max-projects"
-              type="number"
-              min={1}
-              value={values.max_projects}
-              onChange={(e) => setValues((v) => ({ ...v, max_projects: e.target.value }))}
-              placeholder={t('maxProjectsPlaceholder')}
-            />
-          </div>
-
-          {/* AI messages per month */}
-          <div className="space-y-1.5">
-            <Label htmlFor="plan-ai-messages">{t('aiMessagesPerMonth')}</Label>
-            <Input
-              id="plan-ai-messages"
-              type="number"
-              min={0}
-              value={values.ai_messages_per_month}
-              onChange={(e) => setValues((v) => ({ ...v, ai_messages_per_month: e.target.value }))}
-              placeholder={t('aiMessagesPlaceholder')}
-            />
-          </div>
-
-          {/* is_public */}
-          <div className="flex items-center gap-2">
-            <input
-              id="plan-is-public"
-              type="checkbox"
-              checked={values.is_public}
-              onChange={(e) => setValues((v) => ({ ...v, is_public: e.target.checked }))}
-              className="rounded border-border"
-            />
-            <Label htmlFor="plan-is-public" className="cursor-pointer">
-              {t('isPublicLabel')}
-            </Label>
-          </div>
-
-          {/* Features */}
-          <div className="space-y-2">
-            <Label>{t('featuresLabel')}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {FEATURE_KEYS.map((key) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={values.features[key]}
-                    onChange={() => toggleFeature(key)}
-                    className="rounded border-border"
-                  />
-                  <span className="text-sm">{t(FEATURE_LABEL_MAP[key])}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-              {t('cancel')}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEdit ? t('save') : t('create')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Main page
 
 export default function AdminPlansPage() {
   const { t } = useLocalTranslation(translations);
@@ -436,7 +121,7 @@ export default function AdminPlansPage() {
       header: t('features'),
       render: (row) => {
         const enabled = FEATURE_KEYS.filter((k) => row.features[k]);
-        if (enabled.length === 0) {return <span className="text-muted-foreground text-xs">—</span>;}
+        if (enabled.length === 0) {return <span className="text-muted-foreground text-xs">&mdash;</span>;}
         return (
           <div className="flex flex-wrap gap-1">
             {enabled.map((k) => (
