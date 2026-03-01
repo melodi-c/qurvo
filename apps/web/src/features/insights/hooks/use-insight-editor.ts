@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInsight, useCreateInsight, useUpdateInsight } from './use-insights';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
+import { useIsDirty } from '@/hooks/use-is-dirty';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { getErrorMessage } from '@/lib/i18n-utils';
 import type { InsightType, CreateInsight } from '@/api/generated/Api';
@@ -35,28 +36,19 @@ export function useInsightEditor<T extends CreateInsight['config']>({
   const initialized = useRef(isNew);
 
   // Track initial state for isDirty computation
-  const initialState = useRef({ name: defaultName, description: '', config: defaultConfig() });
+  const initialState = useRef<unknown[]>([defaultName, '', defaultConfig()]);
 
   useEffect(() => {
     if (!initialized.current && insight) {
       setName(insight.name);
       setDescription(insight.description ?? '');
       setConfig(insight.config as T);
-      initialState.current = {
-        name: insight.name,
-        description: insight.description ?? '',
-        config: insight.config as T,
-      };
+      initialState.current = [insight.name, insight.description ?? '', insight.config as T];
       initialized.current = true;
     }
   }, [insight]);
 
-  const isDirty = useMemo(() => {
-    const initial = initialState.current;
-    if (name !== initial.name) {return true;}
-    if (description !== initial.description) {return true;}
-    return JSON.stringify(config) !== JSON.stringify(initial.config);
-  }, [name, description, config]);
+  const isDirty = useIsDirty([name, description, config], initialState);
 
   const unsavedGuard = useUnsavedChangesGuard(isDirty);
 
@@ -84,7 +76,7 @@ export function useInsightEditor<T extends CreateInsight['config']>({
         });
       }
       // Mark current state as clean before navigating away
-      initialState.current = { name, description, config };
+      initialState.current = [name, description, config];
       unsavedGuard.markClean();
       void go.insights.list();
     } catch (e) {

@@ -4,11 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { routes } from '@/lib/routes';
 import { useAuthStore } from '@/stores/auth';
-import appTranslations from '@/App.translations';
 import Layout from '@/components/layout';
+import { PageLoadingFallback } from '@/components/layout';
 import AdminLayout from '@/pages/admin/admin-layout';
 
 // Eager: auth pages (needed immediately) + 404 (must render instantly)
@@ -58,26 +57,15 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, requireAdmin }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
   const pendingVerification = useAuthStore((s) => s.pendingVerification);
-  const { t } = useLocalTranslation(appTranslations);
 
-  if (loading) {return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;}
+  if (loading) {return <PageLoadingFallback />;}
   if (!user) {return <Navigate to={routes.login()} replace />;}
-  if (pendingVerification) {return <Navigate to={routes.verifyEmail()} replace />;}
-  return <>{children}</>;
-}
-
-function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
-  const user = useAuthStore((s) => s.user);
-  const loading = useAuthStore((s) => s.loading);
-  const { t } = useLocalTranslation(appTranslations);
-
-  if (loading) {return <div className="flex items-center justify-center h-screen text-muted-foreground">{t('loading')}</div>;}
-  if (!user) {return <Navigate to={routes.login()} replace />;}
-  if (!user.is_staff) {return <Navigate to={routes.login()} replace />;}
+  if (requireAdmin && !user.is_staff) {return <Navigate to={routes.login()} replace />;}
+  if (!requireAdmin && pendingVerification) {return <Navigate to={routes.verifyEmail()} replace />;}
   return <>{children}</>;
 }
 
@@ -160,9 +148,9 @@ function AppRoutes() {
       </Route>
       <Route
         element={
-          <AdminProtectedRoute>
+          <ProtectedRoute requireAdmin>
             <AdminLayout />
-          </AdminProtectedRoute>
+          </ProtectedRoute>
         }
       >
         <Route path={routes.admin.overview.pattern} element={<AdminOverviewPage />} />
