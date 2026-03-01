@@ -297,11 +297,11 @@ WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в 
 RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 
-Для **sub-issues** (добавить BASE_BRANCH + установить env для worktree hook):
+Для **sub-issues** (добавить BASE_BRANCH + настроить worktree hook):
 
-**Перед запуском** Agent tool установи env variable, чтобы worktree-create.sh создал worktree от feature branch, а не от main:
+**Перед запуском** запиши base branch в state file (env vars НЕ передаются между Bash tool и Agent tool — это разные процессы):
 ```bash
-export WORKTREE_BASE_BRANCH="feature/issue-{PARENT_NUMBER}"
+echo "feature/issue-{PARENT_NUMBER}" > "$CLAUDE_PROJECT_DIR/.claude/state/worktree-base-branch"
 ```
 
 ```
@@ -315,9 +315,9 @@ WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в 
 RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 
-**После запуска** верни переменную:
+**После завершения ВСЕХ sub-issues** удали state file:
 ```bash
-unset WORKTREE_BASE_BRANCH
+rm -f "$CLAUDE_PROJECT_DIR/.claude/state/worktree-base-branch"
 ```
 
 **Определение WEBVIZIO_UUID**: при чтении `/tmp/claude-results/issue-<N>.json` найди `<!-- WEBVIZIO: <UUID> -->` в `.body`. Если есть — передай UUID solver'у.

@@ -12,10 +12,15 @@ mkdir -p "$WORKTREES_BASE" >&2
 
 TARGET="$WORKTREES_BASE/$NAME"
 
-# Determine base branch: use WORKTREE_BASE_BRANCH env var if set (for sub-issues),
-# otherwise default to main. Using main (not HEAD) prevents creating worktrees
-# from a feature branch or mid-merge state if executor is running concurrently.
-BASE_REF="${WORKTREE_BASE_BRANCH:-main}"
+# Determine base branch from state file. Env vars don't propagate across
+# Claude Code tool calls (Bash export ≠ Agent subprocess env), so the
+# orchestrator writes .claude/state/worktree-base-branch before launching agents.
+BASE_BRANCH_FILE="$CWD/.claude/state/worktree-base-branch"
+if [ -f "$BASE_BRANCH_FILE" ]; then
+  BASE_REF=$(cat "$BASE_BRANCH_FILE")
+else
+  BASE_REF="main"
+fi
 
 # Ensure the base ref exists locally (fetch if it's a remote-only branch)
 if ! git -C "$CWD" rev-parse --verify "$BASE_REF" &>/dev/null; then

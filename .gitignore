@@ -18,6 +18,7 @@ values.local-secrets.yaml
 .claude/worktrees/*
 .claude/state/execution-state.json
 .claude/state/operations.log
+.claude/state/worktree-base-branch
 .claude/results/
 .mcp.json
 
