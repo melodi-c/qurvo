@@ -9,6 +9,8 @@ export {
   bucket,
   neighborBucket,
   bucketOfMin,
+  resolveRelativeDate,
+  isRelativeDate,
 } from './time';
 export type { Granularity } from './time';
 

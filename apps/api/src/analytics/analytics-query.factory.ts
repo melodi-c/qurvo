@@ -11,6 +11,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { CohortsService } from '../cohorts/cohorts.service';
 import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-cache';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
+import { resolveRelativeDate, isRelativeDate } from './query-helpers/time';
 
 export interface AnalyticsQueryService<TParams, TResult> {
   query(
@@ -57,6 +58,16 @@ export function createAnalyticsQueryProvider<
             throw new AppBadRequestException(`Project ${params.project_id} not found`);
           }
           mutableParams.timezone = project.timezone;
+
+          // Resolve relative date strings (e.g. '-7d', 'mStart') to absolute YYYY-MM-DD.
+          // Must happen AFTER timezone injection so resolution uses project timezone.
+          const tz = mutableParams.timezone as string | undefined;
+          if (typeof mutableParams.date_from === 'string' && isRelativeDate(mutableParams.date_from)) {
+            mutableParams.date_from = resolveRelativeDate(mutableParams.date_from, tz);
+          }
+          if (typeof mutableParams.date_to === 'string' && isRelativeDate(mutableParams.date_to)) {
+            mutableParams.date_to = resolveRelativeDate(mutableParams.date_to, tz);
+          }
 
           if (cohort_ids?.length) {
             // Merge resolved cohort_ids filters with any directly-passed cohort_filters.

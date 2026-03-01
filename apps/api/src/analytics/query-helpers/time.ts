@@ -91,6 +91,87 @@ export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Regex for relative date strings: -Nd, -Ny, mStart, yStart.
+ * Matches: '-7d', '-30d', '-90d', '-180d', '-1y', 'mStart', 'yStart'
+ */
+const RELATIVE_DATE_REGEX = /^-(\d+)([dy])$/;
+const RELATIVE_ANCHORS = new Set(['mStart', 'yStart']);
+
+/**
+ * Returns true when the value looks like a relative date token
+ * (e.g. `-7d`, `-1y`, `mStart`, `yStart`).
+ */
+export function isRelativeDate(value: string): boolean {
+  return RELATIVE_DATE_REGEX.test(value) || RELATIVE_ANCHORS.has(value);
+}
+
+/**
+ * Resolves a relative date string to an absolute `YYYY-MM-DD` value.
+ *
+ * Supported formats:
+ *  - `-Nd`  → N days ago
+ *  - `-Ny`  → N×365 days ago
+ *  - `mStart` → first day of the current month
+ *  - `yStart` → first day of the current year
+ *  - `YYYY-MM-DD` → returned as-is (passthrough)
+ *
+ * When `timezone` is provided the "today" anchor is computed in that
+ * timezone; otherwise UTC is used.
+ */
+export function resolveRelativeDate(value: string, timezone?: string): string {
+  // Absolute date passthrough
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  // Determine "today" in the requested timezone
+  const now = new Date();
+  let today: Date;
+  if (timezone && timezone !== 'UTC') {
+    // Resolve local date parts via Intl — avoids pulling in a date lib
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now);
+    const y = Number(parts.find(p => p.type === 'year')?.value ?? '0');
+    const m = Number(parts.find(p => p.type === 'month')?.value ?? '1');
+    const d = Number(parts.find(p => p.type === 'day')?.value ?? '1');
+    today = new Date(Date.UTC(y, m - 1, d));
+  } else {
+    today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
+
+  // Anchors
+  if (value === 'mStart') {
+    today.setUTCDate(1);
+    return today.toISOString().slice(0, 10);
+  }
+  if (value === 'yStart') {
+    today.setUTCMonth(0, 1);
+    return today.toISOString().slice(0, 10);
+  }
+
+  // Relative offset: -Nd or -Ny
+  const match = RELATIVE_DATE_REGEX.exec(value);
+  if (!match) {
+    throw new Error(`Invalid relative date format: ${value}`);
+  }
+
+  const amount = Number(match[1]);
+  const unit = match[2];
+
+  if (unit === 'd') {
+    today.setUTCDate(today.getUTCDate() - amount);
+  } else if (unit === 'y') {
+    today.setUTCDate(today.getUTCDate() - amount * 365);
+  }
+
+  return today.toISOString().slice(0, 10);
+}
+
 export function shiftPeriod(dateFrom: string, dateTo: string): { from: string; to: string } {
   const from = new Date(`${dateFrom}T00:00:00Z`);
   const to = new Date(`${dateTo}T00:00:00Z`);
