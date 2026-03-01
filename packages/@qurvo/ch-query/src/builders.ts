@@ -576,13 +576,19 @@ export function lte(left: Expr, right: Expr): BinaryExpr {
   return makeBinary('<=', left, right);
 }
 
-/** @internal — use safeLike() instead */
-export function like(left: Expr, right: Expr): BinaryExpr {
+/**
+ * Raw LIKE: accepts arbitrary Expr as pattern (no escaping).
+ * @internal — prefer like() (safe) for user-facing code.
+ */
+export function likeRaw(left: Expr, right: Expr): BinaryExpr {
   return makeBinary('LIKE', left, right);
 }
 
-/** @internal — use safeNotLike() instead */
-export function notLike(left: Expr, right: Expr): BinaryExpr {
+/**
+ * Raw NOT LIKE: accepts arbitrary Expr as pattern (no escaping).
+ * @internal — prefer notLike() (safe) for user-facing code.
+ */
+export function notLikeRaw(left: Expr, right: Expr): BinaryExpr {
   return makeBinary('NOT LIKE', left, right);
 }
 
@@ -643,10 +649,10 @@ export function escapeLikePattern(s: string): string {
   return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
 }
 
-export type SafeLikeMode = 'contains' | 'startsWith' | 'endsWith';
+export type LikeMode = 'contains' | 'startsWith' | 'endsWith';
 
 /** Wrap an escaped LIKE pattern according to the search mode */
-function wrapLikePattern(escaped: string, mode: SafeLikeMode): string {
+function wrapLikePattern(escaped: string, mode: LikeMode): string {
   switch (mode) {
     case 'contains':
       return `%${escaped}%`;
@@ -658,25 +664,25 @@ function wrapLikePattern(escaped: string, mode: SafeLikeMode): string {
 }
 
 /**
- * Safe LIKE: escapes user input and wraps according to `mode`, producing:
+ * LIKE with automatic escaping: escapes user input and wraps according to `mode`, producing:
  * `expr LIKE {p_N:String}` with the value properly escaped.
  *
  * @param mode - 'contains' (default) wraps `%val%`, 'startsWith' wraps `val%`, 'endsWith' wraps `%val`
  */
-export function safeLike(expr: Expr, substring: string, mode: SafeLikeMode = 'contains'): BinaryExpr {
+export function like(expr: Expr, substring: string, mode: LikeMode = 'contains'): BinaryExpr {
   const escaped = wrapLikePattern(escapeLikePattern(substring), mode);
-  return like(expr, param('String', escaped));
+  return likeRaw(expr, param('String', escaped));
 }
 
 /**
- * Safe NOT LIKE: escapes user input and wraps according to `mode`, producing:
+ * NOT LIKE with automatic escaping: escapes user input and wraps according to `mode`, producing:
  * `expr NOT LIKE {p_N:String}` with the value properly escaped.
  *
  * @param mode - 'contains' (default) wraps `%val%`, 'startsWith' wraps `val%`, 'endsWith' wraps `%val`
  */
-export function safeNotLike(expr: Expr, substring: string, mode: SafeLikeMode = 'contains'): BinaryExpr {
+export function notLike(expr: Expr, substring: string, mode: LikeMode = 'contains'): BinaryExpr {
   const escaped = wrapLikePattern(escapeLikePattern(substring), mode);
-  return notLike(expr, param('String', escaped));
+  return notLikeRaw(expr, param('String', escaped));
 }
 
 // SelectBuilder (fluent chain)

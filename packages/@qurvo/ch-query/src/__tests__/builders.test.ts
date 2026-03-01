@@ -74,8 +74,8 @@ import {
   parseDateTimeBestEffortOrZero,
   quantile,
   raw,
-  safeLike,
-  safeNotLike,
+  like,
+  notLike,
   select,
   sipHash64,
   sub,
@@ -101,8 +101,8 @@ import {
   today,
   unionAll,
   uniqExact,
-  like,
-  notLike,
+  likeRaw,
+  notLikeRaw,
 } from '../builders';
 
 describe('builders', () => {
@@ -262,9 +262,9 @@ describe('builders', () => {
       expect(lte(col('a'), literal(1)).op).toBe('<=');
     });
 
-    test('like(), notLike()', () => {
-      expect(like(col('a'), literal('%test%')).op).toBe('LIKE');
-      expect(notLike(col('a'), literal('%test%')).op).toBe('NOT LIKE');
+    test('likeRaw(), notLikeRaw()', () => {
+      expect(likeRaw(col('a'), literal('%test%')).op).toBe('LIKE');
+      expect(notLikeRaw(col('a'), literal('%test%')).op).toBe('NOT LIKE');
     });
 
     test('not()', () => {
@@ -799,8 +799,8 @@ describe('builders', () => {
       expect(escapeLikePattern('%_\\')).toBe('\\%\\_\\\\');
     });
 
-    test('safeLike() creates LIKE binary with escaped param', () => {
-      const expr = safeLike(col('name'), 'test%value');
+    test('like() creates LIKE binary with escaped param', () => {
+      const expr = like(col('name'), 'test%value');
       expect(expr.type).toBe('binary');
       expect(expr.op).toBe('LIKE');
       expect(expr.right).toEqual(expect.objectContaining({
@@ -810,8 +810,8 @@ describe('builders', () => {
       }));
     });
 
-    test('safeNotLike() creates NOT LIKE binary with escaped param', () => {
-      const expr = safeNotLike(col('name'), 'test_value');
+    test('notLike() creates NOT LIKE binary with escaped param', () => {
+      const expr = notLike(col('name'), 'test_value');
       expect(expr.type).toBe('binary');
       expect(expr.op).toBe('NOT LIKE');
       expect(expr.right).toEqual(expect.objectContaining({
@@ -1334,9 +1334,9 @@ describe('builders', () => {
     });
   });
 
-  describe('safeLike mode parameter', () => {
-    test('safeLike() default mode is contains (%val%)', () => {
-      const expr = safeLike(col('x'), 'test');
+  describe('like/notLike mode parameter', () => {
+    test('like() default mode is contains (%val%)', () => {
+      const expr = like(col('x'), 'test');
       expect(expr.right).toEqual(expect.objectContaining({
         type: 'param',
         chType: 'String',
@@ -1344,44 +1344,44 @@ describe('builders', () => {
       }));
     });
 
-    test('safeLike() contains mode wraps %val%', () => {
-      const expr = safeLike(col('x'), 'test', 'contains');
+    test('like() contains mode wraps %val%', () => {
+      const expr = like(col('x'), 'test', 'contains');
       expect(expr.right).toEqual(expect.objectContaining({
         value: '%test%',
       }));
     });
 
-    test('safeLike() startsWith mode wraps val%', () => {
-      const expr = safeLike(col('x'), 'test', 'startsWith');
+    test('like() startsWith mode wraps val%', () => {
+      const expr = like(col('x'), 'test', 'startsWith');
       expect(expr.right).toEqual(expect.objectContaining({
         value: 'test%',
       }));
     });
 
-    test('safeLike() endsWith mode wraps %val', () => {
-      const expr = safeLike(col('x'), 'test', 'endsWith');
+    test('like() endsWith mode wraps %val', () => {
+      const expr = like(col('x'), 'test', 'endsWith');
       expect(expr.right).toEqual(expect.objectContaining({
         value: '%test',
       }));
     });
 
-    test('safeLike() startsWith with special chars escapes properly', () => {
-      const expr = safeLike(col('x'), '100%', 'startsWith');
+    test('like() startsWith with special chars escapes properly', () => {
+      const expr = like(col('x'), '100%', 'startsWith');
       expect(expr.right).toEqual(expect.objectContaining({
         value: '100\\%%',
       }));
     });
 
-    test('safeNotLike() startsWith mode', () => {
-      const expr = safeNotLike(col('x'), 'prefix', 'startsWith');
+    test('notLike() startsWith mode', () => {
+      const expr = notLike(col('x'), 'prefix', 'startsWith');
       expect(expr.op).toBe('NOT LIKE');
       expect(expr.right).toEqual(expect.objectContaining({
         value: 'prefix%',
       }));
     });
 
-    test('safeNotLike() endsWith mode', () => {
-      const expr = safeNotLike(col('x'), 'suffix', 'endsWith');
+    test('notLike() endsWith mode', () => {
+      const expr = notLike(col('x'), 'suffix', 'endsWith');
       expect(expr.op).toBe('NOT LIKE');
       expect(expr.right).toEqual(expect.objectContaining({
         value: '%suffix',

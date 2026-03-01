@@ -138,10 +138,10 @@ export {
 // Builders — SQL utils
 export {
   escapeLikePattern,
-  safeLike,
-  safeNotLike,
+  like,
+  notLike,
 } from './builders';
-export type { SafeLikeMode } from './builders';
+export type { LikeMode } from './builders';
 
 // Builders — condition builders
 export {
@@ -153,8 +153,6 @@ export {
   gte,
   lt,
   lte,
-  like,
-  notLike,
   not,
   add,
   sub,

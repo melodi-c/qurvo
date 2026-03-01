@@ -37,7 +37,7 @@ import {
   jsonHas,
   lambda,
   length,
-  like,
+  likeRaw,
   literal,
   lower,
   lt,
@@ -51,7 +51,7 @@ import {
   neq,
   not,
   notInSubquery,
-  notLike,
+  notLikeRaw,
   now64,
   or,
   param,
@@ -60,8 +60,8 @@ import {
   parseDateTimeBestEffortOrZero,
   quantile,
   raw,
-  safeLike,
-  safeNotLike,
+  like,
+  notLike,
   select,
   sub,
   subquery,
@@ -206,14 +206,14 @@ describe('compiler', () => {
     test('LIKE and NOT LIKE', () => {
       const q = select(col('*'))
         .from('t')
-        .where(like(col('name'), literal('%test%')))
+        .where(likeRaw(col('name'), literal('%test%')))
         .build();
       const { sql } = compile(q);
       expect(sql).toContain("name LIKE '%test%'");
 
       const q2 = select(col('*'))
         .from('t')
-        .where(notLike(col('name'), literal('%test%')))
+        .where(notLikeRaw(col('name'), literal('%test%')))
         .build();
       const { sql: sql2 } = compile(q2);
       expect(sql2).toContain("name NOT LIKE '%test%'");
@@ -1280,20 +1280,20 @@ describe('compiler', () => {
   });
 
   describe('SQL utils compilation', () => {
-    test('safeLike compiles to LIKE with escaped param', () => {
+    test('like compiles to LIKE with escaped param', () => {
       const q = select(col('*'))
         .from('events')
-        .where(safeLike(col('name'), '100% off'))
+        .where(like(col('name'), '100% off'))
         .build();
       const { sql, params } = compile(q);
       expect(sql).toContain('name LIKE {p_0:String}');
       expect(params).toEqual({ p_0: '%100\\% off%' });
     });
 
-    test('safeNotLike compiles to NOT LIKE with escaped param', () => {
+    test('notLike compiles to NOT LIKE with escaped param', () => {
       const q = select(col('*'))
         .from('events')
-        .where(safeNotLike(col('name'), 'user_test'))
+        .where(notLike(col('name'), 'user_test'))
         .build();
       const { sql, params } = compile(q);
       expect(sql).toContain('name NOT LIKE {p_0:String}');
@@ -1524,37 +1524,37 @@ describe('compiler', () => {
     });
   });
 
-  describe('safeLike/safeNotLike mode compilation', () => {
-    test('safeLike default mode compiles with %val%', () => {
-      const q = select(col('*')).from('t').where(safeLike(col('name'), 'test')).build();
+  describe('like/notLike mode compilation', () => {
+    test('like default mode compiles with %val%', () => {
+      const q = select(col('*')).from('t').where(like(col('name'), 'test')).build();
       const { sql, params } = compile(q);
       expect(sql).toContain('name LIKE {p_0:String}');
       expect(params).toEqual({ p_0: '%test%' });
     });
 
-    test('safeLike startsWith compiles with val%', () => {
-      const q = select(col('*')).from('t').where(safeLike(col('name'), 'test', 'startsWith')).build();
+    test('like startsWith compiles with val%', () => {
+      const q = select(col('*')).from('t').where(like(col('name'), 'test', 'startsWith')).build();
       const { sql, params } = compile(q);
       expect(sql).toContain('name LIKE {p_0:String}');
       expect(params).toEqual({ p_0: 'test%' });
     });
 
-    test('safeLike endsWith compiles with %val', () => {
-      const q = select(col('*')).from('t').where(safeLike(col('name'), 'test', 'endsWith')).build();
+    test('like endsWith compiles with %val', () => {
+      const q = select(col('*')).from('t').where(like(col('name'), 'test', 'endsWith')).build();
       const { sql, params } = compile(q);
       expect(sql).toContain('name LIKE {p_0:String}');
       expect(params).toEqual({ p_0: '%test' });
     });
 
-    test('safeNotLike startsWith compiles correctly', () => {
-      const q = select(col('*')).from('t').where(safeNotLike(col('name'), 'prefix', 'startsWith')).build();
+    test('notLike startsWith compiles correctly', () => {
+      const q = select(col('*')).from('t').where(notLike(col('name'), 'prefix', 'startsWith')).build();
       const { sql, params } = compile(q);
       expect(sql).toContain('name NOT LIKE {p_0:String}');
       expect(params).toEqual({ p_0: 'prefix%' });
     });
 
-    test('safeLike startsWith with special chars escapes properly', () => {
-      const q = select(col('*')).from('t').where(safeLike(col('x'), '100%', 'startsWith')).build();
+    test('like startsWith with special chars escapes properly', () => {
+      const q = select(col('*')).from('t').where(like(col('x'), '100%', 'startsWith')).build();
       const { params } = compile(q);
       expect(params).toEqual({ p_0: '100\\%%' });
     });

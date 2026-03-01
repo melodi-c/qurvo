@@ -3,11 +3,12 @@ import type { Expr, FuncCallExpr } from '@qurvo/ch-query';
 import {
   and, argMax, col, coalesce, dictGetOrNull, eq, escapeLikePattern,
   func, gt as chGt, gte, inArray, jsonExtractRaw, jsonExtractString, jsonHas,
-  like, literal, lt as chLt, lte, match, multiSearchAny, namedParam,
-  neq, not, notInArray, notLike, now64, or,
+  literal, lt as chLt, lte, match, multiSearchAny, namedParam,
+  neq, not, notInArray, now64, or,
   parseDateTimeBestEffort, parseDateTimeBestEffortOrZero,
   select, toDate, toFloat64OrZero, toString, tuple,
 } from '@qurvo/ch-query';
+import { likeRaw, notLikeRaw } from '@qurvo/ch-query/src/builders';
 import type { BuildContext } from './types';
 
 // Column sets
@@ -208,16 +209,16 @@ const stringOps = {
   contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
     const valP = registerParam(pk, 'String', likeVal, queryParams);
-    return like(expr, valP);
+    return likeRaw(expr, valP);
   },
   not_contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
     const valP = registerParam(pk, 'String', likeVal, queryParams);
     const jsonHasExpr = toJsonHasGuard(expr);
     if (jsonHasExpr) {
-      return and(jsonHasExpr, notLike(expr, valP));
+      return and(jsonHasExpr, notLikeRaw(expr, valP));
     }
-    return notLike(expr, valP);
+    return notLikeRaw(expr, valP);
   },
   regex: ({ expr, pk, queryParams, value }: OperatorContext) => {
     const v = value ?? '';
