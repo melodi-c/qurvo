@@ -175,7 +175,7 @@ export function isLinkResult(result: unknown): result is LinkToolResult {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getLinkLabel(toolName: string, result: LinkToolResult, t: (key: any) => string): string {
+export function getLinkLabel(toolName: string, result: LinkToolResult, t: (key: any, params?: Record<string, string | number>) => string): string {
   if (toolName === 'create_insight') {
     return result.name ? t('openInsightNamed', { name: result.name }) : t('openInsight');
   }
