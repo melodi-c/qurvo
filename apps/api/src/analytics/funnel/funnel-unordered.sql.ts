@@ -2,12 +2,10 @@ import {
   select,
   col,
   and,
-  eq,
   gte,
   lte,
   gt,
   add,
-  mul,
   namedParam,
   inArray,
   toInt64,
@@ -191,7 +189,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
 
   // CTE 4: excluded_users (if exclusions present) -- anchorFilter=true for unordered (#497)
   if (exclusions.length > 0) {
-    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true) });
+    ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true, queryParams) });
   }
 
   return { ctes, hasExclusions: exclusions.length > 0 };

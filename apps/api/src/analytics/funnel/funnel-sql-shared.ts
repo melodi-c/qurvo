@@ -1,24 +1,29 @@
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import {
-  rawWithParams,
-  raw,
   select,
   col,
   avgIf,
   and,
+  or,
   gte,
   gt,
   eq,
   neq,
   lte,
+  lt,
   literal,
   add,
+  sub,
+  div,
+  mod,
   namedParam,
   inArray,
   inSubquery,
   notInSubquery,
+  not,
   groupArrayIf,
   toUnixTimestamp64Milli,
+  toDateTime64,
   toInt64,
   parametricFunc,
   toUInt64,
@@ -29,12 +34,14 @@ import {
   arrayMax,
   arrayMin,
   greatest,
+  sipHash64,
+  toString,
   func,
   length,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
-import { toChTs, RESOLVED_PERSON, propertyFilters } from '../query-helpers';
+import { toChTs, RESOLVED_PERSON, resolvedPerson, propertyFilters } from '../query-helpers';
 import type { FunnelStep, FunnelExclusion, FunnelOrderType, FunnelStepResult } from './funnel.types';
 
 export { RESOLVED_PERSON, toChTs };
@@ -81,8 +88,8 @@ export interface FunnelChQueryParams {
 export function funnelTsParamExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): Expr {
   const hasTz = !!queryParams.tz;
   return hasTz
-    ? rawWithParams(`toDateTime64({${paramName}:String}, 3, {tz:String})`, { [paramName]: queryParams[paramName], tz: queryParams.tz })
-    : rawWithParams(`{${paramName}:DateTime64(3)}`, { [paramName]: queryParams[paramName] });
+    ? toDateTime64(namedParam(paramName, 'String', queryParams[paramName]), literal(3), namedParam('tz', 'String', queryParams.tz))
+    : namedParam(paramName, 'DateTime64(3)', queryParams[paramName]);
 }
 
 
@@ -189,9 +196,9 @@ export function buildSamplingClause(
   if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return undefined;}
   const pct = Math.round(samplingFactor * 100);
   queryParams.sample_pct = pct;
-  return rawWithParams(
-    `sipHash64(toString(${RESOLVED_PERSON})) % 100 < {sample_pct:UInt8}`,
-    { sample_pct: pct },
+  return lt(
+    mod(sipHash64(toString(resolvedPerson())), literal(100)),
+    namedParam('sample_pct', 'UInt8', pct),
   );
 }
 
@@ -204,8 +211,8 @@ export function buildSamplingClause(
  * @param stepConditions  Array of Expr conditions, one per funnel step
  * @returns Expr: `windowFunnel(window * 1000[, 'strict_order'])(toUInt64(toUnixTimestamp64Milli(timestamp)), cond0, cond1, ...)`
  */
-export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: Expr[]): Expr {
-  const windowMs = mul(raw('{window:UInt64}'), literal(1000));
+export function buildWindowFunnelExpr(orderType: FunnelOrderType, stepConditions: Expr[], queryParams: FunnelChQueryParams): Expr {
+  const windowMs = mul(namedParam('window', 'UInt64', queryParams.window), literal(1000));
   const params: Expr[] = orderType === 'strict'
     ? [windowMs, literal('strict_order')]
     : [windowMs];
@@ -317,41 +324,85 @@ export function buildExclusionColumns(
  *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
  *   funnels (issue #497).
  */
-function buildExcludedUsersWhereConditions(exclusions: FunnelExclusion[], anchorFilter: boolean): string {
-  const win = `toInt64({window:UInt64}) * 1000`;
-  const anchorGuard = anchorFilter ? `f >= first_step_ms AND f <= first_step_ms + ${win} AND ` : '';
-  return exclusions.map((_, i) => {
-    const tainted = [
-      `arrayExists(`,
-      `        f -> ${anchorGuard}arrayExists(`,
-      `          t -> t > f AND t <= f + ${win} AND`,
-      `               arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
-      `          excl_${i}_to_arr`,
-      `        ) = 1,`,
-      `        excl_${i}_from_arr`,
-      `      ) = 1`,
-    ].join('\n      ');
+/**
+ * Builds the excluded_users WHERE condition as an Expr AST node.
+ *
+ * A user is placed in excluded_users if, for exclusion i:
+ *  - There exists at least one (from_ts, to_ts) conversion window attempt
+ *    that is "tainted" by an exclusion event (excl_ts in (from_ts, to_ts))
+ *  - AND there does NOT exist any "clean" (from_ts, to_ts) pair without an
+ *    exclusion event in between
+ *
+ * @param anchorFilter - When true, restricts (f, t) pairs to only those where
+ *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
+ *   funnels (issue #497).
+ */
+function buildExcludedUsersWhereExpr(
+  exclusions: FunnelExclusion[],
+  anchorFilter: boolean,
+  queryParams: FunnelChQueryParams,
+): Expr {
+  const winMs = mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
 
-    const clean = [
-      `arrayExists(`,
-      `        f -> ${anchorGuard}arrayExists(`,
-      `          t -> t > f AND t <= f + ${win} AND`,
-      `               NOT arrayExists(e -> e > f AND e < t, excl_${i}_arr),`,
-      `          excl_${i}_to_arr`,
-      `        ) = 1,`,
-      `        excl_${i}_from_arr`,
-      `      ) = 0`,
-    ].join('\n      ');
+  const perExclusion = exclusions.map((_, i) => {
+    // Inner-most check: excl event exists between f and t
+    const exclBetween = arrayExists(
+      lambda(['e'], and(gt(col('e'), col('f')), lt(col('e'), col('t')))),
+      col(`excl_${i}_arr`),
+    );
 
-    return `(${tainted}\n      AND ${clean})`;
-  }).join('\n      OR ');
+    // To-step window check: t > f AND t <= f + win
+    const toWindowCond = and(
+      gt(col('t'), col('f')),
+      lte(col('t'), add(col('f'), winMs)),
+    );
+
+    // Tainted inner: arrayExists(t -> toWindowCond AND exclBetween, excl_i_to_arr)
+    const taintedInner = arrayExists(
+      lambda(['t'], and(toWindowCond, exclBetween)),
+      col(`excl_${i}_to_arr`),
+    );
+
+    // Clean inner: arrayExists(t -> toWindowCond AND NOT exclBetween, excl_i_to_arr)
+    const cleanInner = arrayExists(
+      lambda(['t'], and(toWindowCond, not(exclBetween))),
+      col(`excl_${i}_to_arr`),
+    );
+
+    // Anchor guard: f >= first_step_ms AND f <= first_step_ms + win
+    const anchorGuardExpr = anchorFilter
+      ? and(gte(col('f'), col('first_step_ms')), lte(col('f'), add(col('first_step_ms'), winMs)))
+      : undefined;
+
+    // Tainted outer: arrayExists(f -> [anchorGuard AND] taintedInner = 1, excl_i_from_arr) = 1
+    const taintedBody = anchorGuardExpr ? and(anchorGuardExpr, eq(taintedInner, literal(1))) : eq(taintedInner, literal(1));
+    const tainted = eq(
+      arrayExists(lambda(['f'], taintedBody), col(`excl_${i}_from_arr`)),
+      literal(1),
+    );
+
+    // Clean outer: arrayExists(f -> [anchorGuard AND] cleanInner = 1, excl_i_from_arr) = 0
+    const cleanBody = anchorGuardExpr ? and(anchorGuardExpr, eq(cleanInner, literal(1))) : eq(cleanInner, literal(1));
+    const clean = eq(
+      arrayExists(lambda(['f'], cleanBody), col(`excl_${i}_from_arr`)),
+      literal(0),
+    );
+
+    return and(tainted, clean);
+  });
+
+  return perExclusion.length === 1 ? perExclusion[0] : or(...perExclusion);
 }
 
 /** Builds the excluded_users CTE as a QueryNode (AST). */
-export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilter = false): SelectNode {
+export function buildExcludedUsersCTE(
+  exclusions: FunnelExclusion[],
+  anchorFilter: boolean,
+  queryParams: FunnelChQueryParams,
+): SelectNode {
   return select(col('person_id'))
     .from('funnel_per_user')
-    .where(raw(buildExcludedUsersWhereConditions(exclusions, anchorFilter)))
+    .where(buildExcludedUsersWhereExpr(exclusions, anchorFilter, queryParams))
     .build();
 }
 
@@ -498,11 +549,11 @@ export function buildStrictUserFilterExpr(
  * Builds the avg_time_seconds AST expression, shared between funnel-query.ts and funnel-cohort-breakdown.ts.
  * `avgIf((last_step_ms - first_step_ms) / 1000.0, max_step >= N AND first_step_ms > 0 AND last_step_ms > first_step_ms)`
  */
-export function avgTimeSecondsExpr(): Expr {
+export function avgTimeSecondsExpr(queryParams: FunnelChQueryParams): Expr {
   return avgIf(
-    raw('(last_step_ms - first_step_ms) / 1000.0'),
+    div(sub(col('last_step_ms'), col('first_step_ms')), literal(1000.0)),
     and(
-      gte(col('max_step'), raw('{num_steps:UInt64}')),
+      gte(col('max_step'), namedParam('num_steps', 'UInt64', queryParams.num_steps)),
       gt(col('first_step_ms'), literal(0)),
       gt(col('last_step_ms'), col('first_step_ms')),
     ),
