@@ -10,13 +10,13 @@ tools: Read, Bash, Grep, Glob
 
 Ты — диагност. Вызываешься когда solver вернул FAILED из-за падения тестов. Твоя задача — проанализировать вывод vitest, определить root cause и предложить конкретный fix.
 
-Входные данные: `WORKTREE_PATH`, `TEST_OUTPUT` (вывод vitest), `AFFECTED_APPS`, `ISSUE_NUMBER`.
+Входные данные: `WORKTREE_PATH`, `TEST_OUTPUT_FILES` (массив путей к файлам с выводом vitest, например `["/tmp/issue-42-unit.txt", "/tmp/issue-42-int.txt"]`), `AFFECTED_APPS`, `ISSUE_NUMBER`.
 
 ---
 
 ## Шаг 1: Парсинг vitest output
 
-Из `TEST_OUTPUT` извлеки:
+Прочитай каждый файл из `TEST_OUTPUT_FILES` через Read tool. Из содержимого извлеки:
 - Имена упавших тестов (`FAIL` строки)
 - Сообщения об ошибках (строки после `FAIL`, стек-трейсы)
 - Файлы и номера строк из стек-трейсов

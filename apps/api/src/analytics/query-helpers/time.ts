@@ -1,5 +1,5 @@
 import type { AliasExpr, Expr } from '@qurvo/ch-query';
-import { and, func, gte, lte, param, raw } from '@qurvo/ch-query';
+import { and, col, func, gte, literal, lte, param, raw } from '@qurvo/ch-query';
 
 type WithAs = Expr & { as(alias: string): AliasExpr };
 
@@ -99,7 +99,7 @@ export function tsParam(value: string, tz?: string): Expr {
   if (!hasTz) {
     return param('DateTime64(3)', chTs);
   }
-  return func('toDateTime64', param('String', chTs), raw('3'), param('String', tz));
+  return func('toDateTime64', param('String', chTs), literal(3), param('String', tz));
 }
 
 /**
@@ -109,8 +109,8 @@ export function timeRange(from: string, to: string, tz?: string): Expr {
   const fromExpr = tsParam(from, tz);
   const toExpr = tsParam(to.length === 10 ? toChTs(to, true) : to, tz);
   return and(
-    gte(raw('timestamp'), fromExpr),
-    lte(raw('timestamp'), toExpr),
+    gte(col('timestamp'), fromExpr),
+    lte(col('timestamp'), toExpr),
   );
 }
 
@@ -124,24 +124,24 @@ export function timeRange(from: string, to: string, tz?: string): Expr {
  */
 export function bucket(granularity: Granularity, column: string, tz?: string): WithAs {
   const hasTz = !!(tz && tz !== 'UTC');
-  const colExpr = raw(column);
+  const colExpr = col(column);
 
   switch (granularity) {
     case 'hour':
       return hasTz
-        ? func('toStartOfHour', colExpr, raw(`'${tz}'`))
+        ? func('toStartOfHour', colExpr, literal(tz!))
         : func('toStartOfHour', colExpr);
     case 'day':
       return hasTz
-        ? func('toStartOfDay', colExpr, raw(`'${tz}'`))
+        ? func('toStartOfDay', colExpr, literal(tz!))
         : func('toStartOfDay', colExpr);
     case 'week':
       return hasTz
-        ? func('toDateTime', func('toStartOfWeek', colExpr, raw('1'), raw(`'${tz}'`)), raw(`'${tz}'`))
-        : func('toDateTime', func('toStartOfWeek', colExpr, raw('1')));
+        ? func('toDateTime', func('toStartOfWeek', colExpr, literal(1), literal(tz!)), literal(tz!))
+        : func('toDateTime', func('toStartOfWeek', colExpr, literal(1)));
     case 'month':
       return hasTz
-        ? func('toDateTime', func('toStartOfMonth', colExpr, raw(`'${tz}'`)), raw(`'${tz}'`))
+        ? func('toDateTime', func('toStartOfMonth', colExpr, literal(tz!)), literal(tz!))
         : func('toDateTime', func('toStartOfMonth', colExpr));
     default: {
       const _exhaustive: never = granularity;
@@ -176,9 +176,9 @@ export function neighborBucket(
 
   switch (granularity) {
     case 'week':
-      return func('toDateTime', func('toStartOfWeek', shifted, raw('1'), raw(`'${tz}'`)), raw(`'${tz}'`));
+      return func('toDateTime', func('toStartOfWeek', shifted, literal(1), literal(tz!)), literal(tz!));
     case 'month':
-      return func('toDateTime', func('toStartOfMonth', shifted, raw(`'${tz}'`)), raw(`'${tz}'`));
+      return func('toDateTime', func('toStartOfMonth', shifted, literal(tz!)), literal(tz!));
     default: {
       const _exhaustive: never = granularity;
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
@@ -206,6 +206,10 @@ function compileExprInline(expr: Expr): string {
       return expr.sql;
     case 'column':
       return expr.name;
+    case 'literal':
+      if (typeof expr.value === 'string') return `'${expr.value.replace(/'/g, "\\'")}'`;
+      if (typeof expr.value === 'boolean') return expr.value ? '1' : '0';
+      return String(expr.value);
     case 'func': {
       const args = expr.args.map(compileExprInline).join(', ');
       return `${expr.name}(${args})`;
@@ -220,86 +224,3 @@ function compileExprInline(expr: Expr): string {
   }
 }
 
-// ── String-returning helpers for raw SQL consumers ──────────────────────────
-
-/**
- * Returns a raw SQL string for granularity truncation.
- * Thin wrapper around bucket() that serializes the AST to SQL.
- *
- * Used by consumers that build queries via template literals (web-analytics, etc.)
- */
-export function granularityTruncExpr(granularity: Granularity, col: string, tz?: string): string {
-  return compileExprInline(bucket(granularity, col, tz));
-}
-
-/**
- * Returns the granularity-truncated minimum of a column as a raw SQL string.
- * granularityTruncExpr(granularity, `min(col)`, tz)
- */
-export function granularityTruncMinExpr(granularity: Granularity, col: string, tz?: string): string {
-  return granularityTruncExpr(granularity, `min(${col})`, tz);
-}
-
-/**
- * Returns a ClickHouse INTERVAL expression for a given granularity.
- */
-export function granularityInterval(granularity: 'day' | 'week' | 'month'): string {
-  switch (granularity) {
-    case 'day': return `INTERVAL 1 DAY`;
-    case 'week': return `INTERVAL 7 DAY`;
-    case 'month': return `INTERVAL 1 MONTH`;
-    default: {
-      const _exhaustive: never = granularity;
-      throw new Error(`Unhandled granularity: ${_exhaustive}`);
-    }
-  }
-}
-
-/**
- * Returns the SQL expression to compare `timestamp` against a named datetime parameter.
- *
- * - Without timezone: `{paramName:DateTime64(3)}`
- * - With timezone: `toDateTime64({paramName:String}, 3, {tzParam:String})`
- */
-export function tsExpr(paramName: string, tzParam: string, hasTz: boolean): string {
-  return hasTz
-    ? `toDateTime64({${paramName}:String}, 3, {${tzParam}:String})`
-    : `{${paramName}:DateTime64(3)}`;
-}
-
-/**
- * Returns a DST-safe ClickHouse expression for the neighbor bucket as a raw SQL string.
- */
-export function granularityNeighborExpr(
-  granularity: 'day' | 'week' | 'month',
-  bucketExpr: string,
-  direction: 1 | -1,
-  tz?: string,
-): string {
-  const hasTz = !!(tz && tz !== 'UTC');
-  const interval = granularityInterval(granularity);
-  const shifted = direction === 1 ? `${bucketExpr} + ${interval}` : `${bucketExpr} - ${interval}`;
-
-  if (!hasTz || granularity === 'day') {
-    return shifted;
-  }
-
-  switch (granularity) {
-    case 'week':
-      return `toDateTime(toStartOfWeek(${shifted}, 1, '${tz}'), '${tz}')`;
-    case 'month':
-      return `toDateTime(toStartOfMonth(${shifted}, '${tz}'), '${tz}')`;
-    default: {
-      const _exhaustive: never = granularity;
-      throw new Error(`Unhandled granularity: ${_exhaustive}`);
-    }
-  }
-}
-
-/**
- * Builds a SQL filter clause from an array of conditions.
- * Returns ' AND cond1 AND cond2 ...' when conditions are present, or '' when empty.
- */
-export function buildFilterClause(conditions: string[]): string {
-  return conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '';
-}

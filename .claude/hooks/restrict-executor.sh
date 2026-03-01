@@ -58,9 +58,10 @@ elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+reset\s+--hard"; 
 elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+stash"; then
   BLOCKED="git stash — запрещён для executor"
 
-# git push (прямой, не через merge-worktree.sh)
+# git push (прямой, не через merge-worktree.sh и не OpenAPI regeneration)
 elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+push" \
-  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
+  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh' \
+  && ! echo "$COMMAND" | grep -qE 'swagger.*generate|generate-api|regenerate OpenAPI'; then
   BLOCKED="git push — используй merge-worktree.sh"
 
 # gh pr create (прямой, не через merge-worktree.sh)

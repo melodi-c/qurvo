@@ -1,9 +1,11 @@
 import type { Expr } from '@qurvo/ch-query';
 import {
   and,
+  col,
   eq,
   inArray,
   like,
+  literal,
   neq,
   not,
   notLike,
@@ -118,24 +120,23 @@ function resolvePropertyColumnExpr(prop: string): string {
 
 /** project_id = {p_N:UUID} */
 export function projectIs(projectId: string): Expr {
-  return eq(raw('project_id'), param('UUID', projectId));
+  return eq(col('project_id'), param('UUID', projectId));
 }
 
 /** event_name = {p_N:String} */
 export function eventIs(eventName: string): Expr {
-  return eq(raw('event_name'), param('String', eventName));
+  return eq(col('event_name'), param('String', eventName));
 }
 
 /** event_name IN ({p_N:Array(String)}) */
 export function eventIn(eventNames: string[]): Expr {
-  return inArray(raw('event_name'), param('Array(String)', eventNames));
+  return inArray(col('event_name'), param('Array(String)', eventNames));
 }
 
 /**
  * Single property filter -> Expr.
  *
- * Implements the same logic as buildPropertyFilterConditions
- * but returns an AST Expr node instead of a string.
+ * Converts a single property filter to an AST Expr node.
  * Values are wrapped in ParamExpr -- no mutation of external state.
  *
  * Operators:
@@ -186,13 +187,13 @@ export function propertyFilter(filter: PropertyFilter): Expr {
       if (source) {
         return raw(buildJsonHasExpr(source.jsonColumn, source.segments));
       }
-      return neq(colExpr, raw("''"));
+      return neq(colExpr, literal(''));
     }
     case 'is_not_set': {
       if (source) {
         return not(raw(buildJsonHasExpr(source.jsonColumn, source.segments)));
       }
-      return eq(colExpr, raw("''"));
+      return eq(colExpr, literal(''));
     }
     default: {
       const _exhaustive: never = filter.operator;
@@ -331,137 +332,6 @@ export function resolveNumericPropertyExpr(prop: string): Expr {
     return raw(`toFloat64OrZero(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
   }
   throw new Error(`Unknown metric property: ${prop}`);
-}
-
-// ── String-returning helpers for raw SQL consumers ──────────────────────────
-
-/**
- * Resolves a property name to its raw SQL string expression.
- * Returns a plain column name for direct columns, or JSONExtractString(...) for JSON.
- *
- * Used by consumers that build queries via template literals.
- * Includes SAFE_JSON_KEY_REGEX validation (unlike the deleted legacy version).
- */
-export function resolvePropertyExprStr(prop: string): string {
-  return resolvePropertyColumnExpr(prop);
-}
-
-/**
- * Resolves a numeric property to its float extraction SQL string expression.
- * toFloat64OrZero(JSONExtractRaw(properties, 'key'))
- */
-export function resolveNumericPropertyExprStr(prop: string): string {
-  const source = resolvePropertySource(prop);
-  if (source) {
-    return `toFloat64OrZero(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`;
-  }
-  throw new Error(`Unknown metric property: ${prop}`);
-}
-
-/**
- * Builds SQL condition strings for a list of property filters.
- * Mutates queryParams with named parameters.
- *
- * This is the string-based API for consumers that build queries via template literals.
- * Includes SAFE_JSON_KEY_REGEX validation (unlike the deleted legacy version).
- */
-export function buildPropertyFilterConditions(
-  filters: PropertyFilter[],
-  prefix: string,
-  queryParams: Record<string, unknown>,
-): string[] {
-  const parts: string[] = [];
-  for (const [j, f] of filters.entries()) {
-    const expr = resolvePropertyColumnExpr(f.property);
-    const pk = `${prefix}_f${j}_v`;
-    const source = resolvePropertySource(f.property);
-    switch (f.operator) {
-      case 'eq':
-        queryParams[pk] = f.value ?? '';
-        if (source) {
-          const rawEqExpr = buildJsonExtractRawExpr(source.jsonColumn, source.segments);
-          parts.push(`(${expr} = {${pk}:String} OR toString(${rawEqExpr}) = {${pk}:String})`);
-        } else {
-          parts.push(`${expr} = {${pk}:String}`);
-        }
-        break;
-      case 'neq':
-        queryParams[pk] = f.value ?? '';
-        if (source) {
-          const rawNeqExpr = buildJsonExtractRawExpr(source.jsonColumn, source.segments);
-          parts.push(
-            `${buildJsonHasExpr(source.jsonColumn, source.segments)} AND (${expr} != {${pk}:String} AND toString(${rawNeqExpr}) != {${pk}:String})`,
-          );
-        } else {
-          parts.push(`${expr} != {${pk}:String}`);
-        }
-        break;
-      case 'contains':
-        queryParams[pk] = `%${escapeLikePattern(f.value ?? '')}%`;
-        parts.push(`${expr} LIKE {${pk}:String}`);
-        break;
-      case 'not_contains':
-        queryParams[pk] = `%${escapeLikePattern(f.value ?? '')}%`;
-        if (source) {
-          parts.push(`${buildJsonHasExpr(source.jsonColumn, source.segments)} AND ${expr} NOT LIKE {${pk}:String}`);
-        } else {
-          parts.push(`${expr} NOT LIKE {${pk}:String}`);
-        }
-        break;
-      case 'is_set':
-        if (source) {
-          parts.push(buildJsonHasExpr(source.jsonColumn, source.segments));
-        } else {
-          parts.push(`${expr} != ''`);
-        }
-        break;
-      case 'is_not_set':
-        if (source) {
-          parts.push(`NOT ${buildJsonHasExpr(source.jsonColumn, source.segments)}`);
-        } else {
-          parts.push(`${expr} = ''`);
-        }
-        break;
-      default: {
-        const _exhaustive: never = f.operator;
-        throw new Error(`Unhandled operator: ${_exhaustive}`);
-      }
-    }
-  }
-  return parts;
-}
-
-/**
- * Builds a cohort WHERE clause fragment with optional `dateTo` and `dateFrom` parameters.
- * Returns a string like ' AND <predicate>' or '' for empty cohortFilters.
- *
- * Used by consumers that build queries via template literals.
- */
-export function buildCohortClause(
-  cohortFilters: CohortFilterInputLike[] | undefined,
-  projectIdParam: string,
-  queryParams: Record<string, unknown>,
-  dateTo?: string,
-  dateFrom?: string,
-): string {
-  if (!cohortFilters?.length) {
-    return '';
-  }
-  type CohortFilterInputCast = Parameters<typeof buildCohortFilterClause>[0][number];
-  const expr = buildCohortFilterClause(
-    cohortFilters as CohortFilterInputCast[],
-    projectIdParam,
-    queryParams,
-    undefined,
-    dateTo,
-    dateFrom,
-  );
-  if (!expr) {
-    return '';
-  }
-  const { sql, params } = compileExprToSql(expr);
-  Object.assign(queryParams, params);
-  return ' AND ' + sql;
 }
 
 export { resolvedPerson } from './resolved-person';

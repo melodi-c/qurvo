@@ -35,15 +35,17 @@ import {
 import {
   count, countIf, countDistinct, sum, sumIf, avg, avgIf, min, minIf, max, maxIf,
   uniqExact, groupArray, groupArrayIf, arraySort, arrayFilter, toString,
-  argMax,
+  argMax, argMinIf, argMaxIf,
 } from '@qurvo/ch-query';
 
 // ClickHouse functions
 import {
   jsonExtractString, jsonExtractRaw, jsonHas,
-  toFloat64OrZero, toDate, parseDateTimeBestEffortOrZero,
-  dictGetOrNull, lower, match, multiSearchAny, coalesce,
-  arrayExists, arrayMax,
+  toFloat64OrZero, toDate, toInt64, toUInt64, toUnixTimestamp64Milli,
+  parseDateTimeBestEffortOrZero,
+  dictGetOrNull, lower, match, multiSearchAny, coalesce, ifExpr,
+  notEmpty, greatest, indexOf, arrayElement, sipHash64,
+  arrayExists, arrayMin, arrayMax,
 } from '@qurvo/ch-query';
 
 // Condition builders

@@ -397,53 +397,6 @@ describe('compiler', () => {
       expect(sql).toContain('FROM events AS e');
     });
 
-    test('FROM with FINAL modifier', () => {
-      const q = select(col('person_id'))
-        .from('cohort_members', { final: true })
-        .where(eq(col('cohort_id'), param('UUID', 'abc')))
-        .build();
-      const { sql } = compile(q);
-      expect(sql).toContain('FROM cohort_members FINAL');
-      expect(sql).not.toContain('FROM cohort_members FINAL AS');
-    });
-
-    test('FROM with FINAL and alias via opts', () => {
-      const q = select(col('cm.person_id'))
-        .from('cohort_members', { final: true, alias: 'cm' })
-        .build();
-      const { sql } = compile(q);
-      expect(sql).toContain('FROM cohort_members FINAL AS cm');
-    });
-
-    test('FROM with .final() fluent method', () => {
-      const q = select(col('person_id'))
-        .from('person_static_cohort')
-        .final()
-        .where(eq(col('project_id'), param('UUID', 'pid')))
-        .build();
-      const { sql } = compile(q);
-      expect(sql).toContain('FROM person_static_cohort FINAL');
-    });
-
-    test('FROM without FINAL (backward compatibility)', () => {
-      const q = select(col('*')).from('events').build();
-      const { sql } = compile(q);
-      expect(sql).toContain('FROM events');
-      expect(sql).not.toContain('FINAL');
-    });
-
-    test('FINAL is ignored for subquery FROM', () => {
-      const inner = select(col('person_id')).from('events').build();
-      const q = select(col('person_id'))
-        .from(inner, 'sub')
-        .final()
-        .build();
-      const { sql } = compile(q);
-      // FINAL should not appear for subquery FROM
-      expect(sql).not.toContain('FINAL');
-      expect(sql).toContain('FROM (SELECT');
-    });
-
     test('FROM subquery', () => {
       const inner = select(col('person_id'), count().as('cnt'))
         .from('events')

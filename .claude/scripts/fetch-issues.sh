@@ -25,12 +25,13 @@ fetch_sub_issues() {
     --jq '[.[] | {number, title, state}]' 2>/dev/null || echo "[]"
 }
 
+_CACHED_SUB_ISSUES=""
+
 determine_topology() {
   local NUMBER="$1"
-  local SUB_ISSUES
-  SUB_ISSUES=$(fetch_sub_issues "$NUMBER")
+  _CACHED_SUB_ISSUES=$(fetch_sub_issues "$NUMBER")
   local COUNT
-  COUNT=$(echo "$SUB_ISSUES" | jq 'length')
+  COUNT=$(echo "$_CACHED_SUB_ISSUES" | jq 'length')
 
   if [ "$COUNT" -gt 0 ]; then
     echo "parent"
@@ -132,10 +133,7 @@ for i in $(seq 0 $((COUNT - 1))); do
 
   # Determine topology
   TOPOLOGY=$(determine_topology "$NUMBER")
-  SUB_ISSUES_JSON="[]"
-  if [ "$TOPOLOGY" = "parent" ]; then
-    SUB_ISSUES_JSON=$(fetch_sub_issues "$NUMBER")
-  fi
+  SUB_ISSUES_JSON="$_CACHED_SUB_ISSUES"
 
   # Check if this issue is a sub-issue of another (heuristic: check body for "parent" or task list ref)
   # For now we rely on the sub_issues API from the parent side
@@ -156,7 +154,7 @@ for i in $(seq 0 $((COUNT - 1))); do
 
   # Output compact line
   COMMENTS_COUNT=$(echo "$ISSUE" | jq '[.comments // [] | length] | .[0] // 0')
-  echo "${NUMBER}|${TITLE}|${TOPOLOGY}|${LABELS_CSV}|${COMMENTS_COUNT}"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$NUMBER" "$TITLE" "$TOPOLOGY" "$LABELS_CSV" "$COMMENTS_COUNT"
 done
 
 # --- write manifest ---

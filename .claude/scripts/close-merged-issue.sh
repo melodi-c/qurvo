@@ -15,13 +15,16 @@ bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_
 
 gh issue edit "$NUMBER" --remove-label "in-progress" --remove-label "under-review" 2>/dev/null || true
 
-gh issue close "$NUMBER" --comment "$(cat <<COMMENT
+if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
 ## Смерджено
 
 **PR**: $PR_URL
 **Коммит**: \`$COMMIT_HASH\`
 **Ветка**: \`$BASE_BRANCH\`
 COMMENT
-)" 2>/dev/null || true
-
-echo "CLOSED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
+)" 2>/dev/null; then
+  echo "CLOSED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
+else
+  echo "WARN: gh issue close failed for #$NUMBER" >&2
+  echo "CLOSE_FAILED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
+fi

@@ -1,25 +1,47 @@
-import type { CompilerContext} from '@qurvo/ch-query';
-import { rawWithParams, select, raw, type QueryNode } from '@qurvo/ch-query';
+import {
+  select,
+  col,
+  and,
+  eq,
+  gte,
+  lte,
+  gt,
+  add,
+  mul,
+  namedParam,
+  inArray,
+  toInt64,
+  toUnixTimestamp64Milli,
+  groupArrayIf,
+  greatest,
+  indexOf,
+  arrayElement,
+  func,
+  lambda,
+  ifExpr,
+  literal,
+  type Expr,
+  type QueryNode,
+} from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
 import {
-  RESOLVED_PERSON,
   buildStepCondition,
   buildExclusionColumns,
   buildExcludedUsersCTE,
-  buildUnorderedCoverageExprs,
-  funnelTsExpr,
+  buildUnorderedCoverageExprsAST,
+  funnelTsParamExpr,
+  extractExclColumnAliases,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
+import { resolvedPerson } from '../query-helpers';
 
 export interface UnorderedCTEOptions {
   steps: FunnelStep[];
   exclusions: FunnelExclusion[];
-  cohortClause: string;
-  samplingClause: string;
+  cohortExpr?: Expr;
+  samplingExpr?: Expr;
   queryParams: FunnelChQueryParams;
-  breakdownExpr?: string;
-  /** Shared CompilerContext to avoid p_N param collisions across multiple compileExprToSql calls. */
-  ctx?: CompilerContext;
+  breakdownExpr?: Expr;
 }
 
 /**
@@ -29,7 +51,7 @@ export interface UnorderedCTEOptions {
 export interface UnorderedCTEResult {
   /** Named CTEs in dependency order (step_times, anchor_per_user, funnel_per_user, excluded_users?) */
   ctes: Array<{ name: string; query: QueryNode }>;
-  /** Whether exclusions are active — caller uses this to build WHERE clause */
+  /** Whether exclusions are active -- caller uses this to build WHERE clause */
   hasExclusions: boolean;
 }
 
@@ -44,105 +66,127 @@ export interface UnorderedCTEResult {
  *      (max_step, first_step_ms, last_step_ms, breakdown_value, excl arrays).
  *
  * Returns an array of named QueryNode CTEs that the caller attaches via .withAll().
- * CTE bodies are built as raw SQL via rawWithParams() — groupArrayIf(), arrayExists(),
- * and array lambda expressions have no typed builder equivalents.
+ * CTE bodies use the ch-query AST builder -- no raw SQL concatenation.
  */
 export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): UnorderedCTEResult {
-  const { steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr, ctx } = options;
+  const { steps, exclusions, cohortExpr, samplingExpr, queryParams, breakdownExpr } = options;
   const N = steps.length;
-  const winExpr = `toInt64({window:UInt64}) * 1000`;
-  const fromExpr = funnelTsExpr('from', queryParams);
-  const toExpr = funnelTsExpr('to', queryParams);
+  const winExprAST = mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
+  const fromExpr = funnelTsParamExpr('from', queryParams);
+  const toExpr = funnelTsParamExpr('to', queryParams);
 
-  const stepConds = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx));
+  // Timestamp expression for groupArrayIf
+  const tsExpr = toUnixTimestamp64Milli(col('timestamp'));
 
-  // ── Step 1: collect all timestamps per step as arrays ────────────────────
-  const groupArrayCols = stepConds.map((cond, i) =>
-    `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS t${i}_arr`,
-  ).join(',\n        ');
+  // Build step conditions as Expr
+  const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));
 
-  // ── Steps 2-4: coverage, max_step, anchor_ms — shared with TTC unordered ──
-  const { coverageExpr, maxStepExpr, anchorMsExpr } =
-    buildUnorderedCoverageExprs(N, winExpr, steps);
-
-  // ── Step 5: breakdown_value ───────────────────────────────────────────────
-  const breakdownArrCol = breakdownExpr
-    ? `,\n        groupArrayIf(${breakdownExpr}, ${stepConds[0]}) AS t0_bv_arr`
-    : '';
-
-  // ── Step 6: exclusion array columns ──────────────────────────────────────
-  const exclColumns = exclusions.length > 0
-    ? buildExclusionColumns(exclusions, steps, queryParams, ctx)
-    : [];
-  const exclColsSQL = exclColumns.length > 0
-    ? ',\n        ' + exclColumns.join(',\n        ')
-    : '';
-
-  // ── Forward columns from step_times into anchor_per_user ─────────────────
-  const breakdownArrForward = breakdownExpr ? ',\n        t0_bv_arr' : '';
-  const exclColsForward = exclColumns.length > 0
-    ? ',\n        ' + exclColumns.map(c => c.split(' AS ')[1]).join(',\n        ')
-    : '';
-
-  const breakdownValueExpr = breakdownExpr
-    ? `,\n        t0_bv_arr[indexOf(t0_arr, anchor_ms)] AS breakdown_value`
-    : '';
-
-  // ── Step 7: last_step_ms — latest step in the winning window ─────────────
-  const stepLastInWindow = steps.map((_, j) =>
-    `arrayMax(lt${j} -> if(lt${j} >= anchor_ms AND lt${j} <= anchor_ms + ${winExpr}, lt${j}, toInt64(0)), t${j}_arr)`,
+  // ---- Step 1: groupArrayIf columns per step ----
+  const groupArrayCols: Expr[] = stepCondExprs.map((cond, i) =>
+    groupArrayIf(tsExpr, cond).as(`t${i}_arr`),
   );
-  const lastStepMsExpr = stepLastInWindow.length === 1
-    ? stepLastInWindow[0]
-    : `greatest(${stepLastInWindow.join(', ')})`;
 
-  // ── WHERE guard on step_times ─────────────────────────────────────────────
-  const anyStepNonEmpty = `length(t0_arr) > 0`;
+  // ---- Steps 2-4: coverage, max_step, anchor_ms -- shared with TTC unordered ----
+  const { maxStepExpr, anchorMsExpr } =
+    buildUnorderedCoverageExprsAST(N, winExprAST, steps);
 
-  // ── Build CTEs as QueryNodes ──────────────────────────────────────────────
+  // ---- Step 5: breakdown_value ----
+  const breakdownArrCol: Expr[] = breakdownExpr
+    ? [groupArrayIf(breakdownExpr, stepCondExprs[0]).as('t0_bv_arr')]
+    : [];
 
+  // ---- Step 6: exclusion array columns ----
+  const exclCols: Expr[] = exclusions.length > 0
+    ? buildExclusionColumns(exclusions, steps)
+    : [];
+
+  // ---- Base WHERE ----
+  const baseWhere = and(
+    eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+    gte(col('timestamp'), fromExpr),
+    lte(col('timestamp'), toExpr),
+    inArray(col('event_name'), namedParam('all_event_names', 'Array(String)', queryParams.all_event_names)),
+    cohortExpr,
+    samplingExpr,
+  );
+
+  // ---- Forward columns from step_times into anchor_per_user ----
+  const breakdownArrForward: Expr[] = breakdownExpr ? [col('t0_bv_arr')] : [];
+  const exclColAliases = extractExclColumnAliases(exclCols);
+  const exclColForwardExprs: Expr[] = exclColAliases.map(a => col(a));
+  const stepArrCols: Expr[] = steps.map((_, i) => col(`t${i}_arr`));
+
+  // ---- Step 7: last_step_ms -- latest step in the winning window ----
+  // For each step j: arrayMax(lt -> if(lt >= anchor_ms AND lt <= anchor_ms + win, lt, 0), t_j_arr)
+  const stepLastInWindowExprs: Expr[] = steps.map((_, j) =>
+    func('arrayMax',
+      lambda([`lt${j}`], ifExpr(
+        and(
+          gte(col(`lt${j}`), col('anchor_ms')),
+          lte(col(`lt${j}`), add(col('anchor_ms'), winExprAST)),
+        ),
+        col(`lt${j}`),
+        toInt64(literal(0)),
+      )),
+      col(`t${j}_arr`),
+    ),
+  );
+  const lastStepMsExpr = stepLastInWindowExprs.length === 1
+    ? stepLastInWindowExprs[0]
+    : greatest(...stepLastInWindowExprs);
+
+  // ---- breakdown_value from anchor ----
+  const breakdownValueExpr: Expr[] = breakdownExpr
+    ? [arrayElement(col('t0_bv_arr'), indexOf(col('t0_arr'), col('anchor_ms'))).as('breakdown_value')]
+    : [];
+
+  // ---- Build CTEs as QueryNodes ----
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
-  // CTE 1: step_times — aggregates per person with groupArrayIf per step.
-  // Built as raw SQL — groupArrayIf() has no builder equivalent.
-  const stepTimesNode = select(rawWithParams(`
-        ${RESOLVED_PERSON} AS person_id,
-        ${groupArrayCols}${breakdownArrCol}${exclColsSQL}
-      FROM events
-      WHERE
-        project_id = {project_id:UUID}
-        AND timestamp >= ${fromExpr}
-        AND timestamp <= ${toExpr}
-        AND event_name IN ({all_event_names:Array(String)})${cohortClause}${samplingClause}
-      GROUP BY person_id`, queryParams))
+  // CTE 1: step_times -- aggregates per person with groupArrayIf per step
+  const stepTimesNode = select(
+    resolvedPerson().as('person_id'),
+    ...groupArrayCols,
+    ...breakdownArrCol,
+    ...exclCols,
+  )
+    .from('events')
+    .where(baseWhere)
+    .groupBy(col('person_id'))
     .build();
 
   ctes.push({ name: 'step_times', query: stepTimesNode });
 
-  // CTE 2: anchor_per_user — computes max_step and anchor_ms from arrays
-  const anchorPerUserNode = select(raw(`
-        person_id,
-        toInt64(${maxStepExpr}) AS max_step,
-        toInt64(${anchorMsExpr}) AS anchor_ms${breakdownArrForward}${exclColsForward},
-        ${steps.map((_, i) => `t${i}_arr`).join(', ')}
-      FROM step_times
-      WHERE ${anyStepNonEmpty}`))
+  // CTE 2: anchor_per_user -- computes max_step and anchor_ms from arrays
+  const anchorPerUserNode = select(
+    col('person_id'),
+    toInt64(maxStepExpr).as('max_step'),
+    toInt64(anchorMsExpr).as('anchor_ms'),
+    ...breakdownArrForward,
+    ...exclColForwardExprs,
+    ...stepArrCols,
+  )
+    .from('step_times')
+    .where(gt(func('length', col('t0_arr')), literal(0)))
     .build();
 
   ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });
 
-  // CTE 3: funnel_per_user — final shape with resolved timestamps
-  const funnelPerUserNode = select(raw(`
-        person_id,
-        max_step,
-        anchor_ms AS first_step_ms,
-        toInt64(${lastStepMsExpr}) AS last_step_ms${breakdownValueExpr}${exclColsForward}
-      FROM anchor_per_user`))
+  // CTE 3: funnel_per_user -- final shape with resolved timestamps
+  const funnelPerUserNode = select(
+    col('person_id'),
+    col('max_step'),
+    col('anchor_ms').as('first_step_ms'),
+    toInt64(lastStepMsExpr).as('last_step_ms'),
+    ...breakdownValueExpr,
+    ...exclColForwardExprs,
+  )
+    .from('anchor_per_user')
     .build();
 
   ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
 
-  // CTE 4: excluded_users (if exclusions present) — anchorFilter=true for unordered (#497)
+  // CTE 4: excluded_users (if exclusions present) -- anchorFilter=true for unordered (#497)
   if (exclusions.length > 0) {
     ctes.push({ name: 'excluded_users', query: buildExcludedUsersCTE(exclusions, true) });
   }

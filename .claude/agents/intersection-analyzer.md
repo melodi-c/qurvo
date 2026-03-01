@@ -43,9 +43,6 @@ ls "$ISSUES_DIR"/issue-*.json
 - `apps/processor` — Background worker
 - `apps/cohort-worker` — Cohort worker
 - `apps/billing-worker` — Billing worker
-- `apps/insights-worker` — Insights worker
-- `apps/monitor-worker` — Monitor worker
-- `apps/scheduled-jobs-worker` — Scheduled jobs worker
 - `packages/@qurvo/db` — PostgreSQL schema (CRITICAL — конфликтует миграциями)
 - `packages/@qurvo/clickhouse` — ClickHouse schema (CRITICAL — конфликтует миграциями)
 - `packages/@qurvo/worker-core` — Shared worker bootstrap

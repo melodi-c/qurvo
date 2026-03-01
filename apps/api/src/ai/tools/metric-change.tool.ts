@@ -6,13 +6,13 @@ import { defineTool } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
 import {
   alias,
+  col,
   compileExprToSql,
   CompilerContext,
   and,
   gte,
   lte,
   or,
-  raw,
 } from '@qurvo/ch-query';
 import {
   resolvePropertyExpr,
@@ -228,12 +228,12 @@ async function queryOverallTotals(
 
   // Build conditional time-range expressions via AST
   const baselineCond = and(
-    gte(raw('timestamp'), tsParam(baselineFrom)),
-    lte(raw('timestamp'), tsParam(toChTs(baselineTo, true))),
+    gte(col('timestamp'), tsParam(baselineFrom)),
+    lte(col('timestamp'), tsParam(toChTs(baselineTo, true))),
   );
   const currentCond = and(
-    gte(raw('timestamp'), tsParam(currentFrom)),
-    lte(raw('timestamp'), tsParam(toChTs(currentTo, true))),
+    gte(col('timestamp'), tsParam(currentFrom)),
+    lte(col('timestamp'), tsParam(toChTs(currentTo, true))),
   );
 
   const baseCondSql = compileExprToSql(baselineCond, queryParams, ctx);

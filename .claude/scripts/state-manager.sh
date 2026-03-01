@@ -14,7 +14,7 @@ shift
 case "$CMD" in
   init)
     TS="${1:?timestamp}"
-    printf '{"schema_version":3,"started_at":"%s","phase":"PREFLIGHT","issues":{},"parallel_groups":[],"current_group_index":0,"parent_issues":{},"merge_results":{},"post_merge_verification":null}\n' "$TS" > "$STATE_FILE"
+    printf '{"schema_version":3,"started_at":"%s","phase":"PREFLIGHT","issues":{},"parallel_groups":[],"current_group_index":0,"post_merge_verification":null}\n' "$TS" > "$STATE_FILE"
     echo "OK" ;;
 
   phase)
@@ -29,13 +29,15 @@ case "$CMD" in
     echo "OK" ;;
 
   issue-status)
-    NUM="$1"; STATUS="$2"; shift 2
-    JQ_EXPR=".issues[\"$NUM\"].status=\"$STATUS\""
+    NUM="${1:?}"; STATUS="${2:?}"; shift 2
+    JQ_EXPR='(.issues[$n].status=$s)'
+    JQ_ARGS=(--arg n "$NUM" --arg s "$STATUS")
     for KV in "$@"; do
       KEY="${KV%%=*}"; VAL="${KV#*=}"
-      JQ_EXPR="$JQ_EXPR | .issues[\"$NUM\"].$KEY=\"$VAL\""
+      JQ_EXPR="$JQ_EXPR | (.issues[\$n].${KEY}=\$v_${KEY})"
+      JQ_ARGS+=(--arg "v_${KEY}" "$VAL")
     done
-    jq "$JQ_EXPR" "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    jq "${JQ_ARGS[@]}" "$JQ_EXPR" "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
     echo "OK" ;;
 
   groups)
@@ -47,7 +49,7 @@ case "$CMD" in
     echo "OK" ;;
 
   prune-merged)
-    jq '{schema_version,started_at,phase,parallel_groups,current_group_index,parent_issues,merge_results,post_merge_verification,issues:(.issues|with_entries(select(.value.status!="MERGED")))}' \
+    jq 'del(.issues[] | select(.status == "MERGED"))' \
       "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
     echo "OK" ;;
 
@@ -60,8 +62,8 @@ case "$CMD" in
   batch)
     COUNT=0
     for subcmd in "$@"; do
-      eval "set -- $subcmd"
-      bash "$0" "$@"
+      IFS=' ' read -ra ARGS <<< "$subcmd"
+      bash "$0" "${ARGS[@]}"
       COUNT=$((COUNT + 1))
     done
     echo "OK ($COUNT commands)" ;;

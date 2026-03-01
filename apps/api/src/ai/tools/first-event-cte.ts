@@ -1,5 +1,5 @@
 import type { QueryNode } from '@qurvo/ch-query';
-import { select, raw, param, min, gte, lte, eq } from '@qurvo/ch-query';
+import { select, col, param, min, gte, lte, eq } from '@qurvo/ch-query';
 import { resolvedPerson } from '../../analytics/query-helpers';
 
 /**
@@ -18,15 +18,15 @@ export function firstEventCte(opts: {
 }): QueryNode {
   return select(
     resolvedPerson().as('pid'),
-    min(raw('timestamp')).as('start_ts'),
+    min(col('timestamp')).as('start_ts'),
   )
     .from('events')
     .where(
-      eq(raw('project_id'), param('UUID', opts.projectId)),
-      eq(raw('event_name'), param('String', opts.eventName)),
-      gte(raw('timestamp'), param('DateTime64(3)', opts.from)),
-      lte(raw('timestamp'), param('DateTime64(3)', opts.to)),
+      eq(col('project_id'), param('UUID', opts.projectId)),
+      eq(col('event_name'), param('String', opts.eventName)),
+      gte(col('timestamp'), param('DateTime64(3)', opts.from)),
+      lte(col('timestamp'), param('DateTime64(3)', opts.to)),
     )
-    .groupBy(raw('pid'))
+    .groupBy(col('pid'))
     .build();
 }

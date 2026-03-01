@@ -5,7 +5,7 @@ import {
   unionAll,
   compile,
   col,
-  raw,
+  literal,
   param,
   func,
   and,
@@ -247,14 +247,14 @@ export async function queryRetention(
   const retentionRaw = select(
     col('i.cohort_period'),
     col('i.person_id'),
-    func('dateDiff', raw(`'${unit}'`), col('i.cohort_period'), col('r.return_period')).as('period_offset'),
+    func('dateDiff', literal(unit), col('i.cohort_period'), col('r.return_period')).as('period_offset'),
   )
     .from('initial_events', 'i')
     .innerJoin('return_events', 'r', eq(col('i.person_id'), col('r.person_id')))
     .where(
       gte(col('r.return_period'), col('i.cohort_period')),
       lte(
-        func('dateDiff', raw(`'${unit}'`), col('i.cohort_period'), col('r.return_period')),
+        func('dateDiff', literal(unit), col('i.cohort_period'), col('r.return_period')),
         param('UInt32', params.periods),
       ),
     )
@@ -263,7 +263,7 @@ export async function queryRetention(
   // ── Sentinel rows (cohort size, period_offset = -1) ──
   const sentinelQuery = select(
     chToString(col('cohort_period')).as('cohort_period'),
-    raw('toInt32(-1)').as('period_offset'),
+    func('toInt32', literal(-1)).as('period_offset'),
     uniqExact(col('person_id')).as('user_count'),
   )
     .from('initial_events')

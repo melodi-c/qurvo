@@ -7,7 +7,9 @@ import type { AiTool } from './ai-tool.interface';
 import {
   compile,
   select,
-  raw,
+  col,
+  literal,
+  rawWithParams,
   count,
   func,
   argMax,
@@ -93,12 +95,12 @@ export class QueryPersonsTool implements AiTool {
     const limit = Math.min(args.limit ?? 10, 25);
     const orderBy = args.order_by ?? 'event_count';
 
-    const formatTs = (col: string) =>
-      func('formatDateTime', raw(col), raw(`'${FORMAT_DATETIME_ISO}'`), raw("'UTC'"));
+    const formatTs = (colExpr: string) =>
+      func('formatDateTime', col(colExpr), literal(FORMAT_DATETIME_ISO), literal('UTC'));
 
     const builder = select(
-      chToString(raw('person_id')).as('person_id'),
-      argMax(raw('user_properties'), raw('timestamp')).as('user_properties'),
+      chToString(col('person_id')).as('person_id'),
+      argMax(col('user_properties'), col('timestamp')).as('user_properties'),
       count().as('event_count'),
       formatTs('min(timestamp)').as('first_seen'),
       formatTs('max(timestamp)').as('last_seen'),
@@ -108,29 +110,25 @@ export class QueryPersonsTool implements AiTool {
         projectIs(projectId),
         args.event_name ? eventIs(args.event_name) : undefined,
         args.date_from
-          ? raw(`timestamp >= parseDateTimeBestEffort({date_from:String})`)
+          ? rawWithParams(`timestamp >= parseDateTimeBestEffort({date_from:String})`, { date_from: args.date_from })
           : undefined,
         args.date_to
-          ? raw(`timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY`)
+          ? rawWithParams(`timestamp < parseDateTimeBestEffort({date_to:String}) + INTERVAL 1 DAY`, { date_to: args.date_to })
           : undefined,
         args.filters?.length
           ? propertyFilters(args.filters as PropertyFilter[])
           : undefined,
       )
-      .groupBy(raw('person_id'));
+      .groupBy(col('person_id'));
 
     const orderExpr =
-      orderBy === 'event_count' ? raw('event_count') :
-      orderBy === 'last_seen' ? raw('last_seen') :
-      raw('first_seen');
+      orderBy === 'event_count' ? col('event_count') :
+      orderBy === 'last_seen' ? col('last_seen') :
+      col('first_seen');
     builder.orderBy(orderExpr, 'DESC');
     builder.limit(limit);
 
     const { sql, params } = compile(builder.build());
-
-    // Inject date params that are used as raw expressions with manual param syntax
-    if (args.date_from) { params['date_from'] = args.date_from; }
-    if (args.date_to) { params['date_to'] = args.date_to; }
 
     const res = await this.ch.query({ query: sql, query_params: params, format: 'JSONEachRow' });
     const rows = await res.json<{ person_id: string; user_properties: string | Record<string, unknown>; event_count: string | number; first_seen: string; last_seen: string }>();
