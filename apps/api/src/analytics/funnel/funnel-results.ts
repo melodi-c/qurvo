@@ -2,7 +2,14 @@ import type { FunnelStep, FunnelStepResult, FunnelBreakdownStepResult } from './
 import { buildEmptyStepResults } from './funnel-sql-shared';
 import { normalizeBreakdownValue } from '../query-helpers';
 
-// Raw row types from ClickHouse
+/**
+ * Rounds a ratio to one decimal place (e.g. 0.4567 -> 45.7).
+ * Returns 0 when the denominator is zero.
+ */
+function roundRate(numerator: number, denominator: number): number {
+  if (denominator === 0) {return 0;}
+  return Math.round((numerator / denominator) * 1000) / 10;
+}
 
 export interface RawFunnelRow {
   step_num: string;
@@ -46,9 +53,9 @@ export function computeStepResults(
       label: steps[stepIdx]?.label ?? '',
       event_name: steps[stepIdx]?.event_name ?? '',
       count: entered,
-      conversion_rate: firstCount > 0 ? Math.round((entered / firstCount) * 1000) / 10 : 0,
+      conversion_rate: roundRate(entered, firstCount),
       drop_off: dropOff,
-      drop_off_rate: isLast ? 0 : (entered > 0 ? Math.round((dropOff / entered) * 1000) / 10 : 0),
+      drop_off_rate: isLast ? 0 : roundRate(dropOff, entered),
       avg_time_to_convert_seconds:
         !isLast && row.avg_time_seconds !== null && row.avg_time_seconds !== undefined && Number(row.avg_time_seconds) >= 0
           ? Math.round(Number(row.avg_time_seconds))
@@ -147,13 +154,13 @@ export function computeAggregateSteps(
     const isLast = idx === stepNums.length - 1;
     const nextTotal = isLast ? 0 : (stepTotals.get(stepNums[idx + 1]) ?? 0);
     const dropOff = isLast ? 0 : total - nextTotal;
-    const dropOffRate = isLast ? 0 : (total > 0 ? Math.round((dropOff / total) * 1000) / 10 : 0);
+    const dropOffRate = isLast ? 0 : roundRate(dropOff, total);
     return {
       step: sn,
       label: steps[sn - 1]?.label ?? '',
       event_name: steps[sn - 1]?.event_name ?? '',
       count: total,
-      conversion_rate: step1Total > 0 ? Math.round((total / step1Total) * 1000) / 10 : 0,
+      conversion_rate: roundRate(total, step1Total),
       drop_off: dropOff,
       drop_off_rate: dropOffRate,
       avg_time_to_convert_seconds: null,

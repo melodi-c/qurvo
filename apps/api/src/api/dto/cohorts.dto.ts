@@ -82,6 +82,7 @@ export class CreateStaticCohortDto {
 
   @IsArray()
   @IsUUID('4', { each: true })
+  @ArrayMaxSize(10_000)
   @IsOptional()
   person_ids?: string[];
 }

@@ -190,15 +190,16 @@ export function buildAllEventNames(steps: FunnelStep[], exclusions: FunnelExclus
  */
 export function buildSamplingClause(
   samplingFactor: number | undefined,
-  queryParams: FunnelChQueryParams,
-): Expr | undefined {
+): { expr: Expr; samplePct: number } | undefined {
   if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return undefined;}
   const pct = Math.round(samplingFactor * 100);
-  queryParams.sample_pct = pct;
-  return lt(
-    mod(sipHash64(toString(resolvedPerson())), literal(100)),
-    namedParam('sample_pct', 'UInt8', pct),
-  );
+  return {
+    expr: lt(
+      mod(sipHash64(toString(resolvedPerson())), literal(100)),
+      namedParam('sample_pct', 'UInt8', pct),
+    ),
+    samplePct: pct,
+  };
 }
 
 // windowFunnel expression
@@ -310,19 +311,6 @@ export function buildExclusionColumns(
   return exprs;
 }
 
-/**
- * Builds the excluded_users WHERE condition as a raw SQL string.
- *
- * A user is placed in excluded_users if, for exclusion i:
- *  - There exists at least one (from_ts, to_ts) conversion window attempt
- *    that is "tainted" by an exclusion event (excl_ts in (from_ts, to_ts))
- *  - AND there does NOT exist any "clean" (from_ts, to_ts) pair without an
- *    exclusion event in between
- *
- * @param anchorFilter - When true, restricts (f, t) pairs to only those where
- *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
- *   funnels (issue #497).
- */
 /**
  * Builds the excluded_users WHERE condition as an Expr AST node.
  *

@@ -70,13 +70,12 @@ export async function queryFunnel(
 
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
-  // Sampling clause as Expr AST
-  const samplingExpr = buildSamplingClause(params.sampling_factor, queryParams);
-  // Mirror the same guard used in buildSamplingClause: sampling is active only when
-  // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
-  const sf = params.sampling_factor;
-  const samplingResult = sf !== null && sf !== undefined && !isNaN(sf) && sf < 1
-    ? { sampling_factor: sf } : {};
+  // Sampling clause as Expr AST (no side-effect — destructure explicitly)
+  const samplingResult_raw = buildSamplingClause(params.sampling_factor);
+  const samplingExpr = samplingResult_raw?.expr;
+  if (samplingResult_raw) {queryParams.sample_pct = samplingResult_raw.samplePct;}
+  const samplingResult = samplingResult_raw
+    ? { sampling_factor: params.sampling_factor } : {};
 
   // Cohort breakdown
   if (params.breakdown_cohort_ids?.length) {
