@@ -1,6 +1,11 @@
 export { createClickHouse } from './client';
 export type { ClickHouseConfig, ClickHouseClient } from './client';
 
+export { ChQueryExecutor } from './query-executor';
+
+/** DI token for `ChQueryExecutor` in NestJS providers. */
+export const CH_EXECUTOR = Symbol('CH_EXECUTOR');
+
 /** Represents a row in the ingestion_warnings table. */
 export interface IngestionWarning {
   project_id: string;
