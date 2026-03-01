@@ -31,6 +31,7 @@ import { CohortsController } from '../../api/controllers/cohorts.controller';
 import { StaticCohortsController } from '../../api/controllers/static-cohorts.controller';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
+import { AnalyticsCacheService } from '../../analytics/analytics-cache.service';
 import { ProjectsService } from '../../projects/projects.service';
 import { createHttpFilter } from '../../api/filters/create-http-filter';
 import { AppNotFoundException } from '../../exceptions/app-not-found.exception';
@@ -188,6 +189,7 @@ beforeAll(async () => {
       { provide: CLICKHOUSE, useValue: ctx.ch },
       { provide: REDIS, useValue: ctx.redis },
       // Services
+      AnalyticsCacheService,
       CohortsService,
       StaticCohortsService,
       ProjectsService,

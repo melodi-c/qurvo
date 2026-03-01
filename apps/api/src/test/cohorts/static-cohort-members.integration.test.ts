@@ -25,6 +25,7 @@ import { ProjectMemberGuard } from '../../api/guards/project-member.guard';
 import { StaticCohortsController } from '../../api/controllers/static-cohorts.controller';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
 import { CohortsService } from '../../cohorts/cohorts.service';
+import { AnalyticsCacheService } from '../../analytics/analytics-cache.service';
 import { ProjectsService } from '../../projects/projects.service';
 import { createHttpFilter } from '../../api/filters/create-http-filter';
 import { AppNotFoundException } from '../../exceptions/app-not-found.exception';
@@ -159,6 +160,7 @@ beforeAll(async () => {
       { provide: DRIZZLE, useValue: ctx.db },
       { provide: CLICKHOUSE, useValue: ctx.ch },
       { provide: REDIS, useValue: ctx.redis },
+      AnalyticsCacheService,
       CohortsService,
       StaticCohortsService,
       ProjectsService,

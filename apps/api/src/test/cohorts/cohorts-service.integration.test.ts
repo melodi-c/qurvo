@@ -6,6 +6,7 @@ import { cohorts } from '@qurvo/db';
 import { getTestContext, type ContainerContext } from '../context';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
+import { AnalyticsCacheService } from '../../analytics/analytics-cache.service';
 import { CohortNotFoundException } from '../../cohorts/exceptions/cohort-not-found.exception';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import { materializeCohort, insertStaticCohortMembers } from './helpers';
@@ -17,7 +18,8 @@ let staticService: StaticCohortsService;
 
 beforeAll(async () => {
   ctx = await getTestContext();
-  service = new CohortsService(ctx.db as any, ctx.ch as any, ctx.redis as any);
+  const cacheService = new AnalyticsCacheService(ctx.redis as any);
+  service = new CohortsService(ctx.db as any, ctx.ch as any, cacheService);
   staticService = new StaticCohortsService(ctx.db as any, ctx.ch as any, service);
 }, 120_000);
 
