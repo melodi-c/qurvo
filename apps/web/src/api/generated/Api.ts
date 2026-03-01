@@ -1835,7 +1835,7 @@ export interface LifecycleControllerGetLifecycleParams {
    */
   cohort_ids?: string[];
   granularity: Granularity;
-  event_filters?: StepFilter[];
+  filters?: StepFilter[];
   target_event: string;
   /** @format uuid */
   widget_id?: string;
@@ -1854,7 +1854,7 @@ export interface StickinessControllerGetStickinessParams {
    */
   cohort_ids?: string[];
   granularity: Granularity;
-  event_filters?: StepFilter[];
+  filters?: StepFilter[];
   target_event: string;
   /** @format uuid */
   widget_id?: string;
@@ -1875,7 +1875,7 @@ export interface PathsControllerGetPathsParams {
   exclusions?: string[];
   path_cleaning_rules?: PathCleaningRule[];
   wildcard_groups?: WildcardGroup[];
-  event_filters?: StepFilter[];
+  filters?: StepFilter[];
   /**
    * @min 3
    * @max 1000

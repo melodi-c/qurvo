@@ -18,7 +18,7 @@ export interface StickinessQueryParams {
   granularity: StickinessGranularity;
   date_from: string;
   date_to: string;
-  event_filters?: PropertyFilter[];
+  filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
   timezone?: string;
 }
@@ -130,7 +130,7 @@ export async function queryStickiness(
       to: params.date_to,
       tz: params.timezone,
       eventName: params.target_event,
-      filters: params.event_filters,
+      filters: params.filters,
       cohortFilters: params.cohort_filters,
       ...cohortBounds(params),
     }))

@@ -94,11 +94,16 @@ export class PathsQueryDto extends BaseAnalyticsQueryDto {
 
   @ApiPropertyOptional({ type: [StepFilterDto] })
   @IsOptional()
-  @Transform(makeJsonArrayTransform(StepFilterDto))
+  @Transform(({ value, obj }) => {
+    // Backward compat: accept legacy "event_filters" field
+    const raw = value ?? obj?.event_filters;
+    if (!raw) return undefined;
+    return makeJsonArrayTransform(StepFilterDto)({ value: raw });
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)
-  event_filters?: StepFilterDto[];
+  filters?: StepFilterDto[];
 }
 
 export class PathTransitionDto {

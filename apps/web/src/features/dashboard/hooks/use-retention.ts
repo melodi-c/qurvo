@@ -5,7 +5,6 @@ import { createTargetEventHook } from './create-target-event-hook';
 export const useRetentionData = createTargetEventHook<RetentionWidgetConfig, RetentionResponse, RetentionControllerGetRetentionParams>({
   queryKeyPrefix: 'retention',
   apiFn: (params) => api.retentionControllerGetRetention(params),
-  filtersParamName: 'filters',
   extraHash: (config) => ({
     retention_type: config.retention_type,
     periods: config.periods,
