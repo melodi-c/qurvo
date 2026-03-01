@@ -1,4 +1,4 @@
-import type { ClickHouseClient } from '@clickhouse/client';
+import type { ClickHouseClient, ClickHouseSettings } from '@clickhouse/client';
 import type { QueryNode } from '@qurvo/ch-query';
 import { compile } from '@qurvo/ch-query';
 
@@ -58,7 +58,7 @@ export class ChQueryExecutor {
     table: string,
     columns: string[],
     selectNode: QueryNode,
-    settings?: Record<string, unknown>,
+    settings?: ClickHouseSettings,
   ): Promise<void> {
     const { sql, params } = compile(selectNode);
     const insertSql = `INSERT INTO ${table} (${columns.join(', ')}) ${sql}`;
