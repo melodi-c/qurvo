@@ -247,6 +247,18 @@ export function toDate(expr: Expr): WithAlias<FuncCallExpr> {
   return func('toDate', expr);
 }
 
+export function toInt64(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toInt64', expr);
+}
+
+export function toUInt64(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toUInt64', expr);
+}
+
+export function toUnixTimestamp64Milli(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toUnixTimestamp64Milli', expr);
+}
+
 export function parseDateTimeBestEffortOrZero(expr: Expr): WithAlias<FuncCallExpr> {
   return func('parseDateTimeBestEffortOrZero', expr);
 }
@@ -255,6 +267,14 @@ export function parseDateTimeBestEffortOrZero(expr: Expr): WithAlias<FuncCallExp
 
 export function argMax(expr: Expr, orderByExpr: Expr): WithAlias<FuncCallExpr> {
   return func('argMax', expr, orderByExpr);
+}
+
+export function argMinIf(expr: Expr, orderByExpr: Expr, condition: Expr): WithAlias<FuncCallExpr> {
+  return func('argMinIf', expr, orderByExpr, condition);
+}
+
+export function argMaxIf(expr: Expr, orderByExpr: Expr, condition: Expr): WithAlias<FuncCallExpr> {
+  return func('argMaxIf', expr, orderByExpr, condition);
 }
 
 // ── Dictionary functions ──
@@ -279,7 +299,42 @@ export function multiSearchAny(expr: Expr, arrayExpr: Expr): WithAlias<FuncCallE
   return func('multiSearchAny', expr, arrayExpr);
 }
 
+// ── Array & utility functions ──
+
+/** notEmpty(expr) — returns 1 if array/string is not empty */
+export function notEmpty(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('notEmpty', expr);
+}
+
+/** greatest(expr1, expr2, ...) — returns the maximum across arguments */
+export function greatest(...exprs: Expr[]): WithAlias<FuncCallExpr> {
+  return func('greatest', ...exprs);
+}
+
+/** indexOf(arr, val) — returns 1-based index of val in arr, or 0 if not found */
+export function indexOf(arr: Expr, val: Expr): WithAlias<FuncCallExpr> {
+  return func('indexOf', arr, val);
+}
+
+/** arrayElement(arr, idx) — returns element at 1-based index (equivalent to arr[idx]) */
+export function arrayElement(arr: Expr, idx: Expr): WithAlias<FuncCallExpr> {
+  return func('arrayElement', arr, idx);
+}
+
+/** sipHash64(expr) — SipHash-2-4 hash function returning UInt64 */
+export function sipHash64(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('sipHash64', expr);
+}
+
 // ── Conditional functions ──
+
+/**
+ * if(cond, then, else_) — ClickHouse ternary `if` function.
+ * Named `ifExpr` to avoid conflict with JS reserved word.
+ */
+export function ifExpr(cond: Expr, then: Expr, else_: Expr): WithAlias<FuncCallExpr> {
+  return func('if', cond, then, else_);
+}
 
 /** coalesce(expr1, expr2, ...) — returns the first non-NULL argument */
 export function coalesce(...exprs: Expr[]): WithAlias<FuncCallExpr> {
@@ -294,6 +349,20 @@ export function coalesce(...exprs: Expr[]): WithAlias<FuncCallExpr> {
  */
 export function arrayExists(lambdaExpr: LambdaExpr, arrayExpr: Expr): WithAlias<FuncCallExpr> {
   return func('arrayExists', lambdaExpr, arrayExpr);
+}
+
+/**
+ * arrayMin — two signatures:
+ * 1. arrayMin(lambda, arrayExpr) — min of lambda applied to each element
+ * 2. arrayMin(arrayExpr) — min element of the array (no lambda)
+ */
+export function arrayMin(arrayExpr: Expr): WithAlias<FuncCallExpr>;
+export function arrayMin(lambdaExpr: LambdaExpr, arrayExpr: Expr): WithAlias<FuncCallExpr>;
+export function arrayMin(first: Expr, second?: Expr): WithAlias<FuncCallExpr> {
+  if (second !== undefined) {
+    return func('arrayMin', first, second);
+  }
+  return func('arrayMin', first);
 }
 
 /**
