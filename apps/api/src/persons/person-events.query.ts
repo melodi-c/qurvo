@@ -3,10 +3,11 @@ import {
   compile,
   select,
   col,
-  raw,
   param,
   eq,
   or,
+  dictGetOrNull,
+  tuple,
 } from '@qurvo/ch-query';
 import { projectIs } from '../analytics/query-helpers';
 import type { EventDetailRow } from '../events/events.query';
@@ -40,7 +41,7 @@ export async function queryPersonEvents(
       or(
         eq(col('events.person_id'), personIdParam),
         eq(
-          raw(`dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id))`),
+          dictGetOrNull('person_overrides_dict', 'person_id', tuple(col('project_id'), col('distinct_id'))),
           param('UUID', params.person_id),
         ),
       ),

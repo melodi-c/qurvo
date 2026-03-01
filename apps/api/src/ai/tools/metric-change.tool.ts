@@ -7,8 +7,12 @@ import type { AiTool } from './ai-tool.interface';
 import {
   alias,
   col,
+  compile,
   compileExprToSql,
   CompilerContext,
+  select,
+  countIf,
+  func,
   and,
   gte,
   lte,
@@ -22,7 +26,7 @@ import {
   analyticsWhere,
   toChTs,
   tsParam,
-  RESOLVED_PERSON,
+  resolvedPerson,
 } from '../../analytics/query-helpers';
 import { type Metric, computeMetricValue } from './metric.utils';
 import { MAX_METRIC_SEGMENTS } from '../../constants';
@@ -126,40 +130,48 @@ async function queryDimension(
   currentTo: string,
   dimension: string,
 ): Promise<DimensionResult> {
-  // Compile SELECT columns via AST (baseMetricColumns + breakdown dimension)
+  // Documented exception: FULL OUTER JOIN is not supported by SelectBuilder.
+  // Sub-query columns and WHERE clauses are built via AST, then composed with
+  // FULL OUTER JOIN in raw SQL. A shared CompilerContext prevents param collisions
+  // between the two independent sub-queries.
   const ctx = new CompilerContext();
   const queryParams: Record<string, unknown> = {};
 
-  const metricColsSql = baseMetricColumns()
-    .map((col) => compileExprToSql(col, queryParams, ctx).sql)
-    .join(', ');
-  const segmentColSql = compileExprToSql(
-    alias(resolvePropertyExpr(dimension), 'segment_value'), queryParams, ctx,
-  ).sql;
-  const selectCols = `${metricColsSql}, ${segmentColSql}`;
+  // Build sub-query parts via AST (columns + WHERE) using shared context
+  const metricCols = baseMetricColumns();
+  const segmentExpr = resolvePropertyExpr(dimension);
 
-  // Compile WHERE clauses via AST with the shared context to avoid param collisions
-  const baselineWhere = compileExprToSql(
+  const segmentAlias = alias(segmentExpr, 'segment_value');
+  const baselineColsSql = [...metricCols, segmentAlias]
+    .map((c) => compileExprToSql(c, queryParams, ctx).sql)
+    .join(', ');
+
+  const baselineWhereSql = compileExprToSql(
     analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), eventName }),
     queryParams, ctx,
-  );
-  const currentWhere = compileExprToSql(
+  ).sql;
+
+  const currentColsSql = [...metricCols, segmentAlias]
+    .map((c) => compileExprToSql(c, queryParams, ctx).sql)
+    .join(', ');
+
+  const currentWhereSql = compileExprToSql(
     analyticsWhere({ projectId, from: currentFrom, to: toChTs(currentTo, true), eventName }),
     queryParams, ctx,
-  );
+  ).sql;
 
   const sql = `
     WITH
       baseline AS (
-        SELECT ${selectCols}
+        SELECT ${baselineColsSql}
         FROM events
-        WHERE ${baselineWhere.sql}
+        WHERE ${baselineWhereSql}
         GROUP BY segment_value
       ),
       current_period AS (
-        SELECT ${selectCols}
+        SELECT ${currentColsSql}
         FROM events
-        WHERE ${currentWhere.sql}
+        WHERE ${currentWhereSql}
         GROUP BY segment_value
       ),
       totals AS (
@@ -223,9 +235,6 @@ async function queryOverallTotals(
   currentFrom: string,
   currentTo: string,
 ): Promise<{ baseline_value: number; current_value: number; relative_change_pct: number; absolute_change: number }> {
-  const ctx = new CompilerContext();
-  const queryParams: Record<string, unknown> = {};
-
   // Build conditional time-range expressions via AST
   const baselineCond = and(
     gte(col('timestamp'), tsParam(baselineFrom)),
@@ -236,32 +245,21 @@ async function queryOverallTotals(
     lte(col('timestamp'), tsParam(toChTs(currentTo, true))),
   );
 
-  const baseCondSql = compileExprToSql(baselineCond, queryParams, ctx);
-  const curCondSql = compileExprToSql(currentCond, queryParams, ctx);
+  const node = select(
+    countIf(baselineCond).as('baseline_raw'),
+    func('uniqExactIf', resolvedPerson(), baselineCond).as('baseline_uniq'),
+    countIf(currentCond).as('current_raw'),
+    func('uniqExactIf', resolvedPerson(), currentCond).as('current_uniq'),
+  )
+    .from('events')
+    .where(
+      projectIs(projectId),
+      eventIs(eventName),
+      or(baselineCond, currentCond),
+    )
+    .build();
 
-  // Project + event conditions
-  const projEventSql = compileExprToSql(
-    and(projectIs(projectId), eventIs(eventName)),
-    queryParams, ctx,
-  );
-
-  // OR condition for the WHERE clause (scan only relevant rows)
-  const orCondSql = compileExprToSql(
-    or(baselineCond, currentCond),
-    queryParams, ctx,
-  );
-
-  const sql = `
-    SELECT
-      countIf(${baseCondSql.sql}) AS baseline_raw,
-      uniqExactIf(${RESOLVED_PERSON}, ${baseCondSql.sql}) AS baseline_uniq,
-      countIf(${curCondSql.sql}) AS current_raw,
-      uniqExactIf(${RESOLVED_PERSON}, ${curCondSql.sql}) AS current_uniq
-    FROM events
-    WHERE
-      ${projEventSql.sql}
-      AND (${orCondSql.sql})
-  `;
+  const { sql, params: queryParams } = compile(node);
 
   const res = await ch.query({ query: sql, query_params: queryParams, format: 'JSONEachRow' });
   const rows = await res.json<{ baseline_raw: string; baseline_uniq: string; current_raw: string; current_uniq: string }>();
