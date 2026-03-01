@@ -1,11 +1,8 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
   compile,
-  compileExprToSql,
-  CompilerContext,
   select,
   col,
-  raw,
   count,
   countIf,
   and,
@@ -29,11 +26,10 @@ import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
 import {
   buildAllEventNames,
   buildBaseQueryParams,
-  buildSamplingClauseRaw,
+  buildSamplingClause,
   buildStepCondition,
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
-  toChTs,
   validateExclusions,
   validateUnorderedSteps,
   type FunnelChQueryParams,
@@ -70,14 +66,13 @@ export async function queryFunnel(
 
   const allEventNames = buildAllEventNames(steps, exclusions);
   const queryParams = buildBaseQueryParams(params, allEventNames);
-  const ctx = new CompilerContext();
-  const stepConditions = steps.map((s, i) => buildStepCondition(s, i, queryParams, ctx)).join(', ');
+  // Build step conditions as Expr AST nodes
+  const stepConditions: Expr[] = steps.map((s, i) => buildStepCondition(s, i));
 
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
-  const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams, ctx).sql : '';
-  // Raw sampling clause for CTE body builders (string-based escape hatch)
-  const samplingClause = buildSamplingClauseRaw(params.sampling_factor, queryParams);
+  // Sampling clause as Expr AST
+  const samplingExpr = buildSamplingClause(params.sampling_factor, queryParams);
   // Mirror the same guard used in buildSamplingClause: sampling is active only when
   // sampling_factor is a valid number < 1 (not null, not NaN, not >= 1).
   const sf = params.sampling_factor;
@@ -87,7 +82,7 @@ export async function queryFunnel(
   // ── Cohort breakdown ────────────────────────────────────────────────────
   if (params.breakdown_cohort_ids?.length) {
     const { steps: bdSteps, aggregate_steps } = await runFunnelCohortBreakdown(
-      ch, params, queryParams, stepConditions, cohortClause, samplingClause,
+      ch, params, queryParams, stepConditions, cohortExpr, samplingExpr,
     );
     return {
       breakdown: true,
@@ -100,7 +95,7 @@ export async function queryFunnel(
 
   // ── Non-breakdown funnel ────────────────────────────────────────────────
   if (!params.breakdown_property) {
-    const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams, undefined, ctx);
+    const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, undefined);
     const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
     const rows = await result.json<RawFunnelRow>();
     return { breakdown: false, steps: computeStepResults(rows, steps, numSteps), ...samplingResult };
@@ -109,8 +104,8 @@ export async function queryFunnel(
   // ── Property breakdown funnel ───────────────────────────────────────────
   const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
   queryParams.breakdown_limit = breakdownLimit;
-  const breakdownExpr = compileExprToSql(resolvePropertyExpr(params.breakdown_property), undefined, ctx).sql;
-  const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, queryParams, breakdownExpr, ctx);
+  const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
+  const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, breakdownExpr);
   const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
   const rows = await result.json<RawBreakdownRow>();
   const stepResults = computePropertyBreakdownResults(rows, steps, numSteps);
@@ -119,7 +114,7 @@ export async function queryFunnel(
 
   // Run a separate no-breakdown query for aggregate_steps.
   const aggregateQueryParams = { ...queryParams };
-  const aggregateCompiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortClause, samplingClause, numSteps, aggregateQueryParams, undefined, ctx);
+  const aggregateCompiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, aggregateQueryParams, undefined);
   const aggregateResult = await ch.query({ query: aggregateCompiled.sql, query_params: aggregateCompiled.params, format: 'JSONEachRow' });
   const aggregateRows = await aggregateResult.json<RawFunnelRow>();
   const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
@@ -140,13 +135,12 @@ function buildFunnelQuery(
   orderType: 'ordered' | 'strict' | 'unordered',
   steps: FunnelQueryParams['steps'],
   exclusions: NonNullable<FunnelQueryParams['exclusions']>,
-  stepConditions: string,
-  cohortClause: string,
-  samplingClause: string,
+  stepConditions: Expr[],
+  cohortExpr: Expr | undefined,
+  samplingExpr: Expr | undefined,
   numSteps: number,
   queryParams: FunnelChQueryParams,
-  breakdownExpr?: string,
-  ctx?: CompilerContext,
+  breakdownExpr?: Expr,
 ): CompiledQuery {
   const hasBreakdown = !!breakdownExpr;
   const includeTimestampCols = !hasBreakdown;
@@ -156,7 +150,7 @@ function buildFunnelQuery(
 
   if (orderType === 'unordered') {
     cteResult = buildUnorderedFunnelCTEs({
-      steps, exclusions, cohortClause, samplingClause, queryParams, breakdownExpr, ctx,
+      steps, exclusions, cohortExpr, samplingExpr, queryParams, breakdownExpr,
     });
   } else {
     cteResult = buildOrderedFunnelCTEs({
@@ -164,13 +158,12 @@ function buildFunnelQuery(
       orderType,
       stepConditions,
       exclusions,
-      cohortClause,
-      samplingClause,
+      cohortExpr,
+      samplingExpr,
       numSteps,
       queryParams,
       breakdownExpr,
       includeTimestampCols,
-      ctx,
     });
   }
 
@@ -250,7 +243,13 @@ function buildFunnelQuery(
   // ORDER BY
   builder.orderBy(col('step_num'));
 
-  return compile(builder.build());
+  // compile() extracts all namedParam/rawWithParams params from the AST.
+  // Merge with queryParams for raw ClickHouse params ({window:UInt64}, {num_steps:UInt64}, etc.)
+  const compiled = compile(builder.build());
+  return {
+    sql: compiled.sql,
+    params: { ...queryParams, ...compiled.params },
+  };
 }
 
 // ── Breakdown CTEs ───────────────────────────────────────────────────────────

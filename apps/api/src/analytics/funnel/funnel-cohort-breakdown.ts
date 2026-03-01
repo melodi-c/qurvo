@@ -8,6 +8,8 @@ import {
   literal,
   notInSubquery,
   add,
+  and,
+  raw,
   type Expr,
   type QueryNode,
 } from '@qurvo/ch-query';
@@ -42,6 +44,7 @@ interface CohortBreakdownResult {
  */
 function buildCohortFunnelCompiled(
   cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean },
+  queryParams: FunnelChQueryParams,
 ): { sql: string; params: Record<string, unknown> } {
   const whereConditions: Expr[] = [];
   if (cteResult.hasExclusions) {
@@ -67,7 +70,11 @@ function buildCohortFunnelCompiled(
     .groupBy(col('step_num'))
     .orderBy(col('step_num'));
 
-  return compile(builder.build());
+  const compiled = compile(builder.build());
+  return {
+    sql: compiled.sql,
+    params: { ...queryParams, ...compiled.params },
+  };
 }
 
 /**
@@ -79,9 +86,9 @@ export async function runFunnelCohortBreakdown(
   ch: ClickHouseClient,
   params: FunnelQueryParams,
   baseQueryParams: FunnelChQueryParams,
-  stepConditions: string,
-  cohortClause: string,
-  samplingClause: string,
+  stepConditions: Expr[],
+  cohortExpr: Expr | undefined,
+  samplingExpr: Expr | undefined,
 ): Promise<CohortBreakdownResult> {
   const cohortBreakdowns = params.breakdown_cohort_ids ?? [];
   const { steps, exclusions = [] } = params;
@@ -99,7 +106,10 @@ export async function runFunnelCohortBreakdown(
     const cohortFilterPredicate = buildCohortFilterForBreakdown(
       cb, cbParamKey, 900 + cbIdx, cbQueryParams, dateTo, dateFrom,
     );
-    const cohortFilter = ` AND ${cohortFilterPredicate}`;
+    // Combine base cohort filter with per-breakdown cohort filter as raw SQL
+    const combinedCohortExpr = cohortExpr
+      ? and(cohortExpr, raw(cohortFilterPredicate))
+      : raw(cohortFilterPredicate);
 
     let cteResult;
 
@@ -107,8 +117,8 @@ export async function runFunnelCohortBreakdown(
       cteResult = buildUnorderedFunnelCTEs({
         steps,
         exclusions,
-        cohortClause: `${cohortClause}${cohortFilter}`,
-        samplingClause,
+        cohortExpr: combinedCohortExpr,
+        samplingExpr,
         queryParams: cbQueryParams,
       });
     } else {
@@ -117,16 +127,16 @@ export async function runFunnelCohortBreakdown(
         orderType,
         stepConditions,
         exclusions,
-        cohortClause: `${cohortClause}${cohortFilter}`,
-        samplingClause,
+        cohortExpr: combinedCohortExpr,
+        samplingExpr,
         numSteps,
         queryParams: cbQueryParams,
         includeTimestampCols: true,
       });
     }
 
-    const compiled = buildCohortFunnelCompiled(cteResult);
-    const result = await ch.query({ query: compiled.sql, query_params: { ...cbQueryParams, ...compiled.params }, format: 'JSONEachRow' });
+    const compiled = buildCohortFunnelCompiled(cteResult, cbQueryParams);
+    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
     const rows = await result.json<RawFunnelRow>();
     perCohortResults.push(computeCohortBreakdownStepResults(rows, steps, numSteps, cb.cohort_id, cb.name));
   }
@@ -141,8 +151,8 @@ export async function runFunnelCohortBreakdown(
     aggregateCteResult = buildUnorderedFunnelCTEs({
       steps,
       exclusions,
-      cohortClause,
-      samplingClause,
+      cohortExpr,
+      samplingExpr,
       queryParams: aggregateQueryParams,
     });
   } else {
@@ -151,18 +161,18 @@ export async function runFunnelCohortBreakdown(
       orderType,
       stepConditions,
       exclusions,
-      cohortClause,
-      samplingClause,
+      cohortExpr,
+      samplingExpr,
       numSteps,
       queryParams: aggregateQueryParams,
       includeTimestampCols: true,
     });
   }
 
-  const aggregateCompiled = buildCohortFunnelCompiled(aggregateCteResult);
+  const aggregateCompiled = buildCohortFunnelCompiled(aggregateCteResult, aggregateQueryParams);
   const aggregateResult = await ch.query({
     query: aggregateCompiled.sql,
-    query_params: { ...aggregateQueryParams, ...aggregateCompiled.params },
+    query_params: aggregateCompiled.params,
     format: 'JSONEachRow',
   });
   const aggregateRows = await aggregateResult.json<RawFunnelRow>();

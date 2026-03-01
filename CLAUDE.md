@@ -8,14 +8,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 немедленно перечитай инструкции скилла через Read tool: `.claude/skills/issue-executor`
 После прочтения продолжи с того шага, на котором остановился.
 
-## Tool Preferences
-
-Предпочитай JetBrains MCP tools вместо встроенных:
-- Для чтения файлов: `mcp__jetbrains__get_file_text_by_path` вместо Read
-- Для поиска по содержимому: `mcp__jetbrains__search_in_files_by_text` вместо Grep
-- Для редактирования: `mcp__jetbrains__replace_text_in_file` вместо Edit
-- Для рефакторинга переименований: `mcp__jetbrains__rename_refactoring`
-
 ## Commands
 
 ```bash

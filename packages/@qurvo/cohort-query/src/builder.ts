@@ -148,7 +148,7 @@ export function buildCohortFilterClause(
       const idParam = `coh_mid_${idx}`;
       queryParams[idParam] = c.cohort_id;
       const memberQuery = select(raw('person_id'))
-        .from('cohort_members', { final: true })
+        .from('cohort_members FINAL')
         .where(
           raw(`cohort_id = {${idParam}:UUID}`),
           raw(`project_id = {${projectIdParam}:UUID}`),
@@ -160,7 +160,7 @@ export function buildCohortFilterClause(
       const idParam = `coh_sid_${idx}`;
       queryParams[idParam] = c.cohort_id;
       const memberQuery = select(raw('person_id'))
-        .from('person_static_cohort', { final: true })
+        .from('person_static_cohort FINAL')
         .where(
           raw(`cohort_id = {${idParam}:UUID}`),
           raw(`project_id = {${projectIdParam}:UUID}`),

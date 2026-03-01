@@ -1,6 +1,5 @@
 import type { FunnelStep, FunnelStepResult, FunnelBreakdownStepResult } from './funnel.types';
 import { buildEmptyStepResults } from './funnel-sql-shared';
-import { normalizeBreakdownValue } from '../query-helpers';
 
 // ── Raw row types from ClickHouse ────────────────────────────────────────────
 
@@ -92,7 +91,7 @@ export function computePropertyBreakdownResults(
 ): FunnelBreakdownStepResult[] {
   const grouped = new Map<string, RawBreakdownRow[]>();
   for (const row of rows) {
-    const bv = normalizeBreakdownValue(row.breakdown_value);
+    const bv = (row.breakdown_value !== null && row.breakdown_value !== undefined && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
     const existing = grouped.get(bv);
     if (existing) {
       existing.push(row);

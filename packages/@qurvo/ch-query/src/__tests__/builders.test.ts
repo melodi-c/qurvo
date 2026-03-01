@@ -3,9 +3,13 @@ import {
   add,
   and,
   argMax,
+  argMaxIf,
+  argMinIf,
+  arrayElement,
   arrayExists,
   arrayFilter,
   arrayMax,
+  arrayMin,
   arraySort,
   avg,
   avgIf,
@@ -20,11 +24,14 @@ import {
   except,
   func,
   funcDistinct,
+  greatest,
   groupArray,
   groupArrayIf,
   gt,
   gte,
+  ifExpr,
   inArray,
+  indexOf,
   inSubquery,
   interval,
   jsonExtractRaw,
@@ -48,6 +55,7 @@ import {
   namedParam,
   neq,
   not,
+  notEmpty,
   notInSubquery,
   notLike,
   or,
@@ -56,13 +64,17 @@ import {
   parseDateTimeBestEffortOrZero,
   raw,
   select,
+  sipHash64,
   sub,
   subquery,
   sum,
   sumIf,
   toDate,
   toFloat64OrZero,
+  toInt64,
   toString,
+  toUInt64,
+  toUnixTimestamp64Milli,
   unionAll,
   uniqExact,
 } from '../builders';
@@ -344,29 +356,6 @@ describe('builders', () => {
       expect(node.fromAlias).toBe('sub');
     });
 
-    test('from with final option', () => {
-      const node = select(col('person_id')).from('cohort_members', { final: true }).build();
-      expect(node.from).toBe('cohort_members');
-      expect(node.final).toBe(true);
-    });
-
-    test('from with final and alias option', () => {
-      const node = select(col('*')).from('cohort_members', { final: true, alias: 'cm' }).build();
-      expect(node.from).toBe('cohort_members');
-      expect(node.final).toBe(true);
-      expect(node.fromAlias).toBe('cm');
-    });
-
-    test('final() fluent method', () => {
-      const node = select(col('*')).from('events').final().build();
-      expect(node.final).toBe(true);
-    });
-
-    test('final() returns same builder for chaining', () => {
-      const builder = select(col('a'));
-      expect(builder.final()).toBe(builder);
-    });
-
     test('where() auto-ands conditions', () => {
       const node = select(col('*'))
         .from('t')
@@ -629,6 +618,94 @@ describe('builders', () => {
       const l = lambda(['x'], col('x'));
       const f = arrayMax(l, col('arr'));
       expect(f.name).toBe('arrayMax');
+      expect(f.args).toHaveLength(2);
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'lambda' }));
+    });
+
+    test('argMinIf()', () => {
+      const cond = eq(col('step'), literal(1));
+      const f = argMinIf(col('value'), col('timestamp'), cond);
+      expect(f.name).toBe('argMinIf');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('argMaxIf()', () => {
+      const cond = eq(col('step'), literal(1));
+      const f = argMaxIf(col('value'), col('timestamp'), cond);
+      expect(f.name).toBe('argMaxIf');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('toInt64()', () => {
+      const f = toInt64(col('timestamp'));
+      expect(f.name).toBe('toInt64');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toUInt64()', () => {
+      const f = toUInt64(col('timestamp'));
+      expect(f.name).toBe('toUInt64');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toUnixTimestamp64Milli()', () => {
+      const f = toUnixTimestamp64Milli(col('timestamp'));
+      expect(f.name).toBe('toUnixTimestamp64Milli');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('notEmpty()', () => {
+      const f = notEmpty(col('arr'));
+      expect(f.name).toBe('notEmpty');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('greatest()', () => {
+      const f = greatest(col('a'), col('b'), col('c'));
+      expect(f.name).toBe('greatest');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('indexOf()', () => {
+      const f = indexOf(col('arr'), literal('x'));
+      expect(f.name).toBe('indexOf');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('arrayElement()', () => {
+      const f = arrayElement(col('arr'), literal(1));
+      expect(f.name).toBe('arrayElement');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('sipHash64()', () => {
+      const f = sipHash64(col('person_id'));
+      expect(f.name).toBe('sipHash64');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('ifExpr()', () => {
+      const f = ifExpr(gt(col('x'), literal(0)), literal('positive'), literal('non-positive'));
+      expect(f.name).toBe('if');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('ifExpr().as() creates AliasExpr', () => {
+      const a = ifExpr(gt(col('x'), literal(0)), literal(1), literal(0)).as('flag');
+      expect(a.type).toBe('alias');
+      expect(a.alias).toBe('flag');
+    });
+
+    test('arrayMin() without lambda', () => {
+      const f = arrayMin(col('arr'));
+      expect(f.name).toBe('arrayMin');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('arrayMin() with lambda', () => {
+      const l = lambda(['x'], col('x'));
+      const f = arrayMin(l, col('arr'));
+      expect(f.name).toBe('arrayMin');
       expect(f.args).toHaveLength(2);
       expect(f.args[0]).toEqual(expect.objectContaining({ type: 'lambda' }));
     });
