@@ -50,37 +50,55 @@ if [[ -f "$STATE_FILE" ]]; then
   done <<< "$ENTRIES"
 fi
 
-# ── 2. Орфанные worktrees в ~/worktrees/ ─────────────────────────────
+# ── 2. Орфанные worktrees в ~/worktrees/ и .claude/worktrees/ ─────────
 # Фильтруем только agent-*, fix-*, feature-* директории (созданные executor'ом)
-if [[ -d "$WORKTREES_BASE" ]]; then
-  for DIR in "$WORKTREES_BASE"/*/; do
-    [[ -d "$DIR" ]] || continue
-    DIR_NAME=$(basename "$DIR")
-    # Только executor-created worktrees
-    case "$DIR_NAME" in
-      agent-*|fix-*|feature-*) ;;
-      *) continue ;;
-    esac
-    # Проверяем что это git worktree (содержит .git файл)
-    if [[ -e "$DIR/.git" ]]; then
-      git -C "$REPO_ROOT" worktree remove "$DIR" --force 2>/dev/null || rm -rf "$DIR" 2>/dev/null || true
-      CLEANED_WT=$((CLEANED_WT + 1))
-      echo "Removed orphan worktree: $DIR" >&2
+WORKTREES_CLAUDE="$REPO_ROOT/.claude/worktrees"
+for WORKTREES_DIR in "$WORKTREES_BASE" "$WORKTREES_CLAUDE"; do
+  if [[ -d "$WORKTREES_DIR" ]]; then
+    for DIR in "$WORKTREES_DIR"/*/; do
+      [[ -d "$DIR" ]] || continue
+      DIR_NAME=$(basename "$DIR")
+      # Только executor-created worktrees
+      case "$DIR_NAME" in
+        agent-*|fix-*|feature-*) ;;
+        *) continue ;;
+      esac
+      # Проверяем что это git worktree (содержит .git файл)
+      if [[ -e "$DIR/.git" ]]; then
+        git -C "$REPO_ROOT" worktree remove "$DIR" --force 2>/dev/null || rm -rf "$DIR" 2>/dev/null || true
+        CLEANED_WT=$((CLEANED_WT + 1))
+        echo "Removed orphan worktree: $DIR" >&2
 
-      # Удалить ветку с тем же именем (worktree-create.sh создаёт branch = name)
-      if git -C "$REPO_ROOT" rev-parse --verify "$DIR_NAME" &>/dev/null; then
-        git -C "$REPO_ROOT" branch -D "$DIR_NAME" 2>/dev/null || true
-        CLEANED_LOCAL=$((CLEANED_LOCAL + 1))
+        # Удалить ветку с тем же именем (worktree-create.sh создаёт branch = name)
+        if git -C "$REPO_ROOT" rev-parse --verify "$DIR_NAME" &>/dev/null; then
+          git -C "$REPO_ROOT" branch -D "$DIR_NAME" 2>/dev/null || true
+          CLEANED_LOCAL=$((CLEANED_LOCAL + 1))
+        fi
       fi
-    fi
-  done
-fi
+    done
+  fi
+done
 
 # ── 3. Оставшиеся локальные ветки fix/issue-* и feature/issue-* ──────
 # State мог быть удалён раньше — чистим по паттерну имени.
+# Но НЕ удаляем ветки, которые числятся в state с активным статусом (другая сессия).
+# Собираем список активных и защищённых веток из state
+SAFE_LOCAL_BRANCHES=""
+if [[ -f "$STATE_FILE" ]]; then
+  # Ветки со статусом != MERGED и != FAILED — активны, не трогаем
+  SAFE_LOCAL_BRANCHES=$(jq -r '.issues | to_entries[] | select(.value.status != "MERGED" and .value.status != "FAILED") | .value.branch // empty' "$STATE_FILE" 2>/dev/null || true)
+fi
+
 while IFS= read -r BRANCH; do
   [[ -n "$BRANCH" ]] || continue
   BRANCH=$(echo "$BRANCH" | xargs)  # trim whitespace
+
+  # Пропускаем ветки, активные в другой сессии
+  if [[ -n "$SAFE_LOCAL_BRANCHES" ]] && echo "$SAFE_LOCAL_BRANCHES" | grep -qxF "$BRANCH" 2>/dev/null; then
+    echo "Skipping active local branch: $BRANCH" >&2
+    continue
+  fi
+
   git -C "$REPO_ROOT" branch -D "$BRANCH" 2>/dev/null || true
   CLEANED_LOCAL=$((CLEANED_LOCAL + 1))
   echo "Deleted local branch: $BRANCH" >&2

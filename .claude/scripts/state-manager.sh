@@ -11,6 +11,21 @@ mkdir -p "$STATE_DIR"
 CMD="${1:?Usage: state-manager.sh <command> [args...]}"
 shift
 
+# Portable lock: mkdir is atomic on POSIX (macOS не имеет flock)
+LOCK_DIR="${STATE_FILE}.lock.d"
+_lock_acquired=false
+for _i in $(seq 1 10); do
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    _lock_acquired=true
+    trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+    break
+  fi
+  sleep 0.5
+done
+if ! $_lock_acquired; then
+  echo "ERROR: cannot acquire state lock" >&2; exit 1
+fi
+
 case "$CMD" in
   init)
     TS="${1:?timestamp}"
@@ -34,6 +49,10 @@ case "$CMD" in
     JQ_ARGS=(--arg n "$NUM" --arg s "$STATUS")
     for KV in "$@"; do
       KEY="${KV%%=*}"; VAL="${KV#*=}"
+      # Sanitize key: only allow alphanumeric and underscores
+      if [[ ! "$KEY" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+        echo "ERROR: invalid key name: $KEY" >&2; exit 1
+      fi
       JQ_EXPR="$JQ_EXPR | (.issues[\$n].${KEY}=\$v_${KEY})"
       JQ_ARGS+=(--arg "v_${KEY}" "$VAL")
     done
@@ -54,15 +73,18 @@ case "$CMD" in
     echo "OK" ;;
 
   read-active)
-    jq '{phase,current_group_index,active:[.issues|to_entries[]|select(.value.status!="MERGED")|{number:.key,status:.value.status,branch:.value.branch,group:.value.group,worktree_path:.value.worktree_path}],merged_count:([.issues|to_entries[]|select(.value.status=="MERGED")]|length)}' "$STATE_FILE" ;;
+    jq '{phase,current_group_index,active:[.issues|to_entries[]|select(.value.status!="MERGED")|{number:.key,status:.value.status,branch:.value.branch,group:.value.group,worktree_path:.value.worktree_path,base_branch:.value.base_branch}],merged_count:([.issues|to_entries[]|select(.value.status=="MERGED")]|length)}' "$STATE_FILE" ;;
 
   get)
     jq "${1:-.}" "$STATE_FILE" ;;
 
   batch)
+    # Each subcmd is a space-separated string like "phase EXECUTING_GROUP".
+    # NOTE: values with spaces (e.g. issue titles) must NOT go through batch —
+    # use direct calls (issue-add, issue-status) for those.
     COUNT=0
     for subcmd in "$@"; do
-      IFS=' ' read -ra ARGS <<< "$subcmd"
+      read -ra ARGS <<< "$subcmd"
       bash "$0" "${ARGS[@]}"
       COUNT=$((COUNT + 1))
     done

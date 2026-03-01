@@ -45,13 +45,13 @@ disable-model-invocation: true
 
 **Пути result files:**
 
-Пост-солвер агенты (знают `WORKTREE_PATH`):
-- `$WORKTREE_PATH/.claude/results/solver-<NUMBER>.json`
-- `$WORKTREE_PATH/.claude/results/lint-<NUMBER>.json`
-- `$WORKTREE_PATH/.claude/results/reviewer-<NUMBER>.json`
-- `$WORKTREE_PATH/.claude/results/security-<NUMBER>.json`
-- `$WORKTREE_PATH/.claude/results/migration-<NUMBER>.json`
-- `$WORKTREE_PATH/.claude/results/test-analyzer-<NUMBER>.json`
+Пост-солвер агенты (в основном репо, НЕ в worktree):
+- `$CLAUDE_PROJECT_DIR/.claude/results/solver-<NUMBER>.json`
+- `$CLAUDE_PROJECT_DIR/.claude/results/lint-<NUMBER>.json`
+- `$CLAUDE_PROJECT_DIR/.claude/results/reviewer-<NUMBER>.json`
+- `$CLAUDE_PROJECT_DIR/.claude/results/security-<NUMBER>.json`
+- `$CLAUDE_PROJECT_DIR/.claude/results/migration-<NUMBER>.json`
+- `$CLAUDE_PROJECT_DIR/.claude/results/test-analyzer-<NUMBER>.json`
 
 Пре-солвер и пост-мерж агенты:
 - `/tmp/claude-results/validator-<NUMBER>.json`
@@ -200,8 +200,8 @@ prompt: |
 
 ```bash
 for bad_dir in .claire .claud .cloude claude; do
-  [ ! -d "$REPO_ROOT/$bad_dir" ] \
-    || echo "ВНИМАНИЕ: найдена подозрительная директория $REPO_ROOT/$bad_dir — удали её вручную"
+  [ ! -d "$CLAUDE_PROJECT_DIR/$bad_dir" ] \
+    || echo "ВНИМАНИЕ: найдена подозрительная директория $CLAUDE_PROJECT_DIR/$bad_dir — удали её вручную"
 done
 ```
 
@@ -224,8 +224,8 @@ gh label list --json name --jq '.[].name' | grep -q "^in-progress$" \
 
 ```bash
 FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
-git -C "$REPO_ROOT" branch "$FEATURE_BRANCH" main
-git -C "$REPO_ROOT" push origin "$FEATURE_BRANCH"
+git -C "$CLAUDE_PROJECT_DIR" branch "$FEATURE_BRANCH" main
+git -C "$CLAUDE_PROJECT_DIR" push origin "$FEATURE_BRANCH"
 ```
 
 ### 5.2 Порядок выполнения групп
@@ -255,7 +255,7 @@ AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 RELATED_ISSUES: {номера и заголовки других issues в этой группе}
 RECENT_CHANGES: {git log --oneline -5 -- <AFFECTED_APPS paths> — кратко что менялось недавно}
 WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в body, иначе опусти}
-RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
+RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 
 Для **sub-issues** (добавить BASE_BRANCH):
@@ -267,7 +267,7 @@ AFFECTED_APPS: {AFFECTED_APPS из анализа пересечений}
 BASE_BRANCH: feature/issue-{PARENT_NUMBER}
 RELATED_ISSUES: {другие sub-issues этого parent}
 WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в body, иначе опусти}
-RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-{ISSUE_NUMBER}.json
+RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 
 **Определение WEBVIZIO_UUID**: при чтении `/tmp/claude-results/issue-<N>.json` найди `<!-- WEBVIZIO: <UUID> -->` в `.body`. Если есть — передай UUID solver'у.
@@ -283,7 +283,7 @@ bash "$SM" issue-status <N> SOLVING worktree_path=<path> base_branch=<main ил�
 
 ```bash
 FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
-git -C "$REPO_ROOT" push origin "$FEATURE_BRANCH"
+git -C "$CLAUDE_PROJECT_DIR" push origin "$FEATURE_BRANCH"
 PR_BODY="## Summary
 
 All sub-issues merged into \`$FEATURE_BRANCH\`.
@@ -297,9 +297,18 @@ PARENT_PR_URL=$(gh pr create \
   --body "$PR_BODY")
 
 gh pr merge "$PARENT_PR_URL" --merge --delete-branch
-git -C "$REPO_ROOT" pull origin main
+git -C "$CLAUDE_PROJECT_DIR" pull origin main
 gh issue close <PARENT_NUMBER> --comment "Все sub-issues реализованы. PR: $PARENT_PR_URL"
 ```
+
+#### Partial failure sub-issues
+
+Если часть sub-issues завершилась с ошибкой:
+1. Успешно смерженные sub-issues остаются в feature branch
+2. Проваленные sub-issues получают label `merge-failed`, НЕ закрываются
+3. Parent issue остаётся в статусе `in-progress`
+4. Executor логирует warning и переходит к следующей группе
+5. При следующем запуске executor может повторить только проваленные sub-issues
 
 ---
 
@@ -332,7 +341,7 @@ prompt: |
   WORKTREE_PATH: <абсолютный путь к worktree>
   AFFECTED_APPS: <список>
   BASE_BRANCH: <ветка>
-  RESULT_FILE: <WORKTREE_PATH>/.claude/results/lint-<NUMBER>.json
+  RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/lint-<NUMBER>.json
 ```
 
 Прочитай `RESULT_FILE`. Обработка:
@@ -350,7 +359,7 @@ prompt: |
     ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
     AFFECTED_APPS: {APPS}
     BASE_BRANCH: {BRANCH}
-    RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+    RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-<NUMBER>.json
   ```
   **НЕ указывай `isolation: "worktree"`** — solver должен работать в уже существующем worktree поверх своих предыдущих коммитов.
 
@@ -365,7 +374,7 @@ run_in_background: false
 prompt: |
   WORKTREE_PATH: <абсолютный путь>
   BASE_BRANCH: <ветка>
-  RESULT_FILE: <WORKTREE_PATH>/.claude/results/migration-<NUMBER>.json
+  RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/migration-<NUMBER>.json
 ```
 
 Прочитай `RESULT_FILE`. Обработка:
@@ -387,7 +396,7 @@ prompt: |
   ISSUE_DATA_FILE: /tmp/claude-results/issue-<NUMBER>.json
   AFFECTED_APPS: <список>
   BASE_BRANCH: <ветка>
-  RESULT_FILE: <WORKTREE_PATH>/.claude/results/reviewer-<NUMBER>.json
+  RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/reviewer-<NUMBER>.json
 ```
 Ревьюер сам выполнит `git diff` в worktree — executor НЕ должен делать diff или собирать список файлов.
 
@@ -400,7 +409,7 @@ prompt: |
   WORKTREE_PATH: <абсолютный путь к worktree>
   AFFECTED_APPS: <список>
   BASE_BRANCH: <ветка>
-  RESULT_FILE: <WORKTREE_PATH>/.claude/results/security-<NUMBER>.json
+  RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/security-<NUMBER>.json
 ```
 
 Дождись завершения обоих. Прочитай оба `RESULT_FILE`. Обработка:
@@ -422,7 +431,7 @@ prompt: |
   ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
   AFFECTED_APPS: {APPS}
   BASE_BRANCH: {BRANCH}
-  RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+  RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-<NUMBER>.json
 ```
 **НЕ указывай `isolation: "worktree"`** — solver работает в существующем worktree поверх своих предыдущих коммитов.
 
@@ -442,7 +451,7 @@ prompt: |
        TEST_OUTPUT_FILES: ["/tmp/issue-<NUMBER>-unit.txt", "/tmp/issue-<NUMBER>-int.txt"]
        AFFECTED_APPS: <apps>
        ISSUE_NUMBER: <number>
-       RESULT_FILE: <WORKTREE_PATH>/.claude/results/test-analyzer-<NUMBER>.json
+       RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/test-analyzer-<NUMBER>.json
      ```
      Прочитай `RESULT_FILE`, передай анализ как HINT при retry.
    - **Build failure** → retry 1 раз с hint'ом об ошибке build
@@ -462,7 +471,7 @@ prompt: |
      ISSUE_DATA_FILE: /tmp/claude-results/issue-{NUMBER}.json
      AFFECTED_APPS: ...
      ...остальной промпт как обычно...
-     RESULT_FILE: <WORKTREE_PATH>/.claude/results/solver-<NUMBER>.json
+     RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-<NUMBER>.json
    ```
    **НЕ указывай `isolation: "worktree"`** — solver продолжает в существующем worktree.
 
@@ -473,14 +482,20 @@ prompt: |
 
 ### STATUS: NEEDS_USER_INPUT
 
-- **Причина содержит "слишком большой"** → запусти `issue-decomposer` в foreground:
+- **Причина содержит "слишком большой"** → прочитай данные issue и запусти `issue-decomposer` в foreground:
+  ```bash
+  ISSUE_DATA=$(cat /tmp/claude-results/issue-<NUMBER>.json)
+  ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.title')
+  ISSUE_BODY=$(echo "$ISSUE_DATA" | jq -r '.body')
+  ```
   ```
   subagent_type: "issue-decomposer"
   model: sonnet
   run_in_background: false
   prompt: |
-    ISSUE_DATA_FILE: /tmp/claude-results/issue-<NUMBER>.json
-    REPO_ROOT: $REPO_ROOT
+    ISSUE_NUMBER: <NUMBER>
+    ISSUE_TITLE: <значение ISSUE_TITLE>
+    ISSUE_BODY: <значение ISSUE_BODY>
     RESULT_FILE: /tmp/claude-results/decomposer-<NUMBER>.json
   ```
   Прочитай `RESULT_FILE`. Если `"atomic": true` → эскалируй пользователю. Если вернул sub_issues → создай через `gh issue create`, привяжи к оригинальному issue. Затем скачай data-файлы для новых sub-issues:
@@ -506,12 +521,17 @@ bash "$SM" issue-status <NUMBER> <NEW_STATUS>
 
 Определи AUTO_MERGE: если issue имеет label `size:l` или `needs-review` → `AUTO_MERGE="false"`.
 
-Возьми `WORKTREE_PATH`, `BRANCH`, `BASE_BRANCH` из state issue (`bash "$SM" read-active` → `.issues["<N>"]`).
+Возьми `WORKTREE_PATH`, `BRANCH` из state issue (`bash "$SM" read-active` → `.issues["<N>"]`).
+
+**Важно**: `read-active` НЕ включает `base_branch`. Получи BASE_BRANCH отдельно:
+```bash
+BASE_BRANCH=$(bash "$SM" get ".issues[\"$N\"].base_branch")
+```
 
 ```bash
-cd "$REPO_ROOT"
+cd "$CLAUDE_PROJECT_DIR"
 MERGE_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/merge-worktree.sh" \
-  "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$REPO_ROOT" "<ISSUE_TITLE>" \
+  "$WORKTREE_PATH" "$BRANCH" "$BASE_BRANCH" "$CLAUDE_PROJECT_DIR" "<ISSUE_TITLE>" \
   "<AFFECTED_APPS>" "<ISSUE_NUMBER>" "$AUTO_MERGE" "true" 2>/dev/null) || EXIT_CODE=$?
 COMMIT_HASH=$(echo "$MERGE_RESULT" | grep -o 'COMMIT_HASH=[^ ]*' | cut -d= -f2)
 PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
@@ -538,7 +558,7 @@ PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
     BASE_BRANCH: <base>
     ISSUE_A_TITLE: <текущий issue title>
     ISSUE_B_TITLE: <issue что уже в base branch>
-    RESULT_FILE: <WORKTREE_PATH>/.claude/results/conflict-<NUMBER>.json
+    RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/conflict-<NUMBER>.json
   ```
   Прочитай `RESULT_FILE`: `RESOLVED` → повтори мерж. `UNRESOLVABLE` → считай FAILED (см. ниже).
 - **exit 2** (pre-merge build failed) → FAILED (см. ниже)
@@ -567,7 +587,7 @@ bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
 2. Найди в `.body` паттерн `<!-- WEBVIZIO: <UUID> -->`
 3. Если UUID найден:
    ```bash
-   WV_UUID=$(grep -oP '<!-- WEBVIZIO: \K[a-f0-9-]+' /tmp/claude-results/issue-<NUMBER>.json || true)
+   WV_UUID=$(sed -n 's/.*<!-- WEBVIZIO: \([a-f0-9-]*\).*/\1/p' /tmp/claude-results/issue-<NUMBER>.json || true)
    ```
    - Вызови MCP tool `close_task(uuid)` через Webvizio MCP
    - Добавь в итоговый отчёт: "WV closed: <uuid>"
@@ -591,7 +611,7 @@ bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
 После мержа ВСЕЙ группы с **2+ issues**:
 
 ```bash
-cd "$REPO_ROOT"
+cd "$CLAUDE_PROJECT_DIR"
 VERIFY_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/verify-post-merge.sh" \
   "<AFFECTED_APPS через запятую>" "<MERGED_ISSUES через запятую>" 2>/dev/null) || true
 
@@ -617,12 +637,13 @@ fi
 Если среди MERGED issues группы есть затрагивающие `apps/api`:
 
 ```bash
-cd "$REPO_ROOT"
-pnpm swagger:generate && pnpm generate-api
-if ! git diff --quiet -- apps/web/src/api/generated/Api.ts; then
-  git add apps/web/src/api/generated/Api.ts apps/api/docs/swagger.json
-  git commit -m "chore: regenerate OpenAPI client"
-  git push origin "$BASE_BRANCH"
+# ВАЖНО: все команды в ОДНОМ bash-вызове, чтобы restrict-executor
+# видел "swagger.*generate" в строке и разрешал push.
+cd "$CLAUDE_PROJECT_DIR" && pnpm swagger:generate && pnpm generate-api && \
+if ! git diff --quiet -- apps/web/src/api/generated/Api.ts; then \
+  git add apps/web/src/api/generated/Api.ts apps/api/docs/swagger.json && \
+  git commit -m "chore: regenerate OpenAPI client" && \
+  git push origin "$BASE_BRANCH"; \
 fi
 ```
 
@@ -663,10 +684,11 @@ prompt: |
 Очисти worktrees, ветки и state:
 ```bash
 # Удалить оставшиеся worktrees + локальные/remote ветки (FAILED, BLOCKED, AUTO_MERGE=false)
-bash "$CLAUDE_PROJECT_DIR/.claude/scripts/cleanup-worktrees.sh" "$REPO_ROOT"
+bash "$CLAUDE_PROJECT_DIR/.claude/scripts/cleanup-worktrees.sh" "$CLAUDE_PROJECT_DIR"
 
 # Удалить state и temp-файлы
 rm -f "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json"
+rm -f "$CLAUDE_PROJECT_DIR"/.claude/results/solver-*.json
 rm -rf /tmp/claude-results
 ```
 

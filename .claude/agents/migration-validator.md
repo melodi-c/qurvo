@@ -35,7 +35,7 @@ git diff "$BASE_BRANCH"...HEAD --name-only -- 'packages/@qurvo/clickhouse/src/mi
 ```bash
 cd "$WORKTREE_PATH"
 # Последний номер в main
-LAST_MAIN=$(git show "$BASE_BRANCH":packages/@qurvo/db/drizzle/ 2>/dev/null | grep -oP '^\d+' | sort -n | tail -1 || echo "0")
+LAST_MAIN=$(git show "$BASE_BRANCH":packages/@qurvo/db/drizzle/ 2>/dev/null | grep -oE '^[0-9]+' | sort -n | tail -1 || echo "0")
 # Новые файлы
 NEW_FILES=$(git diff "$BASE_BRANCH"...HEAD --name-only -- 'packages/@qurvo/db/drizzle/*.sql')
 ```

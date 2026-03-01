@@ -13,7 +13,7 @@ SM="$SCRIPT_DIR/state-manager.sh"
 
 bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_HASH"
 
-gh issue edit "$NUMBER" --remove-label "in-progress" --remove-label "under-review" 2>/dev/null || true
+gh issue edit "$NUMBER" --remove-label "in-progress" --remove-label "under-review" --remove-label "merge-failed" 2>/dev/null || true
 
 if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
 ## Смерджено

@@ -54,6 +54,11 @@ git diff "$BASE_BRANCH"...HEAD
 
 Для каждого существенно изменённого файла — прочитай файл целиком (не только diff), чтобы понимать контекст.
 
+**ВАЖНО**: Read, Grep, Glob tools НЕ учитывают bash `cd`. Всегда используй абсолютные пути с `$WORKTREE_PATH` префиксом:
+- Read: `$WORKTREE_PATH/src/file.ts` (не `src/file.ts`)
+- Grep: `path: "$WORKTREE_PATH"` (не `.`)
+- Glob: `path: "$WORKTREE_PATH"` (не `.`)
+
 ---
 
 ## Шаг 2: Логические проверки

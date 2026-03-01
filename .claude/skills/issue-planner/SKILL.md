@@ -63,7 +63,7 @@ gh pr list --state open --json number,title,headRefName --limit 20
 
 ### Режим `bug-report` — облегчённое исследование
 
-Запусти `feature-dev:code-explorer` в **foreground** с облегчённым промптом:
+Запусти `Explore` в **foreground** с облегчённым промптом:
 
 ```
 Быстрый анализ бага:
@@ -83,7 +83,7 @@ gh pr list --state open --json number,title,headRefName --limit 20
 
 ### Режим `audit` и `feature` — полное исследование
 
-Запусти подагента `feature-dev:code-explorer` в **foreground** (дождись результата перед Шагом 4).
+Запусти подагента `Explore` в **foreground** (дождись результата перед Шагом 4).
 
 Промпт зависит от режима:
 

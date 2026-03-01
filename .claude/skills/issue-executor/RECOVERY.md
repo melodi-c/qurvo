@@ -25,8 +25,11 @@ gh issue list --label "in-progress" --state open --json number,title
 
 Для каждого in-progress issue проверь result file или AGENT_META:
 ```bash
-# Сначала проверь result file
-RESULT_FILE=$(find /tmp/claude-results -name "solver-*.json" 2>/dev/null | head -1)
+# Сначала проверь result file (prefer match by issue number)
+RESULT_FILE=$(find "$CLAUDE_PROJECT_DIR/.claude/results" -name "solver-${ISSUE_NUMBER}.json" 2>/dev/null | head -1)
+if [ -z "$RESULT_FILE" ]; then
+  RESULT_FILE=$(find "$CLAUDE_PROJECT_DIR/.claude/results" -name "solver-*.json" 2>/dev/null | head -1)
+fi
 if [ -z "$RESULT_FILE" ]; then
   LAST_COMMENT=$(gh issue view <NUMBER> --json comments --jq '.comments[-1].body')
   STATUS=$(echo "$LAST_COMMENT" | grep -o 'STATUS=[^ ]*' | cut -d= -f2 || echo "UNKNOWN")

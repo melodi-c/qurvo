@@ -88,27 +88,22 @@ fi
 ISSUES_JSON="[]"
 
 if [ "$MODE" = "numbers" ]; then
-  # Fetch each issue individually
-  ISSUES_JSON="["
-  FIRST=true
+  # Fetch each issue individually, build JSON array safely with jq
+  ISSUES_TMP=$(mktemp)
   IFS=',' read -ra NUMS <<< "$NUMBERS"
   for N in "${NUMS[@]}"; do
     N=$(echo "$N" | tr -d ' ')
     ISSUE=$(gh issue view "$N" --json number,title,body,labels,comments 2>/dev/null) || continue
-    if [ "$FIRST" = true ]; then
-      FIRST=false
-    else
-      ISSUES_JSON+=","
-    fi
-    ISSUES_JSON+="$ISSUE"
+    echo "$ISSUE" >> "$ISSUES_TMP"
   done
-  ISSUES_JSON+="]"
+  ISSUES_JSON=$(jq -s '.' "$ISSUES_TMP")
+  rm -f "$ISSUES_TMP"
 else
   # Default: list with filters
   if [ ${#GH_ARGS[@]} -eq 0 ]; then
     GH_ARGS=(--state open)
   fi
-  ISSUES_JSON=$(gh issue list "${GH_ARGS[@]}" --json number,title,body,labels --limit 50)
+  ISSUES_JSON=$(gh issue list "${GH_ARGS[@]}" --json number,title,body,labels,comments --limit 50)
 fi
 
 # --- filter skip label ---

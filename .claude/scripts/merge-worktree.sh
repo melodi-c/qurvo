@@ -14,6 +14,9 @@ BRANCH="$2"
 BASE_BRANCH="$3"
 REPO_ROOT="$4"
 ISSUE_TITLE="${5:-}"
+# Sanitize title to prevent accidental shell expansion in heredocs
+ISSUE_TITLE="${ISSUE_TITLE//\$/\\\$}"
+ISSUE_TITLE="${ISSUE_TITLE//\`/\\\`}"
 AFFECTED_APPS_RAW="${6:-}"
 # Нормализация: убираем apps/ prefix если передан (apps/api → api)
 AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|apps/||g')
@@ -28,7 +31,7 @@ fi
 
 # ── Шаг 1: Push ветки в remote ─────────────────────────────────────
 echo "Pushing branch $BRANCH to origin..." >&2
-if ! git -C "$WORKTREE_PATH" push origin "$BRANCH" >&2 2>&1; then
+if ! git -C "$WORKTREE_PATH" push origin "$BRANCH" 2>&1; then
   echo "PUSH_FAILED: не удалось запушить $BRANCH" >&2
   exit 3
 fi
@@ -42,8 +45,8 @@ echo "Branch $BRANCH pushed." >&2
 cd "$WORKTREE_PATH"
 BRANCH_BEFORE=$(git rev-parse HEAD)
 
-git fetch origin "$BASE_BRANCH" >&2 2>&1
-if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check: $BRANCH + $BASE_BRANCH" >&2 2>&1; then
+git fetch origin "$BASE_BRANCH" 2>&1
+if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check: $BRANCH + $BASE_BRANCH" 2>&1; then
   echo "MERGE_CONFLICT" >&2
   echo "CONFLICT_DIR=$WORKTREE_PATH"
   # НЕ делаем merge --abort — conflict-resolver будет работать в этом worktree
@@ -53,13 +56,13 @@ fi
 pre_merge_build() {
   if [[ -z "$AFFECTED_APPS" ]]; then return 0; fi
   echo "Pre-merge verification: installing dependencies..." >&2
-  pnpm install --frozen-lockfile >&2 2>&1 || pnpm install >&2 2>&1 || true
+  pnpm install --frozen-lockfile 2>&1 || pnpm install 2>&1 || true
   echo "Pre-merge verification: building affected apps..." >&2
   IFS=',' read -ra APPS <<< "$AFFECTED_APPS"
   for APP in "${APPS[@]}"; do
     APP=$(echo "$APP" | xargs)
     echo "Building @qurvo/$APP..." >&2
-    if ! pnpm turbo build --filter="@qurvo/$APP" >&2 2>&1; then
+    if ! pnpm turbo build --filter="@qurvo/$APP" 2>&1; then
       echo "PRE_MERGE_BUILD_FAILED: @qurvo/$APP" >&2
       return 1
     fi
@@ -73,9 +76,9 @@ if ! pre_merge_build; then
   # Retry: fetch свежий base, повторить merge + build.
   echo "Retrying: fetching fresh $BASE_BRANCH and re-merging..." >&2
   git reset --hard "$BRANCH_BEFORE" >&2
-  git fetch origin "$BASE_BRANCH" >&2 2>&1
+  git fetch origin "$BASE_BRANCH" 2>&1
 
-  if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check retry: $BRANCH + $BASE_BRANCH" >&2 2>&1; then
+  if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check retry: $BRANCH + $BASE_BRANCH" 2>&1; then
     echo "MERGE_CONFLICT on retry" >&2
     echo "CONFLICT_DIR=$WORKTREE_PATH"
     exit 1
@@ -112,7 +115,7 @@ PR_URL=$(gh pr create \
   --base "$BASE_BRANCH" \
   --head "$BRANCH" \
   --title "Merge $BRANCH: $ISSUE_TITLE" \
-  --body "$PR_BODY" 2>&1) || {
+  --body "$PR_BODY") || {
   echo "PR_CREATE_FAILED: не удалось создать PR" >&2
   exit 4
 }
@@ -121,7 +124,7 @@ echo "PR created: $PR_URL" >&2
 # ── Шаг 4: Auto-merge PR (если AUTO_MERGE=true) ─────────────────────
 if [[ "$AUTO_MERGE" == "true" ]]; then
   echo "Merging PR..." >&2
-  gh pr merge "$PR_URL" --merge --delete-branch >&2 2>&1 || {
+  gh pr merge "$PR_URL" --merge --delete-branch 2>&1 || {
     echo "PR_MERGE_FAILED: не удалось смержить PR $PR_URL" >&2
     exit 5
   }
@@ -129,7 +132,7 @@ if [[ "$AUTO_MERGE" == "true" ]]; then
 
   # ── Шаг 5: Обновить локальный main ─────────────────────────────────
   cd "$REPO_ROOT"
-  git pull origin "$BASE_BRANCH" >&2 2>&1
+  git pull origin "$BASE_BRANCH" 2>&1
 
   # ── Шаг 6: Очистка worktree ────────────────────────────────────────
   git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true

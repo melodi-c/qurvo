@@ -188,10 +188,10 @@ cd "$WORKTREE_PATH" && git commit -m "<осмысленное сообщение
 ```bash
 # Подготовь переменные
 CHANGED_FILES=$(cd "$WORKTREE_PATH" && git diff --name-only "$BASE_BRANCH"...HEAD | tr '\n' ',')
-UNIT_PASSED=$(grep -oP '\d+(?= passed)' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | head -1 || echo "0")
-UNIT_FAILED=$(grep -oP '\d+(?= failed)' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | head -1 || echo "0")
-INT_PASSED=$(grep -oP '\d+(?= passed)' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | head -1 || echo "0")
-INT_FAILED=$(grep -oP '\d+(?= failed)' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | head -1 || echo "0")
+UNIT_PASSED=$(grep -oE '[0-9]+ passed' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
+UNIT_FAILED=$(grep -oE '[0-9]+ failed' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
+INT_PASSED=$(grep -oE '[0-9]+ passed' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
+INT_FAILED=$(grep -oE '[0-9]+ failed' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
 TOTAL_PASSED=$((UNIT_PASSED + INT_PASSED))
 TOTAL_FAILED=$((UNIT_FAILED + INT_FAILED))
 

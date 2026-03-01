@@ -18,6 +18,16 @@ if [ ! -f "$STATE_FILE" ]; then
   exit 0
 fi
 
+# ── Косвенное выполнение (обход через bash -c / eval / sh -c) ────
+if echo "$COMMAND" | grep -qE '(^|[;&|]+\s*)(bash\s+-c|eval|sh\s+-c)\s'; then
+  cat >&2 <<MSG
+[restrict-executor] BLOCKED: indirect command execution not allowed.
+Executor — оркестратор. Git-операции, изменяющие рабочую копию,
+выполняются только через скрипты (.claude/scripts/) или подагентами.
+MSG
+  exit 2
+fi
+
 # ── Блокируемые операции ──────────────────────────────────────────
 # Прямые git-команды, которые меняют состояние рабочей копии.
 # Скрипты (.claude/scripts/) вызывают git внутри себя — хук видит
@@ -58,16 +68,26 @@ elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+reset\s+--hard"; 
 elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+stash"; then
   BLOCKED="git stash — запрещён для executor"
 
-# git push (прямой, не через merge-worktree.sh и не OpenAPI regeneration)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+push" \
-  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh' \
-  && ! echo "$COMMAND" | grep -qE 'swagger.*generate|generate-api|regenerate OpenAPI'; then
-  BLOCKED="git push — используй merge-worktree.sh"
+# git push (блокируем только прямой push в main/master)
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+push"; then
+  # Разрешаем push через merge-worktree.sh
+  if echo "$COMMAND" | grep -qE 'merge-worktree\.sh'; then
+    :
+  # Разрешаем push для swagger/OpenAPI regeneration
+  elif echo "$COMMAND" | grep -qE 'swagger.*generate|generate-api|regenerate OpenAPI'; then
+    :
+  # Разрешаем push в feature/fix/hotfix ветки (учитываем -C и другие флаги)
+  elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}\s+push\s+\S+\s+(fix|feature|hotfix)/"; then
+    :
+  # Блокируем прямой push в main/master (учитываем -C и другие флаги)
+  elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}\s+push\s+\S+\s+(main|master)\b"; then
+    BLOCKED="direct push to main/master — запрещён"
+  fi
+  # Остальные push (например, push текущей ветки после OpenAPI update) — разрешены
 
-# gh pr create (прямой, не через merge-worktree.sh)
-elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)gh\s+pr\s+create" \
-  && ! echo "$COMMAND" | grep -q 'merge-worktree\.sh'; then
-  BLOCKED="gh pr create — используй merge-worktree.sh"
+# gh pr create/merge (разрешаем — executor создаёт PR для feature-веток и sub-issues)
+elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)gh\s+pr\s+(create|merge)"; then
+  :  # разрешено
 fi
 
 if [ -n "$BLOCKED" ]; then

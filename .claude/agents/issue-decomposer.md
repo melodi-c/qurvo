@@ -12,6 +12,13 @@ tools: Read, Grep, Glob, Bash
 
 Входные данные: `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY`, `REPO_ROOT`.
 
+Альтернативный ввод — `ISSUE_DATA_FILE` (JSON путь), из которого decomposer извлекает:
+- number: `.number`
+- title: `.title`
+- body: `.body`
+
+Если переданы и inline данные, и ISSUE_DATA_FILE — использовать inline.
+
 ---
 
 ## Шаг 1: Понять контекст

@@ -68,7 +68,7 @@ disable-model-invocation: true
 
 Получи существующие GitHub issues:
 ```bash
-gh issue list --state open --json number,title,body --limit 200 --jq '.[] | select(.body | contains("<!-- WEBVIZIO:")) | .body' | grep -oP '<!-- WEBVIZIO: \K[^>]+(?= -->)'
+gh issue list --state open --json number,title,body --limit 200 --jq '.[] | select(.body | contains("<!-- WEBVIZIO:")) | .body' | grep -oE '<!-- WEBVIZIO: [a-f0-9-]+' | sed 's/<!-- WEBVIZIO: //'
 ```
 
 Исключи задачи, UUID которых уже есть в GitHub issues.

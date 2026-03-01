@@ -31,6 +31,7 @@ labels=(
   "regression|Reverted due to post-merge regression|B60205"
   "under-review|Under automated review|0052CC"
   "needs-review|Requires human review before merge|FBCA04"
+  "merge-failed|Merge failed, needs manual intervention|B60205"
 )
 
 CREATED=0
