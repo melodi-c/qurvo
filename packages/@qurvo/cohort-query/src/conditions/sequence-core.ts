@@ -1,5 +1,10 @@
 import type { CohortEventFilter } from '@qurvo/db';
-import { compileExprToSql } from '@qurvo/ch-query';
+import type { Expr } from '@qurvo/ch-query';
+import {
+  and, col, eq, func, groupArray, gt, lambda, literal,
+  multiIf, namedParam, raw, rawWithParams, toUInt32, toUInt64,
+  toUnixTimestamp64Milli, tuple,
+} from '@qurvo/ch-query';
 import { buildEventFilterClauses, allocCondIdx } from '../helpers';
 import type { BuildContext } from '../types';
 
@@ -27,10 +32,10 @@ export function buildSequenceCore(
   cond: SequenceCondition,
   ctx: BuildContext,
 ): {
-  /** The `multiIf(...)` expression that maps each event row to a 1-based step index (0 = no match). */
-  stepIndexExpr: string;
-  /** ClickHouse expression evaluating to 1 when the sorted event array contains the full ordered sequence within the time window. */
-  seqMatchExpr: string;
+  /** The `multiIf(...)` Expr that maps each event row to a 1-based step index (0 = no match). */
+  stepIndexExpr: Expr;
+  /** ClickHouse Expr evaluating to 1 when the sorted event array contains the full ordered sequence within the time window. */
+  seqMatchExpr: Expr;
   /** Parameter key for `time_window_days` (used in the outer WHERE scan horizon). */
   daysPk: string;
 } {
@@ -40,27 +45,28 @@ export function buildSequenceCore(
   ctx.queryParams[daysPk] = cond.time_window_days;
   ctx.queryParams[windowMsPk] = cond.time_window_days * 86_400_000; // ms
 
-  // Build step conditions for multiIf: (cond1, 1, cond2, 2, ..., 0)
-  const multiIfBranches: string[] = [];
+  // ── multiIf: classify each event into a 1-based step index (0 = no match) ──
+  const branches: Array<{ condition: Expr; result: Expr }> = [];
   cond.steps.forEach((step, i) => {
     const stepEventPk = `coh_${condIdx}_seq_${i}`;
     ctx.queryParams[stepEventPk] = step.event_name;
 
-    let filterExpr = `event_name = {${stepEventPk}:String}`;
+    const eventNameMatch = eq(col('event_name'), namedParam(stepEventPk, 'String', step.event_name));
     const filterClause = buildEventFilterClauses(step.event_filters, `coh_${condIdx}_s${i}`, ctx.queryParams);
-    if (filterClause) {
-      filterExpr += ' AND ' + compileExprToSql(filterClause).sql;
-    }
-    multiIfBranches.push(filterExpr, String(i + 1));
-  });
-  multiIfBranches.push('0'); // default: no match
 
-  const stepIndexExpr = `multiIf(${multiIfBranches.join(', ')})`;
+    branches.push({
+      condition: filterClause ? and(eventNameMatch, filterClause) : eventNameMatch,
+      result: literal(i + 1),
+    });
+  });
+
+  const stepIndexExpr = multiIf(branches, literal(0));
 
   const totalSteps = cond.steps.length;
 
-  // arrayFold walks sorted (ts_ms, step_idx) tuples.
-  // Accumulator is a Tuple(next_step UInt32, prev_ts UInt64):
+  // ── arrayFold: greedy ordered sequence matching with time window ──
+  //
+  // Accumulator: Tuple(next_step UInt32, prev_ts UInt64)
   //   next_step = next step index to match (1-based); starts at 1
   //   prev_ts   = timestamp of the last matched step (ms since epoch); 0 initially
   //
@@ -69,18 +75,41 @@ export function buildSequenceCore(
   //     -> advance: (next_step + 1, ts_ms)
   //   else -> keep accumulator unchanged
   //
-  // After fold: acc.1 > totalSteps means all steps matched in order within time window.
-  const seqMatchExpr = [
-    `arrayFold(`,
-    `  (acc, evt) -> if(`,
-    `    evt.2 = acc.1 AND (acc.1 = 1 OR evt.1 - acc.2 <= {${windowMsPk}:UInt64}),`,
-    `    (toUInt32(acc.1 + 1), evt.1),`,
-    `    acc`,
-    `  ),`,
-    `  arraySort(x -> x.1, groupArray((toUInt64(toUnixTimestamp64Milli(timestamp)), step_idx))),`,
-    `  (toUInt32(1), toUInt64(0))`,
-    `).1 > ${totalSteps}`,
-  ].join('\n          ');
+  // After fold: result.1 > totalSteps means all steps matched in order within time window.
+
+  // Lambda body uses rawWithParams because lambda params (acc, evt) with tuple
+  // field access (.1, .2) and correct AND/OR precedence require raw SQL.
+  // The window_ms named parameter is the only external dependency.
+  const foldBody = rawWithParams(
+    [
+      'if(',
+      '    evt.2 = acc.1 AND (acc.1 = 1 OR evt.1 - acc.2 <= {' + windowMsPk + ':UInt64}),',
+      '    (toUInt32(acc.1 + 1), evt.1),',
+      '    acc',
+      '  )',
+    ].join('\n          '),
+    { [windowMsPk]: ctx.queryParams[windowMsPk] },
+  );
+
+  // Sorted array of (timestamp_ms, step_idx) tuples per person — pure AST
+  const tuplePair = tuple(toUInt64(toUnixTimestamp64Milli(col('timestamp'))), col('step_idx'));
+  const sortedArray = func('arraySort',
+    lambda(['x'], raw('x.1')),
+    groupArray(tuplePair),
+  );
+
+  // Initial accumulator: (next_step=1, prev_ts=0) — pure AST
+  const initialAcc = tuple(toUInt32(literal(1)), toUInt64(literal(0)));
+
+  // arrayFold(lambda, sorted_array, initial_acc) — pure AST wrapping rawWithParams body
+  const foldResult = func('arrayFold',
+    lambda(['acc', 'evt'], foldBody),
+    sortedArray,
+    initialAcc,
+  );
+
+  // result.1 > totalSteps — tupleElement is the function form of the .1 accessor
+  const seqMatchExpr = gt(func('tupleElement', foldResult, literal(1)), literal(totalSteps));
 
   return { stepIndexExpr, seqMatchExpr, daysPk };
 }

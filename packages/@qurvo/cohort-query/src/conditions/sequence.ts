@@ -1,7 +1,7 @@
 import type { CohortEventSequenceCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, col, gte, lte, sub, gt, eq, literal, interval, namedParam } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, resolveDateTo, ctxProjectIdExpr } from '../helpers';
+import { select, alias, col, gte, lte, sub, gt, eq, literal, interval, namedParam } from '@qurvo/ch-query';
+import { resolvedPerson, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -17,9 +17,9 @@ export function buildEventSequenceSubquery(
   // Note: Cannot use eventsBaseSelect here because the SELECT columns are different
   // (timestamp, step_idx instead of just person_id).
   const innerSelect = select(
-    raw(RESOLVED_PERSON).as('person_id'),
+    resolvedPerson().as('person_id'),
     col('timestamp'),
-    raw(`${stepIndexExpr}`).as('step_idx'),
+    alias(stepIndexExpr, 'step_idx'),
   )
     .from('events')
     .where(
@@ -32,7 +32,7 @@ export function buildEventSequenceSubquery(
   // Middle: filter non-matching events and compute seq_match per person
   const middleSelect = select(
     col('person_id'),
-    raw(`${seqMatchExpr}`).as('seq_match'),
+    alias(seqMatchExpr, 'seq_match'),
   )
     .from(innerSelect)
     .where(gt(col('step_idx'), literal(0)))
