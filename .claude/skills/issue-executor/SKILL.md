@@ -289,7 +289,14 @@ fi
    Если появились новые PENDING issues (добавленные через Шаг 5.4) — запусти их solver и обработай результаты перед переходом к dependency watcher.
 5. После обработки **ВСЕХ** issues группы → **Dependency watcher** (Шаг 6.3) + post-merge verification (Шаг 6.5)
 6. `bash "$SM" prune-merged` — очисти MERGED issues из state
-7. Только после этого запусти следующую группу
+7. **Перезагрузи данные** следующей группы перед её запуском — issues могли измениться (новые комментарии, обновлённые labels, изменённый body):
+   ```bash
+   NEXT_ISSUES=$(bash "$SM" get ".parallel_groups[$((GROUP_INDEX + 1))]" | jq -r '.[]' | paste -sd,)
+   if [[ -n "$NEXT_ISSUES" ]]; then
+     bash "$CLAUDE_PROJECT_DIR/.claude/scripts/fetch-issues.sh" --numbers "$NEXT_ISSUES" --data-only
+   fi
+   ```
+8. Только после этого запусти следующую группу
 
 ### 5.2.1 Competing solutions для critical issues
 
