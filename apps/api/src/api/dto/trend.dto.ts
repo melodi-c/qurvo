@@ -2,25 +2,24 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
-  ArrayUnique,
   ValidateNested,
   IsString,
   IsNotEmpty,
   IsOptional,
-  IsUUID,
   IsBoolean,
   IsIn,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
-import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
+import { makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 import {
   BreakdownMutuallyExclusive,
   BreakdownCohortIdsRequiresCohortType,
 } from './shared/breakdown-validators';
+import { WithBreakdownFields } from './shared/breakdown-dto.mixin';
 
 export class TrendSeriesDto {
   @IsString()
@@ -40,7 +39,7 @@ export class TrendSeriesDto {
 
 @BreakdownMutuallyExclusive()
 @BreakdownCohortIdsRequiresCohortType()
-export class TrendQueryDto extends BaseAnalyticsQueryDto {
+export class TrendQueryDto extends WithBreakdownFields(BaseAnalyticsQueryDto) {
   @Transform(makeJsonArrayTransform(TrendSeriesDto))
   @IsArray()
   @ArrayMinSize(1)
@@ -60,24 +59,6 @@ export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   @IsIn(['hour', 'day', 'week', 'month'])
   granularity: 'hour' | 'day' | 'week' | 'month';
-
-  @IsString()
-  @IsOptional()
-  breakdown_property?: string;
-
-  @ApiPropertyOptional({ enum: ['property', 'cohort'] })
-  @IsIn(['property', 'cohort'])
-  @IsOptional()
-  breakdown_type?: 'property' | 'cohort';
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @ArrayMaxSize(10)
-  @ArrayUnique()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  breakdown_cohort_ids?: string[];
 
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()

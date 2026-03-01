@@ -1,6 +1,5 @@
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import type { CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
-import type { PropertyFilter } from '../query-helpers';
+import type { PropertyFilter, BreakdownQueryParams } from '../query-helpers';
 
 // ── Step / Exclusion types ───────────────────────────────────────────────────
 
@@ -47,7 +46,7 @@ export type FunnelQueryResult =
 
 // ── Query param types ────────────────────────────────────────────────────────
 
-export interface FunnelQueryParams {
+export interface FunnelQueryParams extends BreakdownQueryParams {
   project_id: string;
   steps: FunnelStep[];
   conversion_window_days: number;
@@ -56,8 +55,6 @@ export interface FunnelQueryParams {
   date_from: string;
   date_to: string;
   timezone?: string;
-  breakdown_property?: string;
-  breakdown_cohort_ids?: CohortBreakdownEntry[];
   cohort_filters?: CohortFilterInput[];
   funnel_order_type?: FunnelOrderType;
   exclusions?: FunnelExclusion[];

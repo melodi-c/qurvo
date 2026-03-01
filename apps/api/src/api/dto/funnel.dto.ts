@@ -2,7 +2,6 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
-  ArrayUnique,
   ValidateNested,
   IsString,
   IsNotEmpty,
@@ -11,7 +10,6 @@ import {
   Min,
   Max,
   IsOptional,
-  IsUUID,
   IsIn,
   registerDecorator,
   type ValidationOptions,
@@ -20,13 +18,14 @@ import {
 import { Type, Transform } from 'class-transformer';
 import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
-import { parseJsonArray, makeJsonArrayTransform } from './shared/transforms';
+import { makeJsonArrayTransform } from './shared/transforms';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 import { BaseAnalyticsResponseDto } from './shared/base-analytics-response.dto';
 import {
   BreakdownMutuallyExclusive,
   BreakdownCohortIdsRequiresCohortType,
 } from './shared/breakdown-validators';
+import { WithBreakdownFields } from './shared/breakdown-dto.mixin';
 
 /**
  * Class-level decorator that validates conversion window fields.
@@ -154,26 +153,7 @@ class FunnelBaseQueryDto extends BaseAnalyticsQueryDto {
 
 @BreakdownMutuallyExclusive()
 @BreakdownCohortIdsRequiresCohortType()
-export class FunnelQueryDto extends FunnelBaseQueryDto {
-  @IsString()
-  @IsNotEmpty()
-  @IsOptional()
-  breakdown_property?: string;
-
-  @ApiPropertyOptional({ enum: ['property', 'cohort'] })
-  @IsIn(['property', 'cohort'])
-  @IsOptional()
-  breakdown_type?: 'property' | 'cohort';
-
-  @ApiPropertyOptional({ type: [String] })
-  @Transform(parseJsonArray)
-  @IsArray()
-  @ArrayMaxSize(10)
-  @ArrayUnique()
-  @IsUUID('4', { each: true })
-  @IsOptional()
-  breakdown_cohort_ids?: string[];
-
+export class FunnelQueryDto extends WithBreakdownFields(FunnelBaseQueryDto) {
   @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
   @IsIn(['ordered', 'strict', 'unordered'])
   @IsOptional()

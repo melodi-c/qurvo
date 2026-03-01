@@ -2,7 +2,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
-import { buildCohortFilterForBreakdown, type CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
+import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
 import {
   compile,
   select,
@@ -24,8 +24,10 @@ import {
   shiftPeriod,
   aggColumn,
   baseMetricColumns,
+  normalizeBreakdownValue,
   type PropertyFilter,
   type TrendMetric,
+  type BreakdownQueryParams,
 } from '../query-helpers';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ export interface TrendSeries {
   filters?: PropertyFilter[];
 }
 
-export interface TrendQueryParams {
+export interface TrendQueryParams extends BreakdownQueryParams {
   project_id: string;
   series: TrendSeries[];
   metric: TrendMetric;
@@ -47,8 +49,6 @@ export interface TrendQueryParams {
   granularity: TrendGranularity;
   date_from: string;
   date_to: string;
-  breakdown_property?: string;
-  breakdown_cohort_ids?: CohortBreakdownEntry[];
   compare?: boolean;
   cohort_filters?: CohortFilterInput[];
   timezone?: string;
@@ -133,7 +133,7 @@ function assembleBreakdown(
   const keyMeta = new Map<string, { series_idx: number; breakdown_value: string }>();
   for (const row of rows) {
     const idx = Number(row.series_idx);
-    const bv = (row.breakdown_value !== null && row.breakdown_value !== undefined && row.breakdown_value !== '') ? row.breakdown_value : '(none)';
+    const bv = normalizeBreakdownValue(row.breakdown_value);
     const key = `${idx}::${bv}`;
     const existing = grouped.get(key);
     if (existing) {
