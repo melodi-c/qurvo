@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -8,12 +8,11 @@ import { toast } from 'sonner';
 import { Copy, Check, RefreshCw } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import { extractApiErrorMessage } from '@/lib/utils';
+import { useMutationWithToast } from '@/hooks/use-mutation-with-toast';
 import translations from './project-token-tab.translations';
 
 export function ProjectTokenTab({ projectId }: { projectId: string }) {
   const { t } = useLocalTranslation(translations);
-  const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard(2000, () => toast.error(t('copyFailed')));
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -23,16 +22,14 @@ export function ProjectTokenTab({ projectId }: { projectId: string }) {
     enabled: !!projectId,
   });
 
-  const rotateMutation = useMutation({
-    mutationFn: () => api.projectsControllerRotateToken({ id: projectId }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      toast.success(t('regenerateSuccess'));
+  const rotateMutation = useMutationWithToast(
+    () => api.projectsControllerRotateToken({ id: projectId }),
+    {
+      successMessage: t('regenerateSuccess'),
+      errorMessage: t('regenerateFailed'),
+      invalidateKeys: [['project', projectId]],
     },
-    onError: (err) => {
-      toast.error(extractApiErrorMessage(err, t('regenerateFailed')));
-    },
-  });
+  );
 
   if (isLoading) {return <ListSkeleton count={1} height="h-20" />;}
 
