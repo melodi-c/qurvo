@@ -446,9 +446,9 @@ export function parseDateTimeBestEffort(expr: Expr): WithAlias<FuncCallExpr> {
   return func('parseDateTimeBestEffort', expr);
 }
 
-/** now64(precision) — current DateTime64 with given precision */
-export function now64(precision: Expr): WithAlias<FuncCallExpr> {
-  return func('now64', precision);
+/** now64(precision?) — current DateTime64 with optional precision */
+export function now64(precision?: Expr): WithAlias<FuncCallExpr> {
+  return precision ? func('now64', precision) : func('now64');
 }
 
 /** toUInt32(expr) — cast to UInt32 */

@@ -1407,10 +1407,16 @@ describe('compiler', () => {
       expect(sql).toContain('parseDateTimeBestEffort(str) AS dt');
     });
 
-    test('now64()', () => {
+    test('now64() with precision', () => {
       const q = select(now64(literal(3)).as('now')).build();
       const { sql } = compile(q);
       expect(sql).toContain('now64(3) AS now');
+    });
+
+    test('now64() without precision', () => {
+      const q = select(now64().as('now')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('now64() AS now');
     });
 
     test('toUInt32()', () => {

@@ -924,10 +924,16 @@ describe('builders', () => {
       expect(f.args).toHaveLength(1);
     });
 
-    test('now64()', () => {
+    test('now64() with precision', () => {
       const f = now64(literal(3));
       expect(f.name).toBe('now64');
       expect(f.args).toHaveLength(1);
+    });
+
+    test('now64() without precision', () => {
+      const f = now64();
+      expect(f.name).toBe('now64');
+      expect(f.args).toHaveLength(0);
     });
 
     test('toUInt32()', () => {
