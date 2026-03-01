@@ -17,7 +17,10 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(getLocale());
 }
 
-/** Format an ISO date string with granularity context (month: "Jan 2024", other: "Jan 15").
+/** Format an ISO date string with granularity context.
+ * - hour: "Mar 1, 14:00"
+ * - month: "Mar 2024"
+ * - other: "Mar 15"
  * Uses the provided timezone (or UTC) to avoid browser-local offset shifts. */
 export function formatDateWithGranularity(iso: string, granularity: string, timezone?: string): string {
   const locale = getLocale();
@@ -25,6 +28,9 @@ export function formatDateWithGranularity(iso: string, granularity: string, time
   // Normalise ClickHouse bucket format to UTC ISO 8601
   const utcStr = normaliseBucketToUtc(iso);
   const d = new Date(utcStr);
+  if (granularity === 'hour') {
+    return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric', timeZone: displayTz });
+  }
   if (granularity === 'month') {
     return d.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: displayTz });
   }

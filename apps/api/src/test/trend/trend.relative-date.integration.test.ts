@@ -57,6 +57,7 @@ describe('queryTrend with resolved relative dates', () => {
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -103,6 +104,7 @@ describe('queryTrend with resolved relative dates', () => {
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -131,6 +133,7 @@ describe('queryTrend with resolved relative dates', () => {
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -161,6 +164,7 @@ describe('queryTrend with resolved relative dates', () => {
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);

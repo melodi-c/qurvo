@@ -85,6 +85,22 @@ describe('analytics/time', () => {
     test('shifts months across year boundary', () => {
       expect(shiftDate('2026-11-15', 3, 'month')).toBe('2027-02-15');
     });
+
+    test('shifts hours forward from datetime string', () => {
+      expect(shiftDate('2026-01-15 10:00:00', 3, 'hour')).toBe('2026-01-15 13:00:00');
+    });
+
+    test('shifts hours backward from datetime string', () => {
+      expect(shiftDate('2026-01-15 10:00:00', -5, 'hour')).toBe('2026-01-15 05:00:00');
+    });
+
+    test('shifts hours across day boundary', () => {
+      expect(shiftDate('2026-01-15 22:00:00', 5, 'hour')).toBe('2026-01-16 03:00:00');
+    });
+
+    test('shifts hours from date-only string (assumes midnight)', () => {
+      expect(shiftDate('2026-01-15', 3, 'hour')).toBe('2026-01-15 03:00:00');
+    });
   });
 
   describe('shiftPeriod', () => {
@@ -110,6 +126,18 @@ describe('analytics/time', () => {
 
     test('month truncation snaps to first of month', () => {
       expect(truncateDate('2026-01-15', 'month')).toBe('2026-01-01');
+    });
+
+    test('hour truncation zeroes minutes and seconds', () => {
+      expect(truncateDate('2026-01-15 14:35:42', 'hour')).toBe('2026-01-15 14:00:00');
+    });
+
+    test('hour truncation on already-truncated datetime is identity', () => {
+      expect(truncateDate('2026-01-15 10:00:00', 'hour')).toBe('2026-01-15 10:00:00');
+    });
+
+    test('hour truncation on date-only string returns midnight', () => {
+      expect(truncateDate('2026-01-15', 'hour')).toBe('2026-01-15 00:00:00');
     });
   });
 

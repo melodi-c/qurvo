@@ -44,11 +44,20 @@ export function toChTs(iso: string, endOfDay = false): string {
 }
 
 /**
- * Shifts a date forward (positive periods) or backward (negative periods) by given granularity units.
+ * Shifts a date/datetime forward (positive periods) or backward (negative periods) by given granularity units.
+ *
+ * For 'hour' granularity the input may contain a time component ("YYYY-MM-DD HH:mm:ss")
+ * and the result is returned as "YYYY-MM-DD HH:mm:ss".
+ * For day/week/month the result is "YYYY-MM-DD".
  */
-export function shiftDate(date: string, periods: number, granularity: 'day' | 'week' | 'month'): string {
-  const d = new Date(`${date}T00:00:00Z`);
+export function shiftDate(date: string, periods: number, granularity: 'hour' | 'day' | 'week' | 'month'): string {
+  // Parse: support both "YYYY-MM-DD" and "YYYY-MM-DD HH:mm:ss"
+  const isoInput = date.includes(' ') ? date.replace(' ', 'T') + 'Z' : `${date}T00:00:00Z`;
+  const d = new Date(isoInput);
   switch (granularity) {
+    case 'hour':
+      d.setUTCHours(d.getUTCHours() + periods);
+      break;
     case 'day':
       d.setUTCDate(d.getUTCDate() + periods);
       break;
@@ -63,15 +72,26 @@ export function shiftDate(date: string, periods: number, granularity: 'day' | 'w
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
     }
   }
+  if (granularity === 'hour') {
+    return d.toISOString().slice(0, 19).replace('T', ' ');
+  }
   return d.toISOString().slice(0, 10);
 }
 
 /**
- * Truncates a date to the start of its granularity bucket (Monday-based weeks).
+ * Truncates a date/datetime to the start of its granularity bucket (Monday-based weeks).
+ *
+ * For 'hour' granularity the input may contain a time component ("YYYY-MM-DD HH:mm:ss")
+ * and the result is returned as "YYYY-MM-DD HH:00:00" (minutes/seconds zeroed).
+ * For day/week/month the result is "YYYY-MM-DD".
  */
-export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'): string {
-  const d = new Date(`${date}T00:00:00Z`);
+export function truncateDate(date: string, granularity: 'hour' | 'day' | 'week' | 'month'): string {
+  const isoInput = date.includes(' ') ? date.replace(' ', 'T') + 'Z' : `${date}T00:00:00Z`;
+  const d = new Date(isoInput);
   switch (granularity) {
+    case 'hour':
+      d.setUTCMinutes(0, 0, 0);
+      break;
     case 'day':
       break;
     case 'week': {
@@ -87,6 +107,9 @@ export function truncateDate(date: string, granularity: 'day' | 'week' | 'month'
       const _exhaustive: never = granularity;
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
     }
+  }
+  if (granularity === 'hour') {
+    return d.toISOString().slice(0, 19).replace('T', ' ');
   }
   return d.toISOString().slice(0, 10);
 }

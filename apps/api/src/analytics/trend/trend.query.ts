@@ -378,10 +378,25 @@ async function executeTrendQuery(
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
+/** Maximum number of days allowed for hour granularity (7 days = 168 hour buckets). */
+const MAX_HOURLY_RANGE_DAYS = 7;
+
 export async function queryTrend(
   ch: ClickHouseClient,
   params: TrendQueryParams,
 ): Promise<TrendQueryResult> {
+  // Validate max range for hour granularity
+  if (params.granularity === 'hour') {
+    const from = new Date(`${params.date_from}T00:00:00Z`);
+    const to = new Date(`${params.date_to}T23:59:59Z`);
+    const diffDays = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays > MAX_HOURLY_RANGE_DAYS) {
+      throw new AppBadRequestException(
+        `Hour granularity is limited to ${MAX_HOURLY_RANGE_DAYS} days. Current range: ${Math.ceil(diffDays)} days.`,
+      );
+    }
+  }
+
   const chx = new ChQueryExecutor(ch);
   const currentSeries = await executeTrendQuery(chx, params, params.date_from, params.date_to);
 
