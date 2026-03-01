@@ -99,7 +99,8 @@ Each package has its own `CLAUDE.md` with detailed docs.
 
 - **`@qurvo/db`** — Drizzle ORM schema + PostgreSQL client
 - **`@qurvo/clickhouse`** — ClickHouse client factory, `Event` type, versioned migration system
-- **`@qurvo/ch-query`** — ClickHouse SQL query builder (typed AST, fluent builders, parameterized compiler) + cohort query DSL (conditions, builder, validation, toposort). Used by api and cohort-worker. See `packages/@qurvo/ch-query/CLAUDE.md`
+- **`@qurvo/ch-query`** — ClickHouse SQL query builder (typed AST, fluent builders, parameterized compiler). Pure query builder with no domain logic. See `packages/@qurvo/ch-query/CLAUDE.md`
+- **`@qurvo/cohort-query`** — Cohort query DSL (conditions, builder, validation, toposort). Translates UI-defined cohort definitions into ClickHouse SQL. Used by api and cohort-worker. See `packages/@qurvo/cohort-query/CLAUDE.md`
 - **`@qurvo/sdk-core`** — fetch-based transport with queue
 - **`@qurvo/sdk-browser`** / **`@qurvo/sdk-node`** — platform-specific SDK wrappers
 - **`@qurvo/distributed-lock`** — Redis-based distributed lock (SET NX + Lua-guarded release). Used by processor's DLQ replay and cohort-worker's membership service.
