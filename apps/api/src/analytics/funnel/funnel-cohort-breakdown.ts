@@ -16,8 +16,6 @@ import type {
   FunnelBreakdownStepResult,
   FunnelStepResult,
 } from './funnel.types';
-import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
-import { buildUnorderedFunnelCTEs } from './funnel-unordered.sql';
 import {
   computeCohortBreakdownStepResults,
   computeStepResults,
@@ -29,6 +27,7 @@ import {
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
   notInExcludedUsers,
+  buildFunnelCTEs,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -113,29 +112,12 @@ export async function runFunnelCohortBreakdown(
       ? and(cohortExpr, cohortFilterExpr)
       : cohortFilterExpr;
 
-    let cteResult;
-
-    if (orderType === 'unordered') {
-      cteResult = buildUnorderedFunnelCTEs({
-        steps,
-        exclusions,
-        cohortExpr: combinedCohortExpr,
-        samplingExpr,
-        queryParams: cbQueryParams,
-      });
-    } else {
-      cteResult = buildOrderedFunnelCTEs({
-        steps,
-        orderType,
-        stepConditions,
-        exclusions,
-        cohortExpr: combinedCohortExpr,
-        samplingExpr,
-        numSteps,
-        queryParams: cbQueryParams,
-        includeTimestampCols: true,
-      });
-    }
+    const cteResult = buildFunnelCTEs(orderType, {
+      steps, exclusions,
+      cohortExpr: combinedCohortExpr, samplingExpr,
+      queryParams: cbQueryParams,
+      stepConditions, numSteps, includeTimestampCols: true,
+    });
 
     const node = buildCohortFunnelNode(cteResult, cbQueryParams, numSteps);
     const rows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(node);
@@ -146,29 +128,11 @@ export async function runFunnelCohortBreakdown(
 
   // Run a separate no-breakdown query for aggregate_steps.
   const aggregateQueryParams = { ...baseQueryParams };
-  let aggregateCteResult;
-
-  if (orderType === 'unordered') {
-    aggregateCteResult = buildUnorderedFunnelCTEs({
-      steps,
-      exclusions,
-      cohortExpr,
-      samplingExpr,
-      queryParams: aggregateQueryParams,
-    });
-  } else {
-    aggregateCteResult = buildOrderedFunnelCTEs({
-      steps,
-      orderType,
-      stepConditions,
-      exclusions,
-      cohortExpr,
-      samplingExpr,
-      numSteps,
-      queryParams: aggregateQueryParams,
-      includeTimestampCols: true,
-    });
-  }
+  const aggregateCteResult = buildFunnelCTEs(orderType, {
+    steps, exclusions, cohortExpr, samplingExpr,
+    queryParams: aggregateQueryParams,
+    stepConditions, numSteps, includeTimestampCols: true,
+  });
 
   const aggregateNode = buildCohortFunnelNode(aggregateCteResult, aggregateQueryParams, numSteps);
   const aggregateRows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(aggregateNode);

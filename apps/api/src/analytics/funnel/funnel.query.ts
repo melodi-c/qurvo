@@ -31,10 +31,9 @@ import {
   validateExclusions,
   validateUnorderedSteps,
   notInExcludedUsers,
+  buildFunnelCTEs,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
-import { buildOrderedFunnelCTEs } from './funnel-ordered.sql';
-import { buildUnorderedFunnelCTEs } from './funnel-unordered.sql';
 import { runFunnelCohortBreakdown } from './funnel-cohort-breakdown';
 import {
   computeStepResults,
@@ -141,26 +140,10 @@ function buildFunnelQuery(
   const includeTimestampCols = !hasBreakdown;
 
   // Build CTEs from the appropriate strategy
-  let cteResult: { ctes: Array<{ name: string; query: QueryNode }>; hasExclusions: boolean };
-
-  if (orderType === 'unordered') {
-    cteResult = buildUnorderedFunnelCTEs({
-      steps, exclusions, cohortExpr, samplingExpr, queryParams, breakdownExpr,
-    });
-  } else {
-    cteResult = buildOrderedFunnelCTEs({
-      steps,
-      orderType,
-      stepConditions,
-      exclusions,
-      cohortExpr,
-      samplingExpr,
-      numSteps,
-      queryParams,
-      breakdownExpr,
-      includeTimestampCols,
-    });
-  }
+  const cteResult = buildFunnelCTEs(orderType, {
+    steps, exclusions, cohortExpr, samplingExpr, queryParams,
+    stepConditions, numSteps, breakdownExpr, includeTimestampCols,
+  });
 
   // Build SELECT columns
   const selectColumns: Expr[] = [];
