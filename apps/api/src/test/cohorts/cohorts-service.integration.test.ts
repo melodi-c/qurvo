@@ -4,6 +4,7 @@ import { createTestProject, insertTestEvents, buildEvent, msAgo, pollUntil, date
 import { eq } from 'drizzle-orm';
 import { cohorts } from '@qurvo/db';
 import { getTestContext, type ContainerContext } from '../context';
+import { CohortEnrichmentService } from '../../cohorts/cohort-enrichment.service';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
 import { AnalyticsCacheService } from '../../analytics/analytics-cache.service';
@@ -21,7 +22,8 @@ let staticService: StaticCohortsService;
 beforeAll(async () => {
   ctx = await getTestContext();
   const cacheService = new AnalyticsCacheService(ctx.redis as any);
-  service = new CohortsService(ctx.db as any, ctx.ch as any, cacheService);
+  const enrichmentService = new CohortEnrichmentService(ctx.db as any);
+  service = new CohortsService(ctx.db as any, ctx.ch as any, cacheService, enrichmentService);
   staticService = new StaticCohortsService(ctx.db as any, ctx.ch as any, service);
 }, 120_000);
 
