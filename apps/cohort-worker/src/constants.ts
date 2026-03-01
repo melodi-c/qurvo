@@ -1,7 +1,7 @@
-// ── Cohort ───────────────────────────────────────────────────────────────
+// Cohort
 export const COHORT_MEMBERSHIP_INTERVAL_MS = 10 * 60_000; // 10 minutes
 
-// ── Heartbeat ─────────────────────────────────────────────────────────────
+// Heartbeat
 export const HEARTBEAT_PATH = '/tmp/cohort-worker.heartbeat';
 export const HEARTBEAT_INTERVAL_MS = 15_000;
 // Cycle runs every 10min; allow up to 20min before considering the loop stale
@@ -13,13 +13,13 @@ export const COHORT_ERROR_BACKOFF_MAX_EXPONENT = 10; // cap: ~21 days
 export const COHORT_MAX_ERRORS = 20; // stop retrying permanently broken cohorts
 export const COHORT_GC_EVERY_N_CYCLES = 6; // ~1 hour at 10min interval
 
-// ── Lock & scheduling ────────────────────────────────────────────────────
+// Lock & scheduling
 export const COHORT_LOCK_KEY = 'cohort_membership:lock';
 export const COHORT_GC_CYCLE_REDIS_KEY = 'cohort_membership:gc_cycle_count';
 export const COHORT_LOCK_TTL_SECONDS = 660;
 export const COHORT_INITIAL_DELAY_MS = 30_000;
 
-// ── Bull queue ───────────────────────────────────────────────────────────
+// Bull queue
 export const COHORT_COMPUTE_QUEUE = 'cohort-compute';
 export const COHORT_COMPUTE_CONCURRENCY = 4;
 // Maximum time to wait for a single Bull job to complete.

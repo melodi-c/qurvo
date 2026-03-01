@@ -45,7 +45,7 @@ export function buildSequenceCore(
   ctx.queryParams[daysPk] = cond.time_window_days;
   ctx.queryParams[windowMsPk] = cond.time_window_days * 86_400_000; // ms
 
-  // ── multiIf: classify each event into a 1-based step index (0 = no match) ──
+  // multiIf: classify each event into a 1-based step index (0 = no match)
   const branches: Array<{ condition: Expr; result: Expr }> = [];
   cond.steps.forEach((step, i) => {
     const stepEventPk = `coh_${condIdx}_seq_${i}`;
@@ -64,7 +64,7 @@ export function buildSequenceCore(
 
   const totalSteps = cond.steps.length;
 
-  // ── arrayFold: greedy ordered sequence matching with time window ──
+  // arrayFold: greedy ordered sequence matching with time window
   //
   // Accumulator: Tuple(next_step UInt32, prev_ts UInt64)
   //   next_step = next step index to match (1-based); starts at 1

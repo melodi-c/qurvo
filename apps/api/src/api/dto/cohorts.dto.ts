@@ -20,7 +20,7 @@ import { CohortConditionGroupDto } from './cohort-conditions.dto';
 // Re-export so existing imports from './cohorts.dto' keep working
 export { CohortConditionGroupDto } from './cohort-conditions.dto';
 
-// ── CRUD DTOs ────────────────────────────────────────────────────────────────
+// CRUD DTOs
 
 export class CreateCohortDto {
   @IsString()
@@ -103,7 +103,7 @@ export class UploadCsvDto {
   csv_content: string;
 }
 
-// ── Response DTOs ────────────────────────────────────────────────────────────
+// Response DTOs
 
 export class CohortDto {
   @ApiProperty() id: string;
@@ -145,7 +145,7 @@ export class ImportCsvResponseDto {
   total_lines: number;
 }
 
-// ── Static cohort members listing DTOs ────────────────────────────────────────
+// Static cohort members listing DTOs
 
 export class GetStaticCohortMembersQueryDto {
   @IsInt()

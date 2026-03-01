@@ -35,7 +35,7 @@ import {
 } from '../analytics/query-helpers';
 import { MAX_PATH_NODES } from '../constants';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// Types
 
 export type WebAnalyticsGranularity = 'hour' | 'day' | 'week' | 'month';
 
@@ -100,7 +100,7 @@ export interface GeographyResult {
   cities: DimensionRow[];
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 
 function autoGranularity(dateFrom: string, dateTo: string): WebAnalyticsGranularity {
   const from = new Date(dateFrom);
@@ -141,7 +141,7 @@ function waWherePageview(params: WebAnalyticsQueryParams): Expr {
   });
 }
 
-// ── KPI Session CTE ─────────────────────────────────────────────────────────
+// KPI Session CTE
 
 /**
  * Lightweight session CTE for KPIs and timeseries.
@@ -190,7 +190,7 @@ function buildPathsSessionCTE(params: WebAnalyticsQueryParams) {
     .build();
 }
 
-// ── Overview Query ────────────────────────────────────────────────────────────
+// Overview Query
 
 interface RawKPIRow {
   unique_visitors: string;
@@ -281,7 +281,7 @@ export async function queryOverview(
   return { current, previous, timeseries, granularity };
 }
 
-// ── Dimension Query Helpers ───────────────────────────────────────────────────
+// Dimension Query Helpers
 
 interface RawDimensionRow {
   name: string;
@@ -352,7 +352,7 @@ async function queryDirectDimension(
   return parseDimensionRows(await new ChQueryExecutor(ch).rows<RawDimensionRow>(node));
 }
 
-// ── Paths Query ───────────────────────────────────────────────────────────────
+// Paths Query
 
 export async function queryTopPages(
   ch: ClickHouseClient,
@@ -389,7 +389,7 @@ async function queryTopPagesDimension(
   return parseDimensionRows(await new ChQueryExecutor(ch).rows<RawDimensionRow>(node));
 }
 
-// ── Sources Query ─────────────────────────────────────────────────────────────
+// Sources Query
 
 export async function querySources(
   ch: ClickHouseClient,
@@ -405,7 +405,7 @@ export async function querySources(
   return { referrers, utm_sources, utm_mediums, utm_campaigns };
 }
 
-// ── Devices Query ─────────────────────────────────────────────────────────────
+// Devices Query
 
 export async function queryDevices(
   ch: ClickHouseClient,
@@ -420,7 +420,7 @@ export async function queryDevices(
   return { device_types, browsers, oses };
 }
 
-// ── Geography Query ───────────────────────────────────────────────────────────
+// Geography Query
 
 export async function queryGeography(
   ch: ClickHouseClient,

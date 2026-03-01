@@ -10,9 +10,7 @@ const SDK_NAME = '@qurvo/sdk-tma';
 const SESSION_ID_KEY = 'qurvo_tma_session_id';
 const CLOUD_STORAGE_QUEUE_KEY = 'qurvo_queue';
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 function generateId(): string {
   return (
@@ -43,9 +41,7 @@ function getTelegramWebApp(): TelegramWebApp | null {
   }
 }
 
-// ---------------------------------------------------------------------------
 // CloudStorage persistence
-// ---------------------------------------------------------------------------
 
 /**
  * Wraps Telegram CloudStorage in the QueuePersistence interface.
@@ -85,9 +81,7 @@ function buildCloudStoragePersistence(
   };
 }
 
-// ---------------------------------------------------------------------------
 // Context builder
-// ---------------------------------------------------------------------------
 
 function buildContext(twa: TelegramWebApp | null) {
   const user = twa?.initDataUnsafe?.user;
@@ -102,9 +96,7 @@ function buildContext(twa: TelegramWebApp | null) {
   };
 }
 
-// ---------------------------------------------------------------------------
 // Public config interface
-// ---------------------------------------------------------------------------
 
 export interface TmaSdkConfig {
   /** Qurvo ingest API key (sk_...) */
@@ -130,9 +122,7 @@ export interface TmaSdkConfig {
   flushSize?: number;
 }
 
-// ---------------------------------------------------------------------------
 // SDK class
-// ---------------------------------------------------------------------------
 
 class QurvoTma {
   private queue: EventQueue | null = null;
@@ -353,9 +343,7 @@ class QurvoTma {
     this.initialized = false;
   }
 
-  // ---------------------------------------------------------------------------
   // Private helpers
-  // ---------------------------------------------------------------------------
 
   private buildTmaOpenedProperties(): Record<string, unknown> {
     const twa = this.twa;

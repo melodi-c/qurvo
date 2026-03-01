@@ -26,7 +26,7 @@ import { MetricsService } from './metrics.service';
 import type { CohortConditionGroup } from '@qurvo/db';
 import type { ComputeJobData, ComputeJobResult } from './cohort-compute.processor';
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// Service
 
 @Injectable()
 export class CohortMembershipService extends PeriodicWorkerMixin implements OnApplicationBootstrap {
@@ -92,25 +92,25 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
     eligibleCount: number;
     cyclicCount: number;
   }): Promise<void> {
-    // ── 1. Fetch only stale dynamic cohorts ────────────────────────────
+    // 1. Fetch only stale dynamic cohorts
     const staleCohorts = await this.computation.findStaleCohorts();
     stats.staleCount = staleCohorts.length;
     if (staleCohorts.length === 0) { return; }
 
-    // ── 2. Error backoff filter ────────────────────────────────────────
+    // 2. Error backoff filter
     const eligible = filterByBackoff(staleCohorts);
     stats.eligibleCount = eligible.length;
     this.metrics.backoffSkippedTotal.inc(stats.staleCount - stats.eligibleCount);
     if (eligible.length === 0) { return; }
 
-    // ── 3. Topological sort ────────────────────────────────────────────
+    // 3. Topological sort
     const { sorted, cyclic } = topologicalSortCohorts(
       eligible.map((c) => ({ id: c.id, definition: c.definition })),
     );
     stats.cyclicCount = cyclic.length;
     await this.recordCyclicErrors(cyclic);
 
-    // ── 4. Group by dependency level and compute in parallel ─────────
+    // 4. Group by dependency level and compute in parallel
     const levels = groupCohortsByLevel(sorted);
     const cohortById = new Map(eligible.map((c) => [c.id, c] as const));
     const pendingDeletions: Array<{ cohortId: string; version: number }> = [];
@@ -124,7 +124,7 @@ export class CohortMembershipService extends PeriodicWorkerMixin implements OnAp
       await this.processLevel(level, cohortById, stats, pendingDeletions);
     }
 
-    // ── 5. Batch-delete old versions (single CH mutation) ────────────
+    // 5. Batch-delete old versions (single CH mutation)
     if (pendingDeletions.length > 0) {
       await this.computation
         .deleteOldVersions(pendingDeletions)

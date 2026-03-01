@@ -2,7 +2,7 @@ import { IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIsoDatetime } from './shared/is-iso-datetime.decorator';
 
-// ── Request DTOs ─────────────────────────────────────────────────────────────
+// Request DTOs
 
 export class CreateShareTokenDto {
   @IsIsoDatetime()
@@ -11,7 +11,7 @@ export class CreateShareTokenDto {
   expires_at?: string;
 }
 
-// ── Response DTOs ─────────────────────────────────────────────────────────────
+// Response DTOs
 
 export class ShareTokenDto {
   id: string;

@@ -192,7 +192,7 @@ export class PersonBatchStore {
     }
   }
 
-  // ── Failed merge persistence ──────────────────────────────────────────────
+  // Failed merge persistence
 
   /** Persist a failed merge to Redis list for at-least-once retry. */
   private async persistFailedMerge(merge: PendingMerge): Promise<void> {
@@ -241,7 +241,7 @@ export class PersonBatchStore {
     }
   }
 
-  // ── Person merge ──────────────────────────────────────────────────────────
+  // Person merge
 
   /**
    * Merges the anonymous person into the identified user's person.
@@ -315,7 +315,7 @@ export class PersonBatchStore {
     );
   }
 
-  // ── Bulk upserts ──────────────────────────────────────────────────────────
+  // Bulk upserts
 
   private async flushPersons(pending: Map<string, PendingPerson>): Promise<void> {
     const sortedIds = Array.from(pending.keys()).sort();

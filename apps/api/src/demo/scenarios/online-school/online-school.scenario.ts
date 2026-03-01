@@ -162,7 +162,6 @@ function daysAgoDate(days: number, base: Date): Date {
   return new Date(base.getTime() - days * 24 * 60 * 60 * 1000);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 // Per-student funnel participation table.
 //
 // Each entry specifies which funnels the student completes and to which step:
@@ -197,7 +196,6 @@ function daysAgoDate(days: number, base: Date): Date {
 //                  course_progress_50 ≥3, course_completed ≥3
 //
 // Student indices 0-19 (20 students).
-// ────────────────────────────────────────────────────────────────────────────
 interface StudentFunnelProfile {
   // Funnel 1: cold traffic — 0..6
   f1: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -276,7 +274,6 @@ export class OnlineSchoolScenario extends BaseScenario {
     const BASE_DATE = new Date();
     const dayMs = 24 * 60 * 60 * 1000;
 
-    // Build deterministic students
     const students: Student[] = this.buildStudents(BASE_DATE);
 
     const addEvent = (
@@ -444,16 +441,12 @@ export class OnlineSchoolScenario extends BaseScenario {
         addPageviewEvent(student, page, referrer, ts, dwell);
       }
 
-      // ─────────────────────────────────────────────────────────────────
       // Each student participates in multiple funnel paths simultaneously.
       // This ensures all 9 funnel scenarios have data.
-      // ─────────────────────────────────────────────────────────────────
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 1: Холодный трафик — Привлечение
       // ad_clicked → landing_viewed → lead_created → offer_page_viewed
       // → checkout_started → payment_success
-      // ═══════════════════════════════════════════════════════════════
       if (profile.f1 >= 1) {
         const channel = AD_CHANNELS[si % AD_CHANNELS.length];
         const adTs = addDays(signupTs, -4);
@@ -523,11 +516,9 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 2: Прогрев через лид-магнит
       // lead_magnet_downloaded → contact_confirmed → email_opened
       // → email_link_clicked → offer_viewed → payment_success
-      // ═══════════════════════════════════════════════════════════════
       if (profile.f2 >= 1) {
         const lm = LEAD_MAGNETS[si % LEAD_MAGNETS.length];
         const lmTs = addDays(signupTs, -8);
@@ -589,11 +580,9 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 3: Вебинар
       // webinar_registered → webinar_attended → webinar_watch_50
       // → offer_shown → offer_clicked → checkout_started → payment_success
-      // ═══════════════════════════════════════════════════════════════
       if (profile.f3 >= 1) {
         const webinar = WEBINARS[si % WEBINARS.length];
         const regTs = addDays(signupTs, -12);
@@ -664,11 +653,9 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 4: Запуск по базе
       // launch_message_sent → launch_message_opened → launch_page_viewed
       // → offer_presented → payment_success
-      // ═══════════════════════════════════════════════════════════════
       if (profile.f4 >= 1) {
         const launch = LAUNCHES[si % LAUNCHES.length];
         const msgTs = addDays(signupTs, -(6 + (si * 3) % 14));
@@ -726,10 +713,8 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 5: Продажа через менеджера
       // lead_created → call_scheduled → call_completed → invoice_sent → payment_success
-      // ═══════════════════════════════════════════════════════════════
       if (profile.f5 >= 1) {
         const manager = MANAGERS[si % MANAGERS.length];
         const callScheduleTs = addDays(signupTs, 1 + (si * 2) % 5);
@@ -789,11 +774,9 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 6: Активация и обучение
       // platform_login → lesson_started → module_completed
       // → course_progress_30 → weekly_active → course_progress_50 → course_completed
-      // ═══════════════════════════════════════════════════════════════
       // Only for students who paid (plan=pro after above funnels)
       if (student.plan === 'pro' && profile.f6 >= 1) {
         const activationTs = addDays(signupTs, 2);
@@ -886,10 +869,8 @@ export class OnlineSchoolScenario extends BaseScenario {
                     lessons_this_week: 2 + (si * 3) % 4,
                   });
 
-                  // ─────────────────────────────────────────────────
                   // FUNNEL 7: Повторные продажи (LTV)
                   // payment_course_A → course_progress_50 → upsell_viewed → upsell_clicked → upsell_purchased
-                  // ─────────────────────────────────────────────────
                   if (profile.f7 >= 1) {
                     const upsell = UPSELL_COURSES[si % UPSELL_COURSES.length];
                     const upsellViewTs = addDays(lessonTs, 1);
@@ -958,10 +939,8 @@ export class OnlineSchoolScenario extends BaseScenario {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
       // FUNNEL 8: Возвраты
       // payment_success → lesson_started → refund_requested → refund_completed
-      // ═══════════════════════════════════════════════════════════════
       if (student.plan === 'pro' && profile.f8 >= 1) {
         const refundRequestTs = addDays(signupTs, 6 + (si * 3) % 8);
         addEvent(student, 'refund_requested', refundRequestTs, {
@@ -979,7 +958,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       }
     }
 
-    // ── Event Definitions — 37 events + $pageview + $pageleave ────────────────
+    // Event Definitions — 37 events + $pageview + $pageleave
 
     const definitions: EventDefinitionInput[] = [
       { eventName: '$pageview', description: 'Просмотр страницы пользователем' },
@@ -1031,7 +1010,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       { eventName: 'refund_completed', description: 'Завершение возврата денежных средств' },
     ];
 
-    // ── Property Definitions ──────────────────────────────────────────────────
+    // Property Definitions
 
     const propertyDefinitions: PropertyDefinitionInput[] = [
       // Global / reused across events
@@ -1080,7 +1059,6 @@ export class OnlineSchoolScenario extends BaseScenario {
       { eventName: '', propertyName: 'reason', description: 'Причина запроса возврата' },
     ];
 
-    // Build persons and personDistinctIds from students
     const persons = students.map((student) => ({
       id: this.makePersonId(projectId, student.email),
       properties: studentLatestProps.get(student.email) ?? {},
@@ -1096,7 +1074,7 @@ export class OnlineSchoolScenario extends BaseScenario {
     const dateFrom = formatDate(daysAgoDate(60, BASE_DATE));
     const dateTo = formatDate(BASE_DATE);
 
-    // ── Insights ──────────────────────────────────────────────────────────────
+    // Insights
 
     const insightDauId = randomUUID();
     const insightRevenueId = randomUUID();
@@ -1122,7 +1100,7 @@ export class OnlineSchoolScenario extends BaseScenario {
     const insightPathsId = randomUUID();
 
     const insights: InsightInput[] = [
-      // ── Trends ──
+      // Trends
       {
         id: insightDauId,
         type: 'trend',
@@ -1226,7 +1204,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         },
       },
 
-      // ── Funnels ──
+      // Funnels
       {
         id: insightAcquisitionFunnelId,
         type: 'funnel',
@@ -1411,7 +1389,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         is_favorite: true,
       },
 
-      // ── Retention / Lifecycle / Stickiness / Paths ──
+      // Retention / Lifecycle / Stickiness / Paths
       {
         id: insightRetentionId,
         type: 'retention',
@@ -1469,7 +1447,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       },
     ];
 
-    // ── Dashboards ────────────────────────────────────────────────────────────
+    // Dashboards
 
     const dashboardOverviewId = randomUUID();
     const dashboardFunnelsId = randomUUID();
@@ -1481,7 +1459,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       { id: dashboardLearningId, name: 'Обучение и удержание' },
     ];
 
-    // ── Widgets ───────────────────────────────────────────────────────────────
+    // Widgets
 
     const widgets: WidgetInput[] = [
       // Overview dashboard (5 key widgets)
@@ -1506,7 +1484,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       { dashboardId: dashboardLearningId, insightId: insightLessonActivityId, layout: { x: 0, y: 14, w: 12, h: 4 } },
     ];
 
-    // ── Cohorts ───────────────────────────────────────────────────────────────
+    // Cohorts
 
     const cohorts: CohortInput[] = [
       {
@@ -1606,7 +1584,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       },
     ];
 
-    // ── Marketing Channels ────────────────────────────────────────────────────
+    // Marketing Channels
 
     const channelGoogleId = randomUUID();
     const channelFacebookId = randomUUID();
@@ -1620,7 +1598,7 @@ export class OnlineSchoolScenario extends BaseScenario {
       { id: channelReferralId, name: 'Реферальный', channel_type: 'manual', color: '#FBBC04' },
     ];
 
-    // ── Ad Spend: 60 days of data (deterministic) ─────────────────────────────
+    // Ad Spend: 60 days of data (deterministic)
 
     const adSpend: AdSpendInput[] = [];
 

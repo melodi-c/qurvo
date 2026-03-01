@@ -32,7 +32,7 @@ export function useMembers(projectId: string) {
   const pendingInvites = (invites || []).filter((i) => i.status === 'pending');
   const isLoading = membersLoading || invitesLoading;
 
-  // ── Invite mutation ──
+  // Invite mutation
   const inviteMutation = useMutation({
     mutationFn: ({ email, role }: { email: string; role: 'editor' | 'viewer' }) =>
       api.invitesControllerCreateInvite({ projectId }, { email, role }),
@@ -47,7 +47,7 @@ export function useMembers(projectId: string) {
     },
   });
 
-  // ── Role update mutation (per-row tracking) ──
+  // Role update mutation (per-row tracking)
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
 
   const updateRoleMutation = useMutation({
@@ -62,7 +62,7 @@ export function useMembers(projectId: string) {
     onError: () => toast.error(t('roleUpdateFailed')),
   });
 
-  // ── Remove member mutation ──
+  // Remove member mutation
   const removeMutation = useMutation({
     mutationFn: (memberId: string) => api.membersControllerRemoveMember({ projectId, memberId }),
     onSuccess: () => {
@@ -72,7 +72,7 @@ export function useMembers(projectId: string) {
     onError: () => toast.error(t('removeFailed')),
   });
 
-  // ── Cancel invite mutation (per-row tracking) ──
+  // Cancel invite mutation (per-row tracking)
   const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(null);
 
   const cancelInviteMutation = useMutation({

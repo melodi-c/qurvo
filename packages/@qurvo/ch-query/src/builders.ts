@@ -25,7 +25,7 @@ import type {
   UnionAllNode,
 } from './ast';
 
-// ── Validation helpers (shared with compiler.ts — duplicated to keep builders zero-dep on compiler) ──
+// Validation helpers (shared with compiler.ts — duplicated to keep builders zero-dep on compiler)
 
 const VALID_INTERVAL_UNITS = new Set([
   'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR',
@@ -34,7 +34,7 @@ const VALID_INTERVAL_UNITS = new Set([
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const CH_TYPE_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/;
 
-// ── Alias helper ──
+// Alias helper
 
 type WithAlias<T extends Expr> = T & { as(alias: string): AliasExpr };
 
@@ -54,7 +54,7 @@ export function alias(expr: Expr, name: string): AliasExpr {
   return { type: 'alias', expr, alias: name };
 }
 
-// ── Expression factories ──
+// Expression factories
 
 export function col(name: string): WithAlias<ColumnExpr> {
   return withAlias({ type: 'column', name });
@@ -162,7 +162,7 @@ export function namedParam(key: string, chType: string, value: unknown): WithAli
   return withAlias({ type: 'named_param', key, chType, value });
 }
 
-// ── Shortcut functions for common ClickHouse functions ──
+// Shortcut functions for common ClickHouse functions
 
 export function count(): WithAlias<FuncCallExpr> {
   return func('count');
@@ -235,7 +235,7 @@ export function toString(expr: Expr): WithAlias<FuncCallExpr> {
   return func('toString', expr);
 }
 
-// ── JSON functions ──
+// JSON functions
 
 /** JSONExtractString(expr, key1, key2, ...) — variadic, supports nested keys */
 export function jsonExtractString(expr: Expr, ...keys: string[]): WithAlias<FuncCallExpr> {
@@ -252,7 +252,7 @@ export function jsonHas(expr: Expr, ...keys: string[]): WithAlias<FuncCallExpr> 
   return func('JSONHas', expr, ...keys.map((k) => literal(k)));
 }
 
-// ── Type conversion functions ──
+// Type conversion functions
 
 export function toFloat64OrZero(expr: Expr): WithAlias<FuncCallExpr> {
   return func('toFloat64OrZero', expr);
@@ -278,7 +278,7 @@ export function parseDateTimeBestEffortOrZero(expr: Expr): WithAlias<FuncCallExp
   return func('parseDateTimeBestEffortOrZero', expr);
 }
 
-// ── Aggregate functions ──
+// Aggregate functions
 
 export function argMax(expr: Expr, orderByExpr: Expr): WithAlias<FuncCallExpr> {
   return func('argMax', expr, orderByExpr);
@@ -300,13 +300,13 @@ export function quantile(p: number, expr: Expr): WithAlias<ParametricFuncCallExp
   return parametricFunc('quantile', [literal(p)], [expr]);
 }
 
-// ── Dictionary functions ──
+// Dictionary functions
 
 export function dictGetOrNull(dictName: string, attrName: string, keyExpr: Expr): WithAlias<FuncCallExpr> {
   return func('dictGetOrNull', literal(dictName), literal(attrName), keyExpr);
 }
 
-// ── String functions ──
+// String functions
 
 export function lower(expr: Expr): WithAlias<FuncCallExpr> {
   return func('lower', expr);
@@ -322,7 +322,7 @@ export function multiSearchAny(expr: Expr, arrayExpr: Expr): WithAlias<FuncCallE
   return func('multiSearchAny', expr, arrayExpr);
 }
 
-// ── Array & utility functions ──
+// Array & utility functions
 
 /** notEmpty(expr) — returns 1 if array/string is not empty */
 export function notEmpty(expr: Expr): WithAlias<FuncCallExpr> {
@@ -349,7 +349,7 @@ export function sipHash64(expr: Expr): WithAlias<FuncCallExpr> {
   return func('sipHash64', expr);
 }
 
-// ── Conditional functions ──
+// Conditional functions
 
 /**
  * if(cond, then, else_) — ClickHouse ternary `if` function.
@@ -364,7 +364,7 @@ export function coalesce(...exprs: Expr[]): WithAlias<FuncCallExpr> {
   return func('coalesce', ...exprs);
 }
 
-// ── Array functions with lambda support ──
+// Array functions with lambda support
 
 /**
  * arrayExists(lambda, arrayExpr) — returns 1 if at least one element matches.
@@ -405,7 +405,7 @@ export function arrayFold(lambdaExpr: LambdaExpr, arrayExpr: Expr, initialAcc: E
   return func('arrayFold', lambdaExpr, arrayExpr, initialAcc);
 }
 
-// ── HIGH priority function shortcuts ──
+// HIGH priority function shortcuts
 
 /** length(expr) — returns length of string or array */
 export function length(expr: Expr): WithAlias<FuncCallExpr> {
@@ -446,7 +446,7 @@ export function dateDiff(unit: string | Expr, start: Expr, end: Expr): WithAlias
   return func('dateDiff', unitExpr, start, end);
 }
 
-// ── MEDIUM priority function shortcuts ──
+// MEDIUM priority function shortcuts
 
 /** toDateTime64(expr, scale, tz?) — convert to DateTime64 with specified scale */
 export function toDateTime64(expr: Expr, scale: Expr, tz?: Expr): WithAlias<FuncCallExpr> {
@@ -488,7 +488,7 @@ export function toInt32(expr: Expr): WithAlias<FuncCallExpr> {
   return func('toInt32', expr);
 }
 
-// ── LOW priority function shortcuts ──
+// LOW priority function shortcuts
 
 /** groupUniqArray(expr) — returns array of unique values from the group */
 export function groupUniqArray(expr: Expr): WithAlias<FuncCallExpr> {
@@ -515,7 +515,7 @@ export function today(): WithAlias<FuncCallExpr> {
   return func('today');
 }
 
-// ── Condition builders ──
+// Condition builders
 
 function makeBinary(op: BinaryOp, left: Expr, right: Expr): BinaryExpr {
   return { type: 'binary', op, left, right };
@@ -631,7 +631,7 @@ export function multiIf(
   return withAlias({ type: 'case', branches, else_result: elseResult });
 }
 
-// ── SQL utils (LIKE escaping) ──
+// SQL utils (LIKE escaping)
 
 /**
  * Escapes LIKE-wildcard characters (%, _, \) in a user-provided string
@@ -677,7 +677,7 @@ export function safeNotLike(expr: Expr, substring: string, mode: SafeLikeMode = 
   return notLike(expr, param('String', escaped));
 }
 
-// ── SelectBuilder (fluent chain) ──
+// SelectBuilder (fluent chain)
 
 export class SelectBuilder {
   private node: Partial<SelectNode> & { type: 'select'; columns: Expr[] };

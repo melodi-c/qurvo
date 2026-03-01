@@ -29,7 +29,7 @@ function insightConfigSchema() {
   };
 }
 
-// ── Query DTOs ──────────────────────────────────────────────────────────────
+// Query DTOs
 
 export class ListInsightsQueryDto {
   @ApiPropertyOptional({ enum: ['trend', 'funnel', 'retention', 'lifecycle', 'stickiness', 'paths'] })
@@ -38,7 +38,7 @@ export class ListInsightsQueryDto {
   type?: 'trend' | 'funnel' | 'retention' | 'lifecycle' | 'stickiness' | 'paths';
 }
 
-// ── Create / Update DTOs ──────────────────────────────────────────────────────
+// Create / Update DTOs
 
 @ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto, PathsWidgetConfigDto)
 export class CreateInsightDto {
@@ -85,7 +85,7 @@ export class UpdateInsightDto {
   is_favorite?: boolean;
 }
 
-// ── Response DTO ─────────────────────────────────────────────────────────────
+// Response DTO
 
 @ApiExtraModels(FunnelWidgetConfigDto, TrendWidgetConfigDto, RetentionWidgetConfigDto, LifecycleWidgetConfigDto, StickinessWidgetConfigDto, PathsWidgetConfigDto)
 export class InsightDto {

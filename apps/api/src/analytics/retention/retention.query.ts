@@ -33,7 +33,7 @@ import {
   type PropertyFilter,
 } from '../query-helpers';
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// Public types
 
 export type RetentionType = 'first_time' | 'recurring';
 export type RetentionGranularity = 'day' | 'week' | 'month';
@@ -66,7 +66,7 @@ export interface RetentionQueryResult {
   average_retention: number[];
 }
 
-// ── Raw row type ─────────────────────────────────────────────────────────────
+// Raw row type
 
 interface RawRetentionRow {
   cohort_period: string;
@@ -74,7 +74,7 @@ interface RawRetentionRow {
   user_count: string;
 }
 
-// ── Result assembly ──────────────────────────────────────────────────────────
+// Result assembly
 
 function assembleResult(
   rows: RawRetentionRow[],
@@ -148,7 +148,7 @@ function assembleResult(
   };
 }
 
-// ── Core query ───────────────────────────────────────────────────────────────
+// Core query
 
 export async function queryRetention(
   ch: ClickHouseClient,
@@ -168,7 +168,7 @@ export async function queryRetention(
   const { dateTo, dateFrom } = cohortBounds(params);
   const unit = params.granularity;
 
-  // ── initial_events CTE ──
+  // initial_events CTE
   // Depends on retention_type: recurring vs first_time
 
   let initialCte;
@@ -227,7 +227,7 @@ export async function queryRetention(
       .build();
   }
 
-  // ── return_events CTE ──
+  // return_events CTE
   const returnCte = select(
     resolvedPerson().as('person_id'),
     bucket(params.granularity, 'timestamp', tz).as('return_period'),
@@ -247,7 +247,7 @@ export async function queryRetention(
     .groupBy(col('person_id'), col('return_period'))
     .build();
 
-  // ── retention_raw CTE ── INNER JOIN initial × return
+  // retention_raw CTE ── INNER JOIN initial × return
   const retentionRaw = select(
     col('i.cohort_period'),
     col('i.person_id'),
@@ -264,7 +264,7 @@ export async function queryRetention(
     )
     .build();
 
-  // ── Sentinel rows (cohort size, period_offset = -1) ──
+  // Sentinel rows (cohort size, period_offset = -1)
   const sentinelQuery = select(
     chToString(col('cohort_period')).as('cohort_period'),
     toInt32(literal(-1)).as('period_offset'),
@@ -274,7 +274,7 @@ export async function queryRetention(
     .groupBy(col('cohort_period'))
     .build();
 
-  // ── Retention period rows (period_offset >= 0) ──
+  // Retention period rows (period_offset >= 0)
   const retentionQuery = select(
     chToString(col('cohort_period')).as('cohort_period'),
     col('period_offset'),
@@ -286,7 +286,7 @@ export async function queryRetention(
     .orderBy(col('period_offset'))
     .build();
 
-  // ── Final query with CTEs and UNION ALL ──
+  // Final query with CTEs and UNION ALL
   const query = select(col('cohort_period'), col('period_offset'), col('user_count'))
     .with('initial_events', initialCte)
     .with('return_events', returnCte)

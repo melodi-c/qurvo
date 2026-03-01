@@ -15,10 +15,6 @@ import type {
   FunnelGapToolOutput,
 } from '@qurvo/ai-types';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface TrendToolResult {
   series: TrendSeriesResult[];
   series_previous?: TrendSeriesResult[];
@@ -57,9 +53,7 @@ export type AiToolResultData =
   | { type: 'root_cause_chart'; data: RootCauseResult }
   | { type: 'funnel_gap_chart'; data: FunnelGapResult };
 
-// ---------------------------------------------------------------------------
 // CSV helpers
-// ---------------------------------------------------------------------------
 
 function escapeCsv(value: string | number | null | undefined): string {
   if (value === null || value === undefined) {return '';}
@@ -195,9 +189,7 @@ export function toolResultToCsv(parsed: AiToolResultData): string {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Markdown table helpers
-// ---------------------------------------------------------------------------
 
 function padRow(cells: string[], widths: number[]): string {
   return '| ' + cells.map((c, i) => c.padEnd(widths[i])).join(' | ') + ' |';
@@ -344,9 +336,7 @@ export function toolResultToMarkdown(parsed: AiToolResultData): string {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Download helper
-// ---------------------------------------------------------------------------
 
 export function downloadCsv(csv: string, filename: string): void {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -361,9 +351,7 @@ export function downloadCsv(csv: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-// ---------------------------------------------------------------------------
 // Chart capture helper (html2canvas)
-// ---------------------------------------------------------------------------
 
 export async function captureChartAsBlob(element: HTMLElement): Promise<Blob> {
   const { default: html2canvas } = await import('html2canvas');

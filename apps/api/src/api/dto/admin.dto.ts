@@ -1,7 +1,7 @@
 import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
+// Stats
 
 export class AdminStatsDto {
   total_users: number;
@@ -10,7 +10,7 @@ export class AdminStatsDto {
   redis_stream_depth: number;
 }
 
-// ── Users ─────────────────────────────────────────────────────────────────────
+// Users
 
 export class PatchUserStaffDto {
   @IsBoolean()
@@ -52,7 +52,7 @@ export class AdminUserDetailDto {
   projects: AdminUserProjectDto[];
 }
 
-// ── Projects ──────────────────────────────────────────────────────────────────
+// Projects
 
 export class PatchAdminProjectDto {
   @IsOptional()

@@ -2,7 +2,7 @@ import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from '../../cohorts/cohort-breakdown.util';
 import type { PropertyFilter } from '../query-helpers';
 
-// ── Step / Exclusion types ───────────────────────────────────────────────────
+// Step / Exclusion types
 
 type StepFilter = PropertyFilter;
 export type FunnelOrderType = 'ordered' | 'strict' | 'unordered';
@@ -22,7 +22,7 @@ export interface FunnelExclusion {
   filters?: StepFilter[];
 }
 
-// ── Result types ─────────────────────────────────────────────────────────────
+// Result types
 
 export interface FunnelStepResult {
   step: number;
@@ -45,7 +45,7 @@ export type FunnelQueryResult =
   | { breakdown: false; steps: FunnelStepResult[]; sampling_factor?: number }
   | { breakdown: true; breakdown_property: string; steps: FunnelBreakdownStepResult[]; aggregate_steps: FunnelStepResult[]; breakdown_truncated?: boolean; sampling_factor?: number };
 
-// ── Query param types ────────────────────────────────────────────────────────
+// Query param types
 
 export interface FunnelQueryParams {
   project_id: string;
@@ -66,7 +66,7 @@ export interface FunnelQueryParams {
   breakdown_limit?: number;
 }
 
-// ── Time to Convert types ────────────────────────────────────────────────────
+// Time to Convert types
 
 export interface TimeToConvertBin {
   from_seconds: number;

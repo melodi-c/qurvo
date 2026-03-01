@@ -24,9 +24,7 @@ import { api } from '@/api/client';
 import type { AdminPlan, CreateAdminPlan, PatchAdminPlan, CreatePlanFeatures } from '@/api/generated/Api';
 import translations from './admin-plans-page.translations';
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 function formatLimit(value: number | null | undefined, unlimited: string): string {
   if (value === null || value === undefined || value === -1) {return unlimited;}
@@ -56,9 +54,7 @@ const FEATURE_LABEL_MAP: Record<keyof CreatePlanFeatures, FeatureTranslationKey>
   ai_insights: 'featureAiInsights',
 };
 
-// ---------------------------------------------------------------------------
 // Plan form state
-// ---------------------------------------------------------------------------
 
 interface PlanFormValues {
   name: string;
@@ -116,9 +112,7 @@ function parseOptionalInt(value: string): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
-// ---------------------------------------------------------------------------
 // Plan Dialog
-// ---------------------------------------------------------------------------
 
 interface PlanDialogProps {
   open: boolean;
@@ -348,9 +342,7 @@ function PlanDialog({ open, onOpenChange, plan, onSuccess }: PlanDialogProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Main page
-// ---------------------------------------------------------------------------
 
 export default function AdminPlansPage() {
   const { t } = useLocalTranslation(translations);

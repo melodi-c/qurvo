@@ -188,23 +188,19 @@ export class EventConsumerService implements OnApplicationBootstrap {
     }
   }
 
-  // ── Pipeline ──────────────────────────────────────────────────────────────────
+  // Pipeline
 
   private async processMessages(messages: [string, string[]][]): Promise<void> {
-    // Step 1: Parse
     const parsed = parseMessages(messages);
 
-    // Step 2: Validate
     const { valid, invalidIds } = validateMessages(parsed, this.pipelineCtx);
     if (invalidIds.length > 0) {
       await this.redis.xack(REDIS_STREAM_EVENTS, REDIS_CONSUMER_GROUP, ...invalidIds);
     }
     if (valid.length === 0) {return;}
 
-    // Step 3: Prefetch person IDs
     const personCache = await prefetchPersons(valid, this.pipelineCtx);
 
-    // Step 4: Resolve persons + build Event DTOs
     const { buffered, failedIds } = await resolveAndBuildEvents(valid, personCache, this.pipelineCtx);
 
     if (failedIds.length > 0) {

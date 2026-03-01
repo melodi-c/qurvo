@@ -9,7 +9,7 @@ import {
   type PropertyFilter,
 } from '../query-helpers';
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// Public types
 
 export type StickinessGranularity = 'day' | 'week' | 'month';
 
@@ -35,7 +35,7 @@ export interface StickinessQueryResult {
   data: StickinessDataPoint[];
 }
 
-// ── Compute total periods ────────────────────────────────────────────────────
+// Compute total periods
 
 /**
  * Returns the ISO weekday (0=Sun, 1=Mon, …, 6=Sat) of a `YYYY-MM-DD` calendar
@@ -107,14 +107,14 @@ export function computeTotalPeriods(
   }
 }
 
-// ── Raw row type ─────────────────────────────────────────────────────────────
+// Raw row type
 
 interface RawStickinessRow {
   active_periods: string;
   user_count: string;
 }
 
-// ── Core query ───────────────────────────────────────────────────────────────
+// Core query
 
 export async function queryStickiness(
   ch: ClickHouseClient,

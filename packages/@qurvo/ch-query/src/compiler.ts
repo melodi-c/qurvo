@@ -43,7 +43,7 @@ export class CompilerContext {
   }
 }
 
-// ── Validation helpers ──
+// Validation helpers
 
 const VALID_INTERVAL_UNITS = new Set([
   'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR',
@@ -59,7 +59,7 @@ const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
  */
 const CH_TYPE_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\([a-zA-Z0-9_, ]*\))?$/;
 
-// ── Expression compiler ──
+// Expression compiler
 
 function compileLiteral(value: string | number | boolean): string {
   if (typeof value === 'boolean') return value ? '1' : '0';
@@ -263,7 +263,7 @@ function compileExpr(expr: Expr, ctx: CompilerContext): string {
   }
 }
 
-// ── Query compiler ──
+// Query compiler
 
 function compileJoin(join: JoinClause, ctx: CompilerContext): string {
   const joinType = join.type === 'CROSS' ? 'CROSS JOIN' : `${join.type} JOIN`;
@@ -380,7 +380,7 @@ function compileQuery(node: QueryNode, ctx: CompilerContext): string {
   }
 }
 
-// ── Public API ──
+// Public API
 
 export function compile(node: QueryNode): CompiledQuery {
   const ctx = new CompilerContext();

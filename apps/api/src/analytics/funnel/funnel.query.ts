@@ -47,7 +47,7 @@ import {
 export * from './funnel.types';
 export { queryFunnelTimeToConvert } from './funnel-time-to-convert';
 
-// ── Main funnel query ────────────────────────────────────────────────────────
+// Main funnel query
 
 export async function queryFunnel(
   ch: ClickHouseClient,
@@ -77,7 +77,7 @@ export async function queryFunnel(
   const samplingResult = samplingResult_raw
     ? { sampling_factor: params.sampling_factor } : {};
 
-  // ── Cohort breakdown ────────────────────────────────────────────────────
+  // Cohort breakdown
   if (params.breakdown_cohort_ids?.length) {
     const { steps: bdSteps, aggregate_steps } = await runFunnelCohortBreakdown(
       ch, params, queryParams, stepConditions, cohortExpr, samplingExpr,
@@ -91,14 +91,14 @@ export async function queryFunnel(
     };
   }
 
-  // ── Non-breakdown funnel ────────────────────────────────────────────────
+  // Non-breakdown funnel
   if (!params.breakdown_property) {
     const node = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, undefined);
     const rows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(node);
     return { breakdown: false, steps: computeStepResults(rows, steps, numSteps), ...samplingResult };
   }
 
-  // ── Property breakdown funnel ───────────────────────────────────────────
+  // Property breakdown funnel
   const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
   queryParams.breakdown_limit = breakdownLimit;
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
@@ -124,7 +124,7 @@ export async function queryFunnel(
   };
 }
 
-// ── SQL assembly using ch-query builder ──────────────────────────────────────
+// SQL assembly using ch-query builder
 
 function buildFunnelQuery(
   orderType: 'ordered' | 'strict' | 'unordered',
@@ -240,7 +240,7 @@ function buildFunnelQuery(
   return builder.build();
 }
 
-// ── Breakdown CTEs ───────────────────────────────────────────────────────────
+// Breakdown CTEs
 
 /**
  * Builds the top_breakdown_values and breakdown_total CTEs as QueryNodes.

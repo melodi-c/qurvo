@@ -57,14 +57,12 @@ export default function FunnelEditorPage() {
     [t],
   );
 
-  // Funnel data
   const { data, isLoading, isFetching } = useFunnelData(config, previewId);
   const funnelResult = data?.data;
   const steps = funnelResult?.steps;
   const breakdown = funnelResult?.breakdown;
   const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(funnelResult);
 
-  // Time to convert data
   const ttcConfig: TimeToConvertConfig = useMemo(
     () => ({ ...config, from_step: fromStep, to_step: toStep }),
     [config, fromStep, toStep],
