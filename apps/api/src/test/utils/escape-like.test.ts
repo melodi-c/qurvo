@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeLikePattern } from '../../utils/escape-like';
+import { escapeLikePattern } from '@qurvo/ch-query';
 
 describe('escapeLikePattern', () => {
   it('returns empty string unchanged', () => {

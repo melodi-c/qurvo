@@ -8,6 +8,9 @@ import {
   gt as chGt,
   gte as chGte,
   inArray,
+  jsonExtractRaw,
+  jsonExtractString,
+  jsonHas,
   like,
   literal,
   lt as chLt,
@@ -26,8 +29,14 @@ import {
   rawWithParams,
   toDate,
   toFloat64OrZero,
+  toString,
 } from '@qurvo/ch-query';
-import { buildCohortFilterClause } from '@qurvo/cohort-query';
+import {
+  buildCohortFilterClause,
+  DIRECT_COLUMNS,
+  parsePropertyPath,
+} from '@qurvo/cohort-query';
+import type { PropertySource } from '@qurvo/cohort-query';
 import { timeRange, toChTs } from './time';
 
 // ── Types ──
@@ -51,89 +60,8 @@ export interface PropertyFilter {
   values?: string[];
 }
 
-// ── Direct columns (not JSON-extracted) ──
-
-export const DIRECT_COLUMNS = new Set([
-  'event_name', 'distinct_id', 'session_id',
-  'url', 'referrer', 'page_title', 'page_path',
-  'device_type', 'browser', 'browser_version',
-  'os', 'os_version',
-  'country', 'region', 'city',
-  'language', 'timezone',
-  'sdk_name', 'sdk_version',
-]);
-
-// ── Internal helpers ──
-
-/**
- * Strict validation for JSON path key segments.
- * Only allows alphanumeric characters, underscores, hyphens, and dots.
- * Rejects any characters that could enable SQL injection (quotes, brackets, semicolons, etc).
- */
-const SAFE_JSON_KEY_REGEX = /^[a-zA-Z0-9_\-.]+$/;
-
-function validateJsonKey(segment: string): void {
-  if (!SAFE_JSON_KEY_REGEX.test(segment)) {
-    throw new Error(
-      `Invalid JSON key segment: "${segment}". ` +
-      `Only alphanumeric characters, underscores, hyphens, and dots are allowed.`,
-    );
-  }
-}
-
-function escapeJsonKey(segment: string): string {
-  validateJsonKey(segment);
-  return segment.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-interface PropertySource {
-  jsonColumn: string;
-  segments: string[];
-}
-
-function resolvePropertySource(prop: string): PropertySource | null {
-  let rawKey: string;
-  let jsonColumn: string;
-  if (prop.startsWith('properties.')) {
-    jsonColumn = 'properties';
-    rawKey = prop.slice('properties.'.length);
-  } else if (prop.startsWith('user_properties.')) {
-    jsonColumn = 'user_properties';
-    rawKey = prop.slice('user_properties.'.length);
-  } else {
-    return null;
-  }
-  const segments = rawKey.split('.').map(escapeJsonKey);
-  return { jsonColumn, segments };
-}
-
-function buildJsonExtractStringExpr(jsonColumn: string, segments: string[]): string {
-  const args = segments.map((s) => `'${s}'`).join(', ');
-  return `JSONExtractString(${jsonColumn}, ${args})`;
-}
-
-function buildJsonExtractRawExpr(jsonColumn: string, segments: string[]): string {
-  let expr = jsonColumn;
-  for (const seg of segments) {
-    expr = `JSONExtractRaw(${expr}, '${seg}')`;
-  }
-  return expr;
-}
-
-function buildJsonHasExpr(jsonColumn: string, segments: string[]): string {
-  if (segments.length === 1) {
-    return `JSONHas(${jsonColumn}, '${segments[0]}')`;
-  }
-  const parentExpr = buildJsonExtractRawExpr(jsonColumn, segments.slice(0, -1));
-  return `JSONHas(${parentExpr}, '${segments[segments.length - 1]}')`;
-}
-
-function resolvePropertyColumnExpr(prop: string): string {
-  const source = resolvePropertySource(prop);
-  if (source) {return buildJsonExtractStringExpr(source.jsonColumn, source.segments);}
-  if (DIRECT_COLUMNS.has(prop)) {return prop;}
-  throw new Error(`Unknown filter property: ${prop}`);
-}
+// Re-export DIRECT_COLUMNS from cohort-query for consumers that import from here
+export { DIRECT_COLUMNS } from '@qurvo/cohort-query';
 
 // ── Public API ──
 
@@ -153,25 +81,44 @@ export function eventIn(eventNames: string[]): Expr {
 }
 
 /**
+ * Resolves a property name to its typed Expr for event-level extraction.
+ * Returns col('name') for direct columns, or jsonExtractString(col(jsonColumn), ...keys) for JSON.
+ */
+export function resolvePropertyExpr(prop: string): Expr {
+  const source = parsePropertyPath(prop);
+  if (source) {
+    return jsonExtractString(col(source.jsonColumn), ...source.segments);
+  }
+  if (DIRECT_COLUMNS.has(prop)) {
+    return col(prop);
+  }
+  throw new Error(`Unknown filter property: ${prop}`);
+}
+
+/**
+ * Resolves a numeric property to its typed float extraction expression.
+ * toFloat64OrZero(jsonExtractRaw(col(jsonColumn), ...keys))
+ */
+export function resolveNumericPropertyExpr(prop: string): Expr {
+  const source = parsePropertyPath(prop);
+  if (source) {
+    return toFloat64OrZero(jsonExtractRaw(col(source.jsonColumn), ...source.segments));
+  }
+  throw new Error(`Unknown metric property: ${prop}`);
+}
+
+/**
  * Single property filter -> Expr.
  *
  * Converts a single property filter to an AST Expr node.
  * Values are wrapped in ParamExpr -- no mutation of external state.
  *
- * Supports the full operator set (aligned with cohort-query's buildOperatorClause):
- * - eq/neq: string equality with JSON fallback (toString(JSONExtractRaw))
- * - contains/not_contains: LIKE pattern match
- * - is_set/is_not_set: JSONHas guard
- * - gt/lt/gte/lte: numeric comparison via toFloat64OrZero
- * - regex/not_regex: ClickHouse match() function
- * - in/not_in: array membership
- * - between/not_between: numeric range via toFloat64OrZero
- * - is_date_before/is_date_after/is_date_exact: date comparison via parseDateTimeBestEffort
- * - contains_multi/not_contains_multi: multiSearchAny
+ * Uses typed ch-query builders (jsonExtractString, jsonExtractRaw, jsonHas)
+ * instead of raw SQL string builders.
  */
 export function propertyFilter(filter: PropertyFilter): Expr {
-  const source = resolvePropertySource(filter.property);
-  const colExpr = raw(resolvePropertyColumnExpr(filter.property));
+  const source = parsePropertyPath(filter.property);
+  const colExpr = resolvePropertyExpr(filter.property);
   const value = filter.value ?? '';
 
   switch (filter.operator) {
@@ -218,12 +165,12 @@ export function propertyFilter(filter: PropertyFilter): Expr {
   }
 }
 
-// ── Operator-specific builders (extracted from propertyFilter to reduce complexity) ──
+// ── Operator-specific builders (using typed ch-query functions) ──
 
 function buildEqFilter(colExpr: Expr, value: string, source: PropertySource | null): Expr {
   const valueParam = param('String', value);
   if (source) {
-    const rawExpr = raw(`toString(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
+    const rawExpr = toString(jsonExtractRaw(col(source.jsonColumn), ...source.segments));
     return or(eq(colExpr, valueParam), eq(rawExpr, valueParam));
   }
   return eq(colExpr, valueParam);
@@ -232,9 +179,9 @@ function buildEqFilter(colExpr: Expr, value: string, source: PropertySource | nu
 function buildNeqFilter(colExpr: Expr, value: string, source: PropertySource | null): Expr {
   const valueParam = param('String', value);
   if (source) {
-    const jsonHas = raw(buildJsonHasExpr(source.jsonColumn, source.segments));
-    const rawExpr = raw(`toString(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
-    return and(jsonHas, neq(colExpr, valueParam), neq(rawExpr, valueParam));
+    const jsonHasExpr = jsonHas(col(source.jsonColumn), ...source.segments);
+    const rawExpr = toString(jsonExtractRaw(col(source.jsonColumn), ...source.segments));
+    return and(jsonHasExpr, neq(colExpr, valueParam), neq(rawExpr, valueParam));
   }
   return neq(colExpr, valueParam);
 }
@@ -242,22 +189,22 @@ function buildNeqFilter(colExpr: Expr, value: string, source: PropertySource | n
 function buildNotContainsFilter(colExpr: Expr, value: string, source: PropertySource | null): Expr {
   const likeParam = param('String', `%${escapeLikePattern(value)}%`);
   if (source) {
-    const jsonHas = raw(buildJsonHasExpr(source.jsonColumn, source.segments));
-    return and(jsonHas, notLike(colExpr, likeParam));
+    const jsonHasExpr = jsonHas(col(source.jsonColumn), ...source.segments);
+    return and(jsonHasExpr, notLike(colExpr, likeParam));
   }
   return notLike(colExpr, likeParam);
 }
 
 function buildIsSetFilter(colExpr: Expr, source: PropertySource | null): Expr {
   if (source) {
-    return raw(buildJsonHasExpr(source.jsonColumn, source.segments));
+    return jsonHas(col(source.jsonColumn), ...source.segments);
   }
   return neq(colExpr, literal(''));
 }
 
 function buildIsNotSetFilter(colExpr: Expr, source: PropertySource | null): Expr {
   if (source) {
-    return not(raw(buildJsonHasExpr(source.jsonColumn, source.segments)));
+    return not(jsonHas(col(source.jsonColumn), ...source.segments));
   }
   return eq(colExpr, literal(''));
 }
@@ -275,7 +222,7 @@ function buildNumericComparisonFilter(
   source: PropertySource | null,
   value: string,
 ): Expr {
-  const numExpr = resolveNumericExpr(property, source);
+  const numExpr = resolveNumericExprTyped(property, source);
   return NUMERIC_CMP_MAP[op](numExpr, param('Float64', Number(value)));
 }
 
@@ -285,7 +232,7 @@ function buildRangeFilter(
   source: PropertySource | null,
   vals: string[],
 ): Expr {
-  const numExpr = resolveNumericExpr(property, source);
+  const numExpr = resolveNumericExprTyped(property, source);
   if (op === 'between') {
     return and(
       chGte(numExpr, param('Float64', Number(vals[0] ?? 0))),
@@ -314,15 +261,15 @@ function buildDateFilter(op: 'is_date_before' | 'is_date_after' | 'is_date_exact
 }
 
 /**
- * Resolves a numeric expression for a property (for gt/lt/gte/lte/between operators).
- * JSON properties: toFloat64OrZero(JSONExtractRaw(col, key))
- * Direct columns: toFloat64OrZero(col)
+ * Resolves a numeric expression for a property using typed builders.
+ * JSON properties: toFloat64OrZero(jsonExtractRaw(col(jsonColumn), ...keys))
+ * Direct columns: toFloat64OrZero(col(prop))
  */
-function resolveNumericExpr(prop: string, source: PropertySource | null): Expr {
+function resolveNumericExprTyped(prop: string, source: PropertySource | null): Expr {
   if (source) {
-    return toFloat64OrZero(raw(buildJsonExtractRawExpr(source.jsonColumn, source.segments)));
+    return toFloat64OrZero(jsonExtractRaw(col(source.jsonColumn), ...source.segments));
   }
-  return toFloat64OrZero(raw(prop));
+  return toFloat64OrZero(col(prop));
 }
 
 /**
@@ -437,24 +384,4 @@ export function cohortBounds(params: { date_to: string; date_from: string }): { 
   return { dateTo: toChTs(params.date_to, true), dateFrom: toChTs(params.date_from) };
 }
 
-/**
- * Resolves a property name to its SQL expression for extraction.
- * Returns a raw column name for direct columns, or JSONExtractString(...) for JSON.
- */
-export function resolvePropertyExpr(prop: string): Expr {
-  return raw(resolvePropertyColumnExpr(prop));
-}
-
-/**
- * Resolves a numeric property to its float extraction expression.
- * toFloat64OrZero(JSONExtractRaw(properties, 'key'))
- */
-export function resolveNumericPropertyExpr(prop: string): Expr {
-  const source = resolvePropertySource(prop);
-  if (source) {
-    return raw(`toFloat64OrZero(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
-  }
-  throw new Error(`Unknown metric property: ${prop}`);
-}
-
-export { resolvedPerson } from './resolved-person';
+export { resolvedPerson } from '@qurvo/cohort-query';

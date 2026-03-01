@@ -4,7 +4,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { eventDefinitions, eventProperties, type Database } from '@qurvo/db';
 import { DefinitionNotFoundException } from './exceptions/definition-not-found.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
-import { escapeLikePattern } from '../utils/escape-like';
+import { escapeLikePattern } from '@qurvo/ch-query';
 
 export interface EventDefinitionItem {
   event_name: string;

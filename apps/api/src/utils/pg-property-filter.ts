@@ -1,6 +1,6 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { escapeLikePattern } from './escape-like';
+import { escapeLikePattern } from '@qurvo/ch-query';
 import type { PropertyFilter } from '../analytics/query-helpers';
 
 /**
