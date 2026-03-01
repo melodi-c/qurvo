@@ -139,7 +139,7 @@ gh pr list --state open --json number,title,headRefName --limit 20
 - **Группировка по теме (ОБЯЗАТЕЛЬНО для bug и refactor)**: если несколько изменений относятся к одной теме, фиче или компоненту — объединяй в 1 issue с чеклистом `- [ ] шаг`. Не создавай отдельные issues для каждого файла или каждой строки. Примеры групп: "все i18n-фиксы в модуле X", "все N+1 запросы в сервисе Y", "типизация параметров API в контроллере Z"
 - **НЕ дроби**: если изменения P3/P2 и связаны одной причиной — это ОДИН issue, даже если затрагивает 5+ файлов
 - **Эпики**: если 3+ тесно связанных issues образуют единую фичу — создавай эпик с sub-issues. Каждый sub-issue сохраняет атомарный формат `type(scope): ...`
-- **Зависимости**: если issue B зависит от A — добавь в тело B `Depends on: #PLACEHOLDER-A`, заменишь на реальный номер при создании
+- **Зависимости**: если issue B (preview #3) зависит от A (preview #1) — добавь в тело B `Depends on: #DRAFT-1`. При создании в Шаге 6 заменяй `#DRAFT-N` на реальный GitHub номер
 - **Не дублируй**: если похожая задача уже есть в открытых issues — пропусти
 
 ### Формат issue зависит от режима:
@@ -176,12 +176,23 @@ Labels: `bug` + scope (`web`, `api`, etc.) + `size:xs/s/m/l`
 ```
 ## Agent Context
 
+- **starting_locus**: apps/api/src/events/events.service.ts  ← первый файл для solver
 - **affected_apps**: apps/web, apps/api
-- **affected_files**: apps/web/src/components/Button.tsx, apps/api/src/events/events.service.ts
+- **affected_files**:
+  - apps/api/src/events/events.service.ts:142-180 (modify processEvent)
+  - apps/api/src/events/events.controller.ts:35 (add endpoint)
 - **root_cause**: (для bug-report — из code-explorer; для остальных — опционально)
 - **complexity**: xs / s / m / l
 - **has_migrations**: true / false
+- **verification**: pnpm --filter @qurvo/api exec vitest run --config vitest.integration.config.ts
+- **boundaries**: Do NOT modify apps/web or packages/@qurvo/db  ← что solver НЕ должен трогать
 ```
+
+Поля:
+- **starting_locus** — файл, с которого solver должен начать чтение. Самый важный файл для понимания контекста
+- **affected_files** — с указанием строк и что именно изменить (функция/метод, а не просто файл)
+- **verification** — конкретная команда для проверки. Всегда из CLAUDE.md (vitest, tsc, build)
+- **boundaries** — что solver НЕ должен менять. Предотвращает расползание scope
 
 Эта секция **не для людей**, а для solver'а — он использует её для быстрого старта.
 
@@ -269,11 +280,14 @@ Labels: `epic` + scope
 
 ### Оценка размера (`size:*`) — обязательно для каждого issue:
 
-Используй результаты code-explorer для точной оценки по количеству затронутых файлов:
-- **`size:xs`** — 1 файл: опечатка, добавить одно поле, мелкий bugfix
-- **`size:s`** — 2-3 файла: добавить endpoint, исправить компонент, написать тесты
-- **`size:m`** — 4-7 файлов: новый модуль, новая страница, набор связанных изменений
-- **`size:l`** — 8+ файлов: архитектурные изменения, новая фича с несколькими слоями
+Оценивай по **объёму и сложности изменений**, а не только по числу файлов:
+
+- **`size:xs`** — тривиальное изменение: опечатка, однострочный фикс, добавить одно поле. ~10 строк кода
+- **`size:s`** — локальное изменение: добавить endpoint, исправить компонент, написать тесты для существующего кода. ~50 строк кода, 1-3 файла
+- **`size:m`** — умеренное изменение: новый модуль, новая страница, набор связанных изменений. ~150 строк кода, требует понимания нескольких модулей
+- **`size:l`** — крупное изменение: архитектурные изменения, новая фича с backend+frontend+DB. ~300+ строк, затрагивает несколько приложений или новый app
+
+Сложность повышается если: требуются миграции, новые паттерны (не по аналогии), изменения в shared-пакетах, или затрагивает auth/billing.
 
 ### Лейбл `has-migrations`:
 Добавляй к issue если он явно затрагивает:
@@ -283,7 +297,11 @@ Labels: `epic` + scope
 Это сигнал для executor не параллелизировать такие issues с другими DB-issues.
 
 **Labels** (из существующих в проекте):
-`bug`, `enhancement`, `refactor`, `ux/ui`, `architecture`, `web`, `api`, `security`, `billing`, `ai`, `i18n`, `good first issue`, `epic`, `has-migrations`, `size:xs`, `size:s`, `size:m`, `size:l`
+
+Тип: `bug`, `enhancement`, `refactor`, `epic`, `good first issue`
+Scope: `web`, `api`, `ingest`, `processor`, `cohort-worker`, `billing-worker`, `security`, `billing`, `ai`, `i18n`, `ux/ui`, `architecture`
+Size: `size:xs`, `size:s`, `size:m`, `size:l`
+Meta: `has-migrations`
 
 ---
 
@@ -307,8 +325,8 @@ prompt: |
 
 - Если вернул `"atomic": true` → оставь issue как есть
 - Если вернул список `sub_issues` → замени исходный issue на эти sub-issues в черновиках:
-  - Транслируй `depends_on` в `Depends on: #PLACEHOLDER:<title_slug>`, где `<title_slug>` — первые 50 символов title в kebab-case (пробелы → дефисы, lowercase). Пример: `depends_on: 0` (title: "feat(db): add monitors table") → `Depends on: #PLACEHOLDER:feat(db):-add-monitors-table`
-  - При создании в Шаге 6 заменяй `#PLACEHOLDER:<slug>` на реальный `#<NUMBER>`, сопоставляя по title
+  - Транслируй `depends_on` из decomposer (индекс в массиве sub_issues) в `Depends on: #DRAFT-N`, где N — порядковый номер sub-issue в preview. Пример: decomposer вернул `depends_on: 0` → первый sub-issue стал preview #2 → `Depends on: #DRAFT-2`
+  - При создании в Шаге 6 заменяй `#DRAFT-N` на реальный GitHub `#NUMBER`
   - Если sub-issues 3+ — автоматически оформи как эпик (применяй правила Шага 4)
   - Перенеси labels из каждого sub-issue в черновики
 
@@ -351,13 +369,14 @@ Sub-issues:
 Завершить preview строкой:
 ```
 ────────────────────────────────────────────────
-Создать N issues в GitHub? (да / нет / редактировать)
+Создать N issues в GitHub? (да / нет / да 1,3,5 / редактировать)
 ```
 
 **Дождись ответа:**
 - `нет` → остановись
 - `редактировать` → обсуди правки, покажи обновлённый список
-- `да` → Шаг 6
+- `да` → создать все issues (Шаг 6)
+- `да 1,3,5` → создать только указанные issues (по номерам из preview). Пересчитай зависимости: если issue с `Depends on` ссылается на исключённый — убери зависимость
 
 ---
 
@@ -381,6 +400,20 @@ done
 ## Шаг 6: Создать issues в GitHub
 
 Создавай **последовательно** (чтобы отслеживать реальные номера для зависимостей).
+
+### Восстановление при ошибке
+
+Перед созданием первого issue выведи пользователю маппинг-таблицу:
+```
+Создание issues... (DRAFT-N → GitHub #)
+```
+После каждого успешного создания — добавляй строку:
+```
+DRAFT-1 → #812 ✓
+DRAFT-2 → #813 ✓
+DRAFT-3 → ✗ (ошибка: rate limit)
+```
+При ошибке — сообщи пользователю, какие issues уже созданы и какие остались. Предложи продолжить (`да` → создать оставшиеся, `нет` → остановиться).
 
 ### Получить OWNER/REPO один раз:
 ```bash
@@ -409,7 +442,7 @@ BODY
   --label "web" --label "ux/ui"
 ```
 
-После создания каждого issue — сохрани его номер. Если следующий issue имел `Depends on: #PLACEHOLDER-X` — замени на реальный номер перед созданием.
+После создания каждого issue — сохрани маппинг: `DRAFT-N → реальный #NUMBER`. Если следующий issue содержит `Depends on: #DRAFT-N` — замени на реальный номер перед созданием.
 
 ### Создание эпика с sub-issues:
 
@@ -430,7 +463,7 @@ BODY
 **Важно:**
 - Sub-issues создавай без лейбла `epic`
 - Эпик создавай с лейблом `epic` (плюс лейбл scope, например `web`)
-- Если sub-issue имел `Depends on: #PLACEHOLDER-X` — замени на реальный номер перед созданием
+- Если sub-issue содержит `Depends on: #DRAFT-N` — замени на реальный номер перед созданием
 - `gh api .../sub_issues` требует **внутренний числовой ID** (не `#number`), его возвращает `gh api .../issues/NUMBER --jq '.id'`
 
 ---

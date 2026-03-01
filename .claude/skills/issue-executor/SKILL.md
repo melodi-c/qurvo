@@ -159,7 +159,6 @@ prompt: |
   При отказе — остановись. При согласии — исключи эти issues.
 
 Для issues с warning `size:l` — предложи пользователю запустить decomposer.
-Для issues с `size:m` — запусти decomposer **проактивно** (без запроса пользователя). Если decomposer вернул `"atomic": true` — продолжай как обычно. Если вернул sub_issues — создай их и замени оригинальный issue в execution plan.
 
 Обнови state: `bash "$SM" phase PREFLIGHT`
 
