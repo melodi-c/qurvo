@@ -1,9 +1,9 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import {
   select,
   unionAll,
-  compile,
   col,
   literal,
   param,
@@ -294,8 +294,6 @@ export async function queryRetention(
     .from(unionAll(sentinelQuery, retentionQuery))
     .build();
 
-  const compiled = compile(query);
-  const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await result.json<RawRetentionRow>();
+  const rows = await new ChQueryExecutor(ch).rows<RawRetentionRow>(query);
   return assembleResult(rows, params);
 }

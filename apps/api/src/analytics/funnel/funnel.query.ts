@@ -1,6 +1,6 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
+import { ChQueryExecutor } from '@qurvo/clickhouse';
 import {
-  compile,
   select,
   col,
   count,
@@ -16,7 +16,6 @@ import {
   add,
   type Expr,
   type SelectNode,
-  type CompiledQuery,
   type QueryNode,
 } from '@qurvo/ch-query';
 import { resolvePropertyExpr, cohortFilter, cohortBounds } from '../query-helpers';
@@ -95,9 +94,8 @@ export async function queryFunnel(
 
   // ── Non-breakdown funnel ────────────────────────────────────────────────
   if (!params.breakdown_property) {
-    const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, undefined);
-    const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-    const rows = await result.json<RawFunnelRow>();
+    const node = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, undefined);
+    const rows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(node);
     return { breakdown: false, steps: computeStepResults(rows, steps, numSteps), ...samplingResult };
   }
 
@@ -105,18 +103,16 @@ export async function queryFunnel(
   const breakdownLimit = params.breakdown_limit ?? MAX_BREAKDOWN_VALUES;
   queryParams.breakdown_limit = breakdownLimit;
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property);
-  const compiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, breakdownExpr);
-  const result = await ch.query({ query: compiled.sql, query_params: compiled.params, format: 'JSONEachRow' });
-  const rows = await result.json<RawBreakdownRow>();
+  const node = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, queryParams, breakdownExpr);
+  const rows = await new ChQueryExecutor(ch).rows<RawBreakdownRow>(node);
   const stepResults = computePropertyBreakdownResults(rows, steps, numSteps);
   const totalBdCount = rows.length > 0 ? Number(rows[0].total_bd_count ?? 0) : 0;
   const breakdown_truncated = totalBdCount > breakdownLimit;
 
   // Run a separate no-breakdown query for aggregate_steps.
   const aggregateQueryParams = { ...queryParams };
-  const aggregateCompiled = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, aggregateQueryParams, undefined);
-  const aggregateResult = await ch.query({ query: aggregateCompiled.sql, query_params: aggregateCompiled.params, format: 'JSONEachRow' });
-  const aggregateRows = await aggregateResult.json<RawFunnelRow>();
+  const aggregateNode = buildFunnelQuery(orderType, steps, exclusions, stepConditions, cohortExpr, samplingExpr, numSteps, aggregateQueryParams, undefined);
+  const aggregateRows = await new ChQueryExecutor(ch).rows<RawFunnelRow>(aggregateNode);
   const aggregateSteps = computeStepResults(aggregateRows, steps, numSteps);
 
   return {
@@ -141,7 +137,7 @@ function buildFunnelQuery(
   numSteps: number,
   queryParams: FunnelChQueryParams,
   breakdownExpr?: Expr,
-): CompiledQuery {
+): QueryNode {
   const hasBreakdown = !!breakdownExpr;
   const includeTimestampCols = !hasBreakdown;
 
@@ -195,7 +191,7 @@ function buildFunnelQuery(
   }
 
   // Build the CROSS JOIN subquery for step numbers
-  const stepsSubquery = buildStepsSubquery();
+  const stepsSubquery = buildStepsSubquery(numSteps);
 
   // Build WHERE conditions
   const whereConditions: (Expr | undefined)[] = [];
@@ -242,13 +238,7 @@ function buildFunnelQuery(
   // ORDER BY
   builder.orderBy(col('step_num'));
 
-  // compile() extracts all namedParam/rawWithParams params from the AST.
-  // Merge with queryParams for raw ClickHouse params ({window:UInt64}, {num_steps:UInt64}, etc.)
-  const compiled = compile(builder.build());
-  return {
-    sql: compiled.sql,
-    params: { ...queryParams, ...compiled.params },
-  };
+  return builder.build();
 }
 
 // ── Breakdown CTEs ───────────────────────────────────────────────────────────
