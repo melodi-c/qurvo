@@ -76,22 +76,6 @@ export function funnelTsParamExpr(paramName: 'from' | 'to', queryParams: FunnelC
     : rawWithParams(`{${paramName}:DateTime64(3)}`, { [paramName]: queryParams[paramName] });
 }
 
-/**
- * Returns the SQL expression to compare `timestamp` against the {from} or {to} parameter.
- * When the query params include a `tz` value, wraps the string param with toDateTime64(..., tz).
- *
- * Uses fixed parameter names (`from`, `to`, `tz`) matching the keys in queryParams,
- * not auto-incrementing p_N, to avoid parameter collisions when called without a shared
- * CompilerContext (e.g. cohort breakdown loop).
- *
- * // TODO(#775): remove after funnel-time-to-convert migration
- */
-export function funnelTsExprSql(paramName: 'from' | 'to', queryParams: FunnelChQueryParams, _ctx?: CompilerContext): string {
-  const hasTz = !!queryParams.tz;
-  return hasTz
-    ? `toDateTime64({${paramName}:String}, 3, {tz:String})`
-    : `{${paramName}:DateTime64(3)}`;
-}
 
 // ── Conversion window ────────────────────────────────────────────────────────
 
@@ -202,22 +186,6 @@ export function buildSamplingClause(
   );
 }
 
-/**
- * Returns the raw SQL string for sampling clause, for use in raw CTE body strings.
- * Returns '' when sampling is inactive, or the AND clause when active.
- * This is the "escape hatch" version for complex CTE bodies that are built as raw strings.
- *
- * // TODO(#775): remove after funnel-time-to-convert migration
- */
-export function buildSamplingClauseRaw(
-  samplingFactor: number | undefined,
-  queryParams: FunnelChQueryParams,
-): string {
-  if (samplingFactor === null || samplingFactor === undefined || isNaN(samplingFactor) || samplingFactor >= 1) {return '';}
-  const pct = Math.round(samplingFactor * 100);
-  queryParams.sample_pct = pct;
-  return `\n                AND sipHash64(toString(${RESOLVED_PERSON})) % 100 < {sample_pct:UInt8}`;
-}
 
 // ── windowFunnel expression ──────────────────────────────────────────────────
 
@@ -379,20 +347,6 @@ export function buildExcludedUsersCTE(exclusions: FunnelExclusion[], anchorFilte
     .build();
 }
 
-/**
- * Returns the excluded_users CTE body as a raw SQL string.
- * Used by funnel-time-to-convert.ts where the entire query is built as raw SQL.
- * Delegates to the shared buildExcludedUsersWhereConditions.
- *
- * // TODO(#775): remove after funnel-time-to-convert migration
- */
-export function buildExcludedUsersCTERaw(exclusions: FunnelExclusion[], anchorFilter = false): string {
-  return `excluded_users AS (
-    SELECT person_id
-    FROM funnel_per_user
-    WHERE ${buildExcludedUsersWhereConditions(exclusions, anchorFilter)}
-  )`;
-}
 
 // ── Unordered coverage expressions ───────────────────────────────────────────
 
@@ -483,37 +437,6 @@ export function buildStrictUserFilterExpr(
   return inArray(col('event_name'), namedParam(paramName, 'Array(String)', allEventNames));
 }
 
-/**
- * Builds the strict-mode user pre-filter subquery.
- *
- * For strict mode: returns a distinct_id IN subquery that limits to users with at least one step event.
- * For non-strict: returns a simple AND event_name IN clause.
- *
- * Both cases return raw SQL strings for injection into CTE body strings.
- *
- * // TODO(#775): remove after funnel-time-to-convert migration
- */
-export function buildStrictUserFilter(
-  fromExpr: string,
-  toExpr: string,
-  paramName: string,
-  orderType: FunnelOrderType,
-): string {
-  if (orderType === 'strict') {
-    return [
-      '',
-      '                AND distinct_id IN (',
-      '                  SELECT DISTINCT distinct_id',
-      '                  FROM events',
-      '                  WHERE project_id = {project_id:UUID}',
-      `                    AND timestamp >= ${fromExpr}`,
-      `                    AND timestamp <= ${toExpr}`,
-      `                    AND event_name IN ({${paramName}:Array(String)})`,
-      '                )',
-    ].join('\n');
-  }
-  return `\n                AND event_name IN ({${paramName}:Array(String)})`;
-}
 
 // ── Shared funnel AST expressions ───────────────────────────────────────────
 
