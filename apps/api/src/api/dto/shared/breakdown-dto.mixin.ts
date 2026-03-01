@@ -3,7 +3,6 @@ import {
   ArrayMaxSize,
   ArrayUnique,
   IsString,
-  IsNotEmpty,
   IsOptional,
   IsUUID,
   IsIn,
@@ -34,7 +33,6 @@ type Constructor = new (...args: any[]) => object;
 export function WithBreakdownFields<TBase extends Constructor>(Base: TBase) {
   class BreakdownMixin extends Base {
     @IsString()
-    @IsNotEmpty()
     @IsOptional()
     breakdown_property?: string;
 

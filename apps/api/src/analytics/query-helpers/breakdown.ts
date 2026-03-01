@@ -11,15 +11,6 @@ export interface BreakdownQueryParams {
   breakdown_cohort_ids?: CohortBreakdownEntry[];
 }
 
-/**
- * Common shape for breakdown metadata in query results.
- * Analytics result types extend this with module-specific fields.
- */
-export interface BreakdownResultBase {
-  breakdown: boolean;
-  breakdown_property?: string;
-}
-
 // ── Shared breakdown utilities ──────────────────────────────────────────────
 
 /**
@@ -31,3 +22,4 @@ export interface BreakdownResultBase {
 export function normalizeBreakdownValue(v: string | null | undefined): string {
   return (v !== null && v !== undefined && v !== '') ? v : '(none)';
 }
+
