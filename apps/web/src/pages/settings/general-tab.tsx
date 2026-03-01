@@ -1,24 +1,23 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DefinitionList, DefinitionListRow } from '@/components/ui/definition-list';
 import { InlineEditField } from '@/components/ui/inline-edit-field';
 import { TimezoneCombobox } from '@/components/TimezoneCombobox';
-import { useConfirmDelete } from '@/hooks/use-confirm-delete';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { api } from '@/api/client';
-import { toast } from 'sonner';
 import { Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { routes } from '@/lib/routes';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { useMutationWithToast } from '@/hooks/use-mutation-with-toast';
+import { useDeleteWithConfirm } from '@/hooks/use-delete-with-confirm';
 import { getRoleLabel } from '@/lib/i18n-utils';
 import translations from './general-tab.translations';
 
 export function GeneralTab({ projectId }: { projectId: string }) {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { t } = useLocalTranslation(translations);
   const { data: project, isLoading } = useQuery({
@@ -27,27 +26,24 @@ export function GeneralTab({ projectId }: { projectId: string }) {
     enabled: !!projectId,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (data: { name?: string; timezone?: string }) => api.projectsControllerUpdate({ id: projectId }, data),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      void queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success(t('updated'));
+  const updateMutation = useMutationWithToast(
+    (data: { name?: string; timezone?: string }) => api.projectsControllerUpdate({ id: projectId }, data),
+    {
+      successMessage: t('updated'),
+      errorMessage: t('updateFailed'),
+      invalidateKeys: [['project', projectId], ['projects']],
     },
-    onError: () => toast.error(t('updateFailed')),
-  });
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: () => api.projectsControllerRemove({ id: projectId }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['projects'] });
-      void navigate(routes.projects());
-      toast.success(t('deleted'));
+  const { confirmDelete, handleDelete } = useDeleteWithConfirm(
+    () => api.projectsControllerRemove({ id: projectId }),
+    {
+      successMessage: t('deleted'),
+      errorMessage: t('deleteFailed'),
+      invalidateKeys: [['projects']],
+      onSuccess: () => void navigate(routes.projects()),
     },
-    onError: () => toast.error(t('deleteFailed')),
-  });
-
-  const confirmDelete = useConfirmDelete();
+  );
 
   if (!projectId) {
     return <EmptyState icon={Settings} description={t('selectProject')} />;
@@ -126,9 +122,7 @@ export function GeneralTab({ projectId }: { projectId: string }) {
         title={t('deleteTitle', { name: confirmDelete.itemName })}
         description={t('deleteConfirmDescription')}
         confirmLabel={t('delete')}
-        onConfirm={async () => {
-          await deleteMutation.mutateAsync();
-        }}
+        onConfirm={handleDelete}
       />
     </div>
   );

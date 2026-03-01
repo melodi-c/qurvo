@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, CreditCard } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
@@ -10,7 +10,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { useConfirmDelete } from '@/hooks/use-confirm-delete';
+import { useDeleteWithConfirm } from '@/hooks/use-delete-with-confirm';
 import { api } from '@/api/client';
 import type { AdminPlan, CreatePlanFeatures } from '@/api/generated/Api';
 import { PlanDialog } from './PlanDialog';
@@ -35,34 +35,27 @@ export default function AdminPlansPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editPlan, setEditPlan] = useState<AdminPlan | null>(null);
-  const confirmDelete = useConfirmDelete();
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['admin', 'plans'],
     queryFn: () => api.adminPlansControllerListPlans(),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.adminPlansControllerDeletePlan({ id }),
-    onSuccess: () => {
-      toast.success(t('deleteSuccess'));
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
-      confirmDelete.close();
+  const { confirmDelete, handleDelete } = useDeleteWithConfirm(
+    (id: string) => api.adminPlansControllerDeletePlan({ id }),
+    {
+      successMessage: t('deleteSuccess'),
+      invalidateKeys: [['admin', 'plans']],
+      onError: (error: unknown) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 409) {
+          toast.error(t('deleteConflict'));
+        } else {
+          toast.error(t('deleteError'));
+        }
+      },
     },
-    onError: (error: unknown) => {
-      const status = (error as { response?: { status?: number } })?.response?.status;
-      if (status === 409) {
-        toast.error(t('deleteConflict'));
-      } else {
-        toast.error(t('deleteError'));
-      }
-      confirmDelete.close();
-    },
-  });
-
-  const handleDeleteConfirm = useCallback(async () => {
-    await deleteMutation.mutateAsync(confirmDelete.itemId);
-  }, [confirmDelete.itemId, deleteMutation]);
+  );
 
   const handleSuccess = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
@@ -206,7 +199,7 @@ export default function AdminPlansPage() {
         title={t('deleteTitle')}
         description={t('deleteDescription', { name: confirmDelete.itemName })}
         confirmLabel={t('deleteConfirm')}
-        onConfirm={handleDeleteConfirm}
+        onConfirm={handleDelete}
       />
     </div>
   );

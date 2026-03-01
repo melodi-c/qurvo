@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Database, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -13,7 +12,7 @@ import { toast } from 'sonner';
 import { api } from '@/api/client';
 import { useProjectId } from '@/hooks/use-project-id';
 import { usePropertyDefinitions, useUpsertPropertyDefinition, propertyDefinitionsKey } from '@/hooks/use-property-definitions';
-import { useConfirmDelete } from '@/hooks/use-confirm-delete';
+import { useDeleteWithConfirm } from '@/hooks/use-delete-with-confirm';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useInlineEdit } from '@/hooks/use-inline-edit';
 import translations from './translations';
@@ -27,36 +26,24 @@ interface PropertyEditValues {
 export function EventPropertiesSection({ eventName }: { eventName: string }) {
   const { t } = useLocalTranslation(translations);
   const projectId = useProjectId();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'event' | 'person'>('all');
 
   const type = typeFilter === 'all' ? undefined : typeFilter;
   const { data: definitions, isLoading } = usePropertyDefinitions(type, eventName);
   const upsertMutation = useUpsertPropertyDefinition();
-  const confirmDelete = useConfirmDelete();
 
-  const deleteMutation = useMutation({
-    mutationFn: ({ propertyType, propertyName }: { propertyType: string; propertyName: string }) =>
-      api.propertyDefinitionsControllerRemove({ projectId, propertyType, propertyName }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: propertyDefinitionsKey(projectId) }),
-  });
-
-  const handleDeleteProperty = useCallback(async () => {
-    const def = definitions?.find(
-      (d) => `${d.property_name}:${d.property_type}` === confirmDelete.itemId,
-    );
-    if (!def) {return;}
-    try {
-      await deleteMutation.mutateAsync({
-        propertyType: def.property_type,
-        propertyName: def.property_name,
-      });
-      toast.success(t('propertyDeleted'));
-    } catch {
-      toast.error(t('propertyDeleteFailed'));
-    }
-  }, [definitions, confirmDelete.itemId, deleteMutation, t]);
+  const { confirmDelete, handleDelete: handleDeleteProperty } = useDeleteWithConfirm(
+    (compositeId: string) => {
+      const [propertyName, propertyType] = compositeId.split(':');
+      return api.propertyDefinitionsControllerRemove({ projectId, propertyType, propertyName });
+    },
+    {
+      successMessage: t('propertyDeleted'),
+      errorMessage: t('propertyDeleteFailed'),
+      invalidateKeys: [propertyDefinitionsKey(projectId)],
+    },
+  );
 
   const rowKey = useCallback(
     (row: PropertyDefinition) => `${row.property_name}:${row.property_type}`,
