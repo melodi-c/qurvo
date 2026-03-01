@@ -14,7 +14,7 @@ import { CohortNotFoundException } from './exceptions/cohort-not-found.exception
 import { CohortDefinitionRequiredException } from './exceptions/cohort-definition-required.exception';
 import { StaticCohortOperationException } from './exceptions/static-cohort-operation.exception';
 import { CircularCohortReferenceException } from './exceptions/circular-cohort-reference.exception';
-import { countCohortMembers, countCohortMembersFromTable, countStaticCohortMembers, queryCohortSizeHistory } from './cohorts.query';
+import { countCohortMembers, countCohortMembersUnified, queryCohortSizeHistory } from './cohorts.query';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { CohortBreakdownEntry } from './cohort-breakdown.util';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
@@ -182,14 +182,13 @@ export class CohortsService {
 
   async getMemberCount(projectId: string, cohortId: string): Promise<number> {
     const cohort = await this.getById(projectId, cohortId);
-    if (cohort.is_static) {
-      return countStaticCohortMembers(this.ch, projectId, cohortId);
-    }
-    if (cohort.membership_version !== null) {
-      return countCohortMembersFromTable(this.ch, projectId, cohortId);
-    }
     const enriched = await this.enrichDefinition(projectId, cohort.definition);
-    return countCohortMembers(this.ch, projectId, enriched);
+    return countCohortMembersUnified(this.ch, projectId, {
+      cohort_id: cohortId,
+      definition: enriched,
+      materialized: cohort.membership_version !== null,
+      is_static: cohort.is_static,
+    });
   }
 
   async previewCount(
