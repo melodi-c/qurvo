@@ -20,7 +20,7 @@ import {
   analyticsWhere,
   resolvePropertyExpr,
   bucket,
-  toChTs,
+  cohortBounds,
   shiftPeriod,
   aggColumn,
   baseMetricColumns,
@@ -192,8 +192,7 @@ function seriesWhere(
     eventName: s.event_name,
     filters: s.filters,
     cohortFilters: params.cohort_filters,
-    dateTo: toChTs(dateTo, true),
-    dateFrom: toChTs(dateFrom),
+    ...cohortBounds(params),
   });
 }
 
@@ -240,6 +239,7 @@ async function executeTrendQuery(
     // because buildCohortFilterForBreakdown returns raw SQL with named params.
     // project_id must be in queryParams because the cohort SQL references {project_id:UUID}.
     const queryParams: Record<string, unknown> = { project_id: params.project_id };
+    const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
     const arms = params.series.flatMap((s, seriesIdx) => {
       // Build series-level event + filter conditions via the old path
       // because we need to mix raw cohort SQL into the WHERE.
@@ -247,7 +247,7 @@ async function executeTrendQuery(
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
         const cohortFilterSql = buildCohortFilterForBreakdown(
           cb, paramKey, 900 + cbIdx, queryParams,
-          toChTs(dateTo, true), toChTs(dateFrom),
+          cbDateTo, cbDateFrom,
         );
         const cohortIdKey = `cohort_id_${seriesIdx}_${cbIdx}`;
         queryParams[cohortIdKey] = cb.cohort_id;

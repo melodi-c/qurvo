@@ -26,6 +26,7 @@ import {
   projectIs,
   eventIs,
   cohortFilter,
+  cohortBounds,
   tsParam,
   toChTs,
   shiftDate,
@@ -142,6 +143,7 @@ export async function queryLifecycle(
   params: LifecycleQueryParams,
 ): Promise<LifecycleQueryResult> {
   const tz = params.timezone;
+  const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
   const extendedFrom = shiftDate(
     truncateDate(params.date_from, params.granularity),
     -1,
@@ -168,8 +170,7 @@ export async function queryLifecycle(
         eventName: params.target_event,
         filters: params.event_filters,
         cohortFilters: params.cohort_filters,
-        dateTo: toChTs(params.date_to, true),
-        dateFrom: toChTs(params.date_from),
+        dateTo: cbDateTo, dateFrom: cbDateFrom,
       }),
     )
     .groupBy(col('person_id'))
@@ -190,8 +191,8 @@ export async function queryLifecycle(
       cohortFilter(
         params.cohort_filters,
         params.project_id,
-        toChTs(params.date_to, true),
-        toChTs(params.date_from),
+        cbDateTo,
+        cbDateFrom,
       ),
     ))
     .groupBy(col('person_id'))

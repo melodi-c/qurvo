@@ -27,6 +27,7 @@ import {
   projectIs,
   eventIs,
   cohortFilter,
+  cohortBounds,
   type PropertyFilter,
 } from '../query-helpers';
 
@@ -162,6 +163,7 @@ export async function queryRetention(
   const truncToTs = toChTs(truncTo, true);
   const extendedToTs = toChTs(extendedTo, true);
 
+  const { dateTo, dateFrom } = cohortBounds(params);
   const unit = params.granularity;
 
   // ── initial_events CTE ──
@@ -184,8 +186,8 @@ export async function queryRetention(
         eventName: params.target_event,
         filters: params.filters,
         cohortFilters: params.cohort_filters,
-        dateTo: toChTs(params.date_to, true),
-        dateFrom: toChTs(params.date_from),
+        dateTo,
+        dateFrom,
       }))
       .groupBy(col('person_id'), col('cohort_period'))
       .build();
@@ -211,8 +213,8 @@ export async function queryRetention(
         cohortFilter(
           params.cohort_filters,
           params.project_id,
-          toChTs(params.date_to, true),
-          toChTs(params.date_from),
+          dateTo,
+          dateFrom,
         ),
       ))
       .groupBy(col('person_id'))
@@ -237,8 +239,8 @@ export async function queryRetention(
       eventName: returnEventName,
       filters: params.filters,
       cohortFilters: params.cohort_filters,
-      dateTo: toChTs(params.date_to, true),
-      dateFrom: toChTs(params.date_from),
+      dateTo,
+      dateFrom,
     }))
     .groupBy(col('person_id'), col('return_period'))
     .build();
