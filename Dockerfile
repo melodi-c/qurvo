@@ -66,7 +66,7 @@ COPY . .
 # ==============================================================================
 FROM base AS packages-builder
 
-RUN pnpm turbo build --filter='./packages/@qurvo/*'
+RUN pnpm -r --filter './packages/@qurvo/*' run --if-present build
 
 # ==============================================================================
 # Stage: nestjs-builder — build target NestJS app only (packages already built)
