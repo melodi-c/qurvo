@@ -42,3 +42,13 @@ export {
   numericProperty,
 } from './aggregations';
 export type { TrendMetric } from './aggregations';
+
+// ── Shared breakdown helpers ─────────────────────────────────────────────────
+
+/**
+ * Normalizes a breakdown value, replacing null/undefined/empty with '(none)'.
+ * Single source of truth for the pattern used across trend.query.ts, funnel-results.ts, etc.
+ */
+export function normalizeBreakdownValue(value: string | null | undefined): string {
+  return (value !== null && value !== undefined && value !== '') ? value : '(none)';
+}

@@ -6,6 +6,7 @@ import {
   literal,
   func,
   lambda,
+  length,
   namedParam,
   alias,
   rawWithParams,
@@ -504,7 +505,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     ...Array.from({ length: N }, (_, i) => col(`t${i}_arr`)),
   )
     .from('step_times')
-    .where(gt(func('length', col('t0_arr')), literal(0)))
+    .where(gt(length(col('t0_arr')), literal(0)))
     .build();
 
   ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });

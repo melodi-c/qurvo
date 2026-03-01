@@ -5,28 +5,50 @@ import {
   compileExprToSql,
   eq,
   escapeLikePattern,
+  gt as chGt,
+  gte as chGte,
   inArray,
   like,
   literal,
+  lt as chLt,
+  lte as chLte,
+  match,
+  multiSearchAny,
   neq,
   not,
+  notInArray,
   notLike,
   or,
   param,
+  parseDateTimeBestEffort,
+  parseDateTimeBestEffortOrZero,
   raw,
   rawWithParams,
+  toDate,
+  toFloat64OrZero,
 } from '@qurvo/ch-query';
 import { buildCohortFilterClause } from '@qurvo/cohort-query';
 import { timeRange, toChTs } from './time';
 
 // ── Types ──
 
-export type FilterOperator = 'eq' | 'neq' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set';
+export type FilterOperator =
+  | 'eq' | 'neq'
+  | 'contains' | 'not_contains'
+  | 'is_set' | 'is_not_set'
+  | 'gt' | 'lt' | 'gte' | 'lte'
+  | 'regex' | 'not_regex'
+  | 'in' | 'not_in'
+  | 'between' | 'not_between'
+  | 'is_date_before' | 'is_date_after' | 'is_date_exact'
+  | 'contains_multi' | 'not_contains_multi';
 
 export interface PropertyFilter {
   property: string;
   operator: FilterOperator;
   value?: string;
+  /** Multiple values for operators: in, not_in, between, not_between, contains_multi, not_contains_multi */
+  values?: string[];
 }
 
 // ── Direct columns (not JSON-extracted) ──
@@ -136,14 +158,16 @@ export function eventIn(eventNames: string[]): Expr {
  * Converts a single property filter to an AST Expr node.
  * Values are wrapped in ParamExpr -- no mutation of external state.
  *
- * Operators:
- * - eq: (JSONExtractString = param OR toString(JSONExtractRaw) = param) for JSON,
- *        direct_col = param for direct columns
- * - neq: JSONHas AND JSONExtractString != param AND toString(JSONExtractRaw) != param
- * - contains: JSONExtractString LIKE '%value%'
- * - not_contains: JSONHas AND JSONExtractString NOT LIKE '%value%'
- * - is_set: JSONHas(col, key) for JSON, col != '' for direct
- * - is_not_set: NOT JSONHas(col, key) for JSON, col = '' for direct
+ * Supports the full operator set (aligned with cohort-query's buildOperatorClause):
+ * - eq/neq: string equality with JSON fallback (toString(JSONExtractRaw))
+ * - contains/not_contains: LIKE pattern match
+ * - is_set/is_not_set: JSONHas guard
+ * - gt/lt/gte/lte: numeric comparison via toFloat64OrZero
+ * - regex/not_regex: ClickHouse match() function
+ * - in/not_in: array membership
+ * - between/not_between: numeric range via toFloat64OrZero
+ * - is_date_before/is_date_after/is_date_exact: date comparison via parseDateTimeBestEffort
+ * - contains_multi/not_contains_multi: multiSearchAny
  */
 export function propertyFilter(filter: PropertyFilter): Expr {
   const source = resolvePropertySource(filter.property);
@@ -151,52 +175,154 @@ export function propertyFilter(filter: PropertyFilter): Expr {
   const value = filter.value ?? '';
 
   switch (filter.operator) {
-    case 'eq': {
-      const valueParam = param('String', value);
-      if (source) {
-        const rawExpr = raw(`toString(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
-        return or(eq(colExpr, valueParam), eq(rawExpr, valueParam));
-      }
-      return eq(colExpr, valueParam);
-    }
-    case 'neq': {
-      const valueParam = param('String', value);
-      if (source) {
-        const jsonHas = raw(buildJsonHasExpr(source.jsonColumn, source.segments));
-        const rawExpr = raw(`toString(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
-        return and(jsonHas, neq(colExpr, valueParam), neq(rawExpr, valueParam));
-      }
-      return neq(colExpr, valueParam);
-    }
-    case 'contains': {
-      const likeParam = param('String', `%${escapeLikePattern(value)}%`);
-      return like(colExpr, likeParam);
-    }
-    case 'not_contains': {
-      const likeParam = param('String', `%${escapeLikePattern(value)}%`);
-      if (source) {
-        const jsonHas = raw(buildJsonHasExpr(source.jsonColumn, source.segments));
-        return and(jsonHas, notLike(colExpr, likeParam));
-      }
-      return notLike(colExpr, likeParam);
-    }
-    case 'is_set': {
-      if (source) {
-        return raw(buildJsonHasExpr(source.jsonColumn, source.segments));
-      }
-      return neq(colExpr, literal(''));
-    }
-    case 'is_not_set': {
-      if (source) {
-        return not(raw(buildJsonHasExpr(source.jsonColumn, source.segments)));
-      }
-      return eq(colExpr, literal(''));
-    }
+    case 'eq':
+      return buildEqFilter(colExpr, value, source);
+    case 'neq':
+      return buildNeqFilter(colExpr, value, source);
+    case 'contains':
+      return like(colExpr, param('String', `%${escapeLikePattern(value)}%`));
+    case 'not_contains':
+      return buildNotContainsFilter(colExpr, value, source);
+    case 'is_set':
+      return buildIsSetFilter(colExpr, source);
+    case 'is_not_set':
+      return buildIsNotSetFilter(colExpr, source);
+    case 'gt':
+    case 'lt':
+    case 'gte':
+    case 'lte':
+      return buildNumericComparisonFilter(filter.operator, filter.property, source, value);
+    case 'regex':
+      return match(colExpr, param('String', value));
+    case 'not_regex':
+      return not(match(colExpr, param('String', value)));
+    case 'in':
+      return inArray(colExpr, param('Array(String)', filter.values ?? []));
+    case 'not_in':
+      return notInArray(colExpr, param('Array(String)', filter.values ?? []));
+    case 'between':
+    case 'not_between':
+      return buildRangeFilter(filter.operator, filter.property, source, filter.values ?? []);
+    case 'is_date_before':
+    case 'is_date_after':
+    case 'is_date_exact':
+      return buildDateFilter(filter.operator, colExpr, value);
+    case 'contains_multi':
+      return multiSearchAny(colExpr, param('Array(String)', filter.values ?? []));
+    case 'not_contains_multi':
+      return not(multiSearchAny(colExpr, param('Array(String)', filter.values ?? [])));
     default: {
       const _exhaustive: never = filter.operator;
       throw new Error(`Unhandled operator: ${_exhaustive}`);
     }
   }
+}
+
+// ── Operator-specific builders (extracted from propertyFilter to reduce complexity) ──
+
+function buildEqFilter(colExpr: Expr, value: string, source: PropertySource | null): Expr {
+  const valueParam = param('String', value);
+  if (source) {
+    const rawExpr = raw(`toString(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
+    return or(eq(colExpr, valueParam), eq(rawExpr, valueParam));
+  }
+  return eq(colExpr, valueParam);
+}
+
+function buildNeqFilter(colExpr: Expr, value: string, source: PropertySource | null): Expr {
+  const valueParam = param('String', value);
+  if (source) {
+    const jsonHas = raw(buildJsonHasExpr(source.jsonColumn, source.segments));
+    const rawExpr = raw(`toString(${buildJsonExtractRawExpr(source.jsonColumn, source.segments)})`);
+    return and(jsonHas, neq(colExpr, valueParam), neq(rawExpr, valueParam));
+  }
+  return neq(colExpr, valueParam);
+}
+
+function buildNotContainsFilter(colExpr: Expr, value: string, source: PropertySource | null): Expr {
+  const likeParam = param('String', `%${escapeLikePattern(value)}%`);
+  if (source) {
+    const jsonHas = raw(buildJsonHasExpr(source.jsonColumn, source.segments));
+    return and(jsonHas, notLike(colExpr, likeParam));
+  }
+  return notLike(colExpr, likeParam);
+}
+
+function buildIsSetFilter(colExpr: Expr, source: PropertySource | null): Expr {
+  if (source) {
+    return raw(buildJsonHasExpr(source.jsonColumn, source.segments));
+  }
+  return neq(colExpr, literal(''));
+}
+
+function buildIsNotSetFilter(colExpr: Expr, source: PropertySource | null): Expr {
+  if (source) {
+    return not(raw(buildJsonHasExpr(source.jsonColumn, source.segments)));
+  }
+  return eq(colExpr, literal(''));
+}
+
+const NUMERIC_CMP_MAP = {
+  gt: chGt,
+  lt: chLt,
+  gte: chGte,
+  lte: chLte,
+} as const;
+
+function buildNumericComparisonFilter(
+  op: 'gt' | 'lt' | 'gte' | 'lte',
+  property: string,
+  source: PropertySource | null,
+  value: string,
+): Expr {
+  const numExpr = resolveNumericExpr(property, source);
+  return NUMERIC_CMP_MAP[op](numExpr, param('Float64', Number(value)));
+}
+
+function buildRangeFilter(
+  op: 'between' | 'not_between',
+  property: string,
+  source: PropertySource | null,
+  vals: string[],
+): Expr {
+  const numExpr = resolveNumericExpr(property, source);
+  if (op === 'between') {
+    return and(
+      chGte(numExpr, param('Float64', Number(vals[0] ?? 0))),
+      chLte(numExpr, param('Float64', Number(vals[1] ?? 0))),
+    );
+  }
+  return or(
+    chLt(numExpr, param('Float64', Number(vals[0] ?? 0))),
+    chGt(numExpr, param('Float64', Number(vals[1] ?? 0))),
+  );
+}
+
+function buildDateFilter(op: 'is_date_before' | 'is_date_after' | 'is_date_exact', colExpr: Expr, value: string): Expr {
+  if (!value) {return raw('1 = 0');}
+  const parsed = parseDateTimeBestEffortOrZero(colExpr);
+  const nonZeroGuard = neq(parsed, raw("toDateTime(0)"));
+
+  if (op === 'is_date_before') {
+    return and(nonZeroGuard, chLt(parsed, parseDateTimeBestEffort(param('String', value))));
+  }
+  if (op === 'is_date_after') {
+    return and(nonZeroGuard, chGt(parsed, parseDateTimeBestEffort(param('String', value))));
+  }
+  // is_date_exact
+  return and(nonZeroGuard, eq(toDate(parsed), toDate(parseDateTimeBestEffort(param('String', value)))));
+}
+
+/**
+ * Resolves a numeric expression for a property (for gt/lt/gte/lte/between operators).
+ * JSON properties: toFloat64OrZero(JSONExtractRaw(col, key))
+ * Direct columns: toFloat64OrZero(col)
+ */
+function resolveNumericExpr(prop: string, source: PropertySource | null): Expr {
+  if (source) {
+    return toFloat64OrZero(raw(buildJsonExtractRawExpr(source.jsonColumn, source.segments)));
+  }
+  return toFloat64OrZero(raw(prop));
 }
 
 /**

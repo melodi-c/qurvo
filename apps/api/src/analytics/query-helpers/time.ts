@@ -1,5 +1,21 @@
 import type { AliasExpr, Expr } from '@qurvo/ch-query';
-import { and, col, func, gte, literal, lte, param, raw } from '@qurvo/ch-query';
+import {
+  add,
+  and,
+  col,
+  gte,
+  interval,
+  literal,
+  lte,
+  param,
+  sub,
+  toDateTime,
+  toDateTime64,
+  toStartOfDay,
+  toStartOfHour,
+  toStartOfMonth,
+  toStartOfWeek,
+} from '@qurvo/ch-query';
 
 type WithAs = Expr & { as(alias: string): AliasExpr };
 
@@ -99,7 +115,7 @@ export function tsParam(value: string, tz?: string): Expr {
   if (!hasTz) {
     return param('DateTime64(3)', chTs);
   }
-  return func('toDateTime64', param('String', chTs), literal(3), param('String', tz));
+  return toDateTime64(param('String', chTs), literal(3), param('String', tz));
 }
 
 /**
@@ -126,23 +142,21 @@ export function bucket(granularity: Granularity, column: string, tz?: string): W
   const hasTz = !!(tz && tz !== 'UTC');
   const colExpr = col(column);
 
+  const tzExpr = hasTz ? literal(tz) : undefined;
+
   switch (granularity) {
     case 'hour':
-      return hasTz
-        ? func('toStartOfHour', colExpr, literal(tz!))
-        : func('toStartOfHour', colExpr);
+      return toStartOfHour(colExpr, tzExpr);
     case 'day':
-      return hasTz
-        ? func('toStartOfDay', colExpr, literal(tz!))
-        : func('toStartOfDay', colExpr);
+      return toStartOfDay(colExpr, tzExpr);
     case 'week':
       return hasTz
-        ? func('toDateTime', func('toStartOfWeek', colExpr, literal(1), literal(tz!)), literal(tz!))
-        : func('toDateTime', func('toStartOfWeek', colExpr, literal(1)));
+        ? toDateTime(toStartOfWeek(colExpr, literal(1), tzExpr), literal(tz))
+        : toDateTime(toStartOfWeek(colExpr, literal(1)));
     case 'month':
       return hasTz
-        ? func('toDateTime', func('toStartOfMonth', colExpr, literal(tz!)), literal(tz!))
-        : func('toDateTime', func('toStartOfMonth', colExpr));
+        ? toDateTime(toStartOfMonth(colExpr, tzExpr), literal(tz))
+        : toDateTime(toStartOfMonth(colExpr));
     default: {
       const _exhaustive: never = granularity;
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
@@ -164,11 +178,10 @@ export function neighborBucket(
   tz?: string,
 ): Expr {
   const hasTz = !!(tz && tz !== 'UTC');
-  const interval = granularity === 'week' ? 'INTERVAL 7 DAY'
-    : granularity === 'month' ? 'INTERVAL 1 MONTH'
-    : 'INTERVAL 1 DAY';
-  const op = direction === 1 ? '+' : '-';
-  const shifted = raw(`(${compileExprInline(bucketExpr)} ${op} ${interval})`);
+  const ivl = granularity === 'week' ? interval(7, 'DAY')
+    : granularity === 'month' ? interval(1, 'MONTH')
+    : interval(1, 'DAY');
+  const shifted = direction === 1 ? add(bucketExpr, ivl) : sub(bucketExpr, ivl);
 
   if (!hasTz || granularity === 'hour' || granularity === 'day') {
     return shifted;
@@ -176,9 +189,9 @@ export function neighborBucket(
 
   switch (granularity) {
     case 'week':
-      return func('toDateTime', func('toStartOfWeek', shifted, literal(1), literal(tz!)), literal(tz!));
+      return toDateTime(toStartOfWeek(shifted, literal(1), literal(tz)), literal(tz));
     case 'month':
-      return func('toDateTime', func('toStartOfMonth', shifted, literal(tz!)), literal(tz!));
+      return toDateTime(toStartOfMonth(shifted, literal(tz)), literal(tz));
     default: {
       const _exhaustive: never = granularity;
       throw new Error(`Unhandled granularity: ${_exhaustive}`);
@@ -194,33 +207,5 @@ export function bucketOfMin(granularity: Granularity, column: string, tz?: strin
   return bucket(granularity, `min(${column})`, tz);
 }
 
-/**
- * Inline expression serializer for use within raw() expressions.
- * Only handles simple cases needed by neighborBucket.
- */
-function compileExprInline(expr: Expr): string {
-  switch (expr.type) {
-    case 'raw':
-      return expr.sql;
-    case 'raw_with_params':
-      return expr.sql;
-    case 'column':
-      return expr.name;
-    case 'literal':
-      if (typeof expr.value === 'string') return `'${expr.value.replace(/'/g, "\\'")}'`;
-      if (typeof expr.value === 'boolean') return expr.value ? '1' : '0';
-      return String(expr.value);
-    case 'func': {
-      const args = expr.args.map(compileExprInline).join(', ');
-      return `${expr.name}(${args})`;
-    }
-    case 'alias':
-      return compileExprInline(expr.expr);
-    case 'binary':
-      return `${compileExprInline(expr.left)} ${expr.op} ${compileExprInline(expr.right)}`;
-    default:
-      // For complex cases, fall back to a placeholder
-      throw new Error(`Cannot inline expression of type: ${expr.type}`);
-  }
-}
+
 

@@ -2,10 +2,14 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import type { QueryNode } from '@qurvo/ch-query';
 import {
+  arrayCompact,
+  arrayEnumerate,
+  arraySlice,
   col,
   compile,
-  func,
+  groupArray,
   gte,
+  length,
   lt,
   lte,
   literal,
@@ -158,14 +162,14 @@ export async function queryPaths(
   // CTE 2: person_paths
   const personPaths = select(
     col('pid'),
-    func('arraySlice',
-      func('arrayCompact', func('groupArray', col('cleaned_name'))),
+    arraySlice(
+      arrayCompact(groupArray(col('cleaned_name'))),
       literal(1), stepLimitParam,
     ).as('raw_path'),
   )
     .from('ordered_events')
     .groupBy(col('pid'))
-    .having(gte(func('length', col('raw_path')), literal(2)))
+    .having(gte(length(col('raw_path')), literal(2)))
     .build();
 
   // CTE 3: trimmed_paths (conditional start_event trim)
@@ -192,7 +196,7 @@ export async function queryPaths(
 
   const finalPaths = select(col('pid'), finalPathCol)
     .from('trimmed_paths')
-    .where(gte(func('length', col('p1')), literal(2)))
+    .where(gte(length(col('p1')), literal(2)))
     .build();
 
   // Shared CTEs used by both queries
@@ -212,9 +216,9 @@ export async function queryPaths(
   )
     .withAll(sharedCTEs)
     .from('final_paths')
-    .arrayJoin(func('arrayEnumerate', col('path')), 'idx')
+    .arrayJoin(arrayEnumerate(col('path')), 'idx')
     .where(
-      lt(col('idx'), func('length', col('path'))),
+      lt(col('idx'), length(col('path'))),
       lte(col('idx'), stepLimitParam),
     )
     .groupBy(col('step'), col('source'), col('target'))
@@ -225,12 +229,12 @@ export async function queryPaths(
 
   // Query 2: Top paths
   const topPathsNode = select(
-    func('arraySlice', col('path'), literal(1), stepLimitParam).as('path'),
+    arraySlice(col('path'), literal(1), stepLimitParam).as('path'),
     uniqExact(col('pid')).as('person_count'),
   )
     .withAll(sharedCTEs)
     .from('final_paths')
-    .where(gte(func('length', col('path')), literal(2)))
+    .where(gte(length(col('path')), literal(2)))
     .groupBy(col('path'))
     .having(gte(col('person_count'), minPersonsParam))
     .orderBy(col('person_count'), 'DESC')

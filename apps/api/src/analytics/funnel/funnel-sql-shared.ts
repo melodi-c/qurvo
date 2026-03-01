@@ -29,6 +29,7 @@ import {
   arrayMin,
   greatest,
   func,
+  length,
   type Expr,
   type SelectNode,
 } from '@qurvo/ch-query';
@@ -476,7 +477,7 @@ export function buildUnorderedCoverageExprsAST(
   if (N === 1) {
     // if(length(t0_arr) > 0, arrayMin(t0_arr), toInt64(0))
     anchorMsExpr = ifExpr(
-      gt(func('length', col('t0_arr')), literal(0)),
+      gt(length(col('t0_arr')), literal(0)),
       arrayMin(col('t0_arr')),
       toInt64(literal(0)),
     );

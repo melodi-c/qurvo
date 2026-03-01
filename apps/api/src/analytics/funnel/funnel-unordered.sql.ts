@@ -18,6 +18,7 @@ import {
   arrayElement,
   func,
   lambda,
+  length,
   ifExpr,
   literal,
   type Expr,
@@ -167,7 +168,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     ...stepArrCols,
   )
     .from('step_times')
-    .where(gt(func('length', col('t0_arr')), literal(0)))
+    .where(gt(length(col('t0_arr')), literal(0)))
     .build();
 
   ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });

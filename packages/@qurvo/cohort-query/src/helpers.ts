@@ -1,6 +1,6 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr } from '@qurvo/ch-query';
-import { and, compileExprToSql, escapeLikePattern, raw, rawWithParams, select } from '@qurvo/ch-query';
+import { and, compileExprToSql, escapeLikePattern, literal, now64, raw, rawWithParams, select } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
 /**
@@ -281,7 +281,7 @@ export function resolveDateTo(ctx: BuildContext): Expr {
     ctx.queryParams['coh_date_to'] = ctx.dateTo;
     return rawWithParams('{coh_date_to:DateTime64(3)}', { coh_date_to: ctx.dateTo });
   }
-  return raw('now64(3)');
+  return now64(literal(3));
 }
 
 /**
