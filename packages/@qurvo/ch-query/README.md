@@ -1,6 +1,6 @@
 # @qurvo/ch-query
 
-Typed ClickHouse SQL query builder for the Qurvo analytics platform. Provides an AST-based approach to constructing parameterized ClickHouse queries with a fluent builder API. Also includes a cohort query DSL for translating UI-defined cohort definitions into ClickHouse SQL.
+Typed ClickHouse SQL query builder for the Qurvo analytics platform. Provides an AST-based approach to constructing parameterized ClickHouse queries with a fluent builder API.
 
 > **Internal package** -- not published to npm. Used by `@qurvo/api` and `@qurvo/cohort-worker`.
 
@@ -185,33 +185,6 @@ select(...columns)
 | `compile(queryNode)` | Compile full query to `{ sql, params }` |
 | `compileExprToSql(expr, targetParams?, ctx?)` | Compile single expression; optionally merge params |
 | `new CompilerContext()` | Shared context for multiple `compileExprToSql` calls |
-
-## Cohort Query DSL
-
-The `cohort/` sub-module translates `CohortConditionGroup` definitions (stored in PostgreSQL, edited via the UI) into ClickHouse queries that return matching `person_id`s.
-
-### Entry Points
-
-```typescript
-import {
-  buildCohortSubquery,
-  buildCohortFilterClause,
-  topologicalSortCohorts,
-  validateDefinitionComplexity,
-} from '@qurvo/ch-query';
-```
-
-- **`buildCohortSubquery(definition, idx, projectIdParam, queryParams, resolve?, dateTo?, dateFrom?)`** -- builds a `QueryNode` from a cohort definition. AND groups become `INTERSECT`, OR groups become `UNION DISTINCT`.
-
-- **`buildCohortFilterClause(cohorts, projectIdParam, queryParams, resolve?, dateTo?, dateFrom?)`** -- builds a `WHERE` clause (`RESOLVED_PERSON IN (...)`) for filtering analytics queries by cohort membership. Handles materialized, static, and inline cohorts.
-
-- **`topologicalSortCohorts(cohorts)`** / **`groupCohortsByLevel(sorted)`** -- dependency-aware ordering for cohort-worker recomputation.
-
-- **`validateDefinitionComplexity(definition)`** -- enforces max 50 leaf conditions and max 4 nesting depth.
-
-### Supported Condition Types
-
-`person_property`, `event` (performed), `cohort` (reference), `first_time_event`, `not_performed_event`, `event_sequence`, `not_performed_event_sequence`, `performed_regularly`, `stopped_performing`, `restarted_performing`.
 
 ## License
 
