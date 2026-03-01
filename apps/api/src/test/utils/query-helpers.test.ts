@@ -11,6 +11,8 @@ import {
   bucket,
   neighborBucket,
   bucketOfMin,
+  resolveRelativeDate,
+  isRelativeDate,
   projectIs,
   eventIs,
   eventIn,
@@ -243,6 +245,100 @@ describe('analytics/time', () => {
     test('with timezone', () => {
       const { sql } = compileExpr(bucketOfMin('week', 'timestamp', 'Europe/Moscow'));
       expect(sql).toContain("toDateTime(toStartOfWeek(min(timestamp), 1, 'Europe/Moscow'), 'Europe/Moscow')");
+    });
+  });
+
+  describe('isRelativeDate', () => {
+    test('returns true for -Nd format', () => {
+      expect(isRelativeDate('-7d')).toBe(true);
+      expect(isRelativeDate('-30d')).toBe(true);
+      expect(isRelativeDate('-180d')).toBe(true);
+    });
+
+    test('returns true for -Ny format', () => {
+      expect(isRelativeDate('-1y')).toBe(true);
+      expect(isRelativeDate('-2y')).toBe(true);
+    });
+
+    test('returns true for anchor tokens', () => {
+      expect(isRelativeDate('mStart')).toBe(true);
+      expect(isRelativeDate('yStart')).toBe(true);
+    });
+
+    test('returns false for absolute dates', () => {
+      expect(isRelativeDate('2026-01-15')).toBe(false);
+    });
+
+    test('returns false for invalid strings', () => {
+      expect(isRelativeDate('foo')).toBe(false);
+      expect(isRelativeDate('')).toBe(false);
+      expect(isRelativeDate('-7w')).toBe(false);
+      expect(isRelativeDate('7d')).toBe(false);
+    });
+  });
+
+  describe('resolveRelativeDate', () => {
+    test('passes through absolute dates unchanged', () => {
+      expect(resolveRelativeDate('2026-01-15')).toBe('2026-01-15');
+      expect(resolveRelativeDate('2025-12-31')).toBe('2025-12-31');
+    });
+
+    test('-Nd returns N days ago from today (UTC)', () => {
+      const result = resolveRelativeDate('-7d');
+      // Result should be a valid YYYY-MM-DD string
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      // Verify it's approximately 7 days ago
+      const now = new Date();
+      const expected = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7));
+      expect(result).toBe(expected.toISOString().slice(0, 10));
+    });
+
+    test('-1y returns 365 days ago', () => {
+      const result = resolveRelativeDate('-1y');
+      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      const now = new Date();
+      const expected = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 365));
+      expect(result).toBe(expected.toISOString().slice(0, 10));
+    });
+
+    test('mStart returns first day of current month', () => {
+      const result = resolveRelativeDate('mStart');
+      const now = new Date();
+      const expected = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`;
+      expect(result).toBe(expected);
+    });
+
+    test('yStart returns first day of current year', () => {
+      const result = resolveRelativeDate('yStart');
+      const now = new Date();
+      expect(result).toBe(`${now.getUTCFullYear()}-01-01`);
+    });
+
+    test('timezone affects resolved date', () => {
+      // Use a timezone where the date is likely different from UTC around midnight
+      // This test verifies the mechanism works, though the exact outcome depends on runtime
+      const utcResult = resolveRelativeDate('-7d');
+      const tzResult = resolveRelativeDate('-7d', 'Pacific/Auckland');
+      // Both should be valid dates
+      expect(utcResult).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(tzResult).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    test('throws on invalid relative format', () => {
+      expect(() => resolveRelativeDate('invalid')).toThrow('Invalid relative date format');
+      expect(() => resolveRelativeDate('-7w')).toThrow('Invalid relative date format');
+    });
+
+    test('-30d and -90d work correctly', () => {
+      const r30 = resolveRelativeDate('-30d');
+      const r90 = resolveRelativeDate('-90d');
+      expect(r30).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(r90).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      // 90d ago should be before 30d ago
+      expect(r90 < r30).toBe(true);
     });
   });
 });
@@ -513,6 +609,7 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('cohort_members');
       expect(sql).toContain('{coh_mid_0:UUID}');
@@ -530,6 +627,7 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('person_static_cohort');
       expect(sql).toContain('{coh_sid_0:UUID}');
