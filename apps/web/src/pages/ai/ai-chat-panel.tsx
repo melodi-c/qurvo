@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { SendHorizonal, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AiMessage } from './ai-message';
@@ -51,11 +51,15 @@ export function AiChatPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevMessageCountRef = useRef(messages.length);
   const isInitialLoadRef = useRef(true);
+  const prevFirstSequenceRef = useRef<number | undefined>(messages[0]?.sequence);
+  const prevScrollHeightRef = useRef<number>(0);
 
   // Auto-scroll to bottom on new messages (but not when loading older messages)
   useEffect(() => {
     const prevCount = prevMessageCountRef.current;
+    const prevFirstSeq = prevFirstSequenceRef.current;
     prevMessageCountRef.current = messages.length;
+    prevFirstSequenceRef.current = messages[0]?.sequence;
 
     // On initial load, scroll to bottom instantly (no animation)
     if (isInitialLoadRef.current && messages.length > 0) {
@@ -64,23 +68,31 @@ export function AiChatPanel({
       return;
     }
 
-    // If messages were prepended (loading older), maintain scroll position
+    // If messages were prepended (loading older), skip auto-scroll.
+    // Detect by checking if the first message's sequence changed (lower = older prepended).
     if (messages.length > prevCount && prevCount > 0) {
-      const container = scrollContainerRef.current;
-      if (container) {
-        const addedCount = messages.length - prevCount;
-        // Check if the first new message has a lower sequence (= older messages prepended)
-        const isOlderPrepended =
-          messages[0]?.sequence !== undefined &&
-          addedCount > 0 &&
-          container.scrollTop < 100;
-        if (isOlderPrepended) {return;} // Don't auto-scroll
+      const currentFirstSeq = messages[0]?.sequence;
+      if (currentFirstSeq !== undefined && prevFirstSeq !== undefined && currentFirstSeq !== prevFirstSeq) {
+        return; // Older messages prepended — don't auto-scroll; useLayoutEffect handles position
       }
     }
 
     // For new messages at the bottom, auto-scroll
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Restore scroll position after older messages are prepended (Bug 1 fix)
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || prevScrollHeightRef.current === 0) {return;}
+
+    const prevHeight = prevScrollHeightRef.current;
+    const newHeight = container.scrollHeight;
+    if (newHeight > prevHeight) {
+      container.scrollTop += newHeight - prevHeight;
+    }
+    prevScrollHeightRef.current = 0;
+  }, [messages.length]);
 
   useEffect(() => {
     if (!isStreaming && !readOnly) {inputRef.current?.focus();}
@@ -93,13 +105,9 @@ export function AiChatPanel({
     if (!container) {return;}
 
     if (container.scrollTop < 50) {
-      const prevScrollHeight = container.scrollHeight;
+      // Save scroll height before loading; useLayoutEffect restores position after React renders
+      prevScrollHeightRef.current = container.scrollHeight;
       onLoadMore();
-      // Restore scroll position after prepend
-      requestAnimationFrame(() => {
-        const newScrollHeight = container.scrollHeight;
-        container.scrollTop = newScrollHeight - prevScrollHeight;
-      });
     }
   }, [hasMore, isLoadingMore, onLoadMore]);
 
