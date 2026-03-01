@@ -166,7 +166,9 @@ Docker build — **пропускай**. Docker-верификация выпо�
 Запусти eslint на изменённых файлах:
 ```bash
 cd "$WORKTREE_PATH"
-CHANGED_FILES=$(git diff --name-only "$BASE_BRANCH"...HEAD -- '*.ts' '*.tsx' | tr '\n' ' ')
+# Fetch base branch если ещё не fetch'нут (важно для sub-issues с feature/* base)
+git fetch origin "$BASE_BRANCH" 2>/dev/null || true
+CHANGED_FILES=$(git diff --name-only "origin/$BASE_BRANCH"...HEAD -- '*.ts' '*.tsx' | tr '\n' ' ')
 if [ -n "$CHANGED_FILES" ]; then
   pnpm exec eslint --no-error-on-unmatched-pattern --fix $CHANGED_FILES || true
   # Если eslint --fix что-то поправил — добавь в коммит
@@ -187,7 +189,7 @@ cd "$WORKTREE_PATH" && git commit -m "<осмысленное сообщение
 
 ```bash
 # Подготовь переменные
-CHANGED_FILES=$(cd "$WORKTREE_PATH" && git diff --name-only "$BASE_BRANCH"...HEAD | tr '\n' ',')
+CHANGED_FILES=$(cd "$WORKTREE_PATH" && git diff --name-only "origin/$BASE_BRANCH"...HEAD | tr '\n' ',')
 UNIT_PASSED=$(grep -oE '[0-9]+ passed' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
 UNIT_FAILED=$(grep -oE '[0-9]+ failed' /tmp/issue-<ISSUE_NUMBER>-unit.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
 INT_PASSED=$(grep -oE '[0-9]+ passed' /tmp/issue-<ISSUE_NUMBER>-int.txt 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")

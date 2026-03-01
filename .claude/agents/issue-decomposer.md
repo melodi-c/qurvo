@@ -63,7 +63,7 @@ tools: Read, Grep, Glob, Bash
     },
     {
       "title": "feat(web): add export button and download UI",
-      "body": "## Описание\n\nДобавить кнопку \"Export CSV\" на страницу Events (`apps/web/src/pages/events/`).\n\n1. Кнопка в toolbar рядом с фильтрами\n2. Вызов `GET /projects/:id/events/export` с текущими фильтрами\n3. Скачивание файла через `<a download>`\n4. Loading state и error handling\n5. i18n: `.translations.ts` для всех строк\n\n## Acceptance Criteria\n\n- [ ] Кнопка Export CSV отображается на странице Events\n- [ ] Клик скачивает CSV файл с текущими фильтрами\n- [ ] Все строки через t()\n\n## Зависимости\nDepends on: feat(api): add CSV export endpoint\n\n## Приоритет\nP2",
+      "body": "## Описание\n\nДобавить кнопку \"Export CSV\" на страницу Events (`apps/web/src/pages/events/`).\n\n1. Кнопка в toolbar рядом с фильтрами\n2. Вызов `GET /projects/:id/events/export` с текущими фильтрами\n3. Скачивание файла через `<a download>`\n4. Loading state и error handling\n5. i18n: `.translations.ts` для всех строк\n\n## Acceptance Criteria\n\n- [ ] Кнопка Export CSV отображается на странице Events\n- [ ] Клик скачивает CSV файл с текущими фильтрами\n- [ ] Все строки через t()\n\n## Приоритет\nP2",
       "labels": ["web", "enhancement", "size:s"],
       "depends_on": 0
     }

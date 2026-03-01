@@ -14,10 +14,10 @@ REPO_ROOT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}' || echo "
 # Если не в worktree (или worktree == repo root) — пропускаем
 if [ -z "$WORKTREE" ] || [ "$WORKTREE" = "$REPO_ROOT" ]; then exit 0; fi
 
-# Разрешаем запись в .claude/results/ основного repo и /tmp
+# Разрешаем запись в .claude/results/ основного repo (solver result files)
 case "$FILE_PATH" in
-  "$REPO_ROOT/.claude/results/"*) exit 0 ;;
-  /tmp/claude-results/*) exit 0 ;;
+  "$REPO_ROOT/.claude/results/solver-"*) exit 0 ;;
+  "$REPO_ROOT/.claude/results/test-analyzer-"*) exit 0 ;;
 esac
 
 # Блокируем запись за пределами worktree

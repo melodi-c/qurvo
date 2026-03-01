@@ -78,7 +78,9 @@ grep -rn "functionName" apps/ packages/ --include='*.ts' -l
 
 ## Шаг 3: Результат
 
-Верни JSON:
+Верни JSON. **Обязательные поля** (executor проверяет их наличие для валидации):
+- `parallel_groups` — массив массивов номеров issues (обязательно, не может быть пустым)
+- `issues` — объект с информацией по каждому issue
 
 ```json
 {

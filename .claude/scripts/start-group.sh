@@ -13,6 +13,11 @@ IFS=',' read -ra NUMS <<< "$ISSUES_CSV"
 
 for N in "${NUMS[@]}"; do
   N=$(echo "$N" | tr -d ' ')
+  # Validate issue number is numeric
+  if [[ ! "$N" =~ ^[0-9]+$ ]]; then
+    echo "WARN: skipping invalid issue number: $N" >&2
+    continue
+  fi
   gh issue edit "$N" --add-label "in-progress" 2>/dev/null || true
 done
 

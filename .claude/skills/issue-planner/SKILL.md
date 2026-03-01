@@ -294,14 +294,21 @@ Labels: `epic` + scope
 Для каждого сформированного issue (не эпика) в режиме `feature` оцени: затрагивает ли он 3+ несвязанных модуля или требует изменений в 2+ приложениях одновременно? Если да — запусти `issue-decomposer` в **foreground**:
 
 ```
-ISSUE_NUMBER: (ещё не создан, передай 0)
-ISSUE_TITLE: <заголовок>
-ISSUE_BODY: <тело>
-REPO_ROOT: <REPO_ROOT>
+subagent_type: "issue-decomposer"
+model: sonnet
+run_in_background: false
+prompt: |
+  ISSUE_NUMBER: 0
+  ISSUE_TITLE: <заголовок>
+  ISSUE_BODY: <тело>
+  RESULT_FILE: /tmp/claude-results/decomposer-draft-<порядковый номер>.json
 ```
 
 - Если вернул `"atomic": true` → оставь issue как есть
-- Если вернул список `sub_issues` → замени исходный issue на эти sub-issues в черновиках. Если их 3+ — автоматически оформи как эпик (применяй правила Шага 4)
+- Если вернул список `sub_issues` → замени исходный issue на эти sub-issues в черновиках:
+  - Транслируй `depends_on` (0-based индекс в массиве `sub_issues`) в `Depends on: #PLACEHOLDER-<N>`, где `<N>` — порядковый номер sub-issue в черновиках (начиная с текущей позиции). Пример: `depends_on: 0` → `Depends on: #PLACEHOLDER-<позиция первого sub-issue>`
+  - Если sub-issues 3+ — автоматически оформи как эпик (применяй правила Шага 4)
+  - Перенеси labels из каждого sub-issue в черновики
 
 Запускай decomposer параллельно для всех подозрительно крупных issues.
 

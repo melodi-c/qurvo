@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Закрывает смерженный issue: state MERGED + снять labels + close + comment.
+# Закрывает смерженный issue: close + comment + снять labels + state MERGED.
 # Использование: bash close-merged-issue.sh <NUMBER> <PR_URL> <COMMIT_HASH> <BASE_BRANCH>
 set -euo pipefail
 
@@ -11,8 +11,6 @@ BASE_BRANCH="${4:-main}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SM="$SCRIPT_DIR/state-manager.sh"
 
-bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_HASH"
-
 gh issue edit "$NUMBER" --remove-label "in-progress" --remove-label "under-review" --remove-label "merge-failed" 2>/dev/null || true
 
 if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
@@ -23,8 +21,11 @@ if gh issue close "$NUMBER" --comment "$(cat <<COMMENT
 **Ветка**: \`$BASE_BRANCH\`
 COMMENT
 )" 2>/dev/null; then
+  # State обновляется ТОЛЬКО после успешного close
+  bash "$SM" issue-status "$NUMBER" MERGED "pr_url=$PR_URL" "merge_commit=$COMMIT_HASH"
   echo "CLOSED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
 else
   echo "WARN: gh issue close failed for #$NUMBER" >&2
+  # State остаётся в MERGING — executor увидит inconsistency и может retry
   echo "CLOSE_FAILED $NUMBER: PR=$PR_URL COMMIT=$COMMIT_HASH"
 fi

@@ -23,21 +23,19 @@ bash "$SM" read-active
 gh issue list --label "in-progress" --state open --json number,title
 ```
 
-Для каждого in-progress issue проверь result file или AGENT_META:
+Для каждого in-progress issue проверь result file:
 ```bash
-# Сначала проверь result file (prefer match by issue number)
-RESULT_FILE=$(find "$CLAUDE_PROJECT_DIR/.claude/results" -name "solver-${ISSUE_NUMBER}.json" 2>/dev/null | head -1)
-if [ -z "$RESULT_FILE" ]; then
-  RESULT_FILE=$(find "$CLAUDE_PROJECT_DIR/.claude/results" -name "solver-*.json" 2>/dev/null | head -1)
-fi
-if [ -z "$RESULT_FILE" ]; then
+# Ищи result file ТОЛЬКО по точному номеру issue — НЕ используй wildcard fallback
+RESULT_FILE="$CLAUDE_PROJECT_DIR/.claude/results/solver-${ISSUE_NUMBER}.json"
+if [ ! -f "$RESULT_FILE" ]; then
+  # Файл не найден — проверь AGENT_META в issue comment
   LAST_COMMENT=$(gh issue view <NUMBER> --json comments --jq '.comments[-1].body')
   STATUS=$(echo "$LAST_COMMENT" | grep -o 'STATUS=[^ ]*' | cut -d= -f2 || echo "UNKNOWN")
   BRANCH=$(echo "$LAST_COMMENT" | grep -o 'BRANCH=[^ ]*' | cut -d= -f2 || echo "")
 fi
 ```
 
-- **Issue закрыт + STATUS=READY_FOR_REVIEW** → нужен review + мерж (Шаг 6)
+- **Issue открыт + STATUS=READY_FOR_REVIEW** → нужен review + мерж (Шаг 6)
 - **Issue открыт + нет AGENT_META** → перезапусти через Шаг 5
 
 ## 0.3: Продолжи выполнение

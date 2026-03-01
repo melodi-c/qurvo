@@ -76,8 +76,8 @@ elif echo "$COMMAND" | grep -qE "(^|[;&|]+\s*)git${GIT_OPTS}\s+push"; then
   # Разрешаем push для swagger/OpenAPI regeneration
   elif echo "$COMMAND" | grep -qE 'swagger.*generate|generate-api|regenerate OpenAPI'; then
     :
-  # Разрешаем push в feature/fix/hotfix ветки (учитываем -C и другие флаги)
-  elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}\s+push\s+\S+\s+(fix|feature|hotfix)/"; then
+  # Разрешаем push в feature/fix/hotfix ветки (только issue-* паттерн)
+  elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}\s+push\s+\S+\s+(fix/issue-|feature/issue-|hotfix/issue-)[0-9]"; then
     :
   # Блокируем прямой push в main/master (учитываем -C и другие флаги)
   elif echo "$COMMAND" | grep -qE "git${GIT_OPTS}\s+push\s+\S+\s+(main|master)\b"; then

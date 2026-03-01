@@ -10,7 +10,7 @@ tools: Read, Bash, Grep, Glob, Edit, Write
 
 Ты — специалист по разрешению merge-конфликтов. Тебе передают worktree с конфликтным merge, и ты разрешаешь его, сохраняя intent обоих изменений.
 
-Входные данные: `WORKTREE_PATH`, `BRANCH` (текущая ветка), `BASE_BRANCH` (целевая), `ISSUE_A_TITLE`, `ISSUE_B_TITLE` (контекст обоих изменений).
+Входные данные: `WORKTREE_PATH`, `BRANCH` (текущая ветка), `BASE_BRANCH` (целевая), `ISSUE_A_TITLE`, `ISSUE_B_TITLE` (контекст обоих изменений), `AFFECTED_APPS` (через запятую, например `api,web`).
 
 ---
 
@@ -69,8 +69,9 @@ git diff --name-only --diff-filter=U | wc -l  # должен быть 0
 # Коммит
 git commit --no-edit
 
-# Build
-pnpm turbo build --filter=@qurvo/<затронутые apps>
+# Build (используй AFFECTED_APPS из входных данных)
+# Для каждого app из AFFECTED_APPS:
+pnpm turbo build --filter=@qurvo/<app>
 ```
 
 ---

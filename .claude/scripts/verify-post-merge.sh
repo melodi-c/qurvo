@@ -48,9 +48,13 @@ for APP in "${APPS[@]}"; do
   APP=$(echo "$APP" | xargs)
   CONF="vitest.integration.config.ts"
 
-  # Проверить наличие конфига
+  # Проверить что app живёт в apps/ (не packages/) и имеет integration test config
+  if [[ ! -d "apps/$APP" ]]; then
+    TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: skipped (not in apps/)\n"
+    continue
+  fi
   if [[ ! -f "apps/$APP/$CONF" ]]; then
-    TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: skipped\n"
+    TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: skipped (no $CONF)\n"
     continue
   fi
 

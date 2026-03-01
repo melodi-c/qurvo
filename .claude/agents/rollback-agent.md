@@ -66,11 +66,13 @@ pnpm turbo build --filter=@qurvo/<app1> --filter=@qurvo/<app2>
 
 ---
 
-## Шаг 2.6: Push
+## Шаг 2.6: Push + sync local
 
 ```bash
 cd "$REPO_ROOT"
 git push origin "$BASE_BRANCH"
+# Sync local ref после push (executor может продолжить работу)
+git pull origin "$BASE_BRANCH" 2>/dev/null || true
 ```
 
 ---

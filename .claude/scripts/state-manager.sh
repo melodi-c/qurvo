@@ -12,18 +12,22 @@ CMD="${1:?Usage: state-manager.sh <command> [args...]}"
 shift
 
 # Portable lock: mkdir is atomic on POSIX (macOS не имеет flock)
+# Skip lock if already held by parent (batch recursive calls)
 LOCK_DIR="${STATE_FILE}.lock.d"
-_lock_acquired=false
-for _i in $(seq 1 10); do
-  if mkdir "$LOCK_DIR" 2>/dev/null; then
-    _lock_acquired=true
-    trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
-    break
+if [[ "${_STATE_LOCK_HELD:-}" != "1" ]]; then
+  _lock_acquired=false
+  for _i in $(seq 1 10); do
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+      _lock_acquired=true
+      trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+      break
+    fi
+    sleep 0.5
+  done
+  if ! $_lock_acquired; then
+    echo "ERROR: cannot acquire state lock" >&2; exit 1
   fi
-  sleep 0.5
-done
-if ! $_lock_acquired; then
-  echo "ERROR: cannot acquire state lock" >&2; exit 1
+  export _STATE_LOCK_HELD=1
 fi
 
 case "$CMD" in

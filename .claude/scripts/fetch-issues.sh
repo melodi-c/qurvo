@@ -90,6 +90,7 @@ ISSUES_JSON="[]"
 if [ "$MODE" = "numbers" ]; then
   # Fetch each issue individually, build JSON array safely with jq
   ISSUES_TMP=$(mktemp)
+  trap 'rm -f "$ISSUES_TMP"' EXIT
   IFS=',' read -ra NUMS <<< "$NUMBERS"
   for N in "${NUMS[@]}"; do
     N=$(echo "$N" | tr -d ' ')
@@ -98,6 +99,7 @@ if [ "$MODE" = "numbers" ]; then
   done
   ISSUES_JSON=$(jq -s '.' "$ISSUES_TMP")
   rm -f "$ISSUES_TMP"
+  trap - EXIT
 else
   # Default: list with filters
   if [ ${#GH_ARGS[@]} -eq 0 ]; then
@@ -148,7 +150,7 @@ for i in $(seq 0 $((COUNT - 1))); do
     '. + [{number: $n, title: $t, topology: $top, labels: $l}]')
 
   # Output compact line
-  COMMENTS_COUNT=$(echo "$ISSUE" | jq '[.comments // [] | length] | .[0] // 0')
+  COMMENTS_COUNT=$(echo "$ISSUE" | jq '(.comments // []) | length')
   printf '%s\t%s\t%s\t%s\t%s\n' "$NUMBER" "$TITLE" "$TOPOLOGY" "$LABELS_CSV" "$COMMENTS_COUNT"
 done
 

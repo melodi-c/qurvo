@@ -224,8 +224,9 @@ gh label list --json name --jq '.[].name' | grep -q "^in-progress$" \
 
 ```bash
 FEATURE_BRANCH="feature/issue-<PARENT_NUMBER>"
-git -C "$CLAUDE_PROJECT_DIR" branch "$FEATURE_BRANCH" main
-git -C "$CLAUDE_PROJECT_DIR" push origin "$FEATURE_BRANCH"
+# Идемпотентно: создаём только если ветка не существует (retry-safe)
+git -C "$CLAUDE_PROJECT_DIR" branch "$FEATURE_BRANCH" main 2>/dev/null || true
+git -C "$CLAUDE_PROJECT_DIR" push origin "$FEATURE_BRANCH" 2>/dev/null || true
 ```
 
 ### 5.2 Порядок выполнения групп
@@ -258,7 +259,13 @@ WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в 
 RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-{ISSUE_NUMBER}.json
 ```
 
-Для **sub-issues** (добавить BASE_BRANCH):
+Для **sub-issues** (добавить BASE_BRANCH + установить env для worktree hook):
+
+**Перед запуском** Agent tool установи env variable, чтобы worktree-create.sh создал worktree от feature branch, а не от main:
+```bash
+export WORKTREE_BASE_BRANCH="feature/issue-{PARENT_NUMBER}"
+```
+
 ```
 Issue #{ISSUE_NUMBER}: {ISSUE_TITLE}
 
@@ -268,6 +275,11 @@ BASE_BRANCH: feature/issue-{PARENT_NUMBER}
 RELATED_ISSUES: {другие sub-issues этого parent}
 WEBVIZIO_UUID: {uuid если issue содержит <!-- WEBVIZIO: uuid --> в body, иначе опусти}
 RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/solver-{ISSUE_NUMBER}.json
+```
+
+**После запуска** верни переменную:
+```bash
+unset WORKTREE_BASE_BRANCH
 ```
 
 **Определение WEBVIZIO_UUID**: при чтении `/tmp/claude-results/issue-<N>.json` найди `<!-- WEBVIZIO: <UUID> -->` в `.body`. Если есть — передай UUID solver'у.
@@ -521,12 +533,13 @@ bash "$SM" issue-status <NUMBER> <NEW_STATUS>
 
 Определи AUTO_MERGE: если issue имеет label `size:l` или `needs-review` → `AUTO_MERGE="false"`.
 
-Возьми `WORKTREE_PATH`, `BRANCH` из state issue (`bash "$SM" read-active` → `.issues["<N>"]`).
-
-**Важно**: `read-active` НЕ включает `base_branch`. Получи BASE_BRANCH отдельно:
+Возьми `WORKTREE_PATH`, `BRANCH`, `BASE_BRANCH` из state:
 ```bash
-BASE_BRANCH=$(bash "$SM" get ".issues[\"$N\"].base_branch")
+WORKTREE_PATH=$(bash "$SM" get ".issues[\"$N\"].worktree_path" | tr -d '"')
+BRANCH=$(bash "$SM" get ".issues[\"$N\"].branch" | tr -d '"')
+BASE_BRANCH=$(bash "$SM" get ".issues[\"$N\"].base_branch" | tr -d '"')
 ```
+**Примечание**: `read-active` возвращает `.active[]` — массив, не `.issues["N"]`. Для конкретных полей используй `get` как выше.
 
 ```bash
 cd "$CLAUDE_PROJECT_DIR"
@@ -558,6 +571,7 @@ PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
     BASE_BRANCH: <base>
     ISSUE_A_TITLE: <текущий issue title>
     ISSUE_B_TITLE: <issue что уже в base branch>
+    AFFECTED_APPS: <список apps через запятую>
     RESULT_FILE: $CLAUDE_PROJECT_DIR/.claude/results/conflict-<NUMBER>.json
   ```
   Прочитай `RESULT_FILE`: `RESOLVED` → повтори мерж. `UNRESOLVABLE` → считай FAILED (см. ниже).
@@ -587,7 +601,7 @@ bash "$CLAUDE_PROJECT_DIR/.claude/scripts/close-merged-issue.sh" \
 2. Найди в `.body` паттерн `<!-- WEBVIZIO: <UUID> -->`
 3. Если UUID найден:
    ```bash
-   WV_UUID=$(sed -n 's/.*<!-- WEBVIZIO: \([a-f0-9-]*\).*/\1/p' /tmp/claude-results/issue-<NUMBER>.json || true)
+   WV_UUID=$(jq -r '.body' /tmp/claude-results/issue-<NUMBER>.json | grep -oE '<!-- WEBVIZIO: [a-f0-9-]+ -->' | grep -oE '[a-f0-9-]{36}' || true)
    ```
    - Вызови MCP tool `close_task(uuid)` через Webvizio MCP
    - Добавь в итоговый отчёт: "WV closed: <uuid>"
@@ -683,10 +697,10 @@ prompt: |
 
 Очисти worktrees, ветки и state:
 ```bash
-# Удалить оставшиеся worktrees + локальные/remote ветки (FAILED, BLOCKED, AUTO_MERGE=false)
+# ВАЖНО: cleanup ПЕРЕД удалением state — скрипт читает state для safe-branches
 bash "$CLAUDE_PROJECT_DIR/.claude/scripts/cleanup-worktrees.sh" "$CLAUDE_PROJECT_DIR"
 
-# Удалить state и temp-файлы
+# Удалить state и temp-файлы ПОСЛЕ cleanup
 rm -f "$CLAUDE_PROJECT_DIR/.claude/state/execution-state.json"
 rm -f "$CLAUDE_PROJECT_DIR"/.claude/results/solver-*.json
 rm -rf /tmp/claude-results
