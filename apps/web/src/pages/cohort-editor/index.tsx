@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { UsersRound, Loader2, AlertTriangle, Copy, SlidersHorizontal, X } from 'lucide-react';
+import { useMemo } from 'react';
+import { AlertTriangle, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EditorHeader } from '@/components/ui/editor-header';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { TabNav } from '@/components/ui/tab-nav';
+import { CohortPreviewCount } from '@/components/CohortPreviewCount';
+import { MobileQueryPanelToggle } from '@/components/MobileQueryPanelToggle';
 import { CohortGroupBuilder } from '@/features/cohorts/components/CohortGroupBuilder';
 import { CohortSizeChart } from '@/features/cohorts/components/CohortSizeChart';
 import { MembersTab } from '@/features/cohorts/components/MembersTab';
@@ -18,7 +20,8 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useUrlTab } from '@/hooks/use-url-tab';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { useDuplicateAsStatic } from '@/features/cohorts/hooks/use-cohorts';
-import { cn, extractApiErrorMessage } from '@/lib/utils';
+import { extractApiErrorMessage } from '@/lib/utils';
+
 import translations from './cohort-editor.translations';
 import guardTranslations from '@/hooks/use-unsaved-changes-guard.translations';
 import { useCohortEditor } from '@/features/cohorts/hooks/use-cohort-editor';
@@ -31,7 +34,6 @@ export default function CohortEditorPage() {
   const [urlTab, setTab] = useUrlTab<TabId>('overview', ['overview', 'members']);
   const { go } = useAppNavigate();
   const duplicateMutation = useDuplicateAsStatic();
-  const [panelOpen, setPanelOpen] = useState(false);
 
   const {
     isNew,
@@ -117,58 +119,6 @@ export default function CohortEditorPage() {
     );
   }
 
-  let previewContent: React.ReactNode;
-  if (!canPreview) {
-    previewContent = (
-      <EmptyState
-        icon={UsersRound}
-        description={t('viewerNoPreview')}
-      />
-    );
-  } else if (!hasValidConditions) {
-    previewContent = (
-      <div className="text-center space-y-3">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
-          <UsersRound className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="text-sm font-medium">{t('addConditionsTitle')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('addConditionsDescription')}</p>
-        </div>
-      </div>
-    );
-  } else if (previewQuery.isFetching) {
-    previewContent = (
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm">{t('calculating')}</span>
-      </div>
-    );
-  } else if (previewQuery.isError) {
-    previewContent = (
-      <EmptyState
-        icon={AlertTriangle}
-        description={t('previewError')}
-      />
-    );
-  } else if (previewQuery.data) {
-    previewContent = (
-      <div className="text-center">
-        <p className="text-4xl font-bold tabular-nums text-primary">
-          {previewQuery.data.count.toLocaleString()}
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
-      </div>
-    );
-  } else {
-    previewContent = (
-      <EmptyState
-        icon={UsersRound}
-        description={t('previewPlaceholder')}
-      />
-    );
-  }
-
   return (
     <div className="-m-4 lg:-m-6 flex flex-col lg:h-full lg:overflow-hidden">
       <EditorHeader
@@ -183,29 +133,8 @@ export default function CohortEditorPage() {
         saveError={saveError}
       />
 
-      <div className="lg:hidden border-b border-border px-4 py-2 flex items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground gap-1.5"
-          onClick={() => setPanelOpen((prev) => !prev)}
-        >
-          {panelOpen ? (
-            <>
-              <X className="h-4 w-4" />
-              {t('hideSettings')}
-            </>
-          ) : (
-            <>
-              <SlidersHorizontal className="h-4 w-4" />
-              {t('settings')}
-            </>
-          )}
-        </Button>
-      </div>
-
       <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0">
-        <div className={cn(panelOpen ? 'block' : 'hidden', 'lg:contents')}>
+        <MobileQueryPanelToggle>
         <QueryPanelShell>
           <div className="space-y-1.5">
             <Label htmlFor="cohort-description" className="text-xs font-medium text-muted-foreground">{t('descriptionLabel')}</Label>
@@ -229,7 +158,7 @@ export default function CohortEditorPage() {
             />
           </div>
         </QueryPanelShell>
-        </div>
+        </MobileQueryPanelToggle>
 
         {!isNew && existingCohort ? (
           <main className="flex-1 overflow-auto flex flex-col">
@@ -245,26 +174,12 @@ export default function CohortEditorPage() {
             {activeTab === 'overview' && (
               <>
                 <div className="border-b px-6 py-6 text-center">
-                  {canPreview && previewQuery.isFetching ? (
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">{t('calculating')}</span>
-                    </div>
-                  ) : canPreview && previewQuery.data ? (
-                    <>
-                      <p className="text-4xl font-bold tabular-nums text-primary">
-                        {previewQuery.data.count.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">{t('personsMatch')}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-4xl font-bold tabular-nums text-primary">
-                        {memberCount ? memberCount.count.toLocaleString() : '\u2014'}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">{t('currentMembers')}</p>
-                    </>
-                  )}
+                  <CohortPreviewCount
+                    previewQuery={previewQuery}
+                    canPreview={canPreview}
+                    hasValidConditions={hasValidConditions}
+                    fallbackCount={memberCount?.count ?? null}
+                  />
                 </div>
                 <div className="flex-1 p-6 space-y-3">
                   <p className="text-sm font-medium">{t('sizeHistory')}</p>
@@ -305,7 +220,11 @@ export default function CohortEditorPage() {
           </main>
         ) : (
           <main className="flex-1 overflow-auto flex flex-col items-center justify-center">
-            {previewContent}
+            <CohortPreviewCount
+              previewQuery={previewQuery}
+              canPreview={canPreview}
+              hasValidConditions={hasValidConditions}
+            />
           </main>
         )}
       </div>
