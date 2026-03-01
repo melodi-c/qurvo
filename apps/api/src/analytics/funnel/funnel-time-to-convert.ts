@@ -1,32 +1,41 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import {
   compile,
-  compileExprToSql,
-  CompilerContext,
   select,
-  raw,
-  rawWithParams,
   col,
   literal,
+  func,
+  lambda,
+  namedParam,
+  alias,
+  rawWithParams,
   avgIf,
   countIf,
   minIf,
   maxIf,
   toInt64,
+  toUnixTimestamp64Milli,
+  groupArrayIf,
+  notEmpty,
+  ifExpr,
+  arrayMin,
   and,
   gt,
   gte,
   lte,
+  sub,
+  mul,
+  add,
+  eq,
+  inArray,
   notInSubquery,
-  groupArrayIf,
   type Expr,
   type QueryNode,
 } from '@qurvo/ch-query';
-import { cohortFilter, cohortBounds } from '../query-helpers';
+import { cohortFilter, cohortBounds, resolvedPerson } from '../query-helpers';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
 import {
-  RESOLVED_PERSON,
   toChTs,
   resolveWindowSeconds,
   buildStepCondition,
@@ -40,7 +49,6 @@ import {
   validateExclusions,
   validateUnorderedSteps,
   funnelTsParamExpr,
-  compileExprsToSqlColumns,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -108,37 +116,33 @@ export async function queryFunnelTimeToConvert(
   };
   if (hasTz) {queryParams.tz = params.timezone;}
 
-  const ctx = new CompilerContext();
-
-  // Compile cohort, sampling, and timestamp expressions via AST
+  // Build cohort and sampling as Expr AST nodes
   const { dateTo, dateFrom } = cohortBounds(params);
   const cohortExpr = cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom);
-  const cohortClause = cohortExpr ? ' AND ' + compileExprToSql(cohortExpr, queryParams, ctx).sql : '';
-
   const samplingExpr = buildSamplingClause(params.sampling_factor, queryParams);
-  const samplingClause = samplingExpr
-    ? '\n                AND ' + compileExprToSql(samplingExpr, queryParams, ctx).sql
-    : '';
 
-  // Build step conditions as Expr, then compile to SQL strings
+  // Build step conditions as Expr AST nodes
   const stepCondExprs = steps.map((s, i) => buildStepCondition(s, i));
-  const stepConds = stepCondExprs.map(expr => compileExprToSql(expr, queryParams, ctx).sql);
 
-  // Build exclusion columns as Expr[], then compile to SQL strings
+  // Build exclusion columns as Expr[]
   const exclExprList = exclusions.length > 0
     ? buildExclusionColumns(exclusions, steps)
     : [];
-  const exclColumnsSql = exclExprList.length > 0
-    ? compileExprsToSqlColumns(exclExprList, queryParams, ctx)
-    : [];
 
-  const shared = { ch, queryParams, stepConds, exclColumnsSql, exclusions, fromStep, toStep, cohortClause, samplingClause, ctx };
+  const shared = { ch, queryParams, stepCondExprs, exclExprList, exclusions, fromStep, toStep, cohortExpr, samplingExpr };
 
   if (orderType === 'unordered') {
-    return buildUnorderedTtc(shared);
+    return buildUnorderedTtc({ ...shared, numSteps: stepCondExprs.length });
   }
 
-  return buildOrderedTtc({ ...shared, stepCondExprs, numSteps, orderType });
+  return buildOrderedTtc({ ...shared, numSteps, orderType });
+}
+
+// ── Window milliseconds expression ──────────────────────────────────────────
+
+/** toInt64({window:UInt64}) * 1000 — window duration in milliseconds */
+function windowMsExpr(queryParams: FunnelChQueryParams): Expr {
+  return mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
 }
 
 // ── Ordered TTC ──────────────────────────────────────────────────────────────
@@ -146,74 +150,67 @@ export async function queryFunnelTimeToConvert(
 interface OrderedTtcOptions {
   ch: ClickHouseClient;
   queryParams: FunnelChQueryParams;
-  stepConds: string[];
   stepCondExprs: Expr[];
-  exclColumnsSql: string[];
+  exclExprList: Expr[];
   exclusions: NonNullable<TimeToConvertParams['exclusions']>;
   fromStep: number;
   toStep: number;
   numSteps: number;
   orderType: FunnelOrderType;
-  cohortClause: string;
-  samplingClause: string;
-  ctx: CompilerContext;
+  cohortExpr: Expr | undefined;
+  samplingExpr: Expr | undefined;
 }
 
 async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConvertResult> {
   const {
-    ch, queryParams, stepConds, stepCondExprs, exclColumnsSql, exclusions,
-    fromStep, toStep, numSteps, orderType, cohortClause, samplingClause, ctx,
+    ch, queryParams, stepCondExprs, exclExprList, exclusions,
+    fromStep, toStep, numSteps, orderType, cohortExpr, samplingExpr,
   } = options;
-  // Compile windowFunnel Expr to SQL
-  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs);
-  const wfExprSql = compileExprToSql(wfExprAst, queryParams, ctx).sql;
 
-  // Timestamp param expressions (AST)
+  // AST expressions for windowFunnel and timestamps
+  const wfExprAst = buildWindowFunnelExpr(orderType, stepCondExprs);
   const fromExprAst = funnelTsParamExpr('from', queryParams);
   const toExprAst = funnelTsParamExpr('to', queryParams);
-  const fromExpr = compileExprToSql(fromExprAst, queryParams, ctx).sql;
-  const toExpr = compileExprToSql(toExprAst, queryParams, ctx).sql;
 
   // Strict user filter via AST
-  const eventNameFilterExpr = buildStrictUserFilterExpr(fromExprAst, toExprAst, 'step_names', queryParams.all_event_names, queryParams.project_id, orderType);
-  const eventNameFilter = '\n                AND ' + compileExprToSql(eventNameFilterExpr, queryParams, ctx).sql;
+  const eventNameFilterExpr = buildStrictUserFilterExpr(
+    fromExprAst, toExprAst, 'step_names',
+    queryParams.all_event_names, queryParams.project_id, orderType,
+  );
 
-  const stepArrayCols = stepConds.map(
-    (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS step_${i}_arr`,
-  ).join(',\n            ');
+  // Step array columns: groupArrayIf(toUnixTimestamp64Milli(timestamp), stepCond) AS step_i_arr
+  const stepArrayColExprs: Expr[] = stepCondExprs.map(
+    (cond, i) => groupArrayIf(toUnixTimestamp64Milli(col('timestamp')), cond).as(`step_${i}_arr`),
+  );
 
   const fromCol = `step_${fromStep}_ms`;
   const toCol = `step_${toStep}_ms`;
 
-  // Aggregation expressions for funnel_raw (e.g. "groupArrayIf(...) AS excl_0_from_arr")
-  const exclColumnsSQL = exclColumnsSql.length > 0
-    ? ',\n            ' + exclColumnsSql.join(',\n            ')
-    : '';
-  // Pass-through aliases for funnel_per_user (e.g. "excl_0_from_arr")
-  const exclColumnAliases = exclColumnsSql.map((expr) => {
-    const match = /AS (\w+)$/.exec(expr.trim());
-    return match ? match[1] : expr;
-  });
-  const exclAliasSQL = exclColumnAliases.length > 0
-    ? ',\n      ' + exclColumnAliases.join(',\n      ')
-    : '';
+  // Exclusion column aliases (for pass-through in downstream CTEs)
+  const exclColumnAliases = extractExclAliases(exclExprList);
+
+  const winMs = windowMsExpr(queryParams);
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
   // ── CTE: funnel_raw ──
-  const winMsExpr = `toInt64({window:UInt64}) * 1000`;
-
-  const funnelRawNode = select(rawWithParams(`
-            ${RESOLVED_PERSON} AS person_id,
-            ${wfExprSql} AS max_step,
-            ${stepArrayCols},
-            toInt64(minIf(toUnixTimestamp64Milli(timestamp), ${stepConds[toStep]})) AS last_step_prelim_ms${exclColumnsSQL}
-          FROM events
-          WHERE
-            project_id = {project_id:UUID}
-            AND timestamp >= ${fromExpr}
-            AND timestamp <= ${toExpr}${eventNameFilter}${cohortClause}${samplingClause}
-          GROUP BY person_id`, queryParams))
+  const funnelRawNode = select(
+    resolvedPerson().as('person_id'),
+    alias(wfExprAst, 'max_step'),
+    ...stepArrayColExprs,
+    toInt64(minIf(toUnixTimestamp64Milli(col('timestamp')), stepCondExprs[toStep])).as('last_step_prelim_ms'),
+    ...exclExprList,
+  )
+    .from('events')
+    .where(
+      eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+      gte(col('timestamp'), fromExprAst),
+      lte(col('timestamp'), toExprAst),
+      eventNameFilterExpr,
+      cohortExpr,
+      samplingExpr,
+    )
+    .groupBy(col('person_id'))
     .build();
 
   ctes.push({ name: 'funnel_raw', query: funnelRawNode });
@@ -221,30 +218,49 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   // ── CTEs: seq_step_0 .. seq_step_{N-1} ──
   for (let i = 0; i < numSteps; i++) {
     const prevCTE = i === 0 ? 'funnel_raw' : `seq_step_${i - 1}`;
-    const passThrough = [
-      'person_id',
-      'max_step',
-      'last_step_prelim_ms',
-      ...Array.from({ length: numSteps }, (_, j) => `step_${j}_arr`),
-      ...Array.from({ length: i }, (_, j) => `step_${j}_ms`),
-      ...exclColumnAliases,
-    ].join(',\n        ');
 
-    let stepMsExpr: string;
+    // Pass-through columns from previous CTE
+    const passThroughCols: Expr[] = [
+      col('person_id'),
+      col('max_step'),
+      col('last_step_prelim_ms'),
+      ...Array.from({ length: numSteps }, (_, j) => col(`step_${j}_arr`)),
+      ...Array.from({ length: i }, (_, j) => col(`step_${j}_ms`)),
+      ...exclColumnAliases.map(a => col(a)),
+    ];
+
+    // Build the step_i_ms expression
+    let stepMsExprAst: Expr;
     if (i === 0) {
-      stepMsExpr =
-        `if(\n          notEmpty(arrayFilter(t0 -> t0 <= last_step_prelim_ms AND last_step_prelim_ms - t0 <= ${winMsExpr} AND last_step_prelim_ms > 0, step_0_arr)),\n          toInt64(arrayMin(arrayFilter(t0 -> t0 <= last_step_prelim_ms AND last_step_prelim_ms - t0 <= ${winMsExpr} AND last_step_prelim_ms > 0, step_0_arr))),\n          toInt64(0)\n        ) AS step_0_ms`;
+      // step_0_ms: arrayMin of step_0_arr timestamps within [last_step_prelim_ms - window, last_step_prelim_ms]
+      const filterCond = and(
+        lte(col('t0'), col('last_step_prelim_ms')),
+        lte(sub(col('last_step_prelim_ms'), col('t0')), winMs),
+        gt(col('last_step_prelim_ms'), literal(0)),
+      );
+      const filteredArr = func('arrayFilter', lambda(['t0'], filterCond), col('step_0_arr'));
+      stepMsExprAst = ifExpr(
+        notEmpty(filteredArr),
+        toInt64(arrayMin(filteredArr)),
+        toInt64(literal(0)),
+      );
     } else {
-      stepMsExpr =
-        `if(notEmpty(arrayFilter(t${i} -> t${i} >= step_${i - 1}_ms, step_${i}_arr)),` +
-        ` arrayMin(arrayFilter(t${i} -> t${i} >= step_${i - 1}_ms, step_${i}_arr)),` +
-        ` 0) AS step_${i}_ms`;
+      // step_i_ms: first element of step_i_arr that is >= step_{i-1}_ms
+      const varName = `t${i}`;
+      const filterCond = gte(col(varName), col(`step_${i - 1}_ms`));
+      const filteredArr = func('arrayFilter', lambda([varName], filterCond), col(`step_${i}_arr`));
+      stepMsExprAst = ifExpr(
+        notEmpty(filteredArr),
+        arrayMin(filteredArr),
+        literal(0),
+      );
     }
 
-    const seqStepNode = select(raw(`
-        ${passThrough},
-        ${stepMsExpr}
-      FROM ${prevCTE}`))
+    const seqStepNode = select(
+      ...passThroughCols,
+      alias(stepMsExprAst, `step_${i}_ms`),
+    )
+      .from(prevCTE)
       .build();
 
     ctes.push({ name: `seq_step_${i}`, query: seqStepNode });
@@ -252,13 +268,13 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   // ── CTE: funnel_per_user ──
   const lastSeqCTE = `seq_step_${numSteps - 1}`;
-  const stepMsCols = Array.from({ length: numSteps }, (_, i) => `step_${i}_ms`).join(',\n        ');
-
-  const funnelPerUserNode = select(raw(`
-        person_id,
-        max_step,
-        ${stepMsCols}${exclAliasSQL}
-      FROM ${lastSeqCTE}`))
+  const funnelPerUserNode = select(
+    col('person_id'),
+    col('max_step'),
+    ...Array.from({ length: numSteps }, (_, i) => col(`step_${i}_ms`)),
+    ...exclColumnAliases.map(a => col(a)),
+  )
+    .from(lastSeqCTE)
     .build();
 
   ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
@@ -274,11 +290,11 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
     : undefined;
 
   const convertedNode = select(
-    raw(`(${toCol} - ${fromCol}) / 1000.0`).as('duration_seconds'),
+    func('divide', func('minus', col(toCol), col(fromCol)), literal(1000.0)).as('duration_seconds'),
   )
     .from('funnel_per_user')
     .where(
-      gte(col('max_step'), raw('{to_step_num:UInt64}')),
+      gte(col('max_step'), namedParam('to_step_num', 'UInt64', queryParams.to_step_num)),
       exclAndCondition,
     )
     .build();
@@ -288,7 +304,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   // ── Final SELECT ──
   const durationFilter = and(
     gte(col('duration_seconds'), literal(0)),
-    lte(col('duration_seconds'), raw('{window_seconds:Float64}')),
+    lte(col('duration_seconds'), namedParam('window_seconds', 'Float64', queryParams.window_seconds)),
   );
 
   const finalQuery = select(
@@ -387,6 +403,19 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
   return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: sampleSize, bins };
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Extracts alias names from exclusion Expr list.
+ * buildExclusionColumns returns triplets: excl_i_from_arr, excl_i_to_arr, excl_i_arr.
+ */
+function extractExclAliases(exclExprList: Expr[]): string[] {
+  return exclExprList.map(expr => {
+    if (expr.type === 'alias') {return (expr as { alias: string }).alias;}
+    return '';
+  }).filter(Boolean);
+}
+
 // ── Unordered TTC ────────────────────────────────────────────────────────────
 
 /**
@@ -405,102 +434,106 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
 interface UnorderedTtcOptions {
   ch: ClickHouseClient;
   queryParams: FunnelChQueryParams;
-  stepConds: string[];
-  exclColumnsSql: string[];
+  stepCondExprs: Expr[];
+  exclExprList: Expr[];
   exclusions: NonNullable<TimeToConvertParams['exclusions']>;
   fromStep: number;
   toStep: number;
-  cohortClause: string;
-  samplingClause: string;
-  ctx: CompilerContext;
+  numSteps: number;
+  cohortExpr: Expr | undefined;
+  samplingExpr: Expr | undefined;
 }
 
 async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToConvertResult> {
   const {
-    ch, queryParams, stepConds, exclColumnsSql, exclusions,
-    fromStep, toStep, cohortClause, samplingClause, ctx,
+    ch, queryParams, stepCondExprs, exclExprList, exclusions,
+    fromStep, toStep, numSteps, cohortExpr, samplingExpr,
   } = options;
-  const N = stepConds.length;
-  const winExpr = `toInt64({window:UInt64}) * 1000`;
+  const N = numSteps;
+  const winMs = windowMsExpr(queryParams);
 
   // Timestamp param expressions (AST)
   const fromExprAst = funnelTsParamExpr('from', queryParams);
   const toExprAst = funnelTsParamExpr('to', queryParams);
-  const fromExprSql = compileExprToSql(fromExprAst, queryParams, ctx).sql;
-  const toExprSql = compileExprToSql(toExprAst, queryParams, ctx).sql;
 
-  // Collect all timestamps per step as arrays.
-  const groupArrayCols = stepConds.map(
-    (cond, i) => `groupArrayIf(toUnixTimestamp64Milli(timestamp), ${cond}) AS t${i}_arr`,
-  ).join(',\n        ');
+  // Collect all timestamps per step as arrays
+  const groupArrayColExprs: Expr[] = stepCondExprs.map(
+    (cond, i) => groupArrayIf(toUnixTimestamp64Milli(col('timestamp')), cond).as(`t${i}_arr`),
+  );
 
-  // Exclusion array columns.
-  const exclColsSQL = exclColumnsSql.length > 0
-    ? ',\n        ' + exclColumnsSql.join(',\n        ')
-    : '';
-
-  // Coverage, max_step, anchor_ms — shared with funnel-unordered.sql.ts
+  // Coverage, max_step, anchor_ms — shared expressions (returns raw SQL strings)
+  // These are complex dynamically-generated array lambda expressions from shared code.
+  const winExprStr = `toInt64({window:UInt64}) * 1000`;
   const { maxStepExpr, anchorMsExpr } =
-    buildUnorderedCoverageExprs(N, winExpr, stepConds);
+    buildUnorderedCoverageExprs(N, winExprStr, stepCondExprs);
 
-  // Pass-through exclusion aliases from step_times to anchor_per_user.
-  const exclColAliases = exclColumnsSql.map(c => {
-    const m = /AS (\w+)$/.exec(c.trim());
-    return m ? m[1] : c;
-  });
-  const exclColsForward = exclColAliases.length > 0
-    ? ',\n        ' + exclColAliases.join(',\n        ')
-    : '';
-
-  // Guard on step-0 (anchor step) only — users without step-0 cannot enter the funnel.
-  const anyStepNonEmpty = `length(t0_arr) > 0`;
+  // Exclusion column aliases for pass-through
+  const exclColumnAliases = extractExclAliases(exclExprList);
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
   // ── CTE: step_times ──
-  const stepTimesNode = select(rawWithParams(`
-        ${RESOLVED_PERSON} AS person_id,
-        ${groupArrayCols}${exclColsSQL}
-      FROM events
-      WHERE
-        project_id = {project_id:UUID}
-        AND timestamp >= ${fromExprSql}
-        AND timestamp <= ${toExprSql}
-        AND event_name IN ({step_names:Array(String)})${cohortClause}${samplingClause}
-      GROUP BY person_id`, queryParams))
+  const stepTimesNode = select(
+    resolvedPerson().as('person_id'),
+    ...groupArrayColExprs,
+    ...exclExprList,
+  )
+    .from('events')
+    .where(
+      eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+      gte(col('timestamp'), fromExprAst),
+      lte(col('timestamp'), toExprAst),
+      inArray(col('event_name'), namedParam('step_names', 'Array(String)', queryParams.step_names)),
+      cohortExpr,
+      samplingExpr,
+    )
+    .groupBy(col('person_id'))
     .build();
 
   ctes.push({ name: 'step_times', query: stepTimesNode });
 
   // ── CTE: anchor_per_user ──
-  const anchorPerUserNode = select(raw(`
-        person_id,
-        toInt64(${maxStepExpr}) AS max_step,
-        toInt64(${anchorMsExpr}) AS anchor_ms${exclColsForward},
-        ${Array.from({ length: N }, (_, i) => `t${i}_arr`).join(', ')}
-      FROM step_times
-      WHERE ${anyStepNonEmpty}`))
+  // maxStepExpr and anchorMsExpr are complex raw SQL string templates from
+  // buildUnorderedCoverageExprs (deeply nested array lambdas). These are wrapped
+  // in rawWithParams() for the column expressions while using proper .from().where() structure.
+  const anchorPerUserNode = select(
+    col('person_id'),
+    toInt64(rawWithParams(maxStepExpr, queryParams)).as('max_step'),
+    toInt64(rawWithParams(anchorMsExpr, queryParams)).as('anchor_ms'),
+    ...exclColumnAliases.map(a => col(a)),
+    ...Array.from({ length: N }, (_, i) => col(`t${i}_arr`)),
+  )
+    .from('step_times')
+    .where(gt(func('length', col('t0_arr')), literal(0)))
     .build();
 
   ctes.push({ name: 'anchor_per_user', query: anchorPerUserNode });
 
   // ── CTE: funnel_per_user ──
-  const funnelPerUserNode = select(raw(`
-        person_id,
-        max_step,
-        anchor_ms,
-        anchor_ms AS first_step_ms,
-        toInt64(if(
-          notEmpty(arrayFilter(tf -> tf >= anchor_ms AND tf <= anchor_ms + ${winExpr}, t${fromStep}_arr)),
-          arrayMin(arrayFilter(tf -> tf >= anchor_ms AND tf <= anchor_ms + ${winExpr}, t${fromStep}_arr)),
-          toInt64(0)
-        )) AS from_step_ms,
-        toInt64(if(
-          notEmpty(arrayFilter(tv -> tv >= anchor_ms AND tv <= anchor_ms + ${winExpr}, t${toStep}_arr)),
-          arrayMin(arrayFilter(tv -> tv >= anchor_ms AND tv <= anchor_ms + ${winExpr}, t${toStep}_arr)),
-          toInt64(0)
-        )) AS to_step_ms${exclColsForward}
-      FROM anchor_per_user`))
+  // from_step_ms and to_step_ms: first timestamp in [anchor_ms, anchor_ms + window] from respective step arrays
+  const buildStepMsInWindowExpr = (varName: string, stepIdx: number): Expr => {
+    const filterCond = and(
+      gte(col(varName), col('anchor_ms')),
+      lte(col(varName), add(col('anchor_ms'), winMs)),
+    );
+    const filteredArr = func('arrayFilter', lambda([varName], filterCond), col(`t${stepIdx}_arr`));
+    return toInt64(ifExpr(
+      notEmpty(filteredArr),
+      arrayMin(filteredArr),
+      toInt64(literal(0)),
+    ));
+  };
+
+  const funnelPerUserNode = select(
+    col('person_id'),
+    col('max_step'),
+    col('anchor_ms'),
+    col('anchor_ms').as('first_step_ms'),
+    alias(buildStepMsInWindowExpr('tf', fromStep), 'from_step_ms'),
+    alias(buildStepMsInWindowExpr('tv', toStep), 'to_step_ms'),
+    ...exclColumnAliases.map(a => col(a)),
+  )
+    .from('anchor_per_user')
     .build();
 
   ctes.push({ name: 'funnel_per_user', query: funnelPerUserNode });
@@ -516,11 +549,11 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     : undefined;
 
   const convertedNode = select(
-    raw('(to_step_ms - from_step_ms) / 1000.0').as('duration_seconds'),
+    func('divide', func('minus', col('to_step_ms'), col('from_step_ms')), literal(1000.0)).as('duration_seconds'),
   )
     .from('funnel_per_user')
     .where(
-      gte(col('max_step'), raw('{to_step_num:UInt64}')),
+      gte(col('max_step'), namedParam('to_step_num', 'UInt64', queryParams.to_step_num)),
       gte(col('to_step_ms'), col('from_step_ms')),
       gt(col('from_step_ms'), literal(0)),
       exclAndCondition,
@@ -532,7 +565,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
   // ── Final SELECT ──
   const durationFilter = and(
     gte(col('duration_seconds'), literal(0)),
-    lte(col('duration_seconds'), raw('{window_seconds:Float64}')),
+    lte(col('duration_seconds'), namedParam('window_seconds', 'Float64', queryParams.window_seconds)),
   );
 
   const finalQuery = select(
