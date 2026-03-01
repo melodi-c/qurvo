@@ -7,7 +7,7 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { getPersonFields } from '@/lib/person';
 import { usePersonSearch, PERSONS_LIMIT } from '../hooks/use-cohort-members';
-import translations from './MembersTab.translations';
+import translations from './PersonSearchTable.translations';
 
 export interface PersonRow {
   id: string;
