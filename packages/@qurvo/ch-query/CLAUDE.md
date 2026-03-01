@@ -35,18 +35,23 @@ import {
 import {
   count, countIf, countDistinct, sum, sumIf, avg, avgIf, min, minIf, max, maxIf,
   uniqExact, groupArray, groupArrayIf, arraySort, arrayFilter, toString,
-  argMax, argMinIf, argMaxIf,
+  argMax, argMinIf, argMaxIf, any, groupUniqArray,
 } from '@qurvo/ch-query';
 
 // ClickHouse functions
 import {
   jsonExtractString, jsonExtractRaw, jsonHas,
-  toFloat64OrZero, toDate, toInt64, toUInt64, toUnixTimestamp64Milli,
-  parseDateTimeBestEffortOrZero,
+  toFloat64OrZero, toDate, toInt64, toUInt64, toInt32, toUInt32, toUnixTimestamp64Milli,
+  parseDateTimeBestEffortOrZero, parseDateTimeBestEffort, toDateTime, toDateTime64,
+  toStartOfDay, toStartOfHour, toStartOfWeek, toStartOfMonth,
+  dateDiff, length, has, now64, today, toUUID,
   dictGetOrNull, lower, match, multiSearchAny, coalesce, ifExpr,
   notEmpty, greatest, indexOf, arrayElement, sipHash64,
-  arrayExists, arrayMin, arrayMax,
+  arrayExists, arrayMin, arrayMax, arraySlice, arrayCompact, arrayEnumerate,
 } from '@qurvo/ch-query';
+
+// SQL utils
+import { escapeLikePattern, safeLike, safeNotLike } from '@qurvo/ch-query';
 
 // Condition builders
 import {

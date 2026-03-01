@@ -62,10 +62,10 @@ export interface LambdaExpr {
   body: Expr;
 }
 
-/** INTERVAL N UNIT — e.g. INTERVAL 7 DAY */
+/** INTERVAL N UNIT — e.g. INTERVAL 7 DAY, or INTERVAL expr DAY */
 export interface IntervalExpr {
   type: 'interval';
-  value: number;
+  value: number | Expr;
   unit: string;
 }
 

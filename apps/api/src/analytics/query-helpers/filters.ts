@@ -2,7 +2,9 @@ import type { Expr } from '@qurvo/ch-query';
 import {
   and,
   col,
+  compileExprToSql,
   eq,
+  escapeLikePattern,
   inArray,
   like,
   literal,
@@ -13,7 +15,6 @@ import {
   param,
   raw,
   rawWithParams,
-  compileExprToSql,
 } from '@qurvo/ch-query';
 import { buildCohortFilterClause } from '@qurvo/cohort-query';
 import { timeRange, toChTs } from './time';
@@ -56,10 +57,6 @@ function validateJsonKey(segment: string): void {
       `Only alphanumeric characters, underscores, hyphens, and dots are allowed.`,
     );
   }
-}
-
-function escapeLikePattern(s: string): string {
-  return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
 }
 
 function escapeJsonKey(segment: string): string {

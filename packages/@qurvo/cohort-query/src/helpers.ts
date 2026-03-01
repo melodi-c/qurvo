@@ -1,7 +1,6 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr } from '@qurvo/ch-query';
-import { and, raw, rawWithParams, select } from '@qurvo/ch-query';
-import { compileExprToSql } from '@qurvo/ch-query';
+import { and, compileExprToSql, escapeLikePattern, raw, rawWithParams, select } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
 /**
@@ -17,10 +16,6 @@ export const TOP_LEVEL_COLUMNS = new Set([
 ]);
 
 // ── Internal string helpers ──
-
-function escapeLikePattern(s: string): string {
-  return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
-}
 
 function escapeJsonKey(key: string): string {
   return key

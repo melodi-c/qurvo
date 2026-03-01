@@ -122,13 +122,16 @@ function compileLambda(expr: LambdaExpr, ctx: CompilerContext): string {
   return `(${expr.params.join(', ')}) -> ${body}`;
 }
 
-function compileInterval(expr: IntervalExpr): string {
+function compileInterval(expr: IntervalExpr, ctx: CompilerContext): string {
   if (!VALID_INTERVAL_UNITS.has(expr.unit)) {
     throw new Error(
       `Invalid interval unit: "${expr.unit}". Allowed units: ${[...VALID_INTERVAL_UNITS].join(', ')}.`,
     );
   }
-  return `INTERVAL ${expr.value} ${expr.unit}`;
+  if (typeof expr.value === 'number') {
+    return `INTERVAL ${expr.value} ${expr.unit}`;
+  }
+  return `INTERVAL ${compileExpr(expr.value, ctx)} ${expr.unit}`;
 }
 
 function compileNamedParam(expr: NamedParamExpr, ctx: CompilerContext): string {
@@ -207,7 +210,7 @@ function compileExpr(expr: Expr, ctx: CompilerContext): string {
     case 'lambda':
       return compileLambda(expr, ctx);
     case 'interval':
-      return compileInterval(expr);
+      return compileInterval(expr, ctx);
     case 'named_param':
       return compileNamedParam(expr, ctx);
     case 'alias':

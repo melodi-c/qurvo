@@ -99,6 +99,45 @@ export {
   arrayMax,
 } from './builders';
 
+// Builders — new function shortcuts (HIGH priority)
+export {
+  length,
+  toStartOfDay,
+  toStartOfHour,
+  toStartOfWeek,
+  toStartOfMonth,
+  toDateTime,
+  dateDiff,
+} from './builders';
+
+// Builders — new function shortcuts (MEDIUM priority)
+export {
+  toDateTime64,
+  has,
+  any,
+  arraySlice,
+  parseDateTimeBestEffort,
+  now64,
+  toUInt32,
+  toInt32,
+} from './builders';
+
+// Builders — new function shortcuts (LOW priority)
+export {
+  groupUniqArray,
+  arrayCompact,
+  arrayEnumerate,
+  toUUID,
+  today,
+} from './builders';
+
+// Builders — SQL utils
+export {
+  escapeLikePattern,
+  safeLike,
+  safeNotLike,
+} from './builders';
+
 // Builders — condition builders
 export {
   and,

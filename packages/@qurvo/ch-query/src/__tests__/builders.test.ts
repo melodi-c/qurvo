@@ -2,14 +2,18 @@ import { describe, expect, test } from 'vitest';
 import {
   add,
   and,
+  any,
   argMax,
   argMaxIf,
   argMinIf,
+  arrayCompact,
   arrayElement,
+  arrayEnumerate,
   arrayExists,
   arrayFilter,
   arrayMax,
   arrayMin,
+  arraySlice,
   arraySort,
   avg,
   avgIf,
@@ -18,17 +22,21 @@ import {
   count,
   countDistinct,
   countIf,
+  dateDiff,
   dictGetOrNull,
   div,
   eq,
+  escapeLikePattern,
   except,
   func,
   funcDistinct,
   greatest,
   groupArray,
   groupArrayIf,
+  groupUniqArray,
   gt,
   gte,
+  has,
   ifExpr,
   inArray,
   indexOf,
@@ -38,6 +46,7 @@ import {
   jsonExtractString,
   jsonHas,
   lambda,
+  length,
   like,
   literal,
   lower,
@@ -58,11 +67,15 @@ import {
   notEmpty,
   notInSubquery,
   notLike,
+  now64,
   or,
   param,
   parametricFunc,
+  parseDateTimeBestEffort,
   parseDateTimeBestEffortOrZero,
   raw,
+  safeLike,
+  safeNotLike,
   select,
   sipHash64,
   sub,
@@ -70,11 +83,21 @@ import {
   sum,
   sumIf,
   toDate,
+  toDateTime,
+  toDateTime64,
   toFloat64OrZero,
+  toInt32,
   toInt64,
   toString,
+  toStartOfDay,
+  toStartOfHour,
+  toStartOfMonth,
+  toStartOfWeek,
+  toUInt32,
   toUInt64,
   toUnixTimestamp64Milli,
+  toUUID,
+  today,
   unionAll,
   uniqExact,
 } from '../builders';
@@ -722,6 +745,249 @@ describe('builders', () => {
       const a = mod(col('hash'), literal(100)).as('bucket');
       expect(a.type).toBe('alias');
       expect(a.alias).toBe('bucket');
+    });
+  });
+
+  describe('arrayFilter with LambdaExpr', () => {
+    test('arrayFilter() accepts string (backwards compat)', () => {
+      const af = arrayFilter('x -> x > 0', col('arr'));
+      expect(af.name).toBe('arrayFilter');
+      expect(af.args).toHaveLength(2);
+      expect(af.args[0]).toEqual(expect.objectContaining({ type: 'raw', sql: 'x -> x > 0' }));
+    });
+
+    test('arrayFilter() accepts LambdaExpr', () => {
+      const l = lambda(['x'], gt(col('x'), literal(0)));
+      const af = arrayFilter(l, col('arr'));
+      expect(af.name).toBe('arrayFilter');
+      expect(af.args).toHaveLength(2);
+      expect(af.args[0]).toEqual(expect.objectContaining({ type: 'lambda' }));
+    });
+  });
+
+  describe('interval with Expr value', () => {
+    test('interval() accepts number (backwards compat)', () => {
+      const i = interval(7, 'DAY');
+      expect(i.type).toBe('interval');
+      expect(i.value).toBe(7);
+      expect(i.unit).toBe('DAY');
+    });
+
+    test('interval() accepts Expr', () => {
+      const np = namedParam('days', 'UInt32', 7);
+      const i = interval(np, 'DAY');
+      expect(i.type).toBe('interval');
+      expect(i.value).toEqual(expect.objectContaining({ type: 'named_param', key: 'days' }));
+      expect(i.unit).toBe('DAY');
+    });
+
+    test('interval() with Expr still validates unit', () => {
+      expect(() => interval(namedParam('x', 'UInt32', 1), 'INVALID')).toThrow(/Invalid interval unit/);
+    });
+  });
+
+  describe('SQL utils', () => {
+    test('escapeLikePattern escapes %, _, \\', () => {
+      expect(escapeLikePattern('')).toBe('');
+      expect(escapeLikePattern('hello')).toBe('hello');
+      expect(escapeLikePattern('100%')).toBe('100\\%');
+      expect(escapeLikePattern('user_name')).toBe('user\\_name');
+      expect(escapeLikePattern('path\\to')).toBe('path\\\\to');
+      expect(escapeLikePattern('%_\\')).toBe('\\%\\_\\\\');
+    });
+
+    test('safeLike() creates LIKE binary with escaped param', () => {
+      const expr = safeLike(col('name'), 'test%value');
+      expect(expr.type).toBe('binary');
+      expect(expr.op).toBe('LIKE');
+      expect(expr.right).toEqual(expect.objectContaining({
+        type: 'param',
+        chType: 'String',
+        value: '%test\\%value%',
+      }));
+    });
+
+    test('safeNotLike() creates NOT LIKE binary with escaped param', () => {
+      const expr = safeNotLike(col('name'), 'test_value');
+      expect(expr.type).toBe('binary');
+      expect(expr.op).toBe('NOT LIKE');
+      expect(expr.right).toEqual(expect.objectContaining({
+        type: 'param',
+        chType: 'String',
+        value: '%test\\_value%',
+      }));
+    });
+  });
+
+  describe('HIGH priority function shortcuts', () => {
+    test('length()', () => {
+      const f = length(col('arr'));
+      expect(f.name).toBe('length');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toStartOfDay()', () => {
+      const f = toStartOfDay(col('ts'));
+      expect(f.name).toBe('toStartOfDay');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toStartOfDay() with timezone', () => {
+      const f = toStartOfDay(col('ts'), literal('UTC'));
+      expect(f.name).toBe('toStartOfDay');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('toStartOfHour()', () => {
+      const f = toStartOfHour(col('ts'));
+      expect(f.name).toBe('toStartOfHour');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toStartOfWeek()', () => {
+      const f = toStartOfWeek(col('ts'));
+      expect(f.name).toBe('toStartOfWeek');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toStartOfWeek() with mode and tz', () => {
+      const f = toStartOfWeek(col('ts'), literal(1), literal('UTC'));
+      expect(f.name).toBe('toStartOfWeek');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('toStartOfMonth()', () => {
+      const f = toStartOfMonth(col('ts'));
+      expect(f.name).toBe('toStartOfMonth');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toDateTime()', () => {
+      const f = toDateTime(col('str'));
+      expect(f.name).toBe('toDateTime');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toDateTime() with timezone', () => {
+      const f = toDateTime(col('str'), literal('UTC'));
+      expect(f.name).toBe('toDateTime');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('dateDiff() with Expr unit', () => {
+      const f = dateDiff(literal('day'), col('start'), col('end'));
+      expect(f.name).toBe('dateDiff');
+      expect(f.args).toHaveLength(3);
+      // Unit passed as Expr should be used as-is
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'literal', value: 'day' }));
+    });
+
+    test('dateDiff() with string unit (auto-wrapped in literal)', () => {
+      const f = dateDiff('day', col('start'), col('end'));
+      expect(f.name).toBe('dateDiff');
+      expect(f.args).toHaveLength(3);
+      // String unit should be auto-wrapped in literal()
+      expect(f.args[0]).toEqual(expect.objectContaining({ type: 'literal', value: 'day' }));
+    });
+  });
+
+  describe('MEDIUM priority function shortcuts', () => {
+    test('toDateTime64()', () => {
+      const f = toDateTime64(col('str'), literal(3));
+      expect(f.name).toBe('toDateTime64');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('toDateTime64() with timezone', () => {
+      const f = toDateTime64(col('str'), literal(3), literal('UTC'));
+      expect(f.name).toBe('toDateTime64');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('has()', () => {
+      const f = has(col('arr'), literal('x'));
+      expect(f.name).toBe('has');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('any()', () => {
+      const f = any(col('val'));
+      expect(f.name).toBe('any');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('arraySlice() without len', () => {
+      const f = arraySlice(col('arr'), literal(1));
+      expect(f.name).toBe('arraySlice');
+      expect(f.args).toHaveLength(2);
+    });
+
+    test('arraySlice() with len', () => {
+      const f = arraySlice(col('arr'), literal(1), literal(5));
+      expect(f.name).toBe('arraySlice');
+      expect(f.args).toHaveLength(3);
+    });
+
+    test('parseDateTimeBestEffort()', () => {
+      const f = parseDateTimeBestEffort(col('str'));
+      expect(f.name).toBe('parseDateTimeBestEffort');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('now64() with precision', () => {
+      const f = now64(literal(3));
+      expect(f.name).toBe('now64');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('now64() without precision', () => {
+      const f = now64();
+      expect(f.name).toBe('now64');
+      expect(f.args).toHaveLength(0);
+    });
+
+    test('toUInt32()', () => {
+      const f = toUInt32(col('val'));
+      expect(f.name).toBe('toUInt32');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toInt32()', () => {
+      const f = toInt32(col('val'));
+      expect(f.name).toBe('toInt32');
+      expect(f.args).toHaveLength(1);
+    });
+  });
+
+  describe('LOW priority function shortcuts', () => {
+    test('groupUniqArray()', () => {
+      const f = groupUniqArray(col('val'));
+      expect(f.name).toBe('groupUniqArray');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('arrayCompact()', () => {
+      const f = arrayCompact(col('arr'));
+      expect(f.name).toBe('arrayCompact');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('arrayEnumerate()', () => {
+      const f = arrayEnumerate(col('arr'));
+      expect(f.name).toBe('arrayEnumerate');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('toUUID()', () => {
+      const f = toUUID(col('str'));
+      expect(f.name).toBe('toUUID');
+      expect(f.args).toHaveLength(1);
+    });
+
+    test('today()', () => {
+      const f = today();
+      expect(f.name).toBe('today');
+      expect(f.args).toHaveLength(0);
     });
   });
 

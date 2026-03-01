@@ -3,22 +3,31 @@ import { compile, compileExprToSql } from '../compiler';
 import {
   add,
   and,
+  any,
   argMax,
+  arrayCompact,
+  arrayEnumerate,
   arrayExists,
+  arrayFilter,
   arrayMax,
+  arraySlice,
   coalesce,
   col,
   count,
   countIf,
+  dateDiff,
   dictGetOrNull,
   div,
   eq,
+  escapeLikePattern,
   except,
   func,
   funcDistinct,
   groupArray,
+  groupUniqArray,
   gt,
   gte,
+  has,
   inArray,
   inSubquery,
   interval,
@@ -26,6 +35,7 @@ import {
   jsonExtractString,
   jsonHas,
   lambda,
+  length,
   like,
   literal,
   lower,
@@ -41,18 +51,32 @@ import {
   not,
   notInSubquery,
   notLike,
+  now64,
   or,
   param,
   parametricFunc,
+  parseDateTimeBestEffort,
   parseDateTimeBestEffortOrZero,
   raw,
+  safeLike,
+  safeNotLike,
   select,
   sub,
   subquery,
   sumIf,
   toDate,
+  toDateTime,
+  toDateTime64,
   toFloat64OrZero,
+  toInt32,
   toString,
+  toStartOfDay,
+  toStartOfHour,
+  toStartOfMonth,
+  toStartOfWeek,
+  toUInt32,
+  toUUID,
+  today,
   unionAll,
   uniqExact,
 } from '../builders';
@@ -1199,6 +1223,237 @@ describe('compiler', () => {
         const { sql } = compileExprToSql(func('arrayMap', l, col('a'), col('b')));
         expect(sql).toContain('(_x, __y) -> _x + __y');
       });
+    });
+  });
+
+  describe('interval with Expr value', () => {
+    test('interval with number compiles as before', () => {
+      const { sql } = compileExprToSql(interval(7, 'DAY'));
+      expect(sql).toBe('INTERVAL 7 DAY');
+    });
+
+    test('interval with namedParam compiles to parameterised form', () => {
+      const np = namedParam('days', 'UInt32', 7);
+      const { sql, params } = compileExprToSql(interval(np, 'DAY'));
+      expect(sql).toBe('INTERVAL {days:UInt32} DAY');
+      expect(params).toEqual({ days: 7 });
+    });
+
+    test('interval with param compiles to auto-named param', () => {
+      const p = param('UInt32', 30);
+      const { sql, params } = compileExprToSql(interval(p, 'MINUTE'));
+      expect(sql).toBe('INTERVAL {p_0:UInt32} MINUTE');
+      expect(params).toEqual({ p_0: 30 });
+    });
+
+    test('interval with Expr in full query', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(gte(col('timestamp'), sub(raw('now()'), interval(namedParam('window_days', 'UInt32', 14), 'DAY'))))
+        .build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('timestamp >= now() - INTERVAL {window_days:UInt32} DAY');
+      expect(params).toEqual({ window_days: 14 });
+    });
+  });
+
+  describe('arrayFilter with LambdaExpr', () => {
+    test('arrayFilter with string lambda (backwards compat)', () => {
+      const q = select(
+        arrayFilter('x -> x > 0', col('arr')).as('filtered'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayFilter(x -> x > 0, arr) AS filtered');
+    });
+
+    test('arrayFilter with LambdaExpr', () => {
+      const l = lambda(['x'], gt(col('x'), literal(0)));
+      const q = select(
+        arrayFilter(l, col('arr')).as('filtered'),
+      ).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arrayFilter(x -> x > 0, arr) AS filtered');
+    });
+  });
+
+  describe('SQL utils compilation', () => {
+    test('safeLike compiles to LIKE with escaped param', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(safeLike(col('name'), '100% off'))
+        .build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('name LIKE {p_0:String}');
+      expect(params).toEqual({ p_0: '%100\\% off%' });
+    });
+
+    test('safeNotLike compiles to NOT LIKE with escaped param', () => {
+      const q = select(col('*'))
+        .from('events')
+        .where(safeNotLike(col('name'), 'user_test'))
+        .build();
+      const { sql, params } = compile(q);
+      expect(sql).toContain('name NOT LIKE {p_0:String}');
+      expect(params).toEqual({ p_0: '%user\\_test%' });
+    });
+
+    test('escapeLikePattern handles all special chars', () => {
+      expect(escapeLikePattern('%_\\')).toBe('\\%\\_\\\\');
+      expect(escapeLikePattern('normal')).toBe('normal');
+      expect(escapeLikePattern('')).toBe('');
+    });
+  });
+
+  describe('new function shortcuts compilation', () => {
+    test('length()', () => {
+      const q = select(length(col('arr')).as('len')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('length(arr) AS len');
+    });
+
+    test('toStartOfDay()', () => {
+      const q = select(toStartOfDay(col('ts')).as('day')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toStartOfDay(ts) AS day');
+    });
+
+    test('toStartOfDay() with timezone', () => {
+      const q = select(toStartOfDay(col('ts'), literal('UTC')).as('day')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("toStartOfDay(ts, 'UTC') AS day");
+    });
+
+    test('toStartOfHour()', () => {
+      const q = select(toStartOfHour(col('ts')).as('hour')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toStartOfHour(ts) AS hour');
+    });
+
+    test('toStartOfWeek()', () => {
+      const q = select(toStartOfWeek(col('ts')).as('week')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toStartOfWeek(ts) AS week');
+    });
+
+    test('toStartOfWeek() with mode', () => {
+      const q = select(toStartOfWeek(col('ts'), literal(1)).as('week')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toStartOfWeek(ts, 1) AS week');
+    });
+
+    test('toStartOfMonth()', () => {
+      const q = select(toStartOfMonth(col('ts')).as('month')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toStartOfMonth(ts) AS month');
+    });
+
+    test('toDateTime()', () => {
+      const q = select(toDateTime(col('str')).as('dt')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toDateTime(str) AS dt');
+    });
+
+    test('toDateTime() with timezone', () => {
+      const q = select(toDateTime(col('str'), literal('UTC')).as('dt')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("toDateTime(str, 'UTC') AS dt");
+    });
+
+    test('dateDiff()', () => {
+      const q = select(dateDiff(literal('day'), col('start'), col('end')).as('diff')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("dateDiff('day', start, end) AS diff");
+    });
+
+    test('toDateTime64()', () => {
+      const q = select(toDateTime64(col('str'), literal(3)).as('dt64')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('toDateTime64(str, 3) AS dt64');
+    });
+
+    test('toDateTime64() with timezone', () => {
+      const q = select(toDateTime64(col('str'), literal(3), literal('UTC')).as('dt64')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain("toDateTime64(str, 3, 'UTC') AS dt64");
+    });
+
+    test('has()', () => {
+      const q = select(col('*')).from('t').where(eq(has(col('arr'), literal('x')), literal(1))).build();
+      const { sql } = compile(q);
+      expect(sql).toContain("has(arr, 'x') = 1");
+    });
+
+    test('any()', () => {
+      const q = select(any(col('val')).as('arbitrary_val')).from('t').groupBy(col('group')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('any(val) AS arbitrary_val');
+    });
+
+    test('arraySlice()', () => {
+      const q = select(arraySlice(col('arr'), literal(1), literal(5)).as('slice')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arraySlice(arr, 1, 5) AS slice');
+    });
+
+    test('arraySlice() without len', () => {
+      const q = select(arraySlice(col('arr'), literal(2)).as('slice')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('arraySlice(arr, 2) AS slice');
+    });
+
+    test('parseDateTimeBestEffort()', () => {
+      const q = select(parseDateTimeBestEffort(col('str')).as('dt')).from('t').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('parseDateTimeBestEffort(str) AS dt');
+    });
+
+    test('now64() with precision', () => {
+      const q = select(now64(literal(3)).as('now')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('now64(3) AS now');
+    });
+
+    test('now64() without precision', () => {
+      const q = select(now64().as('now')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('now64() AS now');
+    });
+
+    test('toUInt32()', () => {
+      const { sql } = compileExprToSql(toUInt32(col('val')));
+      expect(sql).toBe('toUInt32(val)');
+    });
+
+    test('toInt32()', () => {
+      const { sql } = compileExprToSql(toInt32(col('val')));
+      expect(sql).toBe('toInt32(val)');
+    });
+
+    test('groupUniqArray()', () => {
+      const q = select(groupUniqArray(col('event')).as('events')).from('t').groupBy(col('person_id')).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('groupUniqArray(event) AS events');
+    });
+
+    test('arrayCompact()', () => {
+      const { sql } = compileExprToSql(arrayCompact(col('arr')));
+      expect(sql).toBe('arrayCompact(arr)');
+    });
+
+    test('arrayEnumerate()', () => {
+      const { sql } = compileExprToSql(arrayEnumerate(col('arr')));
+      expect(sql).toBe('arrayEnumerate(arr)');
+    });
+
+    test('toUUID()', () => {
+      const { sql } = compileExprToSql(toUUID(col('str')));
+      expect(sql).toBe('toUUID(str)');
+    });
+
+    test('today()', () => {
+      const q = select(col('*')).from('events').where(gte(col('date'), today())).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('date >= today()');
     });
   });
 

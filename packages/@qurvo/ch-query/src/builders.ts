@@ -120,8 +120,12 @@ export function lambda(params: string[], body: Expr): LambdaExpr {
   return { type: 'lambda', params, body };
 }
 
-/** INTERVAL N UNIT — e.g. interval(7, 'DAY') → INTERVAL 7 DAY */
-export function interval(value: number, unit: string): WithAlias<IntervalExpr> {
+/**
+ * INTERVAL value UNIT
+ * - interval(7, 'DAY') → INTERVAL 7 DAY (literal number)
+ * - interval(namedParam('days', 'UInt32', 7), 'DAY') → INTERVAL {days:UInt32} DAY (Expr)
+ */
+export function interval(value: number | Expr, unit: string): WithAlias<IntervalExpr> {
   if (!VALID_INTERVAL_UNITS.has(unit)) {
     throw new Error(
       `Invalid interval unit: "${unit}". Allowed units: ${[...VALID_INTERVAL_UNITS].join(', ')}.`,
@@ -211,9 +215,11 @@ export function arraySort(expr: Expr): WithAlias<FuncCallExpr> {
   return func('arraySort', expr);
 }
 
-export function arrayFilter(lambda: string, arrayExpr: Expr): WithAlias<FuncCallExpr> {
-  // lambda is passed as raw SQL: e.g. "x -> x > 0"
-  return func('arrayFilter', { type: 'raw', sql: lambda }, arrayExpr);
+export function arrayFilter(lambdaOrStr: LambdaExpr | string, arrayExpr: Expr): WithAlias<FuncCallExpr> {
+  if (typeof lambdaOrStr === 'string') {
+    return func('arrayFilter', { type: 'raw', sql: lambdaOrStr }, arrayExpr);
+  }
+  return func('arrayFilter', lambdaOrStr, arrayExpr);
 }
 
 export function toString(expr: Expr): WithAlias<FuncCallExpr> {
@@ -373,6 +379,116 @@ export function arrayMax(lambdaExpr: LambdaExpr, arrayExpr: Expr): WithAlias<Fun
   return func('arrayMax', lambdaExpr, arrayExpr);
 }
 
+// ── HIGH priority function shortcuts ──
+
+/** length(expr) — returns length of string or array */
+export function length(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('length', expr);
+}
+
+/** toStartOfDay(expr, tz?) — truncate DateTime to start of day */
+export function toStartOfDay(expr: Expr, tz?: Expr): WithAlias<FuncCallExpr> {
+  return tz ? func('toStartOfDay', expr, tz) : func('toStartOfDay', expr);
+}
+
+/** toStartOfHour(expr, tz?) — truncate DateTime to start of hour */
+export function toStartOfHour(expr: Expr, tz?: Expr): WithAlias<FuncCallExpr> {
+  return tz ? func('toStartOfHour', expr, tz) : func('toStartOfHour', expr);
+}
+
+/** toStartOfWeek(expr, mode?, tz?) — truncate Date/DateTime to start of week */
+export function toStartOfWeek(expr: Expr, mode?: Expr, tz?: Expr): WithAlias<FuncCallExpr> {
+  const args: Expr[] = [expr];
+  if (mode !== undefined) args.push(mode);
+  if (tz !== undefined) args.push(tz);
+  return func('toStartOfWeek', ...args);
+}
+
+/** toStartOfMonth(expr, tz?) — truncate Date/DateTime to start of month */
+export function toStartOfMonth(expr: Expr, tz?: Expr): WithAlias<FuncCallExpr> {
+  return tz ? func('toStartOfMonth', expr, tz) : func('toStartOfMonth', expr);
+}
+
+/** toDateTime(...args) — convert to DateTime type */
+export function toDateTime(...args: Expr[]): WithAlias<FuncCallExpr> {
+  return func('toDateTime', ...args);
+}
+
+/** dateDiff(unit, start, end) — difference between two dates/datetimes. Unit can be a string (auto-wrapped in literal()) or an Expr. */
+export function dateDiff(unit: string | Expr, start: Expr, end: Expr): WithAlias<FuncCallExpr> {
+  const unitExpr = typeof unit === 'string' ? literal(unit) : unit;
+  return func('dateDiff', unitExpr, start, end);
+}
+
+// ── MEDIUM priority function shortcuts ──
+
+/** toDateTime64(expr, scale, tz?) — convert to DateTime64 with specified scale */
+export function toDateTime64(expr: Expr, scale: Expr, tz?: Expr): WithAlias<FuncCallExpr> {
+  return tz ? func('toDateTime64', expr, scale, tz) : func('toDateTime64', expr, scale);
+}
+
+/** has(arr, elem) — returns 1 if array contains elem */
+export function has(arr: Expr, elem: Expr): WithAlias<FuncCallExpr> {
+  return func('has', arr, elem);
+}
+
+/** any(expr) — returns an arbitrary value from the group */
+export function any(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('any', expr);
+}
+
+/** arraySlice(arr, offset, len?) — extract a slice of an array */
+export function arraySlice(arr: Expr, offset: Expr, len?: Expr): WithAlias<FuncCallExpr> {
+  return len ? func('arraySlice', arr, offset, len) : func('arraySlice', arr, offset);
+}
+
+/** parseDateTimeBestEffort(expr) — parse date/time string with best-effort */
+export function parseDateTimeBestEffort(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('parseDateTimeBestEffort', expr);
+}
+
+/** now64(precision?) — current DateTime64 with optional precision */
+export function now64(precision?: Expr): WithAlias<FuncCallExpr> {
+  return precision ? func('now64', precision) : func('now64');
+}
+
+/** toUInt32(expr) — cast to UInt32 */
+export function toUInt32(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toUInt32', expr);
+}
+
+/** toInt32(expr) — cast to Int32 */
+export function toInt32(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toInt32', expr);
+}
+
+// ── LOW priority function shortcuts ──
+
+/** groupUniqArray(expr) — returns array of unique values from the group */
+export function groupUniqArray(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('groupUniqArray', expr);
+}
+
+/** arrayCompact(arr) — removes consecutive duplicate elements */
+export function arrayCompact(arr: Expr): WithAlias<FuncCallExpr> {
+  return func('arrayCompact', arr);
+}
+
+/** arrayEnumerate(arr) — returns [1, 2, 3, ..., length(arr)] */
+export function arrayEnumerate(arr: Expr): WithAlias<FuncCallExpr> {
+  return func('arrayEnumerate', arr);
+}
+
+/** toUUID(expr) — cast to UUID */
+export function toUUID(expr: Expr): WithAlias<FuncCallExpr> {
+  return func('toUUID', expr);
+}
+
+/** today() — returns current date */
+export function today(): WithAlias<FuncCallExpr> {
+  return func('today');
+}
+
 // ── Condition builders ──
 
 function makeBinary(op: BinaryOp, left: Expr, right: Expr): BinaryExpr {
@@ -487,6 +603,34 @@ export function multiIf(
   elseResult: Expr,
 ): WithAlias<CaseExpr> {
   return withAlias({ type: 'case', branches, else_result: elseResult });
+}
+
+// ── SQL utils (LIKE escaping) ──
+
+/**
+ * Escapes LIKE-wildcard characters (%, _, \) in a user-provided string
+ * so they are treated as literals in SQL LIKE / ILIKE patterns.
+ */
+export function escapeLikePattern(s: string): string {
+  return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
+}
+
+/**
+ * Safe LIKE: escapes user input and wraps with `%...%`, producing:
+ * `expr LIKE {p_N:String}` with the value properly escaped.
+ */
+export function safeLike(expr: Expr, substring: string): BinaryExpr {
+  const escaped = `%${escapeLikePattern(substring)}%`;
+  return like(expr, param('String', escaped));
+}
+
+/**
+ * Safe NOT LIKE: escapes user input and wraps with `%...%`, producing:
+ * `expr NOT LIKE {p_N:String}` with the value properly escaped.
+ */
+export function safeNotLike(expr: Expr, substring: string): BinaryExpr {
+  const escaped = `%${escapeLikePattern(substring)}%`;
+  return notLike(expr, param('String', escaped));
 }
 
 // ── SelectBuilder (fluent chain) ──
