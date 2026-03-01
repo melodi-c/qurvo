@@ -1,18 +1,18 @@
 import type { CohortAggregationType, CohortEventCondition, CohortEventFilter } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import {
-  select, raw, rawWithParams, col, namedParam, literal,
+  rawWithParams, col, namedParam, literal,
   eq, gte, lte, sub, func, and, countIf, parametricFunc,
   toFloat64OrZero,
 } from '@qurvo/ch-query';
 import {
-  RESOLVED_PERSON,
   buildEventFilterClauses,
   buildOperatorClause,
   resolveEventPropertyExpr,
   allocCondIdx,
   resolveDateTo,
   resolveDateFrom,
+  eventsBaseSelect,
 } from '../helpers';
 import type { BuildContext } from '../types';
 
@@ -85,13 +85,7 @@ function buildEventZeroCountSubquery(
 
   const countIfCond = buildCountIfCondExpr(eventPk, cond.event_name, condIdx, cond.event_filters, ctx.queryParams);
 
-  return select(raw(RESOLVED_PERSON).as('person_id'))
-    .from('events')
-    .where(
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
-      gte(col('timestamp'), lowerExpr),
-      lte(col('timestamp'), upperBound),
-    )
+  return eventsBaseSelect(ctx, lowerExpr)
     .groupBy(col('person_id'))
     .having(eq(countIf(countIfCond), literal(0)))
     .build();
@@ -118,16 +112,11 @@ export function buildEventConditionSubquery(
   const aggExpr = buildAggregationExpr(cond.aggregation_type, cond.aggregation_property);
   const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
   const thresholdType = isCount ? 'UInt64' : 'Float64';
-  const upperBound = resolveDateTo(ctx);
   const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
+  const lowerExpr = sub(resolveDateTo(ctx), daysInterval);
 
-  return select(raw(RESOLVED_PERSON).as('person_id'))
-    .from('events')
-    .where(
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+  return eventsBaseSelect(ctx, lowerExpr,
       eq(col('event_name'), namedParam(eventPk, 'String', cond.event_name)),
-      gte(col('timestamp'), sub(upperBound, daysInterval)),
-      lte(col('timestamp'), upperBound),
       filterExpr,
     )
     .groupBy(col('person_id'))

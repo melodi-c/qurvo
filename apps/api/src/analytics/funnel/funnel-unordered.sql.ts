@@ -32,6 +32,8 @@ import {
   buildUnorderedCoverageExprsAST,
   funnelTsParamExpr,
   extractExclColumnAliases,
+  windowMsExpr,
+  funnelProjectIdExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 import { resolvedPerson } from '../query-helpers';
@@ -72,7 +74,7 @@ export interface UnorderedCTEResult {
 export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): UnorderedCTEResult {
   const { steps, exclusions, cohortExpr, samplingExpr, queryParams, breakdownExpr } = options;
   const N = steps.length;
-  const winExprAST = mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
+  const winExprAST = windowMsExpr(queryParams);
   const fromExpr = funnelTsParamExpr('from', queryParams);
   const toExpr = funnelTsParamExpr('to', queryParams);
 
@@ -103,7 +105,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
 
   // ---- Base WHERE ----
   const baseWhere = and(
-    eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+    funnelProjectIdExpr(queryParams),
     gte(col('timestamp'), fromExpr),
     lte(col('timestamp'), toExpr),
     inArray(col('event_name'), namedParam('all_event_names', 'Array(String)', queryParams.all_event_names)),

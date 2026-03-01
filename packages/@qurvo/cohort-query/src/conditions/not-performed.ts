@@ -1,16 +1,16 @@
 import type { CohortNotPerformedEventCondition } from '@qurvo/db';
 import type { Expr, SelectNode } from '@qurvo/ch-query';
 import {
-  select, raw, rawWithParams, col, namedParam, literal,
-  eq, gte, lte, sub, and, countIf,
+  rawWithParams, col, namedParam, literal,
+  eq, sub, and, countIf,
 } from '@qurvo/ch-query';
 import {
-  RESOLVED_PERSON,
   buildOperatorClause,
   resolveEventPropertyExpr,
   allocCondIdx,
   resolveDateTo,
   resolveDateFrom,
+  eventsBaseSelect,
 } from '../helpers';
 import type { BuildContext } from '../types';
 
@@ -42,13 +42,7 @@ export function buildNotPerformedEventSubquery(
   const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
   const lowerExpr = lowerBound ?? sub(upperBound, daysInterval);
 
-  return select(raw(RESOLVED_PERSON).as('person_id'))
-    .from('events')
-    .where(
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
-      gte(col('timestamp'), lowerExpr),
-      lte(col('timestamp'), upperBound),
-    )
+  return eventsBaseSelect(ctx, lowerExpr)
     .groupBy(col('person_id'))
     .having(eq(countIf(countIfCondExpr), literal(0)))
     .build();

@@ -1,6 +1,6 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr } from '@qurvo/ch-query';
-import { and, compileExprToSql, escapeLikePattern, literal, now64, raw, rawWithParams, select } from '@qurvo/ch-query';
+import { and, col, compileExprToSql, eq, escapeLikePattern, gte, literal, lte, namedParam, now64, raw, rawWithParams, select } from '@qurvo/ch-query';
 import type { BuildContext } from './types';
 
 /**
@@ -339,104 +339,45 @@ export function allocCondIdx(ctx: BuildContext): {
   };
 }
 
-// ── Deprecated string-returning bridge functions ──
-// These are kept for external backward compatibility but are no longer used
-// by internal condition builders.
-
-/** Compile an Expr to its SQL string representation. */
-function exprToSql(expr: Expr): string {
-  return compileExprToSql(expr).sql;
-}
-
-/** @deprecated Use resolvePropertyExpr() (Expr-returning) directly. */
-export function resolvePropertyExprStr(property: string): string {
-  return exprToSql(resolvePropertyExpr(property));
-}
-
-/** @deprecated Use resolveEventPropertyExpr() (Expr-returning) directly. */
-export function resolveEventPropertyExprStr(property: string): string {
-  return exprToSql(resolveEventPropertyExpr(property));
-}
-
-/** @deprecated Use buildOperatorClause() (Expr-returning) directly. */
-export function buildOperatorClauseStr(
-  exprStr: string,
-  operator: CohortPropertyOperator,
-  pk: string,
-  queryParams: Record<string, unknown>,
-  value?: string,
-  values?: string[],
-): string {
-  const result = buildOperatorClause(raw(exprStr), operator, pk, queryParams, value, values);
-  return exprToSql(result);
-}
-
-/** @deprecated Use resolveDateTo() (Expr-returning) directly. */
-export function resolveDateToStr(ctx: BuildContext): string {
-  return exprToSql(resolveDateTo(ctx));
-}
-
-/** @deprecated Use resolveDateFrom() (Expr-returning) directly. */
-export function resolveDateFromStr(ctx: BuildContext): string | undefined {
-  const result = resolveDateFrom(ctx);
-  if (!result) return undefined;
-  return exprToSql(result);
+/**
+ * Returns the project_id equality Expr for a BuildContext:
+ * `project_id = {ctx.projectIdParam:UUID}`
+ *
+ * Eliminates the 11+ inline repetitions of:
+ *   eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]))
+ */
+export function ctxProjectIdExpr(ctx: BuildContext): Expr {
+  return eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]));
 }
 
 /**
- * String-returning wrapper for buildEventFilterClauses.
- * Returns ' AND ...' prefixed string or empty string (matching old API).
- * @deprecated Use buildEventFilterClauses() (Expr-returning) directly.
+ * Returns a pre-seeded SelectBuilder for the standard events-table base query
+ * used by condition builders:
+ *
+ *   SELECT RESOLVED_PERSON AS person_id
+ *   FROM events
+ *   WHERE project_id = ... AND timestamp <= upperBound [AND timestamp >= lowerExpr] [AND ...extraWhere]
+ *
+ * **IMPORTANT**: `SelectBuilder.where()` is NOT additive — each call replaces the
+ * previous WHERE clause.  All conditions (base + caller-specific) must be supplied
+ * in a single `.where()` invocation.  Pass caller-specific conditions via
+ * `extraWhere` instead of chaining `.where()` on the returned builder.
+ *
+ * Callers chain `.groupBy()`, `.having()`, `.orderBy()` etc. as needed.
+ *
+ * @param ctx         Build context (provides projectIdParam and date bounds)
+ * @param lowerExpr   Optional lower-bound timestamp Expr (e.g. sub(upperBound, daysInterval))
+ * @param extraWhere  Additional WHERE conditions merged into the single `.where()` call
  */
-export function buildEventFilterClausesStr(
-  filters: CohortEventFilter[] | undefined,
-  prefix: string,
-  queryParams: Record<string, unknown>,
-): string {
-  const result = buildEventFilterClauses(filters, prefix, queryParams);
-  if (!result) return '';
-  return ' AND ' + exprToSql(result);
-}
-
-/**
- * Builds the countIf condition string: `event_name = {pk:String} [AND filter1 AND filter2 ...]`.
- * @deprecated No longer used internally; kept for external backward compat.
- */
-export function buildCountIfCondStr(
-  eventPk: string,
-  condIdx: number,
-  filters: import('@qurvo/db').CohortEventFilter[] | undefined,
-  queryParams: Record<string, unknown>,
-): string {
-  const parts: string[] = [`event_name = {${eventPk}:String}`];
-  if (filters && filters.length > 0) {
-    for (let i = 0; i < filters.length; i++) {
-      const f = filters[i];
-      const pk = `coh_${condIdx}_ef${i}`;
-      const expr = resolveEventPropertyExpr(f.property);
-      const clauseExpr = buildOperatorClause(expr, f.operator, pk, queryParams, f.value, f.values);
-      parts.push(compileExprToSql(clauseExpr).sql);
-    }
-  }
-  return parts.join(' AND ');
-}
-
-/**
- * Builds a standard events-table base SELECT for cohort conditions.
- * @deprecated No longer used internally; condition builders now use col/eq/namedParam directly.
- */
-export function buildEventsBaseSelect(
-  ctx: BuildContext,
-  upperSql: string,
-  lowerSql: string,
-  extraWhere?: (Expr | undefined)[],
-) {
+export function eventsBaseSelect(ctx: BuildContext, lowerExpr?: Expr, ...extraWhere: (Expr | undefined)[]) {
+  const upperBound = resolveDateTo(ctx);
   return select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      raw(`project_id = {${ctx.projectIdParam}:UUID}`),
-      raw(`timestamp >= ${lowerSql}`),
-      raw(`timestamp <= ${upperSql}`),
-      ...(extraWhere ?? []),
+      ctxProjectIdExpr(ctx),
+      lte(col('timestamp'), upperBound),
+      lowerExpr ? gte(col('timestamp'), lowerExpr) : undefined,
+      ...extraWhere,
     );
 }
+

@@ -1,7 +1,7 @@
 import type { CohortStoppedPerformingCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
 import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, lt, sub, notInSubquery } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo } from '../helpers';
+import { RESOLVED_PERSON, buildEventFilterClauses, allocCondIdx, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { CohortQueryValidationError } from '../errors';
 
@@ -27,14 +27,13 @@ export function buildStoppedPerformingSubquery(
   const upperBound = resolveDateTo(ctx);
   const recentInterval = rawWithParams(`INTERVAL {${recentPk}:UInt32} DAY`, { [recentPk]: cond.recent_window_days });
   const histInterval = rawWithParams(`INTERVAL {${histPk}:UInt32} DAY`, { [histPk]: cond.historical_window_days });
-  const projectIdExpr = namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]);
   const eventNameExpr = namedParam(eventPk, 'String', cond.event_name);
 
   // Recent performers subquery (to exclude via NOT IN)
   const recentPerformers = select(raw(RESOLVED_PERSON))
     .from('events')
     .where(
-      eq(col('project_id'), projectIdExpr),
+      ctxProjectIdExpr(ctx),
       eq(col('event_name'), eventNameExpr),
       gte(col('timestamp'), sub(upperBound, recentInterval)),
       lte(col('timestamp'), upperBound),
@@ -46,7 +45,7 @@ export function buildStoppedPerformingSubquery(
   return select(raw(RESOLVED_PERSON).as('person_id'))
     .from('events')
     .where(
-      eq(col('project_id'), projectIdExpr),
+      ctxProjectIdExpr(ctx),
       eq(col('event_name'), eventNameExpr),
       gte(col('timestamp'), sub(upperBound, histInterval)),
       lt(col('timestamp'), sub(upperBound, recentInterval)),

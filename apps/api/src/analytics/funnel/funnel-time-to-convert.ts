@@ -9,7 +9,6 @@ import {
   length,
   namedParam,
   alias,
-  rawWithParams,
   avgIf,
   countIf,
   minIf,
@@ -27,9 +26,7 @@ import {
   sub,
   mul,
   add,
-  eq,
   inArray,
-  notInSubquery,
   type Expr,
   type QueryNode,
 } from '@qurvo/ch-query';
@@ -45,11 +42,14 @@ import {
   buildAllEventNames,
   buildExclusionColumns,
   buildExcludedUsersCTE,
-  buildUnorderedCoverageExprs,
+  buildUnorderedCoverageExprsAST,
   buildStrictUserFilterExpr,
   validateExclusions,
   validateUnorderedSteps,
   funnelTsParamExpr,
+  windowMsExpr as sharedWindowMsExpr,
+  notInExcludedUsers,
+  funnelProjectIdExpr,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -139,12 +139,6 @@ export async function queryFunnelTimeToConvert(
   return buildOrderedTtc({ ...shared, numSteps, orderType });
 }
 
-// ── Window milliseconds expression ──────────────────────────────────────────
-
-/** toInt64({window:UInt64}) * 1000 — window duration in milliseconds */
-function windowMsExpr(queryParams: FunnelChQueryParams): Expr {
-  return mul(toInt64(namedParam('window', 'UInt64', queryParams.window)), literal(1000));
-}
 
 // ── Ordered TTC ──────────────────────────────────────────────────────────────
 
@@ -190,7 +184,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   // Exclusion column aliases (for pass-through in downstream CTEs)
   const exclColumnAliases = extractExclAliases(exclExprList);
 
-  const winMs = windowMsExpr(queryParams);
+  const winMs = sharedWindowMsExpr(queryParams);
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 
@@ -204,7 +198,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   )
     .from('events')
     .where(
-      eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+      funnelProjectIdExpr(queryParams),
       gte(col('timestamp'), fromExprAst),
       lte(col('timestamp'), toExprAst),
       eventNameFilterExpr,
@@ -287,7 +281,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
 
   // ── CTE: converted ──
   const exclAndCondition = exclusions.length > 0
-    ? notInSubquery(col('person_id'), select(col('person_id')).from('excluded_users').build())
+    ? notInExcludedUsers()
     : undefined;
 
   const convertedNode = select(
@@ -451,7 +445,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     fromStep, toStep, numSteps, cohortExpr, samplingExpr,
   } = options;
   const N = numSteps;
-  const winMs = windowMsExpr(queryParams);
+  const winMs = sharedWindowMsExpr(queryParams);
 
   // Timestamp param expressions (AST)
   const fromExprAst = funnelTsParamExpr('from', queryParams);
@@ -462,11 +456,9 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     (cond, i) => groupArrayIf(toUnixTimestamp64Milli(col('timestamp')), cond).as(`t${i}_arr`),
   );
 
-  // Coverage, max_step, anchor_ms — shared expressions (returns raw SQL strings)
-  // These are complex dynamically-generated array lambda expressions from shared code.
-  const winExprStr = `toInt64({window:UInt64}) * 1000`;
+  // Coverage, max_step, anchor_ms — shared AST expressions
   const { maxStepExpr, anchorMsExpr } =
-    buildUnorderedCoverageExprs(N, winExprStr, stepCondExprs);
+    buildUnorderedCoverageExprsAST(N, winMs, stepCondExprs);
 
   // Exclusion column aliases for pass-through
   const exclColumnAliases = extractExclAliases(exclExprList);
@@ -481,7 +473,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
   )
     .from('events')
     .where(
-      eq(col('project_id'), namedParam('project_id', 'UUID', queryParams.project_id)),
+      funnelProjectIdExpr(queryParams),
       gte(col('timestamp'), fromExprAst),
       lte(col('timestamp'), toExprAst),
       inArray(col('event_name'), namedParam('step_names', 'Array(String)', queryParams.step_names)),
@@ -494,13 +486,10 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
   ctes.push({ name: 'step_times', query: stepTimesNode });
 
   // ── CTE: anchor_per_user ──
-  // maxStepExpr and anchorMsExpr are complex raw SQL string templates from
-  // buildUnorderedCoverageExprs (deeply nested array lambdas). These are wrapped
-  // in rawWithParams() for the column expressions while using proper .from().where() structure.
   const anchorPerUserNode = select(
     col('person_id'),
-    toInt64(rawWithParams(maxStepExpr, queryParams)).as('max_step'),
-    toInt64(rawWithParams(anchorMsExpr, queryParams)).as('anchor_ms'),
+    toInt64(maxStepExpr).as('max_step'),
+    toInt64(anchorMsExpr).as('anchor_ms'),
     ...exclColumnAliases.map(a => col(a)),
     ...Array.from({ length: N }, (_, i) => col(`t${i}_arr`)),
   )
@@ -546,7 +535,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
 
   // ── CTE: converted ──
   const exclAndCondition = exclusions.length > 0
-    ? notInSubquery(col('person_id'), select(col('person_id')).from('excluded_users').build())
+    ? notInExcludedUsers()
     : undefined;
 
   const convertedNode = select(

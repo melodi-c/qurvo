@@ -1,7 +1,7 @@
 import type { CohortEventSequenceCondition } from '@qurvo/db';
 import type { SelectNode } from '@qurvo/ch-query';
-import { select, raw, rawWithParams, col, namedParam, eq, gte, lte, sub } from '@qurvo/ch-query';
-import { RESOLVED_PERSON, resolveDateTo } from '../helpers';
+import { select, raw, rawWithParams, col, gte, lte, sub } from '@qurvo/ch-query';
+import { RESOLVED_PERSON, resolveDateTo, ctxProjectIdExpr } from '../helpers';
 import type { BuildContext } from '../types';
 import { buildSequenceCore } from './sequence-core';
 
@@ -14,6 +14,8 @@ export function buildEventSequenceSubquery(
   const daysInterval = rawWithParams(`INTERVAL {${daysPk}:UInt32} DAY`, { [daysPk]: cond.time_window_days });
 
   // Inner: classify events by step index
+  // Note: Cannot use eventsBaseSelect here because the SELECT columns are different
+  // (timestamp, step_idx instead of just person_id).
   const innerSelect = select(
     raw(RESOLVED_PERSON).as('person_id'),
     col('timestamp'),
@@ -21,7 +23,7 @@ export function buildEventSequenceSubquery(
   )
     .from('events')
     .where(
-      eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam])),
+      ctxProjectIdExpr(ctx),
       gte(col('timestamp'), sub(upperBound, daysInterval)),
       lte(col('timestamp'), upperBound),
     )
