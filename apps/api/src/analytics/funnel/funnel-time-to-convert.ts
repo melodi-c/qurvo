@@ -49,6 +49,7 @@ import {
   windowMsExpr as sharedWindowMsExpr,
   notInExcludedUsers,
   funnelProjectIdExpr,
+  extractExclColumnAliases,
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
@@ -181,7 +182,7 @@ async function buildOrderedTtc(options: OrderedTtcOptions): Promise<TimeToConver
   const toCol = `step_${toStep}_ms`;
 
   // Exclusion column aliases (for pass-through in downstream CTEs)
-  const exclColumnAliases = extractExclAliases(exclExprList);
+  const exclColumnAliases = extractExclColumnAliases(exclExprList);
 
   const winMs = sharedWindowMsExpr(queryParams);
 
@@ -395,19 +396,6 @@ export function parseTtcRows(rows: TtcAggRow[], fromStep: number, toStep: number
   return { from_step: fromStep, to_step: toStep, average_seconds: avgSeconds, median_seconds: medianSeconds, sample_size: sampleSize, bins };
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Extracts alias names from exclusion Expr list.
- * buildExclusionColumns returns triplets: excl_i_from_arr, excl_i_to_arr, excl_i_arr.
- */
-function extractExclAliases(exclExprList: Expr[]): string[] {
-  return exclExprList.map(expr => {
-    if (expr.type === 'alias') {return (expr as { alias: string }).alias;}
-    return '';
-  }).filter(Boolean);
-}
-
 // ── Unordered TTC ────────────────────────────────────────────────────────────
 
 /**
@@ -458,7 +446,7 @@ async function buildUnorderedTtc(options: UnorderedTtcOptions): Promise<TimeToCo
     buildUnorderedCoverageExprsAST(N, winMs, stepCondExprs);
 
   // Exclusion column aliases for pass-through
-  const exclColumnAliases = extractExclAliases(exclExprList);
+  const exclColumnAliases = extractExclColumnAliases(exclExprList);
 
   const ctes: Array<{ name: string; query: QueryNode }> = [];
 

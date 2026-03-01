@@ -32,6 +32,13 @@ import {
   type FunnelChQueryParams,
 } from './funnel-sql-shared';
 
+/**
+ * Offset added to the cohort breakdown index (cbIdx) when generating unique
+ * subquery parameter names. Avoids collisions with step-level parameters
+ * which occupy lower numeric ranges.
+ */
+const COHORT_BREAKDOWN_PARAM_OFFSET = 900;
+
 interface CohortBreakdownResult {
   steps: FunnelBreakdownStepResult[];
   aggregate_steps: FunnelStepResult[];
@@ -99,7 +106,7 @@ export async function runFunnelCohortBreakdown(
 
     const { dateTo, dateFrom } = cohortBounds(params);
     const cohortFilterExpr = buildCohortFilterForBreakdown(
-      cb, cbParamKey, 900 + cbIdx, cbQueryParams, dateTo, dateFrom,
+      cb, cbParamKey, COHORT_BREAKDOWN_PARAM_OFFSET + cbIdx, cbQueryParams, dateTo, dateFrom,
     );
     // Combine base cohort filter with per-breakdown cohort filter
     const combinedCohortExpr = cohortExpr

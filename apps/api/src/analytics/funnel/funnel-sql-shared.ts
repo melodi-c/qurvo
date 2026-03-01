@@ -312,19 +312,6 @@ export function buildExclusionColumns(
 }
 
 /**
- * Builds the excluded_users WHERE condition as a raw SQL string.
- *
- * A user is placed in excluded_users if, for exclusion i:
- *  - There exists at least one (from_ts, to_ts) conversion window attempt
- *    that is "tainted" by an exclusion event (excl_ts in (from_ts, to_ts))
- *  - AND there does NOT exist any "clean" (from_ts, to_ts) pair without an
- *    exclusion event in between
- *
- * @param anchorFilter - When true, restricts (f, t) pairs to only those where
- *   f is within [first_step_ms, first_step_ms + window]. Required for unordered
- *   funnels (issue #497).
- */
-/**
  * Builds the excluded_users WHERE condition as an Expr AST node.
  *
  * A user is placed in excluded_users if, for exclusion i:
