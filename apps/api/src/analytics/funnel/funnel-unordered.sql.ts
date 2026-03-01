@@ -23,17 +23,14 @@ import {
   type QueryNode,
 } from '@qurvo/ch-query';
 import type { FunnelStep, FunnelExclusion } from './funnel.types';
+import { type FunnelChQueryParams, funnelTsParamExpr } from './funnel-params';
+import { buildStepCondition } from './funnel-steps';
+import { buildExclusionColumns, buildExcludedUsersCTE, extractExclColumnAliases } from './funnel-exclusions';
 import {
-  buildStepCondition,
-  buildExclusionColumns,
-  buildExcludedUsersCTE,
   buildUnorderedCoverageExprsAST,
-  funnelTsParamExpr,
-  extractExclColumnAliases,
   windowMsExpr,
   funnelProjectIdExpr,
-  type FunnelChQueryParams,
-} from './funnel-sql-shared';
+} from './funnel-shared-exprs';
 import { resolvedPerson } from '../query-helpers';
 
 export interface UnorderedCTEOptions {
