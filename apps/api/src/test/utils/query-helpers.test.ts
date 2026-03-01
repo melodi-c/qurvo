@@ -636,8 +636,8 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-       
-      const { sql, params } = compileWhere(expr);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('cohort_members');
       expect(sql).toContain('{coh_mid_0:UUID}');
       expect(params.coh_mid_0).toBe('cohort-1');
@@ -654,8 +654,8 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-       
-      const { sql, params } = compileWhere(expr);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('person_static_cohort');
       expect(sql).toContain('{coh_sid_0:UUID}');
       expect(params.coh_sid_0).toBe('cohort-static-1');
