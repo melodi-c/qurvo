@@ -24,6 +24,7 @@ import { SessionAuthGuard } from '../../api/guards/session-auth.guard';
 import { ProjectMemberGuard } from '../../api/guards/project-member.guard';
 import { StaticCohortsController } from '../../api/controllers/static-cohorts.controller';
 import { StaticCohortsService } from '../../cohorts/static-cohorts.service';
+import { CohortEnrichmentService } from '../../cohorts/cohort-enrichment.service';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { AnalyticsCacheService } from '../../analytics/analytics-cache.service';
 import { ProjectsService } from '../../projects/projects.service';
@@ -161,6 +162,7 @@ beforeAll(async () => {
       { provide: CLICKHOUSE, useValue: ctx.ch },
       { provide: REDIS, useValue: ctx.redis },
       AnalyticsCacheService,
+      CohortEnrichmentService,
       CohortsService,
       StaticCohortsService,
       ProjectsService,
