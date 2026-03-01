@@ -279,14 +279,14 @@ Worktree при ошибке НЕ удаляй — оркестратор раз
 ```bash
 mkdir -p "$(dirname "$RESULT_FILE")"
 cat > "$RESULT_FILE" <<'RESULT_JSON'
-{"status": "READY_FOR_REVIEW", "branch": "fix/issue-<NUMBER>", "files_changed": <N>, "tests_passed": <N>, "tests_failed": <N>, "build": "ok", "worktree_path": "<WORKTREE_PATH>"}
+{"status": "READY_FOR_REVIEW", "branch": "fix/issue-<NUMBER>", "files_changed": <N>, "tests_passed": <N>, "tests_failed": <N>, "build": "ok", "worktree_path": "<WORKTREE_PATH>", "test_output_files": ["/tmp/issue-<NUMBER>-unit.txt", "/tmp/issue-<NUMBER>-int.txt"]}
 RESULT_JSON
 ```
 
 Для ошибок:
 ```bash
 cat > "$RESULT_FILE" <<'RESULT_JSON'
-{"status": "FAILED", "branch": "fix/issue-<NUMBER>", "reason": "<причина>", "worktree_path": "<WORKTREE_PATH>"}
+{"status": "FAILED", "branch": "fix/issue-<NUMBER>", "reason": "<причина>", "worktree_path": "<WORKTREE_PATH>", "test_output_files": ["/tmp/issue-<NUMBER>-unit.txt", "/tmp/issue-<NUMBER>-int.txt"]}
 RESULT_JSON
 ```
 

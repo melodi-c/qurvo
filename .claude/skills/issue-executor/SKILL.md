@@ -119,10 +119,10 @@ FETCH_RESULT=$(bash "$CLAUDE_PROJECT_DIR/.claude/scripts/fetch-issues.sh" <filte
 6. Добавляет issues в state через `issue-add`
 7. Записывает `/tmp/claude-results/issues-manifest.json`
 
-**Stdout** — компактный вывод:
+**Stdout** — компактный вывод (tab-separated):
 ```
-42|fix(api): bug title|standalone|api|0
-43|feat(web): new feature|standalone|web|0
+42	fix(api): bug title	standalone	api	0
+43	feat(web): new feature	standalone	web	0
 ISSUES_COUNT=3
 MANIFEST: /tmp/claude-results/issues-manifest.json
 ```
@@ -369,7 +369,7 @@ prompt: |
 ```
 
 Прочитай `RESULT_FILE`. Обработка:
-- `PASS` или `WARN` → продолжай
+- `PASS`, `WARN` или `SKIP` → продолжай
 - `FAIL` → re-launch solver с описанием проблем (max 1 retry)
 
 #### 6.3 Logic Review + Security Check (параллельно)
@@ -439,7 +439,7 @@ prompt: |
      run_in_background: false
      prompt: |
        WORKTREE_PATH: <path>
-       TEST_OUTPUT: <вывод тестов из result file>
+       TEST_OUTPUT_FILES: ["/tmp/issue-<NUMBER>-unit.txt", "/tmp/issue-<NUMBER>-int.txt"]
        AFFECTED_APPS: <apps>
        ISSUE_NUMBER: <number>
        RESULT_FILE: <WORKTREE_PATH>/.claude/results/test-analyzer-<NUMBER>.json
@@ -520,14 +520,20 @@ PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
 **ВАЖНО**: при любом ненулевом exit code — НЕ обходи скрипт. Не делай `git push`, `gh pr create` или другие git-операции вручную. Только обработка по таблице ниже.
 
 Обработка ошибок по exit code:
-- **exit 0** (успех) → продолжай к close-merged-issue.sh
-- **exit 1** (merge conflict) → запусти `conflict-resolver`:
+- **exit 0** (успех) → проверь `COMMIT_HASH`:
+  - Если `COMMIT_HASH=pending` (AUTO_MERGE=false): НЕ вызывай `close-merged-issue.sh`. Установи статус `PR_CREATED`:
+    ```bash
+    bash "$SM" issue-status <N> PR_CREATED "pr_url=$PR_URL"
+    ```
+    Добавь issue в отчёт как "Requires manual merge".
+  - Иначе: продолжай к close-merged-issue.sh
+- **exit 1** (merge conflict) → конфликт в worktree. Запусти `conflict-resolver`:
   ```
   subagent_type: "conflict-resolver"
   model: opus
   run_in_background: false
   prompt: |
-    WORKTREE_PATH: <path>
+    WORKTREE_PATH: <WORKTREE_PATH (= CONFLICT_DIR)>
     BRANCH: <branch>
     BASE_BRANCH: <base>
     ISSUE_A_TITLE: <текущий issue title>
@@ -538,6 +544,7 @@ PR_URL=$(echo "$MERGE_RESULT" | grep -o 'PR_URL=[^ ]*' | cut -d= -f2)
 - **exit 2** (pre-merge build failed) → FAILED (см. ниже)
 - **exit 3** (push failed) → retry мерж-скрипт 1 раз. Если снова 3 → FAILED
 - **exit 4** (PR create failed) → retry мерж-скрипт 1 раз. Если снова 4 → FAILED
+- **exit 5** (PR merge failed) → retry мерж-скрипт 1 раз (PR уже создан, но merge упал). Если снова 5 → FAILED
 
 **FAILED при мерже** означает:
 ```bash

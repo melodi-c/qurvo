@@ -6,6 +6,8 @@
 # Вывод: ALL_GREEN или REGRESSION + детали.
 set -euo pipefail
 
+[[ -z "${1:-}" ]] && { echo "ALL_GREEN (no apps)"; exit 0; }
+
 AFFECTED_APPS_RAW="$1"
 # Нормализация: убираем apps/ prefix если передан (apps/api → api)
 AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|apps/||g')

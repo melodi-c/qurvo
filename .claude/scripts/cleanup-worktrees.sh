@@ -51,10 +51,16 @@ if [[ -f "$STATE_FILE" ]]; then
 fi
 
 # ── 2. Орфанные worktrees в ~/worktrees/ ─────────────────────────────
+# Фильтруем только agent-*, fix-*, feature-* директории (созданные executor'ом)
 if [[ -d "$WORKTREES_BASE" ]]; then
   for DIR in "$WORKTREES_BASE"/*/; do
     [[ -d "$DIR" ]] || continue
     DIR_NAME=$(basename "$DIR")
+    # Только executor-created worktrees
+    case "$DIR_NAME" in
+      agent-*|fix-*|feature-*) ;;
+      *) continue ;;
+    esac
     # Проверяем что это git worktree (содержит .git файл)
     if [[ -e "$DIR/.git" ]]; then
       git -C "$REPO_ROOT" worktree remove "$DIR" --force 2>/dev/null || rm -rf "$DIR" 2>/dev/null || true
@@ -81,25 +87,30 @@ while IFS= read -r BRANCH; do
 done < <(git -C "$REPO_ROOT" branch --list 'fix/issue-*' 'feature/issue-*' 2>/dev/null)
 
 # ── 4. Оставшиеся remote ветки fix/issue-* и feature/issue-* ────────
-# Проверяем что ветка не смержена в main перед удалением.
+# Перед удалением проверяем что ветка не числится в execution-state с активным статусом.
 MAIN_SHA=$(git -C "$REPO_ROOT" rev-parse main 2>/dev/null || true)
 if [[ -n "$MAIN_SHA" ]]; then
+  # Собираем список активных веток из state (status != MERGED)
+  ACTIVE_BRANCHES=""
+  if [[ -f "$STATE_FILE" ]]; then
+    ACTIVE_BRANCHES=$(jq -r '.issues | to_entries[] | select(.value.status != "MERGED") | .value.branch // empty' "$STATE_FILE" 2>/dev/null || true)
+  fi
+
   while IFS= read -r REMOTE_BRANCH; do
     [[ -n "$REMOTE_BRANCH" ]] || continue
     REMOTE_BRANCH=$(echo "$REMOTE_BRANCH" | xargs)  # trim
     SHORT="${REMOTE_BRANCH#origin/}"
     SHORT="${SHORT#remotes/origin/}"  # fallback for different git formats
-    # Пропускаем если ветка полностью смержена в main
-    if git -C "$REPO_ROOT" branch -r --merged main 2>/dev/null | grep -qF "$REMOTE_BRANCH"; then
-      git -C "$REPO_ROOT" push origin --delete "$SHORT" 2>/dev/null || true
-      CLEANED_REMOTE=$((CLEANED_REMOTE + 1))
-      echo "Deleted merged remote branch: $SHORT" >&2
-    else
-      # Не смержена — тоже удаляем (executor завершён, ветка больше не нужна)
-      git -C "$REPO_ROOT" push origin --delete "$SHORT" 2>/dev/null || true
-      CLEANED_REMOTE=$((CLEANED_REMOTE + 1))
-      echo "Deleted unmerged remote branch: $SHORT" >&2
+
+    # Пропускаем если ветка в state с активным статусом
+    if echo "$ACTIVE_BRANCHES" | grep -qxF "$SHORT" 2>/dev/null; then
+      echo "Skipping active branch: $SHORT" >&2
+      continue
     fi
+
+    git -C "$REPO_ROOT" push origin --delete "$SHORT" 2>/dev/null || true
+    CLEANED_REMOTE=$((CLEANED_REMOTE + 1))
+    echo "Deleted remote branch: $SHORT" >&2
   done < <(git -C "$REPO_ROOT" branch -r --list 'origin/fix/issue-*' 'origin/feature/issue-*' 2>/dev/null)
 fi
 

@@ -6,7 +6,7 @@
 # AUTO_MERGE: "true" (default) — мержит PR автоматически. "false" — создаёт PR но не мержит.
 # QUIET: "true" — подавить stderr (для экономии контекста executor). По умолчанию "false".
 # Вывод (stdout): COMMIT_HASH=<hash> и PR_URL=<url> при успехе.
-# Exit codes: 0 = success, 1 = merge failed, 2 = pre-merge verification failed, 3 = push failed, 4 = PR create failed.
+# Exit codes: 0 = success, 1 = merge conflict, 2 = pre-merge verification failed, 3 = push failed, 4 = PR create failed, 5 = PR merge failed.
 set -euo pipefail
 
 WORKTREE_PATH="$1"
@@ -26,30 +26,27 @@ if [[ "$QUIET" == "true" ]]; then
   exec 2>/dev/null
 fi
 
-cd "$REPO_ROOT"
-
-# Запомнить состояние до мержа
-BASE_BEFORE=$(git rev-parse "$BASE_BRANCH")
-
 # ── Шаг 1: Push ветки в remote ─────────────────────────────────────
 echo "Pushing branch $BRANCH to origin..." >&2
-if ! git push origin "$WORKTREE_PATH/$BRANCH:refs/heads/$BRANCH" 2>/dev/null; then
-  # Fallback: push из worktree напрямую
-  if ! git -C "$WORKTREE_PATH" push origin "$BRANCH" 2>&1 >&2; then
-    echo "PUSH_FAILED: не удалось запушить $BRANCH" >&2
-    exit 3
-  fi
+if ! git -C "$WORKTREE_PATH" push origin "$BRANCH" >&2 2>&1; then
+  echo "PUSH_FAILED: не удалось запушить $BRANCH" >&2
+  exit 3
 fi
 echo "Branch $BRANCH pushed." >&2
 
 # ── Шаг 2: Pre-merge verification (build) ──────────────────────────
-# Запускаем build ПЕРЕД созданием PR, чтобы не создавать PR со сломанным кодом.
-# Собираем локально на мерже в BASE_BRANCH (эмуляция).
-# Сначала мержим локально для проверки
-git checkout "$BASE_BRANCH"
-if ! git merge --no-ff "$BRANCH" -m "Merge $BRANCH: $ISSUE_TITLE" 2>&1 >&2; then
+# Проверяем в worktree: fetch base branch и мержим туда для проверки build.
+# Это безопаснее чем merge в main repo — при конфликте worktree остаётся
+# в конфликтном состоянии, и conflict-resolver может работать с ним напрямую.
+# Также устраняет race condition при параллельных мержах.
+cd "$WORKTREE_PATH"
+BRANCH_BEFORE=$(git rev-parse HEAD)
+
+git fetch origin "$BASE_BRANCH" >&2 2>&1
+if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check: $BRANCH + $BASE_BRANCH" >&2 2>&1; then
   echo "MERGE_CONFLICT" >&2
-  git merge --abort 2>/dev/null || true
+  echo "CONFLICT_DIR=$WORKTREE_PATH"
+  # НЕ делаем merge --abort — conflict-resolver будет работать в этом worktree
   exit 1
 fi
 
@@ -73,28 +70,26 @@ pre_merge_build() {
 
 if ! pre_merge_build; then
   # Build failed — возможно base branch обновился другим мержем.
-  # Retry: pull свежий base, повторить merge + build.
-  echo "Retrying: pulling fresh $BASE_BRANCH and re-merging..." >&2
-  git reset --hard "$BASE_BEFORE" >&2
-  git pull origin "$BASE_BRANCH" >&2 2>&1
-  BASE_BEFORE=$(git rev-parse "$BASE_BRANCH")
+  # Retry: fetch свежий base, повторить merge + build.
+  echo "Retrying: fetching fresh $BASE_BRANCH and re-merging..." >&2
+  git reset --hard "$BRANCH_BEFORE" >&2
+  git fetch origin "$BASE_BRANCH" >&2 2>&1
 
-  git checkout "$BASE_BRANCH" >&2
-  if ! git merge --no-ff "$BRANCH" -m "Merge $BRANCH: $ISSUE_TITLE" 2>&1 >&2; then
+  if ! git merge --no-ff "origin/$BASE_BRANCH" -m "Pre-merge check retry: $BRANCH + $BASE_BRANCH" >&2 2>&1; then
     echo "MERGE_CONFLICT on retry" >&2
-    git merge --abort 2>/dev/null || true
+    echo "CONFLICT_DIR=$WORKTREE_PATH"
     exit 1
   fi
 
   if ! pre_merge_build; then
     echo "PRE_MERGE_BUILD_FAILED after retry" >&2
-    git reset --hard "$BASE_BEFORE" >&2
+    git reset --hard "$BRANCH_BEFORE" >&2
     exit 2
   fi
 fi
 
-# Откатить локальный merge — PR сделает merge через GitHub
-git reset --hard "$BASE_BEFORE" >&2
+# Откатить локальный pre-merge check — PR сделает merge через GitHub
+git reset --hard "$BRANCH_BEFORE" >&2
 
 # ── Шаг 3: Создать PR ──────────────────────────────────────────────
 PR_BODY="## Summary
@@ -126,13 +121,14 @@ echo "PR created: $PR_URL" >&2
 # ── Шаг 4: Auto-merge PR (если AUTO_MERGE=true) ─────────────────────
 if [[ "$AUTO_MERGE" == "true" ]]; then
   echo "Merging PR..." >&2
-  gh pr merge "$PR_URL" --merge --delete-branch 2>&1 >&2 || {
+  gh pr merge "$PR_URL" --merge --delete-branch >&2 2>&1 || {
     echo "PR_MERGE_FAILED: не удалось смержить PR $PR_URL" >&2
-    exit 1
+    exit 5
   }
   echo "PR merged." >&2
 
   # ── Шаг 5: Обновить локальный main ─────────────────────────────────
+  cd "$REPO_ROOT"
   git pull origin "$BASE_BRANCH" >&2 2>&1
 
   # ── Шаг 6: Очистка worktree ────────────────────────────────────────
