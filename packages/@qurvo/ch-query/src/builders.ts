@@ -733,6 +733,65 @@ export class SelectBuilder {
     return this;
   }
 
+  /**
+   * Append columns to the existing SELECT list.
+   * Undefined values are silently skipped (convenient for conditional columns).
+   */
+  addSelect(...cols: (Expr | undefined)[]): this {
+    for (const c of cols) {
+      if (c !== undefined) this.node.columns.push(c);
+    }
+    return this;
+  }
+
+  /**
+   * AND additional conditions to the existing WHERE clause.
+   * If WHERE is empty, sets it. Undefined values are silently skipped.
+   */
+  addWhere(...conditions: (Expr | undefined)[]): this {
+    const filtered = conditions.filter((c): c is Expr => c !== undefined);
+    if (filtered.length === 0) return this;
+    const combined = filtered.length === 1 ? filtered[0] : and(...filtered);
+    this.node.where = this.node.where ? and(this.node.where, combined) : combined;
+    return this;
+  }
+
+  /**
+   * Append expressions to the existing GROUP BY list.
+   * Undefined values are silently skipped.
+   */
+  addGroupBy(...exprs: (Expr | undefined)[]): this {
+    for (const e of exprs) {
+      if (e !== undefined) {
+        if (!this.node.groupBy) this.node.groupBy = [];
+        this.node.groupBy.push(e);
+      }
+    }
+    return this;
+  }
+
+  /**
+   * AND an additional condition to the existing HAVING clause.
+   * If HAVING is empty, sets it.
+   */
+  addHaving(condition: Expr): this {
+    this.node.having = this.node.having ? and(this.node.having, condition) : condition;
+    return this;
+  }
+
+  /**
+   * Create an independent deep copy of this builder.
+   * Mutations on the clone do not affect the original and vice versa.
+   *
+   * Uses JSON round-trip instead of structuredClone because AST nodes
+   * may carry non-cloneable `.as()` helper methods from `withAlias()`.
+   */
+  clone(): SelectBuilder {
+    const copy = new SelectBuilder([]);
+    copy.node = JSON.parse(JSON.stringify(this.node));
+    return copy;
+  }
+
   build(): SelectNode {
     return this.node as SelectNode;
   }
