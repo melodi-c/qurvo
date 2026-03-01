@@ -1,5 +1,5 @@
 import type { Expr } from '@qurvo/ch-query';
-import { avg, count, max, min, raw, sum, uniqExact } from '@qurvo/ch-query';
+import { avg, count, div, max, min, sum, uniqExact } from '@qurvo/ch-query';
 import { resolvedPerson } from './resolved-person';
 import { resolveNumericPropertyExpr } from './filters';
 
@@ -42,7 +42,7 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
     case 'unique_users':
       return uniqExact(resolvedPerson());
     case 'events_per_user':
-      return raw(`count() / uniqExact(${resolvedPersonSQL()})`);
+      return div(count(), uniqExact(resolvedPerson()));
     case 'property_sum': {
       if (!metricProperty) {throw new Error('property_sum requires metricProperty');}
       return sum(resolveNumericPropertyExpr(metricProperty));
@@ -71,8 +71,4 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
  */
 export function numericProperty(prop: string): Expr {
   return resolveNumericPropertyExpr(prop);
-}
-
-function resolvedPersonSQL(): string {
-  return `coalesce(dictGetOrNull('person_overrides_dict', 'person_id', (project_id, distinct_id)), person_id)`;
 }

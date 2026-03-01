@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   toChTs,
-  granularityTruncExpr,
-  granularityTruncMinExpr,
   shiftPeriod,
   shiftDate,
   truncateDate,
-  granularityInterval,
-  tsExpr,
 } from '../../analytics/query-helpers';
 
 describe('toChTs', () => {
@@ -53,124 +49,6 @@ describe('toChTs', () => {
 
   it('handles date rollover when offset shifts to previous day', () => {
     expect(toChTs('2024-01-10T01:00:00+03:00')).toBe('2024-01-09 22:00:00');
-  });
-});
-
-describe('granularityTruncExpr', () => {
-  it('generates toStartOfHour for hour granularity', () => {
-    expect(granularityTruncExpr('hour', 'timestamp')).toBe('toStartOfHour(timestamp)');
-  });
-
-  it('generates toStartOfDay for day granularity', () => {
-    expect(granularityTruncExpr('day', 'timestamp')).toBe('toStartOfDay(timestamp)');
-  });
-
-  it('generates toDateTime(toStartOfWeek) for week granularity', () => {
-    expect(granularityTruncExpr('week', 'timestamp')).toBe('toDateTime(toStartOfWeek(timestamp, 1))');
-  });
-
-  it('generates toDateTime(toStartOfMonth) for month granularity', () => {
-    expect(granularityTruncExpr('month', 'timestamp')).toBe('toDateTime(toStartOfMonth(timestamp))');
-  });
-
-  it('works with custom column name', () => {
-    expect(granularityTruncExpr('day', 'event_time')).toBe('toStartOfDay(event_time)');
-    expect(granularityTruncExpr('hour', 'e.ts')).toBe('toStartOfHour(e.ts)');
-  });
-
-  it('throws for unknown granularity', () => {
-    expect(() => granularityTruncExpr('year' as never, 'ts')).toThrow('Unhandled granularity: year');
-  });
-
-  describe('with timezone', () => {
-    it('includes timezone in toStartOfHour for hour granularity', () => {
-      expect(granularityTruncExpr('hour', 'timestamp', 'Europe/Moscow')).toBe(
-        "toStartOfHour(timestamp, 'Europe/Moscow')",
-      );
-    });
-
-    it('includes timezone in toStartOfDay for day granularity', () => {
-      expect(granularityTruncExpr('day', 'timestamp', 'America/New_York')).toBe(
-        "toStartOfDay(timestamp, 'America/New_York')",
-      );
-    });
-
-    it('includes timezone in toStartOfWeek for week granularity', () => {
-      expect(granularityTruncExpr('week', 'timestamp', 'Europe/Moscow')).toBe(
-        "toDateTime(toStartOfWeek(timestamp, 1, 'Europe/Moscow'), 'Europe/Moscow')",
-      );
-    });
-
-    it('includes timezone in toStartOfMonth for month granularity', () => {
-      expect(granularityTruncExpr('month', 'timestamp', 'Asia/Tokyo')).toBe(
-        "toDateTime(toStartOfMonth(timestamp, 'Asia/Tokyo'), 'Asia/Tokyo')",
-      );
-    });
-
-    it('behaves same as no timezone when tz is UTC', () => {
-      expect(granularityTruncExpr('day', 'timestamp', 'UTC')).toBe('toStartOfDay(timestamp)');
-      expect(granularityTruncExpr('week', 'timestamp', 'UTC')).toBe('toDateTime(toStartOfWeek(timestamp, 1))');
-    });
-  });
-});
-
-describe('granularityTruncMinExpr', () => {
-  // granularityTruncMinExpr wraps min(col) with the granularity truncation.
-  // This is semantically equivalent to min(granularityTruncExpr(col)) due to
-  // monotonicity of all supported truncation functions, but allows ClickHouse
-  // to use aggregate projections that precompute min(timestamp).
-
-  it('wraps min(col) in toStartOfDay for day granularity', () => {
-    expect(granularityTruncMinExpr('day', 'timestamp')).toBe('toStartOfDay(min(timestamp))');
-  });
-
-  it('wraps min(col) in toStartOfHour for hour granularity', () => {
-    expect(granularityTruncMinExpr('hour', 'timestamp')).toBe('toStartOfHour(min(timestamp))');
-  });
-
-  it('wraps min(col) in toDateTime(toStartOfWeek) for week granularity', () => {
-    expect(granularityTruncMinExpr('week', 'timestamp')).toBe(
-      'toDateTime(toStartOfWeek(min(timestamp), 1))',
-    );
-  });
-
-  it('wraps min(col) in toDateTime(toStartOfMonth) for month granularity', () => {
-    expect(granularityTruncMinExpr('month', 'timestamp')).toBe(
-      'toDateTime(toStartOfMonth(min(timestamp)))',
-    );
-  });
-
-  describe('with timezone', () => {
-    it('includes timezone for day granularity', () => {
-      expect(granularityTruncMinExpr('day', 'timestamp', 'America/New_York')).toBe(
-        "toStartOfDay(min(timestamp), 'America/New_York')",
-      );
-    });
-
-    it('includes timezone for week granularity', () => {
-      expect(granularityTruncMinExpr('week', 'timestamp', 'Europe/Moscow')).toBe(
-        "toDateTime(toStartOfWeek(min(timestamp), 1, 'Europe/Moscow'), 'Europe/Moscow')",
-      );
-    });
-
-    it('behaves same as no timezone when tz is UTC', () => {
-      expect(granularityTruncMinExpr('day', 'timestamp', 'UTC')).toBe('toStartOfDay(min(timestamp))');
-    });
-  });
-});
-
-describe('tsExpr', () => {
-  it('returns DateTime64 param expression when hasTz is false', () => {
-    expect(tsExpr('from', 'tz', false)).toBe('{from:DateTime64(3)}');
-  });
-
-  it('returns toDateTime64 String expression when hasTz is true', () => {
-    expect(tsExpr('from', 'tz', true)).toBe('toDateTime64({from:String}, 3, {tz:String})');
-  });
-
-  it('uses provided param and tz names', () => {
-    expect(tsExpr('extended_from', 'tz', true)).toBe('toDateTime64({extended_from:String}, 3, {tz:String})');
-    expect(tsExpr('to', 'timezone_param', false)).toBe('{to:DateTime64(3)}');
   });
 });
 
@@ -396,23 +274,5 @@ describe('shiftDate(truncateDate(date_from, granularity)) — lifecycle extended
     // For day granularity, truncateDate is a no-op, so the result equals shiftDate alone.
     const extendedFrom = shiftDate(truncateDate('2026-02-11', 'day'), -1, 'day');
     expect(extendedFrom).toBe('2026-02-10');
-  });
-});
-
-describe('granularityInterval', () => {
-  it('returns INTERVAL 1 DAY for day', () => {
-    expect(granularityInterval('day')).toBe('INTERVAL 1 DAY');
-  });
-
-  it('returns INTERVAL 7 DAY for week', () => {
-    expect(granularityInterval('week')).toBe('INTERVAL 7 DAY');
-  });
-
-  it('returns INTERVAL 1 MONTH for month', () => {
-    expect(granularityInterval('month')).toBe('INTERVAL 1 MONTH');
-  });
-
-  it('throws for unknown granularity', () => {
-    expect(() => granularityInterval('year' as never)).toThrow('Unhandled granularity: year');
   });
 });

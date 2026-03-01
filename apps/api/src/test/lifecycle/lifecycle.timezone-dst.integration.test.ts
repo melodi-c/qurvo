@@ -32,7 +32,7 @@ import { truncateDate } from '../../analytics/query-helpers';
 // Instead, these tests verify that timezone-aware week lifecycle queries correctly
 // classify users as `returning` (not `resurrecting`) when a user is active in two
 // consecutive weeks, using America/New_York timezone. The new
-// granularityNeighborExpr helper ensures the `has(buckets, prevBucket)` lookup
+// neighborBucket helper ensures the `has(buckets, prevBucket)` lookup
 // uses the same local-time-snapped value as the bucket storage.
 
 let ctx: ContainerContext;
@@ -44,7 +44,7 @@ beforeAll(async () => {
 describe('queryLifecycle — week granularity with timezone (DST-safe arithmetic)', () => {
   it('correctly classifies returning user across two consecutive weeks with America/New_York timezone', async () => {
     // Use weeks 3 and 2 weeks ago. Both weeks are recent enough (within TTL).
-    // The test validates that DST-safe neighbor arithmetic (granularityNeighborExpr)
+    // The test validates that DST-safe neighbor arithmetic (neighborBucket)
     // correctly identifies bucket-1 as the previous week even when DST offset differs.
     const projectId = randomUUID();
     const personA = randomUUID(); // active in both weeks: new → returning
@@ -184,7 +184,7 @@ describe('queryLifecycle — week granularity with timezone (DST-safe arithmetic
   });
 
   it('does not regress: returning classification works without timezone (UTC mode)', async () => {
-    // Ensure the non-timezone code path (granularityNeighborExpr without tz) is unchanged.
+    // Ensure the non-timezone code path (neighborBucket without tz) is unchanged.
     const projectId = randomUUID();
     const person = randomUUID();
 
