@@ -156,12 +156,18 @@ describe('queryTrend — breakdown + per-series filters', () => {
     // in the top_values for either series even though they are the most frequent.
 
     await insertTestEvents(ctx.ch, [
-      // 1 pro/Chrome event
+      // 3 pro/Chrome events — more than Firefox to ensure Chrome ranks higher in top_values
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'pro1', event_name: 'signup',
         browser: 'Chrome', properties: JSON.stringify({ plan: 'pro' }), timestamp: msAgo(5000) }),
-      // 1 free/Firefox event
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'pro2', event_name: 'signup',
+        browser: 'Chrome', properties: JSON.stringify({ plan: 'pro' }), timestamp: msAgo(4900) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'pro3', event_name: 'signup',
+        browser: 'Chrome', properties: JSON.stringify({ plan: 'pro' }), timestamp: msAgo(4800) }),
+      // 2 free/Firefox events — different count from Chrome to avoid tied top_values ordering
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'free1', event_name: 'signup',
         browser: 'Firefox', properties: JSON.stringify({ plan: 'free' }), timestamp: msAgo(4000) }),
+      buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'free2', event_name: 'signup',
+        browser: 'Firefox', properties: JSON.stringify({ plan: 'free' }), timestamp: msAgo(3900) }),
       // 5 trial/Safari events — most frequent, but unrelated to either series filter
       buildEvent({ project_id: projectId, person_id: randomUUID(), distinct_id: 'trial1', event_name: 'signup',
         browser: 'Safari', properties: JSON.stringify({ plan: 'trial' }), timestamp: msAgo(3000) }),
@@ -199,22 +205,22 @@ describe('queryTrend — breakdown + per-series filters', () => {
     expect(result.breakdown).toBe(true);
     const rBd = result as Extract<typeof result, { breakdown: true }>;
 
-    // series[0] (pro): only Chrome should appear with value 1
+    // series[0] (pro): only Chrome should appear with value 3
     const s0Chrome = rBd.series.find((s) => s.series_idx === 0 && s.breakdown_value === 'Chrome');
     const s0Safari = rBd.series.find((s) => s.series_idx === 0 && s.breakdown_value === 'Safari');
     const s0Firefox = rBd.series.find((s) => s.series_idx === 0 && s.breakdown_value === 'Firefox');
     expect(s0Chrome).toBeDefined();
-    expect(sumSeriesValues(s0Chrome!.data)).toBe(1);
+    expect(sumSeriesValues(s0Chrome!.data)).toBe(3);
     // Safari must NOT appear in series[0] — it only has trial events, not pro
     expect(s0Safari).toBeUndefined();
     expect(s0Firefox).toBeUndefined();
 
-    // series[1] (free): only Firefox should appear with value 1
+    // series[1] (free): only Firefox should appear with value 2
     const s1Firefox = rBd.series.find((s) => s.series_idx === 1 && s.breakdown_value === 'Firefox');
     const s1Safari = rBd.series.find((s) => s.series_idx === 1 && s.breakdown_value === 'Safari');
     const s1Chrome = rBd.series.find((s) => s.series_idx === 1 && s.breakdown_value === 'Chrome');
     expect(s1Firefox).toBeDefined();
-    expect(sumSeriesValues(s1Firefox!.data)).toBe(1);
+    expect(sumSeriesValues(s1Firefox!.data)).toBe(2);
     // Safari must NOT appear in series[1] — trial events don't match plan = 'free'
     expect(s1Safari).toBeUndefined();
     expect(s1Chrome).toBeUndefined();
