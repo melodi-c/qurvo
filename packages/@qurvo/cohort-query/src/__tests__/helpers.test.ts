@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   resolvePropertyExpr,
   resolveEventPropertyExpr,
-  buildOperatorClause,
   applyOperator,
   validateJsonKey,
   escapeJsonKey,
@@ -494,19 +493,3 @@ describe('applyOperator — LIKE wildcard escaping', () => {
   });
 });
 
-describe('buildOperatorClause — backward compatibility alias delegates to applyOperator', () => {
-  it('eq: delegates to applyOperator correctly', () => {
-    const params: Record<string, unknown> = {};
-    const expr = resolvePropertyExpr('country');
-    const clause = sql(buildOperatorClause(expr, 'eq', 'p0', params, 'US'));
-    expect(clause).toBe('argMax(country, timestamp) = {p0:String}');
-    expect(params['p0']).toBe('US');
-  });
-
-  it('is_set: delegates to applyOperator correctly', () => {
-    const params: Record<string, unknown> = {};
-    const expr = resolvePropertyExpr('user_properties.active');
-    const clause = sql(buildOperatorClause(expr, 'is_set', 'p0', params));
-    expect(clause).toBe("JSONHas(argMax(user_properties, timestamp), 'active')");
-  });
-});

@@ -103,8 +103,7 @@ const levels = groupCohortsByLevel(sorted);
 |---|---|
 | `resolvePropertyExpr(source, key)` | Resolves a property name to a ClickHouse expression (JSON extraction with escaping). |
 | `resolveEventPropertyExpr(key)` | Resolves an event property to a ClickHouse expression. |
-| `applyOperator(expr, operator, value, ctx)` | Maps a UI operator (`equals`, `contains`, etc.) to a ClickHouse condition expression. |
-| `buildOperatorClause(expr, operator, values, ctx)` | Builds a complete operator clause with multiple values. |
+| `applyOperator(expr, operator, value, ctx)` | Maps a UI operator (`equals`, `contains`, etc.) to a ClickHouse condition expression. Uses a strategy map internally. |
 | `buildEventFilterClauses(filters, ctx)` | Builds WHERE clauses for event-level filters. |
 | `parsePropertyPath(path)` | Parses dot-notation property paths. |
 | `validateJsonKey(key)` / `escapeJsonKey(key)` | JSON key validation and escaping. |
