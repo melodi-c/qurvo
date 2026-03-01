@@ -26,6 +26,7 @@ import {
   projectIs,
   eventIs,
   cohortFilter,
+  cohortBounds,
   tsParam,
   toChTs,
   shiftDate,
@@ -168,8 +169,7 @@ export async function queryLifecycle(
         eventName: params.target_event,
         filters: params.event_filters,
         cohortFilters: params.cohort_filters,
-        dateTo: toChTs(params.date_to, true),
-        dateFrom: toChTs(params.date_from),
+        ...cohortBounds(params),
       }),
     )
     .groupBy(col('person_id'))

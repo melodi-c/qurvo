@@ -4,7 +4,7 @@ import {
   select, col, count, uniqExact, compile,
 } from '@qurvo/ch-query';
 import {
-  analyticsWhere, bucket, resolvedPerson,
+  analyticsWhere, bucket, resolvedPerson, cohortBounds,
   type PropertyFilter,
 } from '../query-helpers';
 
@@ -132,8 +132,7 @@ export async function queryStickiness(
       eventName: params.target_event,
       filters: params.event_filters,
       cohortFilters: params.cohort_filters,
-      dateTo: params.date_to,
-      dateFrom: params.date_from,
+      ...cohortBounds(params),
     }))
     .groupBy(col('person_id'))
     .build();
