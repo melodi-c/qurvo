@@ -1,7 +1,6 @@
 ---
 name: issue-planner
 description: "Сканирует кодовую базу по произвольному промпту и создаёт атомарные GitHub issues (или эпики с sub-issues), готовые к выполнению issue-executor. Вызов: /issue-planner <что искать>"
-disable-model-invocation: true
 ---
 
 # Issue Planner — Сканер и Создатель GitHub Issues
