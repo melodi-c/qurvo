@@ -79,6 +79,7 @@ describe('queryFunnel — unordered breakdown_value attributed to winning anchor
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -180,6 +181,7 @@ describe('queryFunnel — unordered breakdown_value attributed to winning anchor
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -247,6 +249,7 @@ describe('queryFunnel — unordered breakdown_value attributed to winning anchor
       conversion_window_days: 7,
       date_from: dateOffset(-7),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 

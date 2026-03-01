@@ -55,7 +55,7 @@ export interface PathsQueryParams {
   date_from: string;
   date_to: string;
   step_limit: number;
-  timezone?: string;
+  timezone: string;
   start_event?: string;
   end_event?: string;
   exclusions?: string[];

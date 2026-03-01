@@ -55,6 +55,7 @@ describe('queryTrend — timezone support', () => {
       granularity: 'day',
       date_from: dateStr,
       date_to: dateStr,
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -150,6 +151,7 @@ describe('queryTrend — timezone support', () => {
       granularity: 'day',
       date_from: dateStr,
       date_to: dateStr,
+      timezone: 'UTC',
     });
 
     const withUtcTz = await queryTrend(ctx.ch, {

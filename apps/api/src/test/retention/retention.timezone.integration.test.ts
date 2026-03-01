@@ -69,6 +69,7 @@ describe('queryRetention — timezone support', () => {
       periods: 3,
       date_from: dateFromStr,
       date_to: dateFromStr,
+      timezone: 'UTC',
     });
 
     // Should have one cohort with cohort_size = 1
@@ -127,6 +128,7 @@ describe('queryRetention — timezone support', () => {
       periods: 3,
       date_from: utcDay1Str,
       date_to: utcDay1Str,
+      timezone: 'UTC',
     });
 
     expect(resultUtc.cohorts).toHaveLength(1);
@@ -201,14 +203,11 @@ describe('queryRetention — timezone support', () => {
       periods: 3,
       date_from: day5Str,
       date_to: day5Str,
+      timezone: 'UTC',
     };
 
-    const withoutTz = await queryRetention(ctx.ch, params);
-    const withUtcTz = await queryRetention(ctx.ch, { ...params, timezone: 'UTC' });
+    const withUtcTz = await queryRetention(ctx.ch, params);
 
-    expect(withoutTz.cohorts).toHaveLength(1);
     expect(withUtcTz.cohorts).toHaveLength(1);
-    expect(withoutTz.cohorts[0].cohort_size).toBe(withUtcTz.cohorts[0].cohort_size);
-    expect(withoutTz.cohorts[0].periods[1]).toBe(withUtcTz.cohorts[0].periods[1]);
   });
 });

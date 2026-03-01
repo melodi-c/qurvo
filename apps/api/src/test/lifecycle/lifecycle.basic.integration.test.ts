@@ -37,6 +37,7 @@ describe('queryLifecycle — basic classification', () => {
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('day');
@@ -78,6 +79,7 @@ describe('queryLifecycle — basic classification', () => {
       granularity: 'day',
       date_from: daysAgo(6),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     // Day -6: new
@@ -110,6 +112,7 @@ describe('queryLifecycle — totals', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     // Both personA and personB are new on day-3 → 2 new total
@@ -131,6 +134,7 @@ describe('queryLifecycle — empty result', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.data).toHaveLength(0);
@@ -169,6 +173,7 @@ describe('queryLifecycle — week granularity', () => {
       // Use week-aligned date_from so the first week bucket is not excluded
       date_from: week14Bucket,
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('week');
@@ -231,6 +236,7 @@ describe('queryLifecycle — month granularity', () => {
       // Use month-aligned date_from so the first month bucket is not excluded
       date_from: month60Bucket,
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('month');

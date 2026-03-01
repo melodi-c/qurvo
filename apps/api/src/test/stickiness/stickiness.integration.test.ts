@@ -40,6 +40,7 @@ describe('queryStickiness — basic histogram', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('day');
@@ -69,6 +70,7 @@ describe('queryStickiness — basic histogram', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.data).toHaveLength(1);
@@ -87,6 +89,7 @@ describe('queryStickiness — empty result', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.data).toHaveLength(0);
@@ -176,6 +179,7 @@ describe('queryStickiness — week granularity', () => {
       granularity: 'week',
       date_from: daysAgo(14),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('week');
@@ -207,6 +211,7 @@ describe('queryStickiness — week granularity', () => {
       granularity: 'week',
       date_from: daysAgo(35),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('week');
@@ -256,6 +261,7 @@ describe('queryStickiness — month granularity', () => {
       granularity: 'month',
       date_from: daysAgo(65),
       date_to: daysAgo(0),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('month');
@@ -298,6 +304,7 @@ describe('queryStickiness — long periods (30+ days)', () => {
       granularity: 'day',
       date_from: daysAgo(45),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('day');
@@ -338,6 +345,7 @@ describe('queryStickiness — user_properties filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
     });
 
@@ -372,6 +380,7 @@ describe('queryStickiness — event property filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       filters: [{ property: 'properties.platform', operator: 'eq', value: 'mobile' }],
     });
 
@@ -396,6 +405,7 @@ describe('queryStickiness — event property filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(1),
+      timezone: 'UTC',
       filters: [{ property: 'properties.source', operator: 'eq', value: 'paid' }],
     });
 
@@ -425,6 +435,7 @@ describe('queryStickiness — cohort filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       cohort_filters: [{
         cohort_id: randomUUID(),
         definition: {
@@ -469,6 +480,7 @@ describe('queryStickiness — cohort filters', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(1),
+      timezone: 'UTC',
       cohort_filters: [{ cohort_id: cohortId, definition, materialized: true, is_static: false }],
     });
 
@@ -546,6 +558,7 @@ describe('queryStickiness — zero active periods', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(1),
+      timezone: 'UTC',
     });
 
     // By design: the query first filters events to the date range, then groups by person.

@@ -55,7 +55,7 @@ export interface FunnelQueryParams {
   conversion_window_unit?: string;
   date_from: string;
   date_to: string;
-  timezone?: string;
+  timezone: string;
   breakdown_property?: string;
   breakdown_cohort_ids?: CohortBreakdownEntry[];
   cohort_filters?: CohortFilterInput[];
@@ -91,7 +91,7 @@ export interface TimeToConvertParams {
   conversion_window_unit?: string;
   date_from: string;
   date_to: string;
-  timezone?: string;
+  timezone: string;
   from_step: number;
   to_step: number;
   cohort_filters?: CohortFilterInput[];

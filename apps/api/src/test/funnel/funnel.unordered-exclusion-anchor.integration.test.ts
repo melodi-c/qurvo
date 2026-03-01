@@ -114,6 +114,7 @@ describe('queryFunnel — unordered exclusion: anchor-window isolation (issue #4
       conversion_window_days: 7,
       date_from: dateOffset(-25),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -199,6 +200,7 @@ describe('queryFunnel — unordered exclusion: anchor-window isolation (issue #4
       conversion_window_days: 7,
       date_from: dateOffset(-25),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 
@@ -271,6 +273,7 @@ describe('queryFunnel — unordered exclusion: anchor-window isolation (issue #4
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
 

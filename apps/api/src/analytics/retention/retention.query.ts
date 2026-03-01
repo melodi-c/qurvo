@@ -50,7 +50,7 @@ export interface RetentionQueryParams {
   date_to: string;
   filters?: PropertyFilter[];
   cohort_filters?: CohortFilterInput[];
-  timezone?: string;
+  timezone: string;
 }
 
 export interface RetentionCohort {

@@ -60,6 +60,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -110,6 +111,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -161,6 +163,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'ordered',
     });
 
@@ -224,6 +227,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -322,6 +326,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -419,6 +424,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
     });
@@ -537,6 +543,7 @@ describe('queryFunnel — strict mode (funnel_order_type: strict)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 

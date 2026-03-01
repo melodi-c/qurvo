@@ -34,6 +34,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
       }),
     ).rejects.toThrow(AppBadRequestException);
   });
@@ -53,6 +54,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
       }),
     ).rejects.toThrow(/click/);
   });
@@ -80,6 +82,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
       }),
     ).rejects.toThrow(AppBadRequestException);
   });
@@ -123,6 +126,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -149,6 +153,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
       }),
     ).resolves.toBeDefined();
   });
@@ -168,6 +173,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
       }),
     ).resolves.toBeDefined();
   });
@@ -186,6 +192,7 @@ describe('queryFunnel — unordered funnel duplicate event validation', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
       }),
     ).rejects.toThrow(AppBadRequestException);
   });

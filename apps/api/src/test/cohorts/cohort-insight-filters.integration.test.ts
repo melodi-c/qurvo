@@ -53,6 +53,7 @@ describe('cohort filter integration with funnel', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -91,6 +92,7 @@ describe('cohort filter integration with funnel', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       cohort_filters: [{ cohort_id: cohortId, definition, materialized: true, is_static: false }],
     });
 
@@ -122,6 +124,7 @@ describe('cohort filter integration with trend', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       cohort_filters: [{
         cohort_id: randomUUID(),
         definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }] },
@@ -161,6 +164,7 @@ describe('cohort filter integration with trend', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       cohort_filters: [{ cohort_id: cohortId, definition, materialized: true, is_static: false }],
     });
 
@@ -206,6 +210,7 @@ describe('funnel cohort breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: premiumCohortId, name: 'Premium', is_static: false, materialized: false, definition: premiumDef },
         { cohort_id: freeCohortId, name: 'Free', is_static: false, materialized: false, definition: freeDef },
@@ -250,6 +255,7 @@ describe('funnel cohort breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: cohortId, name: 'Premium', is_static: false, materialized: true, definition: premiumDef },
       ],
@@ -288,6 +294,7 @@ describe('funnel cohort breakdown', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: cohortId, name: 'Static Premium', is_static: true, materialized: false, definition: dummyDef },
       ],
@@ -349,6 +356,7 @@ describe('multiple cohort_filters AND semantics (funnel)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       // Both filters applied simultaneously (AND semantics): only userA qualifies
       cohort_filters: [premiumFilter, goldFilter],
     });
@@ -374,6 +382,7 @@ describe('multiple cohort_filters AND semantics (funnel)', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       cohort_filters: [
         { cohort_id: randomUUID(), definition: { type: 'AND', values: [{ type: 'person_property', property: 'plan', operator: 'eq', value: 'premium' }] }, materialized: false, is_static: false },
       ],
@@ -427,6 +436,7 @@ describe('multiple cohort_filters AND semantics (trend)', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       cohort_filters: [premiumFilter, goldFilter],
     });
 
@@ -470,6 +480,7 @@ describe('trend cohort breakdown', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: premiumCohortId, name: 'Premium', is_static: false, materialized: false, definition: premiumDef },
         { cohort_id: freeCohortId, name: 'Free', is_static: false, materialized: false, definition: freeDef },
@@ -513,6 +524,7 @@ describe('trend cohort breakdown', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: cohortId, name: 'Premium', is_static: false, materialized: true, definition: premiumDef },
       ],
@@ -548,6 +560,7 @@ describe('trend cohort breakdown', () => {
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: cohortId, name: 'Static Premium', is_static: true, materialized: false, definition: dummyDef },
       ],
@@ -595,6 +608,7 @@ describe('cohort breakdown with duplicate names (issue #510 regression)', () => 
       conversion_window_days: 7,
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: cohortId1, name: 'Duplicate Name', is_static: false, materialized: false, definition: goldDef },
         { cohort_id: cohortId2, name: 'Duplicate Name', is_static: false, materialized: false, definition: silverDef },
@@ -650,6 +664,7 @@ describe('cohort breakdown with duplicate names (issue #510 regression)', () => 
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       breakdown_cohort_ids: [
         { cohort_id: cohortId1, name: 'Duplicate Name', is_static: false, materialized: false, definition: goldDef },
         { cohort_id: cohortId2, name: 'Duplicate Name', is_static: false, materialized: false, definition: silverDef },

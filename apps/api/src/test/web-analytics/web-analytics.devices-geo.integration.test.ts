@@ -65,6 +65,7 @@ describe('queryDevices', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     // Desktop should be first (2 visitors)
@@ -92,6 +93,7 @@ describe('queryDevices', () => {
       project_id: projectId,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.device_types).toHaveLength(0);
@@ -146,6 +148,7 @@ describe('queryGeography', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     // US should be first (2 visitors)
@@ -175,6 +178,7 @@ describe('queryGeography', () => {
       project_id: projectId,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.countries).toHaveLength(0);

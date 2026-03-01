@@ -73,6 +73,7 @@ describe('queryFunnel — unordered funnel repeated attempt conversion', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -129,6 +130,7 @@ describe('queryFunnel — unordered funnel repeated attempt conversion', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -190,6 +192,7 @@ describe('queryFunnel — unordered funnel repeated attempt conversion', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -273,6 +276,7 @@ describe('queryFunnel — unordered funnel repeated attempt conversion', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-20),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -342,6 +346,7 @@ describe('queryFunnel — unordered funnel repeated attempt conversion', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -425,6 +430,7 @@ describe('queryFunnelTimeToConvert — unordered funnel repeated attempt TTC', (
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     // Both users converted

@@ -908,6 +908,7 @@ describe('CohortsService.resolveCohortBreakdowns — enrichDefinition stamps is_
       granularity: 'day',
       date_from: today,
       date_to: today,
+      timezone: 'UTC',
       breakdown_cohort_ids: breakdowns,
     });
 

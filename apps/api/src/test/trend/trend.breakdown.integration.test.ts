@@ -36,6 +36,7 @@ describe('queryTrend — with breakdown', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -128,6 +129,7 @@ describe('queryTrend — breakdown + cohort filter', () => {
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       cohort_filters: [cohortFilter],
     });
@@ -199,6 +201,7 @@ describe('queryTrend — breakdown + per-series filters', () => {
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
+      timezone: 'UTC',
       breakdown_property: 'browser',
     });
 
@@ -254,6 +257,7 @@ describe('queryTrend — breakdown + compare combined', () => {
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       compare: true,
     });
@@ -315,6 +319,7 @@ describe('queryTrend — compare + breakdown: previous period uses current-perio
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),
+      timezone: 'UTC',
       breakdown_property: 'browser',
       compare: true,
     });
@@ -403,6 +408,7 @@ describe('queryTrend — breakdown empty string vs null', () => {
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
+      timezone: 'UTC',
       breakdown_property: 'properties.plan',
     });
 

@@ -33,6 +33,7 @@ describe('queryTrend — total_events', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -68,6 +69,7 @@ describe('queryTrend — total_events', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -110,6 +112,7 @@ describe('queryTrend — unique_users', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -140,6 +143,7 @@ describe('queryTrend — events_per_user', () => {
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -160,6 +164,7 @@ describe('queryTrend — empty result', () => {
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -192,6 +197,7 @@ describe('queryTrend — week granularity', () => {
       granularity: 'week',
       date_from: daysAgo(18),
       date_to: daysAgo(10),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);
@@ -231,6 +237,7 @@ describe('queryTrend — month granularity', () => {
       granularity: 'month',
       date_from: daysAgo(40),
       date_to: daysAgo(5),
+      timezone: 'UTC',
     });
 
     expect(result.compare).toBe(false);

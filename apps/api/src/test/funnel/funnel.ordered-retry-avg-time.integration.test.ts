@@ -79,6 +79,7 @@ describe('queryFunnel — ordered funnel avg_time_to_convert with multiple attem
       conversion_window_days: 7,
       date_from: dateOffset(-40),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -135,6 +136,7 @@ describe('queryFunnel — ordered funnel avg_time_to_convert with multiple attem
       conversion_window_days: 7,
       date_from: dateOffset(-10),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -215,6 +217,7 @@ describe('queryFunnel — ordered funnel avg_time_to_convert with multiple attem
       conversion_window_days: 7,
       date_from: dateOffset(-15),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -294,6 +297,7 @@ describe('queryFunnel — ordered funnel avg_time_to_convert with multiple attem
       conversion_window_days: 7,
       date_from: dateOffset(-25),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);

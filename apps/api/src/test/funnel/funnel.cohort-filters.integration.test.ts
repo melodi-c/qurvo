@@ -79,6 +79,7 @@ describe('queryFunnel — cohort filters', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 
@@ -172,6 +173,7 @@ describe('queryFunnel — cohort filters', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       cohort_filters: [cohortFilter],
     });
 

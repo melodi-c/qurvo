@@ -75,6 +75,7 @@ describe('queryFunnel — avg_time_to_convert for unordered funnel', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -118,6 +119,7 @@ describe('queryFunnel — avg_time_to_convert for unordered funnel', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -193,6 +195,7 @@ describe('queryFunnel — unordered funnel anchor_ms is deterministic regardless
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -264,6 +267,7 @@ describe('queryFunnel — unordered funnel anchor_ms is deterministic regardless
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered',
     });
 
@@ -340,6 +344,7 @@ describe('queryFunnel — avg_time_to_convert for OR-logic steps (ordered funnel
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -390,6 +395,7 @@ describe('queryFunnel — avg_time_to_convert for OR-logic steps (ordered funnel
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -465,6 +471,7 @@ describe('queryFunnel — avg_time_to_convert for OR-logic steps (ordered funnel
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -568,6 +575,7 @@ describe('queryFunnel — avg_time_to_convert with repeated last-step events', (
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -632,6 +640,7 @@ describe('queryFunnel — avg_time_to_convert with repeated last-step events', (
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -710,6 +719,7 @@ describe('queryFunnel — avg_time_to_convert for strict mode re-entry (issue #4
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -763,6 +773,7 @@ describe('queryFunnel — avg_time_to_convert for strict mode re-entry (issue #4
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -847,6 +858,7 @@ describe('queryFunnel — strict mode avg_time_to_convert inversion fix (issue #
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
@@ -937,6 +949,7 @@ describe('queryFunnel — strict mode avg_time_to_convert inversion fix (issue #
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 

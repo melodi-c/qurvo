@@ -82,6 +82,7 @@ describe('queryTopPages', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     // Top pages ordered by pageviews descending
@@ -114,6 +115,7 @@ describe('queryTopPages', () => {
       project_id: projectId,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.top_pages).toHaveLength(0);
@@ -163,6 +165,7 @@ describe('querySources', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.referrers.length).toBeGreaterThan(0);
@@ -202,6 +205,7 @@ describe('querySources', () => {
       project_id: projectId,
       date_from: daysAgo(4),
       date_to: daysAgo(2),
+      timezone: 'UTC',
     });
 
     expect(result.utm_sources.length).toBeGreaterThan(0);
@@ -216,6 +220,7 @@ describe('querySources', () => {
       project_id: projectId,
       date_from: daysAgo(5),
       date_to: daysAgo(3),
+      timezone: 'UTC',
     });
 
     expect(result.referrers).toHaveLength(0);

@@ -75,6 +75,7 @@ describe('queryFunnelTimeToConvert', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -127,6 +128,7 @@ describe('queryFunnelTimeToConvert', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -215,6 +217,7 @@ describe('queryFunnelTimeToConvert', () => {
       conversion_window_unit: 'second',
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -255,6 +258,7 @@ describe('queryFunnelTimeToConvert', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -278,6 +282,7 @@ describe('queryFunnelTimeToConvert', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
         from_step: 1,
         to_step: 1,
       }),
@@ -294,6 +299,7 @@ describe('queryFunnelTimeToConvert', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
         from_step: 2,
         to_step: 0,
       }),
@@ -366,6 +372,7 @@ describe('queryFunnelTimeToConvert — zero-duration conversions (issue #586)', 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
     expect(funnelResult.steps[1].count).toBe(2);
 
@@ -379,6 +386,7 @@ describe('queryFunnelTimeToConvert — zero-duration conversions (issue #586)', 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -423,6 +431,7 @@ describe('queryFunnelTimeToConvert — zero-duration conversions (issue #586)', 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -485,6 +494,7 @@ describe('queryFunnelTimeToConvert — zero-duration conversions (issue #586)', 
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
       funnel_order_type: 'unordered',
@@ -562,6 +572,7 @@ describe('queryFunnelTimeToConvert — from_step > 0 sequence-aware timestamps',
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 1,
       to_step: 2,
     });
@@ -642,6 +653,7 @@ describe('queryFunnelTimeToConvert — from_step > 0 sequence-aware timestamps',
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     };
 
     const funnelResult = await queryFunnel(ctx.ch, sharedParams);
@@ -740,6 +752,7 @@ describe('queryFunnelTimeToConvert — exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     };
 
     // Main funnel with exclusion
@@ -831,6 +844,7 @@ describe('queryFunnelTimeToConvert — exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     };
@@ -897,6 +911,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict' as const,
     };
 
@@ -972,6 +987,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'unordered' as const,
     };
 
@@ -1041,6 +1057,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
       funnel_order_type: 'unordered' as const,
@@ -1092,6 +1109,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
       // no funnel_order_type → defaults to ordered
@@ -1149,6 +1167,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 2,
       funnel_order_type: 'unordered' as const,
@@ -1208,6 +1227,7 @@ describe('queryFunnelTimeToConvert — funnel_order_type consistency', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
       funnel_order_type: 'unordered' as const,
@@ -1255,6 +1275,7 @@ describe('queryFunnelTimeToConvert — 8/9/10-step funnel SQL size', () => {
         conversion_window_days: 7,
         date_from: dateOffset(-1),
         date_to: dateOffset(1),
+        timezone: 'UTC',
         from_step: 0,
         to_step: 9,
       }),
@@ -1294,6 +1315,7 @@ describe('queryFunnelTimeToConvert — 8/9/10-step funnel SQL size', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 9,
     });
@@ -1331,6 +1353,7 @@ describe('queryFunnelTimeToConvert — 8/9/10-step funnel SQL size', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 7,
     });
@@ -1404,6 +1427,7 @@ describe('queryFunnelTimeToConvert — ordered TTC with multiple step_0 attempts
       conversion_window_unit: 'second',
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -1455,6 +1479,7 @@ describe('queryFunnelTimeToConvert — ordered TTC with multiple step_0 attempts
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -1520,6 +1545,7 @@ describe('queryFunnelTimeToConvert — ordered TTC with multiple step_0 attempts
       conversion_window_unit: 'second',
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
     });
@@ -1616,6 +1642,7 @@ describe('queryFunnelTimeToConvert — with exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 1,
       exclusions: [{ event_name: 'cancel', funnel_from_step: 0, funnel_to_step: 1 }],
@@ -1709,6 +1736,7 @@ describe('queryFunnelTimeToConvert — with exclusions', () => {
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       from_step: 0,
       to_step: 2,
       exclusions: [{ event_name: 'cancel', funnel_from_step: 1, funnel_to_step: 2 }],

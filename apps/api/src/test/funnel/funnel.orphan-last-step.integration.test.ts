@@ -103,6 +103,7 @@ describe('queryFunnel — orphan last-step event does not pollute avg_time_to_co
       conversion_window_days: 7,
       date_from: dateOffset(-25),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -172,6 +173,7 @@ describe('queryFunnel — orphan last-step event does not pollute avg_time_to_co
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
     });
 
     expect(result.breakdown).toBe(false);
@@ -250,6 +252,7 @@ describe('queryFunnel — orphan last-step event does not pollute avg_time_to_co
       conversion_window_days: 7,
       date_from: dateOffset(-1),
       date_to: dateOffset(1),
+      timezone: 'UTC',
       funnel_order_type: 'strict',
     });
 
