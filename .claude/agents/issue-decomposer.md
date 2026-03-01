@@ -149,6 +149,12 @@ Issue затрагивает только один app, но изменения 
 ```
 
 `depends_on` — индекс в массиве `sub_issues` (0-based) или `null`.
+
+**Валидация `depends_on`:**
+- НЕ может ссылаться на самого себя (self-reference)
+- НЕ может создавать циклы (A→B→A)
+- Должен быть в пределах массива (0 ≤ depends_on < length)
+
 Labels — из: `bug`, `enhancement`, `refactor`, `ux/ui`, `architecture`, `web`, `api`, `security`, `billing`, `ai`, `i18n`, `good first issue`, `has-migrations`, `size:xs`, `size:s`, `size:m`, `size:l`.
 
 ---

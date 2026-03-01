@@ -21,8 +21,15 @@ CLEANED_REMOTE=0
 # Собираем защищённые ветки ПЕРЕД удалением state (если state ещё существует).
 # Ветки с PR_CREATED, REVIEW_PASSED, SOLVING — активны, не трогаем.
 SAFE_BRANCHES=""
+STATE_VALID=false
 if [[ -f "$STATE_FILE" ]]; then
-  SAFE_BRANCHES=$(jq -r '.issues | to_entries[] | select(.value.status != "MERGED" and .value.status != "FAILED") | .value.branch // empty' "$STATE_FILE" 2>/dev/null || true)
+  # Проверяем что state файл — валидный JSON с корректной структурой
+  if jq -e '.schema_version and .issues' "$STATE_FILE" >/dev/null 2>&1; then
+    SAFE_BRANCHES=$(jq -r '.issues | to_entries[] | select(.value.status != "MERGED" and .value.status != "FAILED") | .value.branch // empty' "$STATE_FILE" 2>/dev/null || true)
+    STATE_VALID=true
+  else
+    echo "WARN: state file is corrupted or has unexpected format, skipping branch cleanup for safety" >&2
+  fi
 fi
 
 # ── 1. Очистка по state file ─────────────────────────────────────────
@@ -88,8 +95,14 @@ for WORKTREES_DIR in "$WORKTREES_BASE" "$WORKTREES_CLAUDE"; do
 done
 
 # ── 3. Оставшиеся локальные ветки fix/issue-* и feature/issue-* ──────
+# Пропускаем если state невалиден — без state не знаем какие ветки безопасны
+if [[ "$STATE_VALID" != "true" ]]; then
+  echo "WARN: skipping local branch cleanup (no valid state)" >&2
+fi
+
 # Пропускаем ветки, защищённые state (PR_CREATED, SOLVING и т.д.)
 while IFS= read -r BRANCH; do
+  [[ "$STATE_VALID" == "true" ]] || continue
   [[ -n "$BRANCH" ]] || continue
   BRANCH=$(echo "$BRANCH" | xargs)  # trim whitespace
 
@@ -105,11 +118,16 @@ while IFS= read -r BRANCH; do
 done < <(git -C "$REPO_ROOT" branch --list 'fix/issue-*' 'feature/issue-*' 2>/dev/null)
 
 # ── 4. Оставшиеся remote ветки fix/issue-* и feature/issue-* ────────
+# Пропускаем если state невалиден
+if [[ "$STATE_VALID" != "true" ]]; then
+  echo "WARN: skipping remote branch cleanup (no valid state)" >&2
+fi
+
 # Detect default branch dynamically (не хардкодим main)
 DEFAULT_BRANCH=$(git -C "$REPO_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|origin/||' || echo "main")
 DEFAULT_SHA=$(git -C "$REPO_ROOT" rev-parse "$DEFAULT_BRANCH" 2>/dev/null || true)
 
-if [[ -n "$DEFAULT_SHA" ]]; then
+if [[ -n "$DEFAULT_SHA" && "$STATE_VALID" == "true" ]]; then
   while IFS= read -r REMOTE_BRANCH; do
     [[ -n "$REMOTE_BRANCH" ]] || continue
     REMOTE_BRANCH=$(echo "$REMOTE_BRANCH" | xargs)  # trim

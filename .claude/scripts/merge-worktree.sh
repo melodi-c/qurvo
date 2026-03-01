@@ -135,26 +135,43 @@ if [[ "$AUTO_MERGE" == "true" ]]; then
   _log "PR merged."
 
   # ── Шаг 5: Получить точный merge commit hash из GitHub ──────────
-  COMMIT_HASH=$(gh pr view "$PR_URL" --json mergeCommit --jq '.mergeCommit.oid[:7]' 2>/dev/null || true)
+  # Retry: GitHub API может задержать mergeCommit на несколько секунд
+  COMMIT_HASH=""
+  for _attempt in 1 2 3; do
+    COMMIT_HASH=$(gh pr view "$PR_URL" --json mergeCommit --jq '.mergeCommit.oid[:7]' 2>/dev/null || true)
+    if [[ -n "$COMMIT_HASH" ]]; then break; fi
+    sleep 2
+  done
 
   # Fallback: обновить локальный main и взять rev-parse
   if [[ -z "$COMMIT_HASH" ]]; then
     cd "$REPO_ROOT"
     git pull origin "$BASE_BRANCH" 2>/dev/null || _log "WARN: git pull failed, local $BASE_BRANCH may be stale"
-    COMMIT_HASH=$(git rev-parse --short "$BASE_BRANCH" 2>/dev/null || echo "unknown")
+    COMMIT_HASH=$(git rev-parse --short "$BASE_BRANCH" 2>/dev/null || true)
   else
     # Обновить локальный main (best-effort)
     cd "$REPO_ROOT"
     git pull origin "$BASE_BRANCH" 2>/dev/null || _log "WARN: git pull failed, local $BASE_BRANCH may be stale"
   fi
 
-  # ── Шаг 6: Очистка worktree ────────────────────────────────────────
-  git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
-  git branch -D "$BRANCH" 2>/dev/null || true
+  # Финальная проверка: COMMIT_HASH не должен быть пустым
+  if [[ -z "$COMMIT_HASH" ]]; then
+    echo "ERROR: не удалось получить merge commit hash" >&2
+    echo "COMMIT_HASH=error"
+    echo "PR_URL=$PR_URL"
+    exit 5
+  fi
 
-  # ── Вывод результата ────────────────────────────────────────────────
+  # ── Вывод результата ПЕРЕД очисткой worktree ─────────────────────
+  # Executor должен получить данные до удаления worktree.
+  # Если executor упадёт после получения данных но до cleanup — worktree
+  # будет удалён cleanup-worktrees.sh при следующем запуске.
   echo "COMMIT_HASH=$COMMIT_HASH"
   echo "PR_URL=$PR_URL"
+
+  # ── Шаг 6: Очистка worktree (после вывода результата) ────────────
+  git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
+  git branch -D "$BRANCH" 2>/dev/null || true
 else
   _log "AUTO_MERGE=false: PR создан, мерж пропущен."
   echo "COMMIT_HASH=pending"

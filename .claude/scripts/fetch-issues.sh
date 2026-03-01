@@ -24,6 +24,25 @@ if [[ -f "$STATE_FILE" ]]; then
   fi
 fi
 
+# Stale worktree detection: предупреждаем об orphaned worktrees
+WORKTREES_BASE="$HOME/worktrees"
+if [[ -d "$WORKTREES_BASE" ]]; then
+  STALE_COUNT=0
+  for _wt_dir in "$WORKTREES_BASE"/*/; do
+    [[ -d "$_wt_dir" ]] || continue
+    _wt_name=$(basename "$_wt_dir")
+    case "$_wt_name" in agent-*|fix-*|feature-*) ;; *) continue ;; esac
+    _wt_age=$(( $(date +%s) - $(stat -f %m "$_wt_dir" 2>/dev/null || echo "0") ))
+    if [[ "$_wt_age" -gt 7200 ]]; then
+      echo "WARN: stale worktree detected: $_wt_dir (age: $((_wt_age / 60))min)" >&2
+      STALE_COUNT=$((STALE_COUNT + 1))
+    fi
+  done
+  if [[ "$STALE_COUNT" -gt 0 ]]; then
+    echo "WARN: $STALE_COUNT stale worktree(s) found. Consider running cleanup-worktrees.sh" >&2
+  fi
+fi
+
 # --- helpers ---
 get_repo() {
   [ -n "$REPO" ] && return
@@ -118,6 +137,11 @@ else
     GH_ARGS=(--state open)
   fi
   ISSUES_JSON=$(gh issue list "${GH_ARGS[@]}" --json number,title,body,labels,comments --limit 50)
+  # Предупреждение если результат может быть обрезан
+  _FETCHED_COUNT=$(echo "$ISSUES_JSON" | jq 'length')
+  if [[ "$_FETCHED_COUNT" -ge 50 ]]; then
+    echo "WARN: fetched exactly 50 issues — there may be more matching the filter (limit=50)" >&2
+  fi
 fi
 
 # --- filter skip label ---

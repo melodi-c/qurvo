@@ -11,8 +11,21 @@ if [ -z "$FILE_PATH" ]; then exit 0; fi
 WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 REPO_ROOT=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}' || echo "")
 
-# Если не в worktree (или worktree == repo root) — пропускаем
-if [ -z "$WORKTREE" ] || [ "$WORKTREE" = "$REPO_ROOT" ]; then exit 0; fi
+# Если не в git-репо — пропускаем
+if [ -z "$WORKTREE" ]; then exit 0; fi
+
+# Если worktree == repo root (retry solver без isolation:worktree) —
+# блокируем ВСЁ кроме .claude/results/ (solver НЕ должен писать в main repo)
+if [ "$WORKTREE" = "$REPO_ROOT" ]; then
+  case "$FILE_PATH" in
+    "$REPO_ROOT/.claude/results/solver-"*) exit 0 ;;
+    "$REPO_ROOT/.claude/results/test-analyzer-"*) exit 0 ;;
+    *)
+      echo "[restrict-solver-writes] BLOCKED: solver работает в main repo (не в worktree). Запись в $FILE_PATH запрещена." >&2
+      exit 2
+      ;;
+  esac
+fi
 
 # Разрешаем запись в .claude/results/ основного repo (solver result files)
 case "$FILE_PATH" in

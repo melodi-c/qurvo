@@ -15,10 +15,11 @@ cleanup_labels() {
     gh issue edit "$n" --remove-label "in-progress" 2>/dev/null || true
   done
 }
-trap cleanup_labels ERR
 
 IFS=',' read -ra NUMS <<< "$ISSUES_CSV"
 
+# Фаза 1: Label issues (ERR trap только на этом этапе)
+trap cleanup_labels ERR
 for N in "${NUMS[@]}"; do
   N=$(echo "$N" | tr -d ' ')
   # Validate issue number is numeric
@@ -29,7 +30,11 @@ for N in "${NUMS[@]}"; do
   gh issue edit "$N" --add-label "in-progress" 2>/dev/null || true
   _LABELED_ISSUES+=("$N")
 done
+# Снимаем ERR trap перед state write — если state упадёт,
+# labels остаются (executor разберётся при recovery)
+trap - ERR
 
+# Фаза 2: Update state (labels уже поставлены, откат не нужен)
 bash "$SM" batch \
   "phase EXECUTING_GROUP" \
   "group-index $GROUP_INDEX"

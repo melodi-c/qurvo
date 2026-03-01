@@ -8,6 +8,12 @@ PR_URL="${2:?}"
 COMMIT_HASH="${3:?}"
 BASE_BRANCH="${4:-main}"
 
+# Sanitize inputs to prevent shell expansion in heredoc
+PR_URL="${PR_URL//\$/\\\$}"
+PR_URL="${PR_URL//\`/\\\`}"
+COMMIT_HASH="${COMMIT_HASH//\$/\\\$}"
+COMMIT_HASH="${COMMIT_HASH//\`/\\\`}"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SM="$SCRIPT_DIR/state-manager.sh"
 

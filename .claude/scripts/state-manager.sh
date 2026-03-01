@@ -14,6 +14,7 @@ shift
 # Portable lock: mkdir is atomic on POSIX (macOS не имеет flock)
 # Skip lock if already held by parent (batch recursive calls)
 LOCK_DIR="${STATE_FILE}.lock.d"
+OPS_LOG="$STATE_DIR/operations.log"
 acquire_lock() {
   if [[ "${_STATE_LOCK_HELD:-}" == "1" ]]; then return 0; fi
   local _lock_acquired=false
@@ -23,6 +24,16 @@ acquire_lock() {
       trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
       break
     fi
+    # Staleness check: если lock старше 60 секунд — force-break
+    if [[ -d "$LOCK_DIR" ]]; then
+      local _lock_age
+      _lock_age=$(( $(date +%s) - $(stat -f %m "$LOCK_DIR" 2>/dev/null || echo "0") ))
+      if [[ "$_lock_age" -gt 60 ]]; then
+        echo "WARN: stale lock detected (${_lock_age}s old), force-breaking" >&2
+        rmdir "$LOCK_DIR" 2>/dev/null || rm -rf "$LOCK_DIR" 2>/dev/null || true
+        continue
+      fi
+    fi
     sleep 0.5
   done
   if ! $_lock_acquired; then
@@ -30,6 +41,11 @@ acquire_lock() {
   fi
   rm -f "$STATE_FILE.tmp" 2>/dev/null || true
   export _STATE_LOCK_HELD=1
+}
+
+# Append-only operations log for crash recovery
+_log_op() {
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" >> "$OPS_LOG" 2>/dev/null || true
 }
 
 validate_transition() {
@@ -54,9 +70,12 @@ case "$CMD" in
   init)
     TS="${1:?timestamp}"
     printf '{"schema_version":3,"started_at":"%s","phase":"PREFLIGHT","issues":{},"parallel_groups":[],"current_group_index":0,"post_merge_verification":null}\n' "$TS" > "$STATE_FILE"
+    # Reset operations log on init
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) init $TS" > "$OPS_LOG"
     echo "OK" ;;
 
   phase)
+    _log_op "phase $1"
     jq --arg p "$1" '.phase=$p' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
     echo "OK" ;;
 
@@ -67,8 +86,19 @@ case "$CMD" in
       "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
     echo "OK" ;;
 
+  solver-invocations)
+    # Инкрементирует и возвращает счётчик запусков solver для issue.
+    # Используется executor'ом для проверки лимита (max 4).
+    NUM="${1:?}"
+    CURRENT=$(jq -r ".issues[\"$NUM\"].solver_invocations // 0" "$STATE_FILE")
+    NEXT=$((CURRENT + 1))
+    jq --arg n "$NUM" --argjson v "$NEXT" '.issues[$n].solver_invocations=$v' \
+      "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+    echo "$NEXT" ;;
+
   issue-status)
     NUM="${1:?}"; STATUS="${2:?}"; shift 2
+    _log_op "issue-status $NUM $STATUS $*"
     # Validate state transition if STATUS looks like an uppercase status word
     if [[ "$STATUS" =~ ^[A-Z_]+$ ]]; then
       CURRENT_STATUS=$(jq -r ".issues[\"$NUM\"].status // \"PENDING\"" "$STATE_FILE")
@@ -112,15 +142,11 @@ case "$CMD" in
     export _STATE_LOCK_HELD=1
     COUNT=0
     for subcmd in "$@"; do
-      # Extract command (first word) and argument (rest of string)
-      _BCMD="${subcmd%% *}"
-      _BARG="${subcmd#* }"
-      if [[ "$_BCMD" == "$_BARG" ]]; then
-        # No space found — command without arguments
-        bash "$0" "$_BCMD"
-      else
-        bash "$0" "$_BCMD" "$_BARG"
-      fi
+      # Split subcmd into words, preserving proper argument boundaries.
+      # read -ra splits on whitespace, giving correct positional args.
+      read -ra _PARTS <<< "$subcmd"
+      if [[ ${#_PARTS[@]} -eq 0 ]]; then continue; fi
+      bash "$0" "${_PARTS[@]}"
       COUNT=$((COUNT + 1))
     done
     echo "OK ($COUNT commands)" ;;

@@ -13,6 +13,9 @@ AFFECTED_APPS_RAW="$1"
 AFFECTED_APPS=$(echo "$AFFECTED_APPS_RAW" | sed 's|apps/||g')
 MERGED_ISSUES="${2:-}"
 
+# Timeout per command: 10 минут для build, 10 минут для тестов
+CMD_TIMEOUT=600
+
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
@@ -28,7 +31,7 @@ FLAKY_TESTS=""
 for APP in "${APPS[@]}"; do
   APP=$(echo "$APP" | xargs)  # trim whitespace
   BUILD_LOG="/tmp/post-merge-build-${APP}.log"
-  if pnpm turbo build --filter="@qurvo/$APP" > "$BUILD_LOG" 2>&1; then
+  if timeout "$CMD_TIMEOUT" pnpm turbo build --filter="@qurvo/$APP" > "$BUILD_LOG" 2>&1; then
     :
   else
     BUILD_OK=false
@@ -60,12 +63,12 @@ for APP in "${APPS[@]}"; do
 
   OUTPUT_FILE="/tmp/post-merge-test-${APP}.log"
 
-  if pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
+  if timeout "$CMD_TIMEOUT" pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
     SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "passed")
     TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY}\n"
   else
     # Retry once for flaky tests
-    if pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
+    if timeout "$CMD_TIMEOUT" pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
       SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "passed on retry")
       TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY} (flaky)\n"
       FLAKY_TESTS="${FLAKY_TESTS}@qurvo/$APP "
