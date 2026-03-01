@@ -22,7 +22,7 @@ export {
 export type { PropertySource } from './helpers';
 
 // Builder
-export { buildCohortSubquery, buildCohortFilterClause } from './builder';
+export { buildCohortSubquery, buildCohortFilterClause, buildCohortMemberSubquery } from './builder';
 
 // Validation
 export {
