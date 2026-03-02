@@ -37,7 +37,7 @@ export class AnnotationsController {
     @Param('projectId') projectId: string,
     @Query() query: AnnotationQueryDto,
   ): Promise<AnnotationDto[]> {
-    return this.annotationsService.list(projectId, query.date_from, query.date_to) as any;
+    return this.annotationsService.list(projectId, query.date_from, query.date_to, query.insight_id) as any;
   }
 
   @Post()

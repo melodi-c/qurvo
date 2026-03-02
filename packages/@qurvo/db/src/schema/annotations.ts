@@ -1,6 +1,8 @@
 import { pgTable, uuid, varchar, date, timestamp, index } from 'drizzle-orm/pg-core';
 import { projects } from './projects';
 import { users } from './users';
+import { insights } from './insights';
+import { annotationScopeEnum } from './enums';
 
 export const annotations = pgTable('annotations', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -10,8 +12,11 @@ export const annotations = pgTable('annotations', {
   label: varchar('label', { length: 200 }).notNull(),
   description: varchar('description', { length: 1000 }),
   color: varchar('color', { length: 20 }),
+  scope: annotationScopeEnum('scope').notNull().default('project'),
+  insight_id: uuid('insight_id').references(() => insights.id, { onDelete: 'cascade' }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('annotations_project_id_date_idx').on(table.project_id, table.date),
+  index('annotations_insight_id_idx').on(table.insight_id),
 ]);
