@@ -1373,6 +1373,21 @@ export interface UpdateAnnotation {
   color?: string;
 }
 
+export interface PublicDashboardWithData {
+  date_from?: string | null;
+  date_to?: string | null;
+  /** Precomputed analytics data keyed by widget ID. null if widget query failed or config is invalid. */
+  widget_data: Record<string, any>;
+  widgets: Widget[];
+  id: string;
+  project_id: string;
+  name: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -4878,7 +4893,7 @@ export class Api<
       { shareToken, ...query }: PublicControllerGetPublicDashboardParams,
       params: RequestParams = {},
     ) =>
-      this.request<DashboardWithWidgets, any>({
+      this.request<PublicDashboardWithData, any>({
         path: `/api/public/dashboards/${shareToken}`,
         method: "GET",
         format: "json",
