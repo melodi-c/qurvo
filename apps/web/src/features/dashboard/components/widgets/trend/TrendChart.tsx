@@ -6,6 +6,7 @@ import type {
   TrendGranularity,
   Annotation,
   TrendAggregateResult,
+  HeatmapRow,
 } from '@/api/generated/Api';
 import { TrendLineBarChart } from './TrendLineBarChart';
 import { TrendNumberViz } from './TrendNumberViz';
@@ -14,6 +15,7 @@ import { TrendCumulativeChart } from './TrendCumulativeChart';
 import { TrendPieChart } from './TrendPieChart';
 import { TrendTableViz } from './TrendTableViz';
 import { TrendValueBarChart } from './TrendValueBarChart';
+import { TrendCalendarHeatmap } from './TrendCalendarHeatmap';
 import { TrendWorldMapViz } from './TrendWorldMapViz';
 
 // Re-export the props type for consumers
@@ -37,6 +39,8 @@ interface TrendChartProps {
   onEditAnnotation?: (annotation: Annotation) => void;
   onDeleteAnnotation?: (id: string) => Promise<void>;
   onCreateAnnotation?: (date: string) => void;
+  /** Aggregate data for calendar heatmap chart type */
+  heatmapData?: HeatmapRow[];
 }
 
 /**
@@ -93,6 +97,14 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
         />
       );
 
+    case 'calendar_heatmap':
+      return (
+        <TrendCalendarHeatmap
+          data={rest.heatmapData ?? []}
+          compact={rest.compact}
+        />
+      );
+
     case 'world_map':
       return (
         <TrendWorldMapViz
@@ -100,9 +112,6 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
           compact={rest.compact}
         />
       );
-
-    // case 'calendar_heatmap':
-    //   return <TrendCalendarHeatmapChart {...rest} />;
 
     default:
       // Fallback: render as line chart for unimplemented types

@@ -133,7 +133,9 @@ export default function TrendEditorPage() {
       queryPanel={<TrendQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={isConfigValid}
       showSkeleton={showSkeleton(isCustomQuery ? aggLoading : isLoading, isCustomQuery ? aggregateData : data)}
-      isEmpty={isCustomQuery ? !aggregateResult : (!series || series.length === 0)}
+      isEmpty={isCustomQuery
+        ? !aggregateResult || (!aggregateResult.heatmap?.length && !aggregateResult.world_map?.length)
+        : !series || series.length === 0}
       isFetching={isCustomQuery ? aggFetching : isFetching}
       configureIcon={BarChart3}
       configureTitle={t('configureTitle')}
@@ -177,6 +179,7 @@ export default function TrendEditorPage() {
         onEditAnnotation={handleEditAnnotation}
         onDeleteAnnotation={handleDeleteAnnotation}
         onCreateAnnotation={handleCreateAnnotationFromOverlay}
+        heatmapData={aggregateResult?.heatmap}
       />
       <AnnotationDialog
         open={annotationDialogOpen}

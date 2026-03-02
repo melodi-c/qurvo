@@ -10,16 +10,32 @@ import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
 import { defaultTrendConfig, CUSTOM_QUERY_CHART_TYPES } from './trend-shared';
 import { trendToCsv, downloadCsv } from '@/lib/csv-export';
-import type { Widget, TrendWidgetConfig } from '@/api/generated/Api';
+import type { Widget, TrendWidgetConfig, TrendAggregateResult, TrendResult } from '@/api/generated/Api';
 
-/** Minimal cached response shape that WidgetShell needs from the query.data field. */
-interface CachedEnvelope {
+/** Common response shape for WidgetShell — only cached_at/from_cache are read. */
+interface CachedShellResponse {
   cached_at: string;
   from_cache: boolean;
 }
 
 interface TrendWidgetProps {
   widget: Widget;
+}
+
+/** Check if all series have valid (non-empty) event names. */
+function hasValidConfig(config: TrendWidgetConfig | undefined): boolean {
+  return !!config && config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
+}
+
+/** Check if aggregate result has any data rows. */
+function isAggregateEmpty(result: TrendAggregateResult | undefined): boolean {
+  if (!result) {return true;}
+  return !result.heatmap?.length && !result.world_map?.length;
+}
+
+/** Check if trend result has any series. */
+function isTrendEmpty(result: TrendResult | undefined): boolean {
+  return !result || result.series.length === 0;
 }
 
 export function TrendWidget({ widget }: TrendWidgetProps) {
@@ -38,7 +54,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const { data: annotations } = useAnnotations(config?.date_from, config?.date_to);
 
   // Build a unified query view so WidgetShell doesn't need to know about the union type.
-  const shellQuery: WidgetDataResult<CachedEnvelope> = useMemo(() => {
+  const shellQuery: WidgetDataResult<CachedShellResponse> = useMemo(() => {
     const src = isCustomQuery ? aggregateQuery : query;
     return {
       data: src.data ? { cached_at: src.data.cached_at, from_cache: src.data.from_cache } : undefined,
@@ -46,17 +62,14 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
       isFetching: src.isFetching,
       isPlaceholderData: src.isPlaceholderData,
       error: src.error,
-      refresh: src.refresh as () => Promise<CachedEnvelope | undefined>,
+      refresh: src.refresh as () => Promise<CachedShellResponse | undefined>,
     };
   }, [isCustomQuery, aggregateQuery, query]);
 
-  const hasValidSeries = hasConfig && config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
   const totals = result?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
   const mainTotal = totals[0] ?? 0;
 
-  const hasData = isCustomQuery
-    ? !!aggregateResult
-    : !!result && result.series.length > 0;
+  const isEmpty = isCustomQuery ? isAggregateEmpty(aggregateResult) : isTrendEmpty(result);
 
   const handleExportCsv = useCallback(() => {
     if (!result?.series) {return;}
@@ -66,23 +79,23 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   return (
     <WidgetShell
       query={shellQuery}
-      isConfigValid={hasValidSeries}
+      isConfigValid={hasValidConfig(config)}
       configureMessage={hasConfig ? t('configureSeries') : t('noInsight')}
       isEditing={isEditing}
-      isEmpty={!hasData}
+      isEmpty={isEmpty}
       emptyMessage={t('noEvents')}
       emptyHint={t('adjustRange')}
       metric={!isCustomQuery ? <span className="text-xl font-bold tabular-nums text-primary">{mainTotal.toLocaleString()}</span> : undefined}
       metricSecondary={!isCustomQuery && totals.length > 1 ? (
         <span className="text-xs text-muted-foreground tabular-nums truncate">
-          {totals.slice(1).map((t) => t.toLocaleString()).join(' / ')}
+          {totals.slice(1).map((v) => v.toLocaleString()).join(' / ')}
         </span>
       ) : undefined}
       cachedAt={shellQuery.data?.cached_at}
       fromCache={shellQuery.data?.from_cache}
       onExportCsv={!isCustomQuery && result?.series ? handleExportCsv : undefined}
     >
-      {hasData && (
+      {!isEmpty && (
         <TrendChart
           series={result?.series ?? []}
           previousSeries={result?.series_previous}
@@ -93,6 +106,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           annotations={annotations}
           seriesConfig={config!.series}
           aggregateData={aggregateResult}
+          heatmapData={aggregateResult?.heatmap}
         />
       )}
     </WidgetShell>
