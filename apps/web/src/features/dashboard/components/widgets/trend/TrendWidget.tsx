@@ -5,11 +5,18 @@ import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { useTrendAggregateData } from '@/features/dashboard/hooks/use-trend-aggregate';
 import { useAnnotations } from '@/features/dashboard/hooks/use-annotations';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
 import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
 import { defaultTrendConfig, CUSTOM_QUERY_CHART_TYPES } from './trend-shared';
 import { trendToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, TrendWidgetConfig, TrendAggregateResult, TrendResult } from '@/api/generated/Api';
+
+/** Common response shape for WidgetShell — only cached_at/from_cache are read. */
+interface CachedShellResponse {
+  cached_at: string;
+  from_cache: boolean;
+}
 
 interface TrendWidgetProps {
   widget: Widget;
@@ -53,7 +60,9 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
     widget.id,
   );
 
-  const query = isCustomQuery ? aggregateQuery : trendQuery;
+  // WidgetShell only reads isLoading/isFetching/error/refresh/data?.cached_at —
+  // both TrendResponse and TrendAggregateResponse satisfy CachedShellResponse.
+  const query: WidgetDataResult<CachedShellResponse> = isCustomQuery ? aggregateQuery : trendQuery;
   const trendResult = trendQuery.data?.data;
   const aggregateResult = aggregateQuery.data?.data;
 
