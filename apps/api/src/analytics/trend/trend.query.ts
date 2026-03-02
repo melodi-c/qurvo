@@ -13,6 +13,7 @@ import {
   param,
   namedParam,
   count,
+  func,
   min,
   argMin,
   inArray,
@@ -322,7 +323,7 @@ function buildFirstTimeSeriesArm(
     alias(firstTsBucket, 'bucket'),
     count().as('raw_value'),
     count().as('uniq_value'),
-    count().as('agg_value'),
+    func('toFloat64', count()).as('agg_value'),
   ];
 
   const groupByCols: (Expr | undefined)[] = [
