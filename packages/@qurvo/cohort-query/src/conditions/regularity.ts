@@ -22,11 +22,7 @@ export function buildPerformedRegularlySubquery(
   const windowPk = `coh_${condIdx}_window`;
   const minPk = `coh_${condIdx}_min`;
 
-  ctx.queryParams[eventPk] = cond.event_name;
-  ctx.queryParams[windowPk] = cond.time_window_days;
-  ctx.queryParams[minPk] = cond.min_periods;
-
-  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`);
   const bucketExpr = periodBucketExpr(cond.period_type);
   const upperBound = resolveDateTo(ctx);
   const windowInterval = interval(namedParam(windowPk, 'UInt32', cond.time_window_days), 'DAY');

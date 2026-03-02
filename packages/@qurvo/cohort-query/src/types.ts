@@ -17,7 +17,8 @@ export interface CohortFilterInput {
 
 export interface BuildContext {
   projectIdParam: string;
-  queryParams: Record<string, unknown>;
+  /** The project UUID value, used by ctxProjectIdExpr(). */
+  projectId: string;
   /** Counter for unique parameter names, mutated during building */
   counter: { value: number };
   /**
@@ -29,8 +30,7 @@ export interface BuildContext {
    *
    * The value is a ClickHouse-compatible datetime string such as
    * `"2025-01-31 23:59:59"` (same format as used by `toChTs()`).
-   * It is stored in `queryParams` under the key `"coh_date_to"` and referenced
-   * in SQL as `{coh_date_to:DateTime64(3)}`.
+   * Referenced in SQL as `{coh_date_to:DateTime64(3)}`.
    */
   dateTo?: string;
   /**
@@ -49,8 +49,7 @@ export interface BuildContext {
    * the *same period* we are analysing, not in some arbitrary rolling window.
    *
    * The value is a ClickHouse-compatible datetime string (same format as `dateTo`).
-   * It is stored in `queryParams` under the key `"coh_date_from"` and referenced
-   * in SQL as `{coh_date_from:DateTime64(3)}`.
+   * Referenced in SQL as `{coh_date_from:DateTime64(3)}`.
    */
   dateFrom?: string;
 }

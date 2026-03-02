@@ -54,7 +54,6 @@ function buildCountIfCondExpr(
   eventName: string,
   condIdx: number,
   filters: CohortEventFilter[] | undefined,
-  queryParams: Record<string, unknown>,
 ): Expr {
   const parts: Expr[] = [eq(col('event_name'), namedParam(eventPk, 'String', eventName))];
   if (filters && filters.length > 0) {
@@ -62,7 +61,7 @@ function buildCountIfCondExpr(
       const f = filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
       const expr = resolveEventPropertyExpr(f.property);
-      parts.push(applyOperator(expr, f.operator, pk, queryParams, f.value, f.values));
+      parts.push(applyOperator(expr, f.operator, pk, f.value, f.values));
     }
   }
   return and(...parts);
@@ -83,7 +82,7 @@ function buildEventZeroCountSubquery(
   const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
   const lowerExpr = lowerBound ?? sub(upperBound, daysInterval);
 
-  const countIfCond = buildCountIfCondExpr(eventPk, cond.event_name, condIdx, cond.event_filters, ctx.queryParams);
+  const countIfCond = buildCountIfCondExpr(eventPk, cond.event_name, condIdx, cond.event_filters);
 
   return eventsBaseSelect(ctx, lowerExpr)
     .groupBy(col('person_id'))
@@ -99,10 +98,6 @@ export function buildEventConditionSubquery(
 
   const isCount = !cond.aggregation_type || cond.aggregation_type === 'count';
 
-  ctx.queryParams[eventPk] = cond.event_name;
-  ctx.queryParams[countPk] = cond.count;
-  ctx.queryParams[daysPk] = cond.time_window_days;
-
   // Special case: "performed event exactly 0 times"
   if (cond.count_operator === 'eq' && cond.count === 0 && isCount) {
     return buildEventZeroCountSubquery(cond, ctx, condIdx, eventPk, daysPk);
@@ -110,7 +105,7 @@ export function buildEventConditionSubquery(
 
   const cmp = comparator(cond.count_operator);
   const aggExpr = buildAggregationExpr(cond.aggregation_type, cond.aggregation_property);
-  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`);
   const thresholdType = isCount ? 'UInt64' : 'Float64';
   const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
   const lowerExpr = sub(resolveDateTo(ctx), daysInterval);

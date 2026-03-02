@@ -20,9 +20,6 @@ export function buildNotPerformedEventSubquery(
 ): SelectNode {
   const { condIdx, eventPk, daysPk } = allocCondIdx(ctx);
 
-  ctx.queryParams[eventPk] = cond.event_name;
-  ctx.queryParams[daysPk] = cond.time_window_days;
-
   // Build countIf condition as Expr
   const countIfParts: Expr[] = [
     eq(col('event_name'), namedParam(eventPk, 'String', cond.event_name)),
@@ -32,7 +29,7 @@ export function buildNotPerformedEventSubquery(
       const f = cond.event_filters[i];
       const pk = `coh_${condIdx}_ef${i}`;
       const expr = resolveEventPropertyExpr(f.property);
-      countIfParts.push(applyOperator(expr, f.operator, pk, ctx.queryParams, f.value, f.values));
+      countIfParts.push(applyOperator(expr, f.operator, pk, f.value, f.values));
     }
   }
   const countIfCondExpr = and(...countIfParts);

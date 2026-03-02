@@ -107,7 +107,7 @@ export function buildCohortSubquery(
   definition: CohortConditionGroup,
   cohortIdx: number,
   projectIdParam: string,
-  queryParams: Record<string, unknown>,
+  projectId: string,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
   dateFrom?: string,
@@ -116,7 +116,7 @@ export function buildCohortSubquery(
 
   const ctx: BuildContext = {
     projectIdParam,
-    queryParams,
+    projectId,
     counter: { value: cohortIdx * 100 },
     dateTo,
     dateFrom,
@@ -137,34 +137,32 @@ export function buildCohortMemberSubquery(
   input: CohortFilterInput,
   cohortParamKey: string,
   projectIdParam: string,
-  queryParams: Record<string, unknown>,
+  projectId: string,
   subqueryOffset: number = 0,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
   dateFrom?: string,
 ): QueryNode {
   if (input.is_static) {
-    queryParams[cohortParamKey] = input.cohort_id;
     return select(col('person_id'))
       .from('person_static_cohort').final()
       .where(
         eq(col('cohort_id'), namedParam(cohortParamKey, 'UUID', input.cohort_id)),
-        eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
+        eq(col('project_id'), namedParam(projectIdParam, 'UUID', projectId)),
       )
       .build();
   }
   if (input.materialized) {
-    queryParams[cohortParamKey] = input.cohort_id;
     return select(col('person_id'))
       .from('cohort_members').final()
       .where(
         eq(col('cohort_id'), namedParam(cohortParamKey, 'UUID', input.cohort_id)),
-        eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
+        eq(col('project_id'), namedParam(projectIdParam, 'UUID', projectId)),
       )
       .build();
   }
   return buildCohortSubquery(
-    input.definition, subqueryOffset, projectIdParam, queryParams,
+    input.definition, subqueryOffset, projectIdParam, projectId,
     resolveCohortIsStatic, dateTo, dateFrom,
   );
 }
@@ -179,7 +177,7 @@ export function buildCohortMemberSubquery(
 export function buildCohortFilterClause(
   cohorts: CohortFilterInput[],
   projectIdParam: string,
-  queryParams: Record<string, unknown>,
+  projectId: string,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
   dateFrom?: string,
@@ -189,7 +187,7 @@ export function buildCohortFilterClause(
   const exprs: Expr[] = cohorts.map((c, idx) => {
     const paramKey = c.is_static ? `coh_sid_${idx}` : c.materialized ? `coh_mid_${idx}` : `coh_inline_${idx}`;
     const node = buildCohortMemberSubquery(
-      c, paramKey, projectIdParam, queryParams, idx,
+      c, paramKey, projectIdParam, projectId, idx,
       resolveCohortIsStatic, dateTo, dateFrom,
     );
     return inSubquery(resolvedPerson(), node);

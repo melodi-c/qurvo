@@ -86,10 +86,10 @@ export interface PropertySource {
 /**
  * Parses a property path into JSON column + key segments with nested key support.
  *
- * - "properties.foo"           → { jsonColumn: "properties", segments: ["foo"] }
- * - "properties.foo.bar"       → { jsonColumn: "properties", segments: ["foo", "bar"] }
- * - "user_properties.plan"     → { jsonColumn: "user_properties", segments: ["plan"] }
- * - "country" (direct column)  → null
+ * - "properties.foo"           -> { jsonColumn: "properties", segments: ["foo"] }
+ * - "properties.foo.bar"       -> { jsonColumn: "properties", segments: ["foo", "bar"] }
+ * - "user_properties.plan"     -> { jsonColumn: "user_properties", segments: ["plan"] }
+ * - "country" (direct column)  -> null
  */
 export function parsePropertyPath(prop: string): PropertySource | null {
   let rawKey: string;
@@ -117,7 +117,7 @@ function isFuncCall(expr: Expr, name: string): expr is FuncCallExpr {
 }
 
 /**
- * AST-level transform: replaces JSONExtractString → JSONExtractRaw in the Expr tree.
+ * AST-level transform: replaces JSONExtractString -> JSONExtractRaw in the Expr tree.
  * Returns a new Expr if a transform occurred, or null if the expr does not contain JSONExtractString.
  */
 function toRawExpr(expr: Expr): Expr | null {
@@ -129,7 +129,7 @@ function toRawExpr(expr: Expr): Expr | null {
 
 /**
  * AST-level transform: converts a JSONExtractString expr to its numeric equivalent.
- * JSONExtractString → JSONExtractRaw (for use inside toFloat64OrZero).
+ * JSONExtractString -> JSONExtractRaw (for use inside toFloat64OrZero).
  * Non-JSON expressions are returned as-is.
  */
 function toNumericExpr(expr: Expr): Expr {
@@ -140,7 +140,7 @@ function toNumericExpr(expr: Expr): Expr {
 }
 
 /**
- * AST-level transform: converts a JSONExtractString(col, key) → JSONHas(col, key).
+ * AST-level transform: converts a JSONExtractString(col, key) -> JSONHas(col, key).
  * Returns null if the expression is not a JSONExtractString call.
  */
 function toJsonHasGuard(expr: Expr): Expr | null {
@@ -155,20 +155,11 @@ function toJsonHasGuard(expr: Expr): Expr | null {
 interface OperatorContext {
   expr: Expr;
   pk: string;
-  queryParams: Record<string, unknown>;
   value?: string;
   values?: string[];
 }
 
 type OperatorHandler = (ctx: OperatorContext) => Expr;
-
-/**
- * Registers a named parameter in queryParams and returns the corresponding NamedParamExpr.
- */
-function registerParam(pk: string, chType: string, val: unknown, queryParams: Record<string, unknown>) {
-  queryParams[pk] = val;
-  return namedParam(pk, chType, val);
-}
 
 // Numeric comparator map
 
@@ -182,18 +173,18 @@ const NUMERIC_CMP_MAP = {
 // Operator handlers grouped by behavior
 
 const stringOps = {
-  eq: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  eq: ({ expr, pk, value }: OperatorContext) => {
     const v = value ?? '';
-    const valP = registerParam(pk, 'String', v, queryParams);
+    const valP = namedParam(pk, 'String', v);
     const rawEquiv = toRawExpr(expr);
     if (rawEquiv) {
       return or(eq(expr, valP), eq(toString(rawEquiv), valP));
     }
     return eq(expr, valP);
   },
-  neq: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  neq: ({ expr, pk, value }: OperatorContext) => {
     const v = value ?? '';
-    const valP = registerParam(pk, 'String', v, queryParams);
+    const valP = namedParam(pk, 'String', v);
     const rawEquiv = toRawExpr(expr);
     const jsonHasExpr = toJsonHasGuard(expr);
     if (rawEquiv) {
@@ -205,93 +196,93 @@ const stringOps = {
     }
     return neq(expr, valP);
   },
-  contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  contains: ({ expr, pk, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-    const valP = registerParam(pk, 'String', likeVal, queryParams);
+    const valP = namedParam(pk, 'String', likeVal);
     return like(expr, valP);
   },
-  not_contains: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  not_contains: ({ expr, pk, value }: OperatorContext) => {
     const likeVal = `%${escapeLikePattern(value ?? '')}%`;
-    const valP = registerParam(pk, 'String', likeVal, queryParams);
+    const valP = namedParam(pk, 'String', likeVal);
     const jsonHasExpr = toJsonHasGuard(expr);
     if (jsonHasExpr) {
       return and(jsonHasExpr, notLike(expr, valP));
     }
     return notLike(expr, valP);
   },
-  regex: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  regex: ({ expr, pk, value }: OperatorContext) => {
     const v = value ?? '';
-    const valP = registerParam(pk, 'String', v, queryParams);
+    const valP = namedParam(pk, 'String', v);
     return match(expr, valP);
   },
-  not_regex: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  not_regex: ({ expr, pk, value }: OperatorContext) => {
     const v = value ?? '';
-    const valP = registerParam(pk, 'String', v, queryParams);
+    const valP = namedParam(pk, 'String', v);
     return not(match(expr, valP));
   },
 };
 
 const numericOps = {
-  gt: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  gt: ({ expr, pk, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
-    return chGt(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+    return chGt(numExpr, namedParam(pk, 'Float64', numVal));
   },
-  lt: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  lt: ({ expr, pk, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
-    return chLt(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+    return chLt(numExpr, namedParam(pk, 'Float64', numVal));
   },
-  gte: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  gte: ({ expr, pk, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
-    return gte(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+    return gte(numExpr, namedParam(pk, 'Float64', numVal));
   },
-  lte: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  lte: ({ expr, pk, value }: OperatorContext) => {
     const numVal = Number(value ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
-    return lte(numExpr, registerParam(pk, 'Float64', numVal, queryParams));
+    return lte(numExpr, namedParam(pk, 'Float64', numVal));
   },
-  between: ({ expr, pk, queryParams, values }: OperatorContext) => {
+  between: ({ expr, pk, values }: OperatorContext) => {
     const minPk = `${pk}_min`, maxPk = `${pk}_max`;
     const minVal = Number(values?.[0] ?? 0);
     const maxVal = Number(values?.[1] ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
     return and(
-      gte(numExpr, registerParam(minPk, 'Float64', minVal, queryParams)),
-      lte(numExpr, registerParam(maxPk, 'Float64', maxVal, queryParams)),
+      gte(numExpr, namedParam(minPk, 'Float64', minVal)),
+      lte(numExpr, namedParam(maxPk, 'Float64', maxVal)),
     );
   },
-  not_between: ({ expr, pk, queryParams, values }: OperatorContext) => {
+  not_between: ({ expr, pk, values }: OperatorContext) => {
     const minPk = `${pk}_min`, maxPk = `${pk}_max`;
     const minVal = Number(values?.[0] ?? 0);
     const maxVal = Number(values?.[1] ?? 0);
     const numExpr = toFloat64OrZero(toNumericExpr(expr));
     return or(
-      chLt(numExpr, registerParam(minPk, 'Float64', minVal, queryParams)),
-      chGt(numExpr, registerParam(maxPk, 'Float64', maxVal, queryParams)),
+      chLt(numExpr, namedParam(minPk, 'Float64', minVal)),
+      chGt(numExpr, namedParam(maxPk, 'Float64', maxVal)),
     );
   },
 };
 
 const dateOps = {
-  is_date_before: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  is_date_before: ({ expr, pk, value }: OperatorContext) => {
     if (!value) return literal(0);
-    const valP = registerParam(pk, 'String', value, queryParams);
+    const valP = namedParam(pk, 'String', value);
     const parsed = parseDateTimeBestEffortOrZero(expr);
     const nonZero = neq(parsed, func('toDateTime', literal(0)));
     return and(nonZero, chLt(parsed, parseDateTimeBestEffort(valP)));
   },
-  is_date_after: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  is_date_after: ({ expr, pk, value }: OperatorContext) => {
     if (!value) return literal(0);
-    const valP = registerParam(pk, 'String', value, queryParams);
+    const valP = namedParam(pk, 'String', value);
     const parsed = parseDateTimeBestEffortOrZero(expr);
     const nonZero = neq(parsed, func('toDateTime', literal(0)));
     return and(nonZero, chGt(parsed, parseDateTimeBestEffort(valP)));
   },
-  is_date_exact: ({ expr, pk, queryParams, value }: OperatorContext) => {
+  is_date_exact: ({ expr, pk, value }: OperatorContext) => {
     if (!value) return literal(0);
-    const valP = registerParam(pk, 'String', value, queryParams);
+    const valP = namedParam(pk, 'String', value);
     const parsed = parseDateTimeBestEffortOrZero(expr);
     const nonZero = neq(parsed, func('toDateTime', literal(0)));
     return and(nonZero, eq(toDate(parsed), toDate(parseDateTimeBestEffort(valP))));
@@ -299,21 +290,21 @@ const dateOps = {
 };
 
 const arrayOps = {
-  in: ({ expr, pk, queryParams, values }: OperatorContext) => {
+  in: ({ expr, pk, values }: OperatorContext) => {
     const v = values ?? [];
-    return inArray(expr, registerParam(pk, 'Array(String)', v, queryParams));
+    return inArray(expr, namedParam(pk, 'Array(String)', v));
   },
-  not_in: ({ expr, pk, queryParams, values }: OperatorContext) => {
+  not_in: ({ expr, pk, values }: OperatorContext) => {
     const v = values ?? [];
-    return notInArray(expr, registerParam(pk, 'Array(String)', v, queryParams));
+    return notInArray(expr, namedParam(pk, 'Array(String)', v));
   },
-  contains_multi: ({ expr, pk, queryParams, values }: OperatorContext) => {
+  contains_multi: ({ expr, pk, values }: OperatorContext) => {
     const v = values ?? [];
-    return multiSearchAny(expr, registerParam(pk, 'Array(String)', v, queryParams));
+    return multiSearchAny(expr, namedParam(pk, 'Array(String)', v));
   },
-  not_contains_multi: ({ expr, pk, queryParams, values }: OperatorContext) => {
+  not_contains_multi: ({ expr, pk, values }: OperatorContext) => {
     const v = values ?? [];
-    return not(multiSearchAny(expr, registerParam(pk, 'Array(String)', v, queryParams)));
+    return not(multiSearchAny(expr, namedParam(pk, 'Array(String)', v)));
   },
 };
 
@@ -383,8 +374,8 @@ export function resolveEventPropertyExpr(property: string): Expr {
  * Pure-AST operator application. Maps a property column expression and an operator
  * to a typed Expr using ch-query builders. No raw()/rawWithParams()/compileExprToSql().
  *
- * Parameters are embedded via namedParam() and also written to `queryParams` for
- * backward compatibility with the cohort-query BuildContext.
+ * Parameters are embedded via namedParam() into AST nodes. The compiler's
+ * `CompilerContext.mergeParams()` collects them during `compile()`.
  *
  * Used by both cohort-query (person-level argMax-wrapped exprs) and analytics
  * (event-level direct column exprs).
@@ -393,12 +384,11 @@ export function applyOperator(
   expr: Expr,
   operator: CohortPropertyOperator,
   pk: string,
-  queryParams: Record<string, unknown>,
   value?: string,
   values?: string[],
 ): Expr {
   const handler = OPERATOR_MAP[operator];
-  return handler({ expr, pk, queryParams, value, values });
+  return handler({ expr, pk, value, values });
 }
 
 /**
@@ -409,7 +399,6 @@ export function applyOperator(
  */
 export function resolveDateTo(ctx: BuildContext): Expr {
   if (ctx.dateTo !== undefined) {
-    ctx.queryParams['coh_date_to'] = ctx.dateTo;
     return namedParam('coh_date_to', 'DateTime64(3)', ctx.dateTo);
   }
   return now64(literal(3));
@@ -420,7 +409,6 @@ export function resolveDateTo(ctx: BuildContext): Expr {
  */
 export function resolveDateFrom(ctx: BuildContext): Expr | undefined {
   if (ctx.dateFrom !== undefined) {
-    ctx.queryParams['coh_date_from'] = ctx.dateFrom;
     return namedParam('coh_date_from', 'DateTime64(3)', ctx.dateFrom);
   }
   return undefined;
@@ -433,7 +421,6 @@ export function resolveDateFrom(ctx: BuildContext): Expr | undefined {
 export function buildEventFilterClauses(
   filters: CohortEventFilter[] | undefined,
   prefix: string,
-  queryParams: Record<string, unknown>,
 ): Expr | undefined {
   if (!filters || filters.length === 0) return undefined;
 
@@ -442,7 +429,7 @@ export function buildEventFilterClauses(
     const f = filters[i];
     const pk = `${prefix}_ef${i}`;
     const expr = resolveEventPropertyExpr(f.property);
-    parts.push(applyOperator(expr, f.operator, pk, queryParams, f.value, f.values));
+    parts.push(applyOperator(expr, f.operator, pk, f.value, f.values));
   }
 
   return parts.length > 0 ? and(...parts) : undefined;
@@ -475,10 +462,10 @@ export function allocCondIdx(ctx: BuildContext): {
  * `project_id = {ctx.projectIdParam:UUID}`
  *
  * Eliminates the 11+ inline repetitions of:
- *   eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]))
+ *   eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.projectId))
  */
 export function ctxProjectIdExpr(ctx: BuildContext): Expr {
-  return eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.queryParams[ctx.projectIdParam]));
+  return eq(col('project_id'), namedParam(ctx.projectIdParam, 'UUID', ctx.projectId));
 }
 
 /**
@@ -489,7 +476,7 @@ export function ctxProjectIdExpr(ctx: BuildContext): Expr {
  *   FROM events
  *   WHERE project_id = ... AND timestamp <= upperBound [AND timestamp >= lowerExpr] [AND ...extraWhere]
  *
- * **IMPORTANT**: `SelectBuilder.where()` is NOT additive — each call replaces the
+ * **IMPORTANT**: `SelectBuilder.where()` is NOT additive -- each call replaces the
  * previous WHERE clause.  All conditions (base + caller-specific) must be supplied
  * in a single `.where()` invocation.  Pass caller-specific conditions via
  * `extraWhere` instead of chaining `.where()` on the returned builder.
