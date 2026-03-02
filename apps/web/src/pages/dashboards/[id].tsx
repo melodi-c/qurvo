@@ -5,7 +5,6 @@ import { LayoutDashboard } from 'lucide-react';
 import { useDashboard, useSaveDashboard } from '@/features/dashboard/hooks/use-dashboard';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
-import { DashboardFilterBar } from '@/features/dashboard/components/DashboardFilterBar';
 import { DashboardGrid } from '@/features/dashboard/components/DashboardGrid';
 import { EditModeToolbar } from '@/features/dashboard/components/EditModeToolbar';
 import { AddWidgetDialog } from '@/features/dashboard/components/AddWidgetDialog';
@@ -119,8 +118,6 @@ export default function DashboardBuilderPage() {
       {!isLoading && dashboard && (
         <div className="space-y-4">
           <DashboardHeader />
-
-          <DashboardFilterBar />
 
           <DashboardGrid
             onAddInsight={() => setShowAddWidget(true)}
