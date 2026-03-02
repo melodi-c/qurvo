@@ -83,6 +83,7 @@ export {
   toUnixTimestamp64Milli,
   parseDateTimeBestEffortOrZero,
   argMax,
+  argMin,
   argMinIf,
   argMaxIf,
   quantile,

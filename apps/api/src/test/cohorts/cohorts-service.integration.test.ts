@@ -909,8 +909,7 @@ describe('CohortsService.resolveCohortBreakdowns — enrichDefinition stamps is_
     // for premiumUser only (the sole member of the static cohort).
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,

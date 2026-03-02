@@ -1108,8 +1108,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         description: 'Уникальные пользователи, выполнявшие любое действие за день',
         config: {
           type: 'trend',
-          series: [{ event_name: '$pageview', label: 'Активные пользователи' }],
-          metric: 'unique_users',
+          series: [{ event_name: '$pageview', label: 'Активные пользователи', metric: 'unique_users' }],
           granularity: 'day',
           chart_type: 'line',
           date_from: dateFrom,
@@ -1125,9 +1124,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         description: 'Суммарный объём платежей по дням',
         config: {
           type: 'trend',
-          series: [{ event_name: 'payment_success', label: 'Выручка' }],
-          metric: 'property_sum',
-          metric_property: 'properties.amount',
+          series: [{ event_name: 'payment_success', label: 'Выручка', metric: 'property_sum', metric_property: 'properties.amount' }],
           granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,
@@ -1144,10 +1141,9 @@ export class OnlineSchoolScenario extends BaseScenario {
         config: {
           type: 'trend',
           series: [
-            { event_name: 'lesson_started', label: 'Начато уроков' },
-            { event_name: 'lesson_completed', label: 'Завершено уроков' },
+            { event_name: 'lesson_started', label: 'Начато уроков', metric: 'total_events' },
+            { event_name: 'lesson_completed', label: 'Завершено уроков', metric: 'total_events' },
           ],
-          metric: 'total_events',
           granularity: 'day',
           chart_type: 'line',
           date_from: dateFrom,
@@ -1162,8 +1158,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         description: 'Количество новых лидов по дням',
         config: {
           type: 'trend',
-          series: [{ event_name: 'lead_created', label: 'Новые лиды' }],
-          metric: 'total_events',
+          series: [{ event_name: 'lead_created', label: 'Новые лиды', metric: 'total_events' }],
           granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,
@@ -1178,8 +1173,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         description: 'Количество регистраций на вебинары по дням',
         config: {
           type: 'trend',
-          series: [{ event_name: 'webinar_registered', label: 'Регистрации на вебинар' }],
-          metric: 'total_events',
+          series: [{ event_name: 'webinar_registered', label: 'Регистрации на вебинар', metric: 'total_events' }],
           granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,
@@ -1194,8 +1188,7 @@ export class OnlineSchoolScenario extends BaseScenario {
         description: 'Количество запросов на возврат по дням',
         config: {
           type: 'trend',
-          series: [{ event_name: 'refund_requested', label: 'Запросы возврата' }],
-          metric: 'total_events',
+          series: [{ event_name: 'refund_requested', label: 'Запросы возврата', metric: 'total_events' }],
           granularity: 'day',
           chart_type: 'bar',
           date_from: dateFrom,

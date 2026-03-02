@@ -119,8 +119,7 @@ describe('cohort filter integration with trend', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -159,8 +158,7 @@ describe('cohort filter integration with trend', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -431,8 +429,7 @@ describe('multiple cohort_filters AND semantics (trend)', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -475,8 +472,7 @@ describe('trend cohort breakdown', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -519,8 +515,7 @@ describe('trend cohort breakdown', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -555,8 +550,7 @@ describe('trend cohort breakdown', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -659,8 +653,7 @@ describe('cohort breakdown with duplicate names (issue #510 regression)', () => 
     // Both cohorts share the name "Duplicate Name"
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,

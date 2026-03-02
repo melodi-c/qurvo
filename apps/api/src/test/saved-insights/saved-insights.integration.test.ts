@@ -15,8 +15,7 @@ beforeAll(async () => {
 
 const SAMPLE_CONFIG = {
   type: 'trend' as const,
-  series: [{ event_name: '$pageview', label: 'Pageviews', filters: [] }],
-  metric: 'total_events' as const,
+  series: [{ event_name: '$pageview', label: 'Pageviews', metric: 'total_events' as const, filters: [] }],
   granularity: 'day' as const,
   chart_type: 'line' as const,
   date_from: '2025-01-01',

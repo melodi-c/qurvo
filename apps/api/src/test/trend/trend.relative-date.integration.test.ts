@@ -52,8 +52,7 @@ describe('queryTrend with resolved relative dates', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Page Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Page Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
@@ -99,8 +98,7 @@ describe('queryTrend with resolved relative dates', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'signup', label: 'Signups' }],
-      metric: 'total_events',
+      series: [{ event_name: 'signup', label: 'Signups', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
@@ -128,8 +126,7 @@ describe('queryTrend with resolved relative dates', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,
@@ -159,8 +156,7 @@ describe('queryTrend with resolved relative dates', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'purchase', label: 'Purchases' }],
-      metric: 'total_events',
+      series: [{ event_name: 'purchase', label: 'Purchases', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateFrom,
       date_to: dateTo,

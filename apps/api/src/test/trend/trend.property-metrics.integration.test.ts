@@ -49,9 +49,9 @@ describe('queryTrend — with series filters', () => {
       series: [{
         event_name: 'purchase',
         label: 'Premium Purchases',
+        metric: 'total_events',
         filters: [{ property: 'properties.plan', operator: 'eq', value: 'premium' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -90,9 +90,7 @@ describe('queryTrend — property aggregation', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'purchase', label: 'Purchases' }],
-      metric: 'property_sum',
-      metric_property: 'properties.amount',
+      series: [{ event_name: 'purchase', label: 'Purchases', metric: 'property_sum', metric_property: 'properties.amount' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -129,9 +127,7 @@ describe('queryTrend — property aggregation', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'session', label: 'Sessions' }],
-      metric: 'property_avg',
-      metric_property: 'properties.duration',
+      series: [{ event_name: 'session', label: 'Sessions', metric: 'property_avg', metric_property: 'properties.duration' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -176,9 +172,7 @@ describe('queryTrend — property aggregation', () => {
 
     const minResult = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'order', label: 'Orders' }],
-      metric: 'property_min',
-      metric_property: 'properties.price',
+      series: [{ event_name: 'order', label: 'Orders', metric: 'property_min', metric_property: 'properties.price' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -192,9 +186,7 @@ describe('queryTrend — property aggregation', () => {
 
     const maxResult = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'order', label: 'Orders' }],
-      metric: 'property_max',
-      metric_property: 'properties.price',
+      series: [{ event_name: 'order', label: 'Orders', metric: 'property_max', metric_property: 'properties.price' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -231,9 +223,7 @@ describe('queryTrend — property aggregation', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'purchase', label: 'Purchases' }],
-      metric: 'property_sum',
-      metric_property: 'properties.amount',
+      series: [{ event_name: 'purchase', label: 'Purchases', metric: 'property_sum', metric_property: 'properties.amount' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -284,9 +274,9 @@ describe('queryTrend — filter operator neq', () => {
       series: [{
         event_name: 'purchase',
         label: 'Non-premium Purchases',
+        metric: 'total_events',
         filters: [{ property: 'properties.plan', operator: 'neq', value: 'premium' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -337,9 +327,9 @@ describe('queryTrend — filter operators contains and not_contains', () => {
       series: [{
         event_name: 'page_view',
         label: 'Chrome Views',
+        metric: 'total_events',
         filters: [{ property: 'browser', operator: 'contains', value: 'Chrome' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -357,9 +347,9 @@ describe('queryTrend — filter operators contains and not_contains', () => {
       series: [{
         event_name: 'page_view',
         label: 'Non-Chrome Views',
+        metric: 'total_events',
         filters: [{ property: 'browser', operator: 'not_contains', value: 'Chrome' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -413,9 +403,9 @@ describe('queryTrend — filter operators is_set and is_not_set', () => {
       series: [{
         event_name: 'track',
         label: 'Has opted_in',
+        metric: 'total_events',
         filters: [{ property: 'properties.opted_in', operator: 'is_set' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -433,9 +423,9 @@ describe('queryTrend — filter operators is_set and is_not_set', () => {
       series: [{
         event_name: 'track',
         label: 'Missing opted_in',
+        metric: 'total_events',
         filters: [{ property: 'properties.opted_in', operator: 'is_not_set' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -478,8 +468,7 @@ describe('queryTrend — cohort filters', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -537,8 +526,7 @@ describe('queryTrend — cohort filters', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: today,
       date_to: today,
@@ -590,9 +578,9 @@ describe('queryTrend — person property filters', () => {
       series: [{
         event_name: 'login',
         label: 'Premium Logins',
+        metric: 'total_events',
         filters: [{ property: 'user_properties.plan', operator: 'eq', value: 'premium' }],
       }],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),

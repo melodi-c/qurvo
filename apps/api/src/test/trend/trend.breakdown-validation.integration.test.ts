@@ -95,8 +95,7 @@ async function createTestProject(): Promise<{ projectId: string; token: string }
 function buildTrendUrl(projectId: string, params: Record<string, string | string[] | undefined>): string {
   const qs = new URLSearchParams();
   qs.set('project_id', projectId);
-  qs.set('series', JSON.stringify([{ event_name: 'pageview', label: 'Pageviews' }]));
-  qs.set('metric', 'total_events');
+  qs.set('series', JSON.stringify([{ event_name: 'pageview', label: 'Pageviews', metric: 'total_events' }]));
   qs.set('granularity', 'day');
   qs.set('date_from', '2025-01-01');
   qs.set('date_to', '2025-01-31');

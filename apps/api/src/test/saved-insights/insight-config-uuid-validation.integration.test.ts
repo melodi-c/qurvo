@@ -158,8 +158,7 @@ afterAll(async () => {
 
 const BASE_TREND_CONFIG = {
   type: 'trend',
-  series: [{ event_name: '$pageview', label: 'Pageviews', filters: [] }],
-  metric: 'total_events',
+  series: [{ event_name: '$pageview', label: 'Pageviews', metric: 'total_events', filters: [] }],
   granularity: 'day',
   chart_type: 'line',
   date_from: '2025-01-01',

@@ -22,6 +22,12 @@ import {
   BreakdownCohortIdsRequiresCohortType,
 } from './shared/breakdown-validators';
 
+const TREND_METRICS = [
+  'total_events', 'unique_users', 'events_per_user',
+  'property_sum', 'property_avg', 'property_min', 'property_max',
+  'first_time_users',
+] as const;
+
 export class TrendSeriesDto {
   @IsString()
   @IsNotEmpty()
@@ -30,6 +36,14 @@ export class TrendSeriesDto {
   @IsString()
   @IsNotEmpty()
   label: string;
+
+  @ApiProperty({ enum: TREND_METRICS, enumName: 'TrendMetric' })
+  @IsIn(TREND_METRICS)
+  metric: (typeof TREND_METRICS)[number];
+
+  @IsString()
+  @IsOptional()
+  metric_property?: string;
 
   @IsArray()
   @IsOptional()
@@ -48,14 +62,6 @@ export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @ValidateNested({ each: true })
   @Type(() => TrendSeriesDto)
   series: TrendSeriesDto[];
-
-  @ApiProperty({ enum: ['total_events', 'unique_users', 'events_per_user', 'property_sum', 'property_avg', 'property_min', 'property_max'], enumName: 'TrendMetric' })
-  @IsIn(['total_events', 'unique_users', 'events_per_user', 'property_sum', 'property_avg', 'property_min', 'property_max'])
-  metric: 'total_events' | 'unique_users' | 'events_per_user' | 'property_sum' | 'property_avg' | 'property_min' | 'property_max';
-
-  @IsString()
-  @IsOptional()
-  metric_property?: string;
 
   @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   @IsIn(['hour', 'day', 'week', 'month'])
