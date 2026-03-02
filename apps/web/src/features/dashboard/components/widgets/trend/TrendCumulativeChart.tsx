@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
 } from 'recharts';
 import type {
   TrendSeriesResult,
@@ -17,10 +16,11 @@ import type {
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick, CHART_AXIS_TICK_COLOR } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
-import { seriesKey, isIncompleteBucket, buildCumulativeDataPoints, snapAnnotationDateToBucket } from './trend-utils';
+import { seriesKey, isIncompleteBucket, buildCumulativeDataPoints } from './trend-utils';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { AnnotationsOverlay } from './AnnotationsOverlay';
 import { useAnnotationPositions } from './use-annotation-positions';
+import { useAnnotationReferenceLines } from './AnnotationReferenceLine';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './TrendChart.translations';
@@ -94,6 +94,7 @@ export function TrendCumulativeChart({
     showOverlay ? annotations : undefined,
     granularity,
   );
+  const annotationLines = useAnnotationReferenceLines(annotations, granularity ?? 'day', compact);
 
   const customTick = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -212,19 +213,6 @@ export function TrendCumulativeChart({
       );
     });
 
-  const renderAnnotationLines = () => {
-    if (!annotations?.length) {return null;}
-    return annotations.map((ann) => (
-      <ReferenceLine
-        key={ann.id}
-        x={snapAnnotationDateToBucket(ann.date, granularity ?? 'day')}
-        stroke={ann.color ?? 'hsl(var(--color-muted-foreground))'}
-        strokeDasharray="4 2"
-        label={compact ? undefined : { value: ann.label, position: 'insideTopLeft', fontSize: 11, fill: ann.color ?? 'hsl(var(--color-muted-foreground))' }}
-      />
-    ));
-  };
-
   const useSimpleChart = !hasIncomplete;
 
   return (
@@ -256,7 +244,7 @@ export function TrendCumulativeChart({
                 />
                 {renderPrevLines()}
                 {renderCurrentLines()}
-                {renderAnnotationLines()}
+                {annotationLines}
               </LineChart>
             </ResponsiveContainer>
             {showOverlay && onDeleteAnnotation && onCreateAnnotation && (
@@ -300,7 +288,7 @@ export function TrendCumulativeChart({
                 />
                 {renderPrevLines()}
                 {renderCurrentLines()}
-                {renderAnnotationLines()}
+                {annotationLines}
               </LineChart>
             </ResponsiveContainer>
 
