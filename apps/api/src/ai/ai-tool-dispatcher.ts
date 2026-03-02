@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
+import { ZodError } from 'zod';
 import { AI_TOOLS } from './tools/ai-tool.interface';
 import type { AiTool } from './tools/ai-tool.interface';
 import { REDIS } from '../providers/redis.provider';
@@ -25,6 +26,18 @@ type AiToolDispatchChunk =
 
 function isAiSafeError(err: unknown): err is Error & { isSafeForAi: true } {
   return err instanceof Error && 'isSafeForAi' in err && (err as { isSafeForAi: unknown }).isSafeForAi === true;
+}
+
+function isZodError(err: unknown): err is ZodError {
+  return err instanceof ZodError;
+}
+
+function formatZodErrorForLlm(err: ZodError): string {
+  const lines = err.issues.map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+    return `  - ${path}: ${issue.message}`;
+  });
+  return `Invalid tool arguments:\n${lines.join('\n')}`;
 }
 
 @Injectable()
@@ -90,9 +103,14 @@ export class AiToolDispatcher {
         }
       } catch (err) {
         this.logger.warn({ err, tool: tc.function.name }, `Tool ${tc.function.name} failed`);
-        const safeMessage = isAiSafeError(err)
-          ? err.message
-          : 'The query failed. Please try a different approach.';
+        let safeMessage: string;
+        if (isAiSafeError(err)) {
+          safeMessage = err.message;
+        } else if (isZodError(err)) {
+          safeMessage = formatZodErrorForLlm(err);
+        } else {
+          safeMessage = 'The query failed. Please try a different approach.';
+        }
         toolResult = { error: safeMessage };
       }
 
