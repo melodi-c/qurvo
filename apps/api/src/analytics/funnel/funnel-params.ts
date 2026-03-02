@@ -24,7 +24,7 @@ export { toChTs };
  *   window         — conversion window in seconds (UInt64)
  *   num_steps      — total number of funnel steps (UInt64)
  *   all_event_names — all event names across steps and exclusions (Array(String))
- *   tz             — IANA timezone name (optional, only when tz != 'UTC')
+ *   tz             — IANA timezone name (always present; UTC used as default)
  *   sample_pct     — sampling percentage 0-100 (UInt8, only when sampling is active)
  *   breakdown_limit — max breakdown groups (optional)
  */
@@ -32,8 +32,8 @@ export interface FunnelChQueryParams {
   project_id: string;
   from: string;
   to: string;
-  /** IANA timezone name, present only when the query is timezone-aware (tz != 'UTC'). */
-  tz?: string;
+  /** IANA timezone name. Always present; UTC optimization uses `tz !== 'UTC'` check. */
+  tz: string;
   window: number;
   num_steps: number;
   all_event_names: string[];
@@ -50,7 +50,7 @@ export interface FunnelChQueryParams {
  * CompilerContext (e.g. cohort breakdown loop).
  */
 export function funnelTsParamExpr(paramName: 'from' | 'to', queryParams: FunnelChQueryParams): Expr {
-  const hasTz = !!queryParams.tz;
+  const hasTz = queryParams.tz !== 'UTC';
   return hasTz
     ? toDateTime64(namedParam(paramName, 'String', queryParams[paramName]), literal(3), namedParam('tz', 'String', queryParams.tz))
     : namedParam(paramName, 'DateTime64(3)', queryParams[paramName]);
@@ -63,7 +63,7 @@ export function buildBaseQueryParams(
     project_id: string;
     date_from: string;
     date_to: string;
-    timezone?: string;
+    timezone: string;
     conversion_window_days: number;
     conversion_window_value?: number;
     conversion_window_unit?: string;
@@ -72,16 +72,15 @@ export function buildBaseQueryParams(
   allEventNames: string[],
 ): FunnelChQueryParams {
   const windowSeconds = resolveWindowSeconds(params);
-  const hasTz = !!(params.timezone && params.timezone !== 'UTC');
   const queryParams: FunnelChQueryParams = {
     project_id: params.project_id,
     from: toChTs(params.date_from),
     to: toChTs(params.date_to, true),
+    tz: params.timezone,
     window: windowSeconds,
     num_steps: params.steps.length,
     all_event_names: allEventNames,
   };
-  if (hasTz) {queryParams.tz = params.timezone;}
   // Step event name params are no longer injected here — buildStepCondition()
   // uses namedParam() to embed them directly in the AST.
   return queryParams;

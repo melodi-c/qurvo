@@ -99,14 +99,14 @@ describe('queryStickiness — empty result', () => {
 
 describe('computeTotalPeriods', () => {
   it('computes day periods', () => {
-    expect(computeTotalPeriods(daysAgo(5), daysAgo(1), 'day')).toBe(5);
-    expect(computeTotalPeriods(daysAgo(0), daysAgo(0), 'day')).toBe(1);
+    expect(computeTotalPeriods(daysAgo(5), daysAgo(1), 'day', 'UTC')).toBe(5);
+    expect(computeTotalPeriods(daysAgo(0), daysAgo(0), 'day', 'UTC')).toBe(1);
   });
 
   it('computes week periods', () => {
     // daysAgo(14) to daysAgo(0) spans exactly 14 days (15 days inclusive).
     // This touches 3 ISO-week buckets: the start week, a full middle week, and the end week.
-    expect(computeTotalPeriods(daysAgo(14), daysAgo(0), 'week')).toBe(3);
+    expect(computeTotalPeriods(daysAgo(14), daysAgo(0), 'week', 'UTC')).toBe(3);
   });
 
   it('computes week periods correctly for mid-week boundaries (ISO week alignment)', () => {
@@ -114,20 +114,20 @@ describe('computeTotalPeriods', () => {
     // ISO week of 2024-01-04 (Thu): starts Mon 2024-01-01.
     // ISO week of 2024-01-10 (Wed): starts Mon 2024-01-08.
     // → 2 distinct ISO week buckets, not 1.
-    expect(computeTotalPeriods('2024-01-04', '2024-01-10', 'week')).toBe(2);
+    expect(computeTotalPeriods('2024-01-04', '2024-01-10', 'week', 'UTC')).toBe(2);
 
     // Monday 2024-01-01 to Sunday 2024-01-07 = same ISO week → 1 bucket.
-    expect(computeTotalPeriods('2024-01-01', '2024-01-07', 'week')).toBe(1);
+    expect(computeTotalPeriods('2024-01-01', '2024-01-07', 'week', 'UTC')).toBe(1);
 
     // Monday 2024-01-01 to Sunday 2024-01-14 → 2 ISO week buckets (week1 + week2).
-    expect(computeTotalPeriods('2024-01-01', '2024-01-14', 'week')).toBe(2);
+    expect(computeTotalPeriods('2024-01-01', '2024-01-14', 'week', 'UTC')).toBe(2);
   });
 
   it('computes month periods', () => {
     const now = new Date();
     const from = new Date(now);
     from.setUTCMonth(from.getUTCMonth() - 2);
-    expect(computeTotalPeriods(from.toISOString().slice(0, 10), now.toISOString().slice(0, 10), 'month')).toBe(3);
+    expect(computeTotalPeriods(from.toISOString().slice(0, 10), now.toISOString().slice(0, 10), 'month', 'UTC')).toBe(3);
   });
 
   it('week periods with timezone produce the same result as UTC for calendar-date boundaries', () => {
@@ -529,12 +529,10 @@ describe('queryStickiness — timezone-aware total_periods', () => {
     expect(result.total_periods).toBe(expected);
   });
 
-  it('total_periods with UTC timezone is identical to no-timezone', async () => {
+  it('total_periods with UTC timezone gives correct results', async () => {
     const from = '2024-01-01';
     const to = '2024-01-21'; // 3 ISO weeks (Mon 1, Mon 8, Mon 15)
     const withUtc = computeTotalPeriods(from, to, 'week', 'UTC');
-    const withNone = computeTotalPeriods(from, to, 'week');
-    expect(withUtc).toBe(withNone);
     expect(withUtc).toBe(3);
   });
 });
