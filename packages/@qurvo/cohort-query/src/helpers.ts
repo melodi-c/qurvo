@@ -387,7 +387,10 @@ export function applyOperator(
   value?: string,
   values?: string[],
 ): Expr {
-  const handler = OPERATOR_MAP[operator];
+  const handler = OPERATOR_MAP[operator as keyof typeof OPERATOR_MAP];
+  if (!handler) {
+    throw new Error(`Unhandled operator: ${operator}`);
+  }
   return handler({ expr, pk, value, values });
 }
 

@@ -7,6 +7,7 @@ import {
   ts,
   mondayOfWeekContaining,
   firstOfMonthContaining,
+  firstOfMonthAgo,
 } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
@@ -199,17 +200,21 @@ describe('queryRetention — week granularity', () => {
     const projectId = randomUUID();
     const personA = randomUUID();
 
-    // Place events on the Monday of each target week to guarantee they land
-    // within the truncated date window (retention query truncates date_to to
-    // the start of its ISO week, so events must be <= that Monday at 23:59:59).
-    const week1Monday = mondayOfWeekContaining(21); // Monday of 3 weeks ago
-    const week2Monday = mondayOfWeekContaining(14); // Monday of 2 weeks ago
-    const week3Event = ts(1, 12);                   // last day for return check
+    // Use wider date spacing to guarantee the return event is always exactly
+    // 2 ISO weeks after the second cohort Monday, regardless of the current
+    // day of the week.
+    //
+    // mondayOfWeekContaining(N) returns the Monday noon-UTC of the ISO week
+    // containing the date N days ago.  With gaps of 7 between 35/28/14 the
+    // three Mondays are always exactly 1 and 2 weeks apart.
+    const week1Monday = mondayOfWeekContaining(35); // Monday of 5 weeks ago
+    const week2Monday = mondayOfWeekContaining(28); // Monday of 4 weeks ago
+    const returnEvent = mondayOfWeekContaining(14); // Monday of 2 weeks ago (return)
 
     await insertTestEvents(ctx.ch, [
       buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: week1Monday }),
       buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: week2Monday }),
-      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: week3Event }),
+      buildEvent({ project_id: projectId, person_id: personA, distinct_id: 'a', event_name: 'login', timestamp: returnEvent }),
     ]);
 
     const result = await queryRetention(ctx.ch, {
@@ -218,24 +223,24 @@ describe('queryRetention — week granularity', () => {
       retention_type: 'recurring',
       granularity: 'week',
       periods: 2,
-      date_from: daysAgo(21),
-      date_to: daysAgo(7),
+      date_from: daysAgo(35),
+      date_to: daysAgo(21),
       timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('week');
-    // Events at Monday of week-3 and Monday of week-2 each fall in a distinct
+    // Events at week1Monday and week2Monday each fall in a distinct
     // ISO week bucket, producing exactly 2 cohorts.
     expect(result.cohorts.length).toBe(2);
     // Each week had exactly 1 person
     expect(result.cohorts[0].cohort_size).toBe(1);
     expect(result.cohorts[1].cohort_size).toBe(1);
-    // personA appeared in week1 (3 weeks ago), and returned in week2 (2 weeks ago).
+    // personA appeared in week1 and returned in week2.
     // dateDiff('week', week1Monday, week2Monday) = 1 → periods[1] = 1
     expect(result.cohorts[0].periods[1]).toBe(1);
-    // cohort[1] (week2, ~2 weeks ago): personA was active in this cohort week (periods[0] = 1).
-    // week3Event = ts(1, 12) which is 1 day ago. dateDiff('week', week2Monday, ts(1)) = 2.
-    // So periods[2] = 1 (not periods[1] — the event lands 2 weeks after the cohort week).
+    // cohort[1] (week2): personA was active (periods[0] = 1).
+    // returnEvent is exactly 2 ISO weeks after week2Monday.
+    // dateDiff('week', week2Monday, returnEvent) = 2 → periods[2] = 1
     expect(result.cohorts[1].periods[2]).toBe(1);
   });
 });
@@ -246,11 +251,12 @@ describe('queryRetention — month granularity', () => {
     const personA = randomUUID();
     const personB = randomUUID();
 
-    // Place events on the 1st of each target month to guarantee they land
-    // within the truncated date window (retention query truncates date_to to
-    // the 1st of its month, so events must be <= that 1st at 23:59:59).
-    const month1First = firstOfMonthContaining(60); // 1st of the month 60 days ago
-    const month2First = firstOfMonthContaining(30); // 1st of the month 30 days ago
+    // Use firstOfMonthAgo(N) which returns the 1st noon-UTC of the month that
+    // is exactly N calendar months before the current month.  Unlike
+    // firstOfMonthContaining(daysBack) this never aliases two different offsets
+    // to the same month, so the test is date-independent.
+    const month1First = firstOfMonthAgo(3); // 1st of 3 months ago
+    const month2First = firstOfMonthAgo(2); // 1st of 2 months ago
 
     // personA does event in both months; personB does event only in month1
     await insertTestEvents(ctx.ch, [
@@ -259,20 +265,23 @@ describe('queryRetention — month granularity', () => {
       buildEvent({ project_id: projectId, person_id: personB, distinct_id: 'b', event_name: 'login', timestamp: month1First }),
     ]);
 
+    // date_from/date_to must encompass both month buckets.
+    // firstOfMonthAgo(3) is always the 1st of the month, so truncateDate(month1First, 'month')
+    // equals month1First.  We pass month1First/month2First as date_from/date_to so that after
+    // truncation both months are included.
     const result = await queryRetention(ctx.ch, {
       project_id: projectId,
       target_event: 'login',
       retention_type: 'recurring',
       granularity: 'month',
       periods: 1,
-      date_from: daysAgo(60),
-      date_to: daysAgo(30),
+      date_from: month1First.slice(0, 10),
+      date_to: month2First.slice(0, 10),
       timezone: 'UTC',
     });
 
     expect(result.granularity).toBe('month');
-    // daysAgo(60) and daysAgo(30) are 30 days apart → always in different months.
-    // Events placed on the 1st of each month are always within the truncated window.
+    // Two events on the 1st of two consecutive-ish months → 2 cohorts.
     expect(result.cohorts.length).toBe(2);
 
     // First cohort (older month): personA and personB (size=2)

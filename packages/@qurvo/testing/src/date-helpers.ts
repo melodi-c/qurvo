@@ -52,3 +52,18 @@ export function firstOfMonthContaining(daysBack: number): string {
   d.setUTCDate(d.getUTCDate() - daysBack);
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 12, 0, 0, 0)).toISOString();
 }
+
+/**
+ * Returns an ISO timestamp for the 1st (noon UTC) of the month that is N
+ * calendar months before the current month.
+ *
+ * Unlike `firstOfMonthContaining(daysBack)` which converts a day-offset to a
+ * month and can alias two different day-offsets to the same month,
+ * `firstOfMonthAgo(n)` always returns the 1st of a unique month for each
+ * distinct `n`.  This makes it safe for tests that need events in distinct
+ * monthly buckets regardless of the current date.
+ */
+export function firstOfMonthAgo(monthsBack: number): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 1, 12, 0, 0, 0)).toISOString();
+}
