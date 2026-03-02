@@ -40,6 +40,8 @@ export default function DashboardBuilderPage() {
         dashboard.id,
         dashboard.name,
         dashboard.widgets || [],
+        dashboard.date_from,
+        dashboard.date_to,
       );
     }
   // Re-init when fresh server data arrives (e.g. after widget editor saves),
@@ -67,7 +69,7 @@ export default function DashboardBuilderPage() {
 
   const handleSave = async () => {
     // Read latest state imperatively — avoids subscribing to frequent layout/widget updates
-    const { localWidgets, localLayout, localName, widgetMeta } = useDashboardStore.getState();
+    const { localWidgets, localLayout, localName, widgetMeta, filterOverrides } = useDashboardStore.getState();
 
     // Merge layout positions back into widget objects, include text content
     const mergedWidgets = localWidgets.map((widget) => {
@@ -87,6 +89,8 @@ export default function DashboardBuilderPage() {
         name: localName,
         widgets: mergedWidgets,
         serverWidgets: dashboard?.widgets || [],
+        dateFrom: filterOverrides.dateFrom,
+        dateTo: filterOverrides.dateTo,
       });
       exitEditModeAfterSave();
     } catch (err) {
