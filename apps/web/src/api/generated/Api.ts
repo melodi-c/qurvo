@@ -34,6 +34,8 @@ export type Granularity = "day" | "week" | "month";
 
 export type RetentionType = "first_time" | "recurring";
 
+export type AggregateType = "world_map" | "calendar_heatmap";
+
 export type TrendMetric =
   | "total_events"
   | "unique_users"
@@ -401,6 +403,35 @@ export interface TrendResponse {
   cached_at: string;
   from_cache: boolean;
   data: TrendResult;
+}
+
+export interface TrendAggregateSeries {
+  event_name: string;
+  label: string;
+  filters?: StepFilter[];
+}
+
+export interface WorldMapRow {
+  country: string;
+  value: number;
+}
+
+export interface HeatmapRow {
+  hour_of_day: number;
+  day_of_week: number;
+  value: number;
+}
+
+export interface TrendAggregateResult {
+  type: AggregateType;
+  world_map?: WorldMapRow[];
+  heatmap?: HeatmapRow[];
+}
+
+export interface TrendAggregateResponse {
+  cached_at: string;
+  from_cache: boolean;
+  data: TrendAggregateResult;
 }
 
 export interface RetentionCohort {
@@ -1833,6 +1864,23 @@ export type TrendControllerGetTrendParams1BreakdownTypeEnum =
   | "property"
   | "cohort";
 
+export interface TrendControllerGetTrendAggregateParams {
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
+  cohort_ids?: string[];
+  aggregate_type: AggregateType;
+  series: TrendAggregateSeries[];
+  /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
+}
+
 export interface RetentionControllerGetRetentionParams {
   /**
    * @maxItems 20
@@ -3110,6 +3158,27 @@ export class Api<
     ) =>
       this.request<TrendResponse, any>({
         path: `/api/analytics/trend`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Analytics
+     * @name TrendControllerGetTrendAggregate
+     * @request GET:/api/analytics/trend/aggregate
+     * @secure
+     */
+    trendControllerGetTrendAggregate: (
+      query: TrendControllerGetTrendAggregateParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<TrendAggregateResponse, any>({
+        path: `/api/analytics/trend/aggregate`,
         method: "GET",
         query: query,
         secure: true,

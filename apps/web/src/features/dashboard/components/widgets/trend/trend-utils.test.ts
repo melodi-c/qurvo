@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { buildDataPoints, isIncompleteBucket, snapAnnotationDateToBucket } from './trend-utils';
+import { buildDataPoints, buildCumulativeDataPoints, isIncompleteBucket, snapAnnotationDateToBucket } from './trend-utils';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -326,5 +326,118 @@ describe('snapAnnotationDateToBucket', () => {
   it('snaps to Monday for week granularity — date is Saturday', () => {
     // 2026-02-28 is Saturday → Monday is 2026-02-23
     expect(snapAnnotationDateToBucket('2026-02-28', 'week')).toBe('2026-02-23 00:00:00');
+  });
+});
+
+describe('buildCumulativeDataPoints — single series', () => {
+  it('accumulates values across buckets', () => {
+    const series = [
+      {
+        label: 'Page View',
+        data: [
+          { bucket: '2026-02-20', value: 10 },
+          { bucket: '2026-02-21', value: 20 },
+          { bucket: '2026-02-22', value: 5 },
+        ],
+      },
+    ];
+
+    const result = buildCumulativeDataPoints(series);
+
+    expect(result).toEqual([
+      { bucket: '2026-02-20', 'Page View': 10 },
+      { bucket: '2026-02-21', 'Page View': 30 },
+      { bucket: '2026-02-22', 'Page View': 35 },
+    ]);
+  });
+
+  it('returns empty array for empty series', () => {
+    const result = buildCumulativeDataPoints([]);
+    expect(result).toEqual([]);
+  });
+});
+
+describe('buildCumulativeDataPoints — multiple series', () => {
+  it('accumulates each series independently', () => {
+    const series = [
+      {
+        label: 'A',
+        data: [
+          { bucket: '2026-02-20', value: 10 },
+          { bucket: '2026-02-21', value: 20 },
+        ],
+      },
+      {
+        label: 'B',
+        data: [
+          { bucket: '2026-02-20', value: 3 },
+          { bucket: '2026-02-21', value: 7 },
+        ],
+      },
+    ];
+
+    const result = buildCumulativeDataPoints(series);
+
+    expect(result).toEqual([
+      { bucket: '2026-02-20', A: 10, B: 3 },
+      { bucket: '2026-02-21', A: 30, B: 10 },
+    ]);
+  });
+
+  it('fills missing buckets with zero (no increment)', () => {
+    const series = [
+      {
+        label: 'A',
+        data: [{ bucket: '2026-02-20', value: 5 }],
+      },
+      {
+        label: 'B',
+        data: [
+          { bucket: '2026-02-20', value: 3 },
+          { bucket: '2026-02-21', value: 7 },
+        ],
+      },
+    ];
+
+    const result = buildCumulativeDataPoints(series);
+
+    expect(result).toHaveLength(2);
+    // A has no data for bucket 2, cumulative stays at 5
+    expect(result[0]).toMatchObject({ bucket: '2026-02-20', A: 5, B: 3 });
+    expect(result[1]).toMatchObject({ bucket: '2026-02-21', A: 5, B: 10 });
+  });
+});
+
+describe('buildCumulativeDataPoints — compare mode', () => {
+  it('accumulates previous-period series independently', () => {
+    const series = [
+      {
+        label: 'Page View',
+        data: [
+          { bucket: '2026-02-20', value: 10 },
+          { bucket: '2026-02-21', value: 20 },
+          { bucket: '2026-02-22', value: 5 },
+        ],
+      },
+    ];
+
+    const previousSeries = [
+      {
+        label: 'Page View',
+        data: [
+          { bucket: '2026-02-13', value: 8 },
+          { bucket: '2026-02-14', value: 12 },
+          { bucket: '2026-02-15', value: 3 },
+        ],
+      },
+    ];
+
+    const result = buildCumulativeDataPoints(series, previousSeries);
+
+    expect(result).toEqual([
+      { bucket: '2026-02-20', 'Page View': 10, 'prev_Page View': 8 },
+      { bucket: '2026-02-21', 'Page View': 30, 'prev_Page View': 20 },
+      { bucket: '2026-02-22', 'Page View': 35, 'prev_Page View': 23 },
+    ]);
   });
 });
