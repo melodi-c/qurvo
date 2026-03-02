@@ -13,6 +13,7 @@ export default createTranslations({
     errorUnknownSeries: 'Unknown series letter',
     errorNoSeries: 'Expression must reference at least one series',
     duplicateFormula: 'Duplicate formula',
+    removeFormula: 'Remove formula',
     copyLabel: '(copy)',
   },
   ru: {
@@ -27,6 +28,7 @@ export default createTranslations({
     errorUnknownSeries: 'Неизвестная буква серии',
     errorNoSeries: 'Выражение должно ссылаться хотя бы на одну серию',
     duplicateFormula: 'Дублировать формулу',
+    removeFormula: 'Удалить формулу',
     copyLabel: '(копия)',
   },
 });
