@@ -8,6 +8,7 @@ import { queryRetention } from './retention/retention.query';
 import { queryLifecycle } from './lifecycle/lifecycle.query';
 import { queryStickiness } from './stickiness/stickiness.query';
 import { queryPaths } from './paths/paths.query';
+import { queryTrendAggregate } from './trend/trend-aggregate.query';
 
 export const TREND_SERVICE = Symbol('TREND_SERVICE');
 export const FUNNEL_SERVICE = Symbol('FUNNEL_SERVICE');
@@ -16,6 +17,7 @@ export const RETENTION_SERVICE = Symbol('RETENTION_SERVICE');
 export const LIFECYCLE_SERVICE = Symbol('LIFECYCLE_SERVICE');
 export const STICKINESS_SERVICE = Symbol('STICKINESS_SERVICE');
 export const PATHS_SERVICE = Symbol('PATHS_SERVICE');
+export const TREND_AGGREGATE_SERVICE = Symbol('TREND_AGGREGATE_SERVICE');
 
 const trendProvider = createAnalyticsQueryProvider(TREND_SERVICE, 'trend', queryTrend);
 const funnelProvider = createAnalyticsQueryProvider(FUNNEL_SERVICE, 'funnel', queryFunnel);
@@ -24,6 +26,7 @@ const retentionProvider = createAnalyticsQueryProvider(RETENTION_SERVICE, 'reten
 const lifecycleProvider = createAnalyticsQueryProvider(LIFECYCLE_SERVICE, 'lifecycle', queryLifecycle);
 const stickinessProvider = createAnalyticsQueryProvider(STICKINESS_SERVICE, 'stickiness', queryStickiness);
 const pathsProvider = createAnalyticsQueryProvider(PATHS_SERVICE, 'paths', queryPaths);
+const trendAggregateProvider = createAnalyticsQueryProvider(TREND_AGGREGATE_SERVICE, 'trend-agg', queryTrendAggregate);
 
 @Module({
   imports: [forwardRef(() => CohortsModule)],
@@ -36,6 +39,7 @@ const pathsProvider = createAnalyticsQueryProvider(PATHS_SERVICE, 'paths', query
     lifecycleProvider,
     stickinessProvider,
     pathsProvider,
+    trendAggregateProvider,
   ],
   exports: [
     AnalyticsCacheService,
@@ -46,6 +50,7 @@ const pathsProvider = createAnalyticsQueryProvider(PATHS_SERVICE, 'paths', query
     LIFECYCLE_SERVICE,
     STICKINESS_SERVICE,
     PATHS_SERVICE,
+    TREND_AGGREGATE_SERVICE,
   ],
 })
 export class AnalyticsModule {}

@@ -23,7 +23,7 @@ import { SessionAuthGuard } from '../../api/guards/session-auth.guard';
 import { ProjectMemberGuard } from '../../api/guards/project-member.guard';
 import { TrendController } from '../../api/controllers/trend.controller';
 import { ProjectsService } from '../../projects/projects.service';
-import { TREND_SERVICE } from '../../analytics/analytics.module';
+import { TREND_SERVICE, TREND_AGGREGATE_SERVICE } from '../../analytics/analytics.module';
 import { createHttpFilter } from '../../api/filters/create-http-filter';
 import { AppNotFoundException } from '../../exceptions/app-not-found.exception';
 import { AppForbiddenException } from '../../exceptions/app-forbidden.exception';
@@ -130,8 +130,9 @@ beforeAll(async () => {
       ProjectsService,
       { provide: APP_GUARD, useClass: SessionAuthGuard },
       ProjectMemberGuard,
-      // Mock TREND_SERVICE — validation happens before it is invoked
+      // Mock TREND_SERVICE / TREND_AGGREGATE_SERVICE — validation happens before they are invoked
       { provide: TREND_SERVICE, useValue: { query: async () => ({ data: {}, cached_at: null, from_cache: false }) } },
+      { provide: TREND_AGGREGATE_SERVICE, useValue: { query: async () => ({ data: {}, cached_at: null, from_cache: false }) } },
       { provide: APP_FILTER, useClass: NotFoundFilter },
       { provide: APP_FILTER, useClass: ForbiddenFilter },
       { provide: APP_FILTER, useClass: UnauthorizedFilter },
