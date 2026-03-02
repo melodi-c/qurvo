@@ -19,6 +19,7 @@ export const ANNOTATION_1: Annotation = {
   label: 'Marketing Campaign',
   description: 'Launched Q1 paid campaign across Google and social.',
   color: 'hsl(200 80% 60%)',
+  scope: 'project',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -32,6 +33,7 @@ export const ANNOTATION_2: Annotation = {
   label: 'New Feature Launch',
   description: 'Launched dark mode and improved onboarding flow.',
   color: 'hsl(120 60% 50%)',
+  scope: 'project',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
