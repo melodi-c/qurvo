@@ -225,3 +225,28 @@ export function buildPriorPersonsWhere(
   );
 }
 
+
+/**
+ * WHERE clause for the "prior persons" subquery used by first_matching_event metric.
+ *
+ * Similar to buildPriorPersonsWhere, but also applies the per-series property
+ * filters to the exclusion subquery. The question is:
+ * "did this person ever trigger this event_name **with these specific filters**
+ * before dateFrom?"
+ *
+ * When filters is empty, behaviour is identical to buildPriorPersonsWhere.
+ */
+export function buildPriorPersonsWhereWithFilters(
+  projectId: string,
+  eventName: string,
+  dateFrom: string,
+  tz: string,
+  filters: PropertyFilter[],
+): Expr {
+  return and(
+    projectIs(projectId),
+    eventIs(eventName),
+    lt(col('timestamp'), tsParam(dateFrom, tz)),
+    filters.length > 0 ? propertyFilters(filters) : undefined,
+  );
+}

@@ -37,7 +37,7 @@ import {
   type PropertyFilter,
   type TrendMetric,
 } from '../query-helpers';
-import { buildPriorPersonsWhere } from '../query-helpers/filters';
+import { buildPriorPersonsWhere, buildPriorPersonsWhereWithFilters } from '../query-helpers/filters';
 
 // Public types
 
@@ -108,6 +108,7 @@ function rowToValue(metric: TrendMetric, row: RawTrendRow): number {
   if (metric === 'total_events') { return Number(row.raw_value); }
   if (metric === 'unique_users') { return Number(row.uniq_value); }
   if (metric === 'first_time_users') { return Number(row.uniq_value); }
+  if (metric === 'first_matching_event') { return Number(row.uniq_value); }
   const u = Number(row.uniq_value);
   return u > 0 ? Math.round((Number(row.raw_value) / u) * 100) / 100 : 0;
 }
@@ -339,6 +340,78 @@ function buildFirstTimeSeriesArm(
     .build();
 }
 
+// First-matching-event arm builder
+
+/**
+ * Build a SELECT arm for first_matching_event metric.
+ *
+ * Similar to buildFirstTimeSeriesArm, but the prior-persons subquery also
+ * applies the per-series property filters. The question changes from
+ * "did this person ever do event X before dateFrom?" to
+ * "did this person ever do event X **with these filters** before dateFrom?"
+ *
+ * When the series has no filters, behaviour is identical to first_time_users.
+ */
+function buildFirstMatchingSeriesArm(
+  idx: number,
+  s: TrendSeries,
+  params: TrendQueryParams,
+  dateFrom: string,
+  dateTo: string,
+  bucketExpr: Expr,
+  breakdownExpr?: Expr,
+) {
+  // Subquery: persons who had matching events (event_name + series filters) before dateFrom
+  const priorPersonsSub = select(resolvedPerson())
+    .from('events')
+    .where(buildPriorPersonsWhereWithFilters(
+      params.project_id, s.event_name, dateFrom, params.timezone, s.filters ?? [],
+    ))
+    .build();
+
+  // Inner query: find first_ts for each person in the analysis window
+  const personExpr = resolvedPerson();
+  const innerCols: (Expr | undefined)[] = [
+    personExpr.as('person'),
+    min(col('timestamp')).as('first_ts'),
+  ];
+  if (breakdownExpr) {
+    // Get the breakdown value from the earliest event
+    innerCols.push(argMin(breakdownExpr, col('timestamp')).as('first_bv'));
+  }
+
+  const innerQuery = select(...innerCols)
+    .from('events')
+    .where(
+      seriesWhere(s, params, dateFrom, dateTo),
+      notInSubquery(resolvedPerson(), priorPersonsSub),
+    )
+    .groupBy(col('person'))
+    .build();
+
+  // Outer query: bucket by first_ts, count persons
+  const firstTsBucket = bucket(params.granularity, 'first_ts', params.timezone);
+
+  const outerCols: (Expr | undefined)[] = [
+    literal(idx).as('series_idx'),
+    breakdownExpr ? col('first_bv').as('breakdown_value') : undefined,
+    alias(firstTsBucket, 'bucket'),
+    count().as('raw_value'),
+    count().as('uniq_value'),
+    func('toFloat64', count()).as('agg_value'),
+  ];
+
+  const groupByCols: (Expr | undefined)[] = [
+    breakdownExpr ? col('breakdown_value') : undefined,
+    col('bucket'),
+  ];
+
+  return select(...outerCols)
+    .from(innerQuery)
+    .groupBy(...groupByCols)
+    .build();
+}
+
 // Core query executor
 
 /**
@@ -365,9 +438,9 @@ async function executeTrendQuery(
 
   // Validate: first_time_users + cohort breakdown is not supported
   if (hasCohortBreakdown) {
-    const hasFirstTimeUsers = params.series.some((s) => s.metric === 'first_time_users');
+    const hasFirstTimeUsers = params.series.some((s) => s.metric === 'first_time_users' || s.metric === 'first_matching_event');
     if (hasFirstTimeUsers) {
-      throw new AppBadRequestException('first_time_users metric is not supported with cohort breakdown');
+      throw new AppBadRequestException('first_time_users / first_matching_event metric is not supported with cohort breakdown');
     }
   }
 
@@ -423,7 +496,9 @@ async function executeTrendQuery(
     const arms = params.series.map((s, idx) =>
       s.metric === 'first_time_users'
         ? buildFirstTimeSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr)
-        : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr),
+        : s.metric === 'first_matching_event'
+          ? buildFirstMatchingSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr)
+          : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr),
     );
 
     const query = select(
@@ -445,7 +520,9 @@ async function executeTrendQuery(
   const arms = params.series.map((s, idx) =>
     s.metric === 'first_time_users'
       ? buildFirstTimeSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr)
-      : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr),
+      : s.metric === 'first_matching_event'
+        ? buildFirstMatchingSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr)
+        : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr),
   );
 
   // Build the outer query once, then clone for the two sub-paths.

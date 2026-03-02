@@ -25,6 +25,7 @@ export {
   resolvePropertyExpr,
   resolveNumericPropertyExpr,
   DIRECT_COLUMNS,
+  buildPriorPersonsWhereWithFilters,
 } from './filters';
 export type {
   FilterOperator,

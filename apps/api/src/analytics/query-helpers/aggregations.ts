@@ -11,7 +11,8 @@ export type TrendMetric =
   | 'property_avg'
   | 'property_min'
   | 'property_max'
-  | 'first_time_users';
+  | 'first_time_users'
+  | 'first_matching_event';
 
 /**
  * Returns the standard pair of metric columns used across analytics queries:
@@ -61,7 +62,8 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
       return max(resolveNumericPropertyExpr(metricProperty));
     }
     case 'first_time_users':
-      // Fallback count(); real logic is in buildFirstTimeSeriesArm.
+    case 'first_matching_event':
+      // Fallback count(); real logic is in buildFirstTimeSeriesArm / buildFirstMatchingSeriesArm.
       return count();
     default: {
       const _exhaustive: never = metric;
