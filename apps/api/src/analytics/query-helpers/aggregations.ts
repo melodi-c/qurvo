@@ -1,12 +1,7 @@
 import type { Expr } from '@qurvo/ch-query';
-import { avg, count, div, func, max, min, sum, uniqExact } from '@qurvo/ch-query';
+import { avg, count, div, max, min, sum, uniqExact } from '@qurvo/ch-query';
 import { resolvedPerson } from '@qurvo/cohort-query';
 import { resolveNumericPropertyExpr } from './filters';
-
-/** Cast to Float64 so all UNION ALL arms have compatible agg_value type. */
-function toFloat64(expr: Expr): Expr {
-  return func('toFloat64', expr);
-}
 
 export type TrendMetric =
   | 'total_events'
@@ -44,9 +39,9 @@ export function baseMetricColumns(): Expr[] {
 export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
   switch (metric) {
     case 'total_events':
-      return toFloat64(count());
+      return count();
     case 'unique_users':
-      return toFloat64(uniqExact(resolvedPerson()));
+      return uniqExact(resolvedPerson());
     case 'events_per_user':
       return div(count(), uniqExact(resolvedPerson()));
     case 'property_sum': {
@@ -67,7 +62,7 @@ export function aggColumn(metric: TrendMetric, metricProperty?: string): Expr {
     }
     case 'first_time_users':
       // Fallback count(); real logic is in buildFirstTimeSeriesArm.
-      return toFloat64(count());
+      return count();
     default: {
       const _exhaustive: never = metric;
       throw new Error(`Unhandled metric: ${_exhaustive}`);

@@ -229,7 +229,9 @@ function buildAggColumnExpr(metric: TrendMetric, metricProperty?: string) {
   if (metric.startsWith('property_') && !metricProperty) {
     throw new AppBadRequestException('metric_property is required for property aggregation metrics');
   }
-  return alias(aggColumn(metric, metricProperty), 'agg_value');
+  // Cast to Float64 so all UNION ALL arms have compatible agg_value type
+  // (e.g. total_events=UInt64 vs property_sum=Float64).
+  return alias(func('toFloat64', aggColumn(metric, metricProperty)), 'agg_value');
 }
 
 // Series arm builder
