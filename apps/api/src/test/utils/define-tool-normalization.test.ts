@@ -194,4 +194,107 @@ describe('defineTool $ref normalization', () => {
     const valField = (leafABranch!.properties as Record<string, Record<string, unknown>>).val;
     expect(valField).not.toHaveProperty('anyOf');
   });
+
+  it('resolves shared .nullish() schema in discriminatedUnion without empty {} (#920)', () => {
+    // Reproduces the exact create_insight pattern: propertyFilterSchema
+    // with `value: z.string().nullish()` used in 2+ discriminatedUnion branches.
+    const propertyFilter = z.object({
+      property: z.string(),
+      operator: z.enum(['eq', 'neq', 'contains']),
+      value: z.string().nullish(),
+    });
+
+    const trendParams = z.object({
+      type: z.literal('trend'),
+      series: z.array(z.object({
+        filters: z.array(propertyFilter).nullish(),
+      })),
+    });
+
+    const funnelParams = z.object({
+      type: z.literal('funnel'),
+      steps: z.array(z.object({
+        filters: z.array(propertyFilter).nullish(),
+      })),
+    });
+
+    const schema = z.object({
+      query_params: z.discriminatedUnion('type', [trendParams, funnelParams]),
+    });
+
+    // Must not throw — previously threw "empty schema {} — missing type"
+    const tool = defineTool({
+      name: 'create_insight_repro',
+      description: 'Repro for #920',
+      schema,
+    });
+
+    const params = tool.definition.function.parameters as Record<string, unknown>;
+
+    // No $ref or definitions
+    const refs = collectRefs(params);
+    expect(refs).toEqual([]);
+    expect(params).not.toHaveProperty('definitions');
+
+    // No empty {} anywhere in the output
+    function hasEmptySchema(node: unknown, path = '$'): string[] {
+      const found: string[] = [];
+      if (!node || typeof node !== 'object') {return found;}
+      if (Array.isArray(node)) {
+        for (let i = 0; i < node.length; i++) {
+          found.push(...hasEmptySchema(node[i], `${path}[${i}]`));
+        }
+        return found;
+      }
+      const obj = node as Record<string, unknown>;
+      if (obj.properties && typeof obj.properties === 'object') {
+        for (const [key, val] of Object.entries(obj.properties as Record<string, unknown>)) {
+          if (val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val as Record<string, unknown>).length === 0) {
+            found.push(`${path}.properties.${key}`);
+          }
+        }
+      }
+      for (const [key, val] of Object.entries(obj)) {
+        found.push(...hasEmptySchema(val, `${path}.${key}`));
+      }
+      return found;
+    }
+
+    const emptySchemas = hasEmptySchema(params);
+    expect(emptySchemas).toEqual([]);
+
+    // Verify the funnel branch's value field has type: "string"
+    const queryParams = (params.properties as Record<string, unknown>).query_params as Record<string, unknown>;
+    const funnelBranch = (queryParams.anyOf as Record<string, unknown>[]).find((b) => {
+      const props = (b as Record<string, unknown>).properties as Record<string, unknown>;
+      return (props?.type as Record<string, unknown>)?.const === 'funnel';
+    }) as Record<string, unknown>;
+    expect(funnelBranch).toBeDefined();
+
+    // Navigate to filters items value
+    const stepsItems = ((funnelBranch.properties as Record<string, unknown>).steps as Record<string, unknown>).items as Record<string, unknown>;
+    const filtersSchema = (stepsItems.properties as Record<string, unknown>).filters as Record<string, unknown>;
+    // filters is .nullish() — may be anyOf or direct type
+    let filterItemsSchema: Record<string, unknown>;
+    if (filtersSchema.anyOf) {
+      const arrayBranch = (filtersSchema.anyOf as Record<string, unknown>[]).find((b) => b.type === 'array');
+      filterItemsSchema = (arrayBranch as Record<string, unknown>).items as Record<string, unknown>;
+    } else {
+      filterItemsSchema = (filtersSchema as Record<string, unknown>).items as Record<string, unknown>;
+    }
+
+    const valueField = (filterItemsSchema.properties as Record<string, unknown>).value as Record<string, unknown>;
+    // Must have type: "string" (not empty {})
+    expect(valueField).toBeDefined();
+    expect(Object.keys(valueField).length).toBeGreaterThan(0);
+    // The value may be { type: "string", nullable: true } or just { type: "string" }
+    if (valueField.type) {
+      expect(valueField.type).toBe('string');
+    } else if (valueField.anyOf) {
+      // anyOf with string + null branches
+      const anyOfBranches = valueField.anyOf as Record<string, unknown>[];
+      const stringBranch = anyOfBranches.find((b) => b.type === 'string');
+      expect(stringBranch).toBeDefined();
+    }
+  });
 });

@@ -43,10 +43,11 @@ export interface AiTool {
 export function normalizeJsonSchema(
   schema: Record<string, unknown>,
 ): Record<string, unknown> {
-  const defs = (schema.definitions || schema['$defs'] || {}) as Record<
-    string,
-    unknown
-  >;
+  // Deep-copy definitions to avoid mutating the original schema (the
+  // pre-pass below may replace self-referencing definitions in-place).
+  const defs = JSON.parse(
+    JSON.stringify(schema.definitions || schema['$defs'] || {}),
+  ) as Record<string, unknown>;
 
   function resolveRef(ref: string): unknown {
     return defs[ref.replace('#/definitions/', '').replace('#/$defs/', '')];
@@ -94,43 +95,63 @@ export function normalizeJsonSchema(
   }
 
   /**
-   * Find the inline version of a self-referencing definition by:
-   * 1. Finding a parent definition that has property.$ref → targetRef
-   * 2. Finding the inline (non-$ref) version of that parent in the schema body
-   * 3. Returning that parent's corresponding property (the inline type)
+   * Find the inline version of a self-referencing definition by searching
+   * for objects that have `propName: { $ref: targetRef }` in one occurrence
+   * and `propName: { <inline> }` in another. Returns the inline version.
+   *
+   * Searches both definitions and the schema body.
    */
   function findInlineForSelfRef(
     root: Record<string, unknown>,
     targetRefs: string[],
     definitions: Record<string, unknown>,
   ): Record<string, unknown> | undefined {
-    // Step 1: find parent definition and property name
-    let parentDefKey: string | undefined;
-    let propName: string | undefined;
+    // Collect all objects with properties that reference targetRefs.
+    // Then find a sibling object with the same property set that has
+    // the property inlined (not via $ref).
+    type ParentInfo = { propNames: string[]; propName: string };
+    const parentInfos: ParentInfo[] = [];
 
-    for (const [dk, dv] of Object.entries(definitions)) {
-      if (!dv || typeof dv !== 'object') {continue;}
-      const d = dv as Record<string, unknown>;
-      if (!d.properties || typeof d.properties !== 'object') {continue;}
-      for (const [pn, pv] of Object.entries(d.properties as Record<string, unknown>)) {
-        if (!pv || typeof pv !== 'object') {continue;}
-        const p = pv as Record<string, unknown>;
-        if (targetRefs.includes(p['$ref'] as string)) {
-          parentDefKey = dk;
-          propName = pn;
-          break;
+    // Search both definitions and schema body for objects referencing target
+    function collectParents(node: unknown): void {
+      if (!node || typeof node !== 'object') {return;}
+      if (Array.isArray(node)) {
+        for (const item of node) {collectParents(item);}
+        return;
+      }
+      const obj = node as Record<string, unknown>;
+      if (obj.properties && typeof obj.properties === 'object') {
+        const props = obj.properties as Record<string, unknown>;
+        for (const [pn, pv] of Object.entries(props)) {
+          if (!pv || typeof pv !== 'object' || Array.isArray(pv)) {continue;}
+          const p = pv as Record<string, unknown>;
+          if (targetRefs.includes(p['$ref'] as string)) {
+            parentInfos.push({
+              propNames: Object.keys(props),
+              propName: pn,
+            });
+            return; // One match per object is enough
+          }
         }
       }
-      if (parentDefKey) {break;}
+      for (const val of Object.values(obj)) {
+        collectParents(val);
+      }
     }
 
-    if (!parentDefKey || !propName) {return undefined;}
+    // Collect from definitions
+    for (const dv of Object.values(definitions)) {
+      collectParents(dv);
+    }
+    // Collect from schema body (excluding definitions)
+    for (const [key, val] of Object.entries(root)) {
+      if (key === 'definitions' || key === '$defs') {continue;}
+      collectParents(val);
+    }
 
-    // Step 2: find inline occurrence of parent object in schema body
-    const parentDef = definitions[parentDefKey] as Record<string, unknown>;
-    const parentProps = parentDef.properties as Record<string, unknown>;
-    const parentPropNames = Object.keys(parentProps);
+    if (parentInfos.length === 0) {return undefined;}
 
+    // Search schema body for an inline occurrence matching any parent
     function searchInline(node: unknown): Record<string, unknown> | undefined {
       if (!node || typeof node !== 'object') {return undefined;}
       if (Array.isArray(node)) {
@@ -141,26 +162,27 @@ export function normalizeJsonSchema(
         return undefined;
       }
       const obj = node as Record<string, unknown>;
-      // Check if this object matches the parent structure
       if (obj.properties && typeof obj.properties === 'object') {
         const props = obj.properties as Record<string, unknown>;
         const keys = Object.keys(props);
-        if (
-          keys.length === parentPropNames.length &&
-          parentPropNames.every((k) => k in props)
-        ) {
-          const targetProp = props[propName!];
+        for (const info of parentInfos) {
           if (
-            targetProp &&
-            typeof targetProp === 'object' &&
-            !Array.isArray(targetProp) &&
-            !(targetProp as Record<string, unknown>)['$ref']
+            keys.length === info.propNames.length &&
+            info.propNames.every((k) => k in props)
           ) {
-            return targetProp as Record<string, unknown>;
+            const targetProp = props[info.propName];
+            if (
+              targetProp &&
+              typeof targetProp === 'object' &&
+              !Array.isArray(targetProp) &&
+              !(targetProp as Record<string, unknown>)['$ref']
+            ) {
+              return targetProp as Record<string, unknown>;
+            }
           }
         }
       }
-      // Recurse (skip definitions)
+      // Recurse (skip definitions — we search body only)
       for (const [key, val] of Object.entries(obj)) {
         if (key === 'definitions' || key === '$defs') {continue;}
         const found = searchInline(val);
