@@ -49,7 +49,7 @@ export default function PublicDashboardPage() {
 
   const { data: dashboard, isLoading, isError, error } = useQuery({
     queryKey: ['public-dashboard', shareToken],
-    queryFn: () => apiClient.public.publicControllerGetPublicDashboard({ shareToken: shareToken! }),
+    queryFn: () => apiClient.api.publicControllerGetPublicDashboard({ shareToken: shareToken! }),
     enabled: Boolean(shareToken),
     retry: false,
   });

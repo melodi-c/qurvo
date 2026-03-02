@@ -17,7 +17,7 @@ export default function PublicInsightPage() {
 
   const { data: insight, isLoading, isError, error } = useQuery({
     queryKey: ['public-insight', shareToken],
-    queryFn: () => apiClient.public.publicControllerGetPublicInsight({ shareToken: shareToken! }),
+    queryFn: () => apiClient.api.publicControllerGetPublicInsight({ shareToken: shareToken! }),
     enabled: Boolean(shareToken),
     retry: false,
   });

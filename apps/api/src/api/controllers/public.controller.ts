@@ -9,7 +9,7 @@ import { InsightDto } from '../dto/insights.dto';
 
 @ApiTags('Public')
 @Public()
-@Controller('public')
+@Controller('api/public')
 export class PublicController {
   constructor(
     private readonly shareTokensService: ShareTokensService,
