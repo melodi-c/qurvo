@@ -526,7 +526,7 @@ export function defineTool<T extends z.ZodType>(config: {
   // at first chat request. This prevents the recurring "missing field `type`"
   // regressions (issues #492, #592, #689, #836).
   if (normalizedParams) {
-    assertDeepSeekCompatible(normalizedParams as Record<string, unknown>, config.name);
+    assertDeepSeekCompatible(normalizedParams, config.name);
   }
 
   const def: ChatCompletionTool = {

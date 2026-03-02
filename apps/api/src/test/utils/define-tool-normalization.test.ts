@@ -266,7 +266,7 @@ describe('defineTool $ref normalization', () => {
     // Verify the funnel branch's value field has type: "string"
     const queryParams = (params.properties as Record<string, unknown>).query_params as Record<string, unknown>;
     const funnelBranch = (queryParams.anyOf as Record<string, unknown>[]).find((b) => {
-      const props = (b as Record<string, unknown>).properties as Record<string, unknown>;
+      const props = (b).properties as Record<string, unknown>;
       return (props?.type as Record<string, unknown>)?.const === 'funnel';
     }) as Record<string, unknown>;
     expect(funnelBranch).toBeDefined();
@@ -280,7 +280,7 @@ describe('defineTool $ref normalization', () => {
       const arrayBranch = (filtersSchema.anyOf as Record<string, unknown>[]).find((b) => b.type === 'array');
       filterItemsSchema = (arrayBranch as Record<string, unknown>).items as Record<string, unknown>;
     } else {
-      filterItemsSchema = (filtersSchema as Record<string, unknown>).items as Record<string, unknown>;
+      filterItemsSchema = (filtersSchema).items as Record<string, unknown>;
     }
 
     const valueField = (filterItemsSchema.properties as Record<string, unknown>).value as Record<string, unknown>;
