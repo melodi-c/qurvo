@@ -54,7 +54,8 @@ export class PublicController {
 
     const results = await Promise.allSettled(
       widgetsWithInsight.map(async (widget) => {
-        const config = widget.insight.config as unknown as Record<string, unknown>;
+         
+        const config: Record<string, unknown> = widget.insight.config as any;
         const configType = config.type as string;
 
         // Apply dashboard-level date overrides
