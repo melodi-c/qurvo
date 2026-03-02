@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import {
   Dialog,
   DialogContent,
@@ -13,11 +14,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { extractApiErrorMessage } from '@/lib/utils';
 import { ANNOTATION_PRESET_COLORS } from '@/lib/chart-colors';
 import translations from './annotation-dialog.translations';
-import type { Annotation, CreateAnnotation } from '@/api/generated/Api';
+import type { Annotation, CreateAnnotation, CreateAnnotationDtoScopeEnum } from '@/api/generated/Api';
 
 interface AnnotationDialogProps {
   open: boolean;
@@ -25,6 +27,8 @@ interface AnnotationDialogProps {
   initialDate?: string;
   annotation?: Annotation;
   onSave: (data: CreateAnnotation) => Promise<void>;
+  /** When provided, shows scope selector. Null means insight is not yet saved. */
+  insightId?: string | null;
 }
 
 export function AnnotationDialog({
@@ -33,15 +37,19 @@ export function AnnotationDialog({
   initialDate,
   annotation,
   onSave,
+  insightId,
 }: AnnotationDialogProps) {
   const { t } = useLocalTranslation(translations);
 
   const isEdit = !!annotation;
+  const showScopeSelector = insightId !== undefined;
+  const insightSaved = !!insightId;
 
   const [date, setDate] = useState(initialDate ?? '');
   const [label, setLabel] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState<string>(ANNOTATION_PRESET_COLORS[4]);
+  const [scope, setScope] = useState<CreateAnnotationDtoScopeEnum>('project');
   const [isPending, setIsPending] = useState(false);
 
   // Reset form when dialog opens / annotation changes
@@ -51,23 +59,47 @@ export function AnnotationDialog({
       setLabel(annotation?.label ?? '');
       setDescription(annotation?.description ?? '');
       setColor(annotation?.color ?? ANNOTATION_PRESET_COLORS[4]);
+      setScope(annotation?.scope ?? 'project');
     }
   }, [open, annotation, initialDate]);
+
+  const handleScopeChange = useCallback((value: CreateAnnotationDtoScopeEnum) => {
+    // Don't allow insight scope if insight is not saved
+    if (value === 'insight' && !insightSaved) {return;}
+    setScope(value);
+  }, [insightSaved]);
 
   const handleSave = useCallback(async () => {
     if (!date || !label.trim()) {return;}
     setIsPending(true);
     try {
-      await onSave({ date, label: label.trim(), description: description.trim() || undefined, color });
+      const data: CreateAnnotation = {
+        date,
+        label: label.trim(),
+        description: description.trim() || undefined,
+        color,
+      };
+      if (showScopeSelector) {
+        data.scope = scope;
+        if (scope === 'insight' && insightId) {
+          data.insight_id = insightId;
+        }
+      }
+      await onSave(data);
       onOpenChange(false);
     } catch (err) {
       toast.error(extractApiErrorMessage(err, t('save')));
     } finally {
       setIsPending(false);
     }
-  }, [date, label, description, color, onSave, onOpenChange, t]);
+  }, [date, label, description, color, scope, insightId, showScopeSelector, onSave, onOpenChange, t]);
 
   const isValid = !!date && label.trim().length > 0;
+
+  const scopeOptions = useMemo(() => [
+    { label: t('scopeProject'), value: 'project' as const },
+    { label: t('scopeInsight'), value: 'insight' as const },
+  ], [t]);
 
   return (
     <Dialog open={open} onOpenChange={isPending ? undefined : onOpenChange}>
@@ -105,6 +137,34 @@ export function AnnotationDialog({
               maxLength={1000}
             />
           </div>
+
+          {/* Scope selector — only in insight editor context */}
+          {showScopeSelector && (
+            <div className="flex flex-col gap-1.5">
+              <Label>{t('scopeLabel')}</Label>
+              {insightSaved ? (
+                <PillToggleGroup
+                  options={scopeOptions}
+                  value={scope}
+                  onChange={handleScopeChange}
+                />
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <PillToggleGroup
+                        options={scopeOptions}
+                        value="project"
+                        onChange={() => {}}
+                        className="pointer-events-none opacity-60"
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('scopeInsightDisabled')}</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          )}
 
           {/* Color swatches */}
           <div className="flex flex-col gap-1.5">

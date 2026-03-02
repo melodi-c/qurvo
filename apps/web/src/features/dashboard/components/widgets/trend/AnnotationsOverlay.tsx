@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 import type { Annotation, TrendGranularity } from '@/api/generated/Api';
 import {
   Popover,
@@ -32,6 +32,7 @@ export function AnnotationsOverlay({
 }: AnnotationsOverlayProps) {
   const { t } = useLocalTranslation(translations);
   const [deleteTarget, setDeleteTarget] = useState<Annotation | null>(null);
+  const [hoveredBucket, setHoveredBucket] = useState<string | null>(null);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) {return;}
@@ -39,17 +40,25 @@ export function AnnotationsOverlay({
     setDeleteTarget(null);
   }, [deleteTarget, onDelete]);
 
-  // Only render buckets that have both annotations and a known pixel position
-  const buckets = Array.from(annotationsByBucket.entries()).filter(
-    ([bucket]) => tickPositions.has(bucket),
-  );
+  // Buckets that have annotations and a known pixel position
+  const annotatedBuckets = useMemo(() =>
+    Array.from(annotationsByBucket.entries()).filter(
+      ([bucket]) => tickPositions.has(bucket),
+    ), [annotationsByBucket, tickPositions]);
 
-  if (buckets.length === 0) {return null;}
+  // Buckets without annotations — show inline "+" on hover
+  const emptyBuckets = useMemo(() =>
+    Array.from(tickPositions.entries()).filter(
+      ([bucket]) => !annotationsByBucket.has(bucket),
+    ), [tickPositions, annotationsByBucket]);
+
+  if (annotatedBuckets.length === 0 && emptyBuckets.length === 0) {return null;}
 
   return (
     <>
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-        {buckets.map(([bucket, anns]) => {
+        {/* Annotated buckets — badge with count */}
+        {annotatedBuckets.map(([bucket, anns]) => {
           const x = tickPositions.get(bucket)!;
           const dateLabel = formatDateWithGranularity(bucket, granularity, timezone);
 
@@ -147,6 +156,37 @@ export function AnnotationsOverlay({
             </div>
           );
         })}
+
+        {/* Empty buckets — inline "+" button on hover */}
+        {emptyBuckets.map(([bucket, x]) => (
+          <div
+            key={`add-${bucket}`}
+            className="absolute pointer-events-auto"
+            style={{
+              left: `${x}px`,
+              bottom: 0,
+              transform: 'translateX(-50%)',
+            }}
+            onMouseEnter={() => setHoveredBucket(bucket)}
+            onMouseLeave={() => setHoveredBucket(null)}
+          >
+            <button
+              type="button"
+              className={`flex items-center justify-center size-5 rounded-full border border-border text-muted-foreground transition-all ${
+                hoveredBucket === bucket
+                  ? 'opacity-100 scale-100 bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary'
+                  : 'opacity-0 scale-75'
+              }`}
+              aria-label={t('addAnnotation')}
+              onClick={() => {
+                const dateStr = bucket.slice(0, 10);
+                onCreate(dateStr);
+              }}
+            >
+              <Plus className="size-3" />
+            </button>
+          </div>
+        ))}
       </div>
 
       {/* Delete confirmation dialog */}
