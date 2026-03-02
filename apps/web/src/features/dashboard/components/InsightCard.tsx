@@ -28,7 +28,7 @@ export function InsightCard({ widget }: InsightCardProps) {
   const isTextTile = !widget.insight;
   const baseConfig = widget.insight?.config;
 
-  // Apply dashboard-level filter overrides (date + property filters)
+  // Apply dashboard-level date overrides
   const mergedConfig = baseConfig
     ? applyFilterOverrides(baseConfig, filterOverrides)
     : baseConfig;
@@ -49,7 +49,7 @@ export function InsightCard({ widget }: InsightCardProps) {
         />
 
         {detailsOpen && !isTextTile && mergedConfig && (
-          <InsightCardDetails config={mergedConfig} filterOverrides={filterOverrides} />
+          <InsightCardDetails config={mergedConfig} />
         )}
 
         <div className="flex-1 p-3 min-h-0 overflow-hidden">

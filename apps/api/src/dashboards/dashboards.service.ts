@@ -60,10 +60,10 @@ export class DashboardsService {
     return dashboard;
   }
 
-  async update(projectId: string, dashboardId: string, input: { name?: string }) {
+  async update(projectId: string, dashboardId: string, input: { name?: string; date_from?: string | null; date_to?: string | null }) {
     const [updated] = await this.db
       .update(dashboards)
-      .set({ ...buildConditionalUpdate(input, ['name']), updated_at: new Date() })
+      .set({ ...buildConditionalUpdate(input, ['name', 'date_from', 'date_to']), updated_at: new Date() })
       .where(and(eq(dashboards.id, dashboardId), eq(dashboards.project_id, projectId)))
       .returning();
     if (!updated) {throw new DashboardNotFoundException();}

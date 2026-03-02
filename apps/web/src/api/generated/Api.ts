@@ -506,6 +506,8 @@ export interface PathsResponse {
 }
 
 export interface Dashboard {
+  date_from?: string | null;
+  date_to?: string | null;
   id: string;
   project_id: string;
   name: string;
@@ -680,6 +682,8 @@ export interface Widget {
 }
 
 export interface DashboardWithWidgets {
+  date_from?: string | null;
+  date_to?: string | null;
   id: string;
   project_id: string;
   name: string;
@@ -691,6 +695,10 @@ export interface DashboardWithWidgets {
 }
 
 export interface UpdateDashboard {
+  /** @maxLength 20 */
+  date_from?: string | null;
+  /** @maxLength 20 */
+  date_to?: string | null;
   /**
    * @minLength 1
    * @maxLength 100

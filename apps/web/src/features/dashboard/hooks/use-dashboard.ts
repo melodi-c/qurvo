@@ -106,9 +106,9 @@ export function useRemoveWidget() {
 export function useSaveDashboard(dashboardId: string) {
   const projectId = useProjectId();
   const qc = useQueryClient();
-  const updateName = useMutation({
-    mutationFn: (name: string) =>
-      api.dashboardsControllerUpdate({ projectId, dashboardId }, { name }),
+  const updateDashboard = useMutation({
+    mutationFn: (data: { name: string; date_from?: string | null; date_to?: string | null }) =>
+      api.dashboardsControllerUpdate({ projectId, dashboardId }, data),
   });
   const addWidget = useMutation({
     mutationFn: (w: Widget) =>
@@ -130,8 +130,14 @@ export function useSaveDashboard(dashboardId: string) {
       api.dashboardsControllerRemoveWidget({ projectId, dashboardId, widgetId }),
   });
 
-  const save = async (params: { name: string; widgets: Widget[]; serverWidgets: Widget[] }) => {
-    const { name, widgets, serverWidgets } = params;
+  const save = async (params: {
+    name: string;
+    widgets: Widget[];
+    serverWidgets: Widget[];
+    dateFrom?: string | null;
+    dateTo?: string | null;
+  }) => {
+    const { name, widgets, serverWidgets, dateFrom, dateTo } = params;
 
     const serverIds = new Set(serverWidgets.map((w) => w.id));
     const localIds = new Set(widgets.map((w) => w.id));
@@ -141,8 +147,8 @@ export function useSaveDashboard(dashboardId: string) {
     const toRemove = serverWidgets.filter((w) => !localIds.has(w.id));
 
     try {
-      // 1. Update dashboard name
-      await updateName.mutateAsync(name);
+      // 1. Update dashboard metadata (name + date range)
+      await updateDashboard.mutateAsync({ name, date_from: dateFrom, date_to: dateTo });
 
       // 2. Add new widgets first — safest to do before removals.
       //    Replace local temp IDs with server-assigned IDs so that a retry
@@ -174,6 +180,6 @@ export function useSaveDashboard(dashboardId: string) {
 
   return {
     save,
-    isPending: updateName.isPending || addWidget.isPending || updateWidget.isPending || removeWidget.isPending,
+    isPending: updateDashboard.isPending || addWidget.isPending || updateWidget.isPending || removeWidget.isPending,
   };
 }
