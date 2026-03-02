@@ -32,25 +32,19 @@ import {
 import { cohortFilter, cohortBounds, resolvedPerson } from '../query-helpers';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 import type { TimeToConvertParams, TimeToConvertResult, TimeToConvertBin, FunnelOrderType } from './funnel.types';
+import { type FunnelChQueryParams, funnelTsParamExpr, buildBaseQueryParams } from './funnel-params';
+import { buildStepCondition, buildAllEventNames } from './funnel-steps';
+import { validateExclusions, buildExclusionColumns, buildExcludedUsersCTE, extractExclColumnAliases } from './funnel-exclusions';
 import {
-  buildStepCondition,
   buildSamplingClause,
   buildWindowFunnelExpr,
-  buildAllEventNames,
-  buildBaseQueryParams,
-  buildExclusionColumns,
-  buildExcludedUsersCTE,
+  validateUnorderedSteps,
   buildUnorderedCoverageExprsAST,
   buildStrictUserFilterExpr,
-  validateExclusions,
-  validateUnorderedSteps,
-  funnelTsParamExpr,
   windowMsExpr as sharedWindowMsExpr,
   notInExcludedUsers,
   funnelProjectIdExpr,
-  extractExclColumnAliases,
-  type FunnelChQueryParams,
-} from './funnel-sql-shared';
+} from './funnel-shared-exprs';
 
 /** Maximum number of bins in the histogram. */
 const MAX_BINS = 60;

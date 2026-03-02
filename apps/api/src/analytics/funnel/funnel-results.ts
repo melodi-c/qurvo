@@ -1,5 +1,5 @@
 import type { FunnelStep, FunnelStepResult, FunnelBreakdownStepResult } from './funnel.types';
-import { buildEmptyStepResults } from './funnel-sql-shared';
+import { buildEmptyStepResults } from './funnel-shared-exprs';
 import { normalizeBreakdownValue } from '../query-helpers';
 
 /**
