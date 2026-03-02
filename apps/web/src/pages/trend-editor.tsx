@@ -15,7 +15,7 @@ import { AnnotationDialog } from '@/components/ui/annotation-dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './trend-editor.translations';
 import { trendToCsv, downloadCsv } from '@/lib/csv-export';
-import type { TrendWidgetConfig, Annotation } from '@/api/generated/Api';
+import type { TrendWidgetConfig, Annotation, CreateAnnotation } from '@/api/generated/Api';
 
 function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
   return { ...config, series: cleanSeries(config) };
@@ -34,7 +34,7 @@ export default function TrendEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
+    previewId, insightId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const isCustomQuery = CUSTOM_QUERY_CHART_TYPES.includes(config.chart_type);
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
@@ -43,7 +43,7 @@ export default function TrendEditorPage() {
   const series = result?.series;
   const aggregateResult = aggregateData?.data;
 
-  const { data: annotations } = useAnnotations(config.date_from, config.date_to);
+  const { data: annotations } = useAnnotations(config.date_from, config.date_to, insightId);
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
   const deleteAnnotation = useDeleteAnnotation();
@@ -86,7 +86,7 @@ export default function TrendEditorPage() {
     setAnnotationDialogOpen(true);
   }, []);
 
-  const handleAnnotationSave = useCallback(async (data: { date: string; label: string; description?: string; color?: string }) => {
+  const handleAnnotationSave = useCallback(async (data: CreateAnnotation) => {
     if (editingAnnotation) {
       await updateAnnotation.mutateAsync({ id: editingAnnotation.id, data });
     } else {
@@ -190,6 +190,7 @@ export default function TrendEditorPage() {
         initialDate={annotationInitialDate ?? config.date_to ?? undefined}
         annotation={editingAnnotation ?? undefined}
         onSave={handleAnnotationSave}
+        insightId={insightId ?? null}
       />
     </InsightEditorLayout>
   );

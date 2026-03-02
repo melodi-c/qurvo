@@ -21,6 +21,7 @@ import {
   Database,
   Sparkles,
   FolderOpen,
+  StickyNote,
 } from 'lucide-react';
 
 export function useLayoutData() {
@@ -59,6 +60,7 @@ export function useLayoutData() {
         items: [
           { path: routes.projects.pattern, label: t('projects'), icon: FolderOpen, exact: true },
           { path: routes.dataManagement.list.pattern, label: t('dataManagement'), icon: Database },
+          { path: routes.annotations.pattern, label: t('annotations'), icon: StickyNote },
           { path: routes.settings.pattern, label: t('settings'), icon: Settings },
         ],
       },

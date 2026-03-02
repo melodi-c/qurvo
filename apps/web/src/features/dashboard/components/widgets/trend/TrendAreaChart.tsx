@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
   Line,
   LineChart,
 } from 'recharts';
@@ -31,12 +30,12 @@ import {
   seriesKey,
   isIncompleteBucket,
   buildDataPoints,
-  snapAnnotationDateToBucket,
 } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { AnnotationsOverlay } from './AnnotationsOverlay';
 import { useAnnotationPositions } from './use-annotation-positions';
+import { useAnnotationReferenceLines } from './AnnotationReferenceLine';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './TrendChart.translations';
@@ -106,36 +105,6 @@ function CustomXAxisTick({
       {label}
     </text>
   );
-}
-
-// Annotation rendering helper
-
-function renderAnnotations(
-  annotations: Annotation[] | undefined,
-  granularity: string,
-  compact?: boolean,
-) {
-  if (!annotations?.length) {
-    return null;
-  }
-  return annotations.map((ann) => (
-    <ReferenceLine
-      key={ann.id}
-      x={snapAnnotationDateToBucket(ann.date, granularity)}
-      stroke={ann.color ?? 'hsl(var(--color-muted-foreground))'}
-      strokeDasharray="4 2"
-      label={
-        compact
-          ? undefined
-          : {
-              value: ann.label,
-              position: 'insideTopLeft',
-              fontSize: 11,
-              fill: ann.color ?? 'hsl(var(--color-muted-foreground))',
-            }
-      }
-    />
-  ));
 }
 
 // Hook: compute derived series data from raw props
@@ -300,6 +269,7 @@ export function TrendAreaChart({
       showOverlay ? annotations : undefined,
       granularity,
     );
+  const annotationLines = useAnnotationReferenceLines(annotations, granularity ?? 'day', compact);
 
   const customTick = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -462,7 +432,7 @@ export function TrendAreaChart({
                 {renderPrevAreaSeries()}
                 {renderAreaSeries()}
                 {renderFormulaLineSeries()}
-                {renderAnnotations(annotations, granularity ?? 'day', compact)}
+                {annotationLines}
               </AreaChart>
             </ResponsiveContainer>
             {showOverlay && onDeleteAnnotation && onCreateAnnotation && (
@@ -530,7 +500,7 @@ export function TrendAreaChart({
                 {renderPrevAreaSeries()}
                 {renderAreaSeries()}
                 {renderFormulaLineSeries()}
-                {renderAnnotations(annotations, granularity ?? 'day', compact)}
+                {annotationLines}
               </AreaChart>
             </ResponsiveContainer>
 

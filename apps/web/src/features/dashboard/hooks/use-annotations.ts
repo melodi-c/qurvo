@@ -4,19 +4,20 @@ import { useProjectId } from '@/hooks/use-project-id';
 import { useMutationErrorHandler } from '@/hooks/use-mutation-error-handler';
 import type { Annotation, CreateAnnotation, UpdateAnnotation } from '@/api/generated/Api';
 
-export function useAnnotations(dateFrom?: string, dateTo?: string): {
+export function useAnnotations(dateFrom?: string, dateTo?: string, insightId?: string): {
   data: Annotation[] | undefined;
   isLoading: boolean;
 } {
   const projectId = useProjectId();
 
   const query = useQuery({
-    queryKey: ['annotations', projectId, dateFrom, dateTo],
+    queryKey: ['annotations', projectId, dateFrom, dateTo, insightId],
     queryFn: () =>
       api.annotationsControllerList({
         projectId,
         ...(dateFrom ? { date_from: dateFrom } : {}),
         ...(dateTo ? { date_to: dateTo } : {}),
+        ...(insightId ? { insight_id: insightId } : {}),
       }),
     enabled: !!projectId,
   });
