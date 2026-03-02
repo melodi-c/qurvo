@@ -18,7 +18,17 @@ export type InsightType =
   | "stickiness"
   | "paths";
 
-export type ChartType = "line" | "bar";
+export type ChartType =
+  | "line"
+  | "bar"
+  | "area"
+  | "cumulative"
+  | "number"
+  | "value_bar"
+  | "table"
+  | "pie"
+  | "world_map"
+  | "calendar_heatmap";
 
 export type Granularity = "day" | "week" | "month";
 
