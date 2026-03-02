@@ -113,7 +113,7 @@ export function TrendCalendarHeatmap({ data, compact }: TrendCalendarHeatmapProp
       >
         {/* Hour labels (top axis) */}
         {HOURS.map((hour) => {
-          // Show every 2nd label in compact, every label in full
+          // Show every 3rd label in compact, every 2nd in full
           if (compact && hour % 3 !== 0) {return null;}
           if (!compact && hour % 2 !== 0) {return null;}
           const x = labelWidth + hour * (cellSize + gap) + cellSize / 2;
