@@ -152,3 +152,118 @@ export const WithAnnotations: Story = {
     );
   },
 };
+
+// --- Area Chart stories ---
+
+export const AreaSingle: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_SERIES_14D}
+        chartType="area"
+        granularity="day"
+      />
+    </div>
+  ),
+};
+
+export const AreaMultiSeriesStacked: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_MULTI_SERIES}
+        chartType="area"
+        granularity="day"
+      />
+    </div>
+  ),
+};
+
+export const AreaCompact: Story = {
+  render: () => (
+    <div style={{ width: 320, height: 160, border: '1px solid var(--color-border)', borderRadius: 8, padding: 8 }}>
+      <TrendChart
+        series={TREND_COMPACT_SERIES}
+        chartType="area"
+        granularity="day"
+        compact
+      />
+    </div>
+  ),
+};
+
+export const AreaWithComparePeriod: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_COMPARE_CURRENT}
+        previousSeries={TREND_COMPARE_PREVIOUS}
+        chartType="area"
+        granularity="day"
+      />
+    </div>
+  ),
+};
+
+export const AreaWithFormula: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_FORMULA_SERIES}
+        chartType="area"
+        granularity="day"
+        formulas={formulas}
+      />
+    </div>
+  ),
+};
+
+export const AreaIncompletePeriod: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_INCOMPLETE_SERIES}
+        chartType="area"
+        granularity="day"
+      />
+    </div>
+  ),
+};
+
+export const AreaWithAnnotations: Story = {
+  render: () => {
+    const annotations: Annotation[] = [
+      {
+        id: 'ann-1',
+        project_id: 'proj-1',
+        created_by: 'user-1',
+        date: BUCKETS_14[4],
+        label: 'Marketing Campaign',
+        color: 'hsl(200 80% 60%)',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'ann-2',
+        project_id: 'proj-1',
+        created_by: 'user-1',
+        date: BUCKETS_14[9],
+        label: 'New Feature Launch',
+        color: 'hsl(120 60% 50%)',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ];
+
+    return (
+      <div className="w-full">
+        <TrendChart
+          series={TREND_SERIES_14D}
+          chartType="area"
+          granularity="day"
+          annotations={annotations}
+        />
+      </div>
+    );
+  },
+};
