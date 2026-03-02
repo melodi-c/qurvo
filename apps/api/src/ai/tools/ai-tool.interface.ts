@@ -104,6 +104,10 @@ export function normalizeJsonSchema(
    * - `{"not":{}}` — Zod v4 artifact representing undefined/void
    * - `{}` — result of stripped self-referencing `$ref`
    * If one branch remains after cleanup, unwrap it. If zero remain, return `{}`.
+   *
+   * Order: recurse FIRST, then filter artifacts. This ensures nested broken
+   * branches (produced by `stripRefs()` on self-referencing `$ref`) are cleaned
+   * even when they appear inside already-cleaned parent branches.
    */
   function cleanAnyOf(node: unknown): unknown {
     if (!node || typeof node !== 'object') {return node;}
@@ -114,9 +118,11 @@ export function normalizeJsonSchema(
 
     for (const [key, val] of Object.entries(obj)) {
       if (key === 'anyOf' && Array.isArray(val)) {
-        const cleaned = val
-          .filter((branch) => !isEmptyObject(branch) && !isNotEmpty(branch))
-          .map(cleanAnyOf);
+        // 1. Recurse into each branch first
+        const recursed = val.map(cleanAnyOf);
+        // 2. Filter artifacts AFTER recursion (nested artifacts are now exposed)
+        const cleaned = recursed
+          .filter((branch) => !isEmptyObject(branch) && !isNotEmpty(branch));
 
         if (cleaned.length === 0) {
           // All branches were artifacts — replace with permissive `{}`
@@ -156,6 +162,123 @@ export function normalizeJsonSchema(
 
   const resolved = walk(schema) as Record<string, unknown>;
   return cleanAnyOf(resolved) as Record<string, unknown>;
+}
+
+/** Allowed `format` values per DeepSeek specification. */
+const DEEPSEEK_ALLOWED_FORMATS = new Set([
+  'email', 'hostname', 'ipv4', 'ipv6', 'uuid',
+]);
+
+/**
+ * Runtime assertion that a normalised tool JSON Schema is compatible with
+ * DeepSeek Reasoner's strict subset of JSON Schema.
+ *
+ * Checks (recursively):
+ * - Every `anyOf` branch has a `type` field
+ * - No `{"not": ...}` anywhere
+ * - No `{}` (empty objects) inside `anyOf`
+ * - No `$ref` (all must be resolved by `normalizeJsonSchema`)
+ * - No unsupported `format` values (only email, hostname, ipv4, ipv6, uuid)
+ * - `additionalProperties` if present must be boolean `false`, not an object
+ *
+ * Throws an Error with tool name and JSON-path if validation fails.
+ */
+export function assertDeepSeekCompatible(
+  schema: Record<string, unknown>,
+  toolName: string,
+): void {
+  const errors: string[] = [];
+
+  function walk(node: unknown, path: string): void {
+    if (!node || typeof node !== 'object') {return;}
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        walk(node[i], `${path}[${i}]`);
+      }
+      return;
+    }
+
+    const obj = node as Record<string, unknown>;
+
+    // No $ref allowed
+    if ('$ref' in obj) {
+      errors.push(`${path}.$ref: unresolved $ref "${obj['$ref']}"`);
+    }
+
+    // No "not" allowed
+    if ('not' in obj) {
+      errors.push(`${path}.not: "not" keyword is not supported by DeepSeek`);
+    }
+
+    // additionalProperties must be boolean false, not an object schema
+    if ('additionalProperties' in obj && typeof obj.additionalProperties !== 'boolean') {
+      errors.push(
+        `${path}.additionalProperties: must be boolean false, got ${typeof obj.additionalProperties}`,
+      );
+    }
+
+    // format must be in the allowed set
+    if ('format' in obj && typeof obj.format === 'string') {
+      if (!DEEPSEEK_ALLOWED_FORMATS.has(obj.format)) {
+        errors.push(
+          `${path}.format: unsupported format "${obj.format}" (allowed: ${[...DEEPSEEK_ALLOWED_FORMATS].join(', ')})`,
+        );
+      }
+    }
+
+    // anyOf branch validation
+    if ('anyOf' in obj && Array.isArray(obj.anyOf)) {
+      for (let i = 0; i < obj.anyOf.length; i++) {
+        const branch = obj.anyOf[i];
+        const branchPath = `${path}.anyOf[${i}]`;
+
+        if (!branch || typeof branch !== 'object' || Array.isArray(branch)) {
+          errors.push(`${branchPath}: branch is not an object`);
+          continue;
+        }
+
+        const b = branch as Record<string, unknown>;
+        const keys = Object.keys(b);
+
+        // Empty object
+        if (keys.length === 0) {
+          errors.push(`${branchPath}: empty object {} in anyOf`);
+          continue;
+        }
+
+        // {"not":{}} artifact
+        if (keys.length === 1 && keys[0] === 'not') {
+          errors.push(`${branchPath}: {"not":...} artifact in anyOf`);
+          continue;
+        }
+
+        // Must have "type"
+        if (!('type' in b)) {
+          errors.push(`${branchPath}: anyOf branch missing "type" field`);
+        }
+      }
+    }
+
+    // Recurse into all values
+    for (const [key, val] of Object.entries(obj)) {
+      if (key === 'anyOf' && Array.isArray(val)) {
+        // Already checked branches above, but recurse into each
+        for (let i = 0; i < val.length; i++) {
+          walk(val[i], `${path}.anyOf[${i}]`);
+        }
+      } else {
+        walk(val, `${path}.${key}`);
+      }
+    }
+  }
+
+  walk(schema, '$');
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Tool "${toolName}" has DeepSeek-incompatible JSON Schema:\n${errors.map((e) => `  - ${e}`).join('\n')}`,
+    );
+  }
 }
 
 /**
@@ -206,15 +329,22 @@ export function defineTool<T extends z.ZodType>(config: {
 
   // Normalize the function parameters to inline $ref pointers — required for
   // DeepSeek Reasoner compatibility (rejects anyOf branches without "type").
+  const normalizedParams = raw.function.parameters
+    ? normalizeJsonSchema(raw.function.parameters as Record<string, unknown>)
+    : raw.function.parameters;
+
+  // Runtime assertion: catch DeepSeek-incompatible schemas at app startup, not
+  // at first chat request. This prevents the recurring "missing field `type`"
+  // regressions (issues #492, #592, #689, #836).
+  if (normalizedParams) {
+    assertDeepSeekCompatible(normalizedParams as Record<string, unknown>, config.name);
+  }
+
   const def: ChatCompletionTool = {
     ...raw,
     function: {
       ...raw.function,
-      parameters: raw.function.parameters
-        ? normalizeJsonSchema(
-            raw.function.parameters as Record<string, unknown>,
-          )
-        : raw.function.parameters,
+      parameters: normalizedParams,
     },
   };
 
