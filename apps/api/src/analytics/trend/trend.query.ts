@@ -18,7 +18,6 @@ import {
   inArray,
   inSubquery,
   notInSubquery,
-  uniqExact,
   lt,
   type Expr,
 } from '@qurvo/ch-query';

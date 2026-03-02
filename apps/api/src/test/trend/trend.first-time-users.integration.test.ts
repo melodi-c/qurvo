@@ -176,7 +176,7 @@ describe('queryTrend — first_time_users', () => {
         date_from: daysAgo(5),
         date_to: daysAgo(3),
         timezone: 'UTC',
-        breakdown_cohort_ids: [{ cohort_id: cohortId, name: 'Test Cohort' }],
+        breakdown_cohort_ids: [{ cohort_id: cohortId, name: 'Test Cohort', is_static: false, materialized: false, definition: { type: 'AND', values: [] } }],
       }),
     ).rejects.toThrow(AppBadRequestException);
   });
