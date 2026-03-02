@@ -11,6 +11,8 @@ import { TrendNumberViz } from './TrendNumberViz';
 import { TrendAreaChart } from './TrendAreaChart';
 import { TrendCumulativeChart } from './TrendCumulativeChart';
 import { TrendPieChart } from './TrendPieChart';
+import { TrendTableViz } from './TrendTableViz';
+import { TrendValueBarChart } from './TrendValueBarChart';
 
 // Re-export the props type for consumers
 export type { TrendLineBarChartProps } from './TrendLineBarChart';
@@ -60,14 +62,29 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
 
     case 'cumulative':
       return <TrendCumulativeChart {...rest} />;
-    // case 'value_bar':
-    //   return <TrendValueBarChart {...rest} />;
-    // case 'table':
-    //   return <TrendTableChart {...rest} />;
+
     case 'pie':
       return (
         <TrendPieChart
           series={rest.series}
+          compact={rest.compact}
+        />
+      );
+
+    case 'value_bar':
+      return (
+        <TrendValueBarChart
+          series={rest.series}
+          compact={rest.compact}
+        />
+      );
+
+    case 'table':
+      return (
+        <TrendTableViz
+          series={rest.series}
+          previousSeries={rest.previousSeries}
+          granularity={rest.granularity}
           compact={rest.compact}
         />
       );
