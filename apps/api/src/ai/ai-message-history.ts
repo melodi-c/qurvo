@@ -138,7 +138,7 @@ export class AiMessageHistoryBuilder {
         if (msg.reasoning_content) {
           assistantMsg.reasoning_content = msg.reasoning_content;
         }
-        messages.push(assistantMsg as ChatCompletionMessageParam);
+        messages.push(assistantMsg as unknown as ChatCompletionMessageParam);
       } else if (msg.role === 'tool') {
         if (!msg.tool_call_id) {continue;}
         const rawContent = typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result);

@@ -210,7 +210,7 @@ export class AiService implements OnModuleInit {
         tool_calls: serializedToolCalls,
       };
       if (reasoningContent) {assistantMsg.reasoning_content = reasoningContent;}
-      messages.push(assistantMsg as ChatCompletionMessageParam);
+      messages.push(assistantMsg as unknown as ChatCompletionMessageParam);
 
       await this.chatService.saveMessage(conversationId, seq++, {
         role: 'assistant',
