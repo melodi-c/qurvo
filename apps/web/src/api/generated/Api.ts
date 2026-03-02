@@ -360,6 +360,7 @@ export interface TrendSeries {
   label: string;
   metric_property?: string;
   filters?: StepFilter[];
+  hidden?: boolean;
 }
 
 export interface TrendDataPoint {

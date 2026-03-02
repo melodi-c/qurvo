@@ -62,6 +62,7 @@ export interface TrendWidgetSeries {
     | 'first_time_users';
   metric_property?: string;
   filters?: WidgetStepFilter[];
+  hidden?: boolean;
 }
 
 export interface TrendFormula {
