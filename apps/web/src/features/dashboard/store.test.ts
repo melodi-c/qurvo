@@ -105,7 +105,7 @@ describe('useDashboardStore', () => {
 
       useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA]);
       useDashboardStore.getState().enterEditMode();
-      useDashboardStore.getState().setFilterOverrides({ dateFrom: '2025-01-01', dateTo: '2025-02-01' });
+      useDashboardStore.getState().setDateRange('2025-01-01', '2025-02-01');
 
       // Verify overrides are set
       expect(useDashboardStore.getState().filterOverrides.dateFrom).toBe('2025-01-01');
@@ -121,7 +121,7 @@ describe('useDashboardStore', () => {
 
       useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA]);
       // Not editing, but set some filter overrides
-      useDashboardStore.getState().setFilterOverrides({ dateFrom: '2025-01-01' });
+      useDashboardStore.getState().setDateRange('2025-01-01', null);
 
       useDashboardStore.getState().cancelEditMode('dash-a');
 

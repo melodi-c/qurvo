@@ -1,46 +1,25 @@
-import type { StepFilter } from '@/api/generated/Api';
-
 export interface DashboardFilterOverrides {
   dateFrom: string | null;
   dateTo: string | null;
-  propertyFilters: StepFilter[];
 }
 
 export const EMPTY_OVERRIDES: DashboardFilterOverrides = {
   dateFrom: null,
   dateTo: null,
-  propertyFilters: [],
 };
 
 export function hasActiveOverrides(overrides: DashboardFilterOverrides): boolean {
-  return !!(overrides.dateFrom || overrides.dateTo || overrides.propertyFilters.length > 0);
-}
-
-interface FilterableItem {
-  filters?: StepFilter[];
-}
-
-function appendFilters<S extends FilterableItem>(items: S[], extra: StepFilter[]): S[] {
-  return items.map((s) => ({
-    ...s,
-    filters: [...(s.filters ?? []), ...extra],
-  }));
+  return !!(overrides.dateFrom || overrides.dateTo);
 }
 
 interface OverridableConfig {
   date_from?: string;
   date_to?: string;
-  series?: FilterableItem[];
-  steps?: FilterableItem[];
-  /** Top-level filters for target-event widgets (retention, lifecycle, stickiness, paths) */
-  filters?: StepFilter[];
 }
 
 /**
- * Merges dashboard-level overrides into a widget config.
- * - Replaces date_from/date_to if the date override is set
- * - Appends property filters to each series/step filters array (trend, funnel)
- * - Appends property filters to top-level filters array (retention, lifecycle, stickiness, paths)
+ * Merges dashboard-level date overrides into a widget config.
+ * Replaces date_from/date_to if the date override is set.
  */
 export function applyFilterOverrides<T extends OverridableConfig>(
   config: T,
@@ -48,24 +27,9 @@ export function applyFilterOverrides<T extends OverridableConfig>(
 ): T {
   if (!hasActiveOverrides(overrides)) {return config;}
 
-  const hasPropertyOverrides = overrides.propertyFilters.length > 0;
-  const hasSeries = !!config.series;
-  const hasSteps = !!config.steps;
-
   return {
     ...config,
     ...(config.date_from !== undefined && overrides.dateFrom && { date_from: overrides.dateFrom }),
     ...(config.date_to !== undefined && overrides.dateTo && { date_to: overrides.dateTo }),
-    ...(hasSeries && hasPropertyOverrides && {
-      series: appendFilters(config.series!, overrides.propertyFilters),
-    }),
-    ...(hasSteps && hasPropertyOverrides && {
-      steps: appendFilters(config.steps!, overrides.propertyFilters),
-    }),
-    // For target-event widgets (retention, lifecycle, stickiness, paths):
-    // append overrides to the top-level filters array when no series/steps exist
-    ...(!hasSeries && !hasSteps && hasPropertyOverrides && {
-      filters: [...(config.filters ?? []), ...overrides.propertyFilters],
-    }),
   };
 }

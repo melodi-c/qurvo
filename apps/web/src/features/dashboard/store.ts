@@ -45,9 +45,7 @@ interface DashboardStore {
   // New actions
   enterEditMode: () => void;
   cancelEditMode: (forDashboardId?: string) => void;
-  setFilterOverrides: (overrides: Partial<Omit<DashboardFilterOverrides, 'propertyFilters'>>) => void;
-  setPropertyFilters: (filters: DashboardFilterOverrides['propertyFilters']) => void;
-  clearFilterOverrides: () => void;
+  setDateRange: (dateFrom: string | null, dateTo: string | null) => void;
   setWidgetMeta: (widgetId: string, meta: Partial<LocalWidgetMeta>) => void;
   autoLayout: () => void;
   addTextTile: (content: string) => void;
@@ -190,18 +188,8 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       };
     }),
 
-  setFilterOverrides: (overrides) =>
-    set((s) => ({
-      filterOverrides: { ...s.filterOverrides, ...overrides },
-    })),
-
-  setPropertyFilters: (filters) =>
-    set((s) => ({
-      filterOverrides: { ...s.filterOverrides, propertyFilters: filters },
-    })),
-
-  clearFilterOverrides: () =>
-    set({ filterOverrides: EMPTY_OVERRIDES }),
+  setDateRange: (dateFrom, dateTo) =>
+    set({ filterOverrides: { dateFrom, dateTo } }),
 
   setWidgetMeta: (widgetId, meta) =>
     set((s) => ({
