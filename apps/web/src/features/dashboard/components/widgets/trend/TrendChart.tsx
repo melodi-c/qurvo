@@ -7,6 +7,7 @@ import type {
   Annotation,
 } from '@/api/generated/Api';
 import { TrendLineBarChart } from './TrendLineBarChart';
+import { TrendNumberViz } from './TrendNumberViz';
 import { TrendAreaChart } from './TrendAreaChart';
 import { TrendCumulativeChart } from './TrendCumulativeChart';
 
@@ -44,13 +45,20 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
     case 'bar':
       return <TrendLineBarChart chartType={chartType} {...rest} />;
 
+    case 'number':
+      return (
+        <TrendNumberViz
+          series={rest.series}
+          previousSeries={rest.previousSeries}
+          compact={rest.compact}
+        />
+      );
+
     case 'area':
       return <TrendAreaChart {...rest} />;
 
     case 'cumulative':
       return <TrendCumulativeChart {...rest} />;
-    // case 'number':
-    //   return <TrendNumberChart {...rest} />;
     // case 'value_bar':
     //   return <TrendValueBarChart {...rest} />;
     // case 'table':
