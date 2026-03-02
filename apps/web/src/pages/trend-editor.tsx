@@ -68,6 +68,7 @@ export default function TrendEditorPage() {
     unique_users: t('uniqueUsers'),
     events_per_user: t('eventsPerUser'),
     first_time_users: t('firstTimeUsers'),
+    first_matching_event: t('firstMatchingEvent'),
     property_sum: t('propertySum'),
     property_avg: t('propertyAvg'),
     property_min: t('propertyMin'),

@@ -32,7 +32,8 @@ export type TrendMetric =
   | "property_avg"
   | "property_min"
   | "property_max"
-  | "first_time_users";
+  | "first_time_users"
+  | "first_matching_event";
 
 export type TrendGranularity = "hour" | "day" | "week" | "month";
 

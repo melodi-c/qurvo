@@ -29,6 +29,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
     { value: 'unique_users', label: t('uniqueUsers'), desc: t('uniqueUsersDesc') },
     { value: 'events_per_user', label: t('eventsPerUser'), desc: t('eventsPerUserDesc') },
     { value: 'first_time_users', label: t('firstTimeUsers'), desc: t('firstTimeUsersDesc') },
+    { value: 'first_matching_event', label: t('firstMatchingEvent'), desc: t('firstMatchingEventDesc') },
     { value: 'property_sum', label: t('propertySum'), desc: t('propertyAggDesc') },
     { value: 'property_avg', label: t('propertyAvg'), desc: t('propertyAggDesc') },
     { value: 'property_min', label: t('propertyMin'), desc: t('propertyAggDesc') },

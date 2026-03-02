@@ -25,7 +25,7 @@ import {
 const TREND_METRICS = [
   'total_events', 'unique_users', 'events_per_user',
   'property_sum', 'property_avg', 'property_min', 'property_max',
-  'first_time_users',
+  'first_time_users', 'first_matching_event',
 ] as const;
 
 export class TrendSeriesDto {
