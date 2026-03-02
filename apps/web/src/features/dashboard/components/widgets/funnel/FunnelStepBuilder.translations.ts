@@ -5,10 +5,12 @@ export default createTranslations({
     stepN: 'Step {{n}}',
     stepName: 'Step name',
     addStep: 'Add step',
+    copyLabel: '(copy)',
   },
   ru: {
     stepN: 'Шаг {{n}}',
     stepName: 'Название шага',
     addStep: 'Добавить шаг',
+    copyLabel: '(копия)',
   },
 });

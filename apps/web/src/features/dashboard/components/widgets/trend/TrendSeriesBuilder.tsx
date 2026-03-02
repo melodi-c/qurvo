@@ -55,6 +55,14 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
     });
   };
 
+  const duplicateSeries = (idx: number) => {
+    onChange((prev) => {
+      if (prev.length >= 5) {return prev;}
+      const copy = { ...prev[idx], label: `${prev[idx].label || ''} ${t('copyLabel')}`.trim() };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+  };
+
   const removeSeries = (idx: number) => {
     onChange((prev) => {
       if (prev.length <= 1) {return prev;}
@@ -71,8 +79,10 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
           index={idx}
           metricOptions={metricOptions}
           canRemove={series.length > 1}
+          canDuplicate={series.length < 5}
           onUpdate={(patch) => update(idx, patch)}
           onRemove={() => removeSeries(idx)}
+          onDuplicate={() => duplicateSeries(idx)}
           onFilterAdd={() => addFilter(idx)}
           onFilterChange={(fi, f) => updateFilter(idx, fi, f)}
           onFilterRemove={(fi) => removeFilter(idx, fi)}
@@ -112,8 +122,10 @@ interface SeriesCardProps {
   index: number;
   metricOptions: MetricOption[];
   canRemove: boolean;
+  canDuplicate: boolean;
   onUpdate: (patch: Partial<TrendSeries>) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
   onFilterAdd: () => void;
   onFilterChange: (fi: number, f: StepFilter) => void;
   onFilterRemove: (fi: number) => void;
@@ -129,8 +141,10 @@ function SeriesCard({
   index: idx,
   metricOptions,
   canRemove,
+  canDuplicate,
   onUpdate,
   onRemove,
+  onDuplicate,
   onFilterAdd,
   onFilterChange,
   onFilterRemove,
@@ -179,6 +193,7 @@ function SeriesCard({
         onLabelChange={(label) => onUpdate({ label })}
         onEventChange={(event_name) => onUpdate({ event_name })}
         onRemove={onRemove}
+        onDuplicate={canDuplicate ? onDuplicate : undefined}
         onFilterAdd={onFilterAdd}
         onFilterChange={onFilterChange}
         onFilterRemove={onFilterRemove}

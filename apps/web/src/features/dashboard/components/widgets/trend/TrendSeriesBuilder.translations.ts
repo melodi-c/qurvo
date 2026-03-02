@@ -22,6 +22,7 @@ export default createTranslations({
     propertyAggDesc: 'Aggregation of a numeric event property',
     hideSeries: 'Hide series',
     showSeries: 'Show series',
+    copyLabel: '(copy)',
   },
   ru: {
     addSeries: 'Добавить серию',
@@ -44,5 +45,6 @@ export default createTranslations({
     propertyAggDesc: 'Агрегация числового свойства события',
     hideSeries: 'Скрыть серию',
     showSeries: 'Показать серию',
+    copyLabel: '(копия)',
   },
 });
