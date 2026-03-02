@@ -3,6 +3,7 @@ import {
   isRelativeDate,
   resolveRelativeDate,
   getActivePreset,
+  getPresetLabelKey,
   todayIso,
   daysAgoIso,
   defaultDateRange,
@@ -115,6 +116,30 @@ describe('getActivePreset', () => {
   it('returns undefined for non-preset relative strings', () => {
     expect(getActivePreset('-5d', todayIso())).toBeUndefined();
     expect(getActivePreset('-15d', todayIso())).toBeUndefined();
+  });
+});
+
+describe('getPresetLabelKey', () => {
+  it('maps day-based presets to label keys', () => {
+    expect(getPresetLabelKey('-7d')).toBe('last7days');
+    expect(getPresetLabelKey('-30d')).toBe('last30days');
+    expect(getPresetLabelKey('-90d')).toBe('last90days');
+    expect(getPresetLabelKey('-180d')).toBe('last6months');
+    expect(getPresetLabelKey('-1y')).toBe('last1year');
+  });
+
+  it('maps anchor presets to label keys', () => {
+    expect(getPresetLabelKey('mStart')).toBe('monthToDate');
+    expect(getPresetLabelKey('yStart')).toBe('yearToDate');
+  });
+
+  it('returns undefined for absolute dates', () => {
+    expect(getPresetLabelKey('2026-03-01')).toBeUndefined();
+  });
+
+  it('returns undefined for non-preset relative strings', () => {
+    expect(getPresetLabelKey('-5d')).toBeUndefined();
+    expect(getPresetLabelKey('-15d')).toBeUndefined();
   });
 });
 

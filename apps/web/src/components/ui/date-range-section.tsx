@@ -2,7 +2,8 @@ import { CalendarDays } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DatePresetButtons } from '@/components/ui/date-preset-buttons';
 import { SectionHeader } from '@/components/ui/section-header';
-import { resolveRelativeDate, isRelativeDate } from '@/lib/date-utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { resolveRelativeDate, isRelativeDate, getActivePreset, getPresetLabelKey, formatAbsoluteDate } from '@/lib/date-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './date-range-section.translations';
 
@@ -19,32 +20,58 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
   const resolvedFrom = resolveRelativeDate(dateFrom);
   const resolvedTo = resolveRelativeDate(dateTo);
 
+  // Check if a known preset is active
+  const activePreset = getActivePreset(dateFrom, dateTo);
+  const presetLabelKey = activePreset ? getPresetLabelKey(dateFrom) : undefined;
+
   return (
     <section className="space-y-3">
       <SectionHeader icon={CalendarDays} label={t('dateRange')} />
       <DatePresetButtons dateFrom={dateFrom} dateTo={dateTo} onChange={onChange} />
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">{t('from')}</span>
-          <DatePicker
-            value={resolvedFrom}
-            onChange={(v) => {
-              // Manual date picker selection stores absolute dates
-              onChange(v, isRelativeDate(dateTo) ? resolveRelativeDate(dateTo) : dateTo);
-            }}
-          />
+
+      {presetLabelKey ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="flex h-8 w-full items-center gap-2 rounded-md border border-border bg-transparent px-3 text-sm text-foreground transition-colors hover:border-primary/40"
+              onClick={() => {
+                // Clicking resolves to absolute dates so the user can manually adjust
+                onChange(resolvedFrom, resolvedTo);
+              }}
+            >
+              <CalendarDays className="size-3.5 shrink-0 text-muted-foreground" />
+              <span>{t(presetLabelKey)}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {formatAbsoluteDate(resolvedFrom)} – {formatAbsoluteDate(resolvedTo)}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <span className="text-xs text-muted-foreground">{t('from')}</span>
+            <DatePicker
+              value={resolvedFrom}
+              onChange={(v) => {
+                // Manual date picker selection stores absolute dates
+                onChange(v, isRelativeDate(dateTo) ? resolveRelativeDate(dateTo) : dateTo);
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-xs text-muted-foreground">{t('to')}</span>
+            <DatePicker
+              value={resolvedTo}
+              onChange={(v) => {
+                // Manual date picker selection stores absolute dates
+                onChange(isRelativeDate(dateFrom) ? resolveRelativeDate(dateFrom) : dateFrom, v);
+              }}
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <span className="text-xs text-muted-foreground">{t('to')}</span>
-          <DatePicker
-            value={resolvedTo}
-            onChange={(v) => {
-              // Manual date picker selection stores absolute dates
-              onChange(isRelativeDate(dateFrom) ? resolveRelativeDate(dateFrom) : dateFrom, v);
-            }}
-          />
-        </div>
-      </div>
+      )}
     </section>
   );
 }

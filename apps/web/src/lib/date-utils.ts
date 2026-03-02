@@ -1,3 +1,5 @@
+import { format, parse } from 'date-fns';
+
 /** Returns today's date as ISO string (YYYY-MM-DD). */
 export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -112,6 +114,33 @@ export const ANCHOR_PRESETS: readonly AnchorPreset[] = [
   { labelKey: 'ytd', relative: 'yStart' },
 ] as const;
 
+export type PresetLabelKey =
+  | 'last7days'
+  | 'last30days'
+  | 'last90days'
+  | 'last6months'
+  | 'last1year'
+  | 'monthToDate'
+  | 'yearToDate';
+
+const PRESET_LABEL_MAP: Record<string, PresetLabelKey> = {
+  '-7d': 'last7days',
+  '-30d': 'last30days',
+  '-90d': 'last90days',
+  '-180d': 'last6months',
+  '-1y': 'last1year',
+  'mStart': 'monthToDate',
+  'yStart': 'yearToDate',
+};
+
+/**
+ * Maps a relative date token to a translation key for human-readable display.
+ * Returns `undefined` for absolute dates or unknown tokens.
+ */
+export function getPresetLabelKey(dateFrom: string): PresetLabelKey | undefined {
+  return PRESET_LABEL_MAP[dateFrom];
+}
+
 /**
  * Returns the matching preset `relative` string if the given date range
  * matches one of the standard presets, otherwise `undefined`.
@@ -153,4 +182,16 @@ export function getActivePreset(dateFrom: string, dateTo: string): string | unde
     }
   }
   return undefined;
+}
+
+/**
+ * Formats an ISO date string (YYYY-MM-DD) into a human-readable form (e.g. "Mar 2, 2026").
+ * Returns the original string if parsing fails.
+ */
+export function formatAbsoluteDate(iso: string): string {
+  try {
+    return format(parse(iso, 'yyyy-MM-dd', new Date()), 'MMM d, yyyy');
+  } catch {
+    return iso;
+  }
 }
