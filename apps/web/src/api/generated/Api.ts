@@ -836,6 +836,7 @@ export interface CreateStaticCohort {
   name: string;
   /** @maxLength 1000 */
   description?: string;
+  /** @maxItems 10000 */
   person_ids?: string[];
 }
 

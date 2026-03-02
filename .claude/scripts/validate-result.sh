@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validates agent result JSON files against expected schemas.
 # Usage: bash validate-result.sh <type> <file_path>
-# Types: solver, reviewer, lint, security, migration, conflict, validator, intersection, decomposer
+# Types: solver, reviewer, lint, security, migration, conflict, validator, intersection, decomposer, debater, vote, curator-verdict
 # Exit codes: 0 = valid, 1 = invalid/missing, 2 = file not found
 set -euo pipefail
 
@@ -59,6 +59,40 @@ case "$TYPE" in
   decomposer)
     jq -e '(.atomic == true) or (.sub_issues | type == "array" and length > 0)' "$FILE" >/dev/null 2>&1 || {
       echo "ERROR: decomposer result: need atomic:true or sub_issues[] in $FILE" >&2; exit 1
+    } ;;
+  debater)
+    check_field "role" "^(product|architect|critic|pragmatist|devil|dx)$"
+    check_field "position" "^(PRO|CON|NEUTRAL|MIXED)$"
+    jq -e '.confidence >= 0 and .confidence <= 1' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: debater result: confidence must be 0.0-1.0 in $FILE" >&2; exit 1
+    }
+    jq -e '.points | type == "array"' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: debater result: missing 'points' array in $FILE" >&2; exit 1
+    }
+    jq -e '.summary | type == "string" and length > 0' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: debater result: missing 'summary' in $FILE" >&2; exit 1
+    } ;;
+  vote)
+    check_field "role" "^(product|architect|critic|pragmatist|devil|dx)$"
+    jq -e '.votes | type == "array" and length > 0' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: vote result: missing non-empty 'votes' array in $FILE" >&2; exit 1
+    }
+    jq -e '[.votes[] | .vote | test("^(AGREE|DISAGREE|ABSTAIN)$")] | all' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: vote result: invalid vote value (expected AGREE|DISAGREE|ABSTAIN) in $FILE" >&2; exit 1
+    } ;;
+  curator-verdict)
+    check_field "verdict" "^(APPROVED|REJECTED|DEFERRED|CONDITIONAL)$"
+    jq -e '.confidence >= 0 and .confidence <= 1' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: curator-verdict: confidence must be 0.0-1.0 in $FILE" >&2; exit 1
+    }
+    jq -e '.summary | type == "string" and length > 0' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: curator-verdict: missing 'summary' in $FILE" >&2; exit 1
+    }
+    jq -e '.consensus_points | type == "array"' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: curator-verdict: missing 'consensus_points' array in $FILE" >&2; exit 1
+    }
+    jq -e '.resolved_disputes | type == "array"' "$FILE" >/dev/null 2>&1 || {
+      echo "ERROR: curator-verdict: missing 'resolved_disputes' array in $FILE" >&2; exit 1
     } ;;
   *)
     echo "WARN: unknown result type '$TYPE', skipping validation" >&2
