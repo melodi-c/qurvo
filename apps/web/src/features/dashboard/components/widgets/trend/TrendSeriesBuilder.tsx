@@ -14,7 +14,7 @@ const COLORS = CHART_COLORS_TW;
 
 interface TrendSeriesBuilderProps {
   series: TrendSeries[];
-  onChange: (series: TrendSeries[]) => void;
+  onChange: (seriesOrUpdater: TrendSeries[] | ((prev: TrendSeries[]) => TrendSeries[])) => void;
 }
 
 export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps) {
@@ -23,21 +23,29 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
 
   const update = useCallback(
     (idx: number, patch: Partial<TrendSeries>) => {
-      onChange(series.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+      onChange((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
     },
-    [series, onChange],
+    [onChange],
   );
 
-  const { addFilter, updateFilter, removeFilter } = useFilterManager(series, update);
+  const onChangeAll = useCallback(
+    (updater: (prev: TrendSeries[]) => TrendSeries[]) => onChange(updater),
+    [onChange],
+  );
+  const { addFilter, updateFilter, removeFilter } = useFilterManager(onChangeAll);
 
   const addSeries = () => {
-    if (series.length >= 5) {return;}
-    onChange([...series, { event_name: '', label: t('seriesN', { n: String(series.length + 1) }) }]);
+    onChange((prev) => {
+      if (prev.length >= 5) {return prev;}
+      return [...prev, { event_name: '', label: t('seriesN', { n: String(prev.length + 1) }) }];
+    });
   };
 
   const removeSeries = (idx: number) => {
-    if (series.length <= 1) {return;}
-    onChange(series.filter((_, i) => i !== idx));
+    onChange((prev) => {
+      if (prev.length <= 1) {return prev;}
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   return (

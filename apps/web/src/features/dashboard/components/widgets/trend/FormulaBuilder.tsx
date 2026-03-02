@@ -13,7 +13,7 @@ import type { TrendFormula } from '@/api/generated/Api';
 interface FormulaBuilderProps {
   formulas: TrendFormula[];
   seriesCount: number;
-  onChange: (formulas: TrendFormula[]) => void;
+  onChange: (formulasOrUpdater: TrendFormula[] | ((prev: TrendFormula[]) => TrendFormula[])) => void;
 }
 
 const ERROR_KEYS: Record<string, string> = {
@@ -32,19 +32,19 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
   );
 
   const addFormula = useCallback(() => {
-    onChange([
-      ...formulas,
+    onChange((prev) => [
+      ...prev,
       { id: crypto.randomUUID(), label: '', expression: '' },
     ]);
-  }, [formulas, onChange]);
+  }, [onChange]);
 
   const updateFormula = useCallback((idx: number, patch: Partial<TrendFormula>) => {
-    onChange(formulas.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
-  }, [formulas, onChange]);
+    onChange((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+  }, [onChange]);
 
   const removeFormula = useCallback((idx: number) => {
-    onChange(formulas.filter((_, i) => i !== idx));
-  }, [formulas, onChange]);
+    onChange((prev) => prev.filter((_, i) => i !== idx));
+  }, [onChange]);
 
   return (
     <div className="space-y-2">

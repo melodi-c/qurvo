@@ -9,7 +9,7 @@ import type { FunnelStep } from '@/api/generated/Api';
 
 interface FunnelStepBuilderProps {
   steps: FunnelStep[];
-  onChange: (steps: FunnelStep[]) => void;
+  onChange: (stepsOrUpdater: FunnelStep[] | ((prev: FunnelStep[]) => FunnelStep[])) => void;
 }
 
 export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
@@ -18,19 +18,25 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
 
   const updateStep = useCallback(
     (i: number, patch: Partial<FunnelStep>) => {
-      onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+      onChange((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
     },
-    [steps, onChange],
+    [onChange],
   );
 
-  const { addFilter, updateFilter, removeFilter } = useFilterManager(steps, updateStep);
+  const onChangeAll = useCallback(
+    (updater: (prev: FunnelStep[]) => FunnelStep[]) => onChange(updater),
+    [onChange],
+  );
+  const { addFilter, updateFilter, removeFilter } = useFilterManager(onChangeAll);
 
   const addStep = () =>
-    onChange([...steps, { event_name: '', label: t('stepN', { n: String(steps.length + 1) }) }]);
+    onChange((prev) => [...prev, { event_name: '', label: t('stepN', { n: String(prev.length + 1) }) }]);
 
   const removeStep = (i: number) => {
-    if (steps.length <= 2) {return;}
-    onChange(steps.filter((_, idx) => idx !== i));
+    onChange((prev) => {
+      if (prev.length <= 2) {return prev;}
+      return prev.filter((_, idx) => idx !== i);
+    });
   };
 
   return (

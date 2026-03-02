@@ -14,7 +14,7 @@ export interface ExclusionEntry {
 
 interface FunnelExclusionBuilderProps {
   exclusions: ExclusionEntry[];
-  onChange: (exclusions: ExclusionEntry[]) => void;
+  onChange: (exclusionsOrUpdater: ExclusionEntry[] | ((prev: ExclusionEntry[]) => ExclusionEntry[])) => void;
   stepCount: number;
 }
 
@@ -29,16 +29,16 @@ export function FunnelExclusionBuilder({ exclusions, onChange, stepCount }: Funn
   }, [stepCount]);
 
   const handleAdd = useCallback(() => {
-    onChange([...exclusions, { event_name: '', funnel_from_step: 0, funnel_to_step: Math.min(1, stepCount - 1) }]);
-  }, [exclusions, onChange, stepCount]);
+    onChange((prev) => [...prev, { event_name: '', funnel_from_step: 0, funnel_to_step: Math.min(1, stepCount - 1) }]);
+  }, [onChange, stepCount]);
 
   const handleRemove = useCallback((index: number) => {
-    onChange(exclusions.filter((_, i) => i !== index));
-  }, [exclusions, onChange]);
+    onChange((prev) => prev.filter((_, i) => i !== index));
+  }, [onChange]);
 
   const handleUpdate = useCallback((index: number, patch: Partial<ExclusionEntry>) => {
-    onChange(exclusions.map((e, i) => i === index ? { ...e, ...patch } : e));
-  }, [exclusions, onChange]);
+    onChange((prev) => prev.map((e, i) => i === index ? { ...e, ...patch } : e));
+  }, [onChange]);
 
   return (
     <div className="space-y-2">
