@@ -646,8 +646,8 @@ export function escapeLikePattern(s: string): string {
 export class SelectBuilder {
   private node: SelectNode;
 
-  constructor(columns: Expr[]) {
-    this.node = { type: 'select', columns };
+  constructor(columns: (Expr | undefined)[]) {
+    this.node = { type: 'select', columns: columns.filter((c): c is Expr => c !== undefined) };
   }
 
   distinct(): this {
@@ -701,8 +701,8 @@ export class SelectBuilder {
     return this;
   }
 
-  groupBy(...exprs: Expr[]): this {
-    this.node.groupBy = exprs;
+  groupBy(...exprs: (Expr | undefined)[]): this {
+    this.node.groupBy = exprs.filter((e): e is Expr => e !== undefined);
     return this;
   }
 
@@ -810,7 +810,7 @@ export class SelectBuilder {
   }
 }
 
-export function select(...columns: Expr[]): SelectBuilder {
+export function select(...columns: (Expr | undefined)[]): SelectBuilder {
   return new SelectBuilder(columns);
 }
 
