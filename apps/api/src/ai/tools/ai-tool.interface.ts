@@ -52,6 +52,126 @@ export function normalizeJsonSchema(
     return defs[ref.replace('#/definitions/', '').replace('#/$defs/', '')];
   }
 
+  // Pre-pass: fix self-referencing `.nullish()` definitions in-place.
+  // Zod 3.25.x serialises `.nullish()` for shared schemas as:
+  //   { "anyOf": [{"not":{}}, {"$ref":"#/definitions/SELF"}] }
+  // This is a degenerate self-reference that carries no type information.
+  // The actual type is available in the first inline occurrence of the
+  // same property elsewhere in the schema tree. We find it and replace
+  // the self-referencing definition with the inline version so `walk()`
+  // can resolve it without collapsing to empty `{}`.
+  for (const [defKey, defVal] of Object.entries(defs)) {
+    if (!defVal || typeof defVal !== 'object') {continue;}
+    const d = defVal as Record<string, unknown>;
+    if (!Array.isArray(d.anyOf)) {continue;}
+    const branches = d.anyOf as unknown[];
+
+    // Check: every branch is either {"not":{}} or {"$ref":"#/.../SELF"}
+    const isSelfRefNullish = branches.length >= 2 && branches.every((b) => {
+      if (!b || typeof b !== 'object' || Array.isArray(b)) {return false;}
+      const obj = b as Record<string, unknown>;
+      const keys = Object.keys(obj);
+      if (keys.length === 1 && keys[0] === 'not') {return true;}
+      if (keys.length === 1 && keys[0] === '$ref') {
+        const ref = obj['$ref'] as string;
+        const refName = ref.replace('#/definitions/', '').replace('#/$defs/', '');
+        return refName === defKey;
+      }
+      return false;
+    });
+    if (!isSelfRefNullish) {continue;}
+
+    // Find the inline type from the schema tree: locate a parent object
+    // definition that references this defKey via $ref in one of its
+    // properties, then find the first inline occurrence of that same
+    // parent structure in the schema body.
+    const targetRefs = [`#/definitions/${defKey}`, `#/$defs/${defKey}`];
+    const inlineType = findInlineForSelfRef(schema, targetRefs, defs);
+    if (inlineType) {
+      // Replace the self-referencing definition with the inline version
+      defs[defKey] = inlineType;
+    }
+  }
+
+  /**
+   * Find the inline version of a self-referencing definition by:
+   * 1. Finding a parent definition that has property.$ref → targetRef
+   * 2. Finding the inline (non-$ref) version of that parent in the schema body
+   * 3. Returning that parent's corresponding property (the inline type)
+   */
+  function findInlineForSelfRef(
+    root: Record<string, unknown>,
+    targetRefs: string[],
+    definitions: Record<string, unknown>,
+  ): Record<string, unknown> | undefined {
+    // Step 1: find parent definition and property name
+    let parentDefKey: string | undefined;
+    let propName: string | undefined;
+
+    for (const [dk, dv] of Object.entries(definitions)) {
+      if (!dv || typeof dv !== 'object') {continue;}
+      const d = dv as Record<string, unknown>;
+      if (!d.properties || typeof d.properties !== 'object') {continue;}
+      for (const [pn, pv] of Object.entries(d.properties as Record<string, unknown>)) {
+        if (!pv || typeof pv !== 'object') {continue;}
+        const p = pv as Record<string, unknown>;
+        if (targetRefs.includes(p['$ref'] as string)) {
+          parentDefKey = dk;
+          propName = pn;
+          break;
+        }
+      }
+      if (parentDefKey) {break;}
+    }
+
+    if (!parentDefKey || !propName) {return undefined;}
+
+    // Step 2: find inline occurrence of parent object in schema body
+    const parentDef = definitions[parentDefKey] as Record<string, unknown>;
+    const parentProps = parentDef.properties as Record<string, unknown>;
+    const parentPropNames = Object.keys(parentProps);
+
+    function searchInline(node: unknown): Record<string, unknown> | undefined {
+      if (!node || typeof node !== 'object') {return undefined;}
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const found = searchInline(item);
+          if (found) {return found;}
+        }
+        return undefined;
+      }
+      const obj = node as Record<string, unknown>;
+      // Check if this object matches the parent structure
+      if (obj.properties && typeof obj.properties === 'object') {
+        const props = obj.properties as Record<string, unknown>;
+        const keys = Object.keys(props);
+        if (
+          keys.length === parentPropNames.length &&
+          parentPropNames.every((k) => k in props)
+        ) {
+          const targetProp = props[propName!];
+          if (
+            targetProp &&
+            typeof targetProp === 'object' &&
+            !Array.isArray(targetProp) &&
+            !(targetProp as Record<string, unknown>)['$ref']
+          ) {
+            return targetProp as Record<string, unknown>;
+          }
+        }
+      }
+      // Recurse (skip definitions)
+      for (const [key, val] of Object.entries(obj)) {
+        if (key === 'definitions' || key === '$defs') {continue;}
+        const found = searchInline(val);
+        if (found) {return found;}
+      }
+      return undefined;
+    }
+
+    return searchInline(root);
+  }
+
   const resolving = new Set<string>();
 
   function walk(node: unknown): unknown {
@@ -67,6 +187,12 @@ export function normalizeJsonSchema(
 
       // Cycle detected — inline a copy without further $ref expansion
       if (resolving.has(refKey)) {
+        const def = resolved as Record<string, unknown>;
+        if (def.type) {
+          const minimal: Record<string, unknown> = { type: def.type };
+          if (def.description) {minimal.description = def.description;}
+          return minimal;
+        }
         return stripRefs(JSON.parse(JSON.stringify(resolved)));
       }
 
@@ -125,8 +251,20 @@ export function normalizeJsonSchema(
           .filter((branch) => !isEmptyObject(branch) && !isNotEmpty(branch));
 
         if (cleaned.length === 0) {
-          // All branches were artifacts — replace with permissive `{}`
-          Object.assign(result, {});
+          // All branches were artifacts. Try to recover a type from the
+          // recursed branches before falling back to empty `{}`.
+          const recovered = recursed.find(
+            (b) =>
+              !!b &&
+              typeof b === 'object' &&
+              !Array.isArray(b) &&
+              'type' in (b as Record<string, unknown>),
+          ) as Record<string, unknown> | undefined;
+          if (recovered) {
+            Object.assign(result, { type: recovered.type });
+          }
+          // else: result stays as-is (no type info available) — will be
+          // caught by assertDeepSeekCompatible
         } else if (cleaned.length === 1) {
           // Single remaining branch — unwrap anyOf
           const single = cleaned[0] as Record<string, unknown>;
@@ -255,6 +393,35 @@ export function assertDeepSeekCompatible(
         // Must have "type"
         if (!('type' in b)) {
           errors.push(`${branchPath}: anyOf branch missing "type" field`);
+        }
+      }
+    }
+
+    // Property schema validation: every property must have at least one
+    // structural keyword. A bare `{}` means normalizeJsonSchema collapsed
+    // a self-referencing $ref without recovering the type.
+    if ('properties' in obj && obj.properties && typeof obj.properties === 'object') {
+      const props = obj.properties as Record<string, unknown>;
+      for (const [propName, propSchema] of Object.entries(props)) {
+        if (
+          propSchema &&
+          typeof propSchema === 'object' &&
+          !Array.isArray(propSchema)
+        ) {
+          const ps = propSchema as Record<string, unknown>;
+          const hasStructure =
+            'type' in ps ||
+            'anyOf' in ps ||
+            'allOf' in ps ||
+            'oneOf' in ps ||
+            '$ref' in ps ||
+            'enum' in ps ||
+            'const' in ps;
+          if (!hasStructure) {
+            errors.push(
+              `${path}.properties.${propName}: empty schema {} — missing type/anyOf/enum/const`,
+            );
+          }
         }
       }
     }
