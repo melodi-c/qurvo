@@ -87,3 +87,39 @@ export const OpenByDefault: StoryObj = {
     );
   },
 };
+
+export const WithScopeSaved: StoryObj = {
+  name: 'Scope (saved insight)',
+  render: () => {
+    const [open, setOpen] = useState(true);
+    return (
+      <AnnotationDialog
+        open={open}
+        onOpenChange={setOpen}
+        initialDate="2026-02-20"
+        insightId="550e8400-e29b-41d4-a716-446655440000"
+        onSave={async (data: CreateAnnotation) => {
+          console.log('Saved:', data);
+        }}
+      />
+    );
+  },
+};
+
+export const WithScopeUnsaved: StoryObj = {
+  name: 'Scope (unsaved insight)',
+  render: () => {
+    const [open, setOpen] = useState(true);
+    return (
+      <AnnotationDialog
+        open={open}
+        onOpenChange={setOpen}
+        initialDate="2026-02-20"
+        insightId={null}
+        onSave={async (data: CreateAnnotation) => {
+          console.log('Saved:', data);
+        }}
+      />
+    );
+  },
+};
