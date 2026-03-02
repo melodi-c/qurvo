@@ -10,6 +10,26 @@
 # Exit codes: 0 = success, 1 = merge conflict, 2 = pre-merge verification failed, 3 = push failed, 4 = PR create failed, 5 = PR merge failed.
 set -euo pipefail
 
+# macOS doesn't have GNU timeout; use gtimeout or a bash fallback
+if command -v timeout &>/dev/null; then
+  _timeout() { timeout "$@"; }
+elif command -v gtimeout &>/dev/null; then
+  _timeout() { gtimeout "$@"; }
+else
+  _timeout() {
+    local secs="$1"; shift
+    "$@" &
+    local pid=$!
+    ( sleep "$secs" && kill "$pid" 2>/dev/null ) &
+    local watcher=$!
+    wait "$pid" 2>/dev/null
+    local ret=$?
+    kill "$watcher" 2>/dev/null
+    wait "$watcher" 2>/dev/null || true
+    return $ret
+  }
+fi
+
 WORKTREE_PATH="$1"
 BRANCH="$2"
 BASE_BRANCH="$3"
@@ -106,7 +126,7 @@ if [[ "${RUN_TESTS:-false}" == "true" && -n "$AFFECTED_APPS" ]]; then
   _test_app() {
     [[ -f "$WORKTREE_PATH/apps/$1/vitest.integration.config.ts" ]] || return 0
     _log "Testing @qurvo/$1..."
-    timeout 300 pnpm --filter "@qurvo/$1" exec vitest run --config vitest.integration.config.ts 2>/dev/null \
+    _timeout 300 pnpm --filter "@qurvo/$1" exec vitest run --config vitest.integration.config.ts 2>/dev/null \
       || { echo "PRE_MERGE_TEST_FAILED: @qurvo/$1" >&2; return 1; }
   }
   if ! for_each_app "$AFFECTED_APPS" _test_app; then

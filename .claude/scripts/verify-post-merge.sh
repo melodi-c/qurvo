@@ -6,6 +6,27 @@
 # Вывод: ALL_GREEN или REGRESSION + детали.
 set -euo pipefail
 
+# macOS doesn't have GNU timeout; use gtimeout (brew install coreutils) or a perl fallback
+if command -v timeout &>/dev/null; then
+  _timeout() { timeout "$@"; }
+elif command -v gtimeout &>/dev/null; then
+  _timeout() { gtimeout "$@"; }
+else
+  # Pure-bash fallback: run command with a kill timer
+  _timeout() {
+    local secs="$1"; shift
+    "$@" &
+    local pid=$!
+    ( sleep "$secs" && kill "$pid" 2>/dev/null ) &
+    local watcher=$!
+    wait "$pid" 2>/dev/null
+    local ret=$?
+    kill "$watcher" 2>/dev/null
+    wait "$watcher" 2>/dev/null || true
+    return $ret
+  }
+fi
+
 [[ -z "${1:-}" ]] && { echo "ALL_GREEN (no apps)"; exit 0; }
 
 AFFECTED_APPS_RAW="$1"
@@ -31,7 +52,7 @@ FLAKY_TESTS=""
 for APP in "${APPS[@]}"; do
   APP=$(echo "$APP" | xargs)  # trim whitespace
   BUILD_LOG="/tmp/post-merge-build-${APP}.log"
-  if timeout "$CMD_TIMEOUT" pnpm turbo build --filter="@qurvo/$APP" > "$BUILD_LOG" 2>&1; then
+  if _timeout "$CMD_TIMEOUT" pnpm turbo build --filter="@qurvo/$APP" > "$BUILD_LOG" 2>&1; then
     :
   else
     BUILD_OK=false
@@ -63,12 +84,12 @@ for APP in "${APPS[@]}"; do
 
   OUTPUT_FILE="/tmp/post-merge-test-${APP}.log"
 
-  if timeout "$CMD_TIMEOUT" pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
+  if _timeout "$CMD_TIMEOUT" pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
     SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "passed")
     TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY}\n"
   else
     # Retry once for flaky tests
-    if timeout "$CMD_TIMEOUT" pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
+    if _timeout "$CMD_TIMEOUT" pnpm --filter "@qurvo/$APP" exec vitest run --config "$CONF" > "$OUTPUT_FILE" 2>&1; then
       SUMMARY=$(grep -E "Tests |passed|failed" "$OUTPUT_FILE" 2>/dev/null | tail -3 || echo "passed on retry")
       TEST_SUMMARY="${TEST_SUMMARY}@qurvo/$APP: ${SUMMARY} (flaky)\n"
       FLAKY_TESTS="${FLAKY_TESTS}@qurvo/$APP "
