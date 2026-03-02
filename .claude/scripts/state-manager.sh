@@ -97,6 +97,16 @@ case "$CMD" in
     jq_update --arg n "$NUM" --argjson v "$NEXT" '.issues[$n].solver_invocations=$v'
     echo "$NEXT" ;;
 
+  task-id)
+    NUM="${1:?Usage: task-id <number> [task_id]}"
+    if [[ -n "${2:-}" ]]; then
+      _log_op "task-id $NUM $2"
+      jq_update --arg n "$NUM" --arg t "$2" '.issues[$n].task_id=$t'
+      echo "OK"
+    else
+      jq -r ".issues[\"$NUM\"].task_id // empty" "$STATE_FILE"
+    fi ;;
+
   issue-status)
     NUM="${1:?}"; STATUS="${2:?}"; shift 2
     _log_op "issue-status $NUM $STATUS $*"
@@ -168,7 +178,7 @@ case "$CMD" in
     echo "OK" ;;
 
   read-active)
-    jq '{phase,current_group_index,active:[.issues|to_entries[]|select(.value.status!="MERGED")|{number:.key,status:.value.status,branch:.value.branch,group:.value.group,worktree_path:.value.worktree_path,base_branch:.value.base_branch}],merged_count:([.issues|to_entries[]|select(.value.status=="MERGED")]|length)}' "$STATE_FILE" ;;
+    jq '{phase,current_group_index,active:[.issues|to_entries[]|select(.value.status!="MERGED")|{number:.key,status:.value.status,branch:.value.branch,group:.value.group,worktree_path:.value.worktree_path,base_branch:.value.base_branch,task_id:.value.task_id}],merged_count:([.issues|to_entries[]|select(.value.status=="MERGED")]|length)}' "$STATE_FILE" ;;
 
   get)
     jq "${1:-.}" "$STATE_FILE" ;;

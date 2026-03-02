@@ -11,9 +11,25 @@ SM="$CLAUDE_PROJECT_DIR/.claude/scripts/state-manager.sh"
 bash "$SM" read-active
 ```
 
-Вывод содержит: текущую фазу, active issues (не MERGED), их статусы и worktree_path. Продолжи с соответствующего шага.
+Вывод содержит: текущую фазу, active issues (не MERGED), их статусы, worktree_path и **task_id**. Продолжи с соответствующего шага.
 
 **Валидация версии**: если `schema_version` != 3 или отсутствует — state устаревший, используй fallback (0.2).
+
+### 0.1.1: Проверка живых background-агентов (CRITICAL)
+
+**Compact НЕ убивает background-агентов.** Solver'ы, запущенные с `run_in_background: true`, продолжают работать после compact. Поэтому **НИКОГДА не рестартируй solver, пока не убедился что он мёртв.**
+
+Для каждого issue в статусе `SOLVING` с непустым `task_id`:
+
+1. Вызови `TaskOutput(task_id=<TASK_ID>, block=false, timeout=5000)` чтобы проверить статус задачи
+2. **Если задача ещё выполняется** (статус running/in_progress) → **НЕ рестартируй**. Агент жив и сам завершится. Просто жди уведомления о завершении, как в обычном Шаге 5.
+3. **Если задача завершена** → прочитай результат solver-файла и переходи к Шагу 6 (review pipeline)
+4. **Если task_id отсутствует** (legacy state) → используй phase-based recovery (матрица ниже)
+
+**Вывод**: после проверки task_id у тебя два набора issues:
+- **Живые** (agent ещё работает) → вернись в режим ожидания Шага 5 (жди уведомления от системы)
+- **Завершённые** (agent закончил) → обработай результат (Шаг 6)
+- **Без task_id** (legacy) → phase-based recovery (ниже)
 
 ## 0.2: Fallback — если state файла нет
 
@@ -43,7 +59,7 @@ fi
     echo "Solver #$ISSUE_NUMBER was in phase: $PHASE, worktree: $WORKTREE"
   fi
   ```
-  Матрица решений по фазе:
+  Матрица решений по фазе (только для issues **без task_id** или с мёртвым агентом):
   - **INIT / ANALYZING / PLANNING** → перезапуск с новым worktree (код ещё не менялся)
   - **IMPLEMENTING** → перезапуск в существующем worktree `$WORKTREE` (есть частичные изменения)
   - **TESTING / BUILDING / LINTING / FINALIZING** → перезапуск в существующем worktree `$WORKTREE` (код готов, нужен DoD)
