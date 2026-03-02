@@ -20,6 +20,7 @@ interface Snapshot {
   layout: RglItem[];
   name: string;
   widgetMeta: Record<string, LocalWidgetMeta>;
+  filterOverrides: DashboardFilterOverrides;
 }
 
 interface DashboardStore {
@@ -33,7 +34,7 @@ interface DashboardStore {
   widgetMeta: Record<string, LocalWidgetMeta>;
   snapshot: Snapshot | null;
 
-  initSession: (id: string, name: string, widgets: Widget[]) => void;
+  initSession: (id: string, name: string, widgets: Widget[], dateFrom?: string | null, dateTo?: string | null) => void;
   exitEditModeAfterSave: () => void;
   setLocalName: (name: string) => void;
   updateLayout: (layout: readonly RglItem[]) => void;
@@ -77,7 +78,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   snapshot: null,
   focusedTextTile: null,
 
-  initSession: (id, name, widgets) => {
+  initSession: (id, name, widgets, dateFrom, dateTo) => {
     // Hydrate widgetMeta from server content field for text tiles
     const meta: Record<string, LocalWidgetMeta> = {};
     for (const w of widgets) {
@@ -85,6 +86,10 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         meta[w.id] = { textContent: w.content };
       }
     }
+    const overrides: DashboardFilterOverrides = {
+      dateFrom: dateFrom ?? null,
+      dateTo: dateTo ?? null,
+    };
     set({
       dashboardId: id,
       localName: name,
@@ -92,13 +97,14 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       localLayout: widgetsToLayout(widgets),
       isDirty: false,
       isEditing: false,
-      filterOverrides: EMPTY_OVERRIDES,
+      filterOverrides: overrides,
       widgetMeta: meta,
       snapshot: null,
     });
   },
 
   exitEditModeAfterSave: () => set({ isEditing: false, isDirty: false, snapshot: null }),
+  // filterOverrides are kept — they are now persistent (saved to server)
 
   setLocalName: (name) => set({ localName: name, isDirty: true }),
 
@@ -165,6 +171,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         layout: s.localLayout,
         name: s.localName,
         widgetMeta: s.widgetMeta,
+        filterOverrides: s.filterOverrides,
       },
     })),
 
@@ -175,7 +182,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       if (forDashboardId && s.dashboardId !== forDashboardId) {
         return {};
       }
-      if (!s.snapshot) {return { isEditing: false, isDirty: false, filterOverrides: EMPTY_OVERRIDES };}
+      if (!s.snapshot) {return { isEditing: false, isDirty: false };}
       return {
         isEditing: false,
         isDirty: false,
@@ -183,13 +190,13 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         localLayout: s.snapshot.layout,
         localName: s.snapshot.name,
         widgetMeta: s.snapshot.widgetMeta,
+        filterOverrides: s.snapshot.filterOverrides,
         snapshot: null,
-        filterOverrides: EMPTY_OVERRIDES,
       };
     }),
 
   setDateRange: (dateFrom, dateTo) =>
-    set({ filterOverrides: { dateFrom, dateTo } }),
+    set({ filterOverrides: { dateFrom, dateTo }, isDirty: true }),
 
   setWidgetMeta: (widgetId, meta) =>
     set((s) => ({
