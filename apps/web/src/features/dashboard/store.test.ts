@@ -25,12 +25,70 @@ describe('useDashboardStore', () => {
       localWidgets: [],
       localLayout: [],
       localName: '',
+      filterOverrides: EMPTY_OVERRIDES,
       widgetMeta: {},
       snapshot: null,
     });
   });
 
-  describe('cancelEditMode race condition guard', () => {
+  describe('initSession with date range', () => {
+    it('should initialize filterOverrides from date_from/date_to', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widget], '-30d', '2026-03-02');
+
+      const state = useDashboardStore.getState();
+      expect(state.filterOverrides.dateFrom).toBe('-30d');
+      expect(state.filterOverrides.dateTo).toBe('2026-03-02');
+    });
+
+    it('should set filterOverrides to null/null when no dates provided', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widget]);
+
+      const state = useDashboardStore.getState();
+      expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
+    });
+
+    it('should set filterOverrides to null/null when dates are null', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widget], null, null);
+
+      const state = useDashboardStore.getState();
+      expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
+    });
+  });
+
+  describe('setDateRange', () => {
+    it('should set isDirty to true when changing date range', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widget]);
+
+      expect(useDashboardStore.getState().isDirty).toBe(false);
+
+      useDashboardStore.getState().setDateRange('-7d', '2026-03-02');
+
+      const state = useDashboardStore.getState();
+      expect(state.isDirty).toBe(true);
+      expect(state.filterOverrides.dateFrom).toBe('-7d');
+      expect(state.filterOverrides.dateTo).toBe('2026-03-02');
+    });
+
+    it('should set isDirty when clearing date range to null', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widget], '-30d', '2026-03-02');
+
+      useDashboardStore.getState().setDateRange(null, null);
+
+      const state = useDashboardStore.getState();
+      expect(state.isDirty).toBe(true);
+      expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
+    });
+  });
+
+  describe('cancelEditMode', () => {
     it('should restore snapshot when cancelEditMode is called without dashboardId', () => {
       const widgetA = makeWidget('w-1', 'dash-a');
 
@@ -100,33 +158,73 @@ describe('useDashboardStore', () => {
       expect(state.localName).toBe('Dashboard A');
     });
 
-    it('should reset filterOverrides when cancelEditMode restores snapshot', () => {
+    it('should restore filterOverrides from snapshot when cancelEditMode restores', () => {
       const widgetA = makeWidget('w-1', 'dash-a');
 
+      // Initialize with a server-side date range
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA], '-30d', '2026-03-02');
+      useDashboardStore.getState().enterEditMode();
+
+      // Change date range during editing
+      useDashboardStore.getState().setDateRange('-7d', '2026-03-02');
+      expect(useDashboardStore.getState().filterOverrides.dateFrom).toBe('-7d');
+
+      useDashboardStore.getState().cancelEditMode();
+
+      // Should restore to the snapshotted value (the original server date range)
+      const state = useDashboardStore.getState();
+      expect(state.filterOverrides.dateFrom).toBe('-30d');
+      expect(state.filterOverrides.dateTo).toBe('2026-03-02');
+    });
+
+    it('should restore null filterOverrides from snapshot when original was null', () => {
+      const widgetA = makeWidget('w-1', 'dash-a');
+
+      // Initialize without date range (per-widget)
       useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA]);
       useDashboardStore.getState().enterEditMode();
-      useDashboardStore.getState().setDateRange('2025-01-01', '2025-02-01');
 
-      // Verify overrides are set
+      // Set a date range during editing
+      useDashboardStore.getState().setDateRange('2025-01-01', '2025-02-01');
       expect(useDashboardStore.getState().filterOverrides.dateFrom).toBe('2025-01-01');
 
       useDashboardStore.getState().cancelEditMode();
 
+      // Should restore to EMPTY (null/null) since that was the original
       const state = useDashboardStore.getState();
       expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
     });
+  });
 
-    it('should reset filterOverrides when cancelEditMode has no snapshot', () => {
-      const widgetA = makeWidget('w-1', 'dash-a');
+  describe('enterEditMode snapshots filterOverrides', () => {
+    it('should include filterOverrides in snapshot', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard', [widget], '-90d', '2026-03-02');
 
-      useDashboardStore.getState().initSession('dash-a', 'Dashboard A', [widgetA]);
-      // Not editing, but set some filter overrides
-      useDashboardStore.getState().setDateRange('2025-01-01', null);
-
-      useDashboardStore.getState().cancelEditMode('dash-a');
+      useDashboardStore.getState().enterEditMode();
 
       const state = useDashboardStore.getState();
-      expect(state.filterOverrides).toEqual(EMPTY_OVERRIDES);
+      expect(state.snapshot).not.toBeNull();
+      expect(state.snapshot!.filterOverrides.dateFrom).toBe('-90d');
+      expect(state.snapshot!.filterOverrides.dateTo).toBe('2026-03-02');
+    });
+  });
+
+  describe('exitEditModeAfterSave keeps filterOverrides', () => {
+    it('should not reset filterOverrides after save', () => {
+      const widget = makeWidget('w-1', 'dash-a');
+      useDashboardStore.getState().initSession('dash-a', 'Dashboard', [widget]);
+      useDashboardStore.getState().enterEditMode();
+      useDashboardStore.getState().setDateRange('-7d', '2026-03-02');
+
+      useDashboardStore.getState().exitEditModeAfterSave();
+
+      const state = useDashboardStore.getState();
+      expect(state.isEditing).toBe(false);
+      expect(state.isDirty).toBe(false);
+      // filterOverrides should persist after save
+      expect(state.filterOverrides.dateFrom).toBe('-7d');
+      expect(state.filterOverrides.dateTo).toBe('2026-03-02');
     });
   });
 
