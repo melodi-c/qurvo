@@ -14,7 +14,6 @@ import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
-import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { FormulaBuilder } from './FormulaBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
@@ -30,22 +29,6 @@ interface TrendQueryPanelProps {
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
   const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames();
   const { t } = useLocalTranslation(translations);
-
-  const metricOptions = useMemo(() => [
-    { value: 'total_events', label: t('totalEvents'), desc: t('totalEventsDesc') },
-    { value: 'unique_users', label: t('uniqueUsers'), desc: t('uniqueUsersDesc') },
-    { value: 'events_per_user', label: t('eventsPerUser'), desc: t('eventsPerUserDesc') },
-    { value: 'property_sum', label: t('propertySum'), desc: t('propertyAggDesc') },
-    { value: 'property_avg', label: t('propertyAvg'), desc: t('propertyAggDesc') },
-    { value: 'property_min', label: t('propertyMin'), desc: t('propertyAggDesc') },
-    { value: 'property_max', label: t('propertyMax'), desc: t('propertyAggDesc') },
-  ], [t]);
-
-  const isPropertyMetric = config.metric.startsWith('property_');
-  const customPropertyNames = useMemo(
-    () => propertyNames.filter((n) => n.startsWith('properties.')),
-    [propertyNames],
-  );
 
   const granularityOptions = useMemo(() => [
     { value: 'hour', label: t('hour') },
@@ -119,40 +102,10 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
 
         <Separator />
 
-        {/* Metric + Granularity */}
+        {/* Granularity + Chart Type */}
         <section className="space-y-3">
           <SectionHeader icon={BarChart3} label={t('display')} />
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">{t('metric')}</span>
-                <InfoTooltip content={t('metricTooltip')} />
-              </div>
-              <Select
-                value={config.metric}
-                onValueChange={(v) => {
-                  const next = v as TrendWidgetConfig['metric'];
-                  const wasProperty = config.metric.startsWith('property_');
-                  const isProperty = next.startsWith('property_');
-                  onChange((prev) => ({
-                    ...prev,
-                    metric: next,
-                    ...(!isProperty && wasProperty ? { metric_property: undefined } : {}),
-                  }));
-                }}
-              >
-                <SelectTrigger size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {metricOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value} description={o.desc}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">{t('granularity')}</span>
@@ -174,30 +127,14 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* Property selector for property_* metrics */}
-          {isPropertyMetric && (
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">{t('metricProperty')}</span>
-              <PropertyNameCombobox
-                value={config.metric_property ?? ''}
-                onChange={(v) => onChange((prev) => ({ ...prev, metric_property: v || undefined }))}
-                propertyNames={customPropertyNames}
-                descriptions={propDescriptions}
-                className="h-8"
+              <span className="text-xs text-muted-foreground">{t('chartType')}</span>
+              <PillToggleGroup
+                options={chartTypeOptions}
+                value={config.chart_type}
+                onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as TrendWidgetConfig['chart_type'] }))}
               />
             </div>
-          )}
-
-          {/* Chart type */}
-          <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">{t('chartType')}</span>
-            <PillToggleGroup
-              options={chartTypeOptions}
-              value={config.chart_type}
-              onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as TrendWidgetConfig['chart_type'] }))}
-            />
           </div>
         </section>
 
