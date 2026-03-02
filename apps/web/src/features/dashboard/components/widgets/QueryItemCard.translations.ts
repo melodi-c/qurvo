@@ -7,6 +7,7 @@ export default createTranslations({
     addOrEvent: 'OR event',
     removeStep: 'Remove step',
     removeOrEvent: 'Remove OR event',
+    duplicate: 'Duplicate',
   },
   ru: {
     selectEvent: 'Выберите событие...',
@@ -14,5 +15,6 @@ export default createTranslations({
     addOrEvent: 'OR событие',
     removeStep: 'Удалить шаг',
     removeOrEvent: 'Удалить OR событие',
+    duplicate: 'Дублировать',
   },
 });

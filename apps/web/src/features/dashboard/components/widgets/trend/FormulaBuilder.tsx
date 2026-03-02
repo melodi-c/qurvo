@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { Plus, X, FunctionSquare } from 'lucide-react';
+import { Plus, X, Copy, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
@@ -42,6 +42,18 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
     onChange((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
   }, [onChange]);
 
+  const duplicateFormula = useCallback((idx: number) => {
+    onChange((prev) => {
+      const original = prev[idx];
+      const copy: TrendFormula = {
+        id: crypto.randomUUID(),
+        label: `${original.label || ''} ${t('copyLabel')}`.trim(),
+        expression: original.expression,
+      };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+  }, [onChange, t]);
+
   const removeFormula = useCallback((idx: number) => {
     onChange((prev) => prev.filter((_, i) => i !== idx));
   }, [onChange]);
@@ -68,6 +80,15 @@ export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuild
                 placeholder={t('labelPlaceholder')}
                 className="h-7 text-xs bg-transparent border-none shadow-none focus-visible:ring-0 px-1"
               />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0"
+                onClick={() => duplicateFormula(idx)}
+                aria-label={t('duplicateFormula')}
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

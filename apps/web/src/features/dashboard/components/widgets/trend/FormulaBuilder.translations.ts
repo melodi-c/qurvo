@@ -12,6 +12,8 @@ export default createTranslations({
     errorSyntax: 'Invalid expression syntax',
     errorUnknownSeries: 'Unknown series letter',
     errorNoSeries: 'Expression must reference at least one series',
+    duplicateFormula: 'Duplicate formula',
+    copyLabel: '(copy)',
   },
   ru: {
     formulas: 'Формулы',
@@ -24,5 +26,7 @@ export default createTranslations({
     errorSyntax: 'Некорректный синтаксис выражения',
     errorUnknownSeries: 'Неизвестная буква серии',
     errorNoSeries: 'Выражение должно ссылаться хотя бы на одну серию',
+    duplicateFormula: 'Дублировать формулу',
+    copyLabel: '(копия)',
   },
 });

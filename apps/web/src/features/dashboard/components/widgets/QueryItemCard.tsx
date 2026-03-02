@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { GripVertical, X, Plus } from 'lucide-react';
+import { GripVertical, X, Plus, Copy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
@@ -33,6 +33,8 @@ interface QueryItemCardProps {
   /** OR-event names support */
   onEventNamesChange?: (names: string[]) => void;
   onRemove: () => void;
+  /** Optional duplicate handler — when provided, a Copy button appears left of the X button */
+  onDuplicate?: () => void;
   onFilterAdd: () => void;
   onFilterChange: (filterIdx: number, filter: StepFilter) => void;
   onFilterRemove: (filterIdx: number) => void;
@@ -58,6 +60,7 @@ export function QueryItemCard({
   onEventChange,
   onEventNamesChange,
   onRemove,
+  onDuplicate,
   onFilterAdd,
   onFilterChange,
   onFilterRemove,
@@ -98,6 +101,16 @@ export function QueryItemCard({
             placeholder={labelPlaceholder}
             className="h-7 flex-1 min-w-0 border-0 bg-transparent text-xs font-medium shadow-none px-2 focus-visible:ring-0"
           />
+          {onDuplicate && (
+            <button
+              type="button"
+              onClick={onDuplicate}
+              aria-label={t('duplicate')}
+              className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground/50 transition-colors hover:text-foreground"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          )}
           {canRemove && (
             <button
               type="button"
