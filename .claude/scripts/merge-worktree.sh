@@ -199,15 +199,15 @@ if [[ "$AUTO_MERGE" == "true" ]]; then
     sleep 2
   done
 
-  # Fallback: обновить локальный main и взять rev-parse
+  # Fallback: обновить remote tracking и взять rev-parse
   if [[ -z "$COMMIT_HASH" ]]; then
     cd "$REPO_ROOT"
-    git pull origin "$BASE_BRANCH" 2>/dev/null || _log "WARN: git pull failed, local $BASE_BRANCH may be stale"
-    COMMIT_HASH=$(git rev-parse --short "$BASE_BRANCH" 2>/dev/null || true)
+    git fetch origin "$BASE_BRANCH" 2>/dev/null || _log "WARN: git fetch failed"
+    COMMIT_HASH=$(git rev-parse --short "origin/$BASE_BRANCH" 2>/dev/null || true)
   else
-    # Обновить локальный main (best-effort)
+    # Обновить remote tracking (best-effort) — НЕ pull, чтобы не fast-forward local branch
     cd "$REPO_ROOT"
-    git pull origin "$BASE_BRANCH" 2>/dev/null || _log "WARN: git pull failed, local $BASE_BRANCH may be stale"
+    git fetch origin "$BASE_BRANCH" 2>/dev/null || _log "WARN: git fetch failed"
   fi
 
   # Финальная проверка: COMMIT_HASH не должен быть пустым
