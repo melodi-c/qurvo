@@ -7,6 +7,7 @@ import type {
   Annotation,
 } from '@/api/generated/Api';
 import { TrendLineBarChart } from './TrendLineBarChart';
+import { TrendAreaChart } from './TrendAreaChart';
 import { TrendCumulativeChart } from './TrendCumulativeChart';
 
 // Re-export the props type for consumers
@@ -43,12 +44,11 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
     case 'bar':
       return <TrendLineBarChart chartType={chartType} {...rest} />;
 
+    case 'area':
+      return <TrendAreaChart {...rest} />;
+
     case 'cumulative':
       return <TrendCumulativeChart {...rest} />;
-
-    // Future chart types will get their own components here:
-    // case 'area':
-    //   return <TrendAreaChart {...rest} />;
     // case 'number':
     //   return <TrendNumberChart {...rest} />;
     // case 'value_bar':
