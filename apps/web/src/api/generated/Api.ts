@@ -1328,6 +1328,8 @@ export interface ResetDemoResponse {
 export interface Annotation {
   description?: string | null;
   color?: string | null;
+  scope: AnnotationDtoScopeEnum;
+  insight_id?: string | null;
   id: string;
   project_id: string;
   created_by: string;
@@ -1340,6 +1342,9 @@ export interface Annotation {
 }
 
 export interface CreateAnnotation {
+  scope?: CreateAnnotationDtoScopeEnum;
+  /** @format uuid */
+  insight_id?: string;
   date: string;
   /**
    * @minLength 1
@@ -1353,6 +1358,9 @@ export interface CreateAnnotation {
 }
 
 export interface UpdateAnnotation {
+  scope?: UpdateAnnotationDtoScopeEnum;
+  /** @format uuid */
+  insight_id?: string;
   date?: string;
   /**
    * @minLength 1
@@ -1627,6 +1635,12 @@ export type PropertyDefinitionDtoPropertyTypeEnum = "event" | "person";
 export type UpsertPropertyDefinitionResponseDtoPropertyTypeEnum =
   | "event"
   | "person";
+
+export type AnnotationDtoScopeEnum = "project" | "insight";
+
+export type CreateAnnotationDtoScopeEnum = "project" | "insight";
+
+export type UpdateAnnotationDtoScopeEnum = "project" | "insight";
 
 export type AdminUserProjectDtoRoleEnum = "owner" | "editor" | "viewer";
 
@@ -2479,6 +2493,8 @@ export interface DemoControllerResetParams {
 export interface AnnotationsControllerListParams {
   date_from?: string;
   date_to?: string;
+  /** @format uuid */
+  insight_id?: string;
   projectId: string;
 }
 
