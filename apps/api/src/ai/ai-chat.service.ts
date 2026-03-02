@@ -21,6 +21,7 @@ export interface SavedMessage {
   tool_call_id: string | null;
   tool_name: string | null;
   tool_result: unknown;
+  reasoning_content?: string | null;
   visualization_type: string | null;
   prompt_tokens?: number | null;
   completion_tokens?: number | null;
@@ -148,6 +149,7 @@ export class AiChatService {
       tool_call_id: msg.tool_call_id,
       tool_name: msg.tool_name,
       tool_result: msg.tool_result,
+      reasoning_content: msg.reasoning_content ?? null,
       visualization_type: msg.visualization_type,
       prompt_tokens: msg.prompt_tokens ?? null,
       completion_tokens: msg.completion_tokens ?? null,
