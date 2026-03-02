@@ -16,8 +16,6 @@ export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendRespons
   configHash: (config) =>
     JSON.stringify({
       series: config.series,
-      metric: config.metric,
-      metric_property: config.metric_property,
       granularity: config.granularity,
       from: config.date_from,
       to: config.date_to,
@@ -33,11 +31,9 @@ export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendRespons
   buildParams: (config, projectId, widgetUuid) => ({
     project_id: projectId,
     series: cleanSeries(config),
-    metric: config.metric,
     granularity: config.granularity,
     date_from: config.date_from,
     date_to: config.date_to,
-    ...(config.metric_property ? { metric_property: config.metric_property } : {}),
     ...(config.breakdown_property ? { breakdown_property: config.breakdown_property } : {}),
     ...(config.compare ? { compare: true } : {}),
     ...(widgetUuid ? { widget_id: widgetUuid } : {}),

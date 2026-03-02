@@ -24,8 +24,6 @@ export type Granularity = "day" | "week" | "month";
 
 export type RetentionType = "first_time" | "recurring";
 
-export type TrendGranularity = "hour" | "day" | "week" | "month";
-
 export type TrendMetric =
   | "total_events"
   | "unique_users"
@@ -33,7 +31,10 @@ export type TrendMetric =
   | "property_sum"
   | "property_avg"
   | "property_min"
-  | "property_max";
+  | "property_max"
+  | "first_time_users";
+
+export type TrendGranularity = "hour" | "day" | "week" | "month";
 
 export interface Register {
   /**
@@ -354,8 +355,10 @@ export interface EventPropertyNamesResponse {
 }
 
 export interface TrendSeries {
+  metric: TrendMetric;
   event_name: string;
   label: string;
+  metric_property?: string;
   filters?: StepFilter[];
 }
 
@@ -547,8 +550,6 @@ export interface TrendFormula {
 export interface TrendWidgetConfig {
   type: TrendWidgetConfigDtoTypeEnum;
   series: TrendSeries[];
-  metric: TrendMetric;
-  metric_property?: string;
   granularity: TrendGranularity;
   chart_type: ChartType;
   breakdown_property?: string;
@@ -1787,7 +1788,6 @@ export interface TrendControllerGetTrendParams {
    * @uniqueItems true
    */
   cohort_ids?: string[];
-  metric: TrendMetric;
   granularity: TrendGranularity;
   breakdown_type?: BreakdownTypeEnum1;
   /**
@@ -1796,7 +1796,6 @@ export interface TrendControllerGetTrendParams {
    */
   breakdown_cohort_ids?: string[];
   series: TrendSeries[];
-  metric_property?: string;
   breakdown_property?: string;
   compare?: boolean;
   /** @format uuid */

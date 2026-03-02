@@ -37,6 +37,9 @@ interface QueryItemCardProps {
   onFilterChange: (filterIdx: number, filter: StepFilter) => void;
   onFilterRemove: (filterIdx: number) => void;
 
+  /** Extra content rendered after the "Add filter" button (e.g. per-series metric selector) */
+  children?: ReactNode;
+
   /** Drag-and-drop support */
   draggable?: boolean;
   isDragOver?: boolean;
@@ -58,6 +61,7 @@ export function QueryItemCard({
   onFilterAdd,
   onFilterChange,
   onFilterRemove,
+  children,
   draggable,
   isDragOver,
   onDragStart,
@@ -179,6 +183,8 @@ export function QueryItemCard({
           {t('addFilter')}
         </button>
       </div>
+
+      {children}
     </div>
   );
 }

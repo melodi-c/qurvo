@@ -36,10 +36,9 @@ const insightsMock: Insight[] = [
     config: {
       type: 'trend',
       series: [
-        { event_name: '$pageview', label: 'Pageviews', filters: [] },
-        { event_name: '$identify', label: 'Identities', filters: [] },
+        { event_name: '$pageview', label: 'Pageviews', metric: 'total_events', filters: [] },
+        { event_name: '$identify', label: 'Identities', metric: 'total_events', filters: [] },
       ],
-      metric: 'total_events',
       granularity: 'day',
       chart_type: 'line',
       date_from: '2026-01-28',

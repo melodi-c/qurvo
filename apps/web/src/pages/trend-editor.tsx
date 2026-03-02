@@ -58,12 +58,22 @@ export default function TrendEditorPage() {
     total_events: t('totalEvents'),
     unique_users: t('uniqueUsers'),
     events_per_user: t('eventsPerUser'),
+    first_time_users: t('firstTimeUsers'),
     property_sum: t('propertySum'),
     property_avg: t('propertyAvg'),
     property_min: t('propertyMin'),
     property_max: t('propertyMax'),
   }), [t]);
-  const metricLabel = METRIC_LABELS[config.metric] ?? config.metric;
+
+  // Show the common metric label if all series share the same metric, otherwise "Total"
+  const metricLabel = useMemo(() => {
+    const metrics = new Set(config.series.map((s) => s.metric));
+    if (metrics.size === 1) {
+      const m = config.series[0].metric;
+      return METRIC_LABELS[m] ?? m;
+    }
+    return t('totalValue');
+  }, [config.series, METRIC_LABELS, t]);
 
   return (
     <InsightEditorLayout
