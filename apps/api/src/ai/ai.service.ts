@@ -32,6 +32,7 @@ interface TokenUsage {
 
 interface StreamTurnResult {
   assistantContent: string;
+  reasoningContent: string;
   toolCalls: AccumulatedToolCall[];
   usage: TokenUsage | null;
 }
@@ -155,7 +156,7 @@ export class AiService implements OnModuleInit {
     let totalCachedTokens = 0;
 
     for (let i = 0; i < AI_MAX_TOOL_CALL_ITERATIONS; i++) {
-      const { assistantContent, toolCalls, usage } = yield* this.streamOneTurn(client, messages);
+      const { assistantContent, reasoningContent, toolCalls, usage } = yield* this.streamOneTurn(client, messages);
 
       const costFields = usage
         ? {
@@ -189,6 +190,7 @@ export class AiService implements OnModuleInit {
           tool_call_id: null,
           tool_name: null,
           tool_result: null,
+          reasoning_content: reasoningContent || null,
           visualization_type: null,
           ...costFields,
         });
@@ -202,11 +204,13 @@ export class AiService implements OnModuleInit {
         function: { name: tc.function.name, arguments: tc.function.arguments },
       }));
 
-      messages.push({
+      const assistantMsg: ChatCompletionMessageParam = {
         role: 'assistant',
         content: assistantContent || null,
         tool_calls: serializedToolCalls,
-      });
+      };
+      if (reasoningContent) {Object.assign(assistantMsg, { reasoning_content: reasoningContent });}
+      messages.push(assistantMsg);
 
       await this.chatService.saveMessage(conversationId, seq++, {
         role: 'assistant',
@@ -215,6 +219,7 @@ export class AiService implements OnModuleInit {
         tool_call_id: null,
         tool_name: null,
         tool_result: null,
+        reasoning_content: reasoningContent || null,
         visualization_type: null,
         ...costFields,
       });
@@ -265,6 +270,7 @@ export class AiService implements OnModuleInit {
     });
 
     let assistantContent = '';
+    let reasoningContent = '';
     const toolCalls: AccumulatedToolCall[] = [];
     let usage: TokenUsage | null = null;
 
@@ -279,6 +285,10 @@ export class AiService implements OnModuleInit {
 
       const delta = chunk.choices[0]?.delta;
       if (!delta) {continue;}
+
+      // Accumulate vendor-specific reasoning_content (DeepSeek R1)
+      const rc = (delta as Record<string, unknown>).reasoning_content;
+      if (typeof rc === 'string') {reasoningContent += rc;}
 
       if (delta.content) {
         assistantContent += delta.content;
@@ -299,6 +309,6 @@ export class AiService implements OnModuleInit {
       }
     }
 
-    return { assistantContent, toolCalls, usage };
+    return { assistantContent, reasoningContent, toolCalls, usage };
   }
 }

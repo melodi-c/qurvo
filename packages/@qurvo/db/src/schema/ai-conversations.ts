@@ -29,6 +29,7 @@ export const aiMessages = pgTable('ai_messages', {
   tool_call_id: varchar('tool_call_id', { length: 100 }),
   tool_name: varchar('tool_name', { length: 100 }),
   tool_result: jsonb('tool_result'),
+  reasoning_content: text('reasoning_content'),
   visualization_type: varchar('visualization_type', { length: 50 }),
   sequence: integer('sequence').notNull(),
   prompt_tokens: integer('prompt_tokens'),

@@ -351,6 +351,13 @@
       "when": 1776200000000,
       "tag": "0050_add_annotation_scope_insight_id",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1776300000000,
+      "tag": "0051_add_ai_message_reasoning_content",
+      "breakpoints": true
     }
   ]
 }

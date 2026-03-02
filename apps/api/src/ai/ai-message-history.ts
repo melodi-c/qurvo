@@ -136,6 +136,9 @@ export class AiMessageHistoryBuilder {
           content: msg.content ?? null,
           ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
         };
+        if (msg.reasoning_content) {
+          Object.assign(assistantMsg, { reasoning_content: msg.reasoning_content });
+        }
         messages.push(assistantMsg);
       } else if (msg.role === 'tool') {
         if (!msg.tool_call_id) {continue;}
