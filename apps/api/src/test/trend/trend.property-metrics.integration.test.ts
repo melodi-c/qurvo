@@ -238,6 +238,153 @@ describe('queryTrend — property aggregation', () => {
   });
 });
 
+describe('queryTrend — string-encoded numeric properties', () => {
+  it('property_sum handles JSON string-encoded numbers ("130.9")', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'payment_success',
+        properties: JSON.stringify({ amount: '130.9' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'payment_success',
+        properties: JSON.stringify({ amount: '50.1' }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'payment_success', label: 'Income', metric: 'property_sum', metric_property: 'properties.amount' }],
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+      timezone: 'UTC',
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(r.series[0].data)).toBeCloseTo(181, 0);
+  });
+
+  it('property_sum handles mix of JSON numbers and string-encoded numbers', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'payment_success',
+        properties: JSON.stringify({ amount: 100 }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'payment_success',
+        properties: JSON.stringify({ amount: '50.5' }),
+        timestamp: ts(3, 11),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u3',
+        event_name: 'payment_success',
+        properties: JSON.stringify({ amount: 'abc' }),
+        timestamp: ts(3, 12),
+      }),
+    ]);
+
+    const result = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'payment_success', label: 'Income', metric: 'property_sum', metric_property: 'properties.amount' }],
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+      timezone: 'UTC',
+    });
+
+    expect(result.compare).toBe(false);
+    expect(result.breakdown).toBe(false);
+    const r = result as Extract<typeof result, { compare: false; breakdown: false }>;
+    // 100 (number) + 50.5 (string) + 0 (non-numeric "abc") = 150.5
+    expect(sumSeriesValues(r.series[0].data)).toBeCloseTo(150.5, 1);
+  });
+
+  it('property_avg/min/max handle string-encoded numbers correctly', async () => {
+    const projectId = randomUUID();
+
+    await insertTestEvents(ctx.ch, [
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u1',
+        event_name: 'order',
+        properties: JSON.stringify({ price: '10' }),
+        timestamp: ts(3, 10),
+      }),
+      buildEvent({
+        project_id: projectId,
+        person_id: randomUUID(),
+        distinct_id: 'u2',
+        event_name: 'order',
+        properties: JSON.stringify({ price: '30' }),
+        timestamp: ts(3, 11),
+      }),
+    ]);
+
+    const avgResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'order', label: 'Orders', metric: 'property_avg', metric_property: 'properties.price' }],
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+      timezone: 'UTC',
+    });
+    expect(avgResult.compare).toBe(false);
+    expect(avgResult.breakdown).toBe(false);
+    const rAvg = avgResult as Extract<typeof avgResult, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(rAvg.series[0].data)).toBe(20);
+
+    const minResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'order', label: 'Orders', metric: 'property_min', metric_property: 'properties.price' }],
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+      timezone: 'UTC',
+    });
+    expect(minResult.compare).toBe(false);
+    expect(minResult.breakdown).toBe(false);
+    const rMin = minResult as Extract<typeof minResult, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(rMin.series[0].data)).toBe(10);
+
+    const maxResult = await queryTrend(ctx.ch, {
+      project_id: projectId,
+      series: [{ event_name: 'order', label: 'Orders', metric: 'property_max', metric_property: 'properties.price' }],
+      granularity: 'day',
+      date_from: daysAgo(3),
+      date_to: daysAgo(3),
+      timezone: 'UTC',
+    });
+    expect(maxResult.compare).toBe(false);
+    expect(maxResult.breakdown).toBe(false);
+    const rMax = maxResult as Extract<typeof maxResult, { compare: false; breakdown: false }>;
+    expect(sumSeriesValues(rMax.series[0].data)).toBe(30);
+  });
+});
+
 describe('queryTrend — filter operator neq', () => {
   it('excludes events matching the specified property value', async () => {
     const projectId = randomUUID();

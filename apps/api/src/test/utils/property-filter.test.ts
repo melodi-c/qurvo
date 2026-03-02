@@ -59,17 +59,17 @@ describe('resolvePropertyExpr', () => {
 });
 
 describe('resolveNumericPropertyExpr', () => {
-  it('resolves properties.* to toFloat64OrZero(JSONExtractRaw)', () => {
-    expect(exprSql(resolveNumericPropertyExpr('properties.price'))).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'price'))");
+  it('resolves properties.* to toFloat64OrZero(replaceAll(JSONExtractRaw, \'"\', \'\'))', () => {
+    expect(exprSql(resolveNumericPropertyExpr('properties.price'))).toBe("toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'price'), '\"', ''))");
   });
 
-  it('resolves user_properties.* to toFloat64OrZero(JSONExtractRaw)', () => {
-    expect(exprSql(resolveNumericPropertyExpr('user_properties.age'))).toBe("toFloat64OrZero(JSONExtractRaw(user_properties, 'age'))");
+  it('resolves user_properties.* to toFloat64OrZero(replaceAll(JSONExtractRaw, \'"\', \'\'))', () => {
+    expect(exprSql(resolveNumericPropertyExpr('user_properties.age'))).toBe("toFloat64OrZero(replaceAll(JSONExtractRaw(user_properties, 'age'), '\"', ''))");
   });
 
-  it('resolves nested dot-notation numeric to variadic JSONExtractRaw', () => {
+  it('resolves nested dot-notation numeric to variadic JSONExtractRaw with replaceAll', () => {
     expect(exprSql(resolveNumericPropertyExpr('properties.meta.price'))).toBe(
-      "toFloat64OrZero(JSONExtractRaw(properties, 'meta', 'price'))",
+      "toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'meta', 'price'), '\"', ''))",
     );
   });
 

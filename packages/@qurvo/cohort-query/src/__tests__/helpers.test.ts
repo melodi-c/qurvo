@@ -221,50 +221,50 @@ describe('applyOperator — typed Expr path (func/column inputs)', () => {
     expect(params(result)['p0']).toBe('US');
   });
 
-  it('gt: uses JSONExtractRaw for JSON properties', () => {
+  it('gt: uses replaceAll(JSONExtractRaw, \'"\', \'\') for JSON properties', () => {
     const expr = resolvePropertyExpr('user_properties.price');
     const result = applyOperator(expr, 'gt', 'p0', '10');
     expect(sql(result)).toBe(
-      "toFloat64OrZero(JSONExtractRaw(argMax(user_properties, timestamp), 'price')) > {p0:Float64}",
+      "toFloat64OrZero(replaceAll(JSONExtractRaw(argMax(user_properties, timestamp), 'price'), '\"', '')) > {p0:Float64}",
     );
     expect(params(result)['p0']).toBe(10);
   });
 
-  it('lt: uses JSONExtractRaw for event-level properties', () => {
+  it('lt: uses replaceAll(JSONExtractRaw, \'"\', \'\') for event-level properties', () => {
     const expr = resolveEventPropertyExpr('properties.count');
     const result = applyOperator(expr, 'lt', 'p0', '5');
-    expect(sql(result)).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'count')) < {p0:Float64}");
+    expect(sql(result)).toBe("toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'count'), '\"', '')) < {p0:Float64}");
     expect(params(result)['p0']).toBe(5);
   });
 
-  it('gte: uses JSONExtractRaw for JSON properties', () => {
+  it('gte: uses replaceAll(JSONExtractRaw, \'"\', \'\') for JSON properties', () => {
     const expr = resolveEventPropertyExpr('properties.score');
     const result = applyOperator(expr, 'gte', 'p0', '5');
-    expect(sql(result)).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'score')) >= {p0:Float64}");
+    expect(sql(result)).toBe("toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'score'), '\"', '')) >= {p0:Float64}");
   });
 
-  it('lte: uses JSONExtractRaw for JSON properties', () => {
+  it('lte: uses replaceAll(JSONExtractRaw, \'"\', \'\') for JSON properties', () => {
     const expr = resolveEventPropertyExpr('properties.amount');
     const result = applyOperator(expr, 'lte', 'p0', '100');
-    expect(sql(result)).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'amount')) <= {p0:Float64}");
+    expect(sql(result)).toBe("toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'amount'), '\"', '')) <= {p0:Float64}");
   });
 
-  it('between: uses JSONExtractRaw for JSON properties', () => {
+  it('between: uses replaceAll(JSONExtractRaw, \'"\', \'\') for JSON properties', () => {
     const expr = resolveEventPropertyExpr('properties.price');
     const result = applyOperator(expr, 'between', 'p0', undefined, ['10', '50']);
     expect(sql(result)).toBe(
-      "toFloat64OrZero(JSONExtractRaw(properties, 'price')) >= {p0_min:Float64} AND toFloat64OrZero(JSONExtractRaw(properties, 'price')) <= {p0_max:Float64}",
+      "toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'price'), '\"', '')) >= {p0_min:Float64} AND toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'price'), '\"', '')) <= {p0_max:Float64}",
     );
     expect(params(result)['p0_min']).toBe(10);
     expect(params(result)['p0_max']).toBe(50);
   });
 
-  it('not_between: uses JSONExtractRaw for JSON properties', () => {
+  it('not_between: uses replaceAll(JSONExtractRaw, \'"\', \'\') for JSON properties', () => {
     const expr = resolveEventPropertyExpr('properties.age');
     const result = applyOperator(expr, 'not_between', 'p0', undefined, ['18', '65']);
     // Pure AST: or() doesn't add outer parens at top-level
     expect(sql(result)).toBe(
-      "toFloat64OrZero(JSONExtractRaw(properties, 'age')) < {p0_min:Float64} OR toFloat64OrZero(JSONExtractRaw(properties, 'age')) > {p0_max:Float64}",
+      "toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'age'), '\"', '')) < {p0_min:Float64} OR toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'age'), '\"', '')) > {p0_max:Float64}",
     );
   });
 
