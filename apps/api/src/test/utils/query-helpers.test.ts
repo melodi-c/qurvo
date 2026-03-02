@@ -782,9 +782,9 @@ describe('analytics/filters', () => {
   });
 
   describe('resolveNumericPropertyExpr', () => {
-    test('JSON property returns toFloat64OrZero(JSONExtractRaw(...))', () => {
+    test('JSON property returns toFloat64OrZero(replaceAll(JSONExtractRaw(...), \'"\', \'\'))', () => {
       const { sql } = compileExpr(resolveNumericPropertyExpr('properties.price'));
-      expect(sql).toContain("toFloat64OrZero(JSONExtractRaw(properties, 'price'))");
+      expect(sql).toContain("toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'price'), '\"', ''))");
     });
 
     test('non-JSON property throws', () => {
@@ -871,7 +871,8 @@ describe('analytics/aggregations', () => {
   describe('numericProperty', () => {
     test('returns toFloat64OrZero expression', () => {
       const { sql } = compileExpr(numericProperty('properties.revenue'));
-      expect(sql).toContain("toFloat64OrZero(JSONExtractRaw(properties, 'revenue'))");
+      expect(sql).toContain("toFloat64OrZero(replaceAll(JSONExtractRaw(properties, 'revenue'), '\"', ''))");
+
     });
   });
 });
