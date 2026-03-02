@@ -44,7 +44,6 @@ export function TrendValueBarChart({ series, compact }: TrendValueBarChartProps)
       colorIdx: idx,
     }));
 
-    // Sort descending by value
     items.sort((a, b) => b.value - a.value);
 
     return items;
