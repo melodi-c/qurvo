@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  ChatCompletionAssistantMessageParam,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions';
@@ -130,15 +131,15 @@ export class AiMessageHistoryBuilder {
       if (msg.role === 'user') {
         messages.push({ role: 'user', content: msg.content ?? '' });
       } else if (msg.role === 'assistant') {
-        const assistantMsg: Record<string, unknown> = {
+        const assistantMsg: ChatCompletionAssistantMessageParam = {
           role: 'assistant',
           content: msg.content ?? null,
           ...(msg.tool_calls ? { tool_calls: msg.tool_calls as ChatCompletionMessageToolCall[] } : {}),
         };
         if (msg.reasoning_content) {
-          assistantMsg.reasoning_content = msg.reasoning_content;
+          Object.assign(assistantMsg, { reasoning_content: msg.reasoning_content });
         }
-        messages.push(assistantMsg as unknown as ChatCompletionMessageParam);
+        messages.push(assistantMsg);
       } else if (msg.role === 'tool') {
         if (!msg.tool_call_id) {continue;}
         const rawContent = typeof msg.tool_result === 'string' ? msg.tool_result : JSON.stringify(msg.tool_result);

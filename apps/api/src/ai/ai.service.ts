@@ -204,13 +204,13 @@ export class AiService implements OnModuleInit {
         function: { name: tc.function.name, arguments: tc.function.arguments },
       }));
 
-      const assistantMsg: Record<string, unknown> = {
+      const assistantMsg: ChatCompletionMessageParam = {
         role: 'assistant',
         content: assistantContent || null,
         tool_calls: serializedToolCalls,
       };
-      if (reasoningContent) {assistantMsg.reasoning_content = reasoningContent;}
-      messages.push(assistantMsg as unknown as ChatCompletionMessageParam);
+      if (reasoningContent) {Object.assign(assistantMsg, { reasoning_content: reasoningContent });}
+      messages.push(assistantMsg);
 
       await this.chatService.saveMessage(conversationId, seq++, {
         role: 'assistant',
