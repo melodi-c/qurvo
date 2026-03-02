@@ -29,8 +29,7 @@ Consumers add the dependency in their `package.json`:
 import { buildCohortSubquery } from '@qurvo/cohort-query';
 import { compile } from '@qurvo/ch-query';
 
-const queryParams: Record<string, unknown> = {};
-const queryNode = buildCohortSubquery(definition, 0, projectId, queryParams);
+const queryNode = buildCohortSubquery(definition, 0, 'project_id', projectId);
 const { sql, params } = compile(queryNode);
 // sql: SELECT DISTINCT resolved_person FROM events WHERE ... INTERSECT SELECT ...
 ```
@@ -43,7 +42,7 @@ import { buildCohortFilterClause } from '@qurvo/cohort-query';
 const whereClause = buildCohortFilterClause(
   cohorts,
   projectIdParam,
-  queryParams,
+  projectId,
 );
 // Returns an Expr that compiles to: resolved_person IN (SELECT ...)
 ```
@@ -77,8 +76,8 @@ const levels = groupCohortsByLevel(sorted);
 
 | Function | Description |
 |---|---|
-| `buildCohortSubquery(definition, idx, projectIdParam, queryParams, resolve?, dateTo?, dateFrom?)` | Builds a `QueryNode` from a cohort definition. AND groups become `INTERSECT`, OR groups become `UNION DISTINCT`. |
-| `buildCohortFilterClause(cohorts, projectIdParam, queryParams, resolve?, dateTo?, dateFrom?)` | Builds a `WHERE` clause (`RESOLVED_PERSON IN (...)`) for filtering analytics queries by cohort membership. Handles materialized, static, and inline cohorts. |
+| `buildCohortSubquery(definition, idx, projectIdParam, projectId, resolve?, dateTo?, dateFrom?)` | Builds a `QueryNode` from a cohort definition. AND groups become `INTERSECT`, OR groups become `UNION DISTINCT`. |
+| `buildCohortFilterClause(cohorts, projectIdParam, projectId, resolve?, dateTo?, dateFrom?)` | Builds a `WHERE` clause (`RESOLVED_PERSON IN (...)`) for filtering analytics queries by cohort membership. Handles materialized, static, and inline cohorts. |
 
 ### Validation
 

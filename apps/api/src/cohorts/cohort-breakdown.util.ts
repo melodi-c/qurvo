@@ -27,8 +27,6 @@ export interface CohortBreakdownEntry {
  * Returns an Expr AST node instead of a raw SQL string, eliminating the
  * string->raw() round-trip at call sites.
  *
- * Mutates queryParams with the cohort param key and any inline subquery params.
- *
  * Delegates routing (static / materialized / inline) to the unified
  * `buildCohortMemberSubquery` from @qurvo/cohort-query.
  *
@@ -44,7 +42,7 @@ export function buildCohortFilterForBreakdown(
   cb: CohortBreakdownEntry,
   paramKey: string,
   subqueryOffset: number,
-  queryParams: Record<string, unknown>,
+  projectId: string,
   dateTo?: string,
   dateFrom?: string,
 ): Expr {
@@ -57,7 +55,7 @@ export function buildCohortFilterForBreakdown(
   };
 
   const node = buildCohortMemberSubquery(
-    input, paramKey, 'project_id', queryParams, subqueryOffset,
+    input, paramKey, 'project_id', projectId, subqueryOffset,
     undefined, dateTo, dateFrom,
   );
   return inSubquery(resolvedPerson(), node);

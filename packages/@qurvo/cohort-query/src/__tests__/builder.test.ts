@@ -6,8 +6,7 @@ import type { CohortConditionGroup } from '@qurvo/db';
 describe('buildCohortSubquery — empty group', () => {
   it('empty root group returns UUID-typed empty result set (no String literal)', () => {
     const group: CohortConditionGroup = { type: 'AND', values: [] };
-    const params: Record<string, unknown> = {};
-    const node = buildCohortSubquery(group, 0, 'proj', params);
+    const node = buildCohortSubquery(group, 0, 'proj', 'some-project-id');
     const sql = compile(node).sql;
     // Must use toUUID(...) so ClickHouse infers UUID column type, not String.
     expect(sql).toContain(`toUUID('00000000-0000-0000-0000-000000000000')`);
@@ -29,8 +28,7 @@ describe('buildCohortSubquery — empty group', () => {
         },
       ],
     };
-    const params: Record<string, unknown> = {};
-    const node = buildCohortSubquery(outer, 0, 'proj', params);
+    const node = buildCohortSubquery(outer, 0, 'proj', 'some-project-id');
     const sql = compile(node).sql;
     // The inner empty-OR subquery must use toUUID(...) not '' to avoid INTERSECT type mismatch.
     expect(sql).toContain(`toUUID('00000000-0000-0000-0000-000000000000')`);
@@ -53,8 +51,7 @@ describe('buildCohortSubquery — empty group', () => {
         },
       ],
     };
-    const params: Record<string, unknown> = {};
-    const node = buildCohortSubquery(outer, 0, 'proj', params);
+    const node = buildCohortSubquery(outer, 0, 'proj', 'some-project-id');
     const sql = compile(node).sql;
     expect(sql).toContain(`toUUID('00000000-0000-0000-0000-000000000000')`);
     expect(sql).not.toContain(`SELECT '' AS person_id`);

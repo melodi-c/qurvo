@@ -101,9 +101,9 @@ src/
 
 ### Builder
 
-`buildCohortSubquery(definition, idx, projectIdParam, queryParams, resolve?, dateTo?, dateFrom?)` — takes a `CohortConditionGroup` definition and builds a `QueryNode`. AND groups become `INTERSECT`, OR groups become `UNION DISTINCT`.
+`buildCohortSubquery(definition, idx, projectIdParam, projectId, resolve?, dateTo?, dateFrom?)` — takes a `CohortConditionGroup` definition and builds a `QueryNode`. AND groups become `INTERSECT`, OR groups become `UNION DISTINCT`.
 
-`buildCohortFilterClause(cohorts, projectIdParam, queryParams, resolve?, dateTo?, dateFrom?)` — builds a `WHERE` clause (`RESOLVED_PERSON IN (...)`) for filtering analytics queries by cohort membership. Handles materialized, static, and inline cohorts.
+`buildCohortFilterClause(cohorts, projectIdParam, projectId, resolve?, dateTo?, dateFrom?)` — builds a `WHERE` clause (`RESOLVED_PERSON IN (...)`) for filtering analytics queries by cohort membership. Handles materialized, static, and inline cohorts.
 
 ### Validation
 
@@ -125,7 +125,7 @@ src/
 
 ## Key Patterns
 
-- **BuildContext** is threaded through all condition builders to share `projectIdParam`, `queryParams`, `counter`, and optional `dateTo`/`dateFrom` bounds
+- **BuildContext** is threaded through all condition builders to share `projectIdParam`, `projectId`, `counter`, and optional `dateTo`/`dateFrom` bounds
 - **Each condition type** is a separate file in `conditions/` returning a `QueryNode` (usually a `SelectNode`)
 - **Operator resolution** (`applyOperator`) maps UI operators (`equals`, `contains`, `greater_than`, etc.) to ClickHouse expressions
 - **Property resolution** (`resolvePropertyExpr`) handles JSON extraction for event/person properties with proper escaping

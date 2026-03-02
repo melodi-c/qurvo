@@ -34,8 +34,7 @@ export async function countCohortMembers(
   definition: CohortConditionGroup,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): Promise<number> {
-  const params: Record<string, unknown> = { project_id: projectId };
-  const node = buildCohortSubquery(definition, 0, 'project_id', params, resolveCohortIsStatic);
+  const node = buildCohortSubquery(definition, 0, 'project_id', projectId, resolveCohortIsStatic);
   const wrapper = select(uniqExact(col('person_id')).as('cnt')).from(node).build();
   return new ChQueryExecutor(ch).count(wrapper);
 }
@@ -107,7 +106,7 @@ export async function queryCohortSizeHistory(
  * Counts unique persons matching any cohort type (static, materialized, or inline).
  *
  * Uses `buildCohortMemberSubquery` as the single routing source-of-truth.
- * This is the preferred function for counting cohort members — callers do not
+ * This is the preferred function for counting cohort members -- callers do not
  * need to know which storage backend the cohort uses.
  */
 export async function countCohortMembersUnified(
@@ -116,9 +115,8 @@ export async function countCohortMembersUnified(
   input: CohortFilterInput,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
 ): Promise<number> {
-  const params: Record<string, unknown> = { project_id: projectId };
   const node = buildCohortMemberSubquery(
-    input, 'cohort_id', 'project_id', params, 0,
+    input, 'cohort_id', 'project_id', projectId, 0,
     resolveCohortIsStatic,
   );
   const wrapper = select(uniqExact(col('person_id')).as('cnt')).from(node).build();
