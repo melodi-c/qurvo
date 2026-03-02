@@ -9,6 +9,7 @@ import {
   buildEventFilterClauses,
   applyOperator,
   resolveEventPropertyExpr,
+  toNumericExpr,
   allocCondIdx,
   resolveDateTo,
   resolveDateFrom,
@@ -19,7 +20,7 @@ import type { BuildContext } from '../types';
 function buildAggregationExpr(type: CohortAggregationType | undefined, property: string | undefined): Expr {
   if (!type || type === 'count') return count();
   const propExpr = resolveEventPropertyExpr(property ?? '');
-  const numExpr = toFloat64OrZero(propExpr);
+  const numExpr = toFloat64OrZero(toNumericExpr(propExpr));
   switch (type) {
     case 'sum': return sum(numExpr);
     case 'avg': return avg(numExpr);

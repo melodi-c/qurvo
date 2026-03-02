@@ -3,6 +3,7 @@ import {
   and,
   col,
   eq,
+  func,
   lt,
   inArray,
   jsonExtractRaw,
@@ -84,7 +85,9 @@ export function resolvePropertyExpr(prop: string): Expr {
 export function resolveNumericPropertyExpr(prop: string): Expr {
   const source = parsePropertyPath(prop);
   if (source) {
-    return toFloat64OrZero(jsonExtractRaw(col(source.jsonColumn), ...source.segments));
+    // replaceAll strips JSON string quotes so "130.9" → 130.9 before numeric conversion
+    const rawExpr = jsonExtractRaw(col(source.jsonColumn), ...source.segments);
+    return toFloat64OrZero(func('replaceAll', rawExpr, literal('"'), literal('')));
   }
   throw new Error(`Unknown metric property: ${prop}`);
 }

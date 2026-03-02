@@ -132,9 +132,10 @@ function toRawExpr(expr: Expr): Expr | null {
  * JSONExtractString -> JSONExtractRaw (for use inside toFloat64OrZero).
  * Non-JSON expressions are returned as-is.
  */
-function toNumericExpr(expr: Expr): Expr {
+export function toNumericExpr(expr: Expr): Expr {
   if (isFuncCall(expr, 'JSONExtractString')) {
-    return func('JSONExtractRaw', ...expr.args);
+    // replaceAll strips JSON string quotes so "130.9" → 130.9 before numeric conversion
+    return func('replaceAll', func('JSONExtractRaw', ...expr.args), literal('"'), literal(''));
   }
   return expr;
 }
