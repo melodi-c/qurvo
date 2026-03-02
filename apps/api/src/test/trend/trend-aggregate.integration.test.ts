@@ -38,7 +38,7 @@ describe('queryTrendAggregate — world_map', () => {
     });
 
     expect(result.type).toBe('world_map');
-    if (result.type !== 'world_map') throw new Error('unexpected type');
+    if (result.type !== 'world_map') {throw new Error('unexpected type');}
 
     expect(result.world_map.length).toBeGreaterThanOrEqual(3);
 
@@ -65,7 +65,7 @@ describe('queryTrendAggregate — world_map', () => {
     });
 
     expect(result.type).toBe('world_map');
-    if (result.type !== 'world_map') throw new Error('unexpected type');
+    if (result.type !== 'world_map') {throw new Error('unexpected type');}
     expect(result.world_map).toHaveLength(0);
   });
 });
@@ -95,7 +95,7 @@ describe('queryTrendAggregate — calendar_heatmap', () => {
     });
 
     expect(result.type).toBe('calendar_heatmap');
-    if (result.type !== 'calendar_heatmap') throw new Error('unexpected type');
+    if (result.type !== 'calendar_heatmap') {throw new Error('unexpected type');}
 
     // Should have at least 2 distinct hour_of_day values (10 and 14)
     const hours = new Set(result.heatmap.map((r) => r.hour_of_day));
@@ -133,7 +133,7 @@ describe('queryTrendAggregate — calendar_heatmap', () => {
     });
 
     expect(resultUtc.type).toBe('calendar_heatmap');
-    if (resultUtc.type !== 'calendar_heatmap') throw new Error('unexpected type');
+    if (resultUtc.type !== 'calendar_heatmap') {throw new Error('unexpected type');}
     expect(resultUtc.heatmap).toHaveLength(1);
     expect(resultUtc.heatmap[0].hour_of_day).toBe(23);
 
@@ -147,7 +147,7 @@ describe('queryTrendAggregate — calendar_heatmap', () => {
     });
 
     expect(resultEt.type).toBe('calendar_heatmap');
-    if (resultEt.type !== 'calendar_heatmap') throw new Error('unexpected type');
+    if (resultEt.type !== 'calendar_heatmap') {throw new Error('unexpected type');}
     expect(resultEt.heatmap).toHaveLength(1);
     // 23:00 UTC → 18:00 US/Eastern (EST, UTC-5)
     expect(resultEt.heatmap[0].hour_of_day).toBe(18);
@@ -166,7 +166,7 @@ describe('queryTrendAggregate — calendar_heatmap', () => {
     });
 
     expect(result.type).toBe('calendar_heatmap');
-    if (result.type !== 'calendar_heatmap') throw new Error('unexpected type');
+    if (result.type !== 'calendar_heatmap') {throw new Error('unexpected type');}
     expect(result.heatmap).toHaveLength(0);
   });
 });
