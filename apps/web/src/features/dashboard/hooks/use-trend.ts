@@ -15,7 +15,7 @@ export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendRespons
   apiFn: (params) => api.trendControllerGetTrend(params),
   configHash: (config) =>
     JSON.stringify({
-      series: config.series,
+      series: config.series.map(({ hidden: _hidden, ...rest }) => rest),
       granularity: config.granularity,
       from: config.date_from,
       to: config.date_to,

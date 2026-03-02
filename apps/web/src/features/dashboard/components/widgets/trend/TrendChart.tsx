@@ -114,6 +114,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
   // Reset hidden keys when the actual set of series keys changes,
   // and initialize from seriesConfig.hidden if available
   const seriesKeysFingerprint = allSeriesKeys.join('\0');
+  const hiddenFingerprint = seriesConfig?.map((s) => s.hidden ? '1' : '0').join('') ?? '';
   useEffect(() => {
     if (seriesConfig) {
       const initialHidden = new Set<string>();
@@ -127,7 +128,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
       setHiddenKeys(new Set());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seriesKeysFingerprint]);
+  }, [seriesKeysFingerprint, hiddenFingerprint]);
   const prevKeys = useMemo(
     () => (previousSeries ?? []).map((s) => `prev_${seriesKey(s)}`),
     [previousSeries],
