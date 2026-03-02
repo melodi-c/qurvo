@@ -295,6 +295,38 @@ describe('assertDeepSeekCompatible — validation rules', () => {
     ).toThrow('empty object {} in anyOf');
   });
 
+  it('rejects empty {} in properties schema (#920)', () => {
+    expect(() =>
+      assertDeepSeekCompatible(
+        {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            value: {},  // empty — missing type/anyOf/enum/const
+          },
+        },
+        'test_tool',
+      ),
+    ).toThrow('empty schema {} — missing type/anyOf/enum/const');
+  });
+
+  it('accepts properties with type, anyOf, enum, or const', () => {
+    expect(() =>
+      assertDeepSeekCompatible(
+        {
+          type: 'object',
+          properties: {
+            a: { type: 'string' },
+            b: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            c: { enum: ['x', 'y'] },
+            d: { const: 'fixed' },
+          },
+        },
+        'test_tool',
+      ),
+    ).not.toThrow();
+  });
+
   it('includes tool name and path in error message', () => {
     try {
       assertDeepSeekCompatible(

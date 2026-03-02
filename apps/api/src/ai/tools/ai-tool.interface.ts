@@ -43,13 +43,155 @@ export interface AiTool {
 export function normalizeJsonSchema(
   schema: Record<string, unknown>,
 ): Record<string, unknown> {
-  const defs = (schema.definitions || schema['$defs'] || {}) as Record<
-    string,
-    unknown
-  >;
+  // Deep-copy definitions to avoid mutating the original schema (the
+  // pre-pass below may replace self-referencing definitions in-place).
+  const defs = JSON.parse(
+    JSON.stringify(schema.definitions || schema['$defs'] || {}),
+  ) as Record<string, unknown>;
 
   function resolveRef(ref: string): unknown {
     return defs[ref.replace('#/definitions/', '').replace('#/$defs/', '')];
+  }
+
+  // Pre-pass: fix self-referencing `.nullish()` definitions in-place.
+  // Zod 3.25.x serialises `.nullish()` for shared schemas as:
+  //   { "anyOf": [{"not":{}}, {"$ref":"#/definitions/SELF"}] }
+  // This is a degenerate self-reference that carries no type information.
+  // The actual type is available in the first inline occurrence of the
+  // same property elsewhere in the schema tree. We find it and replace
+  // the self-referencing definition with the inline version so `walk()`
+  // can resolve it without collapsing to empty `{}`.
+  for (const [defKey, defVal] of Object.entries(defs)) {
+    if (!defVal || typeof defVal !== 'object') {continue;}
+    const d = defVal as Record<string, unknown>;
+    if (!Array.isArray(d.anyOf)) {continue;}
+    const branches = d.anyOf as unknown[];
+
+    // Check: every branch is either {"not":{}} or {"$ref":"#/.../SELF"}
+    const isSelfRefNullish = branches.length >= 2 && branches.every((b) => {
+      if (!b || typeof b !== 'object' || Array.isArray(b)) {return false;}
+      const obj = b as Record<string, unknown>;
+      const keys = Object.keys(obj);
+      if (keys.length === 1 && keys[0] === 'not') {return true;}
+      if (keys.length === 1 && keys[0] === '$ref') {
+        const ref = obj['$ref'] as string;
+        const refName = ref.replace('#/definitions/', '').replace('#/$defs/', '');
+        return refName === defKey;
+      }
+      return false;
+    });
+    if (!isSelfRefNullish) {continue;}
+
+    // Find the inline type from the schema tree: locate a parent object
+    // definition that references this defKey via $ref in one of its
+    // properties, then find the first inline occurrence of that same
+    // parent structure in the schema body.
+    const targetRefs = [`#/definitions/${defKey}`, `#/$defs/${defKey}`];
+    const inlineType = findInlineForSelfRef(schema, targetRefs, defs);
+    if (inlineType) {
+      // Replace the self-referencing definition with the inline version
+      defs[defKey] = inlineType;
+    }
+  }
+
+  /**
+   * Find the inline version of a self-referencing definition by searching
+   * for objects that have `propName: { $ref: targetRef }` in one occurrence
+   * and `propName: { <inline> }` in another. Returns the inline version.
+   *
+   * Searches both definitions and the schema body.
+   */
+  function findInlineForSelfRef(
+    root: Record<string, unknown>,
+    targetRefs: string[],
+    definitions: Record<string, unknown>,
+  ): Record<string, unknown> | undefined {
+    // Collect all objects with properties that reference targetRefs.
+    // Then find a sibling object with the same property set that has
+    // the property inlined (not via $ref).
+    type ParentInfo = { propNames: string[]; propName: string };
+    const parentInfos: ParentInfo[] = [];
+
+    // Search both definitions and schema body for objects referencing target
+    function collectParents(node: unknown): void {
+      if (!node || typeof node !== 'object') {return;}
+      if (Array.isArray(node)) {
+        for (const item of node) {collectParents(item);}
+        return;
+      }
+      const obj = node as Record<string, unknown>;
+      if (obj.properties && typeof obj.properties === 'object') {
+        const props = obj.properties as Record<string, unknown>;
+        for (const [pn, pv] of Object.entries(props)) {
+          if (!pv || typeof pv !== 'object' || Array.isArray(pv)) {continue;}
+          const p = pv as Record<string, unknown>;
+          if (targetRefs.includes(p['$ref'] as string)) {
+            parentInfos.push({
+              propNames: Object.keys(props),
+              propName: pn,
+            });
+            return; // One match per object is enough
+          }
+        }
+      }
+      for (const val of Object.values(obj)) {
+        collectParents(val);
+      }
+    }
+
+    // Collect from definitions
+    for (const dv of Object.values(definitions)) {
+      collectParents(dv);
+    }
+    // Collect from schema body (excluding definitions)
+    for (const [key, val] of Object.entries(root)) {
+      if (key === 'definitions' || key === '$defs') {continue;}
+      collectParents(val);
+    }
+
+    if (parentInfos.length === 0) {return undefined;}
+
+    // Search schema body for an inline occurrence matching any parent
+    function searchInline(node: unknown): Record<string, unknown> | undefined {
+      if (!node || typeof node !== 'object') {return undefined;}
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const found = searchInline(item);
+          if (found) {return found;}
+        }
+        return undefined;
+      }
+      const obj = node as Record<string, unknown>;
+      if (obj.properties && typeof obj.properties === 'object') {
+        const props = obj.properties as Record<string, unknown>;
+        const keys = Object.keys(props);
+        for (const info of parentInfos) {
+          if (
+            keys.length === info.propNames.length &&
+            info.propNames.every((k) => k in props)
+          ) {
+            const targetProp = props[info.propName];
+            if (
+              targetProp &&
+              typeof targetProp === 'object' &&
+              !Array.isArray(targetProp) &&
+              !(targetProp as Record<string, unknown>)['$ref']
+            ) {
+              return targetProp as Record<string, unknown>;
+            }
+          }
+        }
+      }
+      // Recurse (skip definitions — we search body only)
+      for (const [key, val] of Object.entries(obj)) {
+        if (key === 'definitions' || key === '$defs') {continue;}
+        const found = searchInline(val);
+        if (found) {return found;}
+      }
+      return undefined;
+    }
+
+    return searchInline(root);
   }
 
   const resolving = new Set<string>();
@@ -67,6 +209,12 @@ export function normalizeJsonSchema(
 
       // Cycle detected — inline a copy without further $ref expansion
       if (resolving.has(refKey)) {
+        const def = resolved as Record<string, unknown>;
+        if (def.type) {
+          const minimal: Record<string, unknown> = { type: def.type };
+          if (def.description) {minimal.description = def.description;}
+          return minimal;
+        }
         return stripRefs(JSON.parse(JSON.stringify(resolved)));
       }
 
@@ -125,8 +273,20 @@ export function normalizeJsonSchema(
           .filter((branch) => !isEmptyObject(branch) && !isNotEmpty(branch));
 
         if (cleaned.length === 0) {
-          // All branches were artifacts — replace with permissive `{}`
-          Object.assign(result, {});
+          // All branches were artifacts. Try to recover a type from the
+          // recursed branches before falling back to empty `{}`.
+          const recovered = recursed.find(
+            (b) =>
+              !!b &&
+              typeof b === 'object' &&
+              !Array.isArray(b) &&
+              'type' in (b as Record<string, unknown>),
+          ) as Record<string, unknown> | undefined;
+          if (recovered) {
+            Object.assign(result, { type: recovered.type });
+          }
+          // else: result stays as-is (no type info available) — will be
+          // caught by assertDeepSeekCompatible
         } else if (cleaned.length === 1) {
           // Single remaining branch — unwrap anyOf
           const single = cleaned[0] as Record<string, unknown>;
@@ -259,6 +419,35 @@ export function assertDeepSeekCompatible(
       }
     }
 
+    // Property schema validation: every property must have at least one
+    // structural keyword. A bare `{}` means normalizeJsonSchema collapsed
+    // a self-referencing $ref without recovering the type.
+    if ('properties' in obj && obj.properties && typeof obj.properties === 'object') {
+      const props = obj.properties as Record<string, unknown>;
+      for (const [propName, propSchema] of Object.entries(props)) {
+        if (
+          propSchema &&
+          typeof propSchema === 'object' &&
+          !Array.isArray(propSchema)
+        ) {
+          const ps = propSchema as Record<string, unknown>;
+          const hasStructure =
+            'type' in ps ||
+            'anyOf' in ps ||
+            'allOf' in ps ||
+            'oneOf' in ps ||
+            '$ref' in ps ||
+            'enum' in ps ||
+            'const' in ps;
+          if (!hasStructure) {
+            errors.push(
+              `${path}.properties.${propName}: empty schema {} — missing type/anyOf/enum/const`,
+            );
+          }
+        }
+      }
+    }
+
     // Recurse into all values
     for (const [key, val] of Object.entries(obj)) {
       if (key === 'anyOf' && Array.isArray(val)) {
@@ -337,7 +526,7 @@ export function defineTool<T extends z.ZodType>(config: {
   // at first chat request. This prevents the recurring "missing field `type`"
   // regressions (issues #492, #592, #689, #836).
   if (normalizedParams) {
-    assertDeepSeekCompatible(normalizedParams as Record<string, unknown>, config.name);
+    assertDeepSeekCompatible(normalizedParams, config.name);
   }
 
   const def: ChatCompletionTool = {
