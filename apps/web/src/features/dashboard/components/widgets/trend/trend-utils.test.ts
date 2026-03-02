@@ -295,8 +295,8 @@ describe('isIncompleteBucket — timezone-aware', () => {
 });
 
 describe('snapAnnotationDateToBucket', () => {
-  it('returns date as-is for day granularity', () => {
-    expect(snapAnnotationDateToBucket('2026-02-15', 'day')).toBe('2026-02-15');
+  it('returns date with time suffix for day granularity', () => {
+    expect(snapAnnotationDateToBucket('2026-02-15', 'day')).toBe('2026-02-15 00:00:00');
   });
 
   it('appends midnight for hour granularity', () => {
@@ -304,27 +304,27 @@ describe('snapAnnotationDateToBucket', () => {
   });
 
   it('snaps to first of month for month granularity', () => {
-    expect(snapAnnotationDateToBucket('2026-02-15', 'month')).toBe('2026-02-01');
-    expect(snapAnnotationDateToBucket('2026-03-31', 'month')).toBe('2026-03-01');
+    expect(snapAnnotationDateToBucket('2026-02-15', 'month')).toBe('2026-02-01 00:00:00');
+    expect(snapAnnotationDateToBucket('2026-03-31', 'month')).toBe('2026-03-01 00:00:00');
   });
 
   it('snaps to Monday for week granularity — date is Wednesday', () => {
     // 2026-02-25 is Wednesday → Monday is 2026-02-23
-    expect(snapAnnotationDateToBucket('2026-02-25', 'week')).toBe('2026-02-23');
+    expect(snapAnnotationDateToBucket('2026-02-25', 'week')).toBe('2026-02-23 00:00:00');
   });
 
   it('snaps to Monday for week granularity — date is Monday', () => {
     // 2026-02-23 is Monday → stays 2026-02-23
-    expect(snapAnnotationDateToBucket('2026-02-23', 'week')).toBe('2026-02-23');
+    expect(snapAnnotationDateToBucket('2026-02-23', 'week')).toBe('2026-02-23 00:00:00');
   });
 
   it('snaps to Monday for week granularity — date is Sunday', () => {
     // 2026-03-01 is Sunday → Monday is 2026-02-23
-    expect(snapAnnotationDateToBucket('2026-03-01', 'week')).toBe('2026-02-23');
+    expect(snapAnnotationDateToBucket('2026-03-01', 'week')).toBe('2026-02-23 00:00:00');
   });
 
   it('snaps to Monday for week granularity — date is Saturday', () => {
     // 2026-02-28 is Saturday → Monday is 2026-02-23
-    expect(snapAnnotationDateToBucket('2026-02-28', 'week')).toBe('2026-02-23');
+    expect(snapAnnotationDateToBucket('2026-02-28', 'week')).toBe('2026-02-23 00:00:00');
   });
 });

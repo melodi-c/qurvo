@@ -74,14 +74,14 @@ export function snapAnnotationDateToBucket(date: string, granularity: string): s
     const dayOfWeek = d.getUTCDay(); // 0=Sun, 1=Mon, ...
     const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     d.setUTCDate(d.getUTCDate() - diffToMonday);
-    return d.toISOString().slice(0, 10);
+    return d.toISOString().slice(0, 10) + ' 00:00:00';
   }
   if (granularity === 'month') {
-    // Month buckets are "YYYY-MM-01".
-    return date.slice(0, 7) + '-01';
+    // Month buckets are "YYYY-MM-01 00:00:00".
+    return date.slice(0, 7) + '-01 00:00:00';
   }
-  // day: bucket is "YYYY-MM-DD" — same as annotation date
-  return date;
+  // day: bucket is "YYYY-MM-DD 00:00:00" — ClickHouse DateTime format
+  return date + ' 00:00:00';
 }
 
 /** Build chart data points from series, optionally merging previous-period data. */
