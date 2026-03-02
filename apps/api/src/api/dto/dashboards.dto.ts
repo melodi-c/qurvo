@@ -261,3 +261,19 @@ export class WidgetDto {
 export class DashboardWithWidgetsDto extends DashboardDto {
   widgets: WidgetDto[];
 }
+
+export class WidgetDataResultDto {
+  @ApiProperty()
+  data: unknown;
+
+  @ApiProperty()
+  cached_at: string;
+
+  @ApiProperty()
+  from_cache: boolean;
+}
+
+export class PublicDashboardWithDataDto extends DashboardWithWidgetsDto {
+  @ApiProperty({ type: 'object', additionalProperties: true, description: 'Precomputed analytics data keyed by widget ID. null if widget query failed or config is invalid.' })
+  widget_data: Record<string, WidgetDataResultDto | null>;
+}
