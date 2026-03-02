@@ -32,6 +32,13 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
   const addStep = () =>
     onChange((prev) => [...prev, { event_name: '', label: t('stepN', { n: String(prev.length + 1) }) }]);
 
+  const duplicateStep = (i: number) => {
+    onChange((prev) => {
+      const copy = { ...prev[i], label: `${prev[i].label || ''} ${t('copyLabel')}`.trim() };
+      return [...prev.slice(0, i + 1), copy, ...prev.slice(i + 1)];
+    });
+  };
+
   const removeStep = (i: number) => {
     onChange((prev) => {
       if (prev.length <= 2) {return prev;}
@@ -57,6 +64,7 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
             onEventChange={(event_name) => updateStep(i, { event_name })}
             onEventNamesChange={(event_names) => updateStep(i, { event_names: event_names.length ? event_names : undefined })}
             onRemove={() => removeStep(i)}
+            onDuplicate={() => duplicateStep(i)}
             onFilterAdd={() => addFilter(i)}
             onFilterChange={(fi, f) => updateFilter(i, fi, f)}
             onFilterRemove={(fi) => removeFilter(i, fi)}
