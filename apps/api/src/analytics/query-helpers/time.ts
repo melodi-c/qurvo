@@ -213,8 +213,8 @@ export function shiftPeriod(dateFrom: string, dateTo: string): { from: string; t
  * UTC:  {p_N:DateTime64(3)}
  * TZ:   toDateTime64({p_N:String}, 3, {p_M:String})
  */
-export function tsParam(value: string, tz?: string): Expr {
-  const hasTz = !!(tz && tz !== 'UTC');
+export function tsParam(value: string, tz: string): Expr {
+  const hasTz = tz !== 'UTC';
   const chTs = toChTs(value);
   if (!hasTz) {
     return param('DateTime64(3)', chTs);
@@ -225,7 +225,7 @@ export function tsParam(value: string, tz?: string): Expr {
 /**
  * Returns an AND expression for `timestamp >= from AND timestamp <= to` with timezone handling.
  */
-export function timeRange(from: string, to: string, tz?: string): Expr {
+export function timeRange(from: string, to: string, tz: string): Expr {
   const fromExpr = tsParam(from, tz);
   const toExpr = tsParam(to.length === 10 ? toChTs(to, true) : to, tz);
   return and(
@@ -242,8 +242,8 @@ export function timeRange(from: string, to: string, tz?: string): Expr {
  * - week: toDateTime(toStartOfWeek(col, 1 [, tz]) [, tz])  -- toStartOfWeek returns Date
  * - month: toDateTime(toStartOfMonth(col [, tz]) [, tz])    -- toStartOfMonth returns Date
  */
-export function bucket(granularity: Granularity, column: string, tz?: string): WithAs {
-  const hasTz = !!(tz && tz !== 'UTC');
+export function bucket(granularity: Granularity, column: string, tz: string): WithAs {
+  const hasTz = tz !== 'UTC';
   const colExpr = col(column);
 
   const tzExpr = hasTz ? literal(tz) : undefined;
@@ -279,9 +279,9 @@ export function neighborBucket(
   granularity: Granularity,
   bucketExpr: Expr,
   direction: 1 | -1,
-  tz?: string,
+  tz: string,
 ): Expr {
-  const hasTz = !!(tz && tz !== 'UTC');
+  const hasTz = tz !== 'UTC';
   const ivl = granularity === 'week' ? interval(7, 'DAY')
     : granularity === 'month' ? interval(1, 'MONTH')
     : interval(1, 'DAY');
@@ -307,7 +307,7 @@ export function neighborBucket(
  * Granularity truncation of min(col) -- for projection optimization.
  * min(toStartOfDay(t)) == toStartOfDay(min(t))
  */
-export function bucketOfMin(granularity: Granularity, column: string, tz?: string): WithAs {
+export function bucketOfMin(granularity: Granularity, column: string, tz: string): WithAs {
   return bucket(granularity, `min(${column})`, tz);
 }
 

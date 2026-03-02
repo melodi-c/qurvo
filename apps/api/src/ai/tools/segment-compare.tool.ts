@@ -64,6 +64,7 @@ async function querySegment(
         projectId,
         from: dateFrom,
         to: toChTs(dateTo, true),
+        tz: 'UTC',
         eventName,
         filters,
       }),
