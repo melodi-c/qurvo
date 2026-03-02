@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -19,11 +19,13 @@ import type {
   TrendGranularity,
   Annotation,
 } from '@/api/generated/Api';
-import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick } from '@/lib/chart-colors';
+import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick, CHART_AXIS_TICK_COLOR } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { seriesKey, isIncompleteBucket, buildDataPoints, snapAnnotationDateToBucket } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
+import { AnnotationsOverlay } from './AnnotationsOverlay';
+import { useAnnotationPositions } from './use-annotation-positions';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './TrendChart.translations';
@@ -46,6 +48,42 @@ interface TrendChartProps {
   seriesConfig?: TrendSeries[];
   /** Called when a series is toggled — allows persisting hidden state to config */
   onToggleSeries?: (seriesIdx: number) => void;
+  /** CRUD callbacks — when provided, renders interactive annotation overlay */
+  onEditAnnotation?: (annotation: Annotation) => void;
+  onDeleteAnnotation?: (id: string) => Promise<void>;
+  onCreateAnnotation?: (date: string) => void;
+}
+
+// Custom XAxis tick that reports its pixel position for the annotation overlay
+interface CustomTickProps {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  granularity: string;
+  compact?: boolean;
+  timezone?: string;
+  onTickRender: (bucket: string, x: number) => void;
+}
+
+function CustomXAxisTick({ x, y, payload, granularity, compact, timezone, onTickRender }: CustomTickProps) {
+  const tickValue = payload?.value ?? '';
+  const tickX = x ?? 0;
+
+  // Report pixel position to the hook
+  useEffect(() => {
+    if (tickValue && tickX > 0) {
+      onTickRender(tickValue, tickX);
+    }
+  }, [tickValue, tickX, onTickRender]);
+
+  const label = formatBucket(tickValue, granularity, compact, timezone);
+  const style = chartAxisTick(compact);
+
+  return (
+    <text x={tickX} y={(y ?? 0) + 12} textAnchor="middle" fontSize={style.fontSize} fill={CHART_AXIS_TICK_COLOR}>
+      {label}
+    </text>
+  );
 }
 
 // Shared rendering helpers
@@ -102,33 +140,37 @@ function renderAnnotations(annotations: Annotation[] | undefined, granularity: s
   ));
 }
 
-// Component
+// Helper: compute derived series data from raw props
+interface SeriesDataOptions {
+  series: TrendSeriesResult[];
+  previousSeries?: TrendSeriesResult[];
+  formulas?: TrendFormula[];
+  seriesConfig?: TrendSeries[];
+  granularity?: TrendGranularity;
+  timezone?: string;
+  onToggleSeries?: (idx: number) => void;
+}
 
-export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations, seriesConfig, onToggleSeries }: TrendChartProps) {
-  const { t } = useLocalTranslation(translations);
-  const timezone = useProjectStore((s) => s.projectTimezone);
+function useSeriesData(opts: SeriesDataOptions) {
+  const { series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries } = opts;
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
-
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
 
-  // Reset hidden keys when the actual set of series keys changes,
-  // and initialize from seriesConfig.hidden if available
   const seriesKeysFingerprint = allSeriesKeys.join('\0');
   const hiddenFingerprint = seriesConfig?.map((s) => s.hidden ? '1' : '0').join('') ?? '';
   useEffect(() => {
     if (seriesConfig) {
       const initialHidden = new Set<string>();
       series.forEach((s, idx) => {
-        if (seriesConfig[idx]?.hidden) {
-          initialHidden.add(seriesKey(s));
-        }
+        if (seriesConfig[idx]?.hidden) {initialHidden.add(seriesKey(s));}
       });
       setHiddenKeys(initialHidden);
     } else {
       setHiddenKeys(new Set());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seriesKeysFingerprint, hiddenFingerprint]);
+
   const prevKeys = useMemo(
     () => (previousSeries ?? []).map((s) => `prev_${seriesKey(s)}`),
     [previousSeries],
@@ -181,14 +223,52 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
       else {next.add(key);}
       return next;
     });
-    // Notify parent to persist hidden state in config
     if (onToggleSeries) {
       const idx = allSeriesKeys.indexOf(key);
       if (idx >= 0) {onToggleSeries(idx);}
     }
   };
 
-  const height = compact ? '100%' : 350;
+  return {
+    allSeriesKeys, prevKeys, formulaKeys, formulaTotals,
+    data, seriesTotals, hasIncomplete, completeData, incompleteData,
+    visibleSeriesKeys, visiblePrevKeys, visibleFormulaKeys,
+    hiddenKeys, toggleSeries,
+  };
+}
+
+// Component
+
+export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations, seriesConfig, onToggleSeries, onEditAnnotation, onDeleteAnnotation, onCreateAnnotation }: TrendChartProps) {
+  const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
+  const showOverlay = !compact && !!onEditAnnotation;
+  const { tickPositions, annotationsByBucket, onTickRender } = useAnnotationPositions(
+    showOverlay ? annotations : undefined,
+    granularity,
+  );
+
+  const customTick = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (props: any) => (
+      <CustomXAxisTick
+        {...props}
+        granularity={granularity ?? 'day'}
+        compact={compact}
+        timezone={timezone}
+        onTickRender={onTickRender}
+      />
+    ),
+    [granularity, compact, timezone, onTickRender],
+  );
+
+  const {
+    allSeriesKeys, formulaKeys, formulaTotals,
+    data, seriesTotals, hasIncomplete, completeData, incompleteData,
+    visibleSeriesKeys, visiblePrevKeys, visibleFormulaKeys,
+    hiddenKeys, toggleSeries,
+  } = useSeriesData({ series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries });
+
   const ChartComponent = chartType === 'bar' ? BarChart : LineChart;
   const useSimpleChart = chartType === 'bar' || !hasIncomplete;
 
@@ -212,33 +292,46 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
       {/* Chart */}
       <div style={{ height: compact ? '100%' : 350 }}>
         {useSimpleChart ? (
-          <ResponsiveContainer width="100%" height={height}>
-            <ChartComponent data={data} margin={fullMargin}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
-              <XAxis
-                dataKey="bucket"
-                tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact, timezone)}
-                tick={tickStyle}
-                tickLine={false}
-                axisLine={false}
+          <div className="relative" style={{ height: compact ? '100%' : 350 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ChartComponent data={data} margin={fullMargin}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
+                <XAxis
+                  dataKey="bucket"
+                  tickFormatter={showOverlay ? undefined : (v) => formatBucket(v, granularity ?? 'day', compact, timezone)}
+                  tick={showOverlay ? customTick : tickStyle}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={tickStyle}
+                  tickLine={false}
+                  axisLine={false}
+                  width={compact ? 40 : 48}
+                  tickFormatter={compact ? formatCompactNumber : undefined}
+                />
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
+                />
+                {renderPrevSeries(seriesProps)}
+                {renderCurrentSeries(seriesProps)}
+                {renderFormulaSeries(seriesProps)}
+                {renderAnnotations(annotations, granularity ?? 'day', compact)}
+              </ChartComponent>
+            </ResponsiveContainer>
+            {showOverlay && onDeleteAnnotation && onCreateAnnotation && (
+              <AnnotationsOverlay
+                tickPositions={tickPositions}
+                annotationsByBucket={annotationsByBucket}
+                granularity={granularity ?? 'day'}
+                timezone={timezone}
+                onEdit={onEditAnnotation}
+                onDelete={onDeleteAnnotation}
+                onCreate={onCreateAnnotation}
               />
-              <YAxis
-                tick={tickStyle}
-                tickLine={false}
-                axisLine={false}
-                width={compact ? 40 : 48}
-                tickFormatter={compact ? formatCompactNumber : undefined}
-              />
-              <Tooltip
-                contentStyle={CHART_TOOLTIP_STYLE}
-                labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
-              />
-              {renderPrevSeries(seriesProps)}
-              {renderCurrentSeries(seriesProps)}
-              {renderFormulaSeries(seriesProps)}
-              {renderAnnotations(annotations, granularity ?? 'day', compact)}
-            </ChartComponent>
-          </ResponsiveContainer>
+            )}
+          </div>
         ) : (
           /* Line chart with incomplete period dashed */
           <div className="relative" style={{ height: compact ? '100%' : 350 }}>
@@ -251,8 +344,8 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.5} />
                 <XAxis
                   dataKey="bucket"
-                  tickFormatter={(v) => formatBucket(v, granularity ?? 'day', compact, timezone)}
-                  tick={chartAxisTick()}
+                  tickFormatter={showOverlay ? undefined : (v) => formatBucket(v, granularity ?? 'day', compact, timezone)}
+                  tick={showOverlay ? customTick : chartAxisTick()}
                   tickLine={false}
                   axisLine={false}
                   domain={data.length > 0 ? [data[0].bucket, data[data.length - 1].bucket] : undefined}
@@ -294,6 +387,18 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
                 </LineChart>
               </ResponsiveContainer>
             </div>
+
+            {showOverlay && onDeleteAnnotation && onCreateAnnotation && (
+              <AnnotationsOverlay
+                tickPositions={tickPositions}
+                annotationsByBucket={annotationsByBucket}
+                granularity={granularity ?? 'day'}
+                timezone={timezone}
+                onEdit={onEditAnnotation}
+                onDelete={onDeleteAnnotation}
+                onCreate={onCreateAnnotation}
+              />
+            )}
           </div>
         )}
       </div>
