@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Plus, ArrowDown } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { QueryItemCard } from '../QueryItemCard';
@@ -16,21 +16,27 @@ export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
   const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(steps, onChange);
 
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
+
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const updateStep = useCallback(
     (i: number, patch: Partial<FunnelStep>) => {
-      onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+      onChangeRef.current(stepsRef.current.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
     },
-    [steps, onChange],
+    [],
   );
 
   const { addFilter, updateFilter, removeFilter } = useFilterManager(steps, updateStep);
 
   const addStep = () =>
-    onChange([...steps, { event_name: '', label: t('stepN', { n: String(steps.length + 1) }) }]);
+    onChangeRef.current([...stepsRef.current, { event_name: '', label: t('stepN', { n: String(stepsRef.current.length + 1) }) }]);
 
   const removeStep = (i: number) => {
-    if (steps.length <= 2) {return;}
-    onChange(steps.filter((_, idx) => idx !== i));
+    if (stepsRef.current.length <= 2) {return;}
+    onChangeRef.current(stepsRef.current.filter((_, idx) => idx !== i));
   };
 
   return (

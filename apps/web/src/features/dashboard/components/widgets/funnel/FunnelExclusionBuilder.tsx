@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,12 @@ interface FunnelExclusionBuilderProps {
 export function FunnelExclusionBuilder({ exclusions, onChange, stepCount }: FunnelExclusionBuilderProps) {
   const { t } = useLocalTranslation(translations);
 
+  const exclusionsRef = useRef(exclusions);
+  exclusionsRef.current = exclusions;
+
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const stepOptions = useMemo(() => {
     return Array.from({ length: stepCount }, (_, i) => ({
       value: String(i),
@@ -29,16 +35,16 @@ export function FunnelExclusionBuilder({ exclusions, onChange, stepCount }: Funn
   }, [stepCount]);
 
   const handleAdd = useCallback(() => {
-    onChange([...exclusions, { event_name: '', funnel_from_step: 0, funnel_to_step: Math.min(1, stepCount - 1) }]);
-  }, [exclusions, onChange, stepCount]);
+    onChangeRef.current([...exclusionsRef.current, { event_name: '', funnel_from_step: 0, funnel_to_step: Math.min(1, stepCount - 1) }]);
+  }, [stepCount]);
 
   const handleRemove = useCallback((index: number) => {
-    onChange(exclusions.filter((_, i) => i !== index));
-  }, [exclusions, onChange]);
+    onChangeRef.current(exclusionsRef.current.filter((_, i) => i !== index));
+  }, []);
 
   const handleUpdate = useCallback((index: number, patch: Partial<ExclusionEntry>) => {
-    onChange(exclusions.map((e, i) => i === index ? { ...e, ...patch } : e));
-  }, [exclusions, onChange]);
+    onChangeRef.current(exclusionsRef.current.map((e, i) => i === index ? { ...e, ...patch } : e));
+  }, []);
 
   return (
     <div className="space-y-2">

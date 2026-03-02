@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { StepFilter } from '@/api/generated/Api';
 
 interface HasFilters {
@@ -15,35 +15,44 @@ export function useFilterManager<T extends HasFilters>(
   items: T[],
   updateItem: (idx: number, patch: Partial<T>) => void,
 ): FilterManager {
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const updateItemRef = useRef(updateItem);
+  updateItemRef.current = updateItem;
+
   const addFilter = useCallback(
     (itemIdx: number) => {
+      const current = itemsRef.current[itemIdx];
       const filters: StepFilter[] = [
-        ...(items[itemIdx].filters ?? []),
+        ...(current.filters ?? []),
         { property: '', operator: 'eq', value: '' },
       ];
-      updateItem(itemIdx, { filters } as Partial<T>);
+      updateItemRef.current(itemIdx, { filters } as Partial<T>);
     },
-    [items, updateItem],
+    [],
   );
 
   const updateFilter = useCallback(
     (itemIdx: number, filterIdx: number, filter: StepFilter) => {
-      const filters = (items[itemIdx].filters ?? []).map((f, i) =>
+      const current = itemsRef.current[itemIdx];
+      const filters = (current.filters ?? []).map((f, i) =>
         i === filterIdx ? filter : f,
       );
-      updateItem(itemIdx, { filters } as Partial<T>);
+      updateItemRef.current(itemIdx, { filters } as Partial<T>);
     },
-    [items, updateItem],
+    [],
   );
 
   const removeFilter = useCallback(
     (itemIdx: number, filterIdx: number) => {
-      const filters = (items[itemIdx].filters ?? []).filter(
+      const current = itemsRef.current[itemIdx];
+      const filters = (current.filters ?? []).filter(
         (_, i) => i !== filterIdx,
       );
-      updateItem(itemIdx, { filters } as Partial<T>);
+      updateItemRef.current(itemIdx, { filters } as Partial<T>);
     },
-    [items, updateItem],
+    [],
   );
 
   return { addFilter, updateFilter, removeFilter };

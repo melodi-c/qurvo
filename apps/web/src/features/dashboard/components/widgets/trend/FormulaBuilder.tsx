@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import { Plus, X, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,25 +26,31 @@ const ERROR_KEYS: Record<string, string> = {
 export function FormulaBuilder({ formulas, seriesCount, onChange }: FormulaBuilderProps) {
   const { t } = useLocalTranslation(translations);
 
+  const formulasRef = useRef(formulas);
+  formulasRef.current = formulas;
+
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const availableLetters = useMemo(
     () => SERIES_LETTERS.slice(0, seriesCount),
     [seriesCount],
   );
 
   const addFormula = useCallback(() => {
-    onChange([
-      ...formulas,
+    onChangeRef.current([
+      ...formulasRef.current,
       { id: crypto.randomUUID(), label: '', expression: '' },
     ]);
-  }, [formulas, onChange]);
+  }, []);
 
   const updateFormula = useCallback((idx: number, patch: Partial<TrendFormula>) => {
-    onChange(formulas.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
-  }, [formulas, onChange]);
+    onChangeRef.current(formulasRef.current.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+  }, []);
 
   const removeFormula = useCallback((idx: number) => {
-    onChange(formulas.filter((_, i) => i !== idx));
-  }, [formulas, onChange]);
+    onChangeRef.current(formulasRef.current.filter((_, i) => i !== idx));
+  }, []);
 
   return (
     <div className="space-y-2">
