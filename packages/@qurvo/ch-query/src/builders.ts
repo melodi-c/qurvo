@@ -641,42 +641,6 @@ export function escapeLikePattern(s: string): string {
   return s.replace(/[\\%_]/g, (ch) => '\\' + ch);
 }
 
-export type SafeLikeMode = 'contains' | 'startsWith' | 'endsWith';
-
-/** Wrap an escaped LIKE pattern according to the search mode */
-function wrapLikePattern(escaped: string, mode: SafeLikeMode): string {
-  switch (mode) {
-    case 'contains':
-      return `%${escaped}%`;
-    case 'startsWith':
-      return `${escaped}%`;
-    case 'endsWith':
-      return `%${escaped}`;
-  }
-}
-
-/**
- * Safe LIKE: escapes user input and wraps according to `mode`, producing:
- * `expr LIKE {p_N:String}` with the value properly escaped.
- *
- * @param mode - 'contains' (default) wraps `%val%`, 'startsWith' wraps `val%`, 'endsWith' wraps `%val`
- */
-export function safeLike(expr: Expr, substring: string, mode: SafeLikeMode = 'contains'): BinaryExpr {
-  const escaped = wrapLikePattern(escapeLikePattern(substring), mode);
-  return like(expr, param('String', escaped));
-}
-
-/**
- * Safe NOT LIKE: escapes user input and wraps according to `mode`, producing:
- * `expr NOT LIKE {p_N:String}` with the value properly escaped.
- *
- * @param mode - 'contains' (default) wraps `%val%`, 'startsWith' wraps `val%`, 'endsWith' wraps `%val`
- */
-export function safeNotLike(expr: Expr, substring: string, mode: SafeLikeMode = 'contains'): BinaryExpr {
-  const escaped = wrapLikePattern(escapeLikePattern(substring), mode);
-  return notLike(expr, param('String', escaped));
-}
-
 // SelectBuilder (fluent chain)
 
 export class SelectBuilder {

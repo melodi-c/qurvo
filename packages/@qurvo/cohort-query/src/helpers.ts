@@ -1,9 +1,9 @@
 import type { CohortEventFilter, CohortPropertyOperator } from '@qurvo/db';
 import type { Expr, FuncCallExpr } from '@qurvo/ch-query';
 import {
-  and, argMax, col, coalesce, dictGetOrNull, eq, escapeLikePattern,
+  and, argMax, col, coalesce, dictGetOrNull, eq, escapeLikePattern, like,
   func, gt as chGt, gte, inArray, jsonExtractRaw, jsonExtractString, jsonHas,
-  like, literal, lt as chLt, lte, match, multiSearchAny, namedParam,
+  literal, lt as chLt, lte, match, multiSearchAny, namedParam,
   neq, not, notInArray, notLike, now64, or,
   parseDateTimeBestEffort, parseDateTimeBestEffortOrZero,
   select, toDate, toFloat64OrZero, toString, tuple,

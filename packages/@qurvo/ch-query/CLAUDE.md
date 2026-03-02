@@ -51,7 +51,7 @@ import {
 } from '@qurvo/ch-query';
 
 // SQL utils
-import { escapeLikePattern, safeLike, safeNotLike } from '@qurvo/ch-query';
+import { escapeLikePattern, like, notLike } from '@qurvo/ch-query';
 
 // Condition builders
 import {
