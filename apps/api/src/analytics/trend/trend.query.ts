@@ -236,21 +236,19 @@ function buildSeriesArm(
   aggCol: Expr,
   breakdownExpr?: Expr,
 ) {
-  const columns: Expr[] = [
+  return select(
     literal(idx).as('series_idx'),
-    ...(breakdownExpr ? [alias(breakdownExpr, 'breakdown_value')] : []),
+    breakdownExpr ? alias(breakdownExpr, 'breakdown_value') : undefined,
     alias(bucketExpr, 'bucket'),
     ...baseMetricColumns(),
     aggCol,
-  ];
-  const groupByExprs: Expr[] = [col('bucket')];
-  if (breakdownExpr) {
-    groupByExprs.unshift(col('breakdown_value'));
-  }
-  return select(...columns)
+  )
     .from('events')
     .where(seriesWhere(s, params, dateFrom, dateTo))
-    .groupBy(...groupByExprs)
+    .groupBy(
+      breakdownExpr ? col('breakdown_value') : undefined,
+      col('bucket'),
+    )
     .build();
 }
 
