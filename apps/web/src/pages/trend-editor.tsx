@@ -37,21 +37,11 @@ export default function TrendEditorPage() {
     previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const isCustomQuery = CUSTOM_QUERY_CHART_TYPES.includes(config.chart_type);
-
-  // Both hooks always called (React rules); only the relevant one fires.
-  const trendQuery = useTrendData(
-    isCustomQuery ? { ...config, chart_type: 'line', series: [] } : config,
-    previewId,
-  );
-  const aggregateQuery = useTrendAggregateData(
-    isCustomQuery ? config : { ...config, series: [] },
-    previewId,
-  );
-
-  const { data, isLoading, isFetching } = isCustomQuery ? aggregateQuery : trendQuery;
-  const trendResult = trendQuery.data?.data;
-  const aggregateResult = aggregateQuery.data?.data;
-  const series = trendResult?.series;
+  const { data, isLoading, isFetching } = useTrendData(config, previewId);
+  const { data: aggregateData, isLoading: aggLoading, isFetching: aggFetching } = useTrendAggregateData(config, previewId);
+  const result = data?.data;
+  const series = result?.series;
+  const aggregateResult = aggregateData?.data;
 
   const { data: annotations } = useAnnotations(config.date_from, config.date_to);
   const createAnnotation = useCreateAnnotation();
@@ -142,11 +132,11 @@ export default function TrendEditorPage() {
       saveError={saveError}
       queryPanel={<TrendQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={isConfigValid}
-      showSkeleton={showSkeleton(isLoading, data)}
+      showSkeleton={showSkeleton(isCustomQuery ? aggLoading : isLoading, isCustomQuery ? aggregateData : data)}
       isEmpty={isCustomQuery
         ? !aggregateResult || (!aggregateResult.heatmap?.length && !aggregateResult.world_map?.length)
         : !series || series.length === 0}
-      isFetching={isFetching}
+      isFetching={isCustomQuery ? aggFetching : isFetching}
       configureIcon={BarChart3}
       configureTitle={t('configureTitle')}
       configureDescription={t('configureDescription')}
@@ -159,12 +149,12 @@ export default function TrendEditorPage() {
           <Metric label={metricLabel} value={totalValue.toLocaleString()} accent />
           <MetricsDivider />
           <Metric label={t('series')} value={String(seriesCount)} />
-          {trendResult?.compare && trendResult.series_previous && (
+          {result?.compare && result.series_previous && (
             <>
               <MetricsDivider />
               <Metric
                 label={t('previousPeriod')}
-                value={trendResult.series_previous
+                value={result.series_previous
                   .reduce((acc, s) => acc + s.data.reduce((sum, dp) => sum + dp.value, 0), 0)
                   .toLocaleString()}
               />
@@ -172,18 +162,19 @@ export default function TrendEditorPage() {
           )}
         </>
       ) : undefined}
-      onExportCsv={series ? handleExportCsv : undefined}
+      onExportCsv={!isCustomQuery && series ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
       unsavedGuard={unsavedGuard}
     >
       <TrendChart
         series={series ?? []}
-        previousSeries={trendResult?.series_previous}
+        previousSeries={result?.series_previous}
         chartType={config.chart_type}
         granularity={config.granularity}
         formulas={config.formulas}
         annotations={annotations}
         seriesConfig={config.series}
+        aggregateData={aggregateResult}
         onToggleSeries={handleToggleSeries}
         onEditAnnotation={handleEditAnnotation}
         onDeleteAnnotation={handleDeleteAnnotation}

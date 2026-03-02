@@ -7,11 +7,10 @@ import type {
 } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
 import { cleanSeries } from './use-trend';
+import { CUSTOM_QUERY_CHART_TYPES } from '../components/widgets/trend/trend-shared';
 
-/** Maps ChartType to AggregateType for custom-query chart types. */
-function toAggregateType(chartType: string): AggregateType {
-  if (chartType === 'world_map') {return 'world_map';}
-  return 'calendar_heatmap';
+function isAggregateType(chartType: string): chartType is AggregateType {
+  return CUSTOM_QUERY_CHART_TYPES.includes(chartType as AggregateType);
 }
 
 export const useTrendAggregateData = createWidgetDataHook<
@@ -30,11 +29,12 @@ export const useTrendAggregateData = createWidgetDataHook<
       cohort_ids: config.cohort_ids,
     }),
   isEnabled: (config) =>
+    isAggregateType(config.chart_type) &&
     config.series.length >= 1 &&
     config.series.every((s) => s.event_name.trim() !== ''),
   buildParams: (config, projectId, widgetUuid) => ({
     project_id: projectId,
-    aggregate_type: toAggregateType(config.chart_type),
+    aggregate_type: config.chart_type as AggregateType,
     series: cleanSeries(config).map(({ event_name, label, filters }) => ({
       event_name,
       label,
