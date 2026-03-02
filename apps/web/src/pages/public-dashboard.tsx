@@ -122,13 +122,12 @@ function PublicTrendViz({ widget, precomputed }: { widget: Widget; precomputed: 
   const isCustomQuery = CUSTOM_QUERY_CHART_TYPES.includes(config.chart_type);
 
   // For aggregate chart types, the backend wraps data with { _aggregate: true, ...TrendAggregateResult }
-  const rawData = precomputed?.data as Record<string, unknown> | null;
-  const isAggregate = rawData !== null && '_aggregate' in rawData && rawData._aggregate === true;
+  type AggregateEnvelope = TrendAggregateResult & { _aggregate: true };
+  const rawData = precomputed?.data as (TrendResult | AggregateEnvelope) | null;
+  const isAggregate = rawData !== null && '_aggregate' in rawData;
 
-  const trendResult: TrendResult | null = !isAggregate ? (rawData as TrendResult | null) : null;
-  const aggregateResult: TrendAggregateResult | undefined = isAggregate
-    ? (rawData as TrendAggregateResult)
-    : undefined;
+  const trendResult: TrendResult | null = !isAggregate ? rawData : null;
+  const aggregateResult: TrendAggregateResult | undefined = isAggregate ? rawData : undefined;
 
   const query = makeFakeQuery(precomputed ? { cached_at: precomputed.cached_at, from_cache: precomputed.from_cache } : null);
 
