@@ -13,6 +13,8 @@ export const dashboards = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 100 }).notNull(),
+    date_from: varchar('date_from', { length: 20 }),
+    date_to: varchar('date_to', { length: 20 }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
