@@ -298,6 +298,29 @@ describe('compiler', () => {
       const { sql } = compile(q);
       expect(sql).toContain('WHERE 0');
     });
+
+    test('or() inside and() is parenthesized', () => {
+      const condition = and(
+        eq(col('project_id'), literal(1)),
+        eq(col('event_name'), literal('click')),
+        or(eq(col('a'), literal(10)), eq(col('b'), literal(20))),
+      );
+      const q = select(col('x')).from('t').where(condition).build();
+      const { sql } = compile(q);
+      expect(sql).toContain('(a = 10 OR b = 20)');
+      expect(sql).toContain('AND (a = 10 OR b = 20)');
+    });
+
+    test('and() inside or() is NOT parenthesized (AND has higher precedence)', () => {
+      const condition = or(
+        and(eq(col('a'), literal(1)), eq(col('b'), literal(2))),
+        eq(col('c'), literal(3)),
+      );
+      const q = select(col('x')).from('t').where(condition).build();
+      const { sql } = compile(q);
+      // AND binds tighter than OR, so no parens needed
+      expect(sql).toContain('a = 1 AND b = 2 OR c = 3');
+    });
   });
 
   describe('IN expressions', () => {

@@ -74,6 +74,7 @@ function compileLiteral(value: string | number | boolean): string {
  */
 function flattenBinaryChain(expr: BinaryExpr, ctx: CompilerContext): string {
   const op = expr.op;
+  const parentPrec = OP_PRECEDENCE[op] ?? 0;
   const parts: string[] = [];
 
   function collect(e: Expr): void {
@@ -81,17 +82,21 @@ function flattenBinaryChain(expr: BinaryExpr, ctx: CompilerContext): string {
       collect(e.left);
       collect(e.right);
     } else {
-      parts.push(compileExpr(e, ctx));
+      const sql = compileExpr(e, ctx);
+      // Wrap child binary expressions that have lower precedence than the parent chain.
+      // e.g. OR (prec 1) inside AND (prec 2) must be parenthesized.
+      if (e.type === 'binary' && (OP_PRECEDENCE[e.op] ?? 0) < parentPrec) {
+        parts.push(`(${sql})`);
+      } else {
+        parts.push(sql);
+      }
     }
   }
 
   collect(expr.left);
   collect(expr.right);
 
-  const separator = ` ${op} `;
-  // Wrap OR operands in parens when mixed with AND at a higher level is handled by
-  // the caller — here we just join flatly.
-  return parts.join(separator);
+  return parts.join(` ${op} `);
 }
 
 function compileFuncCall(expr: FuncCallExpr, ctx: CompilerContext): string {
