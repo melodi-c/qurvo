@@ -146,7 +146,7 @@ export function buildCohortMemberSubquery(
   if (input.is_static) {
     queryParams[cohortParamKey] = input.cohort_id;
     return select(col('person_id'))
-      .from('person_static_cohort FINAL')
+      .from('person_static_cohort').final()
       .where(
         eq(col('cohort_id'), namedParam(cohortParamKey, 'UUID', input.cohort_id)),
         eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),
@@ -156,7 +156,7 @@ export function buildCohortMemberSubquery(
   if (input.materialized) {
     queryParams[cohortParamKey] = input.cohort_id;
     return select(col('person_id'))
-      .from('cohort_members FINAL')
+      .from('cohort_members').final()
       .where(
         eq(col('cohort_id'), namedParam(cohortParamKey, 'UUID', input.cohort_id)),
         eq(col('project_id'), namedParam(projectIdParam, 'UUID', queryParams[projectIdParam])),

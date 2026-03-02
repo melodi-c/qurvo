@@ -49,7 +49,7 @@ export async function countCohortMembersFromTable(
   cohortId: string,
 ): Promise<number> {
   const node = select(uniqExact(col('person_id')).as('cnt'))
-    .from('cohort_members FINAL')
+    .from('cohort_members').final()
     .where(
       eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
       eq(col('cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
@@ -67,7 +67,7 @@ export async function countStaticCohortMembers(
   cohortId: string,
 ): Promise<number> {
   const node = select(uniqExact(col('person_id')).as('cnt'))
-    .from('person_static_cohort FINAL')
+    .from('person_static_cohort').final()
     .where(
       eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
       eq(col('cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
@@ -90,7 +90,7 @@ export async function queryCohortSizeHistory(
     chToString(col('date')).as('dt'),
     col('count'),
   )
-    .from('cohort_membership_history FINAL')
+    .from('cohort_membership_history').final()
     .where(
       eq(col('project_id'), namedParam('project_id', 'UUID', projectId)),
       eq(col('cohort_id'), namedParam('cohort_id', 'UUID', cohortId)),
