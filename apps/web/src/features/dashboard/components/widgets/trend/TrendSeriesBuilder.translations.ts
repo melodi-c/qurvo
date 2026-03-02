@@ -20,6 +20,8 @@ export default createTranslations({
     propertyMin: 'Min of property',
     propertyMax: 'Max of property',
     propertyAggDesc: 'Aggregation of a numeric event property',
+    hideSeries: 'Hide series',
+    showSeries: 'Show series',
     copyLabel: '(copy)',
   },
   ru: {
@@ -41,6 +43,8 @@ export default createTranslations({
     propertyMin: 'Минимум свойства',
     propertyMax: 'Максимум свойства',
     propertyAggDesc: 'Агрегация числового свойства события',
+    hideSeries: 'Скрыть серию',
+    showSeries: 'Показать серию',
     copyLabel: '(копия)',
   },
 });

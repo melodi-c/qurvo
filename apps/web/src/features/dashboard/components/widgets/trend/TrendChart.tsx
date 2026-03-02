@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import type {
   TrendSeriesResult,
+  TrendSeries,
   TrendFormula,
   ChartType,
   TrendGranularity,
@@ -41,6 +42,10 @@ interface TrendChartProps {
   compact?: boolean;
   formulas?: TrendFormula[];
   annotations?: Annotation[];
+  /** Series config for persisted hidden state */
+  seriesConfig?: TrendSeries[];
+  /** Called when a series is toggled — allows persisting hidden state to config */
+  onToggleSeries?: (seriesIdx: number) => void;
 }
 
 // Shared rendering helpers
@@ -99,19 +104,31 @@ function renderAnnotations(annotations: Annotation[] | undefined, granularity: s
 
 // Component
 
-export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations }: TrendChartProps) {
+export function TrendChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations, seriesConfig, onToggleSeries }: TrendChartProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
 
-  // Reset hidden keys only when the actual set of series keys changes
-  // (not on every data refresh — allSeriesKeys is a new array reference each time)
+  // Reset hidden keys when the actual set of series keys changes,
+  // and initialize from seriesConfig.hidden if available
   const seriesKeysFingerprint = allSeriesKeys.join('\0');
+  const hiddenFingerprint = seriesConfig?.map((s) => s.hidden ? '1' : '0').join('') ?? '';
   useEffect(() => {
-    setHiddenKeys(new Set());
-  }, [seriesKeysFingerprint]);
+    if (seriesConfig) {
+      const initialHidden = new Set<string>();
+      series.forEach((s, idx) => {
+        if (seriesConfig[idx]?.hidden) {
+          initialHidden.add(seriesKey(s));
+        }
+      });
+      setHiddenKeys(initialHidden);
+    } else {
+      setHiddenKeys(new Set());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesKeysFingerprint, hiddenFingerprint]);
   const prevKeys = useMemo(
     () => (previousSeries ?? []).map((s) => `prev_${seriesKey(s)}`),
     [previousSeries],
@@ -164,6 +181,11 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
       else {next.add(key);}
       return next;
     });
+    // Notify parent to persist hidden state in config
+    if (onToggleSeries) {
+      const idx = allSeriesKeys.indexOf(key);
+      if (idx >= 0) {onToggleSeries(idx);}
+    }
   };
 
   const height = compact ? '100%' : 350;
@@ -278,7 +300,7 @@ export function TrendChart({ series, previousSeries, chartType, granularity, com
 
       {/* Compact legend (dashboard mode) */}
       {compact && allSeriesKeys.length > 1 && (
-        <CompactLegend allSeriesKeys={allSeriesKeys} formulaKeys={formulaKeys} />
+        <CompactLegend allSeriesKeys={allSeriesKeys} formulaKeys={formulaKeys} hiddenKeys={hiddenKeys} />
       )}
 
       {/* Legend table (not in compact mode) */}

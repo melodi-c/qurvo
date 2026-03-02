@@ -61,6 +61,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           compact
           formulas={config!.formulas}
           annotations={annotations}
+          seriesConfig={config!.series}
         />
       )}
     </WidgetShell>

@@ -50,6 +50,10 @@ export class TrendSeriesDto {
   @ValidateNested({ each: true })
   @Type(() => StepFilterDto)
   filters?: StepFilterDto[];
+
+  @IsBoolean()
+  @IsOptional()
+  hidden?: boolean;
 }
 
 @BreakdownMutuallyExclusive()
@@ -58,7 +62,7 @@ export class TrendQueryDto extends BaseAnalyticsQueryDto {
   @Transform(makeJsonArrayTransform(TrendSeriesDto))
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(5)
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => TrendSeriesDto)
   series: TrendSeriesDto[];
