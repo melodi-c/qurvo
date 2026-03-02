@@ -1,15 +1,22 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { WidgetShell } from '../WidgetShell';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { useTrendAggregateData } from '@/features/dashboard/hooks/use-trend-aggregate';
 import { useAnnotations } from '@/features/dashboard/hooks/use-annotations';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
 import translations from './TrendWidget.translations';
 import { TrendChart } from './TrendChart';
 import { defaultTrendConfig, CUSTOM_QUERY_CHART_TYPES } from './trend-shared';
 import { trendToCsv, downloadCsv } from '@/lib/csv-export';
 import type { Widget, TrendWidgetConfig } from '@/api/generated/Api';
+
+/** Minimal cached response shape that WidgetShell needs from the query.data field. */
+interface CachedEnvelope {
+  cached_at: string;
+  from_cache: boolean;
+}
 
 interface TrendWidgetProps {
   widget: Widget;
@@ -30,7 +37,18 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
   const aggregateResult = aggregateQuery.data?.data;
   const { data: annotations } = useAnnotations(config?.date_from, config?.date_to);
 
-  const activeQuery = isCustomQuery ? aggregateQuery : query;
+  // Build a unified query view so WidgetShell doesn't need to know about the union type.
+  const shellQuery: WidgetDataResult<CachedEnvelope> = useMemo(() => {
+    const src = isCustomQuery ? aggregateQuery : query;
+    return {
+      data: src.data ? { cached_at: src.data.cached_at, from_cache: src.data.from_cache } : undefined,
+      isLoading: src.isLoading,
+      isFetching: src.isFetching,
+      isPlaceholderData: src.isPlaceholderData,
+      error: src.error,
+      refresh: src.refresh as () => Promise<CachedEnvelope | undefined>,
+    };
+  }, [isCustomQuery, aggregateQuery, query]);
 
   const hasValidSeries = hasConfig && config.series.length >= 1 && config.series.every((s) => s.event_name.trim() !== '');
   const totals = result?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
@@ -47,7 +65,7 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
 
   return (
     <WidgetShell
-      query={activeQuery}
+      query={shellQuery}
       isConfigValid={hasValidSeries}
       configureMessage={hasConfig ? t('configureSeries') : t('noInsight')}
       isEditing={isEditing}
@@ -60,8 +78,8 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           {totals.slice(1).map((t) => t.toLocaleString()).join(' / ')}
         </span>
       ) : undefined}
-      cachedAt={activeQuery.data?.cached_at}
-      fromCache={activeQuery.data?.from_cache}
+      cachedAt={shellQuery.data?.cached_at}
+      fromCache={shellQuery.data?.from_cache}
       onExportCsv={!isCustomQuery && result?.series ? handleExportCsv : undefined}
     >
       {hasData && (
