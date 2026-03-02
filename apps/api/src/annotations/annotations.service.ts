@@ -74,10 +74,27 @@ export class AnnotationsService {
   }
 
   async update(projectId: string, id: string, input: UpdateAnnotationInput) {
-    // If scope is being changed, validate the new scope + insight_id combination
+    // Determine effective scope: if scope is being changed use the new value,
+    // otherwise fetch the existing annotation's scope when insight_id is provided
+    // to prevent setting insight_id on a project-scoped annotation.
+    let effectiveScope: AnnotationScope | undefined;
+
     if (input.scope !== undefined) {
-      const insightId = input.insight_id !== undefined ? input.insight_id : undefined;
-      this.validateScopeInsightId(input.scope, insightId ?? undefined);
+      effectiveScope = input.scope;
+    } else if (input.insight_id !== undefined) {
+      // insight_id is being set/cleared without an explicit scope change —
+      // load the current scope so we can validate the combination.
+      const existing = await this.db
+        .select({ scope: annotations.scope })
+        .from(annotations)
+        .where(and(eq(annotations.project_id, projectId), eq(annotations.id, id)));
+      if (existing.length === 0) {throw new AnnotationNotFoundException();}
+      effectiveScope = existing[0].scope;
+    }
+
+    if (effectiveScope !== undefined) {
+      const effectiveInsightId = input.insight_id !== undefined ? input.insight_id : undefined;
+      this.validateScopeInsightId(effectiveScope, effectiveInsightId ?? undefined);
     }
 
     const updateData: Record<string, unknown> = { updated_at: new Date() };
