@@ -4763,21 +4763,20 @@ export class Api<
         secure: true,
         ...params,
       }),
-  };
-  public = {
+
     /**
      * No description
      *
      * @tags Public
      * @name PublicControllerGetPublicDashboard
-     * @request GET:/public/dashboards/{shareToken}
+     * @request GET:/api/public/dashboards/{shareToken}
      */
     publicControllerGetPublicDashboard: (
       { shareToken, ...query }: PublicControllerGetPublicDashboardParams,
       params: RequestParams = {},
     ) =>
       this.request<DashboardWithWidgets, any>({
-        path: `/public/dashboards/${shareToken}`,
+        path: `/api/public/dashboards/${shareToken}`,
         method: "GET",
         format: "json",
         ...params,
@@ -4788,14 +4787,14 @@ export class Api<
      *
      * @tags Public
      * @name PublicControllerGetPublicInsight
-     * @request GET:/public/insights/{shareToken}
+     * @request GET:/api/public/insights/{shareToken}
      */
     publicControllerGetPublicInsight: (
       { shareToken, ...query }: PublicControllerGetPublicInsightParams,
       params: RequestParams = {},
     ) =>
       this.request<Insight, any>({
-        path: `/public/insights/${shareToken}`,
+        path: `/api/public/insights/${shareToken}`,
         method: "GET",
         format: "json",
         ...params,
