@@ -84,6 +84,45 @@ export function snapAnnotationDateToBucket(date: string, granularity: string): s
   return date + ' 00:00:00';
 }
 
+/**
+ * Build cumulative (running total) data points from series.
+ * Wraps `buildDataPoints()` and applies a running sum per series key.
+ * Each bucket's value becomes the sum of all previous buckets' values plus its own.
+ * Previous-period series (prev_*) are also accumulated independently.
+ */
+export function buildCumulativeDataPoints(
+  series: TrendSeriesResult[],
+  previousSeries?: TrendSeriesResult[],
+): Record<string, string | number>[] {
+  const points = buildDataPoints(series, previousSeries);
+  if (points.length === 0) {return points;}
+
+  // Collect all numeric keys (everything except 'bucket')
+  const numericKeys = new Set<string>();
+  for (const point of points) {
+    for (const key of Object.keys(point)) {
+      if (key !== 'bucket') {numericKeys.add(key);}
+    }
+  }
+
+  // Running totals per key
+  const accumulators = new Map<string, number>();
+  for (const key of numericKeys) {
+    accumulators.set(key, 0);
+  }
+
+  return points.map((point) => {
+    const cumPoint: Record<string, string | number> = { bucket: point.bucket };
+    for (const key of numericKeys) {
+      const current = (point[key] as number) ?? 0;
+      const acc = (accumulators.get(key) ?? 0) + current;
+      accumulators.set(key, acc);
+      cumPoint[key] = acc;
+    }
+    return cumPoint;
+  });
+}
+
 /** Build chart data points from series, optionally merging previous-period data. */
 export function buildDataPoints(
   series: TrendSeriesResult[],
