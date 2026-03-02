@@ -147,7 +147,7 @@ async function queryDimension(
     .join(', ');
 
   const baselineWhereSql = compileExprToSql(
-    analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), eventName }),
+    analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), tz: 'UTC', eventName }),
     queryParams, ctx,
   ).sql;
 
@@ -156,7 +156,7 @@ async function queryDimension(
     .join(', ');
 
   const currentWhereSql = compileExprToSql(
-    analyticsWhere({ projectId, from: currentFrom, to: toChTs(currentTo, true), eventName }),
+    analyticsWhere({ projectId, from: currentFrom, to: toChTs(currentTo, true), tz: 'UTC', eventName }),
     queryParams, ctx,
   ).sql;
 
@@ -237,12 +237,12 @@ async function queryOverallTotals(
 ): Promise<{ baseline_value: number; current_value: number; relative_change_pct: number; absolute_change: number }> {
   // Build conditional time-range expressions via AST
   const baselineCond = and(
-    gte(col('timestamp'), tsParam(baselineFrom)),
-    lte(col('timestamp'), tsParam(toChTs(baselineTo, true))),
+    gte(col('timestamp'), tsParam(baselineFrom, 'UTC')),
+    lte(col('timestamp'), tsParam(toChTs(baselineTo, true), 'UTC')),
   );
   const currentCond = and(
-    gte(col('timestamp'), tsParam(currentFrom)),
-    lte(col('timestamp'), tsParam(toChTs(currentTo, true))),
+    gte(col('timestamp'), tsParam(currentFrom, 'UTC')),
+    lte(col('timestamp'), tsParam(toChTs(currentTo, true), 'UTC')),
   );
 
   const node = select(

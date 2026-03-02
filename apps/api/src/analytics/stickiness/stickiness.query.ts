@@ -46,11 +46,11 @@ export interface StickinessQueryResult {
  * hypothetical DST edge-case at midnight.  When `timezone` is absent or `UTC`
  * falls back to plain `getUTCDay()`.
  */
-function localDayOfWeek(dateStr: string, timezone?: string): number {
+function localDayOfWeek(dateStr: string, timezone: string): number {
   const [year, month, day] = dateStr.split('-').map(Number);
   // Use UTC noon to represent the calendar date unambiguously.
   const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  if (!timezone || timezone === 'UTC') {
+  if (timezone === 'UTC') {
     return d.getUTCDay();
   }
   // Intl gives the day-of-week name for the calendar date in the target timezone.
@@ -72,7 +72,7 @@ export function computeTotalPeriods(
   from: string,
   to: string,
   granularity: StickinessGranularity,
-  timezone?: string,
+  timezone: string,
 ): number {
   // Parse each date as UTC noon to represent the calendar date unambiguously.
   const parseDate = (dateStr: string): Date => {

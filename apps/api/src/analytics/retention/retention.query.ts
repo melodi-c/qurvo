@@ -154,7 +154,7 @@ export async function queryRetention(
   ch: ClickHouseClient,
   params: RetentionQueryParams,
 ): Promise<RetentionQueryResult> {
-  const tz = params.timezone && params.timezone !== 'UTC' ? params.timezone : undefined;
+  const tz = params.timezone;
   const returnEventName = params.return_event ?? params.target_event;
 
   const truncFrom = truncateDate(params.date_from, params.granularity);

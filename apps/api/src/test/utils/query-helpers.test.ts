@@ -142,7 +142,7 @@ describe('analytics/time', () => {
 
   describe('tsParam', () => {
     test('UTC mode: returns DateTime64 param', () => {
-      const { sql, params } = compileExpr(tsParam('2026-01-15'));
+      const { sql, params } = compileExpr(tsParam('2026-01-15', 'UTC'));
       expect(sql).toContain('{p_0:DateTime64(3)}');
       expect(params.p_0).toBe('2026-01-15 00:00:00');
     });
@@ -163,7 +163,7 @@ describe('analytics/time', () => {
 
   describe('timeRange', () => {
     test('UTC mode: produces >= from AND <= to with DateTime64 params', () => {
-      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31'));
+      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'UTC'));
       expect(sql).toContain('timestamp >= {p_0:DateTime64(3)}');
       expect(sql).toContain('timestamp <= {p_1:DateTime64(3)}');
       expect(params.p_0).toBe('2026-01-01 00:00:00');
@@ -177,14 +177,14 @@ describe('analytics/time', () => {
     });
 
     test('datetime to value is not double-converted', () => {
-      const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59'));
+      const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59', 'UTC'));
       expect(params.p_1).toBe('2026-01-31 23:59:59');
     });
   });
 
   describe('bucket', () => {
     test('hour granularity without tz', () => {
-      const { sql } = compileExpr(bucket('hour', 'timestamp'));
+      const { sql } = compileExpr(bucket('hour', 'timestamp', 'UTC'));
       expect(sql).toContain('toStartOfHour(timestamp)');
     });
 
@@ -194,7 +194,7 @@ describe('analytics/time', () => {
     });
 
     test('day granularity without tz', () => {
-      const { sql } = compileExpr(bucket('day', 'timestamp'));
+      const { sql } = compileExpr(bucket('day', 'timestamp', 'UTC'));
       expect(sql).toContain('toStartOfDay(timestamp)');
     });
 
@@ -204,7 +204,7 @@ describe('analytics/time', () => {
     });
 
     test('week granularity without tz wraps in toDateTime', () => {
-      const { sql } = compileExpr(bucket('week', 'timestamp'));
+      const { sql } = compileExpr(bucket('week', 'timestamp', 'UTC'));
       expect(sql).toContain('toDateTime(toStartOfWeek(timestamp, 1))');
     });
 
@@ -214,7 +214,7 @@ describe('analytics/time', () => {
     });
 
     test('month granularity without tz wraps in toDateTime', () => {
-      const { sql } = compileExpr(bucket('month', 'timestamp'));
+      const { sql } = compileExpr(bucket('month', 'timestamp', 'UTC'));
       expect(sql).toContain('toDateTime(toStartOfMonth(timestamp))');
     });
 
@@ -226,19 +226,19 @@ describe('analytics/time', () => {
 
   describe('neighborBucket', () => {
     test('day granularity: simple addition', () => {
-      const expr = neighborBucket('day', raw('ts_bucket'), 1);
+      const expr = neighborBucket('day', raw('ts_bucket'), 1, 'UTC');
       const { sql } = compileExpr(expr);
       expect(sql).toContain('ts_bucket + INTERVAL 1 DAY');
     });
 
     test('day granularity: simple subtraction', () => {
-      const expr = neighborBucket('day', raw('ts_bucket'), -1);
+      const expr = neighborBucket('day', raw('ts_bucket'), -1, 'UTC');
       const { sql } = compileExpr(expr);
       expect(sql).toContain('ts_bucket - INTERVAL 1 DAY');
     });
 
     test('week without tz: simple 7-day addition', () => {
-      const expr = neighborBucket('week', raw('ts_bucket'), 1);
+      const expr = neighborBucket('week', raw('ts_bucket'), 1, 'UTC');
       const { sql } = compileExpr(expr);
       expect(sql).toContain('ts_bucket + INTERVAL 7 DAY');
     });
@@ -265,7 +265,7 @@ describe('analytics/time', () => {
 
   describe('bucketOfMin', () => {
     test('applies bucket to min(column)', () => {
-      const { sql } = compileExpr(bucketOfMin('day', 'timestamp'));
+      const { sql } = compileExpr(bucketOfMin('day', 'timestamp', 'UTC'));
       expect(sql).toContain('toStartOfDay(min(timestamp))');
     });
 
@@ -636,7 +636,7 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+       
       const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('cohort_members');
       expect(sql).toContain('{coh_mid_0:UUID}');
@@ -654,7 +654,7 @@ describe('analytics/filters', () => {
       const expr = cohortFilter(inputs, 'project-1');
       expect(expr).toBeDefined();
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+       
       const { sql, params } = compileWhere(expr!);
       expect(sql).toContain('person_static_cohort');
       expect(sql).toContain('{coh_sid_0:UUID}');
@@ -669,6 +669,7 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
+        tz: 'UTC',
         cohortFilters: [{
           cohort_id: 'cohort-abc',
           definition: { type: 'AND', values: [] },
@@ -688,6 +689,7 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
+        tz: 'UTC',
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
@@ -702,6 +704,7 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
+        tz: 'UTC',
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
@@ -727,6 +730,7 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
+        tz: 'UTC',
         eventName: 'page_view',
       });
       const { sql } = compileWhere(expr);
@@ -738,6 +742,7 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
+        tz: 'UTC',
         eventNames: ['page_view', 'click'],
       });
       const { sql } = compileWhere(expr);
@@ -749,6 +754,7 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
+        tz: 'UTC',
         filters: [
           { property: 'browser', operator: 'eq' as const, value: 'Chrome' },
         ],
