@@ -1,13 +1,12 @@
 import { useMemo, useCallback, useState } from 'react';
-import { TrendingUp, BarChart3, Plus } from 'lucide-react';
+import { TrendingUp, BarChart3 } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
 import { EditorSkeleton } from '@/components/ui/editor-skeleton';
-import { Button } from '@/components/ui/button';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useTrendData, cleanSeries } from '@/features/dashboard/hooks/use-trend';
-import { useAnnotations, useCreateAnnotation } from '@/features/dashboard/hooks/use-annotations';
+import { useAnnotations, useCreateAnnotation, useUpdateAnnotation, useDeleteAnnotation } from '@/features/dashboard/hooks/use-annotations';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
 import { defaultTrendConfig } from '@/features/dashboard/components/widgets/trend/trend-shared';
@@ -15,7 +14,7 @@ import { AnnotationDialog } from '@/components/ui/annotation-dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './trend-editor.translations';
 import { trendToCsv, downloadCsv } from '@/lib/csv-export';
-import type { TrendWidgetConfig } from '@/api/generated/Api';
+import type { TrendWidgetConfig, Annotation } from '@/api/generated/Api';
 
 function cleanTrendConfig(config: TrendWidgetConfig): TrendWidgetConfig {
   return { ...config, series: cleanSeries(config) };
@@ -42,7 +41,11 @@ export default function TrendEditorPage() {
 
   const { data: annotations } = useAnnotations(config.date_from, config.date_to);
   const createAnnotation = useCreateAnnotation();
+  const updateAnnotation = useUpdateAnnotation();
+  const deleteAnnotation = useDeleteAnnotation();
   const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false);
+  const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
+  const [annotationInitialDate, setAnnotationInitialDate] = useState<string | undefined>(undefined);
 
   const totalValue = series?.reduce(
     (acc, s) => acc + s.data.reduce((sum, dp) => sum + dp.value, 0),
@@ -62,6 +65,30 @@ export default function TrendEditorPage() {
       ),
     }));
   }, [setConfig]);
+
+  const handleEditAnnotation = useCallback((ann: Annotation) => {
+    setEditingAnnotation(ann);
+    setAnnotationInitialDate(undefined);
+    setAnnotationDialogOpen(true);
+  }, []);
+
+  const handleDeleteAnnotation = useCallback(async (id: string) => {
+    await deleteAnnotation.mutateAsync(id);
+  }, [deleteAnnotation]);
+
+  const handleCreateAnnotationFromOverlay = useCallback((date: string) => {
+    setEditingAnnotation(null);
+    setAnnotationInitialDate(date);
+    setAnnotationDialogOpen(true);
+  }, []);
+
+  const handleAnnotationSave = useCallback(async (data: { date: string; label: string; description?: string; color?: string }) => {
+    if (editingAnnotation) {
+      await updateAnnotation.mutateAsync({ id: editingAnnotation.id, data });
+    } else {
+      await createAnnotation.mutateAsync(data);
+    }
+  }, [editingAnnotation, updateAnnotation, createAnnotation]);
 
   const METRIC_LABELS: Record<string, string> = useMemo(() => ({
     total_events: t('totalEvents'),
@@ -127,17 +154,6 @@ export default function TrendEditorPage() {
               />
             </>
           )}
-          <div className="ml-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-muted-foreground"
-              onClick={() => setAnnotationDialogOpen(true)}
-            >
-              <Plus className="size-3.5" />
-              {t('addAnnotation')}
-            </Button>
-          </div>
         </>
       }
       onExportCsv={series ? handleExportCsv : undefined}
@@ -153,12 +169,19 @@ export default function TrendEditorPage() {
         annotations={annotations}
         seriesConfig={config.series}
         onToggleSeries={handleToggleSeries}
+        onEditAnnotation={handleEditAnnotation}
+        onDeleteAnnotation={handleDeleteAnnotation}
+        onCreateAnnotation={handleCreateAnnotationFromOverlay}
       />
       <AnnotationDialog
         open={annotationDialogOpen}
-        onOpenChange={setAnnotationDialogOpen}
-        initialDate={config.date_to ?? undefined}
-        onSave={async (data) => { await createAnnotation.mutateAsync(data); }}
+        onOpenChange={(open) => {
+          setAnnotationDialogOpen(open);
+          if (!open) {setEditingAnnotation(null);}
+        }}
+        initialDate={annotationInitialDate ?? config.date_to ?? undefined}
+        annotation={editingAnnotation ?? undefined}
+        onSave={handleAnnotationSave}
       />
     </InsightEditorLayout>
   );
