@@ -10,6 +10,7 @@ import { TrendLineBarChart } from './TrendLineBarChart';
 import { TrendNumberViz } from './TrendNumberViz';
 import { TrendAreaChart } from './TrendAreaChart';
 import { TrendCumulativeChart } from './TrendCumulativeChart';
+import { TrendPieChart } from './TrendPieChart';
 import { TrendTableViz } from './TrendTableViz';
 import { TrendValueBarChart } from './TrendValueBarChart';
 
@@ -62,6 +63,14 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
     case 'cumulative':
       return <TrendCumulativeChart {...rest} />;
 
+    case 'pie':
+      return (
+        <TrendPieChart
+          series={rest.series}
+          compact={rest.compact}
+        />
+      );
+
     case 'value_bar':
       return (
         <TrendValueBarChart
@@ -79,8 +88,6 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
           compact={rest.compact}
         />
       );
-    // case 'pie':
-    //   return <TrendPieChart {...rest} />;
     // case 'world_map':
     //   return <TrendWorldMapChart {...rest} />;
     // case 'calendar_heatmap':
