@@ -113,6 +113,26 @@ export const ANCHOR_PRESETS: readonly AnchorPreset[] = [
 ] as const;
 
 /**
+ * Maps a relative date token to a translation key for human-readable display.
+ * Returns `undefined` for absolute dates or unknown tokens.
+ *
+ * Translation keys: `last7days`, `last30days`, `last90days`, `last6months`,
+ * `last1year`, `monthToDate`, `yearToDate`.
+ */
+export function getPresetLabelKey(dateFrom: string): string | undefined {
+  const map: Record<string, string> = {
+    '-7d': 'last7days',
+    '-30d': 'last30days',
+    '-90d': 'last90days',
+    '-180d': 'last6months',
+    '-1y': 'last1year',
+    'mStart': 'monthToDate',
+    'yStart': 'yearToDate',
+  };
+  return map[dateFrom];
+}
+
+/**
  * Returns the matching preset `relative` string if the given date range
  * matches one of the standard presets, otherwise `undefined`.
  *
