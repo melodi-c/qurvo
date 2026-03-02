@@ -170,7 +170,7 @@ export class PublicController {
   }
 }
 
-function applyDashboardDateOverrides(
+export function applyDashboardDateOverrides(
   config: Record<string, unknown>,
   dashboardDateFrom: string | null,
   dashboardDateTo: string | null,
