@@ -21,19 +21,17 @@ import {
 import { resolvePropertyExpr, cohortFilter, cohortBounds } from '../query-helpers';
 import { MAX_BREAKDOWN_VALUES } from '../../constants';
 import type { FunnelQueryParams, FunnelQueryResult } from './funnel.types';
+import { type FunnelChQueryParams, buildBaseQueryParams } from './funnel-params';
+import { buildAllEventNames, buildStepCondition } from './funnel-steps';
 import {
-  buildAllEventNames,
-  buildBaseQueryParams,
   buildSamplingClause,
-  buildStepCondition,
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
-  validateExclusions,
   validateUnorderedSteps,
   notInExcludedUsers,
-  buildFunnelCTEs,
-  type FunnelChQueryParams,
-} from './funnel-sql-shared';
+} from './funnel-shared-exprs';
+import { validateExclusions } from './funnel-exclusions';
+import { buildFunnelCTEs } from './funnel-cte-dispatch';
 import { runFunnelCohortBreakdown } from './funnel-cohort-breakdown';
 import {
   computeStepResults,

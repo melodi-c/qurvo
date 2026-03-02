@@ -23,13 +23,13 @@ import {
 } from './funnel-results';
 import { buildCohortFilterForBreakdown } from '../../cohorts/cohort-breakdown.util';
 import { cohortBounds } from '../query-helpers';
+import { type FunnelChQueryParams } from './funnel-params';
 import {
   avgTimeSecondsExpr,
   stepsSubquery as buildStepsSubquery,
   notInExcludedUsers,
-  buildFunnelCTEs,
-  type FunnelChQueryParams,
-} from './funnel-sql-shared';
+} from './funnel-shared-exprs';
+import { buildFunnelCTEs } from './funnel-cte-dispatch';
 
 /**
  * Offset added to the cohort breakdown index (cbIdx) when generating unique

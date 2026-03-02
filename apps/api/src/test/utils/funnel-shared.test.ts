@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveWindowSeconds,
-  buildSamplingClause,
-} from '../../analytics/funnel/funnel-sql-shared';
+import { resolveWindowSeconds } from '../../analytics/funnel/funnel-window';
+import { buildSamplingClause } from '../../analytics/funnel/funnel-shared-exprs';
 import { compile, select, raw, type Expr } from '@qurvo/ch-query';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
 
