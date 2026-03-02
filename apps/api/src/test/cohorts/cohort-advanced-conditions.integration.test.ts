@@ -22,10 +22,8 @@ async function countCohortMembersAt(
   definition: CohortConditionGroup,
   dateTo: string,
 ): Promise<number> {
-  const params: Record<string, unknown> = { project_id: projectId };
-  const node = buildCohortSubquery(definition, 0, 'project_id', params, undefined, dateTo);
-  const { sql: subquery, params: compiledParams } = compile(node);
-  Object.assign(params, compiledParams);
+  const node = buildCohortSubquery(definition, 0, 'project_id', projectId, undefined, dateTo);
+  const { sql: subquery, params } = compile(node);
   const result = await context.ch.query({
     query: `SELECT uniqExact(person_id) AS cnt FROM (${subquery})`,
     query_params: params,

@@ -54,8 +54,7 @@ export class CohortComputationService {
     definition: CohortConditionGroup,
     version: number,
   ): Promise<void> {
-    const queryParams: Record<string, unknown> = { project_id: projectId };
-    const cohortNode = buildCohortSubquery(definition, 0, 'project_id', queryParams);
+    const cohortNode = buildCohortSubquery(definition, 0, 'project_id', projectId);
 
     // Build the SELECT that will feed INTO cohort_members
     const selectNode = select(

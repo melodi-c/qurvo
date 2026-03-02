@@ -19,11 +19,7 @@ export function buildStoppedPerformingSubquery(
   const recentPk = `coh_${condIdx}_recent`;
   const histPk = `coh_${condIdx}_hist`;
 
-  ctx.queryParams[eventPk] = cond.event_name;
-  ctx.queryParams[recentPk] = cond.recent_window_days;
-  ctx.queryParams[histPk] = cond.historical_window_days;
-
-  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`);
   const upperBound = resolveDateTo(ctx);
   const recentInterval = interval(namedParam(recentPk, 'UInt32', cond.recent_window_days), 'DAY');
   const histInterval = interval(namedParam(histPk, 'UInt32', cond.historical_window_days), 'DAY');

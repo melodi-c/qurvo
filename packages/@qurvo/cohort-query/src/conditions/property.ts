@@ -11,7 +11,7 @@ export function buildPropertyConditionSubquery(
   const { condIdx } = allocCondIdx(ctx);
   const pk = `coh_${condIdx}_v`;
   const latestExpr = resolvePropertyExpr(cond.property);
-  const havingExpr = applyOperator(latestExpr, cond.operator, pk, ctx.queryParams, cond.value, cond.values);
+  const havingExpr = applyOperator(latestExpr, cond.operator, pk, cond.value, cond.values);
 
   return eventsBaseSelect(ctx)
     .groupBy(col('person_id'))

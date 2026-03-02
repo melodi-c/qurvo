@@ -284,19 +284,15 @@ async function executeTrendQuery(
     const cohortBreakdowns = params.breakdown_cohort_ids ?? [];
     const cohortLabelMap = new Map<string, string>(cohortBreakdowns.map((cb) => [cb.cohort_id, cb.name]));
 
-    // Cohort breakdown uses namedParam for the cohort filter predicates
-    // project_id must be in queryParams because the cohort SQL references {project_id:UUID}.
-    const queryParams: Record<string, unknown> = { project_id: params.project_id };
     const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
     const arms = params.series.flatMap((s, seriesIdx) => {
       return cohortBreakdowns.map((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
         const cohortFilterExpr = buildCohortFilterForBreakdown(
-          cb, paramKey, 900 + cbIdx, queryParams,
+          cb, paramKey, 900 + cbIdx, params.project_id,
           cbDateTo, cbDateFrom,
         );
         const cohortIdKey = `cohort_id_${seriesIdx}_${cbIdx}`;
-        queryParams[cohortIdKey] = cb.cohort_id;
 
         return select(
           literal(seriesIdx).as('series_idx'),

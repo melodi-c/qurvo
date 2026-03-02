@@ -8,7 +8,7 @@ import type { BuildContext } from '../types';
 function makeCtx(): BuildContext {
   return {
     projectIdParam: 'pid',
-    queryParams: { pid: 'test-project-id' },
+    projectId: 'test-project-id',
     counter: { value: 0 },
   };
 }

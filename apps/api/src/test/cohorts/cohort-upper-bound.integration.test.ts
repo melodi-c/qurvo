@@ -25,15 +25,21 @@ function buildCohortSubquery(
   definition: CohortConditionGroup,
   cohortIdx: number,
   projectIdParam: string,
-  queryParams: Record<string, unknown>,
+  projectId: string,
   resolveCohortIsStatic?: (cohortId: string) => boolean,
   dateTo?: string,
   dateFrom?: string,
 ): string {
-  const node = buildCohortSubqueryNode(definition, cohortIdx, projectIdParam, queryParams, resolveCohortIsStatic, dateTo, dateFrom);
+  const node = buildCohortSubqueryNode(definition, cohortIdx, projectIdParam, projectId, resolveCohortIsStatic, dateTo, dateFrom);
   const { sql, params } = compile(node);
-  Object.assign(queryParams, params);
+  // Merge compiled params into a new object for query execution
+  (buildCohortSubquery as any).__lastParams = params;
   return sql;
+}
+
+/** Helper to get the last compiled params from buildCohortSubquery */
+function getLastParams(): Record<string, unknown> {
+  return (buildCohortSubquery as any).__lastParams ?? {};
 }
 
 let ctx: ContainerContext;
@@ -89,7 +95,6 @@ describe('first_time_event — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // 5 days ago as cutoff
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -97,12 +102,12 @@ describe('first_time_event — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // futureUser's event is after dateTo → must be excluded
     // earlyUser's first event is within [dateTo - 7d, dateTo] → included
     expect(count).toBe(1);
@@ -135,7 +140,6 @@ describe('first_time_event — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -143,12 +147,12 @@ describe('first_time_event — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // Without the fix: the post-dateTo event (1 day ago) would become the min(timestamp)
     // within the range [dateTo - 7d, dateTo], potentially matching the HAVING clause.
     // With the fix: only events <= dateTo are scanned; the true first event is 20 days ago
@@ -186,7 +190,6 @@ describe('performed_regularly — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -201,12 +204,12 @@ describe('performed_regularly — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // Without the fix: both events counted → 2 distinct days >= 2 → included (false hit)
     // With the fix: post-dateTo event excluded → 1 distinct day < 2 → excluded
     expect(count).toBe(0);
@@ -245,7 +248,6 @@ describe('performed_regularly — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -260,12 +262,12 @@ describe('performed_regularly — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // All 3 events are within [dateTo - 14d, dateTo] → 3 distinct days >= 3 → included
     expect(count).toBe(1);
   });
@@ -300,7 +302,6 @@ describe('event_sequence — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -315,12 +316,12 @@ describe('event_sequence — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // Without the fix: purchase (post-dateTo) is included in the sequence scan → false hit
     // With the fix: only events <= dateTo scanned → purchase excluded → sequence incomplete
     expect(count).toBe(0);
@@ -351,7 +352,6 @@ describe('event_sequence — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -366,12 +366,12 @@ describe('event_sequence — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // Both events are within [dateTo - 30d, dateTo] and in order → sequence matched → included
     expect(count).toBe(1);
   });
@@ -408,7 +408,6 @@ describe('not_performed_event_sequence — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -423,12 +422,12 @@ describe('not_performed_event_sequence — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // With the fix: purchase (post-dateTo) excluded → sequence NOT completed as of dateTo
     // → seq_match=0 → person is included in the "not performed" cohort
     expect(count).toBe(1);
@@ -459,7 +458,6 @@ describe('not_performed_event_sequence — timestamp <= upperBound', () => {
     ]);
 
     const dateTo = toChTs(msAgo(5 * DAY_MS)); // dateTo = 5 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -474,12 +472,12 @@ describe('not_performed_event_sequence — timestamp <= upperBound', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // Both events within window and sequence is completed → seq_match=1 → excluded from "not performed"
     expect(count).toBe(0);
   });
@@ -524,7 +522,6 @@ describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
 
     const dateTo = toChTs(msAgo(1 * DAY_MS));   // 1 day ago
     const dateFrom = toChTs(msAgo(30 * DAY_MS)); // 30 days ago
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -539,13 +536,13 @@ describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
       dateFrom,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // User completed sequence 60→55 days ago, which is BEFORE dateFrom (30d ago).
     // The fixed window [dateFrom, dateTo] = [30d, 1d] contains no matching events.
     // → seq_match=0 → person IS included in "not performed" cohort
@@ -579,7 +576,6 @@ describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
 
     const dateTo = toChTs(msAgo(1 * DAY_MS));
     const dateFrom = toChTs(msAgo(30 * DAY_MS));
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -594,13 +590,13 @@ describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
       dateFrom,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // Sequence completed inside [dateFrom, dateTo] → seq_match=1 → excluded from "not performed"
     expect(count).toBe(0);
   });
@@ -650,7 +646,6 @@ describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
       }),
     ]);
 
-    const params: Record<string, unknown> = { project_id: projectId };
     const subquery = buildCohortSubquery(
       {
         type: 'AND',
@@ -665,13 +660,13 @@ describe('not_performed_event_sequence — dateFrom lower-bound fix', () => {
       },
       0,
       'project_id',
-      params,
+      projectId,
       undefined,
       dateTo,
       dateFrom,
     );
 
-    const count = await countWithDateTo(subquery, params);
+    const count = await countWithDateTo(subquery, getLastParams());
     // preWindowUser: sequence before dateFrom → seq_match=0 in [dateFrom, dateTo] → included ✓
     // inWindowUser: sequence inside [dateFrom, dateTo] → seq_match=1 → excluded ✓
     // Expected: only preWindowUser included → count = 1

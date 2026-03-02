@@ -113,8 +113,7 @@ export class QueryCohortMembersTool implements AiTool {
         .build();
     } else {
       // Inline cohort definition — build dynamic subquery
-      const innerParams: Record<string, unknown> = { project_id: projectId };
-      const innerNode = buildCohortSubquery(definition, 0, 'project_id', innerParams);
+      const innerNode = buildCohortSubquery(definition, 0, 'project_id', projectId);
       personIdNode = select(col('person_id')).from(innerNode).limit(limit).build();
     }
 

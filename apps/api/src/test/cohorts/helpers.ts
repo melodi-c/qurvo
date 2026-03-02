@@ -10,10 +10,8 @@ export async function materializeCohort(
   definition: CohortConditionGroup,
 ): Promise<number> {
   const version = Date.now();
-  const queryParams: Record<string, unknown> = { project_id: projectId };
-  const node = buildCohortSubquery(definition, 0, 'project_id', queryParams);
+  const node = buildCohortSubquery(definition, 0, 'project_id', projectId);
   const { sql: subquery, params: compiledParams } = compile(node);
-  Object.assign(queryParams, compiledParams);
 
   const insertSql = `
     INSERT INTO cohort_members (cohort_id, project_id, person_id, version)
@@ -24,7 +22,7 @@ export async function materializeCohort(
       ${version} AS version
     FROM (${subquery})`;
 
-  await ch.query({ query: insertSql, query_params: queryParams });
+  await ch.query({ query: insertSql, query_params: compiledParams });
   return version;
 }
 

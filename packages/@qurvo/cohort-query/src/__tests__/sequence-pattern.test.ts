@@ -7,10 +7,15 @@ import type { BuildContext } from '../types';
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {
     projectIdParam: 'pid',
-    queryParams: { pid: 'test-project-id' },
+    projectId: 'test-project-id',
     counter: { value: 0 },
     ...overrides,
   };
+}
+
+/** Extract compiled params from a node */
+function params(node: ReturnType<typeof buildEventSequenceSubquery>) {
+  return compile(node).params;
 }
 
 describe('buildSequenceCore — array-based sequence detection', () => {
@@ -63,31 +68,31 @@ describe('buildSequenceCore — array-based sequence detection', () => {
 
   it('window_ms param is set to time_window_days * 86_400_000', () => {
     const ctx = makeCtx();
-    compile(buildEventSequenceSubquery(
+    const node = buildEventSequenceSubquery(
       {
         type: 'event_sequence',
         steps: [{ event_name: 'a' }, { event_name: 'b' }],
         time_window_days: 7,
       },
       ctx,
-    ));
+    );
 
-    expect(ctx.queryParams['coh_0_window_ms']).toBe(7 * 86_400_000);
-    expect(ctx.queryParams['coh_0_days']).toBe(7);
+    expect(params(node)['coh_0_window_ms']).toBe(7 * 86_400_000);
+    expect(params(node)['coh_0_days']).toBe(7);
   });
 
   it('window_ms param reflects correct value for 30-day window', () => {
     const ctx = makeCtx();
-    compile(buildEventSequenceSubquery(
+    const node = buildEventSequenceSubquery(
       {
         type: 'event_sequence',
         steps: [{ event_name: 'a' }, { event_name: 'b' }],
         time_window_days: 30,
       },
       ctx,
-    ));
+    );
 
-    expect(ctx.queryParams['coh_0_window_ms']).toBe(30 * 86_400_000);
+    expect(params(node)['coh_0_window_ms']).toBe(30 * 86_400_000);
   });
 
   it('single-step sequence still works with arrayFold', () => {
@@ -107,7 +112,7 @@ describe('buildSequenceCore — array-based sequence detection', () => {
 
   it('3-step sequence checks acc.1 > 3', () => {
     const ctx = makeCtx();
-    const sql = compile(buildEventSequenceSubquery(
+    const node = buildEventSequenceSubquery(
       {
         type: 'event_sequence',
         steps: [
@@ -118,54 +123,56 @@ describe('buildSequenceCore — array-based sequence detection', () => {
         time_window_days: 7,
       },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
 
     expect(sql).toContain('> 3');
-    expect(ctx.queryParams['coh_0_seq_0']).toBe('pageview');
-    expect(ctx.queryParams['coh_0_seq_1']).toBe('add_to_cart');
-    expect(ctx.queryParams['coh_0_seq_2']).toBe('purchase');
+    expect(p['coh_0_seq_0']).toBe('pageview');
+    expect(p['coh_0_seq_1']).toBe('add_to_cart');
+    expect(p['coh_0_seq_2']).toBe('purchase');
   });
 
   it('multiple conditions use distinct param names', () => {
     const ctx = makeCtx();
 
-    compile(buildEventSequenceSubquery(
+    const node1 = buildEventSequenceSubquery(
       {
         type: 'event_sequence',
         steps: [{ event_name: 'a' }, { event_name: 'b' }],
         time_window_days: 7,
       },
       ctx,
-    ));
+    );
 
-    compile(buildEventSequenceSubquery(
+    const node2 = buildEventSequenceSubquery(
       {
         type: 'event_sequence',
         steps: [{ event_name: 'c' }, { event_name: 'd' }],
         time_window_days: 14,
       },
       ctx,
-    ));
+    );
 
-    expect(ctx.queryParams['coh_0_window_ms']).toBe(7 * 86_400_000);
-    expect(ctx.queryParams['coh_1_window_ms']).toBe(14 * 86_400_000);
+    expect(params(node1)['coh_0_window_ms']).toBe(7 * 86_400_000);
+    expect(params(node2)['coh_1_window_ms']).toBe(14 * 86_400_000);
   });
 
   it('not-performed-sequence also uses arrayFold', () => {
     const ctx = makeCtx();
-    const sql = compile(buildNotPerformedEventSequenceSubquery(
+    const node = buildNotPerformedEventSequenceSubquery(
       {
         type: 'not_performed_event_sequence',
         steps: [{ event_name: 'signup' }, { event_name: 'purchase' }],
         time_window_days: 7,
       },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
 
     expect(sql).not.toContain('sequenceMatch');
     expect(sql).toContain('arrayFold');
     expect(sql).toContain('toUnixTimestamp64Milli(timestamp)');
-    expect(ctx.queryParams['coh_0_window_ms']).toBe(7 * 86_400_000);
+    expect(p['coh_0_window_ms']).toBe(7 * 86_400_000);
   });
 
   it('WHERE scan horizon still uses INTERVAL {daysPk} DAY', () => {
@@ -261,18 +268,19 @@ describe('buildNotPerformedEventSequenceSubquery — dateFrom/dateTo window', ()
     expect(sql).toContain('timestamp <= now64(3)');
   });
 
-  it('fixed-window mode: stores both coh_date_from and coh_date_to in queryParams', () => {
+  it('fixed-window mode: stores both coh_date_from and coh_date_to in compiled params', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    compile(buildNotPerformedEventSequenceSubquery(
+    const node = buildNotPerformedEventSequenceSubquery(
       {
         type: 'not_performed_event_sequence',
         steps: [{ event_name: 'a' }, { event_name: 'b' }],
         time_window_days: 30,
       },
       ctx,
-    ));
+    );
+    const p = params(node);
 
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
-    expect(ctx.queryParams['coh_date_from']).toBe('2025-01-01 00:00:00');
+    expect(p['coh_date_to']).toBe('2025-01-31 23:59:59');
+    expect(p['coh_date_from']).toBe('2025-01-01 00:00:00');
   });
 });

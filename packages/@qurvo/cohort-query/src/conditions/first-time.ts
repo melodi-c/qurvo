@@ -10,10 +10,7 @@ export function buildFirstTimeEventSubquery(
 ): SelectNode {
   const { condIdx, eventPk, daysPk } = allocCondIdx(ctx);
 
-  ctx.queryParams[eventPk] = cond.event_name;
-  ctx.queryParams[daysPk] = cond.time_window_days;
-
-  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`, ctx.queryParams);
+  const filterExpr = buildEventFilterClauses(cond.event_filters, `coh_${condIdx}`);
   const upperBound = resolveDateTo(ctx);
   const daysInterval = interval(namedParam(daysPk, 'UInt32', cond.time_window_days), 'DAY');
 

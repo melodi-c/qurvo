@@ -91,7 +91,7 @@ export function resolveNumericPropertyExpr(prop: string): Expr {
 /**
  * Monotonic counter for unique named-param keys.
  *
- * `applyOperator()` embeds filter values via `namedParam(pk, ...)` — if two calls
+ * `applyOperator()` embeds filter values via `namedParam(pk, ...)` -- if two calls
  * share the same `pk` but different values, the compiler's `mergeParams()` overwrites
  * the first value. A per-call counter suffix guarantees uniqueness even when the same
  * property+operator pair appears in multiple series arms of a UNION ALL.
@@ -106,10 +106,9 @@ let _pfCounter = 0;
  * property+operator appears in different series with different values.
  */
 export function propertyFilter(filter: PropertyFilter): Expr {
-  const params: Record<string, unknown> = {};
   const pk = `pf_${filter.property.replace(/[^a-zA-Z0-9_]/g, '_')}_${filter.operator}_${_pfCounter++}`;
   const colExpr = resolvePropertyExpr(filter.property);
-  return applyOperator(colExpr, filter.operator, pk, params, filter.value, filter.values);
+  return applyOperator(colExpr, filter.operator, pk, filter.value, filter.values);
 }
 
 /**
@@ -126,7 +125,7 @@ export function propertyFilters(filters: PropertyFilter[]): Expr | undefined {
  *
  * Delegates to `@qurvo/cohort-query`'s `buildCohortFilterClause()` which returns
  * an Expr tree with named params embedded via `namedParam()`. The returned Expr
- * flows through the AST compilation pipeline naturally — no compile→rawWithParams
+ * flows through the AST compilation pipeline naturally -- no compile->rawWithParams
  * workaround needed.
  *
  * Returns undefined if inputs is empty/undefined (allowing and() to skip it).
@@ -139,14 +138,10 @@ export function cohortFilter(
 ): Expr | undefined {
   if (!inputs?.length) {return undefined;}
 
-  // Collect params populated by buildCohortFilterClause into a local object.
-  const cohortParams: Record<string, unknown> = {};
-  cohortParams['project_id'] = projectId;
-
   const expr = buildCohortFilterClause(
     inputs,
     'project_id',
-    cohortParams,
+    projectId,
     undefined,
     dateTo,
     dateFrom,

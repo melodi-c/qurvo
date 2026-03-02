@@ -6,16 +6,21 @@ import type { BuildContext } from '../types';
 function makeCtx(dateTo?: string): BuildContext {
   return {
     projectIdParam: 'pid',
-    queryParams: { pid: 'test-project-id' },
+    projectId: 'test-project-id',
     counter: { value: 0 },
     dateTo,
   };
 }
 
+/** Extract compiled params from a node */
+function params(node: ReturnType<typeof buildPerformedRegularlySubquery>) {
+  return compile(node).params;
+}
+
 describe('buildPerformedRegularlySubquery — time_window_days used as lookback window', () => {
   it('uses time_window_days (not total_periods) as INTERVAL DAY for the lookback window', () => {
     const ctx = makeCtx();
-    const sql = compile(buildPerformedRegularlySubquery(
+    const node = buildPerformedRegularlySubquery(
       {
         type: 'performed_regularly',
         event_name: 'page_view',
@@ -25,16 +30,17 @@ describe('buildPerformedRegularlySubquery — time_window_days used as lookback 
         time_window_days: 30,
       },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
 
-    expect(ctx.queryParams['coh_0_window']).toBe(30);
+    expect(p['coh_0_window']).toBe(30);
     expect(sql).toContain('INTERVAL {coh_0_window:UInt32} DAY');
-    expect(ctx.queryParams['coh_0_total']).toBeUndefined();
+    expect(p['coh_0_total']).toBeUndefined();
   });
 
   it('different time_window_days values produce different window query params', () => {
     const ctx7 = makeCtx();
-    compile(buildPerformedRegularlySubquery(
+    const node7 = buildPerformedRegularlySubquery(
       {
         type: 'performed_regularly',
         event_name: 'login',
@@ -44,11 +50,11 @@ describe('buildPerformedRegularlySubquery — time_window_days used as lookback 
         time_window_days: 7,
       },
       ctx7,
-    ));
-    expect(ctx7.queryParams['coh_0_window']).toBe(7);
+    );
+    expect(params(node7)['coh_0_window']).toBe(7);
 
     const ctx90 = makeCtx();
-    compile(buildPerformedRegularlySubquery(
+    const node90 = buildPerformedRegularlySubquery(
       {
         type: 'performed_regularly',
         event_name: 'login',
@@ -58,15 +64,15 @@ describe('buildPerformedRegularlySubquery — time_window_days used as lookback 
         time_window_days: 90,
       },
       ctx90,
-    ));
-    expect(ctx90.queryParams['coh_0_window']).toBe(90);
+    );
+    expect(params(node90)['coh_0_window']).toBe(90);
 
-    expect(ctx7.queryParams['coh_0_window']).not.toBe(ctx90.queryParams['coh_0_window']);
+    expect(params(node7)['coh_0_window']).not.toBe(params(node90)['coh_0_window']);
   });
 
   it('min_periods is still used in HAVING clause', () => {
     const ctx = makeCtx();
-    const sql = compile(buildPerformedRegularlySubquery(
+    const node = buildPerformedRegularlySubquery(
       {
         type: 'performed_regularly',
         event_name: 'purchase',
@@ -76,8 +82,9 @@ describe('buildPerformedRegularlySubquery — time_window_days used as lookback 
         time_window_days: 365,
       },
       ctx,
-    )).sql;
-    expect(ctx.queryParams['coh_0_min']).toBe(6);
+    );
+    const { sql, params: p } = compile(node);
+    expect(p['coh_0_min']).toBe(6);
     expect(sql).toContain('HAVING uniqExact(toStartOfMonth(timestamp)) >= {coh_0_min:UInt32}');
   });
 

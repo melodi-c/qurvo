@@ -105,7 +105,7 @@ export async function runFunnelCohortBreakdown(
 
     const { dateTo, dateFrom } = cohortBounds(params);
     const cohortFilterExpr = buildCohortFilterForBreakdown(
-      cb, cbParamKey, COHORT_BREAKDOWN_PARAM_OFFSET + cbIdx, cbQueryParams, dateTo, dateFrom,
+      cb, cbParamKey, COHORT_BREAKDOWN_PARAM_OFFSET + cbIdx, params.project_id, dateTo, dateFrom,
     );
     // Combine base cohort filter with per-breakdown cohort filter
     const combinedCohortExpr = cohortExpr

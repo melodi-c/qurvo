@@ -17,6 +17,11 @@ function sql(expr: ReturnType<typeof resolvePropertyExpr>): string {
   return compileExprToSql(expr).sql;
 }
 
+/** Helper to compile an Expr and return its params. */
+function params(expr: ReturnType<typeof resolvePropertyExpr>): Record<string, unknown> {
+  return compileExprToSql(expr).params;
+}
+
 describe('validateJsonKey', () => {
   it('accepts alphanumeric key', () => {
     expect(() => validateJsonKey('plan')).not.toThrow();
@@ -184,312 +189,272 @@ describe('resolveEventPropertyExpr (cohort-query helpers)', () => {
 
 describe('applyOperator — typed Expr path (func/column inputs)', () => {
   it('eq: uses OR with JSONExtractRaw when expr is JSONExtractString', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.is_premium');
-    const clause = sql(applyOperator(expr, 'eq', 'p0', params, 'true'));
+    const result = applyOperator(expr, 'eq', 'p0', 'true');
     // Pure AST: or() doesn't add outer parens at top-level
-    expect(clause).toBe(
+    expect(sql(result)).toBe(
       "JSONExtractString(argMax(user_properties, timestamp), 'is_premium') = {p0:String} OR toString(JSONExtractRaw(argMax(user_properties, timestamp), 'is_premium')) = {p0:String}",
     );
-    expect(params['p0']).toBe('true');
+    expect(params(result)['p0']).toBe('true');
   });
 
   it('eq: does NOT add OR fallback for top-level column (argMax)', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'eq', 'p0', params, 'US'));
-    expect(clause).toBe('argMax(country, timestamp) = {p0:String}');
-    expect(params['p0']).toBe('US');
+    const result = applyOperator(expr, 'eq', 'p0', 'US');
+    expect(sql(result)).toBe('argMax(country, timestamp) = {p0:String}');
+    expect(params(result)['p0']).toBe('US');
   });
 
   it('neq: uses JSONHas guard AND with JSONExtractRaw when expr is JSONExtractString', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('properties.active');
-    const clause = sql(applyOperator(expr, 'neq', 'p0', params, 'false'));
-    expect(clause).toBe(
+    const result = applyOperator(expr, 'neq', 'p0', 'false');
+    expect(sql(result)).toBe(
       "JSONHas(argMax(properties, timestamp), 'active') AND JSONExtractString(argMax(properties, timestamp), 'active') != {p0:String} AND toString(JSONExtractRaw(argMax(properties, timestamp), 'active')) != {p0:String}",
     );
-    expect(params['p0']).toBe('false');
+    expect(params(result)['p0']).toBe('false');
   });
 
   it('neq: does NOT add AND guard for top-level column', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'neq', 'p0', params, 'US'));
-    expect(clause).toBe('argMax(country, timestamp) != {p0:String}');
-    expect(params['p0']).toBe('US');
+    const result = applyOperator(expr, 'neq', 'p0', 'US');
+    expect(sql(result)).toBe('argMax(country, timestamp) != {p0:String}');
+    expect(params(result)['p0']).toBe('US');
   });
 
   it('gt: uses JSONExtractRaw for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.price');
-    const clause = sql(applyOperator(expr, 'gt', 'p0', params, '10'));
-    expect(clause).toBe(
+    const result = applyOperator(expr, 'gt', 'p0', '10');
+    expect(sql(result)).toBe(
       "toFloat64OrZero(JSONExtractRaw(argMax(user_properties, timestamp), 'price')) > {p0:Float64}",
     );
-    expect(params['p0']).toBe(10);
+    expect(params(result)['p0']).toBe(10);
   });
 
   it('lt: uses JSONExtractRaw for event-level properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.count');
-    const clause = sql(applyOperator(expr, 'lt', 'p0', params, '5'));
-    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'count')) < {p0:Float64}");
-    expect(params['p0']).toBe(5);
+    const result = applyOperator(expr, 'lt', 'p0', '5');
+    expect(sql(result)).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'count')) < {p0:Float64}");
+    expect(params(result)['p0']).toBe(5);
   });
 
   it('gte: uses JSONExtractRaw for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.score');
-    const clause = sql(applyOperator(expr, 'gte', 'p0', params, '5'));
-    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'score')) >= {p0:Float64}");
+    const result = applyOperator(expr, 'gte', 'p0', '5');
+    expect(sql(result)).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'score')) >= {p0:Float64}");
   });
 
   it('lte: uses JSONExtractRaw for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.amount');
-    const clause = sql(applyOperator(expr, 'lte', 'p0', params, '100'));
-    expect(clause).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'amount')) <= {p0:Float64}");
+    const result = applyOperator(expr, 'lte', 'p0', '100');
+    expect(sql(result)).toBe("toFloat64OrZero(JSONExtractRaw(properties, 'amount')) <= {p0:Float64}");
   });
 
   it('between: uses JSONExtractRaw for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.price');
-    const clause = sql(applyOperator(expr, 'between', 'p0', params, undefined, ['10', '50']));
-    expect(clause).toBe(
+    const result = applyOperator(expr, 'between', 'p0', undefined, ['10', '50']);
+    expect(sql(result)).toBe(
       "toFloat64OrZero(JSONExtractRaw(properties, 'price')) >= {p0_min:Float64} AND toFloat64OrZero(JSONExtractRaw(properties, 'price')) <= {p0_max:Float64}",
     );
-    expect(params['p0_min']).toBe(10);
-    expect(params['p0_max']).toBe(50);
+    expect(params(result)['p0_min']).toBe(10);
+    expect(params(result)['p0_max']).toBe(50);
   });
 
   it('not_between: uses JSONExtractRaw for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.age');
-    const clause = sql(applyOperator(expr, 'not_between', 'p0', params, undefined, ['18', '65']));
+    const result = applyOperator(expr, 'not_between', 'p0', undefined, ['18', '65']);
     // Pure AST: or() doesn't add outer parens at top-level
-    expect(clause).toBe(
+    expect(sql(result)).toBe(
       "toFloat64OrZero(JSONExtractRaw(properties, 'age')) < {p0_min:Float64} OR toFloat64OrZero(JSONExtractRaw(properties, 'age')) > {p0_max:Float64}",
     );
   });
 
   it('gt: does NOT replace non-JSON expressions (top-level column)', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'gt', 'p0', params, '0'));
-    expect(clause).toBe('toFloat64OrZero(argMax(country, timestamp)) > {p0:Float64}');
+    const result = applyOperator(expr, 'gt', 'p0', '0');
+    expect(sql(result)).toBe('toFloat64OrZero(argMax(country, timestamp)) > {p0:Float64}');
   });
 
   it('is_set: uses JSONHas for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.active');
-    const clause = sql(applyOperator(expr, 'is_set', 'p0', params));
-    expect(clause).toBe("JSONHas(argMax(user_properties, timestamp), 'active')");
-    expect(Object.keys(params)).toHaveLength(0);
+    const result = applyOperator(expr, 'is_set', 'p0');
+    expect(sql(result)).toBe("JSONHas(argMax(user_properties, timestamp), 'active')");
+    expect(Object.keys(params(result))).toHaveLength(0);
   });
 
   it('is_not_set: uses NOT JSONHas for JSON properties', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.active');
-    const clause = sql(applyOperator(expr, 'is_not_set', 'p0', params));
-    expect(clause).toBe("NOT JSONHas(argMax(user_properties, timestamp), 'active')");
-    expect(Object.keys(params)).toHaveLength(0);
+    const result = applyOperator(expr, 'is_not_set', 'p0');
+    expect(sql(result)).toBe("NOT JSONHas(argMax(user_properties, timestamp), 'active')");
+    expect(Object.keys(params(result))).toHaveLength(0);
   });
 
   it('is_set: uses JSONHas for event properties JSON expression', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.score');
-    const clause = sql(applyOperator(expr, 'is_set', 'p0', params));
-    expect(clause).toBe("JSONHas(properties, 'score')");
+    const result = applyOperator(expr, 'is_set', 'p0');
+    expect(sql(result)).toBe("JSONHas(properties, 'score')");
   });
 
   it('is_not_set: uses NOT JSONHas for event properties JSON expression', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.score');
-    const clause = sql(applyOperator(expr, 'is_not_set', 'p0', params));
-    expect(clause).toBe("NOT JSONHas(properties, 'score')");
+    const result = applyOperator(expr, 'is_not_set', 'p0');
+    expect(sql(result)).toBe("NOT JSONHas(properties, 'score')");
   });
 
   it('is_set: falls back to != empty for top-level column', () => {
-    const params: Record<string, unknown> = {};
-    const clause = sql(applyOperator(resolvePropertyExpr('country'), 'is_set', 'p0', params));
-    expect(clause).toBe("argMax(country, timestamp) != ''");
+    const result = applyOperator(resolvePropertyExpr('country'), 'is_set', 'p0');
+    expect(sql(result)).toBe("argMax(country, timestamp) != ''");
   });
 
   it('is_not_set: falls back to = empty for top-level column', () => {
-    const params: Record<string, unknown> = {};
-    const clause = sql(applyOperator(resolvePropertyExpr('country'), 'is_not_set', 'p0', params));
-    expect(clause).toBe("argMax(country, timestamp) = ''");
+    const result = applyOperator(resolvePropertyExpr('country'), 'is_not_set', 'p0');
+    expect(sql(result)).toBe("argMax(country, timestamp) = ''");
   });
 
   it('contains: escapes % in value', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    const clause = sql(applyOperator(expr, 'contains', 'p0', params, 'a%b'));
-    expect(clause).toContain('LIKE');
-    expect(params['p0']).toBe('%a\\%b%');
+    const result = applyOperator(expr, 'contains', 'p0', 'a%b');
+    expect(sql(result)).toContain('LIKE');
+    expect(params(result)['p0']).toBe('%a\\%b%');
   });
 
   it('not_contains: escapes % in value', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    const clause = sql(applyOperator(expr, 'not_contains', 'p0', params, 'x%y'));
-    expect(clause).toContain('NOT LIKE');
-    expect(params['p0']).toBe('%x\\%y%');
+    const result = applyOperator(expr, 'not_contains', 'p0', 'x%y');
+    expect(sql(result)).toContain('NOT LIKE');
+    expect(params(result)['p0']).toBe('%x\\%y%');
   });
 
   it('in: produces IN clause', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'in', 'p0', params, undefined, ['US', 'CA']));
-    expect(clause).toBe('argMax(country, timestamp) IN ({p0:Array(String)})');
-    expect(params['p0']).toEqual(['US', 'CA']);
+    const result = applyOperator(expr, 'in', 'p0', undefined, ['US', 'CA']);
+    expect(sql(result)).toBe('argMax(country, timestamp) IN ({p0:Array(String)})');
+    expect(params(result)['p0']).toEqual(['US', 'CA']);
   });
 
   it('not_in: produces NOT IN clause', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'not_in', 'p0', params, undefined, ['RU', 'CN']));
-    expect(clause).toBe('argMax(country, timestamp) NOT IN ({p0:Array(String)})');
-    expect(params['p0']).toEqual(['RU', 'CN']);
+    const result = applyOperator(expr, 'not_in', 'p0', undefined, ['RU', 'CN']);
+    expect(sql(result)).toBe('argMax(country, timestamp) NOT IN ({p0:Array(String)})');
+    expect(params(result)['p0']).toEqual(['RU', 'CN']);
   });
 
   it('regex: produces match() call', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'regex', 'p0', params, '^US.*'));
-    expect(clause).toBe('match(argMax(country, timestamp), {p0:String})');
-    expect(params['p0']).toBe('^US.*');
+    const result = applyOperator(expr, 'regex', 'p0', '^US.*');
+    expect(sql(result)).toBe('match(argMax(country, timestamp), {p0:String})');
+    expect(params(result)['p0']).toBe('^US.*');
   });
 
   it('not_regex: produces NOT match() call', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'not_regex', 'p0', params, '^(test|demo)'));
-    expect(clause).toBe('NOT match(argMax(country, timestamp), {p0:String})');
-    expect(params['p0']).toBe('^(test|demo)');
+    const result = applyOperator(expr, 'not_regex', 'p0', '^(test|demo)');
+    expect(sql(result)).toBe('NOT match(argMax(country, timestamp), {p0:String})');
+    expect(params(result)['p0']).toBe('^(test|demo)');
   });
 
   it('contains_multi: produces multiSearchAny()', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'contains_multi', 'p0', params, undefined, ['North', 'South']));
-    expect(clause).toBe('multiSearchAny(argMax(country, timestamp), {p0:Array(String)})');
-    expect(params['p0']).toEqual(['North', 'South']);
+    const result = applyOperator(expr, 'contains_multi', 'p0', undefined, ['North', 'South']);
+    expect(sql(result)).toBe('multiSearchAny(argMax(country, timestamp), {p0:Array(String)})');
+    expect(params(result)['p0']).toEqual(['North', 'South']);
   });
 
   it('not_contains_multi: produces NOT multiSearchAny()', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('country');
-    const clause = sql(applyOperator(expr, 'not_contains_multi', 'p0', params, undefined, ['spam', 'bot']));
-    expect(clause).toBe('NOT multiSearchAny(argMax(country, timestamp), {p0:Array(String)})');
-    expect(params['p0']).toEqual(['spam', 'bot']);
+    const result = applyOperator(expr, 'not_contains_multi', 'p0', undefined, ['spam', 'bot']);
+    expect(sql(result)).toBe('NOT multiSearchAny(argMax(country, timestamp), {p0:Array(String)})');
+    expect(params(result)['p0']).toEqual(['spam', 'bot']);
   });
 });
 
 describe('applyOperator — date operators guard against empty value and epoch false positives', () => {
   it('is_date_before: returns always-false clause when value is empty string', () => {
-    const params: Record<string, unknown> = {};
-    const clause = sql(applyOperator(resolvePropertyExpr('country'), 'is_date_before', 'p0', params));
+    const result = applyOperator(resolvePropertyExpr('country'), 'is_date_before', 'p0');
     // literal(0) compiles to just "0"
-    expect(clause).toBe('0');
+    expect(sql(result)).toBe('0');
   });
 
   it('is_date_before: returns always-false clause when value is undefined', () => {
-    const params: Record<string, unknown> = {};
-    const clause = sql(applyOperator(resolvePropertyExpr('country'), 'is_date_before', 'p0', params, undefined));
-    expect(clause).toBe('0');
+    const result = applyOperator(resolvePropertyExpr('country'), 'is_date_before', 'p0', undefined);
+    expect(sql(result)).toBe('0');
   });
 
   it('is_date_after: returns always-false clause when value is empty string', () => {
-    const params: Record<string, unknown> = {};
-    const clause = sql(applyOperator(resolvePropertyExpr('country'), 'is_date_after', 'p0', params, ''));
-    expect(clause).toBe('0');
+    const result = applyOperator(resolvePropertyExpr('country'), 'is_date_after', 'p0', '');
+    expect(sql(result)).toBe('0');
   });
 
   it('is_date_exact: returns always-false clause when value is empty string', () => {
-    const params: Record<string, unknown> = {};
-    const clause = sql(applyOperator(resolvePropertyExpr('country'), 'is_date_exact', 'p0', params, ''));
-    expect(clause).toBe('0');
+    const result = applyOperator(resolvePropertyExpr('country'), 'is_date_exact', 'p0', '');
+    expect(sql(result)).toBe('0');
   });
 
   it('is_date_before: generates typed AST with epoch exclusion guard when value is valid', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.signup_date');
-    const clause = sql(applyOperator(expr, 'is_date_before', 'p0', params, '2025-03-01'));
-    expect(params['p0']).toBe('2025-03-01');
-    expect(clause).toContain('parseDateTimeBestEffortOrZero');
-    expect(clause).toContain('toDateTime(0)');
-    expect(clause).toContain('parseDateTimeBestEffort({p0:String})');
+    const result = applyOperator(expr, 'is_date_before', 'p0', '2025-03-01');
+    expect(params(result)['p0']).toBe('2025-03-01');
+    expect(sql(result)).toContain('parseDateTimeBestEffortOrZero');
+    expect(sql(result)).toContain('toDateTime(0)');
+    expect(sql(result)).toContain('parseDateTimeBestEffort({p0:String})');
   });
 
   it('is_date_after: generates typed AST with epoch exclusion guard when value is valid', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.signup_date');
-    const clause = sql(applyOperator(expr, 'is_date_after', 'p0', params, '2025-03-01'));
-    expect(params['p0']).toBe('2025-03-01');
-    expect(clause).toContain('parseDateTimeBestEffortOrZero');
-    expect(clause).toContain('>');
+    const result = applyOperator(expr, 'is_date_after', 'p0', '2025-03-01');
+    expect(params(result)['p0']).toBe('2025-03-01');
+    expect(sql(result)).toContain('parseDateTimeBestEffortOrZero');
+    expect(sql(result)).toContain('>');
   });
 
   it('is_date_exact: generates typed AST with epoch exclusion guard when value is valid', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolvePropertyExpr('user_properties.signup_date');
-    const clause = sql(applyOperator(expr, 'is_date_exact', 'p0', params, '2025-03-15'));
-    expect(params['p0']).toBe('2025-03-15');
-    expect(clause).toContain('toDate');
-    expect(clause).toContain('parseDateTimeBestEffort');
+    const result = applyOperator(expr, 'is_date_exact', 'p0', '2025-03-15');
+    expect(params(result)['p0']).toBe('2025-03-15');
+    expect(sql(result)).toContain('toDate');
+    expect(sql(result)).toContain('parseDateTimeBestEffort');
   });
 });
 
 describe('applyOperator — LIKE wildcard escaping', () => {
   it('contains: escapes % in value so it is treated as a literal', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'contains', 'p0', params, 'a%b'));
-    expect(params['p0']).toBe('%a\\%b%');
+    const result = applyOperator(expr, 'contains', 'p0', 'a%b');
+    expect(params(result)['p0']).toBe('%a\\%b%');
   });
 
   it('contains: escapes _ in value so it is treated as a literal', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'contains', 'p0', params, 'a_b'));
-    expect(params['p0']).toBe('%a\\_b%');
+    const result = applyOperator(expr, 'contains', 'p0', 'a_b');
+    expect(params(result)['p0']).toBe('%a\\_b%');
   });
 
   it('contains: escapes backslash in value', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'contains', 'p0', params, 'a\\b'));
-    expect(params['p0']).toBe('%a\\\\b%');
+    const result = applyOperator(expr, 'contains', 'p0', 'a\\b');
+    expect(params(result)['p0']).toBe('%a\\\\b%');
   });
 
   it('contains: plain value without wildcards passes through unchanged (modulo wrapping %)', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'contains', 'p0', params, 'hello'));
-    expect(params['p0']).toBe('%hello%');
+    const result = applyOperator(expr, 'contains', 'p0', 'hello');
+    expect(params(result)['p0']).toBe('%hello%');
   });
 
   it('not_contains: escapes % in value', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'not_contains', 'p0', params, 'x%y'));
-    expect(params['p0']).toBe('%x\\%y%');
+    const result = applyOperator(expr, 'not_contains', 'p0', 'x%y');
+    expect(params(result)['p0']).toBe('%x\\%y%');
   });
 
   it('not_contains: escapes _ in value', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'not_contains', 'p0', params, 'x_y'));
-    expect(params['p0']).toBe('%x\\_y%');
+    const result = applyOperator(expr, 'not_contains', 'p0', 'x_y');
+    expect(params(result)['p0']).toBe('%x\\_y%');
   });
 
   it('contains: empty value produces %% pattern (matches all)', () => {
-    const params: Record<string, unknown> = {};
     const expr = resolveEventPropertyExpr('properties.name');
-    sql(applyOperator(expr, 'contains', 'p0', params, ''));
-    expect(params['p0']).toBe('%%');
+    const result = applyOperator(expr, 'contains', 'p0', '');
+    expect(params(result)['p0']).toBe('%%');
   });
 });
-

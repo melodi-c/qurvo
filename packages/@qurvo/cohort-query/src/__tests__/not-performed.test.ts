@@ -6,10 +6,15 @@ import type { BuildContext } from '../types';
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {
     projectIdParam: 'pid',
-    queryParams: { pid: 'test-project-id' },
+    projectId: 'test-project-id',
     counter: { value: 0 },
     ...overrides,
   };
+}
+
+/** Extract compiled params from a node */
+function params(node: ReturnType<typeof buildNotPerformedEventSubquery>) {
+  return compile(node).params;
 }
 
 const BASE_COND = {
@@ -45,25 +50,28 @@ describe('buildNotPerformedEventSubquery — upper bound always applied', () => 
 
   it('rolling-window mode: upper bound references same dateTo param used by lower', () => {
     const ctx = makeCtx({ dateTo: '2025-03-01 00:00:00' });
-    compile(buildNotPerformedEventSubquery(BASE_COND, ctx));
+    const node = buildNotPerformedEventSubquery(BASE_COND, ctx);
+    const p = params(node);
 
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-03-01 00:00:00');
+    expect(p['coh_date_to']).toBe('2025-03-01 00:00:00');
   });
 
   it('fixed-window mode: params include both coh_date_from and coh_date_to', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    compile(buildNotPerformedEventSubquery(BASE_COND, ctx));
+    const node = buildNotPerformedEventSubquery(BASE_COND, ctx);
+    const p = params(node);
 
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
-    expect(ctx.queryParams['coh_date_from']).toBe('2025-01-01 00:00:00');
+    expect(p['coh_date_to']).toBe('2025-01-31 23:59:59');
+    expect(p['coh_date_from']).toBe('2025-01-01 00:00:00');
   });
 
   it('generated SQL contains the event name param for countIf', () => {
     const ctx = makeCtx();
-    const sql = compile(buildNotPerformedEventSubquery(BASE_COND, ctx)).sql;
+    const node = buildNotPerformedEventSubquery(BASE_COND, ctx);
+    const { sql, params: p } = compile(node);
 
     expect(sql).toContain('HAVING countIf(event_name = {coh_0_event:String}) = 0');
-    expect(ctx.queryParams['coh_0_event']).toBe('purchase');
-    expect(ctx.queryParams['coh_0_days']).toBe(90);
+    expect(p['coh_0_event']).toBe('purchase');
+    expect(p['coh_0_days']).toBe(90);
   });
 });
