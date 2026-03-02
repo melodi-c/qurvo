@@ -10,6 +10,7 @@ import { TrendLineBarChart } from './TrendLineBarChart';
 import { TrendNumberViz } from './TrendNumberViz';
 import { TrendAreaChart } from './TrendAreaChart';
 import { TrendCumulativeChart } from './TrendCumulativeChart';
+import { TrendPieChart } from './TrendPieChart';
 
 // Re-export the props type for consumers
 export type { TrendLineBarChartProps } from './TrendLineBarChart';
@@ -63,8 +64,13 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
     //   return <TrendValueBarChart {...rest} />;
     // case 'table':
     //   return <TrendTableChart {...rest} />;
-    // case 'pie':
-    //   return <TrendPieChart {...rest} />;
+    case 'pie':
+      return (
+        <TrendPieChart
+          series={rest.series}
+          compact={rest.compact}
+        />
+      );
     // case 'world_map':
     //   return <TrendWorldMapChart {...rest} />;
     // case 'calendar_heatmap':

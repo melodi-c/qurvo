@@ -267,3 +267,42 @@ export const AreaWithAnnotations: Story = {
     );
   },
 };
+
+// --- Pie Chart stories ---
+
+export const PieSingle: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_SERIES_14D}
+        chartType="pie"
+        granularity="day"
+      />
+    </div>
+  ),
+};
+
+export const PieMultiSeries: Story = {
+  render: () => (
+    <div className="w-full">
+      <TrendChart
+        series={TREND_MULTI_SERIES}
+        chartType="pie"
+        granularity="day"
+      />
+    </div>
+  ),
+};
+
+export const PieCompact: Story = {
+  render: () => (
+    <div style={{ width: 320, height: 200, border: '1px solid var(--color-border)', borderRadius: 8, padding: 8 }}>
+      <TrendChart
+        series={TREND_MULTI_SERIES}
+        chartType="pie"
+        granularity="day"
+        compact
+      />
+    </div>
+  ),
+};
