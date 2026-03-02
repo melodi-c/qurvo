@@ -6,10 +6,11 @@ import { EditorSkeleton } from '@/components/ui/editor-skeleton';
 import { InsightEditorLayout } from '@/components/InsightEditorLayout';
 import { useInsightEditor } from '@/features/insights/hooks/use-insight-editor';
 import { useTrendData, cleanSeries } from '@/features/dashboard/hooks/use-trend';
+import { useTrendAggregateData } from '@/features/dashboard/hooks/use-trend-aggregate';
 import { useAnnotations, useCreateAnnotation, useUpdateAnnotation, useDeleteAnnotation } from '@/features/dashboard/hooks/use-annotations';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { TrendQueryPanel } from '@/features/dashboard/components/widgets/trend/TrendQueryPanel';
-import { defaultTrendConfig } from '@/features/dashboard/components/widgets/trend/trend-shared';
+import { defaultTrendConfig, CUSTOM_QUERY_CHART_TYPES } from '@/features/dashboard/components/widgets/trend/trend-shared';
 import { AnnotationDialog } from '@/components/ui/annotation-dialog';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './trend-editor.translations';
@@ -35,9 +36,12 @@ export default function TrendEditorPage() {
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
     previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
+  const isCustomQuery = CUSTOM_QUERY_CHART_TYPES.includes(config.chart_type);
   const { data, isLoading, isFetching } = useTrendData(config, previewId);
+  const { data: aggregateData, isLoading: aggLoading, isFetching: aggFetching } = useTrendAggregateData(config, previewId);
   const result = data?.data;
   const series = result?.series;
+  const aggregateResult = aggregateData?.data;
 
   const { data: annotations } = useAnnotations(config.date_from, config.date_to);
   const createAnnotation = useCreateAnnotation();
@@ -128,9 +132,9 @@ export default function TrendEditorPage() {
       saveError={saveError}
       queryPanel={<TrendQueryPanel config={config} onChange={setConfig} />}
       isConfigValid={isConfigValid}
-      showSkeleton={showSkeleton(isLoading, data)}
-      isEmpty={!series || series.length === 0}
-      isFetching={isFetching}
+      showSkeleton={showSkeleton(isCustomQuery ? aggLoading : isLoading, isCustomQuery ? aggregateData : data)}
+      isEmpty={isCustomQuery ? !aggregateResult : (!series || series.length === 0)}
+      isFetching={isCustomQuery ? aggFetching : isFetching}
       configureIcon={BarChart3}
       configureTitle={t('configureTitle')}
       configureDescription={t('configureDescription')}
@@ -138,7 +142,7 @@ export default function TrendEditorPage() {
       noResultsTitle={t('noResultsTitle')}
       noResultsDescription={t('noResultsDescription')}
       skeleton={<EditorSkeleton metricCount={2} />}
-      metricsBar={
+      metricsBar={!isCustomQuery ? (
         <>
           <Metric label={metricLabel} value={totalValue.toLocaleString()} accent />
           <MetricsDivider />
@@ -155,19 +159,20 @@ export default function TrendEditorPage() {
             </>
           )}
         </>
-      }
-      onExportCsv={series ? handleExportCsv : undefined}
+      ) : undefined}
+      onExportCsv={!isCustomQuery && series ? handleExportCsv : undefined}
       chartClassName="flex-1 overflow-auto p-6 pt-8"
       unsavedGuard={unsavedGuard}
     >
       <TrendChart
-        series={series!}
+        series={series ?? []}
         previousSeries={result?.series_previous}
         chartType={config.chart_type}
         granularity={config.granularity}
         formulas={config.formulas}
         annotations={annotations}
         seriesConfig={config.series}
+        aggregateData={aggregateResult}
         onToggleSeries={handleToggleSeries}
         onEditAnnotation={handleEditAnnotation}
         onDeleteAnnotation={handleDeleteAnnotation}
