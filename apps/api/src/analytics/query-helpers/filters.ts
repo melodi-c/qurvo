@@ -172,7 +172,7 @@ export function analyticsWhere(opts: {
   projectId: string;
   from: string;
   to: string;
-  tz: string;
+  tz?: string;
   eventName?: string;
   eventNames?: string[];
   filters?: PropertyFilter[];

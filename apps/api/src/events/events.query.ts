@@ -113,7 +113,6 @@ export async function queryEvents(
     projectId: params.project_id,
     from: dateFrom,
     to: toChTs(dateTo, true),
-    tz: 'UTC',
     eventName: params.event_name,
     filters: validFilters.length ? validFilters : undefined,
   });

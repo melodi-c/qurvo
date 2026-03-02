@@ -142,12 +142,12 @@ describe('analytics/time', () => {
 
   describe('tsParam', () => {
     test('UTC mode: returns DateTime64 param', () => {
-      const { sql, params } = compileExpr(tsParam('2026-01-15', 'UTC'));
+      const { sql, params } = compileExpr(tsParam('2026-01-15'));
       expect(sql).toContain('{p_0:DateTime64(3)}');
       expect(params.p_0).toBe('2026-01-15 00:00:00');
     });
 
-    test('UTC timezone uses DateTime64 param (no toDateTime64 wrapper)', () => {
+    test('UTC timezone is treated as no-tz', () => {
       const { sql } = compileExpr(tsParam('2026-01-15', 'UTC'));
       expect(sql).toContain('{p_0:DateTime64(3)}');
       expect(sql).not.toContain('toDateTime64');
@@ -163,7 +163,7 @@ describe('analytics/time', () => {
 
   describe('timeRange', () => {
     test('UTC mode: produces >= from AND <= to with DateTime64 params', () => {
-      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'UTC'));
+      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31'));
       expect(sql).toContain('timestamp >= {p_0:DateTime64(3)}');
       expect(sql).toContain('timestamp <= {p_1:DateTime64(3)}');
       expect(params.p_0).toBe('2026-01-01 00:00:00');
@@ -177,14 +177,14 @@ describe('analytics/time', () => {
     });
 
     test('datetime to value is not double-converted', () => {
-      const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59', 'UTC'));
+      const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59'));
       expect(params.p_1).toBe('2026-01-31 23:59:59');
     });
   });
 
   describe('bucket', () => {
-    test('hour granularity with UTC', () => {
-      const { sql } = compileExpr(bucket('hour', 'timestamp', 'UTC'));
+    test('hour granularity without tz', () => {
+      const { sql } = compileExpr(bucket('hour', 'timestamp'));
       expect(sql).toContain('toStartOfHour(timestamp)');
     });
 
@@ -193,8 +193,8 @@ describe('analytics/time', () => {
       expect(sql).toContain("toStartOfHour(timestamp, 'Europe/Moscow')");
     });
 
-    test('day granularity with UTC', () => {
-      const { sql } = compileExpr(bucket('day', 'timestamp', 'UTC'));
+    test('day granularity without tz', () => {
+      const { sql } = compileExpr(bucket('day', 'timestamp'));
       expect(sql).toContain('toStartOfDay(timestamp)');
     });
 
@@ -203,8 +203,8 @@ describe('analytics/time', () => {
       expect(sql).toContain("toStartOfDay(timestamp, 'America/New_York')");
     });
 
-    test('week granularity with UTC wraps in toDateTime', () => {
-      const { sql } = compileExpr(bucket('week', 'timestamp', 'UTC'));
+    test('week granularity without tz wraps in toDateTime', () => {
+      const { sql } = compileExpr(bucket('week', 'timestamp'));
       expect(sql).toContain('toDateTime(toStartOfWeek(timestamp, 1))');
     });
 
@@ -213,8 +213,8 @@ describe('analytics/time', () => {
       expect(sql).toContain("toDateTime(toStartOfWeek(timestamp, 1, 'Europe/Moscow'), 'Europe/Moscow')");
     });
 
-    test('month granularity with UTC wraps in toDateTime', () => {
-      const { sql } = compileExpr(bucket('month', 'timestamp', 'UTC'));
+    test('month granularity without tz wraps in toDateTime', () => {
+      const { sql } = compileExpr(bucket('month', 'timestamp'));
       expect(sql).toContain('toDateTime(toStartOfMonth(timestamp))');
     });
 
@@ -226,19 +226,19 @@ describe('analytics/time', () => {
 
   describe('neighborBucket', () => {
     test('day granularity: simple addition', () => {
-      const expr = neighborBucket('day', raw('ts_bucket'), 1, 'UTC');
+      const expr = neighborBucket('day', raw('ts_bucket'), 1);
       const { sql } = compileExpr(expr);
       expect(sql).toContain('ts_bucket + INTERVAL 1 DAY');
     });
 
     test('day granularity: simple subtraction', () => {
-      const expr = neighborBucket('day', raw('ts_bucket'), -1, 'UTC');
+      const expr = neighborBucket('day', raw('ts_bucket'), -1);
       const { sql } = compileExpr(expr);
       expect(sql).toContain('ts_bucket - INTERVAL 1 DAY');
     });
 
-    test('week with UTC: simple 7-day addition', () => {
-      const expr = neighborBucket('week', raw('ts_bucket'), 1, 'UTC');
+    test('week without tz: simple 7-day addition', () => {
+      const expr = neighborBucket('week', raw('ts_bucket'), 1);
       const { sql } = compileExpr(expr);
       expect(sql).toContain('ts_bucket + INTERVAL 7 DAY');
     });
@@ -265,7 +265,7 @@ describe('analytics/time', () => {
 
   describe('bucketOfMin', () => {
     test('applies bucket to min(column)', () => {
-      const { sql } = compileExpr(bucketOfMin('day', 'timestamp', 'UTC'));
+      const { sql } = compileExpr(bucketOfMin('day', 'timestamp'));
       expect(sql).toContain('toStartOfDay(min(timestamp))');
     });
 
@@ -669,7 +669,6 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
-        tz: 'UTC',
         cohortFilters: [{
           cohort_id: 'cohort-abc',
           definition: { type: 'AND', values: [] },
@@ -689,7 +688,6 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
-        tz: 'UTC',
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
@@ -704,7 +702,6 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
-        tz: 'UTC',
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
@@ -730,7 +727,6 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
-        tz: 'UTC',
         eventName: 'page_view',
       });
       const { sql } = compileWhere(expr);
@@ -742,7 +738,6 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
-        tz: 'UTC',
         eventNames: ['page_view', 'click'],
       });
       const { sql } = compileWhere(expr);
@@ -754,7 +749,6 @@ describe('analytics/filters', () => {
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
-        tz: 'UTC',
         filters: [
           { property: 'browser', operator: 'eq' as const, value: 'Chrome' },
         ],
