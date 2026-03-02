@@ -88,14 +88,12 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
   // Timestamp expression for groupArrayIf / minIf
   const tsExpr = toUnixTimestamp64Milli(col('timestamp'));
 
-  // Breakdown column
-  const breakdownCols: Expr[] = breakdownExpr
-    ? [
-      (orderType === 'strict' ? argMaxIf : argMinIf)(
-        breakdownExpr, col('timestamp'), step0Cond,
-      ).as('breakdown_value'),
-    ]
-    : [];
+  // Breakdown column (single expr, inlined into select() as conditional)
+  const breakdownCol = breakdownExpr
+    ? (orderType === 'strict' ? argMaxIf : argMinIf)(
+      breakdownExpr, col('timestamp'), step0Cond,
+    ).as('breakdown_value')
+    : undefined;
 
   // Exclusion columns (already Expr[] with aliases)
   const exclCols: Expr[] = exclusions.length > 0
@@ -121,7 +119,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     const funnelRawNode = select(
       resolvedPerson().as('person_id'),
       alias(wfExpr, 'max_step'),
-      ...breakdownCols,
+      breakdownCol,
       groupArrayIf(tsExpr, step0Cond).as('t0_arr'),
       toInt64(minIf(tsExpr, lastStepCond)).as('last_step_ms'),
       ...exclCols,
@@ -135,8 +133,6 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
 
     // Forward exclusion column aliases from funnel_raw into funnel_per_user
     const exclColForwardExprs: Expr[] = extractExclColumnAliases(exclCols).map(a => col(a));
-
-    const breakdownForward: Expr[] = breakdownExpr ? [col('breakdown_value')] : [];
 
     // first_step_ms: pick step_0 timestamp where last_step_ms falls within [t0, t0 + window]
     const arrayAggFn = orderType === 'strict' ? 'arrayMax' : 'arrayMin';
@@ -157,7 +153,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     const funnelPerUserNode = select(
       col('person_id'),
       col('max_step'),
-      ...breakdownForward,
+      breakdownExpr ? col('breakdown_value') : undefined,
       firstStepMsExpr,
       col('last_step_ms'),
       ...exclColForwardExprs,
@@ -178,7 +174,7 @@ export function buildOrderedFunnelCTEs(options: OrderedCTEOptions): OrderedCTERe
     const funnelPerUserNode = select(
       resolvedPerson().as('person_id'),
       alias(wfExpr, 'max_step'),
-      ...breakdownCols,
+      breakdownCol,
       ...timestampCols,
       ...exclCols,
     )

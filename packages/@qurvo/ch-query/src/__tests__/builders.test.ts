@@ -404,6 +404,36 @@ describe('builders', () => {
       expect(node.groupBy).toHaveLength(1);
     });
 
+    test('select() filters out undefined columns', () => {
+      const node = select(col('a'), undefined, col('b')).from('t').build();
+      expect(node.columns).toHaveLength(2);
+      expect(node.columns[0]).toEqual(expect.objectContaining({ type: 'column', name: 'a' }));
+      expect(node.columns[1]).toEqual(expect.objectContaining({ type: 'column', name: 'b' }));
+    });
+
+    test('select() with all undefined results in empty columns', () => {
+      const node = select(undefined, undefined).from('t').build();
+      expect(node.columns).toHaveLength(0);
+    });
+
+    test('groupBy() filters out undefined expressions', () => {
+      const node = select(col('a'), col('b'), count())
+        .from('t')
+        .groupBy(col('a'), undefined, col('b'))
+        .build();
+      expect(node.groupBy).toHaveLength(2);
+      expect(node.groupBy![0]).toEqual(expect.objectContaining({ type: 'column', name: 'a' }));
+      expect(node.groupBy![1]).toEqual(expect.objectContaining({ type: 'column', name: 'b' }));
+    });
+
+    test('groupBy() with all undefined results in empty array', () => {
+      const node = select(col('a'), count())
+        .from('t')
+        .groupBy(undefined, undefined)
+        .build();
+      expect(node.groupBy).toHaveLength(0);
+    });
+
     test('having()', () => {
       const node = select(col('a'), count().as('cnt'))
         .from('t')

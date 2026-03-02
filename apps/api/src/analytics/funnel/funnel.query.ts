@@ -143,55 +143,25 @@ function buildFunnelQuery(
     stepConditions, numSteps, breakdownExpr, includeTimestampCols,
   });
 
-  // Build SELECT columns
-  const selectColumns: Expr[] = [];
-
-  if (hasBreakdown) {
-    selectColumns.push(col('breakdown_value'));
-  }
-
-  selectColumns.push(col('step_num'));
-  selectColumns.push(
-    countIf(gte(col('max_step'), col('step_num'))).as('entered'),
-  );
-  selectColumns.push(
-    countIf(gte(col('max_step'), add(col('step_num'), literal(1)))).as('next_step'),
-  );
-
-  // Time columns for avg_time_to_convert (only for non-breakdown).
-  if (includeTimestampCols) {
-    selectColumns.push(avgTimeSecondsExpr(queryParams));
-  }
-
-  // total_bd_count from breakdown_total CTE (for truncation detection)
-  if (hasBreakdown) {
-    selectColumns.push(
-      subquery(select(col('total')).from('breakdown_total').build()).as('total_bd_count'),
-    );
-  }
-
   // Build the CROSS JOIN subquery for step numbers
   const stepsSubquery = buildStepsSubquery(numSteps);
 
   // Build WHERE conditions
-  const whereConditions: (Expr | undefined)[] = [];
-
-  if (cteResult.hasExclusions) {
-    whereConditions.push(notInExcludedUsers());
-  }
-
-  if (hasBreakdown) {
-    const topRef = select(col('breakdown_value')).from('top_breakdown_values').build();
-    whereConditions.push(
-      or(
-        inSubquery(col('breakdown_value'), topRef),
-        eq(col('breakdown_value'), literal('')),
-      ),
-    );
-  }
+  const topRef = hasBreakdown
+    ? select(col('breakdown_value')).from('top_breakdown_values').build()
+    : undefined;
 
   // Build the outer SELECT query
-  const builder = select(...selectColumns)
+  const builder = select(
+    hasBreakdown ? col('breakdown_value') : undefined,
+    col('step_num'),
+    countIf(gte(col('max_step'), col('step_num'))).as('entered'),
+    countIf(gte(col('max_step'), add(col('step_num'), literal(1)))).as('next_step'),
+    includeTimestampCols ? avgTimeSecondsExpr(queryParams) : undefined,
+    hasBreakdown
+      ? subquery(select(col('total')).from('breakdown_total').build()).as('total_bd_count')
+      : undefined,
+  )
     .withAll(cteResult.ctes)
     .from('funnel_per_user')
     .crossJoin(stepsSubquery, 'steps');
@@ -204,16 +174,23 @@ function buildFunnelQuery(
   }
 
   // Apply WHERE clause
-  const filteredConditions = whereConditions.filter((c): c is Expr => c !== undefined);
-  if (filteredConditions.length > 0) {
-    builder.where(...filteredConditions);
+  if (cteResult.hasExclusions || hasBreakdown) {
+    builder.where(
+      cteResult.hasExclusions ? notInExcludedUsers() : undefined,
+      hasBreakdown && topRef
+        ? or(
+          inSubquery(col('breakdown_value'), topRef),
+          eq(col('breakdown_value'), literal('')),
+        )
+        : undefined,
+    );
   }
 
   // GROUP BY
-  const groupByExprs: Expr[] = [];
-  if (hasBreakdown) {groupByExprs.push(col('breakdown_value'));}
-  groupByExprs.push(col('step_num'));
-  builder.groupBy(...groupByExprs);
+  builder.groupBy(
+    hasBreakdown ? col('breakdown_value') : undefined,
+    col('step_num'),
+  );
 
   // ORDER BY
   builder.orderBy(col('step_num'));

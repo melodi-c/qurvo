@@ -89,9 +89,9 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     buildUnorderedCoverageExprsAST(N, winExprAST, steps);
 
   // Step 5: breakdown_value
-  const breakdownArrCol: Expr[] = breakdownExpr
-    ? [groupArrayIf(breakdownExpr, stepCondExprs[0]).as('t0_bv_arr')]
-    : [];
+  const breakdownArrCol = breakdownExpr
+    ? groupArrayIf(breakdownExpr, stepCondExprs[0]).as('t0_bv_arr')
+    : undefined;
 
   // Step 6: exclusion array columns
   const exclCols: Expr[] = exclusions.length > 0
@@ -109,7 +109,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   );
 
   // Forward columns from step_times into anchor_per_user
-  const breakdownArrForward: Expr[] = breakdownExpr ? [col('t0_bv_arr')] : [];
+  const breakdownArrForward = breakdownExpr ? col('t0_bv_arr') : undefined;
   const exclColAliases = extractExclColumnAliases(exclCols);
   const exclColForwardExprs: Expr[] = exclColAliases.map(a => col(a));
   const stepArrCols: Expr[] = steps.map((_, i) => col(`t${i}_arr`));
@@ -134,9 +134,9 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     : greatest(...stepLastInWindowExprs);
 
   // breakdown_value from anchor
-  const breakdownValueExpr: Expr[] = breakdownExpr
-    ? [arrayElement(col('t0_bv_arr'), indexOf(col('t0_arr'), col('anchor_ms'))).as('breakdown_value')]
-    : [];
+  const breakdownValueExpr = breakdownExpr
+    ? arrayElement(col('t0_bv_arr'), indexOf(col('t0_arr'), col('anchor_ms'))).as('breakdown_value')
+    : undefined;
 
   // Build CTEs as QueryNodes
   const ctes: Array<{ name: string; query: QueryNode }> = [];
@@ -145,7 +145,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
   const stepTimesNode = select(
     resolvedPerson().as('person_id'),
     ...groupArrayCols,
-    ...breakdownArrCol,
+    breakdownArrCol,
     ...exclCols,
   )
     .from('events')
@@ -160,7 +160,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     col('person_id'),
     toInt64(maxStepExpr).as('max_step'),
     toInt64(anchorMsExpr).as('anchor_ms'),
-    ...breakdownArrForward,
+    breakdownArrForward,
     ...exclColForwardExprs,
     ...stepArrCols,
   )
@@ -176,7 +176,7 @@ export function buildUnorderedFunnelCTEs(options: UnorderedCTEOptions): Unordere
     col('max_step'),
     col('anchor_ms').as('first_step_ms'),
     toInt64(lastStepMsExpr).as('last_step_ms'),
-    ...breakdownValueExpr,
+    breakdownValueExpr,
     ...exclColForwardExprs,
   )
     .from('anchor_per_user')
