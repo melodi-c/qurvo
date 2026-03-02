@@ -218,6 +218,29 @@ describe('AnnotationsService.update', () => {
     ).rejects.toThrow(AppBadRequestException);
   });
 
+  it('rejects setting insight_id without scope on a project-scoped annotation', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const insightId = await createTestInsight(ctx.db, projectId, userId);
+
+    // Create a project-scoped annotation (default)
+    const annotation = await service.create(projectId, userId, {
+      date: '2025-06-15',
+      label: 'Project annotation',
+    });
+    expect(annotation.scope).toBe('project');
+
+    // Try to set insight_id without changing scope — should be rejected
+    await expect(
+      service.update(projectId, annotation.id, { insight_id: insightId }),
+    ).rejects.toThrow(AppBadRequestException);
+
+    // Verify the annotation was not modified
+    const list = await service.list(projectId);
+    const found = list.find((a) => a.id === annotation.id);
+    expect(found?.insight_id).toBeNull();
+    expect(found?.scope).toBe('project');
+  });
+
   it('throws AnnotationNotFoundException for non-existent id', async () => {
     const { projectId } = await createTestProject(ctx.db);
 
