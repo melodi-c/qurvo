@@ -101,8 +101,6 @@ import {
   today,
   unionAll,
   uniqExact,
-  likeRaw,
-  notLikeRaw,
 } from '../builders';
 
 describe('builders', () => {
@@ -262,9 +260,9 @@ describe('builders', () => {
       expect(lte(col('a'), literal(1)).op).toBe('<=');
     });
 
-    test('likeRaw(), notLikeRaw()', () => {
-      expect(likeRaw(col('a'), literal('%test%')).op).toBe('LIKE');
-      expect(notLikeRaw(col('a'), literal('%test%')).op).toBe('NOT LIKE');
+    test('like(), notLike()', () => {
+      expect(like(col('a'), literal('%test%')).op).toBe('LIKE');
+      expect(notLike(col('a'), literal('%test%')).op).toBe('NOT LIKE');
     });
 
     test('not()', () => {
@@ -799,27 +797,7 @@ describe('builders', () => {
       expect(escapeLikePattern('%_\\')).toBe('\\%\\_\\\\');
     });
 
-    test('like() creates LIKE binary with escaped param', () => {
-      const expr = like(col('name'), 'test%value');
-      expect(expr.type).toBe('binary');
-      expect(expr.op).toBe('LIKE');
-      expect(expr.right).toEqual(expect.objectContaining({
-        type: 'param',
-        chType: 'String',
-        value: '%test\\%value%',
-      }));
-    });
 
-    test('notLike() creates NOT LIKE binary with escaped param', () => {
-      const expr = notLike(col('name'), 'test_value');
-      expect(expr.type).toBe('binary');
-      expect(expr.op).toBe('NOT LIKE');
-      expect(expr.right).toEqual(expect.objectContaining({
-        type: 'param',
-        chType: 'String',
-        value: '%test\\_value%',
-      }));
-    });
   });
 
   describe('HIGH priority function shortcuts', () => {
@@ -1334,60 +1312,7 @@ describe('builders', () => {
     });
   });
 
-  describe('like/notLike mode parameter', () => {
-    test('like() default mode is contains (%val%)', () => {
-      const expr = like(col('x'), 'test');
-      expect(expr.right).toEqual(expect.objectContaining({
-        type: 'param',
-        chType: 'String',
-        value: '%test%',
-      }));
-    });
 
-    test('like() contains mode wraps %val%', () => {
-      const expr = like(col('x'), 'test', 'contains');
-      expect(expr.right).toEqual(expect.objectContaining({
-        value: '%test%',
-      }));
-    });
-
-    test('like() startsWith mode wraps val%', () => {
-      const expr = like(col('x'), 'test', 'startsWith');
-      expect(expr.right).toEqual(expect.objectContaining({
-        value: 'test%',
-      }));
-    });
-
-    test('like() endsWith mode wraps %val', () => {
-      const expr = like(col('x'), 'test', 'endsWith');
-      expect(expr.right).toEqual(expect.objectContaining({
-        value: '%test',
-      }));
-    });
-
-    test('like() startsWith with special chars escapes properly', () => {
-      const expr = like(col('x'), '100%', 'startsWith');
-      expect(expr.right).toEqual(expect.objectContaining({
-        value: '100\\%%',
-      }));
-    });
-
-    test('notLike() startsWith mode', () => {
-      const expr = notLike(col('x'), 'prefix', 'startsWith');
-      expect(expr.op).toBe('NOT LIKE');
-      expect(expr.right).toEqual(expect.objectContaining({
-        value: 'prefix%',
-      }));
-    });
-
-    test('notLike() endsWith mode', () => {
-      const expr = notLike(col('x'), 'suffix', 'endsWith');
-      expect(expr.op).toBe('NOT LIKE');
-      expect(expr.right).toEqual(expect.objectContaining({
-        value: '%suffix',
-      }));
-    });
-  });
 
   describe('inSubquery/notInSubquery with QueryNode', () => {
     test('inSubquery() accepts SelectNode (backward compat)', () => {

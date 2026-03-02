@@ -141,7 +141,6 @@ export {
   like,
   notLike,
 } from './builders';
-export type { LikeMode } from './builders';
 
 // Builders — condition builders
 export {
