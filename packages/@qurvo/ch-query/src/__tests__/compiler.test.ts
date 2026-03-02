@@ -953,6 +953,48 @@ describe('compiler', () => {
     });
   });
 
+  describe('FROM ... FINAL', () => {
+    test('basic FROM table FINAL', () => {
+      const q = select(col('person_id')).from('cohort_members').final().build();
+      const { sql } = compile(q);
+      expect(sql).toContain('FROM cohort_members FINAL');
+    });
+
+    test('FROM table FINAL with alias', () => {
+      const q = select(col('person_id')).from('cohort_members', 'cm').final().build();
+      const { sql } = compile(q);
+      expect(sql).toContain('FROM cohort_members FINAL AS cm');
+    });
+
+    test('FROM without final does not emit FINAL', () => {
+      const q = select(col('person_id')).from('events').build();
+      const { sql } = compile(q);
+      expect(sql).toContain('FROM events');
+      expect(sql).not.toContain('FINAL');
+    });
+
+    test('FINAL with WHERE clause', () => {
+      const q = select(col('person_id'))
+        .from('person_static_cohort').final()
+        .where(eq(col('project_id'), param('UUID', 'pid')))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('FROM person_static_cohort FINAL');
+      expect(sql).toContain('WHERE');
+    });
+
+    test('FINAL combined with DISTINCT', () => {
+      const q = select(col('person_id'))
+        .distinct()
+        .from('cohort_members').final()
+        .where(eq(col('cohort_id'), param('UUID', 'cid')))
+        .build();
+      const { sql } = compile(q);
+      expect(sql).toContain('SELECT DISTINCT');
+      expect(sql).toContain('FROM cohort_members FINAL');
+    });
+  });
+
   describe('modulo operator', () => {
     test('mod() compiles to %', () => {
       const q = select(col('*'))

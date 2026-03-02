@@ -984,6 +984,29 @@ describe('builders', () => {
     });
   });
 
+  describe('SelectBuilder.final()', () => {
+    test('sets final flag', () => {
+      const node = select(col('person_id')).from('cohort_members').final().build();
+      expect(node.final).toBe(true);
+    });
+
+    test('returns same builder for chaining', () => {
+      const builder = select(col('a'));
+      expect(builder.final()).toBe(builder);
+    });
+
+    test('final flag defaults to undefined', () => {
+      const node = select(col('id')).from('events').build();
+      expect(node.final).toBeUndefined();
+    });
+
+    test('can combine with distinct', () => {
+      const node = select(col('person_id')).distinct().from('cohort_members').final().build();
+      expect(node.distinct).toBe(true);
+      expect(node.final).toBe(true);
+    });
+  });
+
   describe('except()', () => {
     test('creates SetOperationNode with EXCEPT', () => {
       const q1 = select(col('id')).from('all_users').build();
