@@ -7,10 +7,15 @@ import type { CohortCohortCondition } from '@qurvo/db';
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {
     projectIdParam: 'pid',
-    queryParams: { pid: 'test-project-id' },
+    projectId: 'test-project-id',
     counter: { value: 0 },
     ...overrides,
   };
+}
+
+/** Extract compiled params from a node */
+function params(node: ReturnType<typeof buildCohortRefConditionSubquery>) {
+  return compile(node).params;
 }
 
 const BASE_COND: CohortCohortCondition = {
@@ -51,21 +56,23 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
 
   it('negated with dateTo only: upper bound only, no lower bound', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59' });
-    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx)).sql;
+    const node = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const { sql, params: p } = compile(node);
 
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
     expect(sql).not.toContain('timestamp >= {coh_date_to:DateTime64(3)}');
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
+    expect(p['coh_date_to']).toBe('2025-01-31 23:59:59');
   });
 
   it('negated with dateFrom + dateTo: uses exact [dateFrom, dateTo] window', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    const sql = compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx)).sql;
+    const node = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const { sql, params: p } = compile(node);
 
     expect(sql).toContain('timestamp >= {coh_date_from:DateTime64(3)}');
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
-    expect(ctx.queryParams['coh_date_from']).toBe('2025-01-01 00:00:00');
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
+    expect(p['coh_date_from']).toBe('2025-01-01 00:00:00');
+    expect(p['coh_date_to']).toBe('2025-01-31 23:59:59');
   });
 
   it('negated: SQL does NOT scan without a timestamp bound (regression guard)', () => {
@@ -91,8 +98,9 @@ describe('buildCohortRefConditionSubquery — negated branch timestamp bounds', 
 
   it('negated: cohort_id param stored with correct value', () => {
     const ctx = makeCtx();
-    compile(buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx));
+    const node = buildCohortRefConditionSubquery({ ...BASE_COND, negated: true }, ctx);
+    const p = params(node);
 
-    expect(ctx.queryParams['coh_0_ref_id']).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+    expect(p['coh_0_ref_id']).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
   });
 });

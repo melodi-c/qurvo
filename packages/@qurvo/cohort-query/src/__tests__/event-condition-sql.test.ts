@@ -6,7 +6,7 @@ import type { BuildContext } from '../types';
 function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
   return {
     projectIdParam: 'pid',
-    queryParams: { pid: 'test-project-id' },
+    projectId: 'test-project-id',
     counter: { value: 0 },
     ...overrides,
   };
@@ -15,6 +15,11 @@ function makeCtx(overrides?: Partial<BuildContext>): BuildContext {
 /** Compile SelectNode to SQL string */
 function toSql(ctx: BuildContext, ...args: Parameters<typeof buildEventConditionSubquery>): string {
   return compile(buildEventConditionSubquery(...args)).sql;
+}
+
+/** Extract compiled params from a node */
+function params(node: ReturnType<typeof buildEventConditionSubquery>) {
+  return compile(node).params;
 }
 
 describe('buildEventConditionSubquery — event_filters: [] (empty array)', () => {
@@ -123,37 +128,40 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
 
   it('rolling-window mode (no dateFrom): uses now64(3) as upper bound', () => {
     const ctx = makeCtx();
-    const sql = compile(buildEventConditionSubquery(
+    const node = buildEventConditionSubquery(
       { type: 'event', event_name: 'signup', count_operator: 'eq', count: 0, time_window_days: 90 },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
     expect(sql).toContain('timestamp <= now64(3)');
     expect(sql).toContain('timestamp >= now64(3) - INTERVAL {coh_0_days:UInt32} DAY');
-    expect(ctx.queryParams['coh_0_event']).toBe('signup');
-    expect(ctx.queryParams['coh_0_days']).toBe(90);
+    expect(p['coh_0_event']).toBe('signup');
+    expect(p['coh_0_days']).toBe(90);
   });
 
   it('rolling-window mode (with dateTo): uses dateTo param as upper bound', () => {
     const ctx = makeCtx({ dateTo: '2025-03-31 23:59:59' });
-    const sql = compile(buildEventConditionSubquery(
+    const node = buildEventConditionSubquery(
       { type: 'event', event_name: 'purchase', count_operator: 'eq', count: 0, time_window_days: 30 },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
     expect(sql).toContain('timestamp >= {coh_date_to:DateTime64(3)} - INTERVAL {coh_0_days:UInt32} DAY');
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-03-31 23:59:59');
+    expect(p['coh_date_to']).toBe('2025-03-31 23:59:59');
   });
 
   it('fixed-window mode (dateFrom + dateTo): uses exact [dateFrom, dateTo] range', () => {
     const ctx = makeCtx({ dateTo: '2025-01-31 23:59:59', dateFrom: '2025-01-01 00:00:00' });
-    const sql = compile(buildEventConditionSubquery(
+    const node = buildEventConditionSubquery(
       { type: 'event', event_name: 'checkout', count_operator: 'eq', count: 0, time_window_days: 30 },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
     expect(sql).toContain('timestamp >= {coh_date_from:DateTime64(3)}');
     expect(sql).toContain('timestamp <= {coh_date_to:DateTime64(3)}');
-    expect(ctx.queryParams['coh_date_from']).toBe('2025-01-01 00:00:00');
-    expect(ctx.queryParams['coh_date_to']).toBe('2025-01-31 23:59:59');
+    expect(p['coh_date_from']).toBe('2025-01-01 00:00:00');
+    expect(p['coh_date_to']).toBe('2025-01-31 23:59:59');
   });
 
   it('with event_filters: includes filter conditions inside countIf', () => {
@@ -179,15 +187,16 @@ describe('buildEventConditionSubquery — eq + count=0 (zero-count special case)
 
   it('eq + count > 0 still uses standard HAVING count() = N path', () => {
     const ctx = makeCtx();
-    const sql = compile(buildEventConditionSubquery(
+    const node = buildEventConditionSubquery(
       { type: 'event', event_name: 'purchase', count_operator: 'eq', count: 3, time_window_days: 30 },
       ctx,
-    )).sql;
+    );
+    const { sql, params: p } = compile(node);
     // Should filter event_name in WHERE (standard path)
     expect(sql).toContain('event_name = {coh_0_event:String}');
     // Should use standard HAVING with count()
     expect(sql).toContain('HAVING count() = {coh_0_count:UInt64}');
-    expect(ctx.queryParams['coh_0_count']).toBe(3);
+    expect(p['coh_0_count']).toBe(3);
   });
 
   it('eq + count=0 with aggregation_type (non-count) still uses standard HAVING path', () => {
