@@ -280,6 +280,10 @@ export function parseDateTimeBestEffortOrZero(expr: Expr): WithAlias<FuncCallExp
 
 // Aggregate functions
 
+export function argMin(expr: Expr, orderByExpr: Expr): WithAlias<FuncCallExpr> {
+  return func('argMin', expr, orderByExpr);
+}
+
 export function argMax(expr: Expr, orderByExpr: Expr): WithAlias<FuncCallExpr> {
   return func('argMax', expr, orderByExpr);
 }

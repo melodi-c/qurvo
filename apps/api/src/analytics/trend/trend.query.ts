@@ -13,13 +13,21 @@ import {
   param,
   namedParam,
   count,
+  min,
+  argMin,
   inArray,
   inSubquery,
+  notInSubquery,
+  uniqExact,
+  lt,
   type Expr,
 } from '@qurvo/ch-query';
+import { resolvedPerson } from '@qurvo/cohort-query';
 import {
   analyticsWhere,
   resolvePropertyExpr,
+  projectIs,
+  eventIs,
   bucket,
   cohortBounds,
   shiftPeriod,
@@ -29,6 +37,7 @@ import {
   type PropertyFilter,
   type TrendMetric,
 } from '../query-helpers';
+import { buildPriorPersonsWhere } from '../query-helpers/filters';
 
 // Public types
 
@@ -38,14 +47,14 @@ export type TrendGranularity = 'hour' | 'day' | 'week' | 'month';
 export interface TrendSeries {
   event_name: string;
   label: string;
+  metric: TrendMetric;
+  metric_property?: string;
   filters?: PropertyFilter[];
 }
 
 export interface TrendQueryParams {
   project_id: string;
   series: TrendSeries[];
-  metric: TrendMetric;
-  metric_property?: string;
   granularity: TrendGranularity;
   date_from: string;
   date_to: string;
@@ -98,6 +107,7 @@ function rowToValue(metric: TrendMetric, row: RawTrendRow): number {
   if (metric.startsWith('property_')) { return Number(row.agg_value); }
   if (metric === 'total_events') { return Number(row.raw_value); }
   if (metric === 'unique_users') { return Number(row.uniq_value); }
+  if (metric === 'first_time_users') { return Number(row.uniq_value); }
   const u = Number(row.uniq_value);
   return u > 0 ? Math.round((Number(row.raw_value) / u) * 100) / 100 : 0;
 }
@@ -106,10 +116,11 @@ function rowToValue(metric: TrendMetric, row: RawTrendRow): number {
  * Assemble raw ClickHouse rows into TrendSeriesResult[].
  * Handles both breakdown and non-breakdown rows: detects breakdown by checking
  * for `breakdown_value` in the first row (or the `isBreakdown` hint for empty results).
+ *
+ * Uses per-series metric from seriesMeta to extract the correct value column.
  */
 function assembleRows(
   rows: RawTrendRow[],
-  metric: TrendMetric,
   seriesMeta: TrendSeries[],
   opts?: { cohortLabelMap?: Map<string, string>; isBreakdown?: boolean },
 ): TrendSeriesResult[] {
@@ -134,6 +145,7 @@ function assembleRows(
     const grouped = new Map<number, TrendDataPoint[]>();
     for (const row of rows) {
       const idx = Number(row.series_idx);
+      const metric = seriesMeta[idx]?.metric ?? 'total_events';
       const point: TrendDataPoint = { bucket: row.bucket, value: rowToValue(metric, row) };
       const existing = grouped.get(idx);
       if (existing) {
@@ -154,6 +166,7 @@ function assembleRows(
   const grouped = new Map<string, { idx: number; bv: string; data: TrendDataPoint[] }>();
   for (const row of rows as RawBreakdownRow[]) {
     const idx = Number(row.series_idx);
+    const metric = seriesMeta[idx]?.metric ?? 'total_events';
     const bv = normalizeBreakdownValue(row.breakdown_value);
     const key = `${idx}::${bv}`;
     const entry = grouped.get(key);
@@ -233,9 +246,9 @@ function buildSeriesArm(
   dateFrom: string,
   dateTo: string,
   bucketExpr: Expr,
-  aggCol: Expr,
   breakdownExpr?: Expr,
 ) {
+  const aggCol = buildAggColumnExpr(s.metric, s.metric_property);
   return select(
     literal(idx).as('series_idx'),
     breakdownExpr ? alias(breakdownExpr, 'breakdown_value') : undefined,
@@ -249,6 +262,78 @@ function buildSeriesArm(
       breakdownExpr ? col('breakdown_value') : undefined,
       col('bucket'),
     )
+    .build();
+}
+
+// First-time users arm builder
+
+/**
+ * Build a SELECT arm for first_time_users metric.
+ *
+ * Logic:
+ *  1. Inner subquery finds persons whose min(timestamp) is in [dateFrom, dateTo]
+ *     AND who had NO events before dateFrom (NOT IN subquery).
+ *  2. Outer groups by bucket (toStartOfDay/Week/Month of min timestamp), counts persons.
+ *
+ * For property breakdown: uses argMin(breakdownExpr, timestamp) to get the
+ * breakdown value from the first event.
+ */
+function buildFirstTimeSeriesArm(
+  idx: number,
+  s: TrendSeries,
+  params: TrendQueryParams,
+  dateFrom: string,
+  dateTo: string,
+  bucketExpr: Expr,
+  breakdownExpr?: Expr,
+) {
+  // Subquery: persons who had events before dateFrom for this event_name + project
+  const priorPersonsSub = select(resolvedPerson())
+    .from('events')
+    .where(buildPriorPersonsWhere(params.project_id, s.event_name, dateFrom, params.timezone))
+    .build();
+
+  // Inner query: find first_ts for each person in the analysis window
+  const personExpr = resolvedPerson();
+  const innerCols: (Expr | undefined)[] = [
+    personExpr.as('person'),
+    min(col('timestamp')).as('first_ts'),
+  ];
+  if (breakdownExpr) {
+    // Get the breakdown value from the earliest event
+    innerCols.push(argMin(breakdownExpr, col('timestamp')).as('first_bv'));
+  }
+
+  const innerQuery = select(...innerCols)
+    .from('events')
+    .where(
+      seriesWhere(s, params, dateFrom, dateTo),
+      notInSubquery(resolvedPerson(), priorPersonsSub),
+    )
+    .groupBy(col('person'))
+    .build();
+
+  // Outer query: bucket by first_ts, count persons
+  // We use bucket on 'first_ts' column from the inner subquery
+  const firstTsBucket = bucket(params.granularity, 'first_ts', params.timezone);
+
+  const outerCols: (Expr | undefined)[] = [
+    literal(idx).as('series_idx'),
+    breakdownExpr ? col('first_bv').as('breakdown_value') : undefined,
+    alias(firstTsBucket, 'bucket'),
+    count().as('raw_value'),
+    count().as('uniq_value'),
+    count().as('agg_value'),
+  ];
+
+  const groupByCols: (Expr | undefined)[] = [
+    breakdownExpr ? col('breakdown_value') : undefined,
+    col('bucket'),
+  ];
+
+  return select(...outerCols)
+    .from(innerQuery)
+    .groupBy(...groupByCols)
     .build();
 }
 
@@ -275,7 +360,14 @@ async function executeTrendQuery(
   const hasCohortBreakdown = !!params.breakdown_cohort_ids?.length;
   const hasBreakdown = !!params.breakdown_property && !hasCohortBreakdown;
   const bucketExpr = bucket(params.granularity, 'timestamp', params.timezone);
-  const aggCol = buildAggColumnExpr(params.metric, params.metric_property);
+
+  // Validate: first_time_users + cohort breakdown is not supported
+  if (hasCohortBreakdown) {
+    const hasFirstTimeUsers = params.series.some((s) => s.metric === 'first_time_users');
+    if (hasFirstTimeUsers) {
+      throw new AppBadRequestException('first_time_users metric is not supported with cohort breakdown');
+    }
+  }
 
   // Branch 1: Cohort breakdown
   if (hasCohortBreakdown) {
@@ -284,6 +376,7 @@ async function executeTrendQuery(
 
     const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
     const arms = params.series.flatMap((s, seriesIdx) => {
+      const aggCol = buildAggColumnExpr(s.metric, s.metric_property);
       return cohortBreakdowns.map((cb, cbIdx) => {
         const paramKey = `cohort_bd_${seriesIdx}_${cbIdx}`;
         const cohortFilterExpr = buildCohortFilterForBreakdown(
@@ -320,13 +413,15 @@ async function executeTrendQuery(
       .build();
 
     const rows = await chx.rows<RawBreakdownRow>(query);
-    return assembleRows(rows, params.metric, params.series, { cohortLabelMap, isBreakdown: true });
+    return assembleRows(rows, params.series, { cohortLabelMap, isBreakdown: true });
   }
 
   // Branch 2: Non-breakdown
   if (!hasBreakdown) {
     const arms = params.series.map((s, idx) =>
-      buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, aggCol),
+      s.metric === 'first_time_users'
+        ? buildFirstTimeSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr)
+        : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr),
     );
 
     const query = select(
@@ -339,14 +434,16 @@ async function executeTrendQuery(
       .build();
 
     const rows = await chx.rows<RawTrendRow>(query);
-    return assembleRows(rows, params.metric, params.series);
+    return assembleRows(rows, params.series);
   }
 
   // Branch 3: Property breakdown
   const breakdownExpr = resolvePropertyExpr(params.breakdown_property ?? '');
 
   const arms = params.series.map((s, idx) =>
-    buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, aggCol, breakdownExpr),
+    s.metric === 'first_time_users'
+      ? buildFirstTimeSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr)
+      : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr),
   );
 
   // Build the outer query once, then clone for the two sub-paths.
@@ -392,7 +489,7 @@ async function executeTrendQuery(
   }
 
   const rows = await chx.rows<RawBreakdownRow>(query);
-  return assembleRows(rows, params.metric, params.series, { isBreakdown: true });
+  return assembleRows(rows, params.series, { isBreakdown: true });
 }
 
 // Public entry point

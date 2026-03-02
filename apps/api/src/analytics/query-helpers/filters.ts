@@ -3,6 +3,7 @@ import {
   and,
   col,
   eq,
+  lt,
   inArray,
   jsonExtractRaw,
   jsonExtractString,
@@ -18,7 +19,7 @@ import {
   parsePropertyPath,
 } from '@qurvo/cohort-query';
 import type { CohortFilterInput, PropertySource } from '@qurvo/cohort-query';
-import { timeRange, toChTs } from './time';
+import { timeRange, toChTs, tsParam } from './time';
 
 // Types
 
@@ -197,3 +198,27 @@ export function cohortBounds(params: { date_to: string; date_from: string }): { 
 }
 
 export { resolvedPerson } from '@qurvo/cohort-query';
+
+/**
+ * WHERE clause for the "prior persons" subquery used by first_time_users metric.
+ *
+ * Matches events for the same project + event_name with timestamp < dateFrom.
+ * No lower time bound — looks at the entire history before dateFrom.
+ *
+ * Intentionally does NOT use analyticsWhere() to avoid adding cohort filters
+ * or per-series property filters to the exclusion subquery. The question is:
+ * "did this person ever trigger this event_name before dateFrom?"
+ */
+export function buildPriorPersonsWhere(
+  projectId: string,
+  eventName: string,
+  dateFrom: string,
+  tz: string,
+): Expr {
+  return and(
+    projectIs(projectId),
+    eventIs(eventName),
+    lt(col('timestamp'), tsParam(dateFrom, tz)),
+  );
+}
+

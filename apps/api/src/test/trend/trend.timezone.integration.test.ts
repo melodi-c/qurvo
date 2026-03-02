@@ -50,8 +50,7 @@ describe('queryTrend — timezone support', () => {
     // Without timezone: event should be counted in the UTC day.
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateStr,
       date_to: dateStr,
@@ -94,8 +93,7 @@ describe('queryTrend — timezone support', () => {
     // Querying for UTC day D should return 0 events.
     const resultForUtcDay = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: utcDateStr,
       date_to: utcDateStr,
@@ -111,8 +109,7 @@ describe('queryTrend — timezone support', () => {
     // Querying for UTC day D+1 with MSK timezone should return the event (02:30 MSK = within D+1 MSK).
     const resultForNextDay = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: nextDateStr,
       date_to: nextDateStr,
@@ -146,8 +143,7 @@ describe('queryTrend — timezone support', () => {
 
     const withoutTz = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateStr,
       date_to: dateStr,
@@ -156,8 +152,7 @@ describe('queryTrend — timezone support', () => {
 
     const withUtcTz = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'day',
       date_from: dateStr,
       date_to: dateStr,

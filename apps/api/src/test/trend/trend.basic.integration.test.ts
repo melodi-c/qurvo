@@ -28,8 +28,7 @@ describe('queryTrend — total_events', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page_view', label: 'Page Views' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page_view', label: 'Page Views', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(2),
@@ -62,10 +61,9 @@ describe('queryTrend — total_events', () => {
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
       series: [
-        { event_name: 'click', label: 'Clicks' },
-        { event_name: 'purchase', label: 'Purchases' },
+        { event_name: 'click', label: 'Clicks', metric: 'total_events' },
+        { event_name: 'purchase', label: 'Purchases', metric: 'total_events' },
       ],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -107,8 +105,7 @@ describe('queryTrend — unique_users', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'unique_users',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'unique_users' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -138,8 +135,7 @@ describe('queryTrend — events_per_user', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'events_per_user',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'events_per_user' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -159,8 +155,7 @@ describe('queryTrend — empty result', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'nonexistent_event_xyz', label: 'None' }],
-      metric: 'total_events',
+      series: [{ event_name: 'nonexistent_event_xyz', label: 'None', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(5),
       date_to: daysAgo(3),
@@ -192,8 +187,7 @@ describe('queryTrend — week granularity', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'visit', label: 'Visits' }],
-      metric: 'total_events',
+      series: [{ event_name: 'visit', label: 'Visits', metric: 'total_events' }],
       granularity: 'week',
       date_from: daysAgo(18),
       date_to: daysAgo(10),
@@ -232,8 +226,7 @@ describe('queryTrend — month granularity', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'action', label: 'Actions' }],
-      metric: 'total_events',
+      series: [{ event_name: 'action', label: 'Actions', metric: 'total_events' }],
       granularity: 'month',
       date_from: daysAgo(40),
       date_to: daysAgo(5),

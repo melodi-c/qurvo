@@ -30,8 +30,7 @@ describe('queryTrend — compare mode', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'visit', label: 'Visits' }],
-      metric: 'total_events',
+      series: [{ event_name: 'visit', label: 'Visits', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),

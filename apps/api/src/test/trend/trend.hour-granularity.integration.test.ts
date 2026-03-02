@@ -33,8 +33,7 @@ describe('queryTrend — hour granularity', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'hour',
       date_from: daysAgo(1),
       date_to: daysAgo(1),
@@ -69,8 +68,7 @@ describe('queryTrend — hour granularity', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'visit', label: 'Visits' }],
-      metric: 'total_events',
+      series: [{ event_name: 'visit', label: 'Visits', metric: 'total_events' }],
       granularity: 'hour',
       date_from: daysAgo(2),
       date_to: daysAgo(2),
@@ -111,8 +109,7 @@ describe('queryTrend — hour granularity', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'action', label: 'Actions' }],
-      metric: 'unique_users',
+      series: [{ event_name: 'action', label: 'Actions', metric: 'unique_users' }],
       granularity: 'hour',
       date_from: daysAgo(1),
       date_to: daysAgo(1),

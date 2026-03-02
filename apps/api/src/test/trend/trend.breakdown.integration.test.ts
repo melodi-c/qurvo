@@ -31,8 +31,7 @@ describe('queryTrend — with breakdown', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(3),
       date_to: daysAgo(3),
@@ -124,8 +123,7 @@ describe('queryTrend — breakdown + cohort filter', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'pageview', label: 'Pageviews' }],
-      metric: 'total_events',
+      series: [{ event_name: 'pageview', label: 'Pageviews', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
@@ -189,15 +187,16 @@ describe('queryTrend — breakdown + per-series filters', () => {
         {
           event_name: 'signup',
           label: 'Pro signups',
+          metric: 'total_events',
           filters: [{ property: 'properties.plan', operator: 'eq', value: 'pro' }],
         },
         {
           event_name: 'signup',
           label: 'Free signups',
+          metric: 'total_events',
           filters: [{ property: 'properties.plan', operator: 'eq', value: 'free' }],
         },
       ],
-      metric: 'total_events',
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
@@ -252,8 +251,7 @@ describe('queryTrend — breakdown + compare combined', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'click', label: 'Clicks' }],
-      metric: 'total_events',
+      series: [{ event_name: 'click', label: 'Clicks', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),
@@ -314,8 +312,7 @@ describe('queryTrend — compare + breakdown: previous period uses current-perio
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'page', label: 'Pages' }],
-      metric: 'total_events',
+      series: [{ event_name: 'page', label: 'Pages', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(4),
       date_to: daysAgo(3),
@@ -403,8 +400,7 @@ describe('queryTrend — breakdown empty string vs null', () => {
 
     const result = await queryTrend(ctx.ch, {
       project_id: projectId,
-      series: [{ event_name: 'pageview', label: 'Pageviews' }],
-      metric: 'total_events',
+      series: [{ event_name: 'pageview', label: 'Pageviews', metric: 'total_events' }],
       granularity: 'day',
       date_from: daysAgo(1),
       date_to: daysAgo(0),
