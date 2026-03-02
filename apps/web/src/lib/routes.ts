@@ -189,6 +189,11 @@ export const routes = {
     '/projects/:projectId/ai',
     (projectId: string) => `/projects/${projectId}/ai`,
   ),
+  annotations: route(
+    '/projects/:projectId/annotations',
+    (projectId: string) => `/projects/${projectId}/annotations`,
+  ),
+
   dataManagement: {
     list: route(
       '/projects/:projectId/data-management',
