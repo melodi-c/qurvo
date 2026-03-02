@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PropertyNameCombobox } from '@/components/PropertyNameCombobox';
@@ -50,7 +50,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
 
   const addSeries = () => {
     onChange((prev) => {
-      if (prev.length >= 5) {return prev;}
+      if (prev.length >= 10) {return prev;}
       return [...prev, { event_name: '', label: t('seriesN', { n: String(prev.length + 1) }), metric: 'total_events' as TrendMetric }];
     });
   };
@@ -84,7 +84,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
         />
       ))}
 
-      {series.length < 5 && (
+      {series.length < 10 && (
         <Button
           variant="outline"
           size="sm"
@@ -148,6 +148,11 @@ function SeriesCard({
     [propertyNames],
   );
 
+  const toggleHidden = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUpdate({ hidden: !s.hidden });
+  };
+
   return (
     <div className="space-y-0">
       <QueryItemCard
@@ -155,8 +160,18 @@ function SeriesCard({
         index={idx}
         badge={
           <div className="flex items-center gap-1.5 shrink-0">
-            <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${COLORS[idx % COLORS.length]}`} />
-            <span className="text-[10px] font-mono font-semibold text-muted-foreground leading-none">{SERIES_LETTERS[idx]}</span>
+            <button
+              type="button"
+              onClick={toggleHidden}
+              className="p-0 border-0 bg-transparent cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+              title={s.hidden ? t('showSeries') : t('hideSeries')}
+            >
+              {s.hidden
+                ? <EyeOff className="h-3 w-3" />
+                : <Eye className="h-3 w-3" />}
+            </button>
+            <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${COLORS[idx % COLORS.length]} ${s.hidden ? 'opacity-30' : ''}`} />
+            <span className={`text-[10px] font-mono font-semibold leading-none ${s.hidden ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>{SERIES_LETTERS[idx]}</span>
           </div>
         }
         labelPlaceholder={t('labelPlaceholder')}

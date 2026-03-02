@@ -1,7 +1,7 @@
 import type { TrendWidgetConfig } from '@/api/generated/Api';
 import { todayIso } from '@/lib/date-utils';
 
-export const SERIES_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
+export const SERIES_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
 export function defaultTrendConfig(seriesLabel = 'Series 1'): TrendWidgetConfig {
   return {

@@ -54,6 +54,15 @@ export default function TrendEditorPage() {
     downloadCsv(trendToCsv(series), 'trend.csv');
   }, [series]);
 
+  const handleToggleSeries = useCallback((seriesIdx: number) => {
+    setConfig((prev) => ({
+      ...prev,
+      series: prev.series.map((s, i) =>
+        i === seriesIdx ? { ...s, hidden: !s.hidden } : s,
+      ),
+    }));
+  }, [setConfig]);
+
   const METRIC_LABELS: Record<string, string> = useMemo(() => ({
     total_events: t('totalEvents'),
     unique_users: t('uniqueUsers'),
@@ -141,6 +150,8 @@ export default function TrendEditorPage() {
         granularity={config.granularity}
         formulas={config.formulas}
         annotations={annotations}
+        seriesConfig={config.series}
+        onToggleSeries={handleToggleSeries}
       />
       <AnnotationDialog
         open={annotationDialogOpen}

@@ -14,6 +14,11 @@ export const CHART_COLORS_HSL = [
   'hsl(38, 92%, 50%)',    // amber-500
   'hsl(263, 70%, 50%)',   // violet-500
   'hsl(350, 89%, 60%)',   // rose-500
+  'hsl(330, 80%, 60%)',   // pink-500
+  'hsl(187, 92%, 41%)',   // cyan-500
+  'hsl(84, 81%, 44%)',    // lime-500
+  'hsl(239, 84%, 67%)',   // indigo-400
+  'hsl(168, 76%, 42%)',   // teal-500
 ] as const;
 
 /** Muted compare/previous-period colors (HSL). */
@@ -23,6 +28,11 @@ export const CHART_COMPARE_COLORS_HSL = [
   'hsl(38, 60%, 75%)',
   'hsl(263, 50%, 75%)',
   'hsl(350, 60%, 78%)',
+  'hsl(330, 55%, 78%)',
+  'hsl(187, 55%, 72%)',
+  'hsl(84, 50%, 72%)',
+  'hsl(239, 55%, 80%)',
+  'hsl(168, 50%, 70%)',
 ] as const;
 
 /** Formula overlay colors (HSL). */
@@ -37,6 +47,7 @@ export const CHART_FORMULA_COLORS_HSL = [
 /** Tailwind class names for series builder color dots. */
 export const CHART_COLORS_TW = [
   'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-rose-500',
+  'bg-pink-500', 'bg-cyan-500', 'bg-lime-500', 'bg-indigo-400', 'bg-teal-500',
 ] as const;
 
 /** Web analytics metric-specific colors. */
