@@ -1,6 +1,6 @@
 import { IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateOnly } from './shared/is-date-only.decorator';
+import { IsDateOnly, IsDateRange } from './shared/is-date-only.decorator';
 
 export class CreateAnnotationDto {
   @IsDateOnly()
@@ -45,12 +45,12 @@ export class UpdateAnnotationDto {
 }
 
 export class AnnotationQueryDto {
-  @IsDateOnly()
+  @IsDateRange()
   @IsOptional()
   @ApiPropertyOptional()
   date_from?: string;
 
-  @IsDateOnly()
+  @IsDateRange()
   @IsOptional()
   @ApiPropertyOptional()
   date_to?: string;

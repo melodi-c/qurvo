@@ -4,6 +4,7 @@ import { annotations } from '@qurvo/db';
 import type { Database } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { AnnotationNotFoundException } from './exceptions/annotation-not-found.exception';
+import { resolveRelativeDate } from '../analytics/query-helpers/time';
 
 export interface CreateAnnotationInput {
   date: string;
@@ -25,8 +26,8 @@ export class AnnotationsService {
 
   async list(projectId: string, dateFrom?: string, dateTo?: string) {
     const conditions = [eq(annotations.project_id, projectId)];
-    if (dateFrom) {conditions.push(gte(annotations.date, dateFrom));}
-    if (dateTo) {conditions.push(lte(annotations.date, dateTo));}
+    if (dateFrom) {conditions.push(gte(annotations.date, resolveRelativeDate(dateFrom)));}
+    if (dateTo) {conditions.push(lte(annotations.date, resolveRelativeDate(dateTo)));}
 
     return this.db
       .select()
