@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNumber, Min, IsUUID, IsArray } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsObject, IsNumber, Min, IsUUID, IsArray, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
@@ -21,6 +21,20 @@ export class UpdateDashboardDto {
   @MaxLength(100)
   @IsOptional()
   name?: string;
+
+  @ValidateIf((o) => o.date_from !== null)
+  @IsString()
+  @MaxLength(20)
+  @IsOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
+  date_from?: string | null;
+
+  @ValidateIf((o) => o.date_to !== null)
+  @IsString()
+  @MaxLength(20)
+  @IsOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
+  date_to?: string | null;
 }
 
 export class WidgetLayoutDto {
@@ -225,6 +239,10 @@ export class DashboardDto {
   id: string;
   project_id: string;
   name: string;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  date_from: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  date_to: string | null;
   created_at: Date;
   updated_at: Date;
 }

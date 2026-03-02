@@ -148,6 +148,37 @@ describe('DashboardsService.update', () => {
     expect(updated.name).toBe('New Name');
   });
 
+  it('updates date_from and date_to', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const dashboard = await service.create(userId, projectId, { name: 'Date Range Test' });
+
+    const updated = await service.update(projectId, dashboard.id, { date_from: '-30d', date_to: 'today' });
+    expect(updated.date_from).toBe('-30d');
+    expect(updated.date_to).toBe('today');
+  });
+
+  it('clears date_from and date_to with null', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const dashboard = await service.create(userId, projectId, { name: 'Clear Date Test' });
+
+    await service.update(projectId, dashboard.id, { date_from: '-7d', date_to: '2025-03-01' });
+
+    const cleared = await service.update(projectId, dashboard.id, { date_from: null, date_to: null });
+    expect(cleared.date_from).toBeNull();
+    expect(cleared.date_to).toBeNull();
+  });
+
+  it('getById returns saved date_from and date_to', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const dashboard = await service.create(userId, projectId, { name: 'Get Date Test' });
+
+    await service.update(projectId, dashboard.id, { date_from: '-14d', date_to: 'today' });
+
+    const found = await service.getById(projectId, dashboard.id);
+    expect(found.date_from).toBe('-14d');
+    expect(found.date_to).toBe('today');
+  });
+
   it('throws DashboardNotFoundException for a non-existent dashboard', async () => {
     const { projectId } = await createTestProject(ctx.db);
     await expect(service.update(projectId, randomUUID(), { name: 'X' })).rejects.toThrow(DashboardNotFoundException);
