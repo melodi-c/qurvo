@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryItemCard } from '../QueryItemCard';
@@ -14,36 +14,38 @@ const COLORS = CHART_COLORS_TW;
 
 interface TrendSeriesBuilderProps {
   series: TrendSeries[];
-  onChange: (series: TrendSeries[]) => void;
+  onChange: (seriesOrUpdater: TrendSeries[] | ((prev: TrendSeries[]) => TrendSeries[])) => void;
 }
 
 export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps) {
   const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(series, onChange);
 
-  const seriesRef = useRef(series);
-  seriesRef.current = series;
-
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-
   const update = useCallback(
     (idx: number, patch: Partial<TrendSeries>) => {
-      onChangeRef.current(seriesRef.current.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+      onChange((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
     },
-    [],
+    [onChange],
   );
 
-  const { addFilter, updateFilter, removeFilter } = useFilterManager(series, update);
+  const onChangeAll = useCallback(
+    (updater: (prev: TrendSeries[]) => TrendSeries[]) => onChange(updater),
+    [onChange],
+  );
+  const { addFilter, updateFilter, removeFilter } = useFilterManager(onChangeAll);
 
   const addSeries = () => {
-    if (seriesRef.current.length >= 5) {return;}
-    onChangeRef.current([...seriesRef.current, { event_name: '', label: t('seriesN', { n: String(seriesRef.current.length + 1) }) }]);
+    onChange((prev) => {
+      if (prev.length >= 5) {return prev;}
+      return [...prev, { event_name: '', label: t('seriesN', { n: String(prev.length + 1) }) }];
+    });
   };
 
   const removeSeries = (idx: number) => {
-    if (seriesRef.current.length <= 1) {return;}
-    onChangeRef.current(seriesRef.current.filter((_, i) => i !== idx));
+    onChange((prev) => {
+      if (prev.length <= 1) {return prev;}
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   return (

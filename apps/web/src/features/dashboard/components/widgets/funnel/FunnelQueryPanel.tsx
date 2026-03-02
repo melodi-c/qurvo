@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Timer, TrendingDown, Shuffle, Ban, BarChart3, FlaskConical, ChevronDown, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -15,14 +15,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FunnelStepBuilder } from './FunnelStepBuilder';
 import { FunnelExclusionBuilder } from './FunnelExclusionBuilder';
+import type { ExclusionEntry } from './FunnelExclusionBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './FunnelQueryPanel.translations';
-import type { FunnelWidgetConfig } from '@/api/generated/Api';
+import type { FunnelWidgetConfig, FunnelStep } from '@/api/generated/Api';
 
 interface FunnelQueryPanelProps {
   config: FunnelWidgetConfig;
-  onChange: (config: FunnelWidgetConfig) => void;
+  onChange: React.Dispatch<React.SetStateAction<FunnelWidgetConfig>>;
 }
 
 const WINDOW_UNITS = ['second', 'minute', 'hour', 'day', 'week', 'month'] as const;
@@ -67,15 +68,41 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   ].filter(Boolean).length, [config.funnel_order_type, config.exclusions, config.sampling_factor, config.breakdown_cohort_ids]);
 
   function handleResetAdvanced() {
-    onChange({
-      ...config,
+    onChange((prev) => ({
+      ...prev,
       funnel_order_type: 'ordered',
       exclusions: undefined,
       sampling_factor: undefined,
       breakdown_cohort_ids: undefined,
-      ...(config.breakdown_type === 'cohort' ? { breakdown_type: 'property' } : {}),
-    });
+      ...(prev.breakdown_type === 'cohort' ? { breakdown_type: 'property' as const } : {}),
+    }));
   }
+
+  /** Wraps step changes (value or functional updater) into a config updater */
+  const handleStepsChange = useCallback(
+    (stepsOrUpdater: FunnelStep[] | ((prev: FunnelStep[]) => FunnelStep[])) => {
+      onChange((prev) => ({
+        ...prev,
+        steps: typeof stepsOrUpdater === 'function'
+          ? stepsOrUpdater(prev.steps)
+          : stepsOrUpdater,
+      }));
+    },
+    [onChange],
+  );
+
+  /** Wraps exclusion changes (value or functional updater) into a config updater */
+  const handleExclusionsChange = useCallback(
+    (exclusionsOrUpdater: ExclusionEntry[] | ((prev: ExclusionEntry[]) => ExclusionEntry[])) => {
+      onChange((prev) => ({
+        ...prev,
+        exclusions: typeof exclusionsOrUpdater === 'function'
+          ? exclusionsOrUpdater((prev.exclusions ?? []) as ExclusionEntry[])
+          : exclusionsOrUpdater,
+      }));
+    },
+    [onChange],
+  );
 
   return (
     <QueryPanelShell>
@@ -83,7 +110,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
         <DateRangeSection
           dateFrom={config.date_from}
           dateTo={config.date_to}
-          onChange={(date_from, date_to) => onChange({ ...config, date_from, date_to })}
+          onChange={(date_from, date_to) => onChange((prev) => ({ ...prev, date_from, date_to }))}
         />
 
         <Separator />
@@ -93,7 +120,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           <SectionHeader icon={TrendingDown} label={t('steps')} />
           <FunnelStepBuilder
             steps={config.steps}
-            onChange={(steps) => onChange({ ...config, steps })}
+            onChange={handleStepsChange}
           />
         </section>
 
@@ -114,24 +141,26 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
               onChange={(e) => {
                 const val = Number(e.target.value);
                 const unit = config.conversion_window_unit ?? 'day';
-                onChange({
-                  ...config,
+                onChange((prev) => ({
+                  ...prev,
                   conversion_window_value: val,
                   conversion_window_unit: unit,
-                  conversion_window_days: unit === 'day' ? val : config.conversion_window_days,
-                });
+                  conversion_window_days: unit === 'day' ? val : prev.conversion_window_days,
+                }));
               }}
               className="h-8 w-20 text-sm"
             />
             <Select
               value={config.conversion_window_unit ?? 'day'}
               onValueChange={(unit) => {
-                const val = config.conversion_window_value ?? config.conversion_window_days;
-                onChange({
-                  ...config,
-                  conversion_window_unit: unit as typeof WINDOW_UNITS[number],
-                  conversion_window_value: val,
-                  conversion_window_days: unit === 'day' ? val : config.conversion_window_days,
+                onChange((prev) => {
+                  const val = prev.conversion_window_value ?? prev.conversion_window_days;
+                  return {
+                    ...prev,
+                    conversion_window_unit: unit as typeof WINDOW_UNITS[number],
+                    conversion_window_value: val,
+                    conversion_window_days: unit === 'day' ? val : prev.conversion_window_days,
+                  };
                 });
               }}
             >
@@ -158,7 +187,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           <PillToggleGroup
             options={rateDisplayOptions}
             value={config.conversion_rate_display ?? 'total'}
-            onChange={(conversion_rate_display) => onChange({ ...config, conversion_rate_display })}
+            onChange={(conversion_rate_display) => onChange((prev) => ({ ...prev, conversion_rate_display }))}
           />
         </section>
 
@@ -166,27 +195,27 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
 
         <CohortFilterSection
           value={config.cohort_ids ?? []}
-          onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
+          onChange={(cohort_ids) => onChange((prev) => ({ ...prev, cohort_ids: cohort_ids.length ? cohort_ids : undefined }))}
         />
 
         <Separator />
 
         <BreakdownSection
           value={config.breakdown_property || ''}
-          onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
+          onChange={(v) => onChange((prev) => ({ ...prev, breakdown_property: v || undefined }))}
           propertyNames={propertyNames}
           propertyDescriptions={propDescriptions}
           breakdownType={config.breakdown_type ?? 'property'}
-          onBreakdownTypeChange={(type) => onChange({
-            ...config,
+          onBreakdownTypeChange={(type) => onChange((prev) => ({
+            ...prev,
             breakdown_type: type,
             ...(type === 'cohort' ? { breakdown_property: undefined } : { breakdown_cohort_ids: undefined }),
-          })}
+          }))}
           breakdownCohortIds={config.breakdown_cohort_ids ?? []}
-          onBreakdownCohortIdsChange={(ids) => onChange({
-            ...config,
+          onBreakdownCohortIdsChange={(ids) => onChange((prev) => ({
+            ...prev,
             breakdown_cohort_ids: ids.length ? ids : undefined,
-          })}
+          }))}
         />
 
         <Separator />
@@ -224,7 +253,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
               </div>
               <Select
                 value={config.funnel_order_type ?? 'ordered'}
-                onValueChange={(v) => onChange({ ...config, funnel_order_type: v as FunnelWidgetConfig['funnel_order_type'] })}
+                onValueChange={(v) => onChange((prev) => ({ ...prev, funnel_order_type: v as FunnelWidgetConfig['funnel_order_type'] }))}
               >
                 <SelectTrigger size="sm">
                   <SelectValue />
@@ -252,7 +281,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
               </div>
               <FunnelExclusionBuilder
                 exclusions={config.exclusions ?? []}
-                onChange={(exclusions) => onChange({ ...config, exclusions })}
+                onChange={handleExclusionsChange}
                 stepCount={config.steps.length}
               />
             </section>
@@ -268,7 +297,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
               <PillToggleGroup
                 options={samplingOptions}
                 value={String(config.sampling_factor ?? 1)}
-                onChange={(v) => onChange({ ...config, sampling_factor: Number(v) === 1 ? undefined : Number(v) })}
+                onChange={(v) => onChange((prev) => ({ ...prev, sampling_factor: Number(v) === 1 ? undefined : Number(v) }))}
               />
             </section>
           </CollapsibleContent>

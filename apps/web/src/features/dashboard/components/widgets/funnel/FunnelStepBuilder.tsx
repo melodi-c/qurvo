@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { Plus, ArrowDown } from 'lucide-react';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { QueryItemCard } from '../QueryItemCard';
@@ -9,34 +9,34 @@ import type { FunnelStep } from '@/api/generated/Api';
 
 interface FunnelStepBuilderProps {
   steps: FunnelStep[];
-  onChange: (steps: FunnelStep[]) => void;
+  onChange: (stepsOrUpdater: FunnelStep[] | ((prev: FunnelStep[]) => FunnelStep[])) => void;
 }
 
 export function FunnelStepBuilder({ steps, onChange }: FunnelStepBuilderProps) {
   const { t } = useLocalTranslation(translations);
   const drag = useDragReorder(steps, onChange);
 
-  const stepsRef = useRef(steps);
-  stepsRef.current = steps;
-
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-
   const updateStep = useCallback(
     (i: number, patch: Partial<FunnelStep>) => {
-      onChangeRef.current(stepsRef.current.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+      onChange((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
     },
-    [],
+    [onChange],
   );
 
-  const { addFilter, updateFilter, removeFilter } = useFilterManager(steps, updateStep);
+  const onChangeAll = useCallback(
+    (updater: (prev: FunnelStep[]) => FunnelStep[]) => onChange(updater),
+    [onChange],
+  );
+  const { addFilter, updateFilter, removeFilter } = useFilterManager(onChangeAll);
 
   const addStep = () =>
-    onChangeRef.current([...stepsRef.current, { event_name: '', label: t('stepN', { n: String(stepsRef.current.length + 1) }) }]);
+    onChange((prev) => [...prev, { event_name: '', label: t('stepN', { n: String(prev.length + 1) }) }]);
 
   const removeStep = (i: number) => {
-    if (stepsRef.current.length <= 2) {return;}
-    onChangeRef.current(stepsRef.current.filter((_, idx) => idx !== i));
+    onChange((prev) => {
+      if (prev.length <= 2) {return prev;}
+      return prev.filter((_, idx) => idx !== i);
+    });
   };
 
   return (

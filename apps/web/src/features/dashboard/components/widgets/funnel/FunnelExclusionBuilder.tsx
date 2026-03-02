@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,18 +14,12 @@ export interface ExclusionEntry {
 
 interface FunnelExclusionBuilderProps {
   exclusions: ExclusionEntry[];
-  onChange: (exclusions: ExclusionEntry[]) => void;
+  onChange: (exclusionsOrUpdater: ExclusionEntry[] | ((prev: ExclusionEntry[]) => ExclusionEntry[])) => void;
   stepCount: number;
 }
 
 export function FunnelExclusionBuilder({ exclusions, onChange, stepCount }: FunnelExclusionBuilderProps) {
   const { t } = useLocalTranslation(translations);
-
-  const exclusionsRef = useRef(exclusions);
-  exclusionsRef.current = exclusions;
-
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
 
   const stepOptions = useMemo(() => {
     return Array.from({ length: stepCount }, (_, i) => ({
@@ -35,16 +29,16 @@ export function FunnelExclusionBuilder({ exclusions, onChange, stepCount }: Funn
   }, [stepCount]);
 
   const handleAdd = useCallback(() => {
-    onChangeRef.current([...exclusionsRef.current, { event_name: '', funnel_from_step: 0, funnel_to_step: Math.min(1, stepCount - 1) }]);
-  }, [stepCount]);
+    onChange((prev) => [...prev, { event_name: '', funnel_from_step: 0, funnel_to_step: Math.min(1, stepCount - 1) }]);
+  }, [onChange, stepCount]);
 
   const handleRemove = useCallback((index: number) => {
-    onChangeRef.current(exclusionsRef.current.filter((_, i) => i !== index));
-  }, []);
+    onChange((prev) => prev.filter((_, i) => i !== index));
+  }, [onChange]);
 
   const handleUpdate = useCallback((index: number, patch: Partial<ExclusionEntry>) => {
-    onChangeRef.current(exclusionsRef.current.map((e, i) => i === index ? { ...e, ...patch } : e));
-  }, []);
+    onChange((prev) => prev.map((e, i) => i === index ? { ...e, ...patch } : e));
+  }, [onChange]);
 
   return (
     <div className="space-y-2">

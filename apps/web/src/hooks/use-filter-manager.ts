@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import type { StepFilter } from '@/api/generated/Api';
 
 interface HasFilters {
@@ -11,48 +11,60 @@ interface FilterManager {
   removeFilter: (itemIdx: number, filterIdx: number) => void;
 }
 
+/**
+ * Manages per-item filters using a functional updater to avoid stale closures.
+ *
+ * `onChangeAll` must accept `(prev: T[]) => T[]` so that rapid-fire calls
+ * (e.g. addSeries followed by addFilter before a re-render) always operate
+ * on the latest pending state rather than a captured snapshot.
+ */
 export function useFilterManager<T extends HasFilters>(
-  items: T[],
-  updateItem: (idx: number, patch: Partial<T>) => void,
+  onChangeAll: (updater: (prev: T[]) => T[]) => void,
 ): FilterManager {
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-
-  const updateItemRef = useRef(updateItem);
-  updateItemRef.current = updateItem;
-
   const addFilter = useCallback(
     (itemIdx: number) => {
-      const current = itemsRef.current[itemIdx];
-      const filters: StepFilter[] = [
-        ...(current.filters ?? []),
-        { property: '', operator: 'eq', value: '' },
-      ];
-      updateItemRef.current(itemIdx, { filters } as Partial<T>);
+      onChangeAll((prev) =>
+        prev.map((item, i) => {
+          if (i !== itemIdx) {return item;}
+          const filters: StepFilter[] = [
+            ...(item.filters ?? []),
+            { property: '', operator: 'eq', value: '' },
+          ];
+          return { ...item, filters };
+        }),
+      );
     },
-    [],
+    [onChangeAll],
   );
 
   const updateFilter = useCallback(
     (itemIdx: number, filterIdx: number, filter: StepFilter) => {
-      const current = itemsRef.current[itemIdx];
-      const filters = (current.filters ?? []).map((f, i) =>
-        i === filterIdx ? filter : f,
+      onChangeAll((prev) =>
+        prev.map((item, i) => {
+          if (i !== itemIdx) {return item;}
+          const filters = (item.filters ?? []).map((f, fi) =>
+            fi === filterIdx ? filter : f,
+          );
+          return { ...item, filters };
+        }),
       );
-      updateItemRef.current(itemIdx, { filters } as Partial<T>);
     },
-    [],
+    [onChangeAll],
   );
 
   const removeFilter = useCallback(
     (itemIdx: number, filterIdx: number) => {
-      const current = itemsRef.current[itemIdx];
-      const filters = (current.filters ?? []).filter(
-        (_, i) => i !== filterIdx,
+      onChangeAll((prev) =>
+        prev.map((item, i) => {
+          if (i !== itemIdx) {return item;}
+          const filters = (item.filters ?? []).filter(
+            (_, fi) => fi !== filterIdx,
+          );
+          return { ...item, filters };
+        }),
       );
-      updateItemRef.current(itemIdx, { filters } as Partial<T>);
     },
-    [],
+    [onChangeAll],
   );
 
   return { addFilter, updateFilter, removeFilter };

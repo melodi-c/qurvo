@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import {
   TrendingUp,
   BarChart3,
@@ -20,11 +20,11 @@ import { FormulaBuilder } from './FormulaBuilder';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendQueryPanel.translations';
-import type { TrendWidgetConfig } from '@/api/generated/Api';
+import type { TrendWidgetConfig, TrendSeries, TrendFormula } from '@/api/generated/Api';
 
 interface TrendQueryPanelProps {
   config: TrendWidgetConfig;
-  onChange: (config: TrendWidgetConfig) => void;
+  onChange: React.Dispatch<React.SetStateAction<TrendWidgetConfig>>;
 }
 
 export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
@@ -59,13 +59,39 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
     { value: 'bar', label: t('bar') },
   ], [t]);
 
+  /** Wraps series changes (value or functional updater) into a config updater */
+  const handleSeriesChange = useCallback(
+    (seriesOrUpdater: TrendSeries[] | ((prev: TrendSeries[]) => TrendSeries[])) => {
+      onChange((prev) => ({
+        ...prev,
+        series: typeof seriesOrUpdater === 'function'
+          ? seriesOrUpdater(prev.series)
+          : seriesOrUpdater,
+      }));
+    },
+    [onChange],
+  );
+
+  /** Wraps formula changes (value or functional updater) into a config updater */
+  const handleFormulasChange = useCallback(
+    (formulasOrUpdater: TrendFormula[] | ((prev: TrendFormula[]) => TrendFormula[])) => {
+      onChange((prev) => {
+        const next = typeof formulasOrUpdater === 'function'
+          ? formulasOrUpdater(prev.formulas ?? [])
+          : formulasOrUpdater;
+        return { ...prev, formulas: next.length ? next : undefined };
+      });
+    },
+    [onChange],
+  );
+
   return (
     <QueryPanelShell>
 
         <DateRangeSection
           dateFrom={config.date_from}
           dateTo={config.date_to}
-          onChange={(date_from, date_to) => onChange({ ...config, date_from, date_to })}
+          onChange={(date_from, date_to) => onChange((prev) => ({ ...prev, date_from, date_to }))}
         />
 
         <Separator />
@@ -75,7 +101,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           <SectionHeader icon={TrendingUp} label={t('series')} />
           <TrendSeriesBuilder
             series={config.series}
-            onChange={(series) => onChange({ ...config, series })}
+            onChange={handleSeriesChange}
           />
         </section>
 
@@ -87,7 +113,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
           <FormulaBuilder
             formulas={config.formulas ?? []}
             seriesCount={config.series.length}
-            onChange={(formulas) => onChange({ ...config, formulas: formulas.length ? formulas : undefined })}
+            onChange={handleFormulasChange}
           />
         </section>
 
@@ -108,11 +134,11 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                   const next = v as TrendWidgetConfig['metric'];
                   const wasProperty = config.metric.startsWith('property_');
                   const isProperty = next.startsWith('property_');
-                  onChange({
-                    ...config,
+                  onChange((prev) => ({
+                    ...prev,
                     metric: next,
                     ...(!isProperty && wasProperty ? { metric_property: undefined } : {}),
-                  });
+                  }));
                 }}
               >
                 <SelectTrigger size="sm">
@@ -134,7 +160,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               </div>
               <Select
                 value={config.granularity}
-                onValueChange={(v) => onChange({ ...config, granularity: v as TrendWidgetConfig['granularity'] })}
+                onValueChange={(v) => onChange((prev) => ({ ...prev, granularity: v as TrendWidgetConfig['granularity'] }))}
               >
                 <SelectTrigger size="sm">
                   <SelectValue />
@@ -156,7 +182,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               <span className="text-xs text-muted-foreground">{t('metricProperty')}</span>
               <PropertyNameCombobox
                 value={config.metric_property ?? ''}
-                onChange={(v) => onChange({ ...config, metric_property: v || undefined })}
+                onChange={(v) => onChange((prev) => ({ ...prev, metric_property: v || undefined }))}
                 propertyNames={customPropertyNames}
                 descriptions={propDescriptions}
                 className="h-8"
@@ -170,7 +196,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
             <PillToggleGroup
               options={chartTypeOptions}
               value={config.chart_type}
-              onChange={(v) => onChange({ ...config, chart_type: v as TrendWidgetConfig['chart_type'] })}
+              onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as TrendWidgetConfig['chart_type'] }))}
             />
           </div>
         </section>
@@ -184,7 +210,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
             <input
               type="checkbox"
               checked={config.compare}
-              onChange={(e) => onChange({ ...config, compare: e.target.checked })}
+              onChange={(e) => onChange((prev) => ({ ...prev, compare: e.target.checked }))}
               className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
             />
             <span className="text-sm text-muted-foreground">{t('compareToPrevious')}</span>
@@ -196,27 +222,27 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
 
         <CohortFilterSection
           value={config.cohort_ids ?? []}
-          onChange={(cohort_ids) => onChange({ ...config, cohort_ids: cohort_ids.length ? cohort_ids : undefined })}
+          onChange={(cohort_ids) => onChange((prev) => ({ ...prev, cohort_ids: cohort_ids.length ? cohort_ids : undefined }))}
         />
 
         <Separator />
 
         <BreakdownSection
           value={config.breakdown_property || ''}
-          onChange={(v) => onChange({ ...config, breakdown_property: v || undefined })}
+          onChange={(v) => onChange((prev) => ({ ...prev, breakdown_property: v || undefined }))}
           propertyNames={propertyNames}
           propertyDescriptions={propDescriptions}
           breakdownType={config.breakdown_type ?? 'property'}
-          onBreakdownTypeChange={(type) => onChange({
-            ...config,
+          onBreakdownTypeChange={(type) => onChange((prev) => ({
+            ...prev,
             breakdown_type: type,
             ...(type === 'cohort' ? { breakdown_property: undefined } : { breakdown_cohort_ids: undefined }),
-          })}
+          }))}
           breakdownCohortIds={config.breakdown_cohort_ids ?? []}
-          onBreakdownCohortIdsChange={(ids) => onChange({
-            ...config,
+          onBreakdownCohortIdsChange={(ids) => onChange((prev) => ({
+            ...prev,
             breakdown_cohort_ids: ids.length ? ids : undefined,
-          })}
+          }))}
           tooltip={t('breakdownTooltip')}
         />
     </QueryPanelShell>
