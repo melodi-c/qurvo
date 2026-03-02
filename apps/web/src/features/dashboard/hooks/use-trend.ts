@@ -1,6 +1,7 @@
 import { api } from '@/api/client';
 import type { TrendWidgetConfig, TrendResponse, TrendControllerGetTrendParams } from '@/api/generated/Api';
 import { createWidgetDataHook } from './create-widget-data-hook';
+import { CUSTOM_QUERY_CHART_TYPES } from '../components/widgets/trend/trend-shared';
 
 /** Strip filters with empty property so they don't fail backend validation. */
 export function cleanSeries(config: TrendWidgetConfig) {
@@ -26,6 +27,7 @@ export const useTrendData = createWidgetDataHook<TrendWidgetConfig, TrendRespons
       formulas: config.formulas,
     }),
   isEnabled: (config) =>
+    !CUSTOM_QUERY_CHART_TYPES.includes(config.chart_type) &&
     config.series.length >= 1 &&
     config.series.every((s) => s.event_name.trim() !== ''),
   buildParams: (config, projectId, widgetUuid) => ({

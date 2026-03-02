@@ -5,6 +5,7 @@ import type {
   ChartType,
   TrendGranularity,
   Annotation,
+  TrendAggregateResult,
 } from '@/api/generated/Api';
 import { TrendLineBarChart } from './TrendLineBarChart';
 import { TrendNumberViz } from './TrendNumberViz';
@@ -13,6 +14,7 @@ import { TrendCumulativeChart } from './TrendCumulativeChart';
 import { TrendPieChart } from './TrendPieChart';
 import { TrendTableViz } from './TrendTableViz';
 import { TrendValueBarChart } from './TrendValueBarChart';
+import { TrendWorldMapViz } from './TrendWorldMapViz';
 
 // Re-export the props type for consumers
 export type { TrendLineBarChartProps } from './TrendLineBarChart';
@@ -25,6 +27,8 @@ interface TrendChartProps {
   compact?: boolean;
   formulas?: TrendFormula[];
   annotations?: Annotation[];
+  /** Aggregate data for world_map / calendar_heatmap chart types */
+  aggregateData?: TrendAggregateResult;
   /** Series config for persisted hidden state */
   seriesConfig?: TrendSeries[];
   /** Called when a series is toggled — allows persisting hidden state to config */
@@ -88,8 +92,15 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
           compact={rest.compact}
         />
       );
-    // case 'world_map':
-    //   return <TrendWorldMapChart {...rest} />;
+
+    case 'world_map':
+      return (
+        <TrendWorldMapViz
+          data={rest.aggregateData?.world_map ?? []}
+          compact={rest.compact}
+        />
+      );
+
     // case 'calendar_heatmap':
     //   return <TrendCalendarHeatmapChart {...rest} />;
 
