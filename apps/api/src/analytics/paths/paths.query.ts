@@ -10,11 +10,13 @@ import {
   arrayEnumerate,
   arraySlice,
   col,
+  eq,
   groupArray,
   gte,
   has,
   ifExpr,
   indexOf,
+  inSubquery,
   length,
   literal,
   lt,
@@ -143,6 +145,21 @@ export async function queryPaths(
   const minPersonsParam = param('UInt32', params.min_persons ?? 1);
   const { dateTo, dateFrom } = cohortBounds(params);
 
+  // Pre-filter: when start_event is specified, restrict to persons who have it
+  const personPreFilter = params.start_event
+    ? inSubquery(
+        col('person_id'),
+        select(col('person_id'))
+          .from('events')
+          .where(
+            projectIs(params.project_id),
+            timeRange(params.date_from, params.date_to, params.timezone),
+            eq(col('event_name'), param('String', params.start_event)),
+          )
+          .build(),
+      )
+    : undefined;
+
   // CTE 1: ordered_events
   const orderedEvents = select(
     resolvedPerson().as('pid'),
@@ -158,6 +175,7 @@ export async function queryPaths(
         : undefined,
       params.filters?.length ? propertyFilters(params.filters) : undefined,
       cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom),
+      personPreFilter,
     )
     .orderBy(col('pid'))
     .orderBy(col('timestamp'))
