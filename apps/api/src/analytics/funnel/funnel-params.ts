@@ -24,7 +24,7 @@ export { toChTs };
  *   window         — conversion window in seconds (UInt64)
  *   num_steps      — total number of funnel steps (UInt64)
  *   all_event_names — all event names across steps and exclusions (Array(String))
- *   tz             — IANA timezone name (optional, only when tz != 'UTC')
+ *   tz             — IANA timezone name (always present; UTC-optimized path checks tz !== 'UTC')
  *   sample_pct     — sampling percentage 0-100 (UInt8, only when sampling is active)
  *   breakdown_limit — max breakdown groups (optional)
  */
@@ -43,7 +43,7 @@ export interface FunnelChQueryParams {
 
 /**
  * Returns the timestamp parameter as an Expr AST node.
- * When the query params include a `tz` value, wraps with toDateTime64(..., tz).
+ * When tz is not 'UTC', wraps with toDateTime64(..., tz) for timezone conversion.
  *
  * Uses fixed parameter names (`from`, `to`, `tz`) matching the keys in queryParams,
  * not auto-incrementing p_N, to avoid parameter collisions when called without a shared
