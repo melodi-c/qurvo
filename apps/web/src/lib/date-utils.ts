@@ -1,3 +1,5 @@
+import { format, parse } from 'date-fns';
+
 /** Returns today's date as ISO string (YYYY-MM-DD). */
 export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -180,4 +182,16 @@ export function getActivePreset(dateFrom: string, dateTo: string): string | unde
     }
   }
   return undefined;
+}
+
+/**
+ * Formats an ISO date string (YYYY-MM-DD) into a human-readable form (e.g. "Mar 2, 2026").
+ * Returns the original string if parsing fails.
+ */
+export function formatAbsoluteDate(iso: string): string {
+  try {
+    return format(parse(iso, 'yyyy-MM-dd', new Date()), 'MMM d, yyyy');
+  } catch {
+    return iso;
+  }
 }

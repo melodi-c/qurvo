@@ -1,10 +1,9 @@
 import { CalendarDays } from 'lucide-react';
-import { format, parse } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DatePresetButtons } from '@/components/ui/date-preset-buttons';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { resolveRelativeDate, isRelativeDate, getActivePreset, getPresetLabelKey } from '@/lib/date-utils';
+import { resolveRelativeDate, isRelativeDate, getActivePreset, getPresetLabelKey, formatAbsoluteDate } from '@/lib/date-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './date-range-section.translations';
 
@@ -12,14 +11,6 @@ interface DateRangeSectionProps {
   dateFrom: string;
   dateTo: string;
   onChange: (dateFrom: string, dateTo: string) => void;
-}
-
-function formatAbsoluteDate(iso: string): string {
-  try {
-    return format(parse(iso, 'yyyy-MM-dd', new Date()), 'MMM d, yyyy');
-  } catch {
-    return iso;
-  }
 }
 
 export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectionProps) {
