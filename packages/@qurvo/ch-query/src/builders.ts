@@ -655,6 +655,11 @@ export class SelectBuilder {
     return this;
   }
 
+  final(): this {
+    this.node.final = true;
+    return this;
+  }
+
   from(table: string | QueryNode, alias?: string): this {
     this.node.from = table;
     if (alias) this.node.fromAlias = alias;

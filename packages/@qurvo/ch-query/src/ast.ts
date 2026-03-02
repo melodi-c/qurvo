@@ -184,6 +184,7 @@ export interface JoinClause {
 export interface SelectNode {
   type: 'select';
   distinct?: boolean;
+  final?: boolean;
   columns: Expr[];
   from?: string | QueryNode;
   fromAlias?: string;

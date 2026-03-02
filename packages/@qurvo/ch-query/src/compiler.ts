@@ -299,8 +299,9 @@ function compileSelect(node: SelectNode, ctx: CompilerContext): string {
       typeof node.from === 'string'
         ? node.from
         : `(${compileQuery(node.from, ctx)})`;
+    const finalSuffix = node.final ? ' FINAL' : '';
     parts.push(
-      `FROM ${fromSql}${node.fromAlias ? ` AS ${node.fromAlias}` : ''}`,
+      `FROM ${fromSql}${finalSuffix}${node.fromAlias ? ` AS ${node.fromAlias}` : ''}`,
     );
   }
 

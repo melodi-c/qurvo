@@ -101,13 +101,13 @@ export class QueryCohortMembersTool implements AiTool {
 
     if (isStatic) {
       personIdNode = select(col('person_id'))
-        .from('person_static_cohort FINAL')
+        .from('person_static_cohort').final()
         .where(eq(col('project_id'), projectIdParam), eq(col('cohort_id'), cohortIdParam))
         .limit(limit)
         .build();
     } else if (isMaterialized) {
       personIdNode = select(col('person_id'))
-        .from('cohort_members FINAL')
+        .from('cohort_members').final()
         .where(eq(col('project_id'), projectIdParam), eq(col('cohort_id'), cohortIdParam))
         .limit(limit)
         .build();
