@@ -9,7 +9,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
 } from 'recharts';
 import type {
   TrendSeriesResult,
@@ -21,11 +20,12 @@ import type {
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick, CHART_AXIS_TICK_COLOR } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
-import { seriesKey, isIncompleteBucket, buildDataPoints, snapAnnotationDateToBucket } from './trend-utils';
+import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { AnnotationsOverlay } from './AnnotationsOverlay';
 import { useAnnotationPositions } from './use-annotation-positions';
+import { useAnnotationReferenceLines } from './AnnotationReferenceLine';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './TrendChart.translations';
@@ -122,21 +122,6 @@ function renderCurrentSeries({ visibleSeriesKeys, allSeriesKeys, chartType, comp
 function renderFormulaSeries({ visibleFormulaKeys, compact }: SeriesRenderProps) {
   return visibleFormulaKeys.map((key, idx) => (
     <Line key={key} dataKey={key} stroke={FORMULA_COLORS[idx % FORMULA_COLORS.length]} strokeDasharray="8 4" strokeWidth={2} dot={false} activeDot={compact ? false : { r: 4 }} name={key} />
-  ));
-}
-
-// Annotation rendering helper
-
-function renderAnnotations(annotations: Annotation[] | undefined, granularity: string, compact?: boolean) {
-  if (!annotations?.length) {return null;}
-  return annotations.map((ann) => (
-    <ReferenceLine
-      key={ann.id}
-      x={snapAnnotationDateToBucket(ann.date, granularity)}
-      stroke={ann.color ?? 'hsl(var(--color-muted-foreground))'}
-      strokeDasharray="4 2"
-      label={compact ? undefined : { value: ann.label, position: 'insideTopLeft', fontSize: 11, fill: ann.color ?? 'hsl(var(--color-muted-foreground))' }}
-    />
   ));
 }
 
@@ -247,6 +232,7 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
     showOverlay ? annotations : undefined,
     granularity,
   );
+  const annotationLines = useAnnotationReferenceLines(annotations, granularity ?? 'day', compact);
 
   const customTick = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -317,7 +303,7 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}
                 {renderFormulaSeries(seriesProps)}
-                {renderAnnotations(annotations, granularity ?? 'day', compact)}
+                {annotationLines}
               </ChartComponent>
             </ResponsiveContainer>
             {showOverlay && onDeleteAnnotation && onCreateAnnotation && (
@@ -365,7 +351,7 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}
                 {renderFormulaSeries(seriesProps)}
-                {renderAnnotations(annotations, granularity ?? 'day', compact)}
+                {annotationLines}
               </LineChart>
             </ResponsiveContainer>
 
