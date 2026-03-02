@@ -98,8 +98,8 @@ export class TrendWidgetConfigDto {
   @ApiProperty({ enum: ['hour', 'day', 'week', 'month'], enumName: 'TrendGranularity' })
   granularity: 'hour' | 'day' | 'week' | 'month';
 
-  @ApiProperty({ enum: ['line', 'bar'], enumName: 'ChartType' })
-  chart_type: 'line' | 'bar';
+  @ApiProperty({ enum: ['line', 'bar', 'area', 'cumulative', 'number', 'value_bar', 'table', 'pie', 'world_map', 'calendar_heatmap'], enumName: 'ChartType' })
+  chart_type: 'line' | 'bar' | 'area' | 'cumulative' | 'number' | 'value_bar' | 'table' | 'pie' | 'world_map' | 'calendar_heatmap';
 
   date_from: string;
   date_to: string;
