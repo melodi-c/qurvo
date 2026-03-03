@@ -5,7 +5,7 @@ import { useProjectId } from '@/hooks/use-project-id';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
-import { useInsights, useDeleteInsight, useToggleFavorite } from '@/features/insights/hooks/use-insights';
+import { useInsights, useDeleteInsight, useDuplicateInsight, useToggleFavorite } from '@/features/insights/hooks/use-insights';
 import { useInsightsFilters } from '@/features/insights/hooks/use-insights-filters';
 import { InsightsFilterBar } from '@/features/insights/components/InsightsFilterBar';
 import { InsightsTable } from '@/features/insights/components/InsightsTable';
@@ -20,8 +20,14 @@ export default function InsightsPage() {
 
   const { data: insights, isLoading, isError, refetch } = useInsights();
   const deleteMutation = useDeleteInsight();
+  const duplicateMutation = useDuplicateInsight();
   const toggleFavoriteMutation = useToggleFavorite();
   const { filters, setFilter } = useInsightsFilters();
+
+  const handleDuplicate = useCallback(
+    (id: string) => duplicateMutation.mutateAsync(id),
+    [duplicateMutation],
+  );
 
   const handleDelete = useCallback(
     (id: string) => deleteMutation.mutateAsync(id),
@@ -116,6 +122,7 @@ export default function InsightsPage() {
             <InsightsTable
               data={filtered}
               onToggleFavorite={handleToggleFavorite}
+              onDuplicate={handleDuplicate}
               onDelete={handleDelete}
             />
           )}

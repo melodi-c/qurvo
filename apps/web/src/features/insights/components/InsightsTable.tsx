@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pencil, Trash2, Star, Share2 } from 'lucide-react';
+import { Pencil, Trash2, Star, Share2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DataTable, type Column } from '@/components/ui/data-table';
@@ -45,10 +45,11 @@ function getTypeSubtitle(insight: Insight): string {
 interface InsightsTableProps {
   data: Insight[];
   onToggleFavorite: (id: string, current: boolean) => void;
+  onDuplicate: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
-export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTableProps) {
+export function InsightsTable({ data, onToggleFavorite, onDuplicate, onDelete }: InsightsTableProps) {
   const { go } = useAppNavigate();
   const projectId = useProjectId();
   const { t } = useLocalTranslation(translations);
@@ -68,6 +69,15 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     (row: Insight) => go.insights.detailByType(row.type, row.id),
     [go],
   );
+
+  const handleDuplicate = useCallback(async (id: string) => {
+    try {
+      await onDuplicate(id);
+      toast.success(t('toastDuplicated'));
+    } catch {
+      toast.error(t('toastDuplicateFailed'));
+    }
+  }, [onDuplicate, t]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) {return;}
@@ -136,7 +146,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
     {
       key: 'actions',
       header: '',
-      headerClassName: 'text-right w-36',
+      headerClassName: 'text-right w-44',
       className: 'text-right',
       render: (row) => (
         <div
@@ -163,6 +173,15 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
           <Button
             variant="ghost"
             size="sm"
+            className="h-7 w-7 p-0 text-muted-foreground"
+            onClick={() => void handleDuplicate(row.id)}
+            title={t('duplicate')}
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             className="h-7 w-7 p-0"
             onClick={() => go.insights.detailByType(row.type, row.id)}
           >
@@ -179,7 +198,7 @@ export function InsightsTable({ data, onToggleFavorite, onDelete }: InsightsTabl
         </div>
       ),
     },
-  ], [onToggleFavorite, go, t, typeLabels]);
+  ], [onToggleFavorite, handleDuplicate, go, t, typeLabels]);
 
   return (
     <>
