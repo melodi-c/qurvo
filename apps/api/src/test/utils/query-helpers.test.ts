@@ -163,7 +163,7 @@ describe('analytics/time', () => {
 
   describe('timeRange', () => {
     test('UTC mode: produces >= from AND <= to with DateTime64 params', () => {
-      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'UTC'));
+      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'UTC', col('timestamp')));
       expect(sql).toContain('timestamp >= {p_0:DateTime64(3)}');
       expect(sql).toContain('timestamp <= {p_1:DateTime64(3)}');
       expect(params.p_0).toBe('2026-01-01 00:00:00');
@@ -171,17 +171,17 @@ describe('analytics/time', () => {
     });
 
     test('timezone mode: produces toDateTime64 calls', () => {
-      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'America/New_York'));
+      const { sql, params } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'America/New_York', col('timestamp')));
       expect(sql).toContain('toDateTime64({p_0:String}, 3, {p_1:String})');
       expect(params.p_1).toBe('America/New_York');
     });
 
     test('datetime to value is not double-converted', () => {
-      const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59', 'UTC'));
+      const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59', 'UTC', col('timestamp')));
       expect(params.p_1).toBe('2026-01-31 23:59:59');
     });
 
-    test('custom tsColumn uses qualified column name', () => {
+    test('qualified tsColumn uses qualified column name', () => {
       const { sql } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'UTC', col('events.timestamp')));
       expect(sql).toContain('events.timestamp >= {p_0:DateTime64(3)}');
       expect(sql).toContain('events.timestamp <= {p_1:DateTime64(3)}');
@@ -676,6 +676,7 @@ describe('analytics/filters', () => {
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
         cohortFilters: [{
           cohort_id: 'cohort-abc',
           definition: { type: 'AND', values: [] },
@@ -696,6 +697,7 @@ describe('analytics/filters', () => {
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
@@ -705,12 +707,13 @@ describe('analytics/filters', () => {
   });
 
   describe('analyticsWhere', () => {
-    test('minimal: projectId + timeRange', () => {
+    test('minimal: projectId + timeRange + tsColumn', () => {
       const expr = analyticsWhere({
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('project_id = {p_0:UUID}');
@@ -725,6 +728,7 @@ describe('analytics/filters', () => {
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'Europe/Moscow',
+        tsColumn: col('timestamp'),
       });
       const { sql, params } = compileWhere(expr);
       expect(sql).toContain('toDateTime64({p_1:String}, 3, {p_2:String})');
@@ -737,6 +741,7 @@ describe('analytics/filters', () => {
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
         eventName: 'page_view',
       });
       const { sql } = compileWhere(expr);
@@ -749,6 +754,7 @@ describe('analytics/filters', () => {
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
         eventNames: ['page_view', 'click'],
       });
       const { sql } = compileWhere(expr);
@@ -761,6 +767,7 @@ describe('analytics/filters', () => {
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
         filters: [
           { property: 'browser', operator: 'eq' as const, value: 'Chrome' },
         ],
@@ -770,7 +777,7 @@ describe('analytics/filters', () => {
       expect(sql).toContain(':String}');
     });
 
-    test('with tsColumn override uses qualified column ref', () => {
+    test('qualified tsColumn uses qualified column ref', () => {
       const expr = analyticsWhere({
         projectId: 'pid-123',
         from: '2026-01-01',
@@ -786,15 +793,16 @@ describe('analytics/filters', () => {
       expect(sql).not.toMatch(/WHERE.*[^.]timestamp >=/);
     });
 
-    test('without tsColumn defaults to unqualified timestamp', () => {
+    test('unqualified tsColumn uses unqualified timestamp', () => {
       const expr = analyticsWhere({
         projectId: 'pid-123',
         from: '2026-01-01',
         to: '2026-01-31',
         tz: 'UTC',
+        tsColumn: col('timestamp'),
       });
       const { sql } = compileWhere(expr);
-      // Default: unqualified — safe only when no 'timestamp' alias in SELECT
+      // Unqualified — safe only when no 'timestamp' alias in SELECT
       expect(sql).toMatch(/WHERE.*timestamp >= /);
       expect(sql).not.toContain('events.timestamp');
     });
@@ -931,6 +939,7 @@ describe('analytics integration: real-world stickiness query', () => {
         filters: [
           { property: 'browser', operator: 'eq' as const, value: 'Chrome' },
         ],
+        tsColumn: col('timestamp'),
       }))
       .groupBy(col('person_id'))
       .build();

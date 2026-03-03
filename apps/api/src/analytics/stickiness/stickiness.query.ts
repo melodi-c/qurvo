@@ -2,7 +2,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
 import {
-  select, col, count, uniqExact,
+  col, count, select, uniqExact,
 } from '@qurvo/ch-query';
 import {
   analyticsWhere, bucket, resolvedPerson, cohortBounds,
@@ -133,6 +133,7 @@ export async function queryStickiness(
       eventName: params.target_event,
       filters: params.filters,
       cohortFilters: params.cohort_filters,
+      tsColumn: col('timestamp'),
       ...cohortBounds(params),
     }))
     .groupBy(col('person_id'))

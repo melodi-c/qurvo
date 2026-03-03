@@ -188,6 +188,7 @@ export async function queryRetention(
         eventName: params.target_event,
         filters: params.filters,
         cohortFilters: params.cohort_filters,
+        tsColumn: col('timestamp'),
         dateTo,
         dateFrom,
       }))
@@ -241,6 +242,7 @@ export async function queryRetention(
       eventName: returnEventName,
       filters: params.filters,
       cohortFilters: params.cohort_filters,
+      tsColumn: col('timestamp'),
       dateTo,
       dateFrom,
     }))

@@ -85,6 +85,7 @@ async function queryWorldMap(
       eventName: series.event_name,
       filters: series.filters,
       cohortFilters: params.cohort_filters,
+      tsColumn: col('timestamp'),
       ...cohortBounds(params),
     }))
     .groupBy(col('country'))
@@ -124,6 +125,7 @@ async function queryCalendarHeatmap(
       eventName: series.event_name,
       filters: series.filters,
       cohortFilters: params.cohort_filters,
+      tsColumn: col('timestamp'),
       ...cohortBounds(params),
     }))
     .groupBy(col('hour_of_day'), col('day_of_week'))

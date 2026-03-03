@@ -225,18 +225,13 @@ export function tsParam(value: string, tz: string): Expr {
 /**
  * Returns an AND expression for `timestamp >= from AND timestamp <= to` with timezone handling.
  *
- * **Alias collision warning:**
- * By default this function compares against `col('timestamp')` (unqualified). ClickHouse
- * resolves unqualified names to aliases first (`prefer_column_name_to_alias = false`), so
- * if the SELECT list contains `... AS timestamp` (e.g. via `EVENT_BASE_COLUMNS`), the
- * WHERE clause will silently compare against the String alias instead of the DateTime64
- * table column — producing wrong results or type errors.
- *
- * @param tsColumn - Column expression override. Defaults to `col('timestamp')`.
- *   Pass `col('events.timestamp')` when the query SELECTs an alias named `timestamp`.
+ * @param tsColumn - Column expression for timestamp comparison. Required to prevent
+ *   alias collisions. Use `col('timestamp')` for standard analytics queries, or
+ *   `col('events.timestamp')` when the SELECT list contains an alias named `timestamp`
+ *   (e.g. via `EVENT_BASE_COLUMNS`).
  */
-export function timeRange(from: string, to: string, tz: string, tsColumn?: Expr): Expr {
-  const tsCol = tsColumn ?? col('timestamp');
+export function timeRange(from: string, to: string, tz: string, tsColumn: Expr): Expr {
+  const tsCol = tsColumn;
   const fromExpr = tsParam(from, tz);
   const toExpr = tsParam(to.length === 10 ? toChTs(to, true) : to, tz);
   return and(

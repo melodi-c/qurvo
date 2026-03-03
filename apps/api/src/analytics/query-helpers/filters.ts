@@ -179,17 +179,17 @@ export function analyticsWhere(opts: {
   dateTo?: string;
   dateFrom?: string;
   /**
-   * Override the timestamp column expression passed to `timeRange()`.
-   * Defaults to `col('timestamp')` (unqualified).
+   * Column expression for timestamp comparison in `timeRange()`.
+   * Required to prevent ClickHouse alias collisions.
    *
-   * **Must** be set to `col('events.timestamp')` when the query's SELECT list
-   * includes an alias named `timestamp` (e.g. via `EVENT_BASE_COLUMNS`) to
-   * prevent ClickHouse alias collision.
+   * Use `col('timestamp')` for standard analytics queries.
+   * Use `col('events.timestamp')` when the query's SELECT list includes an
+   * alias named `timestamp` (e.g. via `EVENT_BASE_COLUMNS`).
    *
    * @see timeRange
    * @see EVENT_BASE_COLUMNS
    */
-  tsColumn?: Expr;
+  tsColumn: Expr;
 }): Expr {
   return and(
     projectIs(opts.projectId),
