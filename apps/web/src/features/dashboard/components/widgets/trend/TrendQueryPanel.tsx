@@ -17,11 +17,11 @@ import { useProjectStore } from '@/stores/project';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { TrendSeriesBuilder } from './TrendSeriesBuilder';
 import { FormulaBuilder } from './FormulaBuilder';
-import { supportsGranularity, supportsCompare, supportsFormulas, supportsAnnotations, supportsBreakdown } from './trend-shared';
+import { supportsGranularity, supportsCompare, supportsFormulas, supportsBreakdown } from './trend-shared';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendQueryPanel.translations';
-import type { TrendWidgetConfig, TrendSeries, TrendFormula, ChartType } from '@/api/generated/Api';
+import type { TrendWidgetConfig, TrendSeries, TrendFormula } from '@/api/generated/Api';
 
 interface TrendQueryPanelProps {
   config: TrendWidgetConfig;
@@ -155,7 +155,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
                 <PillToggleGroup
                   options={chartTypeOptions}
                   value={config.chart_type}
-                  onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as ChartType }))}
+                  onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v }))}
                 />
               </div>
             </div>
@@ -165,7 +165,7 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               <PillToggleGroup
                 options={chartTypeOptions}
                 value={config.chart_type}
-                onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as ChartType }))}
+                onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v }))}
               />
             </div>
           )}
