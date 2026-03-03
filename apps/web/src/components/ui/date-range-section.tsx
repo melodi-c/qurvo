@@ -11,17 +11,19 @@ interface DateRangeSectionProps {
   dateFrom: string;
   dateTo: string;
   onChange: (dateFrom: string, dateTo: string) => void;
+  /** Project timezone — when provided, relative dates are resolved in this timezone. */
+  timezone?: string;
 }
 
-export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectionProps) {
+export function DateRangeSection({ dateFrom, dateTo, onChange, timezone }: DateRangeSectionProps) {
   const { t } = useLocalTranslation(translations);
 
   // Resolve relative dates for display in the date picker
-  const resolvedFrom = resolveRelativeDate(dateFrom);
-  const resolvedTo = resolveRelativeDate(dateTo);
+  const resolvedFrom = resolveRelativeDate(dateFrom, timezone);
+  const resolvedTo = resolveRelativeDate(dateTo, timezone);
 
   // Check if a known preset is active
-  const activePreset = getActivePreset(dateFrom, dateTo);
+  const activePreset = getActivePreset(dateFrom, dateTo, timezone);
   const presetLabelKey = activePreset ? getPresetLabelKey(dateFrom) : undefined;
 
   return (
@@ -56,7 +58,7 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
               value={resolvedFrom}
               onChange={(v) => {
                 // Manual date picker selection stores absolute dates
-                onChange(v, isRelativeDate(dateTo) ? resolveRelativeDate(dateTo) : dateTo);
+                onChange(v, isRelativeDate(dateTo) ? resolveRelativeDate(dateTo, timezone) : dateTo);
               }}
             />
           </div>
@@ -66,7 +68,7 @@ export function DateRangeSection({ dateFrom, dateTo, onChange }: DateRangeSectio
               value={resolvedTo}
               onChange={(v) => {
                 // Manual date picker selection stores absolute dates
-                onChange(isRelativeDate(dateFrom) ? resolveRelativeDate(dateFrom) : dateFrom, v);
+                onChange(isRelativeDate(dateFrom) ? resolveRelativeDate(dateFrom, timezone) : dateFrom, v);
               }}
             />
           </div>

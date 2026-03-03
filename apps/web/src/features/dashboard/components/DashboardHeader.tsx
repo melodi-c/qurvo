@@ -10,6 +10,7 @@ import { DateRangeSection } from '@/components/ui/date-range-section';
 import { useDashboardStore } from '../store';
 import { hasActiveOverrides } from '../lib/filter-overrides';
 import { useProjectId } from '@/hooks/use-project-id';
+import { useProjectStore } from '@/stores/project';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { getPresetLabelKey, formatAbsoluteDate, resolveRelativeDate, isRelativeDate } from '@/lib/date-utils';
 import dateRangeTranslations from '@/components/ui/date-range-section.translations';
@@ -18,6 +19,7 @@ import translations from './DashboardHeader.translations';
 function useDateRangeLabel(dateFrom: string | null, dateTo: string | null) {
   const { t: tDate } = useLocalTranslation(dateRangeTranslations);
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
 
   if (!dateFrom || !dateTo) {
     return t('perWidget');
@@ -29,10 +31,10 @@ function useDateRangeLabel(dateFrom: string | null, dateTo: string | null) {
   }
 
   const fromDisplay = isRelativeDate(dateFrom)
-    ? formatAbsoluteDate(resolveRelativeDate(dateFrom))
+    ? formatAbsoluteDate(resolveRelativeDate(dateFrom, timezone))
     : formatAbsoluteDate(dateFrom);
   const toDisplay = isRelativeDate(dateTo)
-    ? formatAbsoluteDate(resolveRelativeDate(dateTo))
+    ? formatAbsoluteDate(resolveRelativeDate(dateTo, timezone))
     : formatAbsoluteDate(dateTo);
 
   return `${fromDisplay} – ${toDisplay}`;
@@ -48,6 +50,7 @@ export function DashboardHeader() {
   const enterEditMode = useDashboardStore((s) => s.enterEditMode);
   const cancelEditMode = useDashboardStore((s) => s.cancelEditMode);
   const projectId = useProjectId();
+  const timezone = useProjectStore((s) => s.projectTimezone);
   const { t } = useLocalTranslation(translations);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -88,6 +91,7 @@ export function DashboardHeader() {
                         dateFrom={filterOverrides.dateFrom}
                         dateTo={filterOverrides.dateTo}
                         onChange={(from, to) => setDateRange(from, to)}
+                        timezone={timezone}
                       />
                       <Button
                         variant="ghost"
@@ -103,6 +107,7 @@ export function DashboardHeader() {
                       dateFrom="-30d"
                       dateTo={new Date().toISOString().slice(0, 10)}
                       onChange={(from, to) => setDateRange(from, to)}
+                      timezone={timezone}
                     />
                   )}
                 </div>
