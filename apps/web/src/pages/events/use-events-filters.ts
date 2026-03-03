@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { StepFilter } from '@/api/generated/Api';
-import { daysAgoIso, todayIso } from '@/lib/date-utils';
+import { daysAgoIso } from '@/lib/date-utils';
 import { parseFilters } from '@/lib/filter-utils';
 import { useDebouncedUrlSync } from '@/hooks/use-debounced-url-sync';
 
@@ -33,7 +33,7 @@ export function useEventsFilters() {
   const [filterState, setFilterState] = useState<EventsFilterState>(() => ({
     eventName: searchParams.get('event') ?? '',
     dateFrom: searchParams.get('from') ?? daysAgoIso(7),
-    dateTo: searchParams.get('to') ?? todayIso(),
+    dateTo: searchParams.get('to') ?? '-0d',
     filters: parseFilters(searchParams.get('filters')),
   }));
 

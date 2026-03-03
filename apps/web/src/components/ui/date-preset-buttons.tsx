@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { ANCHOR_PRESETS, DATE_PRESETS, getActivePreset, todayIso } from '@/lib/date-utils';
+import { ANCHOR_PRESETS, DATE_PRESETS, getActivePreset } from '@/lib/date-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './date-preset-buttons.translations';
 
@@ -20,7 +20,7 @@ export function DatePresetButtons({ dateFrom, dateTo, onChange, className }: Dat
         <button
           key={relative}
           type="button"
-          onClick={() => onChange(relative, todayIso())}
+          onClick={() => onChange(relative, '-0d')}
           className={cn(
             'rounded-md border px-2.5 py-2 sm:py-1 text-xs font-medium transition-colors',
             activePreset === relative
@@ -35,7 +35,7 @@ export function DatePresetButtons({ dateFrom, dateTo, onChange, className }: Dat
         <button
           key={relative}
           type="button"
-          onClick={() => onChange(relative, todayIso())}
+          onClick={() => onChange(relative, '-0d')}
           className={cn(
             'rounded-md border px-2.5 py-2 sm:py-1 text-xs font-medium transition-colors',
             activePreset === relative

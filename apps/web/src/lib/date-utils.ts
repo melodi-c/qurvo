@@ -12,9 +12,9 @@ export function daysAgoIso(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Default date range: relative -30d -> today. */
+/** Default date range: relative -30d -> today (relative). */
 export function defaultDateRange(): { from: string; to: string } {
-  return { from: '-30d', to: todayIso() };
+  return { from: '-30d', to: '-0d' };
 }
 
 /**
@@ -150,10 +150,13 @@ export function getPresetLabelKey(dateFrom: string): PresetLabelKey | undefined 
  * - Legacy absolute dates that align with a preset
  */
 export function getActivePreset(dateFrom: string, dateTo: string): string | undefined {
+  // dateTo must represent "today": either the relative token `-0d` or
+  // a legacy absolute date that equals today's ISO string.
+  const dateToIsToday = dateTo === '-0d' || dateTo.slice(0, 10) === todayIso();
+
   // Check relative string match (new format)
   if (isRelativeDate(dateFrom)) {
-    // Presets always set dateTo to todayIso() — only match if dateTo is today
-    if (dateTo.slice(0, 10) !== todayIso()) {
+    if (!dateToIsToday) {
       return undefined;
     }
     // Check day-based presets
@@ -172,8 +175,7 @@ export function getActivePreset(dateFrom: string, dateTo: string): string | unde
   }
 
   // Legacy: check absolute dates against presets
-  const todayStr = todayIso();
-  if (dateTo.slice(0, 10) !== todayStr) {
+  if (!dateToIsToday) {
     return undefined;
   }
   for (const preset of DATE_PRESETS) {

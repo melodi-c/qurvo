@@ -1,5 +1,4 @@
 import type { ChartType, TrendWidgetConfig } from '@/api/generated/Api';
-import { todayIso } from '@/lib/date-utils';
 
 export const SERIES_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
@@ -51,7 +50,7 @@ export function defaultTrendConfig(seriesLabel = 'Series 1'): TrendWidgetConfig 
     granularity: 'day',
     chart_type: 'line',
     date_from: '-30d',
-    date_to: todayIso(),
+    date_to: '-0d',
     compare: false,
   };
 }

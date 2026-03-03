@@ -1,5 +1,4 @@
 import type { LifecycleWidgetConfig } from '@/api/generated/Api';
-import { todayIso } from '@/lib/date-utils';
 
 export function defaultLifecycleConfig(): LifecycleWidgetConfig {
   return {
@@ -7,7 +6,7 @@ export function defaultLifecycleConfig(): LifecycleWidgetConfig {
     target_event: '',
     granularity: 'day',
     date_from: '-30d',
-    date_to: todayIso(),
+    date_to: '-0d',
   };
 }
 
