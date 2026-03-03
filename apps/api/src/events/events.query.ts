@@ -116,6 +116,7 @@ export async function queryEvents(
     tz: 'UTC',
     eventName: params.event_name,
     filters: validFilters.length ? validFilters : undefined,
+    tsColumn: col('events.timestamp'),
   });
 
   const node = select(...EVENT_BASE_COLUMNS)
@@ -152,8 +153,8 @@ export async function queryEventDetail(
     .where(
       projectIs(params.project_id),
       eq(col('event_id'), param('UUID', params.event_id)),
-      gte(col('events.timestamp'), param('DateTime', tsFrom)),
-      lte(col('events.timestamp'), param('DateTime', tsTo)),
+      gte(col('events.timestamp'), param('DateTime64(3)', tsFrom)),
+      lte(col('events.timestamp'), param('DateTime64(3)', tsTo)),
     )
     .limit(1)
     .build();
