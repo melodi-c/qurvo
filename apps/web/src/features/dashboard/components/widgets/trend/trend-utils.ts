@@ -1,4 +1,5 @@
 import type { TrendSeriesResult } from '@/api/generated/Api';
+import { resolveRelativeDate } from '@/lib/date-utils';
 
 /** Build a display key for a series, including breakdown value when present. */
 export function seriesKey(s: TrendSeriesResult): string {
@@ -84,6 +85,86 @@ export function snapAnnotationDateToBucket(date: string, granularity: string): s
   return date + ' 00:00:00';
 }
 
+/** Optional date range + granularity for generating full bucket sets. */
+export interface DateRangeParams {
+  dateFrom: string;
+  dateTo: string;
+  granularity: string;
+}
+
+/**
+ * Generate the full list of bucket strings for a date range and granularity.
+ * Buckets are formatted to match ClickHouse output (YYYY-MM-DD for date-only
+ * or YYYY-MM-DD HH:MM:SS for DateTime). If `existingSample` is provided, the
+ * format is detected from it (space means DateTime); otherwise plain YYYY-MM-DD.
+ */
+export function generateBuckets(
+  dateFrom: string,
+  dateTo: string,
+  granularity: string,
+  existingSample?: string,
+): string[] {
+  const fromIso = resolveRelativeDate(dateFrom);
+  const toIso = resolveRelativeDate(dateTo);
+
+  // Detect format: if any existing bucket contains a space, use DateTime format
+  const useDateTime = existingSample ? existingSample.includes(' ') : false;
+  const fmt = (d: Date): string => {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    if (useDateTime) {
+      if (granularity === 'hour') {
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        return `${y}-${m}-${day} ${h}:00:00`;
+      }
+      return `${y}-${m}-${day} 00:00:00`;
+    }
+    return `${y}-${m}-${day}`;
+  };
+
+  const start = new Date(fromIso + 'T00:00:00Z');
+  const end = new Date(toIso + 'T00:00:00Z');
+  const buckets: string[] = [];
+
+  if (granularity === 'hour') {
+    // Hour buckets: every hour from start of dateFrom to end of dateTo
+    const cursor = new Date(start);
+    const limit = new Date(end);
+    limit.setUTCDate(limit.getUTCDate() + 1); // include all hours of dateTo
+    while (cursor < limit) {
+      buckets.push(fmt(cursor));
+      cursor.setUTCHours(cursor.getUTCHours() + 1);
+    }
+  } else if (granularity === 'day') {
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      buckets.push(fmt(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  } else if (granularity === 'week') {
+    // Week buckets start on Monday (ClickHouse toStartOfWeek mode=1)
+    const cursor = new Date(start);
+    // Snap to Monday of the week containing start
+    const dow = cursor.getUTCDay(); // 0=Sun, 1=Mon, ...
+    const diffToMonday = dow === 0 ? 6 : dow - 1;
+    cursor.setUTCDate(cursor.getUTCDate() - diffToMonday);
+    while (cursor <= end) {
+      buckets.push(fmt(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 7);
+    }
+  } else if (granularity === 'month') {
+    // Month buckets: first day of each month
+    const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+    while (cursor <= end) {
+      buckets.push(fmt(cursor));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  }
+
+  return buckets;
+}
+
 /**
  * Build cumulative (running total) data points from series.
  * Wraps `buildDataPoints()` and applies a running sum per series key.
@@ -93,8 +174,9 @@ export function snapAnnotationDateToBucket(date: string, granularity: string): s
 export function buildCumulativeDataPoints(
   series: TrendSeriesResult[],
   previousSeries?: TrendSeriesResult[],
+  dateRange?: DateRangeParams,
 ): Record<string, string | number>[] {
-  const points = buildDataPoints(series, previousSeries);
+  const points = buildDataPoints(series, previousSeries, dateRange);
   if (points.length === 0) {return points;}
 
   // Collect all numeric keys (everything except 'bucket')
@@ -123,15 +205,30 @@ export function buildCumulativeDataPoints(
   });
 }
 
-/** Build chart data points from series, optionally merging previous-period data. */
+/**
+ * Build chart data points from series, optionally merging previous-period data.
+ * When `dateRange` is provided, generates the full set of buckets for the range
+ * so that the X axis always shows every date/hour/week/month in the range,
+ * filling missing data points with 0.
+ */
 export function buildDataPoints(
   series: TrendSeriesResult[],
   previousSeries?: TrendSeriesResult[],
+  dateRange?: DateRangeParams,
 ): Record<string, string | number>[] {
   const bucketSet = new Set<string>();
   for (const s of series) {
     for (const dp of s.data) {bucketSet.add(dp.bucket);}
   }
+
+  // When dateRange is provided, generate the full bucket set and merge
+  if (dateRange) {
+    // Detect bucket format from existing data (if any)
+    const existingSample = bucketSet.size > 0 ? bucketSet.values().next().value as string : undefined;
+    const generated = generateBuckets(dateRange.dateFrom, dateRange.dateTo, dateRange.granularity, existingSample);
+    for (const b of generated) {bucketSet.add(b);}
+  }
+
   const buckets = Array.from(bucketSet).sort();
 
   return buckets.map((bucket, index) => {

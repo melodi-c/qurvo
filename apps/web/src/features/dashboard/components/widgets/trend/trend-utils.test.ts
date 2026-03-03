@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { buildDataPoints, buildCumulativeDataPoints, isIncompleteBucket, snapAnnotationDateToBucket } from './trend-utils';
+import { buildDataPoints, buildCumulativeDataPoints, isIncompleteBucket, snapAnnotationDateToBucket, generateBuckets } from './trend-utils';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -439,5 +439,228 @@ describe('buildCumulativeDataPoints — compare mode', () => {
       { bucket: '2026-02-21', 'Page View': 30, 'prev_Page View': 20 },
       { bucket: '2026-02-22', 'Page View': 35, 'prev_Page View': 23 },
     ]);
+  });
+});
+
+// ---------- generateBuckets ----------
+
+describe('generateBuckets — day granularity', () => {
+  it('generates a bucket for each day in the range', () => {
+    const result = generateBuckets('2026-02-20', '2026-02-23', 'day');
+    expect(result).toEqual([
+      '2026-02-20',
+      '2026-02-21',
+      '2026-02-22',
+      '2026-02-23',
+    ]);
+  });
+
+  it('returns a single bucket when dateFrom === dateTo', () => {
+    const result = generateBuckets('2026-02-20', '2026-02-20', 'day');
+    expect(result).toEqual(['2026-02-20']);
+  });
+
+  it('uses DateTime format when existingSample has space', () => {
+    const result = generateBuckets('2026-02-20', '2026-02-22', 'day', '2026-02-20 00:00:00');
+    expect(result).toEqual([
+      '2026-02-20 00:00:00',
+      '2026-02-21 00:00:00',
+      '2026-02-22 00:00:00',
+    ]);
+  });
+});
+
+describe('generateBuckets — hour granularity', () => {
+  it('generates hourly buckets for a single day', () => {
+    const result = generateBuckets('2026-02-20', '2026-02-20', 'hour');
+    expect(result).toHaveLength(24);
+    expect(result[0]).toBe('2026-02-20');
+    expect(result[23]).toBe('2026-02-20');
+  });
+
+  it('generates hourly buckets in DateTime format', () => {
+    const result = generateBuckets('2026-02-20', '2026-02-20', 'hour', '2026-02-20 00:00:00');
+    expect(result).toHaveLength(24);
+    expect(result[0]).toBe('2026-02-20 00:00:00');
+    expect(result[1]).toBe('2026-02-20 01:00:00');
+    expect(result[23]).toBe('2026-02-20 23:00:00');
+  });
+
+  it('spans midnight for multi-day range', () => {
+    const result = generateBuckets('2026-02-20', '2026-02-21', 'hour', '2026-02-20 00:00:00');
+    expect(result).toHaveLength(48);
+    expect(result[0]).toBe('2026-02-20 00:00:00');
+    expect(result[24]).toBe('2026-02-21 00:00:00');
+    expect(result[47]).toBe('2026-02-21 23:00:00');
+  });
+});
+
+describe('generateBuckets — week granularity', () => {
+  it('generates weekly buckets starting on Monday', () => {
+    // 2026-02-20 is Friday => snaps to Monday 2026-02-16
+    // 2026-03-06 is Friday => covers Monday 2026-03-02
+    const result = generateBuckets('2026-02-20', '2026-03-06', 'week');
+    expect(result).toEqual([
+      '2026-02-16',
+      '2026-02-23',
+      '2026-03-02',
+    ]);
+  });
+
+  it('includes week bucket even if range starts on a non-Monday', () => {
+    // 2026-02-25 is Wednesday => snaps to Monday 2026-02-23
+    const result = generateBuckets('2026-02-25', '2026-03-01', 'week');
+    expect(result).toEqual([
+      '2026-02-23',
+    ]);
+  });
+});
+
+describe('generateBuckets — month granularity', () => {
+  it('generates monthly buckets as first day of month', () => {
+    const result = generateBuckets('2026-01-15', '2026-03-10', 'month');
+    expect(result).toEqual([
+      '2026-01-01',
+      '2026-02-01',
+      '2026-03-01',
+    ]);
+  });
+
+  it('generates single month bucket', () => {
+    const result = generateBuckets('2026-02-05', '2026-02-28', 'month');
+    expect(result).toEqual(['2026-02-01']);
+  });
+});
+
+describe('generateBuckets — relative dates', () => {
+  it('resolves relative date tokens before generating', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-27T10:00:00Z'));
+
+    const result = generateBuckets('-3d', '-0d', 'day');
+    expect(result).toEqual([
+      '2026-02-24',
+      '2026-02-25',
+      '2026-02-26',
+      '2026-02-27',
+    ]);
+  });
+});
+
+// ---------- buildDataPoints with dateRange ----------
+
+describe('buildDataPoints — with dateRange (full X axis)', () => {
+  it('fills missing day buckets with zero', () => {
+    const series = [
+      {
+        label: 'Page View',
+        data: [{ bucket: '2026-02-21', value: 42 }],
+      },
+    ];
+
+    const result = buildDataPoints(series, undefined, {
+      dateFrom: '2026-02-20',
+      dateTo: '2026-02-23',
+      granularity: 'day',
+    });
+
+    expect(result).toHaveLength(4);
+    expect(result[0]).toMatchObject({ bucket: '2026-02-20', 'Page View': 0 });
+    expect(result[1]).toMatchObject({ bucket: '2026-02-21', 'Page View': 42 });
+    expect(result[2]).toMatchObject({ bucket: '2026-02-22', 'Page View': 0 });
+    expect(result[3]).toMatchObject({ bucket: '2026-02-23', 'Page View': 0 });
+  });
+
+  it('works with empty series (all buckets zeroed)', () => {
+    const series = [
+      {
+        label: 'Click',
+        data: [],
+      },
+    ];
+
+    const result = buildDataPoints(series, undefined, {
+      dateFrom: '2026-02-20',
+      dateTo: '2026-02-22',
+      granularity: 'day',
+    });
+
+    expect(result).toHaveLength(3);
+    expect(result.every((p) => p['Click'] === 0)).toBe(true);
+  });
+
+  it('preserves positional previous-period matching with filled buckets', () => {
+    const series = [
+      {
+        label: 'A',
+        data: [{ bucket: '2026-02-21', value: 10 }],
+      },
+    ];
+    const previousSeries = [
+      {
+        label: 'A',
+        data: [
+          { bucket: '2026-02-13', value: 5 },
+          { bucket: '2026-02-14', value: 7 },
+          { bucket: '2026-02-15', value: 9 },
+        ],
+      },
+    ];
+
+    const result = buildDataPoints(series, previousSeries, {
+      dateFrom: '2026-02-20',
+      dateTo: '2026-02-22',
+      granularity: 'day',
+    });
+
+    expect(result).toHaveLength(3);
+    // Positional: index 0 -> prev[0]=5, index 1 -> prev[1]=7, index 2 -> prev[2]=9
+    expect(result[0]).toMatchObject({ bucket: '2026-02-20', A: 0, prev_A: 5 });
+    expect(result[1]).toMatchObject({ bucket: '2026-02-21', A: 10, prev_A: 7 });
+    expect(result[2]).toMatchObject({ bucket: '2026-02-22', A: 0, prev_A: 9 });
+  });
+
+  it('does not change behavior when dateRange is undefined', () => {
+    const series = [
+      {
+        label: 'X',
+        data: [
+          { bucket: '2026-02-20', value: 1 },
+          { bucket: '2026-02-22', value: 3 },
+        ],
+      },
+    ];
+
+    // Without dateRange — only API buckets
+    const result = buildDataPoints(series);
+    expect(result).toHaveLength(2);
+    expect(result[0].bucket).toBe('2026-02-20');
+    expect(result[1].bucket).toBe('2026-02-22');
+  });
+});
+
+describe('buildCumulativeDataPoints — with dateRange', () => {
+  it('accumulates correctly with filled zero buckets', () => {
+    const series = [
+      {
+        label: 'Page View',
+        data: [
+          { bucket: '2026-02-21', value: 10 },
+          { bucket: '2026-02-23', value: 5 },
+        ],
+      },
+    ];
+
+    const result = buildCumulativeDataPoints(series, undefined, {
+      dateFrom: '2026-02-20',
+      dateTo: '2026-02-23',
+      granularity: 'day',
+    });
+
+    expect(result).toHaveLength(4);
+    expect(result[0]).toMatchObject({ bucket: '2026-02-20', 'Page View': 0 });
+    expect(result[1]).toMatchObject({ bucket: '2026-02-21', 'Page View': 10 });
+    expect(result[2]).toMatchObject({ bucket: '2026-02-22', 'Page View': 10 }); // stays at 10
+    expect(result[3]).toMatchObject({ bucket: '2026-02-23', 'Page View': 15 });
   });
 });

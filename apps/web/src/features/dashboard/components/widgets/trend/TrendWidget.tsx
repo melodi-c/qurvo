@@ -107,6 +107,8 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
           seriesConfig={config!.series}
           aggregateData={aggregateResult}
           heatmapData={aggregateResult?.heatmap}
+          dateFrom={config!.date_from}
+          dateTo={config!.date_to}
         />
       )}
     </WidgetShell>

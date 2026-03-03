@@ -169,6 +169,8 @@ function PublicTrendViz({ widget, precomputed }: { widget: Widget; precomputed: 
           formulas={config.formulas}
           aggregateData={aggregateResult}
           heatmapData={aggregateResult?.heatmap}
+          dateFrom={config.date_from}
+          dateTo={config.date_to}
         />
       )}
     </WidgetShell>

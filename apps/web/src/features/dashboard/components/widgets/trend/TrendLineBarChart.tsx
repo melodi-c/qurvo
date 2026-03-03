@@ -20,7 +20,7 @@ import type {
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_FORMULA_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick, CHART_AXIS_TICK_COLOR } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
-import { seriesKey, isIncompleteBucket, buildDataPoints } from './trend-utils';
+import { seriesKey, isIncompleteBucket, buildDataPoints, type DateRangeParams } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { AnnotationsOverlay } from './AnnotationsOverlay';
@@ -52,6 +52,9 @@ export interface TrendLineBarChartProps {
   onEditAnnotation?: (annotation: Annotation) => void;
   onDeleteAnnotation?: (id: string) => Promise<void>;
   onCreateAnnotation?: (date: string) => void;
+  /** Date range for generating full X axis bucket set */
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 // Custom XAxis tick that reports its pixel position for the annotation overlay
@@ -134,10 +137,11 @@ interface SeriesDataOptions {
   granularity?: TrendGranularity;
   timezone?: string;
   onToggleSeries?: (idx: number) => void;
+  dateRange?: DateRangeParams;
 }
 
 function useSeriesData(opts: SeriesDataOptions) {
-  const { series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries } = opts;
+  const { series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries, dateRange } = opts;
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
 
@@ -164,7 +168,7 @@ function useSeriesData(opts: SeriesDataOptions) {
   const { formulaResults, formulaKeys, formulaTotals } = useFormulaResults(series, formulas);
 
   const data = useMemo(() => {
-    const points = buildDataPoints(series, previousSeries);
+    const points = buildDataPoints(series, previousSeries, dateRange);
     if (formulaResults.length > 0) {
       for (const point of points) {
         const bucket = point.bucket as string;
@@ -175,7 +179,7 @@ function useSeriesData(opts: SeriesDataOptions) {
       }
     }
     return points;
-  }, [series, previousSeries, formulaResults, formulaKeys]);
+  }, [series, previousSeries, dateRange, formulaResults, formulaKeys]);
 
   const seriesTotals = useMemo(
     () => series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)),
@@ -224,7 +228,8 @@ function useSeriesData(opts: SeriesDataOptions) {
 
 // Component
 
-export function TrendLineBarChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations, seriesConfig, onToggleSeries, onEditAnnotation, onDeleteAnnotation, onCreateAnnotation }: TrendLineBarChartProps) {
+// eslint-disable-next-line complexity
+export function TrendLineBarChart({ series, previousSeries, chartType, granularity, compact, formulas, annotations, seriesConfig, onToggleSeries, onEditAnnotation, onDeleteAnnotation, onCreateAnnotation, dateFrom, dateTo }: TrendLineBarChartProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
   const showOverlay = !compact && !!onEditAnnotation;
@@ -253,7 +258,10 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
     data, seriesTotals, hasIncomplete, completeData, incompleteData,
     visibleSeriesKeys, visiblePrevKeys, visibleFormulaKeys,
     hiddenKeys, toggleSeries,
-  } = useSeriesData({ series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries });
+  } = useSeriesData({
+    series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries,
+    dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity } : undefined,
+  });
 
   const ChartComponent = chartType === 'bar' ? BarChart : LineChart;
   const useSimpleChart = chartType === 'bar' || !hasIncomplete;

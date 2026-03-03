@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { CHART_COLORS_HEX, STATUS_COLORS } from '@/lib/chart-colors';
-import { buildDataPoints, seriesKey } from './trend-utils';
+import { buildDataPoints, seriesKey, type DateRangeParams } from './trend-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './TrendTableViz.translations';
@@ -22,6 +22,9 @@ interface TrendTableVizProps {
   previousSeries?: TrendSeriesResult[];
   granularity?: TrendGranularity;
   compact?: boolean;
+  /** Date range for generating full X axis bucket set */
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -70,7 +73,7 @@ function SortIcon({ direction }: { direction: SortDirection }) {
 /** Maximum rows shown in compact (dashboard widget) mode. */
 const COMPACT_MAX_ROWS = 8;
 
-export function TrendTableViz({ series, previousSeries, granularity, compact }: TrendTableVizProps) {
+export function TrendTableViz({ series, previousSeries, granularity, compact, dateFrom, dateTo }: TrendTableVizProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
   const showCompare = !!previousSeries && previousSeries.length > 0;
@@ -79,7 +82,14 @@ export function TrendTableViz({ series, previousSeries, granularity, compact }: 
 
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
 
-  const data = useMemo(() => buildDataPoints(series, previousSeries), [series, previousSeries]);
+  const dateRange: DateRangeParams | undefined = dateFrom && dateTo && granularity
+    ? { dateFrom, dateTo, granularity }
+    : undefined;
+  const data = useMemo(
+    () => buildDataPoints(series, previousSeries, dateRange),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, previousSeries, dateFrom, dateTo, granularity],
+  );
 
   const prevKeys = useMemo(
     () => (previousSeries ?? []).map((s) => `prev_${seriesKey(s)}`),

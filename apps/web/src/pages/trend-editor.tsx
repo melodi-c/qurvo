@@ -180,6 +180,8 @@ export default function TrendEditorPage() {
         onDeleteAnnotation={handleDeleteAnnotation}
         onCreateAnnotation={handleCreateAnnotationFromOverlay}
         heatmapData={aggregateResult?.heatmap}
+        dateFrom={config.date_from}
+        dateTo={config.date_to}
       />
       <AnnotationDialog
         open={annotationDialogOpen}
