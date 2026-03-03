@@ -16,7 +16,7 @@ import type {
 } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_COMPARE_COLORS_HSL, CHART_TOOLTIP_STYLE, chartAxisTick, CHART_AXIS_TICK_COLOR } from '@/lib/chart-colors';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
-import { seriesKey, isIncompleteBucket, buildCumulativeDataPoints } from './trend-utils';
+import { seriesKey, isIncompleteBucket, buildCumulativeDataPoints, type DateRangeParams } from './trend-utils';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
 import { AnnotationsOverlay } from './AnnotationsOverlay';
 import { useAnnotationPositions } from './use-annotation-positions';
@@ -73,8 +73,12 @@ interface TrendCumulativeChartProps {
   onEditAnnotation?: (annotation: Annotation) => void;
   onDeleteAnnotation?: (id: string) => Promise<void>;
   onCreateAnnotation?: (date: string) => void;
+  /** Date range for generating full X axis bucket set */
+  dateFrom?: string;
+  dateTo?: string;
 }
 
+// eslint-disable-next-line complexity
 export function TrendCumulativeChart({
   series,
   previousSeries,
@@ -86,6 +90,8 @@ export function TrendCumulativeChart({
   onEditAnnotation,
   onDeleteAnnotation,
   onCreateAnnotation,
+  dateFrom,
+  dateTo,
 }: TrendCumulativeChartProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
@@ -135,9 +141,13 @@ export function TrendCumulativeChart({
   );
 
   // Build cumulative data points (no formulas for cumulative)
+  const dateRange: DateRangeParams | undefined = dateFrom && dateTo && granularity
+    ? { dateFrom, dateTo, granularity }
+    : undefined;
   const data = useMemo(
-    () => buildCumulativeDataPoints(series, previousSeries),
-    [series, previousSeries],
+    () => buildCumulativeDataPoints(series, previousSeries, dateRange),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, previousSeries, dateFrom, dateTo, granularity],
   );
 
   // Totals: use last cumulative value (final running total)

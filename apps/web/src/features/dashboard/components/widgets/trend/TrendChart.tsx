@@ -41,6 +41,9 @@ interface TrendChartProps {
   onCreateAnnotation?: (date: string) => void;
   /** Aggregate data for calendar heatmap chart type */
   heatmapData?: HeatmapRow[];
+  /** Date range for generating full X axis bucket set */
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 /**
@@ -94,6 +97,8 @@ export function TrendChart({ chartType, ...rest }: TrendChartProps) {
           previousSeries={rest.previousSeries}
           granularity={rest.granularity}
           compact={rest.compact}
+          dateFrom={rest.dateFrom}
+          dateTo={rest.dateTo}
         />
       );
 

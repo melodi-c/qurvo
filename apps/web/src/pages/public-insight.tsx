@@ -111,6 +111,8 @@ function InsightTrendViz({ config, precomputed }: { config: TrendWidgetConfig; p
           formulas={config.formulas}
           aggregateData={aggregateResult}
           heatmapData={aggregateResult?.heatmap}
+          dateFrom={config.date_from}
+          dateTo={config.date_to}
         />
       )}
     </WidgetShell>

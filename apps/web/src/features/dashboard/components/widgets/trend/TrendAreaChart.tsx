@@ -30,6 +30,7 @@ import {
   seriesKey,
   isIncompleteBucket,
   buildDataPoints,
+  type DateRangeParams,
 } from './trend-utils';
 import { useFormulaResults } from '@/features/dashboard/hooks/use-formula-results';
 import { CompactLegend, LegendTable } from './TrendLegendTable';
@@ -60,6 +61,9 @@ export interface TrendAreaChartProps {
   onEditAnnotation?: (annotation: Annotation) => void;
   onDeleteAnnotation?: (id: string) => Promise<void>;
   onCreateAnnotation?: (date: string) => void;
+  /** Date range for generating full X axis bucket set */
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 // Custom XAxis tick that reports its pixel position for the annotation overlay
@@ -117,6 +121,7 @@ interface SeriesDataOptions {
   granularity?: TrendGranularity;
   timezone?: string;
   onToggleSeries?: (idx: number) => void;
+  dateRange?: DateRangeParams;
 }
 
 function useSeriesData(opts: SeriesDataOptions) {
@@ -128,6 +133,7 @@ function useSeriesData(opts: SeriesDataOptions) {
     granularity,
     timezone,
     onToggleSeries,
+    dateRange,
   } = opts;
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
   const allSeriesKeys = useMemo(
@@ -164,7 +170,7 @@ function useSeriesData(opts: SeriesDataOptions) {
   );
 
   const data = useMemo(() => {
-    const points = buildDataPoints(series, previousSeries);
+    const points = buildDataPoints(series, previousSeries, dateRange);
     if (formulaResults.length > 0) {
       for (const point of points) {
         const bucket = point.bucket as string;
@@ -175,7 +181,7 @@ function useSeriesData(opts: SeriesDataOptions) {
       }
     }
     return points;
-  }, [series, previousSeries, formulaResults, formulaKeys]);
+  }, [series, previousSeries, dateRange, formulaResults, formulaKeys]);
 
   const seriesTotals = useMemo(
     () => series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)),
@@ -260,6 +266,8 @@ export function TrendAreaChart({
   onEditAnnotation,
   onDeleteAnnotation,
   onCreateAnnotation,
+  dateFrom,
+  dateTo,
 }: TrendAreaChartProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
@@ -307,6 +315,7 @@ export function TrendAreaChart({
     granularity,
     timezone,
     onToggleSeries,
+    dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity } : undefined,
   });
 
   const isStacked = allSeriesKeys.length > 1;
