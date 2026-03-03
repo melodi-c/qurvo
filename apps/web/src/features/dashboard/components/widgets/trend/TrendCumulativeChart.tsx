@@ -142,7 +142,7 @@ export function TrendCumulativeChart({
 
   // Build cumulative data points (no formulas for cumulative)
   const dateRange: DateRangeParams | undefined = dateFrom && dateTo && granularity
-    ? { dateFrom, dateTo, granularity }
+    ? { dateFrom, dateTo, granularity, timezone }
     : undefined;
   const data = useMemo(
     () => buildCumulativeDataPoints(series, previousSeries, dateRange),

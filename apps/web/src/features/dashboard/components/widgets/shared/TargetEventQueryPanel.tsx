@@ -12,6 +12,7 @@ import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TargetEventQueryPanel.translations';
 import type { BaseTargetEventConfig } from '../../../types';
+import { useProjectStore } from '@/stores/project';
 
 export type { BaseTargetEventConfig };
 
@@ -31,6 +32,7 @@ export function TargetEventQueryPanel<T extends BaseTargetEventConfig>({
   granularityAdjacentContent,
 }: TargetEventQueryPanelProps<T>) {
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
 
   const granularityOptions = useMemo(() => [
     { value: 'day' as const, label: t('day') },
@@ -69,6 +71,7 @@ export function TargetEventQueryPanel<T extends BaseTargetEventConfig>({
           dateFrom={config.date_from}
           dateTo={config.date_to}
           onChange={(date_from, date_to) => onChange({ ...config, date_from, date_to })}
+          timezone={timezone}
         />
 
         <Separator />

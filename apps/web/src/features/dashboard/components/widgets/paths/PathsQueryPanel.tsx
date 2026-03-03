@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { DateRangeSection } from '@/components/ui/date-range-section';
+import { useProjectStore } from '@/stores/project';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -23,6 +24,7 @@ interface PathsQueryPanelProps {
 
 export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const activeAdvancedCount = useMemo(() => [
@@ -47,6 +49,7 @@ export function PathsQueryPanel({ config, onChange }: PathsQueryPanelProps) {
           dateFrom={config.date_from}
           dateTo={config.date_to}
           onChange={(date_from, date_to) => onChange({ ...config, date_from, date_to })}
+          timezone={timezone}
         />
 
         <Separator />

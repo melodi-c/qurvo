@@ -315,7 +315,7 @@ export function TrendAreaChart({
     granularity,
     timezone,
     onToggleSeries,
-    dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity } : undefined,
+    dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity, timezone } : undefined,
   });
 
   const isStacked = allSeriesKeys.length > 1;

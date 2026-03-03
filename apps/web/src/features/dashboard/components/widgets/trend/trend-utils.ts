@@ -90,6 +90,8 @@ export interface DateRangeParams {
   dateFrom: string;
   dateTo: string;
   granularity: string;
+  /** Project timezone — used to resolve relative dates (e.g. `-7d`) correctly. */
+  timezone?: string;
 }
 
 /**
@@ -98,17 +100,22 @@ export interface DateRangeParams {
  * or YYYY-MM-DD HH:MM:SS for DateTime). If `existingSample` is provided, the
  * format is detected from it (space means DateTime); otherwise plain YYYY-MM-DD.
  */
+interface GenerateBucketsOptions {
+  existingSample?: string;
+  timezone?: string;
+}
+
 export function generateBuckets(
   dateFrom: string,
   dateTo: string,
   granularity: string,
-  existingSample?: string,
+  options?: GenerateBucketsOptions,
 ): string[] {
-  const fromIso = resolveRelativeDate(dateFrom);
-  const toIso = resolveRelativeDate(dateTo);
+  const fromIso = resolveRelativeDate(dateFrom, options?.timezone);
+  const toIso = resolveRelativeDate(dateTo, options?.timezone);
 
   // Detect format: if any existing bucket contains a space, use DateTime format
-  const useDateTime = existingSample ? existingSample.includes(' ') : false;
+  const useDateTime = options?.existingSample ? options.existingSample.includes(' ') : false;
   const fmt = (d: Date): string => {
     const y = d.getUTCFullYear();
     const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -225,7 +232,7 @@ export function buildDataPoints(
   if (dateRange) {
     // Detect bucket format from existing data (if any)
     const existingSample = bucketSet.size > 0 ? bucketSet.values().next().value as string : undefined;
-    const generated = generateBuckets(dateRange.dateFrom, dateRange.dateTo, dateRange.granularity, existingSample);
+    const generated = generateBuckets(dateRange.dateFrom, dateRange.dateTo, dateRange.granularity, { existingSample, timezone: dateRange.timezone });
     for (const b of generated) {bucketSet.add(b);}
   }
 

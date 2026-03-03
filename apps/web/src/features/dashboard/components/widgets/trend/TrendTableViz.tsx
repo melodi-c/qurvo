@@ -83,7 +83,7 @@ export function TrendTableViz({ series, previousSeries, granularity, compact, da
   const allSeriesKeys = useMemo(() => series.map((s) => seriesKey(s)), [series]);
 
   const dateRange: DateRangeParams | undefined = dateFrom && dateTo && granularity
-    ? { dateFrom, dateTo, granularity }
+    ? { dateFrom, dateTo, granularity, timezone }
     : undefined;
   const data = useMemo(
     () => buildDataPoints(series, previousSeries, dateRange),
