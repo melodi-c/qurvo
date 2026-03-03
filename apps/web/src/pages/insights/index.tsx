@@ -25,7 +25,7 @@ export default function InsightsPage() {
   const { filters, setFilter } = useInsightsFilters();
 
   const handleDuplicate = useCallback(
-    (id: string) => duplicateMutation.mutateAsync(id),
+    async (id: string) => { await duplicateMutation.mutateAsync(id); },
     [duplicateMutation],
   );
 
