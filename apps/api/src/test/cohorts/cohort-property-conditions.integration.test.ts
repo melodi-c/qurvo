@@ -484,8 +484,7 @@ describe('countCohortMembers — numeric and set operators for person_property',
         timestamp,
       }),
       // user with company set to empty string:
-      // With JSONHas, company='' is treated as SET (key exists in JSON).
-      // Aligned with analytics filters.ts is_set behavior.
+      // Key exists but value is '' → treated as NOT SET (no meaningful value).
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
@@ -503,11 +502,11 @@ describe('countCohortMembers — numeric and set operators for person_property',
       ],
     });
 
-    // user-with-company: JSONHas returns true (key exists with value 'Acme Corp').
-    // user-empty-company: JSONHas returns true (key exists, even though value is '').
-    // user-without-company: JSONHas returns false (no 'company' key).
-    // Total: 2.
-    expect(count).toBe(2);
+    // user-with-company: key exists AND value non-empty → is_set.
+    // user-empty-company: key exists BUT value is '' → NOT is_set.
+    // user-without-company: no 'company' key → NOT is_set.
+    // Total: 1 (only meaningful non-empty values are classified as is_set).
+    expect(count).toBe(1);
   });
 
   it('is_not_set: counts persons where user_property is absent (empty)', async () => {
@@ -540,8 +539,7 @@ describe('countCohortMembers — numeric and set operators for person_property',
         timestamp,
       }),
       // user with company explicitly set to empty string:
-      // With NOT JSONHas, company='' is treated as SET (key exists), so NOT is_not_set.
-      // Aligned with analytics filters.ts is_not_set behavior.
+      // Key exists but value is '' → treated as is_not_set (no meaningful value).
       buildEvent({
         project_id: projectId,
         person_id: randomUUID(),
@@ -559,10 +557,10 @@ describe('countCohortMembers — numeric and set operators for person_property',
       ],
     });
 
-    // user-without-company and another-without-company: no 'company' key → NOT JSONHas = true.
-    // user-empty-company: company='' → JSONHas returns true → NOT JSONHas = false → excluded.
-    // Total: 2 (only truly absent keys are classified as is_not_set).
-    expect(count).toBe(2);
+    // user-without-company and another-without-company: no 'company' key → is_not_set.
+    // user-empty-company: company='' → key exists but value empty → is_not_set.
+    // Total: 3 (absent keys AND empty values are classified as is_not_set).
+    expect(count).toBe(3);
   });
 
   it('gt: counts persons where numeric user_property > threshold', async () => {

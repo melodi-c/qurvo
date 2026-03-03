@@ -312,12 +312,16 @@ const arrayOps = {
 const existenceOps = {
   is_set: ({ expr }: OperatorContext) => {
     const jsonHasExpr = toJsonHasGuard(expr);
-    if (jsonHasExpr) return jsonHasExpr;
+    // Check both key existence AND non-empty value.
+    // JSONHas alone returns true for {"key": ""} and {"key": null},
+    // but the user expects "is set" to mean "has a meaningful value".
+    if (jsonHasExpr) return and(jsonHasExpr, neq(expr, literal('')));
     return neq(expr, literal(''));
   },
   is_not_set: ({ expr }: OperatorContext) => {
     const jsonHasExpr = toJsonHasGuard(expr);
-    if (jsonHasExpr) return not(jsonHasExpr);
+    // Inverse: key missing OR value is empty string
+    if (jsonHasExpr) return or(not(jsonHasExpr), eq(expr, literal('')));
     return eq(expr, literal(''));
   },
 };

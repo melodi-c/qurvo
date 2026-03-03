@@ -180,7 +180,7 @@ function buildFunnelQuery(
       hasBreakdown && topRef
         ? or(
           inSubquery(col('breakdown_value'), topRef),
-          eq(col('breakdown_value'), literal('')),
+          and(eq(col('breakdown_value'), literal('')), gte(col('max_step'), literal(1))),
         )
         : undefined,
     );

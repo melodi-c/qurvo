@@ -274,30 +274,30 @@ describe('applyOperator — typed Expr path (func/column inputs)', () => {
     expect(sql(result)).toBe('toFloat64OrZero(argMax(country, timestamp)) > {p0:Float64}');
   });
 
-  it('is_set: uses JSONHas for JSON properties', () => {
+  it('is_set: uses JSONHas AND non-empty value for JSON properties', () => {
     const expr = resolvePropertyExpr('user_properties.active');
     const result = applyOperator(expr, 'is_set', 'p0');
-    expect(sql(result)).toBe("JSONHas(argMax(user_properties, timestamp), 'active')");
+    expect(sql(result)).toBe("JSONHas(argMax(user_properties, timestamp), 'active') AND JSONExtractString(argMax(user_properties, timestamp), 'active') != ''");
     expect(Object.keys(params(result))).toHaveLength(0);
   });
 
-  it('is_not_set: uses NOT JSONHas for JSON properties', () => {
+  it('is_not_set: uses NOT JSONHas OR empty value for JSON properties', () => {
     const expr = resolvePropertyExpr('user_properties.active');
     const result = applyOperator(expr, 'is_not_set', 'p0');
-    expect(sql(result)).toBe("NOT JSONHas(argMax(user_properties, timestamp), 'active')");
+    expect(sql(result)).toBe("NOT JSONHas(argMax(user_properties, timestamp), 'active') OR JSONExtractString(argMax(user_properties, timestamp), 'active') = ''");
     expect(Object.keys(params(result))).toHaveLength(0);
   });
 
-  it('is_set: uses JSONHas for event properties JSON expression', () => {
+  it('is_set: uses JSONHas AND non-empty value for event properties', () => {
     const expr = resolveEventPropertyExpr('properties.score');
     const result = applyOperator(expr, 'is_set', 'p0');
-    expect(sql(result)).toBe("JSONHas(properties, 'score')");
+    expect(sql(result)).toBe("JSONHas(properties, 'score') AND JSONExtractString(properties, 'score') != ''");
   });
 
-  it('is_not_set: uses NOT JSONHas for event properties JSON expression', () => {
+  it('is_not_set: uses NOT JSONHas OR empty value for event properties', () => {
     const expr = resolveEventPropertyExpr('properties.score');
     const result = applyOperator(expr, 'is_not_set', 'p0');
-    expect(sql(result)).toBe("NOT JSONHas(properties, 'score')");
+    expect(sql(result)).toBe("NOT JSONHas(properties, 'score') OR JSONExtractString(properties, 'score') = ''");
   });
 
   it('is_set: falls back to != empty for top-level column', () => {
