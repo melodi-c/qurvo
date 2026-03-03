@@ -8,6 +8,7 @@ import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
 import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
+import { useProjectStore } from '@/stores/project';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -31,6 +32,7 @@ const WINDOW_UNITS = ['second', 'minute', 'hour', 'day', 'week', 'month'] as con
 export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
   const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames();
   const { t } = useLocalTranslation(translations);
+  const timezone = useProjectStore((s) => s.projectTimezone);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const orderOptions = useMemo(() => [
@@ -111,6 +113,7 @@ export function FunnelQueryPanel({ config, onChange }: FunnelQueryPanelProps) {
           dateFrom={config.date_from}
           dateTo={config.date_to}
           onChange={(date_from, date_to) => onChange((prev) => ({ ...prev, date_from, date_to }))}
+          timezone={timezone}
         />
 
         <Separator />

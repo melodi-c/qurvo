@@ -1,14 +1,44 @@
 import { format, parse } from 'date-fns';
 
-/** Returns today's date as ISO string (YYYY-MM-DD). */
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Return today's date parts in the given IANA timezone (or browser-local when
+ * omitted).  Uses `Intl.DateTimeFormat` — the same approach as
+ * `nowInTimezone()` in `trend-utils.ts`.
+ */
+function todayInTimezone(timezone?: string): { year: number; month: number; day: number } {
+  const now = new Date();
+  if (!timezone) {
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return { year: Number(get('year')), month: Number(get('month')), day: Number(get('day')) };
 }
 
-/** Returns the date `days` days ago as ISO string (YYYY-MM-DD). */
-export function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
+/**
+ * Returns today's date as ISO string (YYYY-MM-DD).
+ * When `timezone` is provided, "today" is determined in that IANA timezone
+ * instead of the browser's local clock.
+ */
+export function todayIso(timezone?: string): string {
+  const { year, month, day } = todayInTimezone(timezone);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * Returns the date `days` days ago as ISO string (YYYY-MM-DD).
+ * When `timezone` is provided, "today" is determined in that timezone first.
+ */
+export function daysAgoIso(days: number, timezone?: string): string {
+  const { year, month, day } = todayInTimezone(timezone);
+  // Build a UTC date from the timezone-local "today" and subtract days
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
 }
 
@@ -35,6 +65,10 @@ export function isRelativeDate(value: string): boolean {
 /**
  * Resolves a relative date string to an absolute `YYYY-MM-DD` value.
  *
+ * When `timezone` is provided, "today" is determined in that IANA timezone
+ * (using `Intl.DateTimeFormat`) instead of the browser's local clock.
+ * This matches the API-side behaviour in `analytics-query.factory.ts`.
+ *
  * Supported formats:
  *  - `-Nd`     -> N days ago
  *  - `-Ny`     -> N*365 days ago
@@ -42,23 +76,24 @@ export function isRelativeDate(value: string): boolean {
  *  - `yStart`  -> first day of the current year
  *  - `YYYY-MM-DD` -> returned as-is (passthrough)
  */
-export function resolveRelativeDate(value: string): string {
+export function resolveRelativeDate(value: string, timezone?: string): string {
   // Absolute date passthrough
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const { year, month, day } = todayInTimezone(timezone);
+  // Work in UTC to avoid any further local-timezone shifts
+  const today = new Date(Date.UTC(year, month - 1, day));
 
   // Anchors
   if (value === 'mStart') {
-    today.setDate(1);
-    return formatLocalDate(today);
+    today.setUTCDate(1);
+    return formatUtcDate(today);
   }
   if (value === 'yStart') {
-    today.setMonth(0, 1);
-    return formatLocalDate(today);
+    today.setUTCMonth(0, 1);
+    return formatUtcDate(today);
   }
 
   // Relative offset: -Nd or -Ny
@@ -71,18 +106,18 @@ export function resolveRelativeDate(value: string): string {
   const unit = match[2];
 
   if (unit === 'd') {
-    today.setDate(today.getDate() - amount);
+    today.setUTCDate(today.getUTCDate() - amount);
   } else if (unit === 'y') {
-    today.setDate(today.getDate() - amount * 365);
+    today.setUTCDate(today.getUTCDate() - amount * 365);
   }
 
-  return formatLocalDate(today);
+  return formatUtcDate(today);
 }
 
-function formatLocalDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+function formatUtcDate(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
@@ -145,14 +180,17 @@ export function getPresetLabelKey(dateFrom: string): PresetLabelKey | undefined 
  * Returns the matching preset `relative` string if the given date range
  * matches one of the standard presets, otherwise `undefined`.
  *
+ * When `timezone` is provided, "today" and "N days ago" are evaluated in that
+ * IANA timezone (important for legacy absolute-date preset matching).
+ *
  * Supports both:
  * - Relative strings in dateFrom (e.g. `-30d`, `mStart`)
  * - Legacy absolute dates that align with a preset
  */
-export function getActivePreset(dateFrom: string, dateTo: string): string | undefined {
+export function getActivePreset(dateFrom: string, dateTo: string, timezone?: string): string | undefined {
   // dateTo must represent "today": either the relative token `-0d` or
   // a legacy absolute date that equals today's ISO string.
-  const dateToIsToday = dateTo === '-0d' || dateTo.slice(0, 10) === todayIso();
+  const dateToIsToday = dateTo === '-0d' || dateTo.slice(0, 10) === todayIso(timezone);
 
   // Check relative string match (new format)
   if (isRelativeDate(dateFrom)) {
@@ -179,7 +217,7 @@ export function getActivePreset(dateFrom: string, dateTo: string): string | unde
     return undefined;
   }
   for (const preset of DATE_PRESETS) {
-    if (dateFrom.slice(0, 10) === daysAgoIso(preset.days)) {
+    if (dateFrom.slice(0, 10) === daysAgoIso(preset.days, timezone)) {
       return preset.relative;
     }
   }

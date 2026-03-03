@@ -260,7 +260,7 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
     hiddenKeys, toggleSeries,
   } = useSeriesData({
     series, previousSeries, formulas, seriesConfig, granularity, timezone, onToggleSeries,
-    dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity } : undefined,
+    dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity, timezone } : undefined,
   });
 
   const ChartComponent = chartType === 'bar' ? BarChart : LineChart;
