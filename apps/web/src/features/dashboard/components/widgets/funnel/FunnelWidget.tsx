@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useRegisterWidgetControls } from '../WidgetControlsContext';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useFunnelData } from '@/features/dashboard/hooks/use-funnel';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
-import { getFunnelMetrics } from './funnel-utils';
 import { FunnelChart } from './FunnelChart';
 import { defaultFunnelConfig } from './funnel-shared';
 import translations from './FunnelWidget.translations';
@@ -24,12 +24,23 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
   const result = query.data?.data;
 
   const hasValidSteps = hasConfig && config.steps.length >= 2 && config.steps.every((s) => s.event_name.trim() !== '');
-  const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(result);
 
   const handleExportCsv = useCallback(() => {
     if (!result?.steps) {return;}
     downloadCsv(funnelToCsv(result.steps), 'funnel.csv');
   }, [result]);
+
+  const handleRefresh = useCallback(() => {
+    void query.refresh();
+  }, [query]);
+
+  useRegisterWidgetControls({
+    onRefresh: handleRefresh,
+    isFetching: query.isFetching,
+    cachedAt: query.data?.cached_at,
+    fromCache: query.data?.from_cache,
+    onExportCsv: result?.steps ? handleExportCsv : undefined,
+  });
 
   return (
     <WidgetShell
@@ -40,15 +51,6 @@ export function FunnelWidget({ widget }: FunnelWidgetProps) {
       isEmpty={!result || result.steps.length === 0}
       emptyMessage={t('noEventsFound')}
       emptyHint={t('tryAdjusting')}
-      metric={<span className="text-xl font-bold tabular-nums text-primary">{overallConversion !== null ? `${overallConversion}%` : '\u2014'}</span>}
-      metricSecondary={
-        <span className="text-xs text-muted-foreground tabular-nums truncate">
-          {totalEntered?.toLocaleString()} &rarr; {totalConverted?.toLocaleString()}
-        </span>
-      }
-      cachedAt={query.data?.cached_at}
-      fromCache={query.data?.from_cache}
-      onExportCsv={result?.steps ? handleExportCsv : undefined}
     >
       {result && (
         <div className="h-full overflow-auto">

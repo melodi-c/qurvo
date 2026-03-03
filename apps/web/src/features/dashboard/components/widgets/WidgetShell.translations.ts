@@ -7,9 +7,6 @@ export default createTranslations({
     loadFailed: 'Failed to load data',
     retry: 'Retry',
     noData: 'No data found',
-    fresh: 'fresh',
-    refresh: 'Refresh',
-    exportCsv: 'Export CSV',
   },
   ru: {
     configureWidget: 'Настройте этот виджет',
@@ -17,8 +14,5 @@ export default createTranslations({
     loadFailed: 'Не удалось загрузить данные',
     retry: 'Повторить',
     noData: 'Данные не найдены',
-    fresh: 'свежие',
-    refresh: 'Обновить',
-    exportCsv: 'Экспорт CSV',
   },
 });

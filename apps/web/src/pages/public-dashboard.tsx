@@ -11,14 +11,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useElementWidth } from '@/hooks/use-element-width';
 import { useIsMobile } from '@/hooks/use-is-mobile';
-import { formatCompactNumber } from '@/lib/formatting';
-import { pluralize } from '@/i18n/pluralize';
 import { InsightTypeIcon } from '@/features/insights/components/InsightTypeIcon';
 import { WidgetShell } from '@/features/dashboard/components/widgets/WidgetShell';
 import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
 import { CUSTOM_QUERY_CHART_TYPES } from '@/features/dashboard/components/widgets/trend/trend-shared';
 import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
-import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
 import { RetentionTable } from '@/features/dashboard/components/widgets/retention/RetentionTable';
 import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
 import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
@@ -131,9 +128,6 @@ function PublicTrendViz({ widget, precomputed }: { widget: Widget; precomputed: 
 
   const query = makeFakeQuery(precomputed ? { cached_at: precomputed.cached_at, from_cache: precomputed.from_cache } : null);
 
-  const totals = trendResult?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
-  const mainTotal = totals[0] ?? 0;
-
   const isEmpty = isCustomQuery
     ? !aggregateResult || (!aggregateResult.heatmap?.length && !aggregateResult.world_map?.length)
     : !trendResult || trendResult.series.length === 0;
@@ -144,20 +138,6 @@ function PublicTrendViz({ widget, precomputed }: { widget: Widget; precomputed: 
       isConfigValid
       isEmpty={isEmpty}
       emptyMessage={t('noData')}
-      metric={
-        !isCustomQuery ? (
-          <span className="text-xl font-bold tabular-nums text-primary">{mainTotal.toLocaleString()}</span>
-        ) : undefined
-      }
-      metricSecondary={
-        !isCustomQuery && totals.length > 1 ? (
-          <span className="text-xs text-muted-foreground tabular-nums truncate">
-            {totals.slice(1).map((v) => v.toLocaleString()).join(' / ')}
-          </span>
-        ) : undefined
-      }
-      cachedAt={precomputed?.cached_at}
-      fromCache={precomputed?.from_cache}
     >
       {!isEmpty && (
         <TrendChart
@@ -184,26 +164,12 @@ function PublicFunnelViz({ widget, precomputed }: { widget: Widget; precomputed:
   const result = precomputed?.data as FunnelResult | null;
   const query = makeFakeQuery(precomputed ? { cached_at: precomputed.cached_at, from_cache: precomputed.from_cache } : null);
 
-  const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(result ?? undefined);
-
   return (
     <WidgetShell
       query={query}
       isConfigValid={!!config}
       isEmpty={!result || result.steps.length === 0}
       emptyMessage={t('noData')}
-      metric={
-        <span className="text-xl font-bold tabular-nums text-primary">
-          {overallConversion !== null ? `${overallConversion}%` : '\u2014'}
-        </span>
-      }
-      metricSecondary={
-        <span className="text-xs text-muted-foreground tabular-nums truncate">
-          {totalEntered?.toLocaleString()} &rarr; {totalConverted?.toLocaleString()}
-        </span>
-      }
-      cachedAt={precomputed?.cached_at}
-      fromCache={precomputed?.from_cache}
     >
       {result && (
         <div className="h-full overflow-auto">
@@ -233,14 +199,6 @@ function PublicRetentionViz({ precomputed }: { precomputed: PrecomputedData | nu
       isEmpty={!result || result.cohorts.length === 0}
       emptyMessage={t('noData')}
       skeletonVariant="table"
-      metric={
-        <span className="text-xl font-bold tabular-nums text-primary">
-          {result?.cohorts.length ?? 0}
-        </span>
-      }
-      metricSecondary={<span className="text-xs text-muted-foreground">{t('cohorts')}</span>}
-      cachedAt={precomputed?.cached_at}
-      fromCache={precomputed?.from_cache}
     >
       {result && (
         <div className="h-full overflow-x-auto">
@@ -252,20 +210,10 @@ function PublicRetentionViz({ precomputed }: { precomputed: PrecomputedData | nu
 }
 
 function PublicLifecycleViz({ precomputed }: { precomputed: PrecomputedData | null }) {
-  const { t, lang } = useLocalTranslation(translations);
+  const { t } = useLocalTranslation(translations);
 
   const result = precomputed?.data as LifecycleResult | null;
   const query = makeFakeQuery(precomputed ? { cached_at: precomputed.cached_at, from_cache: precomputed.from_cache } : null);
-
-  const activeUsers = result
-    ? result.totals.new + result.totals.returning + result.totals.resurrecting
-    : 0;
-
-  const activeUsersLabel = pluralize(
-    activeUsers,
-    { one: t('activeUsersOne'), few: t('activeUsersFew'), many: t('activeUsersMany') },
-    lang,
-  );
 
   return (
     <WidgetShell
@@ -273,14 +221,6 @@ function PublicLifecycleViz({ precomputed }: { precomputed: PrecomputedData | nu
       isConfigValid
       isEmpty={!result || result.data.length === 0}
       emptyMessage={t('noData')}
-      metric={
-        <span className="text-xl font-bold tabular-nums text-primary">
-          {formatCompactNumber(activeUsers)}
-        </span>
-      }
-      metricSecondary={<span className="text-xs text-muted-foreground">{activeUsersLabel}</span>}
-      cachedAt={precomputed?.cached_at}
-      fromCache={precomputed?.from_cache}
     >
       {result && <LifecycleChart result={result} compact />}
     </WidgetShell>
@@ -288,18 +228,10 @@ function PublicLifecycleViz({ precomputed }: { precomputed: PrecomputedData | nu
 }
 
 function PublicStickinessViz({ precomputed }: { precomputed: PrecomputedData | null }) {
-  const { t, lang } = useLocalTranslation(translations);
+  const { t } = useLocalTranslation(translations);
 
   const result = precomputed?.data as StickinessResult | null;
   const query = makeFakeQuery(precomputed ? { cached_at: precomputed.cached_at, from_cache: precomputed.from_cache } : null);
-
-  const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
-
-  const totalUsersLabel = pluralize(
-    totalUsers,
-    { one: t('totalUsersOne'), few: t('totalUsersFew'), many: t('totalUsersMany') },
-    lang,
-  );
 
   return (
     <WidgetShell
@@ -307,14 +239,6 @@ function PublicStickinessViz({ precomputed }: { precomputed: PrecomputedData | n
       isConfigValid
       isEmpty={!result || result.data.length === 0}
       emptyMessage={t('noData')}
-      metric={
-        <span className="text-xl font-bold tabular-nums text-primary">
-          {formatCompactNumber(totalUsers)}
-        </span>
-      }
-      metricSecondary={<span className="text-xs text-muted-foreground">{totalUsersLabel}</span>}
-      cachedAt={precomputed?.cached_at}
-      fromCache={precomputed?.from_cache}
     >
       {result && <StickinessChart result={result} compact />}
     </WidgetShell>
@@ -334,14 +258,6 @@ function PublicPathsViz({ precomputed }: { precomputed: PrecomputedData | null }
       isEmpty={!result || result.transitions.length === 0}
       emptyMessage={t('noData')}
       skeletonVariant="flow"
-      metric={
-        <span className="text-xl font-bold tabular-nums text-primary">
-          {result?.transitions.length ?? 0}
-        </span>
-      }
-      metricSecondary={<span className="text-xs text-muted-foreground">{t('transitions')}</span>}
-      cachedAt={precomputed?.cached_at}
-      fromCache={precomputed?.from_cache}
     >
       {result && <PathsChart transitions={result.transitions} topPaths={result.top_paths} compact />}
     </WidgetShell>

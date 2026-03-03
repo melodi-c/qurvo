@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useRegisterWidgetControls } from '../WidgetControlsContext';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useTrendData } from '@/features/dashboard/hooks/use-trend';
 import { useTrendAggregateData } from '@/features/dashboard/hooks/use-trend-aggregate';
@@ -66,15 +67,24 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
     };
   }, [isCustomQuery, aggregateQuery, query]);
 
-  const totals = result?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
-  const mainTotal = totals[0] ?? 0;
-
   const isEmpty = isCustomQuery ? isAggregateEmpty(aggregateResult) : isTrendEmpty(result);
 
   const handleExportCsv = useCallback(() => {
     if (!result?.series) {return;}
     downloadCsv(trendToCsv(result.series), 'trend.csv');
   }, [result]);
+
+  const handleRefresh = useCallback(() => {
+    void shellQuery.refresh();
+  }, [shellQuery]);
+
+  useRegisterWidgetControls({
+    onRefresh: handleRefresh,
+    isFetching: shellQuery.isFetching,
+    cachedAt: shellQuery.data?.cached_at,
+    fromCache: shellQuery.data?.from_cache,
+    onExportCsv: !isCustomQuery && result?.series ? handleExportCsv : undefined,
+  });
 
   return (
     <WidgetShell
@@ -85,15 +95,6 @@ export function TrendWidget({ widget }: TrendWidgetProps) {
       isEmpty={isEmpty}
       emptyMessage={t('noEvents')}
       emptyHint={t('adjustRange')}
-      metric={!isCustomQuery ? <span className="text-xl font-bold tabular-nums text-primary">{mainTotal.toLocaleString()}</span> : undefined}
-      metricSecondary={!isCustomQuery && totals.length > 1 ? (
-        <span className="text-xs text-muted-foreground tabular-nums truncate">
-          {totals.slice(1).map((v) => v.toLocaleString()).join(' / ')}
-        </span>
-      ) : undefined}
-      cachedAt={shellQuery.data?.cached_at}
-      fromCache={shellQuery.data?.from_cache}
-      onExportCsv={!isCustomQuery && result?.series ? handleExportCsv : undefined}
     >
       {!isEmpty && (
         <TrendChart

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useRegisterWidgetControls } from '../WidgetControlsContext';
 import { usePathsData } from '@/features/dashboard/hooks/use-paths';
 import { PathsChart } from './PathsChart';
 import { defaultPathsConfig } from './paths-shared';
@@ -24,6 +25,18 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
     downloadCsv(pathsToCsv(result), 'paths.csv');
   }, [result]);
 
+  const handleRefresh = useCallback(() => {
+    void query.refresh();
+  }, [query]);
+
+  useRegisterWidgetControls({
+    onRefresh: handleRefresh,
+    isFetching: query.isFetching,
+    cachedAt: query.data?.cached_at,
+    fromCache: query.data?.from_cache,
+    onExportCsv: result ? handleExportCsv : undefined,
+  });
+
   return (
     <WidgetShell
       query={query}
@@ -33,11 +46,6 @@ export function PathsWidget({ widget }: PathsWidgetProps) {
       emptyMessage={t('noPaths')}
       emptyHint={t('adjustDateRange')}
       skeletonVariant="flow"
-      metric={<span className="text-xl font-bold tabular-nums text-primary">{result?.transitions.length ?? 0}</span>}
-      metricSecondary={<span className="text-xs text-muted-foreground">{t('transitions')}</span>}
-      cachedAt={query.data?.cached_at}
-      fromCache={query.data?.from_cache}
-      onExportCsv={result ? handleExportCsv : undefined}
     >
       {result && (
         <PathsChart
