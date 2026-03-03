@@ -180,6 +180,12 @@ describe('analytics/time', () => {
       const { params } = compileWhere(timeRange('2026-01-01', '2026-01-31T23:59:59', 'UTC'));
       expect(params.p_1).toBe('2026-01-31 23:59:59');
     });
+
+    test('custom tsColumn uses qualified column name', () => {
+      const { sql } = compileWhere(timeRange('2026-01-01', '2026-01-31', 'UTC', col('events.timestamp')));
+      expect(sql).toContain('events.timestamp >= {p_0:DateTime64(3)}');
+      expect(sql).toContain('events.timestamp <= {p_1:DateTime64(3)}');
+    });
   });
 
   describe('bucket', () => {
