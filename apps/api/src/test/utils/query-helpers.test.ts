@@ -769,6 +769,35 @@ describe('analytics/filters', () => {
       expect(sql).toContain('browser =');
       expect(sql).toContain(':String}');
     });
+
+    test('with tsColumn override uses qualified column ref', () => {
+      const expr = analyticsWhere({
+        projectId: 'pid-123',
+        from: '2026-01-01',
+        to: '2026-01-31',
+        tz: 'UTC',
+        tsColumn: col('events.timestamp'),
+      });
+      const { sql } = compileWhere(expr);
+      // Must use qualified ref to avoid alias collision with EVENT_BASE_COLUMNS
+      expect(sql).toContain('events.timestamp >= {p_1:DateTime64(3)}');
+      expect(sql).toContain('events.timestamp <= {p_2:DateTime64(3)}');
+      // Must NOT contain unqualified timestamp in the WHERE clause
+      expect(sql).not.toMatch(/WHERE.*[^.]timestamp >=/);
+    });
+
+    test('without tsColumn defaults to unqualified timestamp', () => {
+      const expr = analyticsWhere({
+        projectId: 'pid-123',
+        from: '2026-01-01',
+        to: '2026-01-31',
+        tz: 'UTC',
+      });
+      const { sql } = compileWhere(expr);
+      // Default: unqualified — safe only when no 'timestamp' alias in SELECT
+      expect(sql).toMatch(/WHERE.*timestamp >= /);
+      expect(sql).not.toContain('events.timestamp');
+    });
   });
 
   describe('resolvePropertyExpr', () => {

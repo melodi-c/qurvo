@@ -64,6 +64,19 @@ export interface EventDetailRow extends EventRow {
 /**
  * Base columns shared by events list and person events queries.
  * Each entry is a ch-query Expr (aliased where needed).
+ *
+ * **WARNING — alias collision risk:**
+ * This array contains `formatDateTime(events.timestamp, ...).as('timestamp')` which
+ * creates a String alias named `timestamp`. ClickHouse resolves unqualified column
+ * references to aliases first (`prefer_column_name_to_alias = false` by default), so
+ * using `col('timestamp')` in a WHERE clause of a query that SELECTs these columns
+ * will compare against the String alias instead of the DateTime64 table column.
+ *
+ * Always pass `tsColumn: col('events.timestamp')` (qualified ref) to `timeRange()`
+ * or `analyticsWhere()` when combining them with `EVENT_BASE_COLUMNS` in the same query.
+ *
+ * @see timeRange — accepts optional `tsColumn` to override the default `col('timestamp')`
+ * @see analyticsWhere — accepts optional `tsColumn` to pass through to `timeRange()`
  */
 export const EVENT_BASE_COLUMNS = [
   col('event_id'),
