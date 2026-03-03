@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
-import { RefreshCw, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { formatRelativeTime } from '@/lib/formatting';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
 import { WidgetSkeleton } from './WidgetSkeleton';
@@ -31,15 +27,6 @@ interface WidgetShellProps<Response> {
   emptyHint?: string;
   /** Skeleton variant to use while loading. */
   skeletonVariant?: SkeletonVariant;
-  /** Primary metric to show in the header. */
-  metric: ReactNode;
-  /** Secondary metric info next to primary. */
-  metricSecondary?: ReactNode;
-  /** Cache info source — response object with cached_at. */
-  cachedAt?: string;
-  fromCache?: boolean;
-  /** Optional CSV export callback. When provided, shows an Export CSV button next to refresh. */
-  onExportCsv?: () => void;
   /** Content to render (chart/table). */
   children: ReactNode;
 }
@@ -54,11 +41,6 @@ export function WidgetShell<Response>({
   emptyMessage,
   emptyHint,
   skeletonVariant = 'chart',
-  metric,
-  metricSecondary,
-  cachedAt,
-  fromCache,
-  onExportCsv,
   children,
 }: WidgetShellProps<Response>) {
   const { t } = useLocalTranslation(translations);
@@ -108,54 +90,6 @@ export function WidgetShell<Response>({
   return (
     <WidgetTransition isFetching={isFetching}>
       <div className="h-full flex flex-col min-h-0">
-        <div className="flex items-center justify-between flex-shrink-0 pb-2 border-b border-border/40 mb-2">
-          <div className="flex items-center gap-3 min-w-0">
-            {metric}
-            {metricSecondary}
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {cachedAt && (
-              <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
-                {fromCache
-                  ? formatRelativeTime(cachedAt)
-                  : t('fresh')}
-              </span>
-            )}
-            {onExportCsv && (
-              <span className="relative -m-2 p-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={onExportCsv}
-                      aria-label={t('exportCsv')}
-                    >
-                      <Download className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('exportCsv')}</TooltipContent>
-                </Tooltip>
-              </span>
-            )}
-            <span className="relative -m-2 p-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => refresh()}
-                    disabled={isFetching}
-                    aria-label={t('refresh')}
-                  >
-                    <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('refresh')}</TooltipContent>
-              </Tooltip>
-            </span>
-          </div>
-        </div>
         <div className="flex-1 overflow-hidden min-h-0">
           <ErrorBoundary>
             {children}

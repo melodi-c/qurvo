@@ -4,8 +4,8 @@ import { useDashboardStore } from '../store';
 import cardTranslations from './InsightCard.translations';
 import { applyFilterOverrides } from '../lib/filter-overrides';
 import { InsightCardHeader } from './InsightCardHeader';
-import { InsightCardDetails } from './InsightCardDetails';
 import { InsightCardViz } from './InsightCardViz';
+import { WidgetControlsProvider, useWidgetControls } from './widgets/WidgetControlsContext';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,12 @@ interface InsightCardProps {
   widget: Widget;
 }
 
-export function InsightCard({ widget }: InsightCardProps) {
+function InsightCardInner({ widget }: InsightCardProps) {
   const { t } = useLocalTranslation(cardTranslations);
   const filterOverrides = useDashboardStore((s) => s.filterOverrides);
   const requestTextFocus = useDashboardStore((s) => s.requestTextFocus);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const controls = useWidgetControls();
 
   const isTextTile = !widget.insight;
   const baseConfig = widget.insight?.config;
@@ -33,7 +33,6 @@ export function InsightCard({ widget }: InsightCardProps) {
     ? applyFilterOverrides(baseConfig, filterOverrides)
     : baseConfig;
 
-  const handleToggleDetails = useCallback(() => setDetailsOpen((v) => !v), []);
   const handleEditText = useCallback(() => requestTextFocus(widget.id), [requestTextFocus, widget.id]);
   const handleExpand = useCallback(() => setFullscreen(true), []);
 
@@ -42,15 +41,10 @@ export function InsightCard({ widget }: InsightCardProps) {
       <div className="h-full flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <InsightCardHeader
           widget={widget}
-          detailsOpen={detailsOpen}
-          onToggleDetails={handleToggleDetails}
+          controls={controls}
           onEditText={isTextTile ? handleEditText : undefined}
           onExpand={!isTextTile ? handleExpand : undefined}
         />
-
-        {detailsOpen && !isTextTile && mergedConfig && (
-          <InsightCardDetails config={mergedConfig} />
-        )}
 
         <div className="flex-1 p-3 min-h-0 overflow-hidden">
           <InsightCardViz widget={widget} configOverride={mergedConfig} />
@@ -70,5 +64,13 @@ export function InsightCard({ widget }: InsightCardProps) {
         </Dialog>
       )}
     </>
+  );
+}
+
+export function InsightCard({ widget }: InsightCardProps) {
+  return (
+    <WidgetControlsProvider>
+      <InsightCardInner widget={widget} />
+    </WidgetControlsProvider>
   );
 }

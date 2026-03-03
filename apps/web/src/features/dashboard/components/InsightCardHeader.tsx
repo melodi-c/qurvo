@@ -1,25 +1,27 @@
-import { GripVertical, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { GripVertical, FileText, RefreshCw, Download } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/formatting';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { InsightTypeIcon, TYPE_META } from '@/features/insights/components/InsightTypeIcon';
 import { useDashboardStore } from '../store';
 import { InsightCardMenu } from './InsightCardMenu';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './InsightCardHeader.translations';
 import type { Widget } from '@/api/generated/Api';
+import type { WidgetControls } from './widgets/WidgetControlsContext';
 
 interface InsightCardHeaderProps {
   widget: Widget;
-  detailsOpen: boolean;
-  onToggleDetails: () => void;
+  controls?: WidgetControls | null;
   onEditText?: () => void;
   onExpand?: () => void;
 }
 
 export function InsightCardHeader({
   widget,
-  detailsOpen,
-  onToggleDetails,
+  controls,
   onEditText,
   onExpand,
 }: InsightCardHeaderProps) {
@@ -59,23 +61,48 @@ export function InsightCardHeader({
         {isTextTile ? t('textTile') : displayName}
       </span>
 
-      {/* Details toggle (only for insight tiles) */}
-      {!isTextTile && (
-        <span className="relative -m-2 p-2 flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="drag-cancel"
-            onClick={onToggleDetails}
-            aria-label={t('toggleDetails')}
-          >
-            {detailsOpen ? (
-              <ChevronUp className="h-3 w-3" />
-            ) : (
-              <ChevronDown className="h-3 w-3" />
-            )}
-          </Button>
-        </span>
+      {/* Widget controls: cache time + CSV export + refresh */}
+      {controls && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {controls.cachedAt && (
+            <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+              {controls.fromCache
+                ? formatRelativeTime(controls.cachedAt)
+                : t('fresh')}
+            </span>
+          )}
+          {controls.onExportCsv && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="drag-cancel h-6 w-6"
+                  onClick={controls.onExportCsv}
+                  aria-label={t('exportCsv')}
+                >
+                  <Download className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('exportCsv')}</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="drag-cancel h-6 w-6"
+                onClick={controls.onRefresh}
+                disabled={controls.isFetching}
+                aria-label={t('refresh')}
+              >
+                <RefreshCw className={cn('h-3 w-3', controls.isFetching && 'animate-spin')} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('refresh')}</TooltipContent>
+          </Tooltip>
+        </div>
       )}
 
       {/* Menu (always visible) */}

@@ -10,7 +10,9 @@ export default createTranslations({
     lifecycle: 'Lifecycle',
     stickiness: 'Stickiness',
     paths: 'Paths',
-    toggleDetails: 'Toggle details',
+    fresh: 'fresh',
+    refresh: 'Refresh',
+    exportCsv: 'Export CSV',
   },
   ru: {
     untitled: 'Без названия',
@@ -21,6 +23,8 @@ export default createTranslations({
     lifecycle: 'Жизненный цикл',
     stickiness: 'Вовлечённость',
     paths: 'Пути',
-    toggleDetails: 'Показать/скрыть детали',
+    fresh: 'свежие',
+    refresh: 'Обновить',
+    exportCsv: 'Экспорт CSV',
   },
 });

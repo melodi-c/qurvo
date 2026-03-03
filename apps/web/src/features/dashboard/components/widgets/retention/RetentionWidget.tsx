@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { WidgetShell } from '../WidgetShell';
+import { useRegisterWidgetControls } from '../WidgetControlsContext';
 import { useDashboardStore } from '@/features/dashboard/store';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useRetentionData } from '@/features/dashboard/hooks/use-retention';
@@ -28,6 +29,18 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
     downloadCsv(retentionToCsv(result), 'retention.csv');
   }, [result]);
 
+  const handleRefresh = useCallback(() => {
+    void query.refresh();
+  }, [query]);
+
+  useRegisterWidgetControls({
+    onRefresh: handleRefresh,
+    isFetching: query.isFetching,
+    cachedAt: query.data?.cached_at,
+    fromCache: query.data?.from_cache,
+    onExportCsv: result ? handleExportCsv : undefined,
+  });
+
   return (
     <WidgetShell
       query={query}
@@ -38,11 +51,6 @@ export function RetentionWidget({ widget }: RetentionWidgetProps) {
       emptyMessage={t('noData')}
       emptyHint={t('adjustDateRange')}
       skeletonVariant="table"
-      metric={<span className="text-xl font-bold tabular-nums text-primary">{result?.cohorts.length ?? 0}</span>}
-      metricSecondary={<span className="text-xs text-muted-foreground">{t('cohorts')}</span>}
-      cachedAt={query.data?.cached_at}
-      fromCache={query.data?.from_cache}
-      onExportCsv={result ? handleExportCsv : undefined}
     >
       {result && (
         <div className="h-full overflow-x-auto">
