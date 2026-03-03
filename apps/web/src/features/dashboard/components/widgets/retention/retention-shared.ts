@@ -1,5 +1,4 @@
 import type { RetentionWidgetConfig } from '@/api/generated/Api';
-import { todayIso } from '@/lib/date-utils';
 
 export function defaultRetentionConfig(): RetentionWidgetConfig {
   return {
@@ -9,7 +8,7 @@ export function defaultRetentionConfig(): RetentionWidgetConfig {
     granularity: 'day',
     periods: 11,
     date_from: '-30d',
-    date_to: todayIso(),
+    date_to: '-0d',
   };
 }
 

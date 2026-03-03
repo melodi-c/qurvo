@@ -13,6 +13,7 @@ import {
 
 describe('isRelativeDate', () => {
   it('returns true for day-based relative strings', () => {
+    expect(isRelativeDate('-0d')).toBe(true);
     expect(isRelativeDate('-7d')).toBe(true);
     expect(isRelativeDate('-30d')).toBe(true);
     expect(isRelativeDate('-90d')).toBe(true);
@@ -57,6 +58,10 @@ describe('resolveRelativeDate', () => {
     expect(resolveRelativeDate('2025-06-30')).toBe('2025-06-30');
   });
 
+  it('resolves -0d to today', () => {
+    expect(resolveRelativeDate('-0d')).toBe('2026-03-02');
+  });
+
   it('resolves -Nd to N days ago', () => {
     expect(resolveRelativeDate('-7d')).toBe('2026-02-23');
     expect(resolveRelativeDate('-30d')).toBe('2026-01-31');
@@ -90,17 +95,22 @@ describe('getActivePreset', () => {
     vi.useRealTimers();
   });
 
-  it('matches relative date strings to preset', () => {
+  it('matches relative date strings to preset with -0d dateTo', () => {
+    expect(getActivePreset('-7d', '-0d')).toBe('-7d');
+    expect(getActivePreset('-30d', '-0d')).toBe('-30d');
+    expect(getActivePreset('-90d', '-0d')).toBe('-90d');
+    expect(getActivePreset('-180d', '-0d')).toBe('-180d');
+    expect(getActivePreset('-1y', '-0d')).toBe('-1y');
+  });
+
+  it('matches relative date strings to preset with legacy absolute dateTo', () => {
     expect(getActivePreset('-7d', todayIso())).toBe('-7d');
     expect(getActivePreset('-30d', todayIso())).toBe('-30d');
-    expect(getActivePreset('-90d', todayIso())).toBe('-90d');
-    expect(getActivePreset('-180d', todayIso())).toBe('-180d');
-    expect(getActivePreset('-1y', todayIso())).toBe('-1y');
   });
 
   it('matches anchor presets', () => {
-    expect(getActivePreset('mStart', todayIso())).toBe('mStart');
-    expect(getActivePreset('yStart', todayIso())).toBe('yStart');
+    expect(getActivePreset('mStart', '-0d')).toBe('mStart');
+    expect(getActivePreset('yStart', '-0d')).toBe('yStart');
   });
 
   it('matches legacy absolute dates to presets', () => {
@@ -114,8 +124,8 @@ describe('getActivePreset', () => {
   });
 
   it('returns undefined for non-preset relative strings', () => {
-    expect(getActivePreset('-5d', todayIso())).toBeUndefined();
-    expect(getActivePreset('-15d', todayIso())).toBeUndefined();
+    expect(getActivePreset('-5d', '-0d')).toBeUndefined();
+    expect(getActivePreset('-15d', '-0d')).toBeUndefined();
   });
 });
 
@@ -149,9 +159,9 @@ describe('defaultDateRange', () => {
     expect(range.from).toBe('-30d');
   });
 
-  it('returns today as to', () => {
+  it('returns relative -0d as to', () => {
     const range = defaultDateRange();
-    expect(range.to).toBe(todayIso());
+    expect(range.to).toBe('-0d');
   });
 });
 

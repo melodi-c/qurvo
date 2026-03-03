@@ -1,5 +1,4 @@
 import type { FunnelWidgetConfig } from '@/api/generated/Api';
-import { todayIso } from '@/lib/date-utils';
 
 export function defaultFunnelConfig(step1Label = 'Step 1', step2Label = 'Step 2'): FunnelWidgetConfig {
   return {
@@ -10,7 +9,7 @@ export function defaultFunnelConfig(step1Label = 'Step 1', step2Label = 'Step 2'
     ],
     conversion_window_days: 14,
     date_from: '-30d',
-    date_to: todayIso(),
+    date_to: '-0d',
     conversion_window_value: 14,
     conversion_window_unit: 'day',
     funnel_order_type: 'ordered',
