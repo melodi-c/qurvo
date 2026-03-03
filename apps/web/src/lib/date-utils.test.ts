@@ -59,25 +59,25 @@ describe('resolveRelativeDate', () => {
   });
 
   it('resolves -0d to today', () => {
-    expect(resolveRelativeDate('-0d')).toBe('2026-03-02');
+    expect(resolveRelativeDate('-0d', 'UTC')).toBe('2026-03-02');
   });
 
   it('resolves -Nd to N days ago', () => {
-    expect(resolveRelativeDate('-7d')).toBe('2026-02-23');
-    expect(resolveRelativeDate('-30d')).toBe('2026-01-31');
-    expect(resolveRelativeDate('-1d')).toBe('2026-03-01');
+    expect(resolveRelativeDate('-7d', 'UTC')).toBe('2026-02-23');
+    expect(resolveRelativeDate('-30d', 'UTC')).toBe('2026-01-31');
+    expect(resolveRelativeDate('-1d', 'UTC')).toBe('2026-03-01');
   });
 
   it('resolves -Ny to N*365 days ago', () => {
-    expect(resolveRelativeDate('-1y')).toBe('2025-03-02');
+    expect(resolveRelativeDate('-1y', 'UTC')).toBe('2025-03-02');
   });
 
   it('resolves mStart to first day of current month', () => {
-    expect(resolveRelativeDate('mStart')).toBe('2026-03-01');
+    expect(resolveRelativeDate('mStart', 'UTC')).toBe('2026-03-01');
   });
 
   it('resolves yStart to first day of current year', () => {
-    expect(resolveRelativeDate('yStart')).toBe('2026-01-01');
+    expect(resolveRelativeDate('yStart', 'UTC')).toBe('2026-01-01');
   });
 
   it('returns unknown formats as-is', () => {
@@ -95,8 +95,8 @@ describe('resolveRelativeDate — timezone-aware', () => {
     // 2026-03-02 23:30 UTC = 2026-03-03 08:30 in Asia/Tokyo (UTC+9)
     vi.setSystemTime(new Date('2026-03-02T23:30:00Z'));
 
-    // Without timezone: browser-local (UTC in Node) -> Mar 02
-    expect(resolveRelativeDate('-0d')).toBe('2026-03-02');
+    // With explicit UTC: today = Mar 02
+    expect(resolveRelativeDate('-0d', 'UTC')).toBe('2026-03-02');
     // With Asia/Tokyo: it's already Mar 03 there
     expect(resolveRelativeDate('-0d', 'Asia/Tokyo')).toBe('2026-03-03');
     // With America/New_York (UTC-5): still Mar 02
@@ -111,7 +111,7 @@ describe('resolveRelativeDate — timezone-aware', () => {
     // In Asia/Tokyo, today is Mar 03 -> 7 days ago = Feb 24
     expect(resolveRelativeDate('-7d', 'Asia/Tokyo')).toBe('2026-02-24');
     // In UTC, today is Mar 02 -> 7 days ago = Feb 23
-    expect(resolveRelativeDate('-7d')).toBe('2026-02-23');
+    expect(resolveRelativeDate('-7d', 'UTC')).toBe('2026-02-23');
   });
 
   it('resolves mStart in the specified timezone', () => {
@@ -122,7 +122,7 @@ describe('resolveRelativeDate — timezone-aware', () => {
     // In Asia/Tokyo it's March -> mStart = Mar 01
     expect(resolveRelativeDate('mStart', 'Asia/Tokyo')).toBe('2026-03-01');
     // In UTC it's still February -> mStart = Feb 01
-    expect(resolveRelativeDate('mStart')).toBe('2026-02-01');
+    expect(resolveRelativeDate('mStart', 'UTC')).toBe('2026-02-01');
   });
 
   it('resolves yStart in the specified timezone', () => {
@@ -133,7 +133,7 @@ describe('resolveRelativeDate — timezone-aware', () => {
     // In Asia/Tokyo it's 2026 -> yStart = Jan 01, 2026
     expect(resolveRelativeDate('yStart', 'Asia/Tokyo')).toBe('2026-01-01');
     // In UTC it's still 2025 -> yStart = Jan 01, 2025
-    expect(resolveRelativeDate('yStart')).toBe('2025-01-01');
+    expect(resolveRelativeDate('yStart', 'UTC')).toBe('2025-01-01');
   });
 
   it('passes through absolute dates regardless of timezone', () => {

@@ -677,8 +677,8 @@ describe('generateBuckets — timezone-aware', () => {
     // 2026-03-02 23:30 UTC = 2026-03-03 in Asia/Tokyo
     vi.setSystemTime(new Date('2026-03-02T23:30:00Z'));
 
-    // Without timezone (UTC): today = Mar 02, -3d = Feb 27
-    const resultUtc = generateBuckets('-3d', '-0d', 'day');
+    // With explicit UTC: today = Mar 02, -3d = Feb 27
+    const resultUtc = generateBuckets('-3d', '-0d', 'day', { timezone: 'UTC' });
     expect(resultUtc).toEqual([
       '2026-02-27',
       '2026-02-28',
@@ -705,8 +705,8 @@ describe('generateBuckets — timezone-aware', () => {
     const result = generateBuckets('mStart', '-0d', 'day', { timezone: 'Asia/Tokyo' });
     expect(result).toEqual(['2026-02-01']);
 
-    // In UTC, mStart = Jan 01 (still January), today = Jan 31
-    const resultUtc = generateBuckets('mStart', '-0d', 'day');
+    // In explicit UTC, mStart = Jan 01 (still January), today = Jan 31
+    const resultUtc = generateBuckets('mStart', '-0d', 'day', { timezone: 'UTC' });
     expect(resultUtc).toHaveLength(31); // Jan 01..31
     expect(resultUtc[0]).toBe('2026-01-01');
     expect(resultUtc[30]).toBe('2026-01-31');
