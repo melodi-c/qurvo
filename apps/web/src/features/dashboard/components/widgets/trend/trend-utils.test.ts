@@ -461,7 +461,7 @@ describe('generateBuckets — day granularity', () => {
   });
 
   it('uses DateTime format when existingSample has space', () => {
-    const result = generateBuckets('2026-02-20', '2026-02-22', 'day', '2026-02-20 00:00:00');
+    const result = generateBuckets('2026-02-20', '2026-02-22', 'day', { existingSample: '2026-02-20 00:00:00' });
     expect(result).toEqual([
       '2026-02-20 00:00:00',
       '2026-02-21 00:00:00',
@@ -479,7 +479,7 @@ describe('generateBuckets — hour granularity', () => {
   });
 
   it('generates hourly buckets in DateTime format', () => {
-    const result = generateBuckets('2026-02-20', '2026-02-20', 'hour', '2026-02-20 00:00:00');
+    const result = generateBuckets('2026-02-20', '2026-02-20', 'hour', { existingSample: '2026-02-20 00:00:00' });
     expect(result).toHaveLength(24);
     expect(result[0]).toBe('2026-02-20 00:00:00');
     expect(result[1]).toBe('2026-02-20 01:00:00');
@@ -487,7 +487,7 @@ describe('generateBuckets — hour granularity', () => {
   });
 
   it('spans midnight for multi-day range', () => {
-    const result = generateBuckets('2026-02-20', '2026-02-21', 'hour', '2026-02-20 00:00:00');
+    const result = generateBuckets('2026-02-20', '2026-02-21', 'hour', { existingSample: '2026-02-20 00:00:00' });
     expect(result).toHaveLength(48);
     expect(result[0]).toBe('2026-02-20 00:00:00');
     expect(result[24]).toBe('2026-02-21 00:00:00');
@@ -662,5 +662,53 @@ describe('buildCumulativeDataPoints — with dateRange', () => {
     expect(result[1]).toMatchObject({ bucket: '2026-02-21', 'Page View': 10 });
     expect(result[2]).toMatchObject({ bucket: '2026-02-22', 'Page View': 10 }); // stays at 10
     expect(result[3]).toMatchObject({ bucket: '2026-02-23', 'Page View': 15 });
+  });
+});
+
+// ---------- generateBuckets with timezone ----------
+
+describe('generateBuckets — timezone-aware', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('resolves relative dates using the specified timezone', () => {
+    vi.useFakeTimers();
+    // 2026-03-02 23:30 UTC = 2026-03-03 in Asia/Tokyo
+    vi.setSystemTime(new Date('2026-03-02T23:30:00Z'));
+
+    // Without timezone (UTC): today = Mar 02, -3d = Feb 27
+    const resultUtc = generateBuckets('-3d', '-0d', 'day');
+    expect(resultUtc).toEqual([
+      '2026-02-27',
+      '2026-02-28',
+      '2026-03-01',
+      '2026-03-02',
+    ]);
+
+    // With Asia/Tokyo: today = Mar 03, -3d = Feb 28
+    const resultTokyo = generateBuckets('-3d', '-0d', 'day', { timezone: 'Asia/Tokyo' });
+    expect(resultTokyo).toEqual([
+      '2026-02-28',
+      '2026-03-01',
+      '2026-03-02',
+      '2026-03-03',
+    ]);
+  });
+
+  it('generates correct buckets when timezone shifts the day boundary', () => {
+    vi.useFakeTimers();
+    // 2026-01-31 23:30 UTC = 2026-02-01 in Asia/Tokyo
+    vi.setSystemTime(new Date('2026-01-31T23:30:00Z'));
+
+    // In Asia/Tokyo, mStart = Feb 01 (it's February there)
+    const result = generateBuckets('mStart', '-0d', 'day', { timezone: 'Asia/Tokyo' });
+    expect(result).toEqual(['2026-02-01']);
+
+    // In UTC, mStart = Jan 01 (still January), today = Jan 31
+    const resultUtc = generateBuckets('mStart', '-0d', 'day');
+    expect(resultUtc).toHaveLength(31); // Jan 01..31
+    expect(resultUtc[0]).toBe('2026-01-01');
+    expect(resultUtc[30]).toBe('2026-01-31');
   });
 });
