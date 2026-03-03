@@ -1388,6 +1388,45 @@ export interface PublicDashboardWithData {
   updated_at: string;
 }
 
+export interface PublicInsightWithData {
+  type: InsightType;
+  description?: string | null;
+  config:
+    | ({
+        type: "funnel";
+      } & FunnelWidgetConfig)
+    | ({
+        type: "trend";
+      } & TrendWidgetConfig)
+    | ({
+        type: "retention";
+      } & RetentionWidgetConfig)
+    | ({
+        type: "lifecycle";
+      } & LifecycleWidgetConfig)
+    | ({
+        type: "stickiness";
+      } & StickinessWidgetConfig)
+    | ({
+        type: "paths";
+      } & PathsWidgetConfig);
+  /** Precomputed analytics data for this insight. null if query failed. */
+  data: Record<string, any>;
+  /** ISO timestamp when data was cached */
+  cached_at: string;
+  /** Whether result was served from cache */
+  from_cache: boolean;
+  id: string;
+  project_id: string;
+  created_by: string;
+  name: string;
+  is_favorite: boolean;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
 export interface AdminStats {
   total_users: number;
   total_projects: number;
@@ -4911,7 +4950,7 @@ export class Api<
       { shareToken, ...query }: PublicControllerGetPublicInsightParams,
       params: RequestParams = {},
     ) =>
-      this.request<Insight, any>({
+      this.request<PublicInsightWithData, any>({
         path: `/api/public/insights/${shareToken}`,
         method: "GET",
         format: "json",

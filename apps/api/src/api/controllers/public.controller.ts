@@ -15,7 +15,7 @@ import {
 } from '../../analytics/analytics.module';
 import type { AnalyticsQueryService } from '../../analytics/analytics-query.factory';
 import { PublicDashboardWithDataDto } from '../dto/dashboards.dto';
-import { InsightDto } from '../dto/insights.dto';
+import { PublicInsightWithDataDto } from '../dto/insights.dto';
 
 const AGGREGATE_CHART_TYPES = new Set(['world_map', 'calendar_heatmap']);
 
@@ -92,9 +92,26 @@ export class PublicController {
   @Get('insights/:shareToken')
   async getPublicInsight(
     @Param('shareToken') shareToken: string,
-  ): Promise<InsightDto> {
+  ): Promise<PublicInsightWithDataDto> {
     const token = await this.shareTokensService.findInsightToken(shareToken);
-    return this.savedInsightsService.getById(token.project_id, token.resource_id) as any;
+    const insight = await this.savedInsightsService.getById(token.project_id, token.resource_id);
+
+    const config: Record<string, unknown> = insight.config as any;
+    const configType = config.type as string;
+
+    const queryParams = {
+      project_id: token.project_id,
+      ...config,
+    };
+
+    const result = await this.queryWidget(configType, queryParams);
+
+    return {
+      ...insight,
+      data: result?.data ?? null,
+      cached_at: result?.cached_at ?? new Date().toISOString(),
+      from_cache: result?.from_cache ?? false,
+    } as any;
   }
 
   private async queryWidget(
