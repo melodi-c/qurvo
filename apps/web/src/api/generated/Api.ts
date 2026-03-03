@@ -2266,6 +2266,11 @@ export interface SavedInsightsControllerRemoveParams {
   insightId: string;
 }
 
+export interface SavedInsightsControllerDuplicateParams {
+  projectId: string;
+  insightId: string;
+}
+
 export interface SavedInsightsControllerCreateShareTokenParams {
   projectId: string;
   insightId: string;
@@ -4096,6 +4101,30 @@ export class Api<
         path: `/api/projects/${projectId}/insights/${insightId}`,
         method: "DELETE",
         secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Insights
+     * @name SavedInsightsControllerDuplicate
+     * @request POST:/api/projects/{projectId}/insights/{insightId}/duplicate
+     * @secure
+     */
+    savedInsightsControllerDuplicate: (
+      {
+        projectId,
+        insightId,
+        ...query
+      }: SavedInsightsControllerDuplicateParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<Insight, any>({
+        path: `/api/projects/${projectId}/insights/${insightId}/duplicate`,
+        method: "POST",
+        secure: true,
+        format: "json",
         ...params,
       }),
 

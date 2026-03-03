@@ -17,6 +17,9 @@ export default createTranslations({
     toastDeleted: 'Insight deleted',
     toastDeleteFailed: 'Failed to delete insight',
     share: 'Share',
+    duplicate: 'Duplicate',
+    toastDuplicated: 'Insight duplicated',
+    toastDuplicateFailed: 'Failed to duplicate insight',
   },
   ru: {
     name: 'Название',
@@ -34,5 +37,8 @@ export default createTranslations({
     toastDeleted: 'Инсайт удалён',
     toastDeleteFailed: 'Не удалось удалить инсайт',
     share: 'Поделиться',
+    duplicate: 'Дублировать',
+    toastDuplicated: 'Инсайт продублирован',
+    toastDuplicateFailed: 'Не удалось дублировать инсайт',
   },
 });

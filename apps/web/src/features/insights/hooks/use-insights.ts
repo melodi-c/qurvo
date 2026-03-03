@@ -88,3 +88,17 @@ export function useDeleteInsight() {
     onError: onError('deleteInsightFailed'),
   });
 }
+
+export function useDuplicateInsight() {
+  const projectId = useProjectId();
+  const qc = useQueryClient();
+  const onError = useMutationErrorHandler();
+  return useMutation({
+    mutationFn: (insightId: string) =>
+      api.savedInsightsControllerDuplicate({ projectId, insightId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['insights', projectId] });
+    },
+    onError: onError('duplicateInsightFailed'),
+  });
+}

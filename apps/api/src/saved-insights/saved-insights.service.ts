@@ -52,6 +52,25 @@ export class SavedInsightsService {
     return rows[0];
   }
 
+  async duplicate(userId: string, projectId: string, insightId: string) {
+    const source = await this.getById(projectId, insightId);
+
+    const rows = await this.db
+      .insert(insights)
+      .values({
+        project_id: projectId,
+        created_by: userId,
+        type: source.type,
+        name: `Copy of ${source.name}`.slice(0, 200),
+        description: source.description,
+        config: source.config,
+        is_favorite: false,
+      })
+      .returning();
+
+    return rows[0];
+  }
+
   async update(
     projectId: string,
     insightId: string,

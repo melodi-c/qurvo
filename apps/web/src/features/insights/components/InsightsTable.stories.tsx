@@ -135,6 +135,7 @@ export const Populated: Story = {
       <InsightsTable
         data={insightsMock}
         onToggleFavorite={() => {}}
+        onDuplicate={async () => {}}
         onDelete={async () => {}}
       />
     </div>
@@ -147,6 +148,7 @@ export const Empty: Story = {
       <InsightsTable
         data={[]}
         onToggleFavorite={() => {}}
+        onDuplicate={async () => {}}
         onDelete={async () => {}}
       />
     </div>
@@ -160,6 +162,7 @@ export const WithFavorites: Story = {
       <InsightsTable
         data={insightsMock.map((item, i) => ({ ...item, is_favorite: i % 2 === 0 }))}
         onToggleFavorite={() => {}}
+        onDuplicate={async () => {}}
         onDelete={async () => {}}
       />
     </div>
@@ -173,6 +176,7 @@ export const SingleItem: Story = {
       <InsightsTable
         data={[insightsMock[0]]}
         onToggleFavorite={() => {}}
+        onDuplicate={async () => {}}
         onDelete={async () => {}}
       />
     </div>

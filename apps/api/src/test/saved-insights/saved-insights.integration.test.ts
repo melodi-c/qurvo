@@ -177,6 +177,78 @@ describe('SavedInsightsService.update', () => {
   });
 });
 
+// ── duplicate ─────────────────────────────────────────────────────────────────
+
+describe('SavedInsightsService.duplicate', () => {
+  it('creates a copy of an existing insight', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const source = await service.create(userId, projectId, {
+      type: 'trend',
+      name: 'Original Insight',
+      description: 'Some description',
+      config: SAMPLE_CONFIG,
+    });
+
+    const copy = await service.duplicate(userId, projectId, source.id);
+
+    expect(copy.id).not.toBe(source.id);
+    expect(copy.name).toBe('Copy of Original Insight');
+    expect(copy.type).toBe(source.type);
+    expect(copy.config).toEqual(source.config);
+    expect(copy.description).toBe(source.description);
+    expect(copy.created_by).toBe(userId);
+    expect(copy.is_favorite).toBe(false);
+    expect(copy.project_id).toBe(projectId);
+  });
+
+  it('sets created_by to the duplicating user, not the original creator', async () => {
+    const { projectId, userId: creator } = await createTestProject(ctx.db);
+    const { userId: otherUser } = await createTestProject(ctx.db);
+    const source = await service.create(creator, projectId, {
+      type: 'trend',
+      name: 'Creator Insight',
+      config: SAMPLE_CONFIG,
+    });
+
+    const copy = await service.duplicate(otherUser, projectId, source.id);
+
+    expect(copy.created_by).toBe(otherUser);
+  });
+
+  it('resets is_favorite to false even if source is favorited', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const source = await service.create(userId, projectId, {
+      type: 'trend',
+      name: 'Fav Insight',
+      config: SAMPLE_CONFIG,
+    });
+    await service.update(projectId, source.id, { is_favorite: true });
+
+    const copy = await service.duplicate(userId, projectId, source.id);
+    expect(copy.is_favorite).toBe(false);
+  });
+
+  it('truncates name to 200 characters', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const longName = 'A'.repeat(200);
+    const source = await service.create(userId, projectId, {
+      type: 'trend',
+      name: longName,
+      config: SAMPLE_CONFIG,
+    });
+
+    const copy = await service.duplicate(userId, projectId, source.id);
+
+    expect(copy.name.length).toBeLessThanOrEqual(200);
+    expect(copy.name).toBe(`Copy of ${longName}`.slice(0, 200));
+  });
+
+  it('throws InsightNotFoundException for non-existent source', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    await expect(service.duplicate(userId, projectId, randomUUID())).rejects.toThrow(InsightNotFoundException);
+  });
+});
+
 // ── remove ────────────────────────────────────────────────────────────────────
 
 describe('SavedInsightsService.remove', () => {
