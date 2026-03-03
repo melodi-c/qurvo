@@ -5,6 +5,8 @@ import { Separator } from '@/components/ui/separator';
 import { FilterListSection } from '@/components/FilterListSection';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { resolveRelativeDate, isRelativeDate } from '@/lib/date-utils';
+import { useProjectStore } from '@/stores/project';
 import translations from './WebFilterBar.translations';
 import type { StepFilter } from '@/api/generated/Api';
 
@@ -20,6 +22,11 @@ interface WebFilterBarProps {
 export function WebFilterBar({ dateFrom, dateTo, onDateRangeChange, filters, onFiltersChange, className }: WebFilterBarProps) {
   const { t } = useLocalTranslation(translations);
   const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames();
+  const timezone = useProjectStore((s) => s.projectTimezone);
+
+  // Resolve relative dates (e.g. "-7d", "-0d") to absolute YYYY-MM-DD for DatePicker
+  const resolvedFrom = resolveRelativeDate(dateFrom, timezone);
+  const resolvedTo = resolveRelativeDate(dateTo, timezone);
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
@@ -32,14 +39,14 @@ export function WebFilterBar({ dateFrom, dateTo, onDateRangeChange, filters, onF
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">{t('from')}:</span>
           <DatePicker
-            value={dateFrom.slice(0, 10)}
-            onChange={(v) => onDateRangeChange(v, dateTo)}
+            value={resolvedFrom}
+            onChange={(v) => onDateRangeChange(v, isRelativeDate(dateTo) ? resolvedTo : dateTo)}
           />
           <span className="text-xs text-muted-foreground">—</span>
           <span className="text-xs text-muted-foreground">{t('to')}:</span>
           <DatePicker
-            value={dateTo.slice(0, 10)}
-            onChange={(v) => onDateRangeChange(dateFrom, v)}
+            value={resolvedTo}
+            onChange={(v) => onDateRangeChange(isRelativeDate(dateFrom) ? resolvedFrom : dateFrom, v)}
           />
         </div>
       </div>
