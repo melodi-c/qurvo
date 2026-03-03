@@ -67,40 +67,37 @@ function AnnotationLabel({
   );
 }
 
-/** Custom SVG label for compact mode: small indicator with native tooltip on hover. */
+/** Custom SVG label for compact mode: small indicator with annotation label text. */
 function CompactAnnotationLabel({
   viewBox,
   group,
   tooltipText,
+  moreLabel,
 }: {
   viewBox?: { x?: number; y?: number };
   group: AnnotationGroup;
   tooltipText: string;
+  moreLabel: string;
 }) {
-  const x = viewBox?.x ?? 0;
-  const y = (viewBox?.y ?? 0) + 8;
+  const x = (viewBox?.x ?? 0) + 4;
+  const y = (viewBox?.y ?? 0) + 14;
   const color = group.color;
-  const count = group.annotations.length;
+  const firstLabel = group.annotations[0].label;
 
   return (
     <g>
       <title>{tooltipText}</title>
-      {count === 1 ? (
-        <circle cx={x} cy={y} r={3.5} fill={color} opacity={0.85} />
+      {group.annotations.length === 1 ? (
+        <text x={x} y={y} fontSize={10} fill={color} textAnchor="start" opacity={0.9}>
+          {firstLabel}
+        </text>
       ) : (
-        <>
-          <circle cx={x} cy={y} r={5} fill={color} opacity={0.85} />
-          <text
-            x={x}
-            y={y + 3.5}
-            textAnchor="middle"
-            fontSize={8}
-            fontWeight="bold"
-            fill="hsl(var(--color-background))"
-          >
-            {count}
-          </text>
-        </>
+        <text x={x} y={y} fontSize={10} fill={color} textAnchor="start" opacity={0.9}>
+          <tspan>{firstLabel}</tspan>
+          <tspan dx={3} fontSize={9} opacity={0.7}>
+            {moreLabel}
+          </tspan>
+        </text>
       )}
     </g>
   );
@@ -147,6 +144,7 @@ export function useAnnotationReferenceLines(
                     viewBox={props.viewBox}
                     group={group}
                     tooltipText={tooltipText}
+                    moreLabel={moreLabel}
                   />
                 )
               : (props: { viewBox?: { x?: number; y?: number } }) => (
