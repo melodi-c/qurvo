@@ -66,6 +66,16 @@ export class SavedInsightsController {
   }
 
   @RequireRole('editor')
+  @Post(':insightId/duplicate')
+  async duplicate(
+    @CurrentUser() user: RequestUser,
+    @Param('projectId') projectId: string,
+    @Param('insightId', ParseUUIDPipe) insightId: string,
+  ): Promise<InsightDto> {
+    return this.insightsService.duplicate(user.user_id, projectId, insightId) as any;
+  }
+
+  @RequireRole('editor')
   @Delete(':insightId')
   async remove(
     @Param('projectId') projectId: string,
