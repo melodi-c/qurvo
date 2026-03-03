@@ -203,13 +203,13 @@ describe('SavedInsightsService.duplicate', () => {
 
   it('sets created_by to the duplicating user, not the original creator', async () => {
     const { projectId, userId: creator } = await createTestProject(ctx.db);
+    const { userId: otherUser } = await createTestProject(ctx.db);
     const source = await service.create(creator, projectId, {
       type: 'trend',
       name: 'Creator Insight',
       config: SAMPLE_CONFIG,
     });
 
-    const otherUser = randomUUID();
     const copy = await service.duplicate(otherUser, projectId, source.id);
 
     expect(copy.created_by).toBe(otherUser);
