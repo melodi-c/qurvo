@@ -1,7 +1,5 @@
 import { X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { DateRangeSection } from '@/components/ui/date-range-section';
-import { useProjectStore } from '@/stores/project';
 import { EventNameCombobox } from '@/components/EventNameCombobox';
 import { FilterListSection } from '@/components/FilterListSection';
 import { useEventPropertyNames } from '@/hooks/use-event-property-names';
@@ -12,9 +10,6 @@ import type { StepFilter } from '@/api/generated/Api';
 interface EventsFilterPanelProps {
   eventName: string;
   onEventNameChange: (value: string) => void;
-  dateFrom: string;
-  dateTo: string;
-  onDateChange: (from: string, to: string) => void;
   filters: StepFilter[];
   onFiltersChange: (filters: StepFilter[]) => void;
 }
@@ -22,14 +17,10 @@ interface EventsFilterPanelProps {
 export function EventsFilterPanel({
   eventName,
   onEventNameChange,
-  dateFrom,
-  dateTo,
-  onDateChange,
   filters,
   onFiltersChange,
 }: EventsFilterPanelProps) {
   const { t } = useLocalTranslation(translations);
-  const timezone = useProjectStore((s) => s.projectTimezone);
   const { data: propertyNames = [], descriptions: propDescriptions } = useEventPropertyNames(eventName);
 
   return (
@@ -65,15 +56,6 @@ export function EventsFilterPanel({
         onFiltersChange={onFiltersChange}
         propertyNames={propertyNames}
         propertyDescriptions={propDescriptions}
-      />
-
-      <Separator />
-
-      <DateRangeSection
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onChange={onDateChange}
-        timezone={timezone}
       />
     </div>
   );

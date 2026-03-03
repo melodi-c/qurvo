@@ -12,7 +12,6 @@ import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StepFilterDto } from './shared/filters.dto';
 import { makeJsonArrayTransform } from './shared/transforms';
-import { IsDateOnly } from './shared/is-date-only.decorator';
 import { IsIsoDatetime } from './shared/is-iso-datetime.decorator';
 
 export class EventsQueryDto {
@@ -23,16 +22,6 @@ export class EventsQueryDto {
   @IsString()
   @IsOptional()
   event_name?: string;
-
-  @ApiPropertyOptional()
-  @IsDateOnly()
-  @IsOptional()
-  date_from?: string;
-
-  @ApiPropertyOptional()
-  @IsDateOnly()
-  @IsOptional()
-  date_to?: string;
 
   @ApiPropertyOptional({ type: [StepFilterDto] })
   @IsOptional()

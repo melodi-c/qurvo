@@ -19,7 +19,6 @@ export default function EventsPage() {
     page,
     setPage,
     handleEventNameChange,
-    handleDateChange,
     handleFiltersChange,
   } = useEventsFilters();
 
@@ -33,9 +32,6 @@ export default function EventsPage() {
         <EventsFilterPanel
           eventName={filterState.eventName}
           onEventNameChange={handleEventNameChange}
-          dateFrom={filterState.dateFrom}
-          dateTo={filterState.dateTo}
-          onDateChange={handleDateChange}
           filters={filterState.filters}
           onFiltersChange={handleFiltersChange}
         />

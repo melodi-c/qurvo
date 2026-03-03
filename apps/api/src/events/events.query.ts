@@ -22,8 +22,6 @@ export interface EventsQueryParams {
   project_id: string;
   event_name?: string;
   filters?: PropertyFilter[];
-  date_from?: string;
-  date_to?: string;
   limit?: number;
   offset?: number;
 }
@@ -106,16 +104,13 @@ export const EVENT_BASE_COLUMNS = [
   col('sdk_version'),
 ];
 
-// eslint-disable-next-line complexity -- dynamic query builder with optional filters
 export async function queryEvents(
   ch: ClickHouseClient,
   params: EventsQueryParams,
 ): Promise<EventRow[]> {
   const now = new Date();
-  const dateTo = params.date_to ?? now.toISOString().slice(0, 10);
-  const dateFrom =
-    params.date_from ??
-    new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const dateTo = now.toISOString().slice(0, 10);
+  const dateFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const limit = params.limit ?? 50;
   const offset = params.offset ?? 0;

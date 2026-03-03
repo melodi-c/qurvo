@@ -1865,8 +1865,6 @@ export type FunnelControllerGetFunnelTimeToConvertParams1FunnelOrderTypeEnum =
 
 export interface EventsControllerGetEventsParams {
   event_name?: string;
-  date_from?: string;
-  date_to?: string;
   filters?: StepFilter[];
   /**
    * @min 1
