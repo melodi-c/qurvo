@@ -19,15 +19,12 @@ import {
   inArray,
   inSubquery,
   notInSubquery,
-  lt,
   type Expr,
 } from '@qurvo/ch-query';
 import { resolvedPerson } from '@qurvo/cohort-query';
 import {
   analyticsWhere,
   resolvePropertyExpr,
-  projectIs,
-  eventIs,
   bucket,
   cohortBounds,
   shiftPeriod,
@@ -37,7 +34,7 @@ import {
   type PropertyFilter,
   type TrendMetric,
 } from '../query-helpers';
-import { buildPriorPersonsWhere, buildPriorPersonsWhereWithFilters } from '../query-helpers/filters';
+import { buildPriorPersonsWhereWithFilters } from '../query-helpers/filters';
 
 // Public types
 
@@ -268,10 +265,10 @@ function buildSeriesArm(
     .build();
 }
 
-// First-time users arm builder
+// First-time / first-matching-event arm builder
 
 /**
- * Build a SELECT arm for first_time_users metric.
+ * Build a SELECT arm for first_time_users or first_matching_event metric.
  *
  * Logic:
  *  1. Inner subquery finds persons whose min(timestamp) is in [dateFrom, dateTo]
@@ -280,103 +277,35 @@ function buildSeriesArm(
  *
  * For property breakdown: uses argMin(breakdownExpr, timestamp) to get the
  * breakdown value from the first event.
+ *
+ * @param priorFilters — filters for the prior-persons subquery. Empty array means
+ *   "any event with this event_name" (first_time_users). Non-empty means
+ *   "event with this event_name AND these filters" (first_matching_event).
  */
-function buildFirstTimeSeriesArm(
+function buildFirstEventSeriesArm(
   idx: number,
   s: TrendSeries,
   params: TrendQueryParams,
   dateFrom: string,
   dateTo: string,
   bucketExpr: Expr,
+  priorFilters: PropertyFilter[],
   breakdownExpr?: Expr,
 ) {
-  // Subquery: persons who had events before dateFrom for this event_name + project
-  const priorPersonsSub = select(resolvedPerson())
-    .from('events')
-    .where(buildPriorPersonsWhere(params.project_id, s.event_name, dateFrom, params.timezone))
-    .build();
-
-  // Inner query: find first_ts for each person in the analysis window
-  const personExpr = resolvedPerson();
-  const innerCols: (Expr | undefined)[] = [
-    personExpr.as('person'),
-    min(col('timestamp')).as('first_ts'),
-  ];
-  if (breakdownExpr) {
-    // Get the breakdown value from the earliest event
-    innerCols.push(argMin(breakdownExpr, col('timestamp')).as('first_bv'));
-  }
-
-  const innerQuery = select(...innerCols)
-    .from('events')
-    .where(
-      seriesWhere(s, params, dateFrom, dateTo),
-      notInSubquery(resolvedPerson(), priorPersonsSub),
-    )
-    .groupBy(col('person'))
-    .build();
-
-  // Outer query: bucket by first_ts, count persons
-  // We use bucket on 'first_ts' column from the inner subquery
-  const firstTsBucket = bucket(params.granularity, 'first_ts', params.timezone);
-
-  const outerCols: (Expr | undefined)[] = [
-    literal(idx).as('series_idx'),
-    breakdownExpr ? col('first_bv').as('breakdown_value') : undefined,
-    alias(firstTsBucket, 'bucket'),
-    count().as('raw_value'),
-    count().as('uniq_value'),
-    func('toFloat64', count()).as('agg_value'),
-  ];
-
-  const groupByCols: (Expr | undefined)[] = [
-    breakdownExpr ? col('breakdown_value') : undefined,
-    col('bucket'),
-  ];
-
-  return select(...outerCols)
-    .from(innerQuery)
-    .groupBy(...groupByCols)
-    .build();
-}
-
-// First-matching-event arm builder
-
-/**
- * Build a SELECT arm for first_matching_event metric.
- *
- * Similar to buildFirstTimeSeriesArm, but the prior-persons subquery also
- * applies the per-series property filters. The question changes from
- * "did this person ever do event X before dateFrom?" to
- * "did this person ever do event X **with these filters** before dateFrom?"
- *
- * When the series has no filters, behaviour is identical to first_time_users.
- */
-function buildFirstMatchingSeriesArm(
-  idx: number,
-  s: TrendSeries,
-  params: TrendQueryParams,
-  dateFrom: string,
-  dateTo: string,
-  bucketExpr: Expr,
-  breakdownExpr?: Expr,
-) {
-  // Subquery: persons who had matching events (event_name + series filters) before dateFrom
+  // Subquery: persons who had (matching) events before dateFrom
   const priorPersonsSub = select(resolvedPerson())
     .from('events')
     .where(buildPriorPersonsWhereWithFilters(
-      params.project_id, s.event_name, dateFrom, params.timezone, s.filters ?? [],
+      params.project_id, s.event_name, dateFrom, params.timezone, priorFilters,
     ))
     .build();
 
   // Inner query: find first_ts for each person in the analysis window
-  const personExpr = resolvedPerson();
   const innerCols: (Expr | undefined)[] = [
-    personExpr.as('person'),
+    resolvedPerson().as('person'),
     min(col('timestamp')).as('first_ts'),
   ];
   if (breakdownExpr) {
-    // Get the breakdown value from the earliest event
     innerCols.push(argMin(breakdownExpr, col('timestamp')).as('first_bv'));
   }
 
@@ -392,24 +321,47 @@ function buildFirstMatchingSeriesArm(
   // Outer query: bucket by first_ts, count persons
   const firstTsBucket = bucket(params.granularity, 'first_ts', params.timezone);
 
-  const outerCols: (Expr | undefined)[] = [
+  return select(
     literal(idx).as('series_idx'),
     breakdownExpr ? col('first_bv').as('breakdown_value') : undefined,
     alias(firstTsBucket, 'bucket'),
     count().as('raw_value'),
     count().as('uniq_value'),
     func('toFloat64', count()).as('agg_value'),
-  ];
-
-  const groupByCols: (Expr | undefined)[] = [
-    breakdownExpr ? col('breakdown_value') : undefined,
-    col('bucket'),
-  ];
-
-  return select(...outerCols)
+  )
     .from(innerQuery)
-    .groupBy(...groupByCols)
+    .groupBy(
+      breakdownExpr ? col('breakdown_value') : undefined,
+      col('bucket'),
+    )
     .build();
+}
+
+// Series arm dispatcher
+
+/**
+ * Select the correct arm builder for a series based on its metric type.
+ *
+ * - first_time_users → buildFirstEventSeriesArm with empty priorFilters
+ * - first_matching_event → buildFirstEventSeriesArm with series filters as priorFilters
+ * - all other metrics → buildSeriesArm
+ */
+function buildArmForSeries(
+  idx: number,
+  s: TrendSeries,
+  params: TrendQueryParams,
+  dateFrom: string,
+  dateTo: string,
+  bucketExpr: Expr,
+  breakdownExpr?: Expr,
+) {
+  if (s.metric === 'first_time_users') {
+    return buildFirstEventSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, [], breakdownExpr);
+  }
+  if (s.metric === 'first_matching_event') {
+    return buildFirstEventSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, s.filters ?? [], breakdownExpr);
+  }
+  return buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr);
 }
 
 // Core query executor
@@ -491,16 +443,17 @@ async function executeTrendQuery(
     return assembleRows(rows, params.series, { cohortLabelMap, isBreakdown: true });
   }
 
-  // Branch 2: Non-breakdown
-  if (!hasBreakdown) {
-    const arms = params.series.map((s, idx) =>
-      s.metric === 'first_time_users'
-        ? buildFirstTimeSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr)
-        : s.metric === 'first_matching_event'
-          ? buildFirstMatchingSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr)
-          : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr),
-    );
+  // Branches 2+3: Non-breakdown and property breakdown (unified)
+  const breakdownExpr = hasBreakdown
+    ? resolvePropertyExpr(params.breakdown_property ?? '')
+    : undefined;
 
+  const arms = params.series.map((s, idx) =>
+    buildArmForSeries(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr),
+  );
+
+  // Non-breakdown: simple query
+  if (!hasBreakdown) {
     const query = select(
       col('series_idx'), col('bucket'),
       col('raw_value'), col('uniq_value'), col('agg_value'),
@@ -514,18 +467,11 @@ async function executeTrendQuery(
     return assembleRows(rows, params.series);
   }
 
-  // Branch 3: Property breakdown
-  const breakdownExpr = resolvePropertyExpr(params.breakdown_property ?? '');
+  // After the early return above, breakdownExpr is guaranteed to be defined.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- narrowed by hasBreakdown guard + early return
+  const bdExpr = breakdownExpr!;
 
-  const arms = params.series.map((s, idx) =>
-    s.metric === 'first_time_users'
-      ? buildFirstTimeSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr)
-      : s.metric === 'first_matching_event'
-        ? buildFirstMatchingSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr)
-        : buildSeriesArm(idx, s, params, dateFrom, dateTo, bucketExpr, breakdownExpr),
-  );
-
-  // Build the outer query once, then clone for the two sub-paths.
+  // Property breakdown: outer query with optional top-N CTE or fixed values
   const baseOuter = select(
     col('series_idx'), col('breakdown_value'), col('bucket'),
     col('raw_value'), col('uniq_value'), col('agg_value'),
@@ -538,14 +484,12 @@ async function executeTrendQuery(
   let query;
 
   if (fixedBreakdownValues) {
-    // Compare mode: filter by the fixed set of breakdown values from the current period.
     query = baseOuter.clone()
       .where(inArray(col('breakdown_value'), param('Array(String)', fixedBreakdownValues)))
       .build();
   } else {
-    // Top-N CTE: select breakdown values by frequency across all series.
     const topValuesArms = params.series.map((s) =>
-      select(alias(breakdownExpr, 'breakdown_value'))
+      select(alias(bdExpr, 'breakdown_value'))
         .from('events')
         .where(seriesWhere(s, params, dateFrom, dateTo))
         .build(),
