@@ -172,6 +172,7 @@ export async function queryLifecycle(
         eventName: params.target_event,
         filters: params.filters,
         cohortFilters: params.cohort_filters,
+        tsColumn: col('timestamp'),
         dateTo: cbDateTo, dateFrom: cbDateFrom,
       }),
     )

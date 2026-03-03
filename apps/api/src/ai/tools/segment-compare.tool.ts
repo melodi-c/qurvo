@@ -5,7 +5,7 @@ import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { ChQueryExecutor } from '@qurvo/clickhouse';
 import { defineTool, propertyFilterSchema } from './ai-tool.interface';
 import type { AiTool } from './ai-tool.interface';
-import { select } from '@qurvo/ch-query';
+import { col, select } from '@qurvo/ch-query';
 import {
   analyticsWhere,
   baseMetricColumns,
@@ -67,6 +67,7 @@ async function querySegment(
         tz: 'UTC',
         eventName,
         filters,
+        tsColumn: col('timestamp'),
       }),
     )
     .build();

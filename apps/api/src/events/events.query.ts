@@ -75,8 +75,8 @@ export interface EventDetailRow extends EventRow {
  * Always pass `tsColumn: col('events.timestamp')` (qualified ref) to `timeRange()`
  * or `analyticsWhere()` when combining them with `EVENT_BASE_COLUMNS` in the same query.
  *
- * @see timeRange — accepts optional `tsColumn` to override the default `col('timestamp')`
- * @see analyticsWhere — accepts optional `tsColumn` to pass through to `timeRange()`
+ * @see timeRange — requires `tsColumn` to specify the comparison column
+ * @see analyticsWhere — requires `tsColumn` to pass through to `timeRange()`
  */
 export const EVENT_BASE_COLUMNS = [
   col('event_id'),

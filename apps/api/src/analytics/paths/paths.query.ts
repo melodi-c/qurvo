@@ -153,7 +153,7 @@ export async function queryPaths(
           .from('events')
           .where(
             projectIs(params.project_id),
-            timeRange(params.date_from, params.date_to, params.timezone),
+            timeRange(params.date_from, params.date_to, params.timezone, col('timestamp')),
             eq(col('event_name'), param('String', params.start_event)),
           )
           .build(),
@@ -169,7 +169,7 @@ export async function queryPaths(
     .from('events')
     .where(
       projectIs(params.project_id),
-      timeRange(params.date_from, params.date_to, params.timezone),
+      timeRange(params.date_from, params.date_to, params.timezone, col('timestamp')),
       params.exclusions?.length
         ? notInArray(col('event_name'), param('Array(String)', params.exclusions))
         : undefined,

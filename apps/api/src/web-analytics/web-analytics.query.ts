@@ -124,6 +124,7 @@ function waWhere(params: WebAnalyticsQueryParams): Expr {
     tz: params.timezone,
     eventNames: ['$pageview', '$pageleave'],
     filters: params.filters,
+    tsColumn: col('timestamp'),
   });
 }
 
@@ -138,6 +139,7 @@ function waWherePageview(params: WebAnalyticsQueryParams): Expr {
     tz: params.timezone,
     eventName: '$pageview',
     filters: params.filters,
+    tsColumn: col('timestamp'),
   });
 }
 

@@ -147,7 +147,7 @@ async function queryDimension(
     .join(', ');
 
   const baselineWhereSql = compileExprToSql(
-    analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), tz: 'UTC', eventName }),
+    analyticsWhere({ projectId, from: baselineFrom, to: toChTs(baselineTo, true), tz: 'UTC', eventName, tsColumn: col('timestamp') }),
     queryParams, ctx,
   ).sql;
 
@@ -156,7 +156,7 @@ async function queryDimension(
     .join(', ');
 
   const currentWhereSql = compileExprToSql(
-    analyticsWhere({ projectId, from: currentFrom, to: toChTs(currentTo, true), tz: 'UTC', eventName }),
+    analyticsWhere({ projectId, from: currentFrom, to: toChTs(currentTo, true), tz: 'UTC', eventName, tsColumn: col('timestamp') }),
     queryParams, ctx,
   ).sql;
 

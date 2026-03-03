@@ -217,6 +217,7 @@ function seriesWhere(
     eventName: s.event_name,
     filters: s.filters,
     cohortFilters: params.cohort_filters,
+    tsColumn: col('timestamp'),
     ...cohortBounds(params),
   });
 }
