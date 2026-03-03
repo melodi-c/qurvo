@@ -7,10 +7,315 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
+import { formatDate, formatCompactNumber } from '@/lib/formatting';
+import { pluralize } from '@/i18n/pluralize';
+import { WidgetShell } from '@/features/dashboard/components/widgets/WidgetShell';
+import { TrendChart } from '@/features/dashboard/components/widgets/trend/TrendChart';
+import { CUSTOM_QUERY_CHART_TYPES } from '@/features/dashboard/components/widgets/trend/trend-shared';
+import { FunnelChart } from '@/features/dashboard/components/widgets/funnel/FunnelChart';
+import { getFunnelMetrics } from '@/features/dashboard/components/widgets/funnel/funnel-utils';
+import { RetentionTable } from '@/features/dashboard/components/widgets/retention/RetentionTable';
+import { LifecycleChart } from '@/features/dashboard/components/widgets/lifecycle/LifecycleChart';
+import { StickinessChart } from '@/features/dashboard/components/widgets/stickiness/StickinessChart';
+import { PathsChart } from '@/features/dashboard/components/widgets/paths/PathsChart';
+import type { WidgetDataResult } from '@/features/dashboard/hooks/create-widget-data-hook';
+import type {
+  InsightType,
+  PublicInsightWithData,
+  TrendWidgetConfig,
+  TrendResult,
+  TrendAggregateResult,
+  FunnelWidgetConfig,
+  FunnelResult,
+  RetentionResult,
+  LifecycleResult,
+  StickinessResult,
+  PathsResult,
+} from '@/api/generated/Api';
 import translations from './public-insight.translations';
-import { formatDate } from '@/lib/formatting';
-import type { InsightType } from '@/api/generated/Api';
 
+// ---------------------------------------------------------------------------
+// Fake query helper — bridges precomputed data into WidgetShell interface
+// ---------------------------------------------------------------------------
+function makeFakeQuery<T>(data: T | null | undefined): WidgetDataResult<T> {
+  return {
+    data: data ?? undefined,
+    isLoading: false,
+    isFetching: false,
+    isPlaceholderData: false,
+    error: data === null ? new Error('unavailable') : null,
+    refresh: async () => data ?? undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Precomputed data envelope
+// ---------------------------------------------------------------------------
+interface PrecomputedData {
+  data: unknown;
+  cached_at: string;
+  from_cache: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Per-type visualization components (same as public-dashboard.tsx)
+// ---------------------------------------------------------------------------
+
+function InsightTrendViz({ config, precomputed }: { config: TrendWidgetConfig; precomputed: PrecomputedData }) {
+  const { t } = useLocalTranslation(translations);
+  const isCustomQuery = CUSTOM_QUERY_CHART_TYPES.includes(config.chart_type);
+
+  type AggregateEnvelope = TrendAggregateResult & { _aggregate: true };
+  const rawData = precomputed.data as (TrendResult | AggregateEnvelope) | null;
+  const isAggregate = rawData !== null && typeof rawData === 'object' && '_aggregate' in rawData;
+
+  const trendResult: TrendResult | null = !isAggregate ? rawData : null;
+  const aggregateResult: TrendAggregateResult | undefined = isAggregate ? rawData : undefined;
+
+  const query = makeFakeQuery({ cached_at: precomputed.cached_at, from_cache: precomputed.from_cache });
+
+  const totals = trendResult?.series.map((s) => s.data.reduce((acc, dp) => acc + dp.value, 0)) ?? [];
+  const mainTotal = totals[0] ?? 0;
+
+  const isEmpty = isCustomQuery
+    ? !aggregateResult || (!aggregateResult.heatmap?.length && !aggregateResult.world_map?.length)
+    : !trendResult || trendResult.series.length === 0;
+
+  return (
+    <WidgetShell
+      query={query}
+      isConfigValid
+      isEmpty={isEmpty}
+      emptyMessage={t('noData')}
+      metric={
+        !isCustomQuery ? (
+          <span className="text-xl font-bold tabular-nums text-primary">{mainTotal.toLocaleString()}</span>
+        ) : undefined
+      }
+      metricSecondary={
+        !isCustomQuery && totals.length > 1 ? (
+          <span className="text-xs text-muted-foreground tabular-nums truncate">
+            {totals.slice(1).map((v) => v.toLocaleString()).join(' / ')}
+          </span>
+        ) : undefined
+      }
+      cachedAt={precomputed.cached_at}
+      fromCache={precomputed.from_cache}
+    >
+      {!isEmpty && (
+        <TrendChart
+          series={trendResult?.series ?? []}
+          previousSeries={trendResult?.series_previous}
+          chartType={config.chart_type}
+          granularity={config.granularity}
+          formulas={config.formulas}
+          aggregateData={aggregateResult}
+          heatmapData={aggregateResult?.heatmap}
+        />
+      )}
+    </WidgetShell>
+  );
+}
+
+function InsightFunnelViz({ config, precomputed }: { config: FunnelWidgetConfig; precomputed: PrecomputedData }) {
+  const { t } = useLocalTranslation(translations);
+
+  const result = precomputed.data as FunnelResult | null;
+  const query = makeFakeQuery({ cached_at: precomputed.cached_at, from_cache: precomputed.from_cache });
+  const { overallConversion, totalEntered, totalConverted } = getFunnelMetrics(result ?? undefined);
+
+  return (
+    <WidgetShell
+      query={query}
+      isConfigValid
+      isEmpty={!result || result.steps.length === 0}
+      emptyMessage={t('noData')}
+      metric={
+        <span className="text-xl font-bold tabular-nums text-primary">
+          {overallConversion !== null ? `${overallConversion}%` : '\u2014'}
+        </span>
+      }
+      metricSecondary={
+        <span className="text-xs text-muted-foreground tabular-nums truncate">
+          {totalEntered?.toLocaleString()} &rarr; {totalConverted?.toLocaleString()}
+        </span>
+      }
+      cachedAt={precomputed.cached_at}
+      fromCache={precomputed.from_cache}
+    >
+      {result && (
+        <div className="h-full overflow-auto">
+          <FunnelChart
+            steps={result.steps}
+            breakdown={result.breakdown}
+            aggregateSteps={result.aggregate_steps}
+            conversionRateDisplay={config.conversion_rate_display ?? 'total'}
+          />
+        </div>
+      )}
+    </WidgetShell>
+  );
+}
+
+function InsightRetentionViz({ precomputed }: { precomputed: PrecomputedData }) {
+  const { t } = useLocalTranslation(translations);
+
+  const result = precomputed.data as RetentionResult | null;
+  const query = makeFakeQuery({ cached_at: precomputed.cached_at, from_cache: precomputed.from_cache });
+
+  return (
+    <WidgetShell
+      query={query}
+      isConfigValid
+      isEmpty={!result || result.cohorts.length === 0}
+      emptyMessage={t('noData')}
+      skeletonVariant="table"
+      metric={
+        <span className="text-xl font-bold tabular-nums text-primary">
+          {result?.cohorts.length ?? 0}
+        </span>
+      }
+      metricSecondary={<span className="text-xs text-muted-foreground">{t('cohorts')}</span>}
+      cachedAt={precomputed.cached_at}
+      fromCache={precomputed.from_cache}
+    >
+      {result && (
+        <div className="h-full overflow-x-auto">
+          <RetentionTable result={result} />
+        </div>
+      )}
+    </WidgetShell>
+  );
+}
+
+function InsightLifecycleViz({ precomputed }: { precomputed: PrecomputedData }) {
+  const { t, lang } = useLocalTranslation(translations);
+
+  const result = precomputed.data as LifecycleResult | null;
+  const query = makeFakeQuery({ cached_at: precomputed.cached_at, from_cache: precomputed.from_cache });
+
+  const activeUsers = result
+    ? result.totals.new + result.totals.returning + result.totals.resurrecting
+    : 0;
+
+  const activeUsersLabel = pluralize(
+    activeUsers,
+    { one: t('activeUsersOne'), few: t('activeUsersFew'), many: t('activeUsersMany') },
+    lang,
+  );
+
+  return (
+    <WidgetShell
+      query={query}
+      isConfigValid
+      isEmpty={!result || result.data.length === 0}
+      emptyMessage={t('noData')}
+      metric={
+        <span className="text-xl font-bold tabular-nums text-primary">
+          {formatCompactNumber(activeUsers)}
+        </span>
+      }
+      metricSecondary={<span className="text-xs text-muted-foreground">{activeUsersLabel}</span>}
+      cachedAt={precomputed.cached_at}
+      fromCache={precomputed.from_cache}
+    >
+      {result && <LifecycleChart result={result} />}
+    </WidgetShell>
+  );
+}
+
+function InsightStickinessViz({ precomputed }: { precomputed: PrecomputedData }) {
+  const { t, lang } = useLocalTranslation(translations);
+
+  const result = precomputed.data as StickinessResult | null;
+  const query = makeFakeQuery({ cached_at: precomputed.cached_at, from_cache: precomputed.from_cache });
+
+  const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
+
+  const totalUsersLabel = pluralize(
+    totalUsers,
+    { one: t('totalUsersOne'), few: t('totalUsersFew'), many: t('totalUsersMany') },
+    lang,
+  );
+
+  return (
+    <WidgetShell
+      query={query}
+      isConfigValid
+      isEmpty={!result || result.data.length === 0}
+      emptyMessage={t('noData')}
+      metric={
+        <span className="text-xl font-bold tabular-nums text-primary">
+          {formatCompactNumber(totalUsers)}
+        </span>
+      }
+      metricSecondary={<span className="text-xs text-muted-foreground">{totalUsersLabel}</span>}
+      cachedAt={precomputed.cached_at}
+      fromCache={precomputed.from_cache}
+    >
+      {result && <StickinessChart result={result} />}
+    </WidgetShell>
+  );
+}
+
+function InsightPathsViz({ precomputed }: { precomputed: PrecomputedData }) {
+  const { t } = useLocalTranslation(translations);
+
+  const result = precomputed.data as PathsResult | null;
+  const query = makeFakeQuery({ cached_at: precomputed.cached_at, from_cache: precomputed.from_cache });
+
+  return (
+    <WidgetShell
+      query={query}
+      isConfigValid
+      isEmpty={!result || result.transitions.length === 0}
+      emptyMessage={t('noData')}
+      skeletonVariant="flow"
+      metric={
+        <span className="text-xl font-bold tabular-nums text-primary">
+          {result?.transitions.length ?? 0}
+        </span>
+      }
+      metricSecondary={<span className="text-xs text-muted-foreground">{t('transitions')}</span>}
+      cachedAt={precomputed.cached_at}
+      fromCache={precomputed.from_cache}
+    >
+      {result && <PathsChart transitions={result.transitions} topPaths={result.top_paths} />}
+    </WidgetShell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Insight visualization dispatcher
+// ---------------------------------------------------------------------------
+function InsightViz({ insight }: { insight: PublicInsightWithData }) {
+  const precomputed: PrecomputedData = {
+    data: insight.data,
+    cached_at: insight.cached_at,
+    from_cache: insight.from_cache,
+  };
+
+  switch (insight.type) {
+    case 'trend':
+      return <InsightTrendViz config={insight.config as TrendWidgetConfig} precomputed={precomputed} />;
+    case 'funnel':
+      return <InsightFunnelViz config={insight.config as FunnelWidgetConfig} precomputed={precomputed} />;
+    case 'retention':
+      return <InsightRetentionViz precomputed={precomputed} />;
+    case 'lifecycle':
+      return <InsightLifecycleViz precomputed={precomputed} />;
+    case 'stickiness':
+      return <InsightStickinessViz precomputed={precomputed} />;
+    case 'paths':
+      return <InsightPathsViz precomputed={precomputed} />;
+    default:
+      return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PublicInsightPage — main page component
+// ---------------------------------------------------------------------------
 export default function PublicInsightPage() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const { t } = useLocalTranslation(translations);
@@ -87,12 +392,8 @@ export default function PublicInsightPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-secondary/30 p-8 flex items-center justify-center min-h-[200px]">
-              <EmptyState
-                icon={Lightbulb}
-                description={t('viewFull')}
-                className="py-0"
-              />
+            <div className="rounded-lg border border-border bg-card min-h-[400px]">
+              <InsightViz insight={insight} />
             </div>
           </div>
         )}

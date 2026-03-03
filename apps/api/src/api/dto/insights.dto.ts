@@ -106,3 +106,14 @@ export class InsightDto {
   created_at: Date;
   updated_at: Date;
 }
+
+export class PublicInsightWithDataDto extends InsightDto {
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true, description: 'Precomputed analytics data for this insight. null if query failed.' })
+  data: unknown;
+
+  @ApiProperty({ description: 'ISO timestamp when data was cached' })
+  cached_at: string;
+
+  @ApiProperty({ description: 'Whether result was served from cache' })
+  from_cache: boolean;
+}
