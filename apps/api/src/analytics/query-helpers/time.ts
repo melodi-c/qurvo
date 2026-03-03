@@ -224,13 +224,19 @@ export function tsParam(value: string, tz: string): Expr {
 
 /**
  * Returns an AND expression for `timestamp >= from AND timestamp <= to` with timezone handling.
+ *
+ * @param tsColumn - Optional column expression override. Defaults to `col('timestamp')`.
+ *   Pass `col('events.timestamp')` when the SELECT list contains an alias named `timestamp`
+ *   (e.g. `formatDateTime(...) AS timestamp`) to prevent ClickHouse from resolving the
+ *   unqualified name to the String alias instead of the DateTime64 table column.
  */
-export function timeRange(from: string, to: string, tz: string): Expr {
+export function timeRange(from: string, to: string, tz: string, tsColumn?: Expr): Expr {
+  const tsCol = tsColumn ?? col('timestamp');
   const fromExpr = tsParam(from, tz);
   const toExpr = tsParam(to.length === 10 ? toChTs(to, true) : to, tz);
   return and(
-    gte(col('timestamp'), fromExpr),
-    lte(col('timestamp'), toExpr),
+    gte(tsCol, fromExpr),
+    lte(tsCol, toExpr),
   );
 }
 

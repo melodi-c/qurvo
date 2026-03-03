@@ -178,10 +178,12 @@ export function analyticsWhere(opts: {
   cohortFilters?: CohortFilterInput[];
   dateTo?: string;
   dateFrom?: string;
+  /** Override the timestamp column ref used by timeRange(). @see timeRange */
+  tsColumn?: Expr;
 }): Expr {
   return and(
     projectIs(opts.projectId),
-    timeRange(opts.from, opts.to, opts.tz),
+    timeRange(opts.from, opts.to, opts.tz, opts.tsColumn),
     opts.eventName ? eventIs(opts.eventName) : undefined,
     opts.eventNames?.length ? eventIn(opts.eventNames) : undefined,
     opts.filters?.length ? propertyFilters(opts.filters) : undefined,
