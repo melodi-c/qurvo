@@ -45,12 +45,9 @@ interface RawPersonAtCellRow {
 /**
  * Finds person IDs at a specific retention cell (cohort_date + period_offset).
  *
- * Reconstructs the same CTE structure from retention.query.ts:
- *   initial_events  -> persons who entered the cohort (recurring or first_time)
- *   return_events   -> persons who returned with the return event
- *   retention_raw   -> INNER JOIN of initial x return, with period_offset = dateDiff
- *
- * Then filters to the specific cohort_date + period_offset and returns person_ids.
+ * Uses buildRetentionCTEs() to obtain the shared initial_events, return_events,
+ * and retention_raw CTE queries, then filters to the specific cohort_date +
+ * period_offset and returns person_ids.
  */
 export async function queryPersonsAtRetentionCell(
   ch: ClickHouseClient,

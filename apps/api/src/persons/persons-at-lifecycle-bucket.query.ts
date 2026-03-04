@@ -47,12 +47,9 @@ interface RawPersonAtBucketRow {
 /**
  * Finds person IDs at a specific lifecycle bucket + status.
  *
- * Reconstructs the same two-CTE lifecycle classification from lifecycle.query.ts:
- *   person_buckets  -> per-person sorted bucket array over [extended_from, to]
- *   prior_active    -> users with any matching event strictly before extended_from
- *
- * Then filters the classified results to a specific bucket + status and returns
- * the person_ids with pagination.
+ * Uses buildLifecycleCTEs() to obtain the shared person_buckets and prior_active
+ * CTE queries, then filters the classified results to a specific bucket + status
+ * and returns person_ids with pagination.
  */
 export async function queryPersonsAtLifecycleBucket(
   ch: ClickHouseClient,
