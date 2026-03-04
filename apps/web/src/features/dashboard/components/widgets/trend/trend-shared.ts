@@ -23,9 +23,12 @@ export function supportsGranularity(chartType: ChartType): boolean {
   return TIME_SERIES_CHART_TYPES.includes(chartType);
 }
 
+/** Chart types that do NOT support compare toggle (no previous-period visualization) */
+const NO_COMPARE_CHART_TYPES: readonly ChartType[] = [...CUSTOM_QUERY_CHART_TYPES, 'pie', 'value_bar'] as const;
+
 /** Chart types that support compare toggle */
 export function supportsCompare(chartType: ChartType): boolean {
-  return !CUSTOM_QUERY_CHART_TYPES.includes(chartType);
+  return !NO_COMPARE_CHART_TYPES.includes(chartType);
 }
 
 /** Chart types that support formula builder */
