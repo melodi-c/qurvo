@@ -38,7 +38,7 @@ export function LegendTable({
   const hasPrevious = previousSeries && previousSeries.length > 0;
 
   return (
-    <div className="mt-4 border-t border-border/40">
+    <div className="mt-4 border-t border-border">
       <Table className="text-xs">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b-0">
@@ -61,7 +61,7 @@ export function LegendTable({
             return (
               <TableRow
                 key={key}
-                className={cn('cursor-pointer', isHidden && 'opacity-35')}
+                className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isHidden && 'opacity-50')}
                 onClick={() => onToggleSeries(key)}
               >
                 <TableCell className="py-1.5">
@@ -70,7 +70,7 @@ export function LegendTable({
                       className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: isHidden ? 'var(--color-muted-foreground)' : color }}
                     />
-                    <span className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')}>
+                    <span className={cn('truncate', isHidden ? 'text-muted-foreground' : 'text-foreground')}>
                       {key}
                     </span>
                   </div>
@@ -101,7 +101,7 @@ export function LegendTable({
             return (
               <TableRow
                 key={key}
-                className={cn('cursor-pointer', isHidden && 'opacity-35')}
+                className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isHidden && 'opacity-50')}
                 onClick={() => onToggleSeries(key)}
               >
                 <TableCell className="py-1.5">
@@ -110,7 +110,7 @@ export function LegendTable({
                       className="inline-block h-2.5 w-2.5 rounded-full shrink-0 border border-dashed"
                       style={{ borderColor: isHidden ? 'var(--color-muted-foreground)' : color }}
                     />
-                    <span className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')}>
+                    <span className={cn('truncate', isHidden ? 'text-muted-foreground' : 'text-foreground')}>
                       {key}
                     </span>
                   </div>
