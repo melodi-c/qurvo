@@ -17,6 +17,7 @@ import { formatDateWithGranularity } from '@/lib/formatting';
 interface RetentionTableProps {
   result: RetentionResult;
   compact?: boolean;
+  onCellClick?: (cohortDate: string, periodOffset: number) => void;
 }
 
 function heatmapColor(pct: number): string {
@@ -25,7 +26,7 @@ function heatmapColor(pct: number): string {
   return `rgba(34, 197, 94, ${opacity})`;
 }
 
-export function RetentionTable({ result, compact = false }: RetentionTableProps) {
+export function RetentionTable({ result, compact = false, onCellClick }: RetentionTableProps) {
   const { cohorts, average_retention, granularity } = result;
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
@@ -117,8 +118,9 @@ export function RetentionTable({ result, compact = false }: RetentionTableProps)
                 const cell = (
                   <TableCell
                     key={i}
-                    className="text-center text-xs tabular-nums"
+                    className={`text-center text-xs tabular-nums${onCellClick ? ' cursor-pointer hover:ring-1 hover:ring-primary/50' : ''}`}
                     style={{ backgroundColor: heatmapColor(pct) }}
+                    onClick={onCellClick ? () => onCellClick(cohort.cohort_date, i) : undefined}
                   >
                     {pct.toFixed(1)}%
                   </TableCell>

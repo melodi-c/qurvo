@@ -5,7 +5,7 @@ import { StepLegend } from './FunnelStepLegend';
 import { SERIES_COLORS, BAR_AREA_H_FULL, BAR_AREA_H_COMPACT, barWidthPx } from './funnel-chart-utils';
 import type { FunnelStepResult } from '@/api/generated/Api';
 
-export function PlainFunnel({ steps, compact, relative }: { steps: FunnelStepResult[]; compact: boolean; relative: boolean }) {
+export function PlainFunnel({ steps, compact, relative, onStepClick }: { steps: FunnelStepResult[]; compact: boolean; relative: boolean; onStepClick?: (step: number) => void }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const color = SERIES_COLORS[0];
   const barH = compact ? BAR_AREA_H_COMPACT : BAR_AREA_H_FULL;
@@ -42,12 +42,13 @@ export function PlainFunnel({ steps, compact, relative }: { steps: FunnelStepRes
               <div className="absolute inset-x-0 bottom-0 border-t border-border/50 pointer-events-none" />
 
               <div
-                className="relative z-10 flex items-end h-full cursor-default outline-none"
+                className={`relative z-10 flex items-end h-full outline-none ${onStepClick ? 'cursor-pointer' : 'cursor-default'}`}
                 tabIndex={0}
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(null)}
                 onFocus={() => setHovered(i)}
                 onBlur={() => setHovered(null)}
+                onClick={() => onStepClick?.(step.step)}
               >
                 {isHov && <BarTooltip step={step} stepConv={stepConvs[i]} />}
                 <Bar color={color} conversionRate={barRates[i]} width={bw} height={barH} hovered={isHov} />

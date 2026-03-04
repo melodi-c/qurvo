@@ -13,6 +13,7 @@ export default createTranslations({
     mostCommon: 'Most common',
     totalPeriods: 'Total periods',
     descriptionPlaceholder: 'Add description...',
+    personsAtPeriod: 'Persons active {{count}} days',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -26,5 +27,6 @@ export default createTranslations({
     mostCommon: 'Чаще всего',
     totalPeriods: 'Всего периодов',
     descriptionPlaceholder: 'Добавьте описание...',
+    personsAtPeriod: 'Персоны активные {{count}} дней',
   },
 });

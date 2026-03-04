@@ -1,4 +1,6 @@
 import { useMemo, useCallback, useState } from 'react';
+import { PersonsModal } from '@/features/persons/components/PersonsModal';
+import { usePersonsAtTrendBucket, type TrendBucketParams } from '@/features/persons/hooks/use-persons-at-point';
 import { TrendingUp, BarChart3 } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -86,6 +88,28 @@ export default function TrendEditorPage() {
     setAnnotationDialogOpen(true);
   }, []);
 
+  // Persons modal state
+  const [personsModal, setPersonsModal] = useState<{ title: string; params: TrendBucketParams } | null>(null);
+  const [personsPage, setPersonsPage] = useState(0);
+  const personsQuery = usePersonsAtTrendBucket(personsModal?.params ?? null, personsPage);
+
+  const handleDataPointClick = useCallback((seriesIdx: number, bucket: string) => {
+    if (!insightId) {return;}
+    setPersonsModal({
+      title: t('personsInBucket', { bucket }),
+      params: {
+        insightId,
+        seriesIndex: seriesIdx,
+        bucket,
+        dateFrom: config.date_from ?? '',
+        dateTo: config.date_to ?? '',
+        breakdown: config.breakdown_property ?? undefined,
+        breakdownValue: undefined,
+      },
+    });
+    setPersonsPage(0);
+  }, [insightId, config, t]);
+
   const handleAnnotationSave = useCallback(async (data: CreateAnnotation) => {
     if (editingAnnotation) {
       await updateAnnotation.mutateAsync({ id: editingAnnotation.id, data });
@@ -117,6 +141,7 @@ export default function TrendEditorPage() {
   }, [config.series, METRIC_LABELS, t]);
 
   return (
+    <>
     <InsightEditorLayout
       backPath={listPath}
       backLabel={t('backLabel')}
@@ -182,6 +207,7 @@ export default function TrendEditorPage() {
         heatmapData={aggregateResult?.heatmap}
         dateFrom={config.date_from}
         dateTo={config.date_to}
+        onDataPointClick={insightId ? handleDataPointClick : undefined}
       />
       <AnnotationDialog
         open={annotationDialogOpen}
@@ -195,5 +221,14 @@ export default function TrendEditorPage() {
         insightId={insightId ?? null}
       />
     </InsightEditorLayout>
+    <PersonsModal
+      open={!!personsModal}
+      onOpenChange={(open) => { if (!open) {setPersonsModal(null);} }}
+      title={personsModal?.title ?? ''}
+      query={personsQuery}
+      page={personsPage}
+      onPageChange={setPersonsPage}
+    />
+    </>
   );
 }

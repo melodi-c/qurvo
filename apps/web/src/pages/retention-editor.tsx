@@ -1,4 +1,6 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { PersonsModal } from '@/features/persons/components/PersonsModal';
+import { usePersonsAtRetentionCell, type RetentionCellParams } from '@/features/persons/hooks/use-persons-at-point';
 import { CalendarCheck } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -26,7 +28,7 @@ export default function RetentionEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
+    previewId, insightId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const { data, isLoading, isFetching } = useRetentionData(config, previewId);
   const result = data?.data;
@@ -36,7 +38,28 @@ export default function RetentionEditorPage() {
     downloadCsv(retentionToCsv(result), 'retention.csv');
   }, [result]);
 
+  // Persons modal state
+  const [personsModal, setPersonsModal] = useState<{ title: string; params: RetentionCellParams } | null>(null);
+  const [personsPage, setPersonsPage] = useState(0);
+  const personsQuery = usePersonsAtRetentionCell(personsModal?.params ?? null, personsPage);
+
+  const handleCellClick = useCallback((cohortDate: string, periodOffset: number) => {
+    if (!insightId) {return;}
+    setPersonsModal({
+      title: t('personsInCell', { cohort: cohortDate, period: String(periodOffset) }),
+      params: {
+        insightId,
+        cohortDate,
+        period: periodOffset,
+        dateFrom: config.date_from ?? '',
+        dateTo: config.date_to ?? '',
+      },
+    });
+    setPersonsPage(0);
+  }, [insightId, config, t]);
+
   return (
+    <>
     <InsightEditorLayout
       backPath={listPath}
       backLabel={t('backLabel')}
@@ -76,8 +99,17 @@ export default function RetentionEditorPage() {
       chartClassName="flex-1 overflow-auto p-6 space-y-8"
       unsavedGuard={unsavedGuard}
     >
-      {result && <RetentionTable result={result} />}
+      {result && <RetentionTable result={result} onCellClick={insightId ? handleCellClick : undefined} />}
       {result && <RetentionChart result={result} />}
     </InsightEditorLayout>
+    <PersonsModal
+      open={!!personsModal}
+      onOpenChange={(open) => { if (!open) {setPersonsModal(null);} }}
+      title={personsModal?.title ?? ''}
+      query={personsQuery}
+      page={personsPage}
+      onPageChange={setPersonsPage}
+    />
+    </>
   );
 }

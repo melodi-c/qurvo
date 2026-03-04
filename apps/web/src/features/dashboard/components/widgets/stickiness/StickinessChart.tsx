@@ -19,9 +19,10 @@ import translations from './StickinessChart.translations';
 interface StickinessChartProps {
   result: StickinessResult;
   compact?: boolean;
+  onBarClick?: (periodCount: number) => void;
 }
 
-export function StickinessChart({ result, compact = false }: StickinessChartProps) {
+export function StickinessChart({ result, compact = false, onBarClick }: StickinessChartProps) {
   const { t } = useLocalTranslation(translations);
 
   const totalUsers = useMemo(
@@ -74,7 +75,16 @@ export function StickinessChart({ result, compact = false }: StickinessChartProp
             usersLabel,
           ]}
         />
-        <Bar dataKey="user_count" fill={CHART_COLORS_HEX[2]} name={usersLabel} radius={[4, 4, 0, 0]} />
+        <Bar
+          dataKey="user_count"
+          fill={CHART_COLORS_HEX[2]}
+          name={usersLabel}
+          radius={[4, 4, 0, 0]}
+          onClick={onBarClick ? (data: { period_count?: number }) => {
+            if (data?.period_count !== undefined) {onBarClick(data.period_count);}
+          } : undefined}
+          cursor={onBarClick ? 'pointer' : undefined}
+        />
       </BarChart>
     </ResponsiveContainer>
     </div>
