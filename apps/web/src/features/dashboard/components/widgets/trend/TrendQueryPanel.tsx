@@ -11,7 +11,6 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { DateRangeSection } from '@/components/ui/date-range-section';
 import { CohortFilterSection } from '@/components/ui/cohort-filter-section';
 import { BreakdownSection } from '@/components/ui/breakdown-section';
-import { PillToggleGroup } from '@/components/ui/pill-toggle-group';
 import { QueryPanelShell } from '@/components/ui/query-panel-shell';
 import { useProjectStore } from '@/stores/project';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
@@ -152,21 +151,41 @@ export function TrendQueryPanel({ config, onChange }: TrendQueryPanelProps) {
               </div>
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">{t('chartType')}</span>
-                <PillToggleGroup
-                  options={chartTypeOptions}
+                <Select
                   value={config.chart_type}
-                  onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v }))}
-                />
+                  onValueChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as TrendWidgetConfig['chart_type'] }))}
+                >
+                  <SelectTrigger size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {chartTypeOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value} className="text-sm">
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           ) : (
             <div className="space-y-1">
               <span className="text-xs text-muted-foreground">{t('chartType')}</span>
-              <PillToggleGroup
-                options={chartTypeOptions}
+              <Select
                 value={config.chart_type}
-                onChange={(v) => onChange((prev) => ({ ...prev, chart_type: v }))}
-              />
+                onValueChange={(v) => onChange((prev) => ({ ...prev, chart_type: v as TrendWidgetConfig['chart_type'] }))}
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {chartTypeOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value} className="text-sm">
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </section>
