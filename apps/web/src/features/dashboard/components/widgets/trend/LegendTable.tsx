@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   Table,
   TableHeader,
@@ -38,6 +39,16 @@ export function LegendTable({
   const { t } = useLocalTranslation(translations);
   const hasPrevious = previousSeries && previousSeries.length > 0;
 
+  const handleRowKeyDown = useCallback(
+    (key: string) => (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onToggleSeries(key);
+      }
+    },
+    [onToggleSeries],
+  );
+
   return (
     <div className="mt-4 border-t border-border">
       <Table className="text-xs">
@@ -63,7 +74,11 @@ export function LegendTable({
               <TableRow
                 key={key}
                 className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isHidden && 'opacity-50')}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isHidden}
                 onClick={() => onToggleSeries(key)}
+                onKeyDown={handleRowKeyDown(key)}
               >
                 <TableCell className="py-1.5">
                   <div className="flex items-center gap-2">
@@ -101,7 +116,11 @@ export function LegendTable({
               <TableRow
                 key={key}
                 className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isHidden && 'opacity-50')}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isHidden}
                 onClick={() => onToggleSeries(key)}
+                onKeyDown={handleRowKeyDown(key)}
               >
                 <TableCell className="py-1.5">
                   <div className="flex items-center gap-2">
