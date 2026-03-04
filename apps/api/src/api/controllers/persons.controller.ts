@@ -12,6 +12,9 @@ import {
   PersonPropertyNamesQueryDto,
   PersonPropertyNamesResponseDto,
   PersonCohortsResponseDto,
+  PersonsAtTrendBucketQueryDto,
+  PersonsAtStickinessBarQueryDto,
+  PersonsAtPointResponseDto,
 } from '../dto/persons.dto';
 
 @ApiTags('Persons')
@@ -26,6 +29,40 @@ export class PersonsController {
     @Query() query: PersonsQueryDto,
   ): Promise<PersonsListResponseDto> {
     return this.personsService.getPersons(query) as any;
+  }
+
+  @Get('at-trend-bucket')
+  async getPersonsAtTrendBucket(
+    @Query() query: PersonsAtTrendBucketQueryDto,
+  ): Promise<PersonsAtPointResponseDto> {
+    return this.personsService.getPersonsAtTrendBucket({
+      project_id: query.project_id,
+      event_name: query.event_name,
+      granularity: query.granularity,
+      bucket: query.bucket,
+      date_from: query.date_from,
+      date_to: query.date_to,
+      filters: query.filters,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
+    }) as any;
+  }
+
+  @Get('at-stickiness-bar')
+  async getPersonsAtStickinessBar(
+    @Query() query: PersonsAtStickinessBarQueryDto,
+  ): Promise<PersonsAtPointResponseDto> {
+    return this.personsService.getPersonsAtStickinessBar({
+      project_id: query.project_id,
+      event_name: query.event_name,
+      granularity: query.granularity,
+      period_count: query.period_count,
+      date_from: query.date_from,
+      date_to: query.date_to,
+      filters: query.filters,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
+    }) as any;
   }
 
   @Get('property-names')
