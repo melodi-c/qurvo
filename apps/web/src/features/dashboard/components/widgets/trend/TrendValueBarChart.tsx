@@ -15,6 +15,7 @@ import {
   CHART_AXIS_TICK_COLOR,
   chartAxisTick,
 } from '@/lib/chart-colors';
+import type { SVGProps } from 'react';
 import { formatCompactNumber } from '@/lib/formatting';
 import { seriesKey } from './trend-utils';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
@@ -32,6 +33,37 @@ interface BarDatum {
   name: string;
   value: number;
   colorIdx: number;
+}
+
+/**
+ * Custom YAxis tick that truncates long names and adds a native SVG <title> tooltip.
+ */
+function TruncatedYAxisTick({
+  x,
+  y,
+  payload,
+  compact,
+}: SVGProps<SVGTextElement> & { payload?: { value: string }; compact?: boolean }) {
+  const text = payload?.value ?? '';
+  const fontSize = compact ? 10 : 12;
+  const maxChars = compact ? 10 : 18;
+  const display = text.length > maxChars ? `${text.slice(0, maxChars)}...` : text;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-4}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fill={CHART_AXIS_TICK_COLOR}
+        fontSize={fontSize}
+      >
+        {display}
+        <title>{text}</title>
+      </text>
+    </g>
+  );
 }
 
 export function TrendValueBarChart({ series, compact }: TrendValueBarChartProps) {
@@ -85,10 +117,7 @@ export function TrendValueBarChart({ series, compact }: TrendValueBarChartProps)
             <YAxis
               type="category"
               dataKey="name"
-              tick={{
-                fontSize: compact ? 10 : 12,
-                fill: CHART_AXIS_TICK_COLOR,
-              }}
+              tick={<TruncatedYAxisTick compact={compact} />}
               tickLine={false}
               axisLine={false}
               width={compact ? 80 : 140}

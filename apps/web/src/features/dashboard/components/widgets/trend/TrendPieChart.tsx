@@ -10,6 +10,7 @@ import type { TrendSeriesResult } from '@/api/generated/Api';
 import { CHART_COLORS_HSL, CHART_TOOLTIP_STYLE } from '@/lib/chart-colors';
 import { formatCompactNumber } from '@/lib/formatting';
 import { seriesKey } from './trend-utils';
+import { TruncatedText } from './TruncatedText';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendPieChart.translations';
 
@@ -79,7 +80,7 @@ function PieLegend({
               className="inline-block w-2 h-2 rounded-full shrink-0"
               style={{ backgroundColor: COLORS[slice.colorIndex % COLORS.length] }}
             />
-            <span className="truncate max-w-[80px]">{slice.name}</span>
+            <TruncatedText text={slice.name} className="truncate max-w-[80px]" />
           </div>
         ))}
       </div>
@@ -96,7 +97,7 @@ function PieLegend({
               className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
               style={{ backgroundColor: COLORS[slice.colorIndex % COLORS.length] }}
             />
-            <span className="text-foreground truncate flex-1">{slice.name}</span>
+            <TruncatedText text={slice.name} className="text-foreground truncate flex-1" />
             <span className="text-muted-foreground tabular-nums">
               {formatCompactNumber(slice.value)}
             </span>

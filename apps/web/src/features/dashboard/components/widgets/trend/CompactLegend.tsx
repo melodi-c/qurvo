@@ -1,4 +1,5 @@
 import { CHART_COLORS_HSL, CHART_FORMULA_COLORS_HSL } from '@/lib/chart-colors';
+import { TruncatedText } from './TruncatedText';
 
 const COLORS = CHART_COLORS_HSL;
 const FORMULA_COLORS = CHART_FORMULA_COLORS_HSL;
@@ -20,7 +21,7 @@ export function CompactLegend({ allSeriesKeys, formulaKeys, hiddenKeys }: Compac
               className="inline-block h-2 w-2 rounded-full shrink-0"
               style={{ backgroundColor: COLORS[idx % COLORS.length] }}
             />
-            <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{key}</span>
+            <TruncatedText text={key} className="text-[10px] text-muted-foreground truncate max-w-[120px]" />
           </div>
         );
       })}
@@ -32,7 +33,7 @@ export function CompactLegend({ allSeriesKeys, formulaKeys, hiddenKeys }: Compac
               className="inline-block h-2 w-2 rounded-full shrink-0 border border-dashed"
               style={{ borderColor: FORMULA_COLORS[idx % FORMULA_COLORS.length] }}
             />
-            <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{key}</span>
+            <TruncatedText text={key} className="text-[10px] text-muted-foreground truncate max-w-[120px]" />
           </div>
         );
       })}

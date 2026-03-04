@@ -9,6 +9,7 @@ import {
 import type { TrendSeriesResult } from '@/api/generated/Api';
 import { cn } from '@/lib/utils';
 import { CHART_COLORS_HSL, CHART_FORMULA_COLORS_HSL } from '@/lib/chart-colors';
+import { TruncatedText } from './TruncatedText';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './LegendTable.translations';
 
@@ -70,9 +71,7 @@ export function LegendTable({
                       className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: isHidden ? 'var(--color-muted-foreground)' : color }}
                     />
-                    <span className={cn('truncate', isHidden ? 'text-muted-foreground' : 'text-foreground')}>
-                      {key}
-                    </span>
+                    <TruncatedText text={key} className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')} />
                   </div>
                 </TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums font-medium text-foreground">
@@ -110,9 +109,7 @@ export function LegendTable({
                       className="inline-block h-2.5 w-2.5 rounded-full shrink-0 border border-dashed"
                       style={{ borderColor: isHidden ? 'var(--color-muted-foreground)' : color }}
                     />
-                    <span className={cn('truncate', isHidden ? 'text-muted-foreground' : 'text-foreground')}>
-                      {key}
-                    </span>
+                    <TruncatedText text={key} className={cn('truncate', isHidden ? 'line-through text-muted-foreground' : 'text-foreground')} />
                   </div>
                 </TableCell>
                 <TableCell className="py-1.5 text-right tabular-nums font-medium text-foreground">
