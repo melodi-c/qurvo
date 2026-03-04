@@ -58,7 +58,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
 
   const duplicateSeries = (idx: number) => {
     onChange((prev) => {
-      if (prev.length >= 5) {return prev;}
+      if (prev.length >= 10) {return prev;}
       const copy = { ...prev[idx], label: `${prev[idx].label || ''} ${t('copyLabel')}`.trim() };
       return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
     });
@@ -80,7 +80,7 @@ export function TrendSeriesBuilder({ series, onChange }: TrendSeriesBuilderProps
           index={idx}
           metricOptions={metricOptions}
           canRemove={series.length > 1}
-          canDuplicate={series.length < 5}
+          canDuplicate={series.length < 10}
           onUpdate={(patch) => update(idx, patch)}
           onRemove={() => removeSeries(idx)}
           onDuplicate={() => duplicateSeries(idx)}
