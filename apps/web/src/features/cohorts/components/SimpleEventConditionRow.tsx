@@ -11,17 +11,18 @@ interface SimpleEventConditionRowProps {
   condition: SimpleCondition;
   onChange: (condition: SimpleCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
   variant: 'first_time' | 'not_performed';
 }
 
-export function SimpleEventConditionRow({ condition, onChange, onRemove, variant }: SimpleEventConditionRowProps) {
+export function SimpleEventConditionRow({ condition, onChange, onRemove, onDuplicate, variant }: SimpleEventConditionRowProps) {
   const { t } = useLocalTranslation(translations);
 
   const label = variant === 'first_time' ? t('firstTimeEvent') : t('notPerformedEvent');
   const labelColor = variant === 'first_time' ? 'text-cyan-400' : 'text-red-400';
 
   return (
-    <ConditionRowWrapper label={label} labelColor={labelColor} onRemove={onRemove}>
+    <ConditionRowWrapper label={label} labelColor={labelColor} onRemove={onRemove} onDuplicate={onDuplicate}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name } as SimpleCondition)}

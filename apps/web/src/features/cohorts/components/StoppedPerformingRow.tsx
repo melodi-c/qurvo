@@ -9,9 +9,10 @@ interface StoppedPerformingRowProps {
   condition: StoppedPerformingCondition;
   onChange: (condition: StoppedPerformingCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
 }
 
-export function StoppedPerformingRow({ condition, onChange, onRemove }: StoppedPerformingRowProps) {
+export function StoppedPerformingRow({ condition, onChange, onRemove, onDuplicate }: StoppedPerformingRowProps) {
   const { t } = useLocalTranslation(translations);
 
   const windowError =
@@ -20,7 +21,7 @@ export function StoppedPerformingRow({ condition, onChange, onRemove }: StoppedP
       : undefined;
 
   return (
-    <ConditionRowWrapper label={t('stoppedPerforming')} labelColor="text-orange-400" tooltip={t('tooltip')} onRemove={onRemove}>
+    <ConditionRowWrapper label={t('stoppedPerforming')} labelColor="text-orange-400" tooltip={t('tooltip')} onRemove={onRemove} onDuplicate={onDuplicate}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}

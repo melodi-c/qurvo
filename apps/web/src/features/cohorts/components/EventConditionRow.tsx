@@ -15,9 +15,10 @@ interface EventConditionRowProps {
   condition: EventCondition;
   onChange: (condition: EventCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
 }
 
-export function EventConditionRow({ condition, onChange, onRemove }: EventConditionRowProps) {
+export function EventConditionRow({ condition, onChange, onRemove, onDuplicate }: EventConditionRowProps) {
   const { t } = useLocalTranslation(translations);
   const { data: propertyNames, descriptions: propDescriptions } = useEventPropertyNames(condition.event_name || undefined);
 
@@ -43,7 +44,7 @@ export function EventConditionRow({ condition, onChange, onRemove }: EventCondit
   ] as const, [t]);
 
   return (
-    <ConditionRowWrapper label={t('performedEvent')} labelColor="text-emerald-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={t('performedEvent')} labelColor="text-emerald-400" onRemove={onRemove} onDuplicate={onDuplicate}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}

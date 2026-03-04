@@ -9,9 +9,10 @@ interface RestartedPerformingRowProps {
   condition: RestartedPerformingCondition;
   onChange: (condition: RestartedPerformingCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
 }
 
-export function RestartedPerformingRow({ condition, onChange, onRemove }: RestartedPerformingRowProps) {
+export function RestartedPerformingRow({ condition, onChange, onRemove, onDuplicate }: RestartedPerformingRowProps) {
   const { t } = useLocalTranslation(translations);
 
   const windowError =
@@ -20,7 +21,7 @@ export function RestartedPerformingRow({ condition, onChange, onRemove }: Restar
       : undefined;
 
   return (
-    <ConditionRowWrapper label={t('restartedPerforming')} labelColor="text-teal-400" tooltip={t('tooltip')} onRemove={onRemove}>
+    <ConditionRowWrapper label={t('restartedPerforming')} labelColor="text-teal-400" tooltip={t('tooltip')} onRemove={onRemove} onDuplicate={onDuplicate}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}
