@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
+import { PersonsModal } from '@/features/persons/components/PersonsModal';
+import { usePersonsAtFunnelStep, type FunnelStepParams } from '@/features/persons/hooks/use-persons-at-point';
 import { GitFork, TrendingDown, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +32,7 @@ function cleanFunnelConfig(config: FunnelWidgetConfig): FunnelWidgetConfig {
   return { ...config, steps: cleanSteps(config) };
 }
 
+// eslint-disable-next-line complexity
 export default function FunnelEditorPage() {
   const { t } = useLocalTranslation(translations);
 
@@ -43,7 +46,7 @@ export default function FunnelEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
+    previewId, insightId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const [viewMode, setViewMode] = useState<ViewMode>('conversion');
   const { fromStep, setFromStep, toStep, setToStep } = useTimeToConvertState(config.steps.length);
@@ -80,6 +83,31 @@ export default function FunnelEditorPage() {
     downloadCsv(funnelToCsv(steps), 'funnel.csv');
   }, [steps]);
 
+  // Persons modal state
+  const [personsModal, setPersonsModal] = useState<{ title: string; params: FunnelStepParams } | null>(null);
+  const [personsPage, setPersonsPage] = useState(0);
+  const personsQuery = usePersonsAtFunnelStep(personsModal?.params ?? null, personsPage);
+
+  const handleStepClick = useCallback((step: number, breakdownValue?: string) => {
+    if (!insightId) {return;}
+    const stepLabel = config.steps.find((s, i) => i + 1 === step)?.label ?? t('stepFallback', { step: String(step) });
+    const title = breakdownValue
+      ? t('personsAtStepBreakdown', { step: stepLabel, breakdown: breakdownValue })
+      : t('personsAtStep', { step: stepLabel });
+    setPersonsModal({
+      title,
+      params: {
+        insightId,
+        stepIndex: step,
+        dateFrom: config.date_from ?? '',
+        dateTo: config.date_to ?? '',
+        breakdown: config.breakdown_property ?? undefined,
+        breakdownValue: breakdownValue ?? undefined,
+      },
+    });
+    setPersonsPage(0);
+  }, [insightId, config, t]);
+
   const isTimeToConvert = viewMode === 'time_to_convert';
   const activeIsLoading = isTimeToConvert ? ttcIsLoading : isLoading;
   const activeIsFetching = isTimeToConvert ? ttcIsFetching : isFetching;
@@ -90,6 +118,7 @@ export default function FunnelEditorPage() {
   const activeIsEmpty = isTimeToConvert ? false : !steps || steps.length === 0;
 
   return (
+    <>
     <InsightEditorLayout
       backPath={listPath}
       backLabel={t('backLabel')}
@@ -192,8 +221,18 @@ export default function FunnelEditorPage() {
           breakdown={breakdown}
           aggregateSteps={funnelResult?.aggregate_steps}
           conversionRateDisplay={config.conversion_rate_display ?? 'total'}
+          onStepClick={insightId ? handleStepClick : undefined}
         />
       )}
     </InsightEditorLayout>
+    <PersonsModal
+      open={!!personsModal}
+      onOpenChange={(open) => { if (!open) {setPersonsModal(null);} }}
+      title={personsModal?.title ?? ''}
+      query={personsQuery}
+      page={personsPage}
+      onPageChange={setPersonsPage}
+    />
+    </>
   );
 }

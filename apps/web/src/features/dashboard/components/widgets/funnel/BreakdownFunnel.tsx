@@ -12,11 +12,13 @@ export function BreakdownFunnel({
   aggregateSteps,
   compact,
   relative,
+  onStepClick,
 }: {
   steps: (FunnelStepResult | FunnelBreakdownStepResult)[];
   aggregateSteps: FunnelStepResult[];
   compact: boolean;
   relative: boolean;
+  onStepClick?: (step: number, breakdownValue?: string) => void;
 }) {
   const { t } = useLocalTranslation(translations);
   const [hovered, setHovered] = useState<{ si: number; gi: number } | null>(null);
@@ -111,10 +113,11 @@ export function BreakdownFunnel({
                     return (
                       <div
                         key={bv}
-                        className="relative flex items-end cursor-default"
+                        className={`relative flex items-end ${onStepClick ? 'cursor-pointer' : 'cursor-default'}`}
                         style={{ height: barH }}
                         onMouseEnter={() => setHovered({ si, gi })}
                         onMouseLeave={() => setHovered(null)}
+                        onClick={() => onStepClick?.(sn, bv)}
                       >
                         {isHov && gs && (
                           <BarTooltip step={gs} stepConv={groupConvs.get(bv)?.[si] ?? null} title={bv} />

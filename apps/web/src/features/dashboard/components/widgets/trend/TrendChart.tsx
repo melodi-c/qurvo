@@ -44,6 +44,8 @@ interface TrendChartProps {
   /** Date range for generating full X axis bucket set */
   dateFrom?: string;
   dateTo?: string;
+  /** Called when user clicks on a data point — provides series index and bucket */
+  onDataPointClick?: (seriesIdx: number, bucket: string) => void;
 }
 
 /**

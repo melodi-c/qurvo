@@ -14,6 +14,7 @@ export default createTranslations({
     resurrecting: 'Resurrecting',
     dormant: 'Dormant',
     descriptionPlaceholder: 'Add description...',
+    personsInBucket: '{{status}} persons — {{bucket}}',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -28,5 +29,6 @@ export default createTranslations({
     resurrecting: 'Воскресшие',
     dormant: 'Неактивные',
     descriptionPlaceholder: 'Добавьте описание...',
+    personsInBucket: '{{status}} персоны — {{bucket}}',
   },
 });

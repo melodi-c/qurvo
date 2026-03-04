@@ -8,12 +8,13 @@ export interface FunnelChartProps {
   aggregateSteps?: FunnelStepResult[];
   compact?: boolean;
   conversionRateDisplay?: 'total' | 'relative';
+  onStepClick?: (step: number, breakdownValue?: string) => void;
 }
 
-export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false, conversionRateDisplay = 'total' }: FunnelChartProps) {
+export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false, conversionRateDisplay = 'total', onStepClick }: FunnelChartProps) {
   const relative = conversionRateDisplay === 'relative';
   if (steps.length === 0) {return null;}
-  if (!breakdown) {return <PlainFunnel steps={steps} compact={compact} relative={relative} />;}
+  if (!breakdown) {return <PlainFunnel steps={steps} compact={compact} relative={relative} onStepClick={onStepClick} />;}
 
   // Backend provides aggregate_steps; fall back to computing from steps for old cache entries
   const agg: FunnelStepResult[] = aggregateSteps ?? (() => {
@@ -39,5 +40,5 @@ export function FunnelChart({ steps, breakdown, aggregateSteps, compact = false,
     });
   })();
 
-  return <BreakdownFunnel steps={steps} aggregateSteps={agg} compact={compact} relative={relative} />;
+  return <BreakdownFunnel steps={steps} aggregateSteps={agg} compact={compact} relative={relative} onStepClick={onStepClick} />;
 }

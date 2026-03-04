@@ -64,6 +64,8 @@ export interface TrendAreaChartProps {
   /** Date range for generating full X axis bucket set */
   dateFrom?: string;
   dateTo?: string;
+  /** Called when user clicks on a data point — provides series index and bucket */
+  onDataPointClick?: (seriesIdx: number, bucket: string) => void;
 }
 
 // Custom XAxis tick that reports its pixel position for the annotation overlay
@@ -254,6 +256,7 @@ function useSeriesData(opts: SeriesDataOptions) {
 
 // Component
 
+// eslint-disable-next-line complexity
 export function TrendAreaChart({
   series,
   previousSeries,
@@ -268,6 +271,7 @@ export function TrendAreaChart({
   onCreateAnnotation,
   dateFrom,
   dateTo,
+  onDataPointClick,
 }: TrendAreaChartProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
@@ -317,6 +321,16 @@ export function TrendAreaChart({
     onToggleSeries,
     dateRange: dateFrom && dateTo && granularity ? { dateFrom, dateTo, granularity, timezone } : undefined,
   });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleChartClick = useCallback((e: any) => {
+    if (!onDataPointClick || !e?.activePayload?.length) {return;}
+    const bucket = e.activePayload[0]?.payload?.bucket as string | undefined;
+    if (!bucket) {return;}
+    const firstVisibleKey = visibleSeriesKeys[0];
+    const seriesIdx = firstVisibleKey ? allSeriesKeys.indexOf(firstVisibleKey) : 0;
+    onDataPointClick(seriesIdx >= 0 ? seriesIdx : 0, bucket);
+  }, [onDataPointClick, visibleSeriesKeys, allSeriesKeys]);
 
   const isStacked = allSeriesKeys.length > 1;
   const useSimpleChart = !hasIncomplete;
@@ -397,7 +411,7 @@ export function TrendAreaChart({
             style={{ height: compact ? '100%' : 350 }}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={fullMargin}>
+              <AreaChart data={data} margin={fullMargin} onClick={handleChartClick} style={onDataPointClick ? { cursor: 'pointer' } : undefined}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="var(--color-border)"
@@ -464,7 +478,7 @@ export function TrendAreaChart({
           >
             {/* Complete data -- solid areas */}
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={completeData} margin={fullMargin}>
+              <AreaChart data={completeData} margin={fullMargin} onClick={handleChartClick} style={onDataPointClick ? { cursor: 'pointer' } : undefined}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="var(--color-border)"

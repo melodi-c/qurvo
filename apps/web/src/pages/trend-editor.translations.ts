@@ -24,6 +24,7 @@ export default createTranslations({
     totalValue: 'Total',
     descriptionPlaceholder: 'Add description...',
     addAnnotation: 'Add annotation',
+    personsInBucket: 'Persons — {{bucket}}',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -48,5 +49,6 @@ export default createTranslations({
     totalValue: 'Итого',
     descriptionPlaceholder: 'Добавьте описание...',
     addAnnotation: 'Добавить аннотацию',
+    personsInBucket: 'Персоны — {{bucket}}',
   },
 });

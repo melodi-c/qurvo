@@ -13,6 +13,10 @@ export default createTranslations({
     errorLoadingPerson: 'Failed to load person details',
     errorLoadingEvents: 'Failed to load event history',
     retry: 'Retry',
+    cohorts: 'Cohorts',
+    noCohorts: 'This person is not in any cohort.',
+    staticCohort: 'Static',
+    dynamicCohort: 'Dynamic',
   },
   ru: {
     profile: 'Профиль',
@@ -26,5 +30,9 @@ export default createTranslations({
     errorLoadingPerson: 'Не удалось загрузить данные пользователя',
     errorLoadingEvents: 'Не удалось загрузить историю событий',
     retry: 'Повторить',
+    cohorts: 'Когорты',
+    noCohorts: 'Этот пользователь не состоит ни в одной когорте.',
+    staticCohort: 'Статическая',
+    dynamicCohort: 'Динамическая',
   },
 });
