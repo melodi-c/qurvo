@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -11,8 +12,10 @@ import { PropsTable } from '@/components/event-props-table';
 import { getPersonDisplayName } from '@/lib/person';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { usePersonDetail } from '@/hooks/use-person-detail';
+import { usePersonCohorts } from '@/hooks/use-person-cohorts';
 import translations from './person-detail.translations';
 import { formatDate } from '@/lib/formatting';
+import { routes } from '@/lib/routes';
 
 export default function PersonDetailPage() {
   const { t } = useLocalTranslation(translations);
@@ -31,6 +34,9 @@ export default function PersonDetailPage() {
     setPage,
     limit,
   } = usePersonDetail();
+
+  const { data: cohortsData, isLoading: cohortsLoading } = usePersonCohorts(projectId, personId);
+  const cohorts = cohortsData?.cohorts ?? [];
 
   const props = (person?.properties ?? {}) as Record<string, unknown>;
   const displayName = getPersonDisplayName(person, personId);
@@ -108,6 +114,37 @@ export default function PersonDetailPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {!personError && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">{t('cohorts')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {cohortsLoading ? (
+              <ListSkeleton count={2} height="h-5" className="space-y-2" />
+            ) : cohorts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('noCohorts')}</p>
+            ) : (
+              <ul className="space-y-2">
+                {cohorts.map((c) => (
+                  <li key={c.cohort_id}>
+                    <Link
+                      to={routes.cohorts.detail(projectId, c.cohort_id)}
+                      className="flex items-center gap-2 text-sm hover:underline"
+                    >
+                      <span>{c.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {c.is_static ? t('staticCohort') : t('dynamicCohort')}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="space-y-3">
