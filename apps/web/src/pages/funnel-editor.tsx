@@ -90,7 +90,7 @@ export default function FunnelEditorPage() {
 
   const handleStepClick = useCallback((step: number, breakdownValue?: string) => {
     if (!insightId) {return;}
-    const stepLabel = config.steps.find((s, i) => i + 1 === step)?.label ?? `Step ${step}`;
+    const stepLabel = config.steps.find((s, i) => i + 1 === step)?.label ?? t('stepFallback', { step: String(step) });
     const title = breakdownValue
       ? t('personsAtStepBreakdown', { step: stepLabel, breakdown: breakdownValue })
       : t('personsAtStep', { step: stepLabel });
