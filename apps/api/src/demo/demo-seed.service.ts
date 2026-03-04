@@ -19,6 +19,7 @@ import {
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { CLICKHOUSE } from '../providers/clickhouse.provider';
 import { ScenarioRegistry } from './scenarios/scenario.registry';
+import type { ScenarioOutput } from './scenarios/base.scenario';
 
 @Injectable()
 export class DemoSeedService {
@@ -34,205 +35,12 @@ export class DemoSeedService {
    * Run the named scenario for a project, inserting demo events and definitions.
    */
   async seed(projectId: string, scenarioName: string, userId: string): Promise<void> {
-    const scenario = this.scenarioRegistry.get(scenarioName);
-    if (!scenario) {
-      throw new ScenarioNotFoundException(
-        `Demo scenario '${scenarioName}' not found. Available: ${this.scenarioRegistry.list().join(', ') || 'none'}`,
-      );
-    }
+    const scenario = this.resolveScenario(scenarioName);
+    const data = await scenario.generate(projectId);
 
-    const {
-      events,
-      definitions,
-      propertyDefinitions: propDefs,
-      persons: personRows,
-      personDistinctIds: distinctIdRows,
-      dashboards: dashboardRows,
-      insights: insightRows,
-      widgets: widgetRows,
-      cohorts: cohortRows,
-      marketingChannels: channelRows,
-      adSpend: adSpendRows,
-    } = await scenario.generate(projectId);
-
-    // Insert events directly into ClickHouse (bypassing Redis Stream)
-    if (events.length > 0) {
-      await this.ch.insert({
-        table: 'events',
-        values: events,
-        format: 'JSONEachRow',
-        clickhouse_settings: {
-          async_insert: 0,
-          wait_for_async_insert: 0,
-        },
-      });
-      this.logger.log(`Seeded ${events.length} events for project ${projectId} (scenario: ${scenarioName})`);
-    }
-
-    if (definitions.length > 0) {
-      const now = new Date();
-      await this.db
-        .insert(eventDefinitions)
-        .values(
-          definitions.map((d) => ({
-            project_id: projectId,
-            event_name: d.eventName,
-            description: d.description,
-            last_seen_at: now,
-          })),
-        )
-        .onConflictDoUpdate({
-          target: [eventDefinitions.project_id, eventDefinitions.event_name],
-          set: { description: sql`excluded.description`, last_seen_at: sql`excluded.last_seen_at` },
-        });
-    }
-
-    if (propDefs.length > 0) {
-      const now = new Date();
-      await this.db
-        .insert(propertyDefinitions)
-        .values(
-          propDefs.map((p) => ({
-            project_id: projectId,
-            property_name: p.propertyName,
-            property_type: 'event' as const,
-            description: p.description,
-            last_seen_at: now,
-          })),
-        )
-        .onConflictDoUpdate({
-          target: [propertyDefinitions.project_id, propertyDefinitions.property_name, propertyDefinitions.property_type],
-          set: { description: sql`excluded.description`, last_seen_at: sql`excluded.last_seen_at` },
-        });
-    }
-
-    if (personRows.length > 0) {
-      const now = new Date();
-      await this.db
-        .insert(persons)
-        .values(
-          personRows.map((p) => ({
-            id: p.id,
-            project_id: projectId,
-            properties: p.properties,
-            created_at: p.created_at ?? now,
-            updated_at: now,
-          })),
-        )
-        .onConflictDoUpdate({
-          target: [persons.id],
-          set: {
-            properties: sql`excluded.properties`,
-            updated_at: sql`excluded.updated_at`,
-          },
-        });
-    }
-
-    if (distinctIdRows.length > 0) {
-      await this.db
-        .insert(personDistinctIds)
-        .values(
-          distinctIdRows.map((d) => ({
-            project_id: projectId,
-            person_id: d.personId,
-            distinct_id: d.distinctId,
-          })),
-        )
-        .onConflictDoNothing();
-    }
-
-    if (dashboardRows.length > 0) {
-      await this.db
-        .insert(dashboards)
-        .values(
-          dashboardRows.map((d) => ({
-            id: d.id,
-            project_id: projectId,
-            created_by: userId,
-            name: d.name,
-          })),
-        )
-        .onConflictDoNothing();
-    }
-
-    if (insightRows.length > 0) {
-      await this.db
-        .insert(insights)
-        .values(
-          insightRows.map((ins) => ({
-            id: ins.id,
-            project_id: projectId,
-            created_by: userId,
-            type: ins.type,
-            name: ins.name,
-            description: ins.description,
-            config: ins.config,
-            is_favorite: ins.is_favorite ?? false,
-          })),
-        )
-        .onConflictDoNothing();
-    }
-
-    if (widgetRows.length > 0) {
-      await this.db
-        .insert(widgets)
-        .values(
-          widgetRows.map((w) => ({
-            dashboard_id: w.dashboardId,
-            insight_id: w.insightId,
-            layout: w.layout,
-          })),
-        )
-        .onConflictDoNothing();
-    }
-
-    if (cohortRows.length > 0) {
-      await this.db
-        .insert(cohorts)
-        .values(
-          cohortRows.map((c) => ({
-            id: c.id,
-            project_id: projectId,
-            created_by: userId,
-            name: c.name,
-            description: c.description,
-            definition: c.definition,
-            is_static: false,
-          })),
-        )
-        .onConflictDoNothing();
-    }
-
-    if (channelRows.length > 0) {
-      await this.db
-        .insert(marketingChannels)
-        .values(
-          channelRows.map((ch) => ({
-            id: ch.id,
-            project_id: projectId,
-            created_by: userId,
-            name: ch.name,
-            channel_type: ch.channel_type,
-            color: ch.color,
-          })),
-        )
-        .onConflictDoNothing();
-    }
-
-    if (adSpendRows.length > 0) {
-      await this.db
-        .insert(adSpend)
-        .values(
-          adSpendRows.map((a) => ({
-            project_id: projectId,
-            channel_id: a.channelId,
-            created_by: userId,
-            spend_date: a.spend_date,
-            amount: a.amount,
-            currency: a.currency ?? 'USD',
-          })),
-        )
-        .onConflictDoNothing();
+    await this.insertScenarioData(projectId, userId, data);
+    if (data.events.length > 0) {
+      this.logger.log(`Seeded ${data.events.length} events for project ${projectId} (scenario: ${scenarioName})`);
     }
   }
 
@@ -300,12 +108,36 @@ export class DemoSeedService {
       throw new AppForbiddenException('This endpoint is only available for demo projects');
     }
     await this.clear(projectId);
+
+    const scenario = this.resolveScenario(scenarioName);
+    const data = await scenario.generate(projectId);
+
+    await this.insertScenarioData(projectId, userId, data);
+    if (data.events.length > 0) {
+      this.logger.log(`Re-seeded ${data.events.length} events for project ${projectId} (scenario: ${scenarioName})`);
+    }
+
+    return { count: data.events.length };
+  }
+
+  /**
+   * Resolve a scenario by name, throwing if not found.
+   */
+  private resolveScenario(scenarioName: string) {
     const scenario = this.scenarioRegistry.get(scenarioName);
     if (!scenario) {
       throw new ScenarioNotFoundException(
         `Demo scenario '${scenarioName}' not found. Available: ${this.scenarioRegistry.list().join(', ') || 'none'}`,
       );
     }
+    return scenario;
+  }
+
+  /**
+   * Insert all scenario data (events, definitions, persons, dashboards, etc.)
+   * into ClickHouse and PostgreSQL. Shared by seed() and reset().
+   */
+  private async insertScenarioData(projectId: string, userId: string, data: ScenarioOutput): Promise<void> {
     const {
       events,
       definitions,
@@ -318,8 +150,9 @@ export class DemoSeedService {
       cohorts: cohortRows,
       marketingChannels: channelRows,
       adSpend: adSpendRows,
-    } = await scenario.generate(projectId);
+    } = data;
 
+    // Insert events directly into ClickHouse (bypassing Redis Stream)
     if (events.length > 0) {
       await this.ch.insert({
         table: 'events',
@@ -330,7 +163,6 @@ export class DemoSeedService {
           wait_for_async_insert: 0,
         },
       });
-      this.logger.log(`Re-seeded ${events.length} events for project ${projectId} (scenario: ${scenarioName})`);
     }
 
     if (definitions.length > 0) {
@@ -498,7 +330,5 @@ export class DemoSeedService {
         )
         .onConflictDoNothing();
     }
-
-    return { count: events.length };
   }
 }
