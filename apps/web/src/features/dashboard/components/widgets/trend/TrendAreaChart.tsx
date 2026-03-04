@@ -378,6 +378,7 @@ export function TrendAreaChart({
           strokeDasharray="5 5"
           strokeWidth={1.5}
           dot={false}
+          stackId={isStacked ? 'prev-stack' : undefined}
           name={`${originalKey} (${t('prev')})`}
         />
       );
