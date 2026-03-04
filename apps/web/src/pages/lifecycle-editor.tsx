@@ -1,4 +1,6 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { PersonsModal } from '@/features/persons/components/PersonsModal';
+import { usePersonsAtLifecycleBucket, type LifecycleBucketParams } from '@/features/persons/hooks/use-persons-at-point';
 import { HeartPulse } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -25,7 +27,7 @@ export default function LifecycleEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
+    previewId, insightId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const { data, isLoading, isFetching } = useLifecycleData(config, previewId);
   const result = data?.data;
@@ -35,7 +37,28 @@ export default function LifecycleEditorPage() {
     downloadCsv(lifecycleToCsv(result), 'lifecycle.csv');
   }, [result]);
 
+  // Persons modal state
+  const [personsModal, setPersonsModal] = useState<{ title: string; params: LifecycleBucketParams } | null>(null);
+  const [personsPage, setPersonsPage] = useState(0);
+  const personsQuery = usePersonsAtLifecycleBucket(personsModal?.params ?? null, personsPage);
+
+  const handleBarClick = useCallback((bucket: string, status: string) => {
+    if (!insightId) {return;}
+    setPersonsModal({
+      title: t('personsInBucket', { status, bucket }),
+      params: {
+        insightId,
+        bucket,
+        status,
+        dateFrom: config.date_from ?? '',
+        dateTo: config.date_to ?? '',
+      },
+    });
+    setPersonsPage(0);
+  }, [insightId, config, t]);
+
   return (
+    <>
     <InsightEditorLayout
       backPath={listPath}
       backLabel={t('backLabel')}
@@ -75,7 +98,16 @@ export default function LifecycleEditorPage() {
       onExportCsv={result ? handleExportCsv : undefined}
       unsavedGuard={unsavedGuard}
     >
-      {result && <LifecycleChart result={result} />}
+      {result && <LifecycleChart result={result} onBarClick={insightId ? handleBarClick : undefined} />}
     </InsightEditorLayout>
+    <PersonsModal
+      open={!!personsModal}
+      onOpenChange={(open) => { if (!open) {setPersonsModal(null);} }}
+      title={personsModal?.title ?? ''}
+      query={personsQuery}
+      page={personsPage}
+      onPageChange={setPersonsPage}
+    />
+    </>
   );
 }

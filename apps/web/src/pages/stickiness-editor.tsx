@@ -1,4 +1,6 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { PersonsModal } from '@/features/persons/components/PersonsModal';
+import { usePersonsAtStickinessBar, type StickinessBarParams } from '@/features/persons/hooks/use-persons-at-point';
 import { Layers } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -26,7 +28,7 @@ export default function StickinessEditorPage() {
   });
 
   const { name, setName, description, setDescription, config, setConfig, isSaving, saveError, listPath, handleSave,
-    previewId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
+    previewId, insightId, isConfigValid, isValid, showSkeleton, unsavedGuard } = editor;
 
   const { data, isLoading, isFetching } = useStickinessData(config, previewId);
   const result = data?.data;
@@ -36,12 +38,32 @@ export default function StickinessEditorPage() {
     downloadCsv(stickinessToCsv(result), 'stickiness.csv');
   }, [result]);
 
+  // Persons modal state
+  const [personsModal, setPersonsModal] = useState<{ title: string; params: StickinessBarParams } | null>(null);
+  const [personsPage, setPersonsPage] = useState(0);
+  const personsQuery = usePersonsAtStickinessBar(personsModal?.params ?? null, personsPage);
+
+  const handleBarClick = useCallback((periodCount: number) => {
+    if (!insightId) {return;}
+    setPersonsModal({
+      title: t('personsAtPeriod', { count: String(periodCount) }),
+      params: {
+        insightId,
+        dayCount: periodCount,
+        dateFrom: config.date_from ?? '',
+        dateTo: config.date_to ?? '',
+      },
+    });
+    setPersonsPage(0);
+  }, [insightId, config, t]);
+
   const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
   const modePeriod = result?.data.length
     ? result.data.reduce((max, d) => (d.user_count > max.user_count ? d : max), result.data[0]).period_count
     : 0;
 
   return (
+    <>
     <InsightEditorLayout
       backPath={listPath}
       backLabel={t('backLabel')}
@@ -79,7 +101,16 @@ export default function StickinessEditorPage() {
       onExportCsv={result ? handleExportCsv : undefined}
       unsavedGuard={unsavedGuard}
     >
-      {result && <StickinessChart result={result} />}
+      {result && <StickinessChart result={result} onBarClick={insightId ? handleBarClick : undefined} />}
     </InsightEditorLayout>
+    <PersonsModal
+      open={!!personsModal}
+      onOpenChange={(open) => { if (!open) {setPersonsModal(null);} }}
+      title={personsModal?.title ?? ''}
+      query={personsQuery}
+      page={personsPage}
+      onPageChange={setPersonsPage}
+    />
+    </>
   );
 }

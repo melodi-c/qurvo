@@ -12,6 +12,7 @@ export default createTranslations({
     cohorts: 'Cohorts',
     avgDay1Retention: 'Avg Day 1 Retention',
     descriptionPlaceholder: 'Add description...',
+    personsInCell: 'Retention — {{cohort}}, period {{period}}',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -24,5 +25,6 @@ export default createTranslations({
     cohorts: 'Когорты',
     avgDay1Retention: 'Сред. удержание День 1',
     descriptionPlaceholder: 'Добавьте описание...',
+    personsInCell: 'Удержание — {{cohort}}, период {{period}}',
   },
 });

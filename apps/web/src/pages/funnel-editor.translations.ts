@@ -22,6 +22,8 @@ export default createTranslations({
     descriptionPlaceholder: 'Add description...',
     step1Label: 'Step 1',
     step2Label: 'Step 2',
+    personsAtStep: 'Persons at step {{step}}',
+    personsAtStepBreakdown: 'Persons at step {{step}} — {{breakdown}}',
   },
   ru: {
     backLabel: 'Инсайты',
@@ -44,5 +46,7 @@ export default createTranslations({
     descriptionPlaceholder: 'Добавьте описание...',
     step1Label: 'Шаг 1',
     step2Label: 'Шаг 2',
+    personsAtStep: 'Персоны на шаге {{step}}',
+    personsAtStepBreakdown: 'Персоны на шаге {{step}} — {{breakdown}}',
   },
 });
