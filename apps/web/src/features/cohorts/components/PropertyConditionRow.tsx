@@ -13,9 +13,10 @@ interface PropertyConditionRowProps {
   condition: PropertyCondition;
   onChange: (condition: PropertyCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
 }
 
-export function PropertyConditionRow({ condition, onChange, onRemove }: PropertyConditionRowProps) {
+export function PropertyConditionRow({ condition, onChange, onRemove, onDuplicate }: PropertyConditionRowProps) {
   const { t } = useLocalTranslation(translations);
   const { data: propertyNames = [], descriptions } = usePersonPropertyNames();
 
@@ -72,7 +73,7 @@ export function PropertyConditionRow({ condition, onChange, onRemove }: Property
   }, [condition, onChange]);
 
   return (
-    <ConditionRowWrapper label={t('personProperty')} labelColor="text-blue-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={t('personProperty')} labelColor="text-blue-400" onRemove={onRemove} onDuplicate={onDuplicate}>
       <PropertyNameCombobox
         value={condition.property}
         onChange={(v) => onChange({ ...condition, property: v })}

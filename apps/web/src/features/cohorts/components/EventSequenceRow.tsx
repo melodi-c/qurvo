@@ -13,10 +13,11 @@ interface EventSequenceRowProps {
   condition: SequenceCondition;
   onChange: (condition: SequenceCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
   variant: 'performed' | 'not_performed';
 }
 
-export function EventSequenceRow({ condition, onChange, onRemove, variant }: EventSequenceRowProps) {
+export function EventSequenceRow({ condition, onChange, onRemove, onDuplicate, variant }: EventSequenceRowProps) {
   const { t } = useLocalTranslation(translations);
 
   const updateStep = (idx: number, event_name: string) => {
@@ -38,7 +39,7 @@ export function EventSequenceRow({ condition, onChange, onRemove, variant }: Eve
   const tooltip = variant === 'performed' ? t('performedTooltip') : t('notPerformedTooltip');
 
   return (
-    <ConditionRowWrapper label={label} labelColor={labelColor} tooltip={tooltip} onRemove={onRemove}>
+    <ConditionRowWrapper label={label} labelColor={labelColor} tooltip={tooltip} onRemove={onRemove} onDuplicate={onDuplicate}>
       {condition.steps.map((step, idx) => (
         <div key={idx}>
           {idx > 0 && (

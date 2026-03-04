@@ -176,6 +176,42 @@ export function createDefaultCondition(type: CohortCondition['type']): CohortCon
   }
 }
 
+/** Deep-clone a condition with fresh _key and deep-copied arrays (steps, event_filters) */
+export function cloneCondition(cond: CohortCondition): CohortCondition {
+  const clone = { ...cond, _key: conditionKey() };
+
+  // Deep clone steps array for sequence conditions
+  if ('steps' in clone && Array.isArray(clone.steps)) {
+    clone.steps = clone.steps.map((s: { event_name: string; event_filters?: CohortEventFilter[] }) => ({
+      ...s,
+      event_filters: s.event_filters ? s.event_filters.map((f) => ({ ...f })) : undefined,
+    }));
+  }
+
+  // Deep clone event_filters array
+  if ('event_filters' in clone && Array.isArray(clone.event_filters)) {
+    clone.event_filters = clone.event_filters.map((f: CohortEventFilter) => ({ ...f }));
+  }
+
+  // Deep clone values array for property conditions
+  if ('values' in clone && Array.isArray(clone.values)) {
+    clone.values = [...clone.values];
+  }
+
+  return clone as CohortCondition;
+}
+
+/** Deep-clone an entire condition group with fresh keys for all conditions and the group itself */
+export function cloneGroup(group: CohortConditionGroup): CohortConditionGroup {
+  return {
+    ...group,
+    _key: conditionKey(),
+    values: group.values.map((v) =>
+      isGroup(v) ? cloneGroup(v) : cloneCondition(v),
+    ),
+  };
+}
+
 /** Check if condition is valid enough for preview */
 export function isConditionValid(cond: CohortCondition): boolean {
   switch (cond.type) {

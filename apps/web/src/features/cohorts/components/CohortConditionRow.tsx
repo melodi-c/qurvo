@@ -14,10 +14,11 @@ interface CohortConditionRowProps {
   condition: CohortRefCondition;
   onChange: (condition: CohortRefCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
   excludeCohortId?: string;
 }
 
-export function CohortConditionRow({ condition, onChange, onRemove, excludeCohortId }: CohortConditionRowProps) {
+export function CohortConditionRow({ condition, onChange, onRemove, onDuplicate, excludeCohortId }: CohortConditionRowProps) {
   const { t } = useLocalTranslation(translations);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -40,7 +41,7 @@ export function CohortConditionRow({ condition, onChange, onRemove, excludeCohor
   ] as const, [t]);
 
   return (
-    <ConditionRowWrapper label={t('cohortMembership')} labelColor="text-purple-400" onRemove={onRemove}>
+    <ConditionRowWrapper label={t('cohortMembership')} labelColor="text-purple-400" onRemove={onRemove} onDuplicate={onDuplicate}>
       <Select
         value={String(condition.negated)}
         onValueChange={(v) => onChange({ ...condition, negated: v === 'true' })}

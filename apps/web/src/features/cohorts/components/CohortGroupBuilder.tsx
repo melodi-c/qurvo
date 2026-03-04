@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { Copy, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,7 +19,7 @@ import { StoppedPerformingRow } from './StoppedPerformingRow';
 import { RestartedPerformingRow } from './RestartedPerformingRow';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './CohortGroupBuilder.translations';
-import { createDefaultCondition, conditionKey, type CohortCondition, type CohortConditionGroup } from '../types';
+import { createDefaultCondition, conditionKey, cloneCondition, cloneGroup, type CohortCondition, type CohortConditionGroup } from '../types';
 
 /** Maximum number of OR groups allowed in the cohort builder */
 const MAX_GROUPS = 10;
@@ -77,6 +77,12 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
     onChange(groups.filter((_, i) => i !== groupIdx));
   }, [groups, onChange]);
 
+  const duplicateGroup = useCallback((groupIdx: number) => {
+    if (groups.length >= MAX_GROUPS) {return;}
+    const copy = cloneGroup(groups[groupIdx]);
+    onChange([...groups.slice(0, groupIdx + 1), copy, ...groups.slice(groupIdx + 1)]);
+  }, [groups, onChange]);
+
   return (
     <div className="space-y-3">
       {groups.map((group, groupIdx) => (
@@ -89,6 +95,7 @@ export function CohortGroupBuilder({ groups, onChange, excludeCohortId }: Cohort
             groupIndex={groupIdx}
             onUpdate={(g) => updateGroup(groupIdx, g)}
             onRemove={groups.length > 1 ? () => removeGroup(groupIdx) : undefined}
+            onDuplicate={!atMaxGroups ? () => duplicateGroup(groupIdx) : undefined}
             excludeCohortId={excludeCohortId}
           />
         </div>
@@ -125,12 +132,14 @@ function AndGroupCard({
   groupIndex,
   onUpdate,
   onRemove,
+  onDuplicate,
   excludeCohortId,
 }: {
   group: CohortConditionGroup;
   groupIndex: number;
   onUpdate: (g: CohortConditionGroup) => void;
   onRemove?: () => void;
+  onDuplicate?: () => void;
   excludeCohortId?: string;
 }) {
   const { t } = useLocalTranslation(translations);
@@ -148,6 +157,11 @@ function AndGroupCard({
 
   const removeCondition = useCallback((idx: number) => {
     onUpdate({ ...group, values: conditions.filter((_, i) => i !== idx) });
+  }, [group, conditions, onUpdate]);
+
+  const duplicateCondition = useCallback((idx: number) => {
+    const copy = cloneCondition(conditions[idx]);
+    onUpdate({ ...group, values: [...conditions.slice(0, idx + 1), copy, ...conditions.slice(idx + 1)] });
   }, [group, conditions, onUpdate]);
 
   const conditionTypes = useMemo(() => ({
@@ -174,22 +188,35 @@ function AndGroupCard({
         {groupLabel}
       </div>
 
-      {onRemove && (
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={onRemove}
-            aria-label={t('removeGroup')}
-            className="text-muted-foreground/50 hover:text-destructive"
-          >
-            &times;
-          </Button>
+      {(onRemove || onDuplicate) && (
+        <div className="flex justify-end gap-0.5">
+          {onDuplicate && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onDuplicate}
+              aria-label={t('duplicateGroup')}
+              className="text-muted-foreground/50 hover:text-foreground"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          )}
+          {onRemove && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onRemove}
+              aria-label={t('removeGroup')}
+              className="text-muted-foreground/50 hover:text-destructive"
+            >
+              &times;
+            </Button>
+          )}
         </div>
       )}
 
-      {/* Add top padding when no remove button to offset the group label badge */}
-      {!onRemove && <div className="h-2" />}
+      {/* Add top padding when no action buttons to offset the group label badge */}
+      {!onRemove && !onDuplicate && <div className="h-2" />}
 
       {conditions.map((cond, idx) => (
         <div key={cond._key ?? idx}>
@@ -200,6 +227,7 @@ function AndGroupCard({
             condition={cond}
             onChange={(c) => updateCondition(idx, c)}
             onRemove={() => removeCondition(idx)}
+            onDuplicate={() => duplicateCondition(idx)}
             excludeCohortId={excludeCohortId}
           />
         </div>
@@ -243,33 +271,35 @@ function ConditionSwitch({
   condition,
   onChange,
   onRemove,
+  onDuplicate,
   excludeCohortId,
 }: {
   condition: CohortCondition;
   onChange: (c: CohortCondition) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
   excludeCohortId?: string;
 }) {
   switch (condition.type) {
     case 'person_property':
-      return <PropertyConditionRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <PropertyConditionRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} />;
     case 'event':
-      return <EventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <EventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} />;
     case 'cohort':
-      return <CohortConditionRow condition={condition} onChange={onChange} onRemove={onRemove} excludeCohortId={excludeCohortId} />;
+      return <CohortConditionRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} excludeCohortId={excludeCohortId} />;
     case 'first_time_event':
-      return <SimpleEventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} variant="first_time" />;
+      return <SimpleEventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} variant="first_time" />;
     case 'not_performed_event':
-      return <SimpleEventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} variant="not_performed" />;
+      return <SimpleEventConditionRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} variant="not_performed" />;
     case 'event_sequence':
-      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} variant="performed" />;
+      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} variant="performed" />;
     case 'not_performed_event_sequence':
-      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} variant="not_performed" />;
+      return <EventSequenceRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} variant="not_performed" />;
     case 'performed_regularly':
-      return <PerformedRegularlyRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <PerformedRegularlyRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} />;
     case 'stopped_performing':
-      return <StoppedPerformingRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <StoppedPerformingRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} />;
     case 'restarted_performing':
-      return <RestartedPerformingRow condition={condition} onChange={onChange} onRemove={onRemove} />;
+      return <RestartedPerformingRow condition={condition} onChange={onChange} onRemove={onRemove} onDuplicate={onDuplicate} />;
   }
 }

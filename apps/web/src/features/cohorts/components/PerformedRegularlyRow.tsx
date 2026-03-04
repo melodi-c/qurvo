@@ -12,9 +12,10 @@ interface PerformedRegularlyRowProps {
   condition: PerformedRegularlyCondition;
   onChange: (condition: PerformedRegularlyCondition) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
 }
 
-export function PerformedRegularlyRow({ condition, onChange, onRemove }: PerformedRegularlyRowProps) {
+export function PerformedRegularlyRow({ condition, onChange, onRemove, onDuplicate }: PerformedRegularlyRowProps) {
   const { t } = useLocalTranslation(translations);
 
   const periodTypes = useMemo(() => [
@@ -24,7 +25,7 @@ export function PerformedRegularlyRow({ condition, onChange, onRemove }: Perform
   ] as const, [t]);
 
   return (
-    <ConditionRowWrapper label={t('performedRegularly')} labelColor="text-indigo-400" tooltip={t('tooltip')} onRemove={onRemove}>
+    <ConditionRowWrapper label={t('performedRegularly')} labelColor="text-indigo-400" tooltip={t('tooltip')} onRemove={onRemove} onDuplicate={onDuplicate}>
       <EventNameCombobox
         value={condition.event_name}
         onChange={(event_name) => onChange({ ...condition, event_name })}
