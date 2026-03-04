@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import {
   BarChart,
   Bar,
@@ -22,9 +22,10 @@ import translations from './LifecycleChart.translations';
 interface LifecycleChartProps {
   result: LifecycleResult;
   compact?: boolean;
+  onBarClick?: (bucket: string, status: string) => void;
 }
 
-export function LifecycleChart({ result, compact = false }: LifecycleChartProps) {
+export function LifecycleChart({ result, compact = false, onBarClick }: LifecycleChartProps) {
   const { t } = useLocalTranslation(translations);
   const timezone = useProjectStore((s) => s.projectTimezone);
 
@@ -39,6 +40,13 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
       })),
     [result.data],
   );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleBarClick = useCallback((status: string) => (data: any) => {
+    if (!onBarClick) {return;}
+    const bucket = data?.bucket ?? data?.payload?.bucket;
+    if (bucket) {onBarClick(bucket, status);}
+  }, [onBarClick]);
 
   if (data.length === 0) {
     return <EmptyState icon={BarChart3} description={t('noData')} />;
@@ -83,10 +91,10 @@ export function LifecycleChart({ result, compact = false }: LifecycleChartProps)
               labelFormatter={(v) => formatBucket(v as string, result.granularity, false, timezone)}
               formatter={(value: number) => [Math.abs(value), undefined]}
             />
-            <Bar dataKey="new" stackId="a" fill={LIFECYCLE_STATUS_COLORS.new} name={t('new')} />
-            <Bar dataKey="returning" stackId="a" fill={LIFECYCLE_STATUS_COLORS.returning} name={t('returning')} />
-            <Bar dataKey="resurrecting" stackId="a" fill={LIFECYCLE_STATUS_COLORS.resurrecting} name={t('resurrecting')} />
-            <Bar dataKey="dormant" stackId="a" fill={LIFECYCLE_STATUS_COLORS.dormant} name={t('dormant')} />
+            <Bar dataKey="new" stackId="a" fill={LIFECYCLE_STATUS_COLORS.new} name={t('new')} onClick={handleBarClick('new')} cursor={onBarClick ? 'pointer' : undefined} />
+            <Bar dataKey="returning" stackId="a" fill={LIFECYCLE_STATUS_COLORS.returning} name={t('returning')} onClick={handleBarClick('returning')} cursor={onBarClick ? 'pointer' : undefined} />
+            <Bar dataKey="resurrecting" stackId="a" fill={LIFECYCLE_STATUS_COLORS.resurrecting} name={t('resurrecting')} onClick={handleBarClick('resurrecting')} cursor={onBarClick ? 'pointer' : undefined} />
+            <Bar dataKey="dormant" stackId="a" fill={LIFECYCLE_STATUS_COLORS.dormant} name={t('dormant')} onClick={handleBarClick('dormant')} cursor={onBarClick ? 'pointer' : undefined} />
           </BarChart>
         </ResponsiveContainer>
       </div>
