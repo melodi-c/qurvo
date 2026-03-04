@@ -4,6 +4,8 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { REDIS } from '../providers/redis.provider';
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import type { Database } from '@qurvo/db';
+import { projects } from '@qurvo/db';
+import { eq } from 'drizzle-orm';
 import type Redis from 'ioredis';
 import {
   queryPersons,
@@ -18,8 +20,11 @@ import { queryPersonEvents, type PersonEventsQueryParams } from './person-events
 import type { EventDetailRow } from '../events/events.query';
 import { queryPersonPropertyNames } from './person-property-names.query';
 import { queryPersonPropertyValues, type PersonPropertyValueRow } from './person-property-values.query';
+import { queryPersonsAtTrendBucket, type PersonsAtTrendBucketParams } from './persons-at-trend-bucket.query';
+import { queryPersonsAtStickinessBar, type PersonsAtStickinessBarParams } from './persons-at-stickiness-bar.query';
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
+import { resolveRelativeDate, isRelativeDate } from '../analytics/query-helpers/time';
 
 export type { PersonPropertyValueRow, PersonCohortRow };
 
@@ -85,5 +90,77 @@ export class PersonsService {
     const names = await queryPersonPropertyNames(this.db, projectId);
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', PROPERTY_NAMES_CACHE_TTL_SECONDS);
     return names;
+  }
+
+  /**
+   * Returns persons that triggered an event in a specific trend bucket.
+   * Resolves project timezone and relative dates automatically.
+   */
+  async getPersonsAtTrendBucket(
+    params: Omit<PersonsAtTrendBucketParams, 'timezone'> & { limit: number; offset: number },
+  ): Promise<{ persons: PersonRow[]; total: number }> {
+    const tz = await this.resolveProjectTimezone(params.project_id);
+    const dateFrom = isRelativeDate(params.date_from) ? resolveRelativeDate(params.date_from, tz) : params.date_from;
+    const dateTo = isRelativeDate(params.date_to) ? resolveRelativeDate(params.date_to, tz) : params.date_to;
+
+    const allPersonIds = await queryPersonsAtTrendBucket(this.ch, {
+      ...params,
+      date_from: dateFrom,
+      date_to: dateTo,
+      timezone: tz,
+    });
+
+    return this.paginatePersonIds(params.project_id, allPersonIds, params.limit, params.offset);
+  }
+
+  /**
+   * Returns persons with a specific number of active periods (stickiness bar).
+   * Resolves project timezone and relative dates automatically.
+   */
+  async getPersonsAtStickinessBar(
+    params: Omit<PersonsAtStickinessBarParams, 'timezone'> & { limit: number; offset: number },
+  ): Promise<{ persons: PersonRow[]; total: number }> {
+    const tz = await this.resolveProjectTimezone(params.project_id);
+    const dateFrom = isRelativeDate(params.date_from) ? resolveRelativeDate(params.date_from, tz) : params.date_from;
+    const dateTo = isRelativeDate(params.date_to) ? resolveRelativeDate(params.date_to, tz) : params.date_to;
+
+    const allPersonIds = await queryPersonsAtStickinessBar(this.ch, {
+      ...params,
+      date_from: dateFrom,
+      date_to: dateTo,
+      timezone: tz,
+    });
+
+    return this.paginatePersonIds(params.project_id, allPersonIds, params.limit, params.offset);
+  }
+
+  /** Resolve project timezone from PostgreSQL. */
+  private async resolveProjectTimezone(projectId: string): Promise<string> {
+    const [project] = await this.db
+      .select({ timezone: projects.timezone })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    return project?.timezone ?? 'UTC';
+  }
+
+  /**
+   * Shared pagination logic: given all person IDs from ClickHouse,
+   * return total count and paginated person details from PostgreSQL.
+   */
+  private async paginatePersonIds(
+    projectId: string,
+    allPersonIds: string[],
+    limit: number,
+    offset: number,
+  ): Promise<{ persons: PersonRow[]; total: number }> {
+    const total = allPersonIds.length;
+    if (total === 0) {return { persons: [], total: 0 };}
+
+    const pageIds = allPersonIds.slice(offset, offset + limit);
+    if (pageIds.length === 0) {return { persons: [], total };}
+
+    const persons = await queryPersonsByIds(this.db, projectId, pageIds);
+    return { persons, total };
   }
 }
