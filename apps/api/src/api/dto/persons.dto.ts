@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested } from 'class-validator';
+import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested, IsIn, IsNotEmpty } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { StepFilterDto } from './shared/filters.dto';
 import { makeJsonArrayTransform } from './shared/transforms';
 import { EventDetailDto } from './events.dto';
+import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
 
 export class PersonsQueryDto {
   @IsUUID()
@@ -106,4 +107,101 @@ export class PersonsAtPointResponseDto {
   @ApiProperty({ type: [PersonDto] })
   persons: PersonDto[];
   total: number;
+}
+
+export class PersonsAtLifecycleBucketQueryDto extends BaseAnalyticsQueryDto {
+  @IsString()
+  @IsNotEmpty()
+  target_event: string;
+
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'LifecycleGranularity' })
+  @IsIn(['day', 'week', 'month'])
+  granularity: 'day' | 'week' | 'month';
+
+  @IsString()
+  @IsNotEmpty()
+  bucket: string;
+
+  @ApiProperty({ enum: ['new', 'returning', 'resurrecting', 'dormant'], enumName: 'LifecycleStatus' })
+  @IsIn(['new', 'returning', 'resurrecting', 'dormant'])
+  status: 'new' | 'returning' | 'resurrecting' | 'dormant';
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsOptional()
+  @Transform(makeJsonArrayTransform(StepFilterDto))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  filters?: StepFilterDto[];
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  limit?: number = 50;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  offset?: number = 0;
+}
+
+export class PersonsAtRetentionCellQueryDto extends BaseAnalyticsQueryDto {
+  @IsString()
+  @IsNotEmpty()
+  target_event: string;
+
+  @IsOptional()
+  @IsString()
+  return_event?: string;
+
+  @ApiProperty({ enum: ['first_time', 'recurring'], enumName: 'RetentionType' })
+  @IsIn(['first_time', 'recurring'])
+  retention_type: 'first_time' | 'recurring';
+
+  @ApiProperty({ enum: ['day', 'week', 'month'], enumName: 'RetentionGranularity' })
+  @IsIn(['day', 'week', 'month'])
+  granularity: 'day' | 'week' | 'month';
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  periods: number = 11;
+
+  @IsString()
+  @IsNotEmpty()
+  cohort_date: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  period_offset: number;
+
+  @ApiPropertyOptional({ type: [StepFilterDto] })
+  @IsOptional()
+  @Transform(makeJsonArrayTransform(StepFilterDto))
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepFilterDto)
+  filters?: StepFilterDto[];
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  limit?: number = 50;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  offset?: number = 0;
 }
