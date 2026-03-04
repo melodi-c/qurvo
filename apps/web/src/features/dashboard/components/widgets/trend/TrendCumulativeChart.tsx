@@ -251,6 +251,7 @@ export function TrendCumulativeChart({
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
                   labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
+                  formatter={(value: number) => [value.toLocaleString(), undefined]}
                 />
                 {renderPrevLines()}
                 {renderCurrentLines()}
@@ -295,6 +296,7 @@ export function TrendCumulativeChart({
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
                   labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
+                  formatter={(value: number) => [value.toLocaleString(), undefined]}
                 />
                 {renderPrevLines()}
                 {renderCurrentLines()}
