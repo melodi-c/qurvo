@@ -184,7 +184,7 @@ export async function queryPersonsAtRetentionCell(
     ))
     .groupBy(col('person_id'))
     .orderBy(col('person_id'))
-    .limit(params.limit, params.offset)
+    .limit(params.limit).offset(params.offset)
     .build();
 
   // Count query

@@ -151,7 +151,7 @@ export async function queryPersonsAtLifecycleBucket(
       ))
       .groupBy(col('person_id'))
       .orderBy(col('person_id'))
-      .limit(params.limit, params.offset)
+      .limit(params.limit).offset(params.offset)
       .build();
 
     const countQuery = select(
@@ -218,7 +218,7 @@ export async function queryPersonsAtLifecycleBucket(
       eq(col('status'), literal(params.status)),
     ))
     .orderBy(col('person_id'))
-    .limit(params.limit, params.offset)
+    .limit(params.limit).offset(params.offset)
     .build();
 
   const countFilteredQuery = select(col('person_id'))
