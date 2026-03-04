@@ -2,8 +2,11 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import { createTestProject } from '@qurvo/testing';
 import { getTestContext, type ContainerContext } from '../context';
-import { persons, personDistinctIds } from '@qurvo/db';
+import { persons, personDistinctIds, cohorts } from '@qurvo/db';
 import { queryPersons, queryPersonsCount } from '../../persons/persons.query';
+import { queryPersonsByIds } from '../../persons/persons-bulk.query';
+import { queryPersonCohorts } from '../../persons/person-cohorts.query';
+import { insertStaticCohortMembers } from '../cohorts/helpers';
 
 let ctx: ContainerContext;
 
@@ -212,5 +215,150 @@ describe('project isolation', () => {
     const countB = await queryPersonsCount(ctx.db, { project_id: projectB });
     expect(countA).toBe(1);
     expect(countB).toBe(1);
+  });
+});
+
+describe('queryPersonsByIds', () => {
+  it('returns persons matching the given IDs with distinct_ids', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+
+    const p1 = await insertPerson(projectId, { distinctIds: ['alice@test.com'] });
+    const p2 = await insertPerson(projectId, { distinctIds: ['bob@test.com'] });
+    await insertPerson(projectId, { distinctIds: ['charlie@test.com'] });
+
+    const rows = await queryPersonsByIds(ctx.db, projectId, [p1, p2]);
+
+    expect(rows).toHaveLength(2);
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain(p1);
+    expect(ids).toContain(p2);
+
+    const row1 = rows.find((r) => r.id === p1)!;
+    expect(row1.distinct_ids).toContain('alice@test.com');
+    expect(row1.project_id).toBe(projectId);
+  });
+
+  it('returns empty array for empty input', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const rows = await queryPersonsByIds(ctx.db, projectId, []);
+    expect(rows).toHaveLength(0);
+  });
+
+  it('skips IDs that do not exist', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const p1 = await insertPerson(projectId, { distinctIds: ['a@test.com'] });
+
+    const rows = await queryPersonsByIds(ctx.db, projectId, [p1, randomUUID()]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(p1);
+  });
+
+  it('deduplicates input IDs', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const p1 = await insertPerson(projectId, { distinctIds: ['dup@test.com'] });
+
+    const rows = await queryPersonsByIds(ctx.db, projectId, [p1, p1, p1]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('does not return persons from another project', async () => {
+    const { projectId: projectA } = await createTestProject(ctx.db);
+    const { projectId: projectB } = await createTestProject(ctx.db);
+
+    const pA = await insertPerson(projectA, { distinctIds: ['a@test.com'] });
+    await insertPerson(projectB, { distinctIds: ['b@test.com'] });
+
+    const rows = await queryPersonsByIds(ctx.db, projectB, [pA]);
+    expect(rows).toHaveLength(0);
+  });
+});
+
+describe('queryPersonCohorts', () => {
+  /** Helper to create a cohort in PostgreSQL. */
+  async function createCohort(
+    projectId: string,
+    userId: string,
+    opts: { name: string; is_static?: boolean },
+  ): Promise<string> {
+    const rows = await ctx.db
+      .insert(cohorts)
+      .values({
+        project_id: projectId,
+        created_by: userId,
+        name: opts.name,
+        definition: { type: 'AND', values: [] },
+        is_static: opts.is_static ?? false,
+      })
+      .returning({ id: cohorts.id });
+    return rows[0].id;
+  }
+
+  /** Helper to insert dynamic cohort members into ClickHouse. */
+  async function insertDynamicCohortMembers(
+    projectId: string,
+    cohortId: string,
+    personIds: string[],
+  ) {
+    if (personIds.length === 0) {return;}
+    const version = Date.now();
+    await ctx.ch.insert({
+      table: 'cohort_members',
+      values: personIds.map((pid) => ({
+        project_id: projectId,
+        cohort_id: cohortId,
+        person_id: pid,
+        version,
+      })),
+      format: 'JSONEachRow',
+      clickhouse_settings: { async_insert: 0 },
+    });
+  }
+
+  it('returns both dynamic and static cohorts for a person', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const personId = await insertPerson(projectId);
+
+    const dynamicCohortId = await createCohort(projectId, userId, { name: 'Active Users' });
+    const staticCohortId = await createCohort(projectId, userId, { name: 'VIP List', is_static: true });
+
+    await insertDynamicCohortMembers(projectId, dynamicCohortId, [personId]);
+    await insertStaticCohortMembers(ctx.ch, projectId, staticCohortId, [personId]);
+
+    const result = await queryPersonCohorts(ctx.ch, ctx.db, projectId, personId);
+
+    expect(result).toHaveLength(2);
+
+    const names = result.map((r) => r.name).sort();
+    expect(names).toEqual(['Active Users', 'VIP List']);
+
+    const dynamic = result.find((r) => r.name === 'Active Users')!;
+    expect(dynamic.is_static).toBe(false);
+
+    const staticRow = result.find((r) => r.name === 'VIP List')!;
+    expect(staticRow.is_static).toBe(true);
+  });
+
+  it('returns empty array when person has no cohort memberships', async () => {
+    const { projectId } = await createTestProject(ctx.db);
+    const personId = await insertPerson(projectId);
+
+    const result = await queryPersonCohorts(ctx.ch, ctx.db, projectId, personId);
+    expect(result).toHaveLength(0);
+  });
+
+  it('only returns cohorts the specific person belongs to', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const personA = await insertPerson(projectId);
+    const personB = await insertPerson(projectId);
+
+    const cohortId = await createCohort(projectId, userId, { name: 'Only B' });
+    await insertDynamicCohortMembers(projectId, cohortId, [personB]);
+
+    const resultA = await queryPersonCohorts(ctx.ch, ctx.db, projectId, personA);
+    expect(resultA).toHaveLength(0);
+
+    const resultB = await queryPersonCohorts(ctx.ch, ctx.db, projectId, personB);
+    expect(resultB).toHaveLength(1);
+    expect(resultB[0].name).toBe('Only B');
   });
 });

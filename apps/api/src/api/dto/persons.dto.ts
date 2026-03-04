@@ -90,3 +90,20 @@ export class PersonPropertyNamesResponseDto {
   @ApiProperty({ type: [String] })
   property_names: string[];
 }
+
+export class PersonCohortDto {
+  cohort_id: string;
+  name: string;
+  is_static: boolean;
+}
+
+export class PersonCohortsResponseDto {
+  @ApiProperty({ type: [PersonCohortDto] })
+  cohorts: PersonCohortDto[];
+}
+
+export class PersonsAtPointResponseDto {
+  @ApiProperty({ type: [PersonDto] })
+  persons: PersonDto[];
+  total: number;
+}

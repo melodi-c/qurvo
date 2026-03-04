@@ -12,6 +12,8 @@ import {
   type PersonsQueryParams,
   type PersonRow,
 } from './persons.query';
+import { queryPersonsByIds } from './persons-bulk.query';
+import { queryPersonCohorts, type PersonCohortRow } from './person-cohorts.query';
 import { queryPersonEvents, type PersonEventsQueryParams } from './person-events.query';
 import type { EventDetailRow } from '../events/events.query';
 import { queryPersonPropertyNames } from './person-property-names.query';
@@ -19,7 +21,7 @@ import { queryPersonPropertyValues, type PersonPropertyValueRow } from './person
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
 
-export type { PersonPropertyValueRow };
+export type { PersonPropertyValueRow, PersonCohortRow };
 
 @Injectable()
 export class PersonsService {
@@ -57,6 +59,23 @@ export class PersonsService {
     limit = 50,
   ): Promise<PersonPropertyValueRow[]> {
     return queryPersonPropertyValues(this.db, { project_id: projectId, property_name: propertyName, limit });
+  }
+
+  async resolvePersonDetails(
+    projectId: string,
+    personIds: string[],
+  ): Promise<PersonRow[]> {
+    return queryPersonsByIds(this.db, projectId, personIds);
+  }
+
+  async getPersonCohorts(
+    projectId: string,
+    personId: string,
+  ): Promise<PersonCohortRow[]> {
+    // Verify person exists first
+    const person = await queryPersonById(this.db, projectId, personId);
+    if (!person) {throw new PersonNotFoundException();}
+    return queryPersonCohorts(this.ch, this.db, projectId, personId);
   }
 
   async getPersonPropertyNames(projectId: string): Promise<string[]> {
