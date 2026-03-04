@@ -11,6 +11,7 @@ import {
   PersonEventRowDto,
   PersonPropertyNamesQueryDto,
   PersonPropertyNamesResponseDto,
+  PersonCohortsResponseDto,
 } from '../dto/persons.dto';
 
 @ApiTags('Persons')
@@ -56,5 +57,17 @@ export class PersonsController {
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
     }) as any;
+  }
+
+  @Get(':personId/cohorts')
+  async getPersonCohorts(
+    @Query() query: PersonByIdQueryDto,
+    @Param('personId', ParseUUIDPipe) personId: string,
+  ): Promise<PersonCohortsResponseDto> {
+    const cohorts = await this.personsService.getPersonCohorts(
+      query.project_id,
+      personId,
+    );
+    return { cohorts } as any;
   }
 }
