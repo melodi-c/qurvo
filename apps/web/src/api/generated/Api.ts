@@ -829,6 +829,16 @@ export interface PersonEventRow {
   user_properties: string;
 }
 
+export interface PersonCohort {
+  cohort_id: string;
+  name: string;
+  is_static: boolean;
+}
+
+export interface PersonCohortsResponse {
+  cohorts: PersonCohort[];
+}
+
 export interface CohortConditionGroup {
   type: CohortConditionGroupDtoTypeEnum;
   /**
@@ -2135,6 +2145,12 @@ export interface PersonsControllerGetPersonEventsParams {
    * @default 0
    */
   offset?: number;
+  /** @format uuid */
+  project_id: string;
+  personId: string;
+}
+
+export interface PersonsControllerGetPersonCohortsParams {
   /** @format uuid */
   project_id: string;
   personId: string;
@@ -3675,6 +3691,27 @@ export class Api<
     ) =>
       this.request<PersonEventRow[], any>({
         path: `/api/persons/${personId}/events`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonCohorts
+     * @request GET:/api/persons/{personId}/cohorts
+     * @secure
+     */
+    personsControllerGetPersonCohorts: (
+      { personId, ...query }: PersonsControllerGetPersonCohortsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonCohortsResponse, any>({
+        path: `/api/persons/${personId}/cohorts`,
         method: "GET",
         query: query,
         secure: true,
