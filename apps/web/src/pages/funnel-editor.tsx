@@ -88,25 +88,25 @@ export default function FunnelEditorPage() {
   const [personsPage, setPersonsPage] = useState(0);
   const personsQuery = usePersonsAtFunnelStep(personsModal?.params ?? null, personsPage);
 
-  const handleStepClick = useCallback((step: number, breakdownValue?: string) => {
-    if (!insightId) {return;}
-    const stepLabel = config.steps.find((s, i) => i + 1 === step)?.label ?? t('stepFallback', { step: String(step) });
-    const title = breakdownValue
-      ? t('personsAtStepBreakdown', { step: stepLabel, breakdown: breakdownValue })
+  const handleStepClick = useCallback((step: number, _breakdownValue?: string) => {
+    const stepLabel = config.steps.find((_s, i) => i + 1 === step)?.label ?? t('stepFallback', { step: String(step) });
+    const title = _breakdownValue
+      ? t('personsAtStepBreakdown', { step: stepLabel, breakdown: _breakdownValue })
       : t('personsAtStep', { step: stepLabel });
     setPersonsModal({
       title,
       params: {
-        insightId,
-        stepIndex: step,
-        dateFrom: config.date_from ?? '',
-        dateTo: config.date_to ?? '',
-        breakdown: config.breakdown_property ?? undefined,
-        breakdownValue: breakdownValue ?? undefined,
+        steps: config.steps,
+        step,
+        conversion_window_days: config.conversion_window_days,
+        date_from: config.date_from,
+        date_to: config.date_to,
+        cohort_ids: config.cohort_ids,
+        funnel_order_type: config.funnel_order_type,
       },
     });
     setPersonsPage(0);
-  }, [insightId, config, t]);
+  }, [config, t]);
 
   const isTimeToConvert = viewMode === 'time_to_convert';
   const activeIsLoading = isTimeToConvert ? ttcIsLoading : isLoading;
@@ -221,7 +221,7 @@ export default function FunnelEditorPage() {
           breakdown={breakdown}
           aggregateSteps={funnelResult?.aggregate_steps}
           conversionRateDisplay={config.conversion_rate_display ?? 'total'}
-          onStepClick={insightId ? handleStepClick : undefined}
+          onStepClick={handleStepClick}
         />
       )}
     </InsightEditorLayout>

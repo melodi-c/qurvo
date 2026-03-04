@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { PersonsModal } from '@/features/persons/components/PersonsModal';
-import { usePersonsAtLifecycleBucket, type LifecycleBucketParams } from '@/features/persons/hooks/use-persons-at-point';
+import { usePersonsAtLifecycleBucket } from '@/features/persons/hooks/use-persons-at-point';
+import type { LifecycleBucketParams } from '@/features/persons/hooks/use-persons-at-point';
 import { HeartPulse } from 'lucide-react';
 import { Metric } from '@/components/ui/metric';
 import { MetricsDivider } from '@/components/ui/metrics-divider';
@@ -43,19 +44,20 @@ export default function LifecycleEditorPage() {
   const personsQuery = usePersonsAtLifecycleBucket(personsModal?.params ?? null, personsPage);
 
   const handleBarClick = useCallback((bucket: string, status: string) => {
-    if (!insightId) {return;}
     setPersonsModal({
       title: t('personsInBucket', { status, bucket }),
       params: {
-        insightId,
+        target_event: config.target_event,
+        granularity: config.granularity,
+        status: status as LifecycleBucketParams['status'],
         bucket,
-        status,
-        dateFrom: config.date_from ?? '',
-        dateTo: config.date_to ?? '',
+        date_from: config.date_from,
+        date_to: config.date_to,
+        cohort_ids: config.cohort_ids,
       },
     });
     setPersonsPage(0);
-  }, [insightId, config, t]);
+  }, [config, t]);
 
   return (
     <>
@@ -98,7 +100,7 @@ export default function LifecycleEditorPage() {
       onExportCsv={result ? handleExportCsv : undefined}
       unsavedGuard={unsavedGuard}
     >
-      {result && <LifecycleChart result={result} onBarClick={insightId ? handleBarClick : undefined} />}
+      {result && <LifecycleChart result={result} onBarClick={handleBarClick} />}
     </InsightEditorLayout>
     <PersonsModal
       open={!!personsModal}

@@ -44,19 +44,23 @@ export default function RetentionEditorPage() {
   const personsQuery = usePersonsAtRetentionCell(personsModal?.params ?? null, personsPage);
 
   const handleCellClick = useCallback((cohortDate: string, periodOffset: number) => {
-    if (!insightId) {return;}
     setPersonsModal({
       title: t('personsInCell', { cohort: cohortDate, period: String(periodOffset) }),
       params: {
-        insightId,
-        cohortDate,
-        period: periodOffset,
-        dateFrom: config.date_from ?? '',
-        dateTo: config.date_to ?? '',
+        target_event: config.target_event,
+        return_event: config.return_event,
+        retention_type: config.retention_type,
+        granularity: config.granularity,
+        periods: config.periods,
+        cohort_date: cohortDate,
+        period_offset: periodOffset,
+        date_from: config.date_from,
+        date_to: config.date_to,
+        cohort_ids: config.cohort_ids,
       },
     });
     setPersonsPage(0);
-  }, [insightId, config, t]);
+  }, [config, t]);
 
   return (
     <>
@@ -99,7 +103,7 @@ export default function RetentionEditorPage() {
       chartClassName="flex-1 overflow-auto p-6 space-y-8"
       unsavedGuard={unsavedGuard}
     >
-      {result && <RetentionTable result={result} onCellClick={insightId ? handleCellClick : undefined} />}
+      {result && <RetentionTable result={result} onCellClick={handleCellClick} />}
       {result && <RetentionChart result={result} />}
     </InsightEditorLayout>
     <PersonsModal

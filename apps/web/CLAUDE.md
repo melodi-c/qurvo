@@ -195,6 +195,11 @@ Any manual change to `Api.ts` will be overwritten on the next `pnpm generate-api
 - **NEVER cast API response types** (e.g. `res.user as any`). Use the generated types (`User`, `SessionUser`, etc.) directly, mapping fields explicitly when shapes differ.
 - Narrowing casts (`as SpecificType`) from a known union are acceptable; widening casts (`as any`, `as unknown as X`) are not.
 
+### authFetch — Only for Non-REST Streams
+`authFetch` from `src/lib/auth-fetch.ts` is ONLY for SSE/streaming endpoints (e.g. AI chat).
+For all REST API calls — use the generated `api` client from `@/api/client`.
+NEVER use `authFetch` for regular GET/POST/PUT/DELETE requests.
+
 ### Memoization
 - Use `useCallback` for functions passed as props to child components or used in dependency arrays.
 - Use `useMemo` for expensive computations and derived data that would otherwise recalculate on every render.

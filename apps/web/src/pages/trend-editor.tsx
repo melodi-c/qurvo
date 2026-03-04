@@ -94,21 +94,21 @@ export default function TrendEditorPage() {
   const personsQuery = usePersonsAtTrendBucket(personsModal?.params ?? null, personsPage);
 
   const handleDataPointClick = useCallback((seriesIdx: number, bucket: string) => {
-    if (!insightId) {return;}
+    const seriesItem = config.series[seriesIdx];
+    if (!seriesItem) {return;}
     setPersonsModal({
       title: t('personsInBucket', { bucket }),
       params: {
-        insightId,
-        seriesIndex: seriesIdx,
+        event_name: seriesItem.event_name,
+        granularity: config.granularity,
         bucket,
-        dateFrom: config.date_from ?? '',
-        dateTo: config.date_to ?? '',
-        breakdown: config.breakdown_property ?? undefined,
-        breakdownValue: undefined,
+        date_from: config.date_from,
+        date_to: config.date_to,
+        filters: seriesItem.filters,
       },
     });
     setPersonsPage(0);
-  }, [insightId, config, t]);
+  }, [config, t]);
 
   const handleAnnotationSave = useCallback(async (data: CreateAnnotation) => {
     if (editingAnnotation) {
@@ -207,7 +207,7 @@ export default function TrendEditorPage() {
         heatmapData={aggregateResult?.heatmap}
         dateFrom={config.date_from}
         dateTo={config.date_to}
-        onDataPointClick={insightId ? handleDataPointClick : undefined}
+        onDataPointClick={handleDataPointClick}
       />
       <AnnotationDialog
         open={annotationDialogOpen}

@@ -44,18 +44,19 @@ export default function StickinessEditorPage() {
   const personsQuery = usePersonsAtStickinessBar(personsModal?.params ?? null, personsPage);
 
   const handleBarClick = useCallback((periodCount: number) => {
-    if (!insightId) {return;}
     setPersonsModal({
       title: t('personsAtPeriod', { count: String(periodCount) }),
       params: {
-        insightId,
-        dayCount: periodCount,
-        dateFrom: config.date_from ?? '',
-        dateTo: config.date_to ?? '',
+        event_name: config.target_event,
+        granularity: config.granularity,
+        period_count: periodCount,
+        date_from: config.date_from,
+        date_to: config.date_to,
+        filters: config.filters,
       },
     });
     setPersonsPage(0);
-  }, [insightId, config, t]);
+  }, [config, t]);
 
   const totalUsers = result?.data.reduce((sum, d) => sum + d.user_count, 0) ?? 0;
   const modePeriod = result?.data.length
@@ -101,7 +102,7 @@ export default function StickinessEditorPage() {
       onExportCsv={result ? handleExportCsv : undefined}
       unsavedGuard={unsavedGuard}
     >
-      {result && <StickinessChart result={result} onBarClick={insightId ? handleBarClick : undefined} />}
+      {result && <StickinessChart result={result} onBarClick={handleBarClick} />}
     </InsightEditorLayout>
     <PersonsModal
       open={!!personsModal}

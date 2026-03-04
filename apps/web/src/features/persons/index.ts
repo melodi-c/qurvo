@@ -11,7 +11,6 @@ export {
 } from './hooks/use-persons-at-point';
 
 export type {
-  PersonAtRow,
   FunnelStepParams,
   TrendBucketParams,
   LifecycleBucketParams,

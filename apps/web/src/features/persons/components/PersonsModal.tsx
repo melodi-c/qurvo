@@ -17,8 +17,8 @@ import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useAppNavigate } from '@/hooks/use-app-navigate';
 import { getPersonFields } from '@/lib/person';
 import { useSaveAsCohort } from '../hooks/use-save-as-cohort';
-import type { PersonAtRow } from '../hooks/use-persons-at-point';
 import { PAGE_SIZE } from '../hooks/use-persons-at-point';
+import type { Person, PersonsAtPointResponse } from '@/api/generated/Api';
 import translations from './PersonsModal.translations';
 
 interface PersonRow {
@@ -28,7 +28,7 @@ interface PersonRow {
   email: string;
 }
 
-function toPersonRows(persons: PersonAtRow[]): PersonRow[] {
+function toPersonRows(persons: Person[]): PersonRow[] {
   return persons.map((person) => {
     const { name, email } = getPersonFields(person.properties);
     return {
@@ -40,17 +40,12 @@ function toPersonRows(persons: PersonAtRow[]): PersonRow[] {
   });
 }
 
-interface PersonsAtResponse {
-  persons: PersonAtRow[];
-  total: number;
-}
-
 export interface PersonsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   /** Pass the result of any usePersonsAt* hook */
-  query: UseQueryResult<PersonsAtResponse, Error>;
+  query: UseQueryResult<PersonsAtPointResponse, Error>;
   page: number;
   onPageChange: (page: number) => void;
 }

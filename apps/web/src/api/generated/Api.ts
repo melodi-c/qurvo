@@ -10,6 +10,12 @@
  * ---------------------------------------------------------------
  */
 
+export type RetentionGranularity = "day" | "week" | "month";
+
+export type LifecycleStatus = "new" | "returning" | "resurrecting" | "dormant";
+
+export type LifecycleGranularity = "day" | "week" | "month";
+
 export type StickinessGranularity = "day" | "week" | "month";
 
 export type InsightType =
@@ -2129,6 +2135,49 @@ export interface PersonsControllerGetPersonsParams {
   project_id: string;
 }
 
+export interface PersonsControllerGetPersonsAtFunnelStepParams {
+  /** @maxItems 20 */
+  cohort_ids?: string[];
+  funnel_order_type?: FunnelOrderTypeEnum2;
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+  steps: FunnelStep[];
+  /**
+   * 1-based step number that the person must have reached
+   * @min 1
+   * @max 10
+   */
+  step: number;
+  /**
+   * @min 1
+   * @max 90
+   * @default 14
+   */
+  conversion_window_days: number;
+  date_from: string;
+  date_to: string;
+  /** @default "UTC" */
+  timezone?: string;
+}
+
+export type FunnelOrderTypeEnum2 = "ordered" | "strict" | "unordered";
+
+export type PersonsControllerGetPersonsAtFunnelStepParams1FunnelOrderTypeEnum =
+  | "ordered"
+  | "strict"
+  | "unordered";
+
 export interface PersonsControllerGetPersonsAtTrendBucketParams {
   granularity: TrendGranularity;
   filters?: StepFilter[];
@@ -2177,6 +2226,77 @@ export interface PersonsControllerGetPersonsAtStickinessBarParams {
 export interface PersonsControllerGetPersonPropertyNamesParams {
   /** @format uuid */
   project_id: string;
+}
+
+export interface PersonsControllerGetPersonsAtLifecycleBucketParams {
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
+  cohort_ids?: string[];
+  granularity: LifecycleGranularity;
+  status: LifecycleStatus;
+  filters?: StepFilter[];
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  target_event: string;
+  bucket: string;
+  /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
+}
+
+export interface PersonsControllerGetPersonsAtRetentionCellParams {
+  /**
+   * @maxItems 20
+   * @uniqueItems true
+   */
+  cohort_ids?: string[];
+  retention_type: RetentionType;
+  granularity: RetentionGranularity;
+  filters?: StepFilter[];
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  target_event: string;
+  return_event?: string;
+  /**
+   * @min 1
+   * @max 30
+   * @default 11
+   */
+  periods: number;
+  cohort_date: string;
+  /** @min 0 */
+  period_offset: number;
+  /** @format uuid */
+  widget_id?: string;
+  /** @format uuid */
+  project_id: string;
+  date_from: string;
+  date_to: string;
+  force?: boolean;
 }
 
 export interface PersonsControllerGetPersonByIdParams {
@@ -3691,6 +3811,27 @@ export class Api<
      * No description
      *
      * @tags Persons
+     * @name PersonsControllerGetPersonsAtFunnelStep
+     * @request GET:/api/persons/at-funnel-step
+     * @secure
+     */
+    personsControllerGetPersonsAtFunnelStep: (
+      query: PersonsControllerGetPersonsAtFunnelStepParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonsAtPointResponse, any>({
+        path: `/api/persons/at-funnel-step`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
      * @name PersonsControllerGetPersonsAtTrendBucket
      * @request GET:/api/persons/at-trend-bucket
      * @secure
@@ -3743,6 +3884,48 @@ export class Api<
     ) =>
       this.request<PersonPropertyNamesResponse, any>({
         path: `/api/persons/property-names`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonsAtLifecycleBucket
+     * @request GET:/api/persons/at-lifecycle-bucket
+     * @secure
+     */
+    personsControllerGetPersonsAtLifecycleBucket: (
+      query: PersonsControllerGetPersonsAtLifecycleBucketParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonsAtPointResponse, any>({
+        path: `/api/persons/at-lifecycle-bucket`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonsAtRetentionCell
+     * @request GET:/api/persons/at-retention-cell
+     * @secure
+     */
+    personsControllerGetPersonsAtRetentionCell: (
+      query: PersonsControllerGetPersonsAtRetentionCellParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonsAtPointResponse, any>({
+        path: `/api/persons/at-retention-cell`,
         method: "GET",
         query: query,
         secure: true,
