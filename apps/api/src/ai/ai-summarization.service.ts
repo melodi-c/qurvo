@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AiChatService } from './ai-chat.service';
+import { AiMessageService } from './ai-message.service';
 import { AI_SUMMARIZATION_MODEL, AI_SUMMARY_KEEP_RECENT, AI_RETRY_MAX_ATTEMPTS, AI_RETRY_BASE_DELAY_MS } from '../constants';
 
 @Injectable()
@@ -8,7 +9,10 @@ export class AiSummarizationService implements OnModuleDestroy {
   private readonly logger = new Logger(AiSummarizationService.name);
   private readonly activeTimers = new Set<ReturnType<typeof setTimeout>>();
 
-  constructor(private readonly chatService: AiChatService) {}
+  constructor(
+    private readonly chatService: AiChatService,
+    private readonly messageService: AiMessageService,
+  ) {}
 
   onModuleDestroy(): void {
     for (const timer of this.activeTimers) {
@@ -59,11 +63,11 @@ export class AiSummarizationService implements OnModuleDestroy {
    */
   async update(client: OpenAI, conversationId: string): Promise<void> {
     // Load all messages except the most recent AI_SUMMARY_KEEP_RECENT (those stay verbatim)
-    const totalCount = await this.chatService.getMessageCount(conversationId);
+    const totalCount = await this.messageService.getMessageCount(conversationId);
     const oldMessagesCount = totalCount - AI_SUMMARY_KEEP_RECENT;
     if (oldMessagesCount <= 0) {return;}
 
-    const oldMessages = await this.chatService.getMessagesForSummary(conversationId, oldMessagesCount);
+    const oldMessages = await this.messageService.getMessagesForSummary(conversationId, oldMessagesCount);
     if (oldMessages.length === 0) {return;}
 
     // Build a readable transcript of the older messages for the summarizer
