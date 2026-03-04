@@ -158,7 +158,7 @@ export function TrendWorldMapViz({ data, compact }: TrendWorldMapVizProps) {
             }}
           />
           <span className="text-[10px] text-muted-foreground">
-            {t('legendMax')}
+            {formatCompactNumber(maxValue)}
           </span>
         </div>
 
