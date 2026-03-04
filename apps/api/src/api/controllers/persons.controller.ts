@@ -18,13 +18,15 @@ import {
   PersonPropertyNamesQueryDto,
   PersonPropertyNamesResponseDto,
   PersonCohortsResponseDto,
+} from '../dto/persons.dto';
+import {
   PersonsAtPointResponseDto,
   PersonsAtLifecycleBucketQueryDto,
   PersonsAtRetentionCellQueryDto,
   PersonsAtFunnelStepQueryDto,
   PersonsAtTrendBucketQueryDto,
   PersonsAtStickinessBarQueryDto,
-} from '../dto/persons.dto';
+} from '../dto/persons-at.dto';
 import type { PropertyFilter } from '../../analytics/query-helpers';
 
 @ApiTags('Persons')
