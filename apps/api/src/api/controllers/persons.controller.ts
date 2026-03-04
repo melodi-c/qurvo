@@ -61,7 +61,9 @@ export class PersonsController {
   async getPersonsAtFunnelStep(
     @Query() query: PersonsAtFunnelStepQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
-    // Resolve cohort_ids → cohort_filters (same pattern as analytics factory)
+    const timezone = query.timezone ?? (await this.resolveProjectTimezone(query.project_id));
+    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
+    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
     const cohortFilters = query.cohort_ids?.length
       ? await this.cohortsService.resolveCohortFilters(query.project_id, query.cohort_ids)
       : undefined;
@@ -71,9 +73,9 @@ export class PersonsController {
       steps: query.steps,
       step: query.step,
       conversion_window_days: query.conversion_window_days,
-      date_from: query.date_from,
-      date_to: query.date_to,
-      timezone: query.timezone ?? 'UTC',
+      date_from: dateFrom,
+      date_to: dateTo,
+      timezone,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
       cohort_filters: cohortFilters,
@@ -85,13 +87,16 @@ export class PersonsController {
   async getPersonsAtTrendBucket(
     @Query() query: PersonsAtTrendBucketQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
+    const timezone = await this.resolveProjectTimezone(query.project_id);
+    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
+    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
     return this.personsService.getPersonsAtTrendBucket({
       project_id: query.project_id,
       event_name: query.event_name,
       granularity: query.granularity,
       bucket: query.bucket,
-      date_from: query.date_from,
-      date_to: query.date_to,
+      date_from: dateFrom,
+      date_to: dateTo,
       filters: query.filters,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
@@ -102,13 +107,16 @@ export class PersonsController {
   async getPersonsAtStickinessBar(
     @Query() query: PersonsAtStickinessBarQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
+    const timezone = await this.resolveProjectTimezone(query.project_id);
+    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
+    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
     return this.personsService.getPersonsAtStickinessBar({
       project_id: query.project_id,
       event_name: query.event_name,
       granularity: query.granularity,
       period_count: query.period_count,
-      date_from: query.date_from,
-      date_to: query.date_to,
+      date_from: dateFrom,
+      date_to: dateTo,
       filters: query.filters,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
