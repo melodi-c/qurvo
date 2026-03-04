@@ -195,6 +195,26 @@ export function resolveRelativeDate(value: string, timezone?: string): string {
   return today.toISOString().slice(0, 10);
 }
 
+/**
+ * Resolves a pair of date strings that may be relative (e.g. `-7d`, `mStart`)
+ * into absolute `YYYY-MM-DD` values.  Absolute dates pass through unchanged.
+ *
+ * @param dateFrom  Start date — relative token or `YYYY-MM-DD`
+ * @param dateTo    End date   — relative token or `YYYY-MM-DD`
+ * @param timezone  Project timezone for anchoring "today" (forwarded to `resolveRelativeDate`)
+ * @returns `{ dateFrom, dateTo }` with resolved absolute dates
+ */
+export function resolveDateRange(
+  dateFrom: string,
+  dateTo: string,
+  timezone?: string,
+): { dateFrom: string; dateTo: string } {
+  return {
+    dateFrom: isRelativeDate(dateFrom) ? resolveRelativeDate(dateFrom, timezone) : dateFrom,
+    dateTo: isRelativeDate(dateTo) ? resolveRelativeDate(dateTo, timezone) : dateTo,
+  };
+}
+
 export function shiftPeriod(dateFrom: string, dateTo: string): { from: string; to: string } {
   const from = new Date(`${dateFrom}T00:00:00Z`);
   const to = new Date(`${dateTo}T00:00:00Z`);

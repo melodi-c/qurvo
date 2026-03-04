@@ -4,7 +4,7 @@ import { annotations } from '@qurvo/db';
 import type { Database, AnnotationScope } from '@qurvo/db';
 import { DRIZZLE } from '../providers/drizzle.provider';
 import { AnnotationNotFoundException } from './exceptions/annotation-not-found.exception';
-import { resolveRelativeDate } from '../analytics/query-helpers/time';
+import { resolveDateRange, isRelativeDate, resolveRelativeDate } from '../analytics/query-helpers/time';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
 
 export interface CreateAnnotationInput {
@@ -31,8 +31,15 @@ export class AnnotationsService {
 
   async list(projectId: string, dateFrom?: string, dateTo?: string, insightId?: string) {
     const conditions = [eq(annotations.project_id, projectId)];
-    if (dateFrom) {conditions.push(gte(annotations.date, resolveRelativeDate(dateFrom)));}
-    if (dateTo) {conditions.push(lte(annotations.date, resolveRelativeDate(dateTo)));}
+    if (dateFrom && dateTo) {
+      const resolved = resolveDateRange(dateFrom, dateTo);
+      conditions.push(gte(annotations.date, resolved.dateFrom));
+      conditions.push(lte(annotations.date, resolved.dateTo));
+    } else if (dateFrom) {
+      conditions.push(gte(annotations.date, isRelativeDate(dateFrom) ? resolveRelativeDate(dateFrom) : dateFrom));
+    } else if (dateTo) {
+      conditions.push(lte(annotations.date, isRelativeDate(dateTo) ? resolveRelativeDate(dateTo) : dateTo));
+    }
 
     if (insightId) {
       // When insight_id is provided: return insight-specific + all project-wide

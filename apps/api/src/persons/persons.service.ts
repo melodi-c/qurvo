@@ -27,7 +27,7 @@ import { queryPersonsAtTrendBucket, type PersonsAtTrendBucketParams } from './pe
 import { queryPersonsAtStickinessBar, type PersonsAtStickinessBarParams } from './persons-at-stickiness-bar.query';
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
 import { PROPERTY_NAMES_CACHE_TTL_SECONDS } from '../constants';
-import { resolveRelativeDate, isRelativeDate } from '../analytics/query-helpers/time';
+import { resolveDateRange } from '../analytics/query-helpers/time';
 
 export type { PersonPropertyValueRow, PersonCohortRow };
 
@@ -127,8 +127,7 @@ export class PersonsService {
     params: Omit<PersonsAtTrendBucketParams, 'timezone'> & { limit: number; offset: number },
   ): Promise<{ persons: PersonRow[]; total: number }> {
     const tz = await this.resolveProjectTimezone(params.project_id);
-    const dateFrom = isRelativeDate(params.date_from) ? resolveRelativeDate(params.date_from, tz) : params.date_from;
-    const dateTo = isRelativeDate(params.date_to) ? resolveRelativeDate(params.date_to, tz) : params.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(params.date_from, params.date_to, tz);
 
     const allPersonIds = await queryPersonsAtTrendBucket(this.ch, {
       ...params,
@@ -148,8 +147,7 @@ export class PersonsService {
     params: Omit<PersonsAtStickinessBarParams, 'timezone'> & { limit: number; offset: number },
   ): Promise<{ persons: PersonRow[]; total: number }> {
     const tz = await this.resolveProjectTimezone(params.project_id);
-    const dateFrom = isRelativeDate(params.date_from) ? resolveRelativeDate(params.date_from, tz) : params.date_from;
-    const dateTo = isRelativeDate(params.date_to) ? resolveRelativeDate(params.date_to, tz) : params.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(params.date_from, params.date_to, tz);
 
     const allPersonIds = await queryPersonsAtStickinessBar(this.ch, {
       ...params,
