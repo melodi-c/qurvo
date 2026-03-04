@@ -4,6 +4,7 @@ import type { TrendSeriesResult } from '@/api/generated/Api';
 import { formatCompactNumber } from '@/lib/formatting';
 import { CHART_COLORS_HEX, STATUS_COLORS } from '@/lib/chart-colors';
 import { seriesKey } from './trend-utils';
+import { TruncatedText } from './TruncatedText';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import translations from './TrendNumberViz.translations';
 
@@ -81,7 +82,7 @@ function SeriesNumber({
           className="inline-block w-2 h-2 rounded-full shrink-0"
           style={{ backgroundColor: color }}
         />
-        <span className="truncate">{label}</span>
+        <TruncatedText text={label} className="truncate" />
       </div>
       <div className="flex items-baseline gap-2">
         <span className={`${valueSize} font-bold tabular-nums text-foreground`}>

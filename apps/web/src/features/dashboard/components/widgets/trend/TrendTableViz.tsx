@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { formatBucket, formatCompactNumber } from '@/lib/formatting';
 import { CHART_COLORS_HEX, STATUS_COLORS } from '@/lib/chart-colors';
 import { buildDataPoints, seriesKey, type DateRangeParams } from './trend-utils';
+import { TruncatedText } from './TruncatedText';
 import { useLocalTranslation } from '@/hooks/use-local-translation';
 import { useProjectStore } from '@/stores/project';
 import translations from './TrendTableViz.translations';
@@ -165,7 +166,7 @@ export function TrendTableViz({ series, previousSeries, granularity, compact, da
                     className="inline-block w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: CHART_COLORS_HEX[idx % CHART_COLORS_HEX.length] }}
                   />
-                  <span className="truncate max-w-[120px]">{key}</span>
+                  <TruncatedText text={key} className="truncate max-w-[120px]" />
                   <SortIcon direction={sort.column === key ? sort.direction : null} />
                 </span>
               </TableHead>
