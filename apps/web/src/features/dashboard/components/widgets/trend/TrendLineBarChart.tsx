@@ -320,6 +320,7 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
                   labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
+                  formatter={(value: number) => [value.toLocaleString(), undefined]}
                 />
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}
@@ -370,6 +371,7 @@ export function TrendLineBarChart({ series, previousSeries, chartType, granulari
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
                   labelFormatter={(v) => formatBucket(v as string, granularity ?? 'day', false, timezone)}
+                  formatter={(value: number) => [value.toLocaleString(), undefined]}
                 />
                 {renderPrevSeries(seriesProps)}
                 {renderCurrentSeries(seriesProps)}

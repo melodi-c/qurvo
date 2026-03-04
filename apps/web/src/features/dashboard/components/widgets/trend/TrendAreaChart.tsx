@@ -451,6 +451,7 @@ export function TrendAreaChart({
                       timezone,
                     )
                   }
+                  formatter={(value: number) => [value.toLocaleString(), undefined]}
                 />
                 {renderPrevAreaSeries()}
                 {renderAreaSeries()}
@@ -519,6 +520,7 @@ export function TrendAreaChart({
                       timezone,
                     )
                   }
+                  formatter={(value: number) => [value.toLocaleString(), undefined]}
                 />
                 {renderPrevAreaSeries()}
                 {renderAreaSeries()}
