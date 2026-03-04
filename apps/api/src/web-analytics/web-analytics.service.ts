@@ -22,7 +22,7 @@ import {
   type DevicesResult,
   type GeographyResult,
 } from './web-analytics.query';
-import { resolveRelativeDate, isRelativeDate } from '../analytics/query-helpers/time';
+import { resolveDateRange } from '../analytics/query-helpers/time';
 
 /** Input type for WebAnalyticsService methods — timezone is injected from DB, not provided by callers. */
 type WebAnalyticsInput = Omit<WebAnalyticsQueryParams, 'timezone'> & { force?: boolean };
@@ -76,13 +76,9 @@ export class WebAnalyticsService {
     const queryParams: WebAnalyticsQueryParams = { ...rest, timezone: project.timezone };
 
     // Resolve relative date strings (e.g. '-7d', 'mStart') to absolute YYYY-MM-DD
-    const tz = queryParams.timezone;
-    if (isRelativeDate(queryParams.date_from)) {
-      queryParams.date_from = resolveRelativeDate(queryParams.date_from, tz);
-    }
-    if (isRelativeDate(queryParams.date_to)) {
-      queryParams.date_to = resolveRelativeDate(queryParams.date_to, tz);
-    }
+    const resolved = resolveDateRange(queryParams.date_from, queryParams.date_to, queryParams.timezone);
+    queryParams.date_from = resolved.dateFrom;
+    queryParams.date_to = resolved.dateTo;
 
     return withAnalyticsCache({ prefix, redis: this.redis, ch: this.ch, force, params: queryParams, query: queryFn, logger: this.logger });
   }

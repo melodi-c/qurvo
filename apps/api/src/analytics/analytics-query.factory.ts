@@ -11,7 +11,7 @@ import { DRIZZLE } from '../providers/drizzle.provider';
 import { CohortsService } from '../cohorts/cohorts.service';
 import { withAnalyticsCache, type AnalyticsCacheResult } from './with-analytics-cache';
 import { AppBadRequestException } from '../exceptions/app-bad-request.exception';
-import { resolveRelativeDate, isRelativeDate } from './query-helpers/time';
+import { resolveDateRange } from './query-helpers/time';
 
 export interface AnalyticsQueryService<TParams, TResult> {
   query(
@@ -61,12 +61,14 @@ export function createAnalyticsQueryProvider<
 
           // Resolve relative date strings (e.g. '-7d', 'mStart') to absolute YYYY-MM-DD.
           // Must happen AFTER timezone injection so resolution uses project timezone.
-          const tz = mutableParams.timezone as string | undefined;
-          if (typeof mutableParams.date_from === 'string' && isRelativeDate(mutableParams.date_from)) {
-            mutableParams.date_from = resolveRelativeDate(mutableParams.date_from, tz);
-          }
-          if (typeof mutableParams.date_to === 'string' && isRelativeDate(mutableParams.date_to)) {
-            mutableParams.date_to = resolveRelativeDate(mutableParams.date_to, tz);
+          if (typeof mutableParams.date_from === 'string' && typeof mutableParams.date_to === 'string') {
+            const resolved = resolveDateRange(
+              mutableParams.date_from,
+              mutableParams.date_to,
+              mutableParams.timezone as string | undefined,
+            );
+            mutableParams.date_from = resolved.dateFrom;
+            mutableParams.date_to = resolved.dateTo;
           }
 
           if (cohort_ids?.length) {

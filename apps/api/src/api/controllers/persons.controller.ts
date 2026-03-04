@@ -7,7 +7,7 @@ import { PersonsService } from '../../persons/persons.service';
 import { CohortsService } from '../../cohorts/cohorts.service';
 import { DRIZZLE } from '../../providers/drizzle.provider';
 import { AppBadRequestException } from '../../exceptions/app-bad-request.exception';
-import { resolveRelativeDate, isRelativeDate } from '../../analytics/query-helpers/time';
+import { resolveDateRange } from '../../analytics/query-helpers/time';
 import {
   PersonsQueryDto,
   PersonsListResponseDto,
@@ -62,8 +62,7 @@ export class PersonsController {
     @Query() query: PersonsAtFunnelStepQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
     const timezone = query.timezone ?? (await this.resolveProjectTimezone(query.project_id));
-    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
-    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(query.date_from, query.date_to, timezone);
     const cohortFilters = query.cohort_ids?.length
       ? await this.cohortsService.resolveCohortFilters(query.project_id, query.cohort_ids)
       : undefined;
@@ -88,8 +87,7 @@ export class PersonsController {
     @Query() query: PersonsAtTrendBucketQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
     const timezone = await this.resolveProjectTimezone(query.project_id);
-    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
-    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(query.date_from, query.date_to, timezone);
     return this.personsService.getPersonsAtTrendBucket({
       project_id: query.project_id,
       event_name: query.event_name,
@@ -108,8 +106,7 @@ export class PersonsController {
     @Query() query: PersonsAtStickinessBarQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
     const timezone = await this.resolveProjectTimezone(query.project_id);
-    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
-    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(query.date_from, query.date_to, timezone);
     return this.personsService.getPersonsAtStickinessBar({
       project_id: query.project_id,
       event_name: query.event_name,
@@ -138,8 +135,7 @@ export class PersonsController {
     @Query() query: PersonsAtLifecycleBucketQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
     const timezone = await this.resolveProjectTimezone(query.project_id);
-    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
-    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(query.date_from, query.date_to, timezone);
     const cohortFilters = query.cohort_ids?.length
       ? await this.cohortsService.resolveCohortFilters(query.project_id, query.cohort_ids)
       : undefined;
@@ -164,8 +160,7 @@ export class PersonsController {
     @Query() query: PersonsAtRetentionCellQueryDto,
   ): Promise<PersonsAtPointResponseDto> {
     const timezone = await this.resolveProjectTimezone(query.project_id);
-    const dateFrom = isRelativeDate(query.date_from) ? resolveRelativeDate(query.date_from, timezone) : query.date_from;
-    const dateTo = isRelativeDate(query.date_to) ? resolveRelativeDate(query.date_to, timezone) : query.date_to;
+    const { dateFrom, dateTo } = resolveDateRange(query.date_from, query.date_to, timezone);
     const cohortFilters = query.cohort_ids?.length
       ? await this.cohortsService.resolveCohortFilters(query.project_id, query.cohort_ids)
       : undefined;
