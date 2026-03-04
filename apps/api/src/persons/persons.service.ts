@@ -20,6 +20,8 @@ import { queryPersonEvents, type PersonEventsQueryParams } from './person-events
 import type { EventDetailRow } from '../events/events.query';
 import { queryPersonPropertyNames } from './person-property-names.query';
 import { queryPersonPropertyValues, type PersonPropertyValueRow } from './person-property-values.query';
+import { queryPersonsAtLifecycleBucket, type PersonsAtLifecycleBucketParams } from './persons-at-lifecycle-bucket.query';
+import { queryPersonsAtRetentionCell, type PersonsAtRetentionCellParams } from './persons-at-retention-cell.query';
 import { queryPersonsAtFunnelStep, type PersonsAtFunnelStepParams } from './persons-at-funnel-step.query';
 import { queryPersonsAtTrendBucket, type PersonsAtTrendBucketParams } from './persons-at-trend-bucket.query';
 import { queryPersonsAtStickinessBar, type PersonsAtStickinessBarParams } from './persons-at-stickiness-bar.query';
@@ -99,6 +101,22 @@ export class PersonsService {
     const names = await queryPersonPropertyNames(this.db, projectId);
     await this.redis.set(cacheKey, JSON.stringify(names), 'EX', PROPERTY_NAMES_CACHE_TTL_SECONDS);
     return names;
+  }
+
+  async getPersonsAtLifecycleBucket(
+    params: PersonsAtLifecycleBucketParams,
+  ): Promise<{ persons: PersonRow[]; total: number }> {
+    const { person_ids, total } = await queryPersonsAtLifecycleBucket(this.ch, params);
+    const persons = await queryPersonsByIds(this.db, params.project_id, person_ids);
+    return { persons, total };
+  }
+
+  async getPersonsAtRetentionCell(
+    params: PersonsAtRetentionCellParams,
+  ): Promise<{ persons: PersonRow[]; total: number }> {
+    const { person_ids, total } = await queryPersonsAtRetentionCell(this.ch, params);
+    const persons = await queryPersonsByIds(this.db, params.project_id, person_ids);
+    return { persons, total };
   }
 
   /**
