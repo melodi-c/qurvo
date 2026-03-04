@@ -350,3 +350,68 @@ describe('DashboardsService.removeWidget', () => {
     expect(found.widgets.find((w) => w.id === widget.id)).toBeDefined();
   });
 });
+
+// ── insight deletion cascades to widgets ──────────────────────────────────────
+
+describe('SavedInsightsService.remove cascades widget deletion', () => {
+  it('removes widgets linked to the deleted insight', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const dashboard = await service.create(userId, projectId, { name: 'Cascade Test' });
+    const insight = await insightsService.create(userId, projectId, {
+      type: 'trend',
+      name: 'Cascade Insight',
+      config: SAMPLE_INSIGHT_CONFIG,
+    });
+
+    await service.addWidget(projectId, dashboard.id, { insight_id: insight.id, layout: SAMPLE_LAYOUT });
+
+    // Delete the insight — should also remove the linked widget
+    await insightsService.remove(projectId, insight.id);
+
+    const found = await service.getById(projectId, dashboard.id);
+    expect(found.widgets).toHaveLength(0);
+  });
+
+  it('does not remove text-only widgets when insight is deleted', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const dashboard = await service.create(userId, projectId, { name: 'Mixed Widgets' });
+    const insight = await insightsService.create(userId, projectId, {
+      type: 'trend',
+      name: 'Will Be Deleted',
+      config: SAMPLE_INSIGHT_CONFIG,
+    });
+
+    // Add one insight widget and one text-only widget
+    await service.addWidget(projectId, dashboard.id, { insight_id: insight.id, layout: SAMPLE_LAYOUT });
+    await service.addWidget(projectId, dashboard.id, { layout: { x: 6, y: 0, w: 6, h: 4 }, content: 'Notes' });
+
+    await insightsService.remove(projectId, insight.id);
+
+    const found = await service.getById(projectId, dashboard.id);
+    // Only the text-only widget should remain
+    expect(found.widgets).toHaveLength(1);
+    expect(found.widgets[0].content).toBe('Notes');
+    expect(found.widgets[0].insight_id).toBeNull();
+  });
+
+  it('removes widgets across multiple dashboards', async () => {
+    const { projectId, userId } = await createTestProject(ctx.db);
+    const dashA = await service.create(userId, projectId, { name: 'Dashboard A' });
+    const dashB = await service.create(userId, projectId, { name: 'Dashboard B' });
+    const insight = await insightsService.create(userId, projectId, {
+      type: 'trend',
+      name: 'Shared Insight',
+      config: SAMPLE_INSIGHT_CONFIG,
+    });
+
+    await service.addWidget(projectId, dashA.id, { insight_id: insight.id, layout: SAMPLE_LAYOUT });
+    await service.addWidget(projectId, dashB.id, { insight_id: insight.id, layout: SAMPLE_LAYOUT });
+
+    await insightsService.remove(projectId, insight.id);
+
+    const foundA = await service.getById(projectId, dashA.id);
+    const foundB = await service.getById(projectId, dashB.id);
+    expect(foundA.widgets).toHaveLength(0);
+    expect(foundB.widgets).toHaveLength(0);
+  });
+});

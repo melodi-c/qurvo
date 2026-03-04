@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { DRIZZLE } from '../providers/drizzle.provider';
-import { insights, type InsightConfig, type InsightType, type Database } from '@qurvo/db';
+import { insights, widgets, type InsightConfig, type InsightType, type Database } from '@qurvo/db';
 import { InsightNotFoundException } from './exceptions/insight-not-found.exception';
 import { buildConditionalUpdate } from '../utils/build-conditional-update';
 
@@ -89,6 +89,13 @@ export class SavedInsightsService {
   }
 
   async remove(projectId: string, insightId: string) {
+    // Delete dashboard widgets that reference this insight before deleting the
+    // insight itself.  The FK has `onDelete: 'set null'` which would leave
+    // orphaned widgets rendered as empty Text Tiles on the dashboard.
+    await this.db
+      .delete(widgets)
+      .where(eq(widgets.insight_id, insightId));
+
     const rows = await this.db
       .delete(insights)
       .where(and(eq(insights.project_id, projectId), eq(insights.id, insightId)))

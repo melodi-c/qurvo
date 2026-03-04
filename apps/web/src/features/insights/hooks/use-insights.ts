@@ -84,6 +84,10 @@ export function useDeleteInsight() {
       api.savedInsightsControllerRemove({ projectId, insightId }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['insights', projectId] });
+      // Deleting an insight also removes linked dashboard widgets on the server,
+      // so invalidate dashboard caches to keep the UI in sync.
+      void qc.invalidateQueries({ queryKey: ['dashboards', projectId] });
+      void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard' });
     },
     onError: onError('deleteInsightFailed'),
   });
