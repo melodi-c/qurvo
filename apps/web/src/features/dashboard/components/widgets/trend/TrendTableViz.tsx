@@ -118,6 +118,21 @@ export function TrendTableViz({ series, previousSeries, granularity, compact, da
     });
   }, []);
 
+  const handleSortKeyDown = useCallback(
+    (column: string) => (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleSort(column);
+      }
+    },
+    [toggleSort],
+  );
+
+  function ariaSort(column: string): 'ascending' | 'descending' | 'none' {
+    if (sort.column !== column || !sort.direction) {return 'none';}
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
   const sortedData = useMemo(() => {
     if (!sort.direction) {return data;}
     const sorted = [...data].sort((a, b) => {
@@ -150,7 +165,10 @@ export function TrendTableViz({ series, previousSeries, granularity, compact, da
           <TableRow>
             <TableHead
               className={cn('cursor-pointer select-none', cellPadding)}
+              tabIndex={0}
+              aria-sort={ariaSort('bucket')}
               onClick={() => toggleSort('bucket')}
+              onKeyDown={handleSortKeyDown('bucket')}
             >
               {t('date')}
               <SortIcon direction={sort.column === 'bucket' ? sort.direction : null} />
@@ -159,7 +177,10 @@ export function TrendTableViz({ series, previousSeries, granularity, compact, da
               <TableHead
                 key={key}
                 className={cn('cursor-pointer select-none text-right', cellPadding)}
+                tabIndex={0}
+                aria-sort={ariaSort(key)}
                 onClick={() => toggleSort(key)}
+                onKeyDown={handleSortKeyDown(key)}
               >
                 <span className="inline-flex items-center gap-1">
                   <span
