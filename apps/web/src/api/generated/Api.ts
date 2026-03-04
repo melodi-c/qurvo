@@ -10,6 +10,8 @@
  * ---------------------------------------------------------------
  */
 
+export type StickinessGranularity = "day" | "week" | "month";
+
 export type InsightType =
   | "trend"
   | "funnel"
@@ -795,6 +797,11 @@ export interface PersonsListResponse {
   total: number;
 }
 
+export interface PersonsAtPointResponse {
+  persons: Person[];
+  total: number;
+}
+
 export interface PersonPropertyNamesResponse {
   property_names: string[];
 }
@@ -827,6 +834,16 @@ export interface PersonEventRow {
   sdk_version: string;
   properties: string;
   user_properties: string;
+}
+
+export interface PersonCohort {
+  cohort_id: string;
+  name: string;
+  is_static: boolean;
+}
+
+export interface PersonCohortsResponse {
+  cohorts: PersonCohort[];
 }
 
 export interface CohortConditionGroup {
@@ -2112,6 +2129,51 @@ export interface PersonsControllerGetPersonsParams {
   project_id: string;
 }
 
+export interface PersonsControllerGetPersonsAtTrendBucketParams {
+  granularity: TrendGranularity;
+  filters?: StepFilter[];
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+  event_name: string;
+  bucket: string;
+  date_from: string;
+  date_to: string;
+}
+
+export interface PersonsControllerGetPersonsAtStickinessBarParams {
+  granularity: StickinessGranularity;
+  filters?: StepFilter[];
+  /**
+   * @min 1
+   * @max 100
+   * @default 50
+   */
+  limit?: number;
+  /**
+   * @min 0
+   * @default 0
+   */
+  offset?: number;
+  /** @format uuid */
+  project_id: string;
+  event_name: string;
+  /** @min 1 */
+  period_count: number;
+  date_from: string;
+  date_to: string;
+}
+
 export interface PersonsControllerGetPersonPropertyNamesParams {
   /** @format uuid */
   project_id: string;
@@ -2135,6 +2197,12 @@ export interface PersonsControllerGetPersonEventsParams {
    * @default 0
    */
   offset?: number;
+  /** @format uuid */
+  project_id: string;
+  personId: string;
+}
+
+export interface PersonsControllerGetPersonCohortsParams {
   /** @format uuid */
   project_id: string;
   personId: string;
@@ -3623,6 +3691,48 @@ export class Api<
      * No description
      *
      * @tags Persons
+     * @name PersonsControllerGetPersonsAtTrendBucket
+     * @request GET:/api/persons/at-trend-bucket
+     * @secure
+     */
+    personsControllerGetPersonsAtTrendBucket: (
+      query: PersonsControllerGetPersonsAtTrendBucketParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonsAtPointResponse, any>({
+        path: `/api/persons/at-trend-bucket`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonsAtStickinessBar
+     * @request GET:/api/persons/at-stickiness-bar
+     * @secure
+     */
+    personsControllerGetPersonsAtStickinessBar: (
+      query: PersonsControllerGetPersonsAtStickinessBarParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonsAtPointResponse, any>({
+        path: `/api/persons/at-stickiness-bar`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
      * @name PersonsControllerGetPersonPropertyNames
      * @request GET:/api/persons/property-names
      * @secure
@@ -3675,6 +3785,27 @@ export class Api<
     ) =>
       this.request<PersonEventRow[], any>({
         path: `/api/persons/${personId}/events`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Persons
+     * @name PersonsControllerGetPersonCohorts
+     * @request GET:/api/persons/{personId}/cohorts
+     * @secure
+     */
+    personsControllerGetPersonCohorts: (
+      { personId, ...query }: PersonsControllerGetPersonCohortsParams,
+      params: RequestParams = {},
+    ) =>
+      this.request<PersonCohortsResponse, any>({
+        path: `/api/persons/${personId}/cohorts`,
         method: "GET",
         query: query,
         secure: true,
