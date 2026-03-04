@@ -143,10 +143,16 @@ export function TrendValueBarChart({ series, compact }: TrendValueBarChartProps)
       </div>
 
       {/* Truncation notice */}
-      {truncated && !compact && (
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          {t('otherItems', { count: String(barData.length - MAX_BARS) })}
-        </p>
+      {truncated && (
+        compact ? (
+          <div className="text-center text-[10px] text-muted-foreground py-0.5">
+            +{barData.length - MAX_BARS}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground text-center mt-1">
+            {t('otherItems', { count: String(barData.length - MAX_BARS) })}
+          </p>
+        )
       )}
     </div>
   );

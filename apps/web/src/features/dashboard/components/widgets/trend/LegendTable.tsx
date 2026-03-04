@@ -39,7 +39,7 @@ export function LegendTable({
   const hasPrevious = previousSeries && previousSeries.length > 0;
 
   return (
-    <div className="mt-4 border-t border-border/40">
+    <div className="mt-4 border-t border-border">
       <Table className="text-xs">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b-0">
@@ -62,7 +62,7 @@ export function LegendTable({
             return (
               <TableRow
                 key={key}
-                className={cn('cursor-pointer', isHidden && 'opacity-35')}
+                className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isHidden && 'opacity-50')}
                 onClick={() => onToggleSeries(key)}
               >
                 <TableCell className="py-1.5">
@@ -100,7 +100,7 @@ export function LegendTable({
             return (
               <TableRow
                 key={key}
-                className={cn('cursor-pointer', isHidden && 'opacity-35')}
+                className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isHidden && 'opacity-50')}
                 onClick={() => onToggleSeries(key)}
               >
                 <TableCell className="py-1.5">

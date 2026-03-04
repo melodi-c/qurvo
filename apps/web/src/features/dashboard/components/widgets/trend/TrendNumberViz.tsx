@@ -119,7 +119,7 @@ export function TrendNumberViz({ series, previousSeries, compact }: TrendNumberV
   const hasSingleSeries = seriesData.length === 1;
 
   return (
-    <div className={`flex ${hasSingleSeries ? 'items-center justify-center' : 'flex-col gap-4'} h-full ${compact ? 'px-2 py-1' : 'p-6'}`}>
+    <div className={`flex ${hasSingleSeries ? 'items-center justify-center' : `flex-col ${compact ? 'gap-1.5' : 'gap-4'}`} h-full ${compact ? 'px-2 py-1 overflow-hidden' : 'p-6'}`}>
       {/* Primary series */}
       <div className={hasSingleSeries ? 'text-center' : ''}>
         <SeriesNumber
@@ -135,7 +135,7 @@ export function TrendNumberViz({ series, previousSeries, compact }: TrendNumberV
 
       {/* Secondary series */}
       {seriesData.length > 1 && (
-        <div className={`flex flex-wrap gap-x-6 gap-y-3 ${compact ? '' : 'border-t border-border pt-4'}`}>
+        <div className={`flex flex-wrap ${compact ? 'gap-x-3 gap-y-1.5' : 'gap-x-6 gap-y-3 border-t border-border pt-4'}`}>
           {seriesData.slice(1).map((s) => (
             <SeriesNumber
               key={s.key}
