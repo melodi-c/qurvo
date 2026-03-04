@@ -4,7 +4,7 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions';
-import { AiChatService } from './ai-chat.service';
+import { AiMessageService } from './ai-message.service';
 import { AiContextService } from './ai-context.service';
 import { STATIC_SYSTEM_PROMPT, buildContextMessage } from './system-prompt';
 import { AI_CONTEXT_MESSAGE_LIMIT, AI_SUMMARY_THRESHOLD, AI_SUMMARY_KEEP_RECENT, AI_TOOL_RESULT_MAX_CHARS } from '../constants';
@@ -34,7 +34,7 @@ export function findSafeStartIndex(msgs: ReadonlyArray<{ role: string }>): numbe
 @Injectable()
 export class AiMessageHistoryBuilder {
   constructor(
-    private readonly chatService: AiChatService,
+    private readonly messageService: AiMessageService,
     private readonly contextService: AiContextService,
   ) {}
 
@@ -53,8 +53,8 @@ export class AiMessageHistoryBuilder {
   }> {
     // Handle edit: truncate history and update the edited message
     if (params.edit_sequence !== undefined) {
-      await this.chatService.deleteMessagesAfterSequence(conversation.id, params.edit_sequence);
-      await this.chatService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
+      await this.messageService.deleteMessagesAfterSequence(conversation.id, params.edit_sequence);
+      await this.messageService.updateMessageContent(conversation.id, params.edit_sequence, params.message);
     }
 
     // Build messages — static system prompt first (maximises OpenAI prefix-cache hits),
@@ -75,7 +75,7 @@ export class AiMessageHistoryBuilder {
     let summaryFailed = false;
     let shouldSummarize = false;
     if (!isNew) {
-      totalMessageCount = await this.chatService.getMessageCount(conversation.id);
+      totalMessageCount = await this.messageService.getMessageCount(conversation.id);
 
       if (totalMessageCount > AI_SUMMARY_THRESHOLD) {
         shouldSummarize = true;
@@ -91,11 +91,11 @@ export class AiMessageHistoryBuilder {
         }
 
         // Only load the most recent messages verbatim
-        const { messages: recentHistory } = await this.chatService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
+        const { messages: recentHistory } = await this.messageService.getMessages(conversation.id, AI_SUMMARY_KEEP_RECENT);
         this.appendHistoryMessages(messages, recentHistory);
       } else {
         // Conversation is short enough — load all messages
-        const { messages: history } = await this.chatService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
+        const { messages: history } = await this.messageService.getMessages(conversation.id, AI_CONTEXT_MESSAGE_LIMIT);
         this.appendHistoryMessages(messages, history);
       }
     }
@@ -108,8 +108,8 @@ export class AiMessageHistoryBuilder {
       seq = params.edit_sequence + 1;
     } else {
       messages.push({ role: 'user', content: params.message });
-      seq = await this.chatService.getNextSequence(conversation.id);
-      await this.chatService.saveMessage(conversation.id, seq++, {
+      seq = await this.messageService.getNextSequence(conversation.id);
+      await this.messageService.saveMessage(conversation.id, seq++, {
         role: 'user',
         content: params.message,
         tool_calls: null,
@@ -125,7 +125,7 @@ export class AiMessageHistoryBuilder {
 
   private appendHistoryMessages(
     messages: ChatCompletionMessageParam[],
-    msgs: Awaited<ReturnType<AiChatService['getMessages']>>['messages'],
+    msgs: Awaited<ReturnType<AiMessageService['getMessages']>>['messages'],
   ): void {
     for (const msg of msgs.slice(findSafeStartIndex(msgs))) {
       if (msg.role === 'user') {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { AiChatService } from './ai-chat.service';
+import { AiMessageService } from './ai-message.service';
 import { AiFeedbackService } from './ai-feedback.service';
 import { AiContextService } from './ai-context.service';
 import { AiSummarizationService } from './ai-summarization.service';
@@ -73,6 +74,7 @@ const TOOL_CLASSES = [
   ],
   providers: [
     AiService,
+    AiMessageService,
     AiChatService,
     AiFeedbackService,
     AiContextService,
