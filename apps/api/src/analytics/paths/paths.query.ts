@@ -10,7 +10,6 @@ import {
   arrayEnumerate,
   arraySlice,
   col,
-  eq,
   groupArray,
   gte,
   has,
@@ -30,12 +29,9 @@ import {
   uniqExact,
 } from '@qurvo/ch-query';
 import {
-  projectIs,
-  timeRange,
+  analyticsWhere,
   resolvedPerson,
-  cohortFilter,
   cohortBounds,
-  propertyFilters,
 } from '../query-helpers';
 import type { PropertyFilter } from '../query-helpers';
 import { MAX_PATH_NODES } from '../../constants';
@@ -143,19 +139,20 @@ export async function queryPaths(
 
   const stepLimitParam = param('UInt16', params.step_limit);
   const minPersonsParam = param('UInt32', params.min_persons ?? 1);
-  const { dateTo, dateFrom } = cohortBounds(params);
-
   // Pre-filter: when start_event is specified, restrict to persons who have it
   const personPreFilter = params.start_event
     ? inSubquery(
         col('person_id'),
         select(col('person_id'))
           .from('events')
-          .where(
-            projectIs(params.project_id),
-            timeRange(params.date_from, params.date_to, params.timezone, col('timestamp')),
-            eq(col('event_name'), param('String', params.start_event)),
-          )
+          .where(analyticsWhere({
+            projectId: params.project_id,
+            from: params.date_from,
+            to: params.date_to,
+            tz: params.timezone,
+            eventName: params.start_event,
+            tsColumn: col('timestamp'),
+          }))
           .build(),
       )
     : undefined;
@@ -168,13 +165,19 @@ export async function queryPaths(
   )
     .from('events')
     .where(
-      projectIs(params.project_id),
-      timeRange(params.date_from, params.date_to, params.timezone, col('timestamp')),
+      analyticsWhere({
+        projectId: params.project_id,
+        from: params.date_from,
+        to: params.date_to,
+        tz: params.timezone,
+        filters: params.filters,
+        cohortFilters: params.cohort_filters,
+        tsColumn: col('timestamp'),
+        ...cohortBounds(params),
+      }),
       params.exclusions?.length
         ? notInArray(col('event_name'), param('Array(String)', params.exclusions))
         : undefined,
-      params.filters?.length ? propertyFilters(params.filters) : undefined,
-      cohortFilter(params.cohort_filters, params.project_id, dateTo, dateFrom),
       personPreFilter,
     )
     .orderBy(col('pid'))
