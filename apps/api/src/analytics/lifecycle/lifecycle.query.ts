@@ -1,42 +1,25 @@
 import type { ClickHouseClient } from '@qurvo/clickhouse';
 import { ChQueryExecutor } from '@qurvo/clickhouse';
 import type { CohortFilterInput } from '@qurvo/cohort-query';
-import type { AliasExpr, Expr } from '@qurvo/ch-query';
 import {
   select,
   unionAll,
   col,
   literal,
+  alias,
   and,
   eq,
   gte,
-  groupUniqArray,
   has,
-  lt,
   lte,
-  min,
   not,
   multiIf,
   uniqExact,
   toString,
   notInSubquery,
-  arraySort,
 } from '@qurvo/ch-query';
-import {
-  resolvedPerson,
-  analyticsWhere,
-  projectIs,
-  eventIs,
-  cohortFilter,
-  cohortBounds,
-  tsParam,
-  toChTs,
-  shiftDate,
-  truncateDate,
-  bucket,
-  neighborBucket,
-  type PropertyFilter,
-} from '../query-helpers';
+import type { PropertyFilter } from '../query-helpers';
+import { buildLifecycleCTEs } from './lifecycle-ctes';
 
 // Public types
 
@@ -118,95 +101,21 @@ function assembleLifecycleResult(
   return { granularity, data, totals };
 }
 
-// Alias helper
-
-function alias(expr: Expr, name: string): AliasExpr {
-  return { type: 'alias', expr, alias: name };
-}
-
 // Core query
-//
-// Two-CTE approach:
-//   person_buckets  — per-person sorted bucket array over [extended_from, to].
-//                     extended_from = date_from - 1 period gives the 'returning'
-//                     classifier one look-back period.
-//   prior_active    — users with any matching event strictly before extended_from.
-//                     Used to distinguish truly 'new' users from users who are
-//                     'resurrecting' after a long absence (> 1 period).
-//
-// Classification rules per bucket:
-//   new         — first_bucket in extended window AND no prior history
-//   returning   — active in the immediately preceding period
-//   resurrecting — was active at some earlier point but not in the preceding period
-//   dormant     — was active in period N but not in period N+1 (emitted for N+1)
 
 export async function queryLifecycle(
   ch: ClickHouseClient,
   params: LifecycleQueryParams,
 ): Promise<LifecycleQueryResult> {
-  const tz = params.timezone;
-  const { dateTo: cbDateTo, dateFrom: cbDateFrom } = cohortBounds(params);
-  const extendedFrom = shiftDate(
-    truncateDate(params.date_from, params.granularity),
-    -1,
-    params.granularity,
-  );
-
-  const bucketExpr = bucket(params.granularity, 'timestamp', tz);
-  const prevBucketExpr = neighborBucket(params.granularity, col('bucket'), -1, tz);
-  const nextBucketExpr = neighborBucket(params.granularity, col('bucket'), 1, tz);
-
-  // CTE: person_buckets — per-person sorted bucket array over [extended_from, to]
-  const personBuckets = select(
-    resolvedPerson().as('person_id'),
-    arraySort(groupUniqArray(bucketExpr)).as('buckets'),
-    min(bucketExpr).as('first_bucket'),
-  )
-    .from('events')
-    .where(
-      analyticsWhere({
-        projectId: params.project_id,
-        from: extendedFrom,
-        to: params.date_to,
-        tz,
-        eventName: params.target_event,
-        filters: params.filters,
-        cohortFilters: params.cohort_filters,
-        tsColumn: col('timestamp'),
-        dateTo: cbDateTo, dateFrom: cbDateFrom,
-      }),
-    )
-    .groupBy(col('person_id'))
-    .build();
-
-  // CTE: prior_active — users with any matching event strictly before extended_from.
-  // NOTE: eventFilterClause is intentionally NOT applied here. A user who fired
-  // the target event before the range (even without matching property filters) is
-  // considered "previously active" and must be classified as 'resurrecting', not 'new'.
-  const priorActive = select(
-    resolvedPerson().as('person_id'),
-  )
-    .from('events')
-    .where(and(
-      projectIs(params.project_id),
-      eventIs(params.target_event),
-      lt(col('timestamp'), tsParam(extendedFrom, tz)),
-      cohortFilter(
-        params.cohort_filters,
-        params.project_id,
-        cbDateTo,
-        cbDateFrom,
-      ),
-    ))
-    .groupBy(col('person_id'))
-    .build();
-
-  // Active statuses: ARRAY JOIN buckets → classify via multiIf
-  const fromParam = tsParam(params.date_from, tz);
-  const toParam = tsParam(toChTs(params.date_to, true), tz);
-
-  // Reference the prior_active CTE by name for the NOT IN subquery
-  const priorActiveRef = select(col('person_id')).from('prior_active').build();
+  const {
+    personBuckets,
+    priorActive,
+    prevBucketExpr,
+    nextBucketExpr,
+    fromParam,
+    toParam,
+    priorActiveRef,
+  } = buildLifecycleCTEs(params);
 
   const activeStatuses = select(
     col('person_id'),
