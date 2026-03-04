@@ -171,12 +171,18 @@ export function TrendTableViz({ series, previousSeries, granularity, compact, da
                 </span>
               </TableHead>
             ))}
-            {showCompare && allSeriesKeys.map((key) => (
+            {showCompare && allSeriesKeys.map((key, idx) => (
               <TableHead
                 key={`delta_${key}`}
                 className={cn('text-right', cellPadding)}
               >
-                {t('delta')}
+                <span className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: CHART_COLORS_HEX[idx % CHART_COLORS_HEX.length] }}
+                  />
+                  {t('delta')}
+                </span>
               </TableHead>
             ))}
           </TableRow>
