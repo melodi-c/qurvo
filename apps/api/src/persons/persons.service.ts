@@ -22,6 +22,7 @@ import { queryPersonPropertyNames } from './person-property-names.query';
 import { queryPersonPropertyValues, type PersonPropertyValueRow } from './person-property-values.query';
 import { queryPersonsAtLifecycleBucket, type PersonsAtLifecycleBucketParams } from './persons-at-lifecycle-bucket.query';
 import { queryPersonsAtRetentionCell, type PersonsAtRetentionCellParams } from './persons-at-retention-cell.query';
+import { queryPersonsAtFunnelStep, type PersonsAtFunnelStepParams } from './persons-at-funnel-step.query';
 import { queryPersonsAtTrendBucket, type PersonsAtTrendBucketParams } from './persons-at-trend-bucket.query';
 import { queryPersonsAtStickinessBar, type PersonsAtStickinessBarParams } from './persons-at-stickiness-bar.query';
 import { PersonNotFoundException } from './exceptions/person-not-found.exception';
@@ -83,6 +84,14 @@ export class PersonsService {
     const person = await queryPersonById(this.db, projectId, personId);
     if (!person) {throw new PersonNotFoundException();}
     return queryPersonCohorts(this.ch, this.db, projectId, personId);
+  }
+
+  async getPersonsAtFunnelStep(
+    params: PersonsAtFunnelStepParams,
+  ): Promise<{ persons: PersonRow[]; total: number }> {
+    const { personIds, total } = await queryPersonsAtFunnelStep(this.ch, params);
+    const persons = await this.resolvePersonDetails(params.project_id, personIds);
+    return { persons, total };
   }
 
   async getPersonPropertyNames(projectId: string): Promise<string[]> {

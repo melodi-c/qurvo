@@ -1,11 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested, IsIn, IsNotEmpty } from 'class-validator';
+import { IsUUID, IsString, IsOptional, IsInt, Min, Max, IsArray, ValidateNested, ArrayMinSize, ArrayMaxSize, IsIn, IsNotEmpty } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { StepFilterDto } from './shared/filters.dto';
-import { makeJsonArrayTransform } from './shared/transforms';
+import { makeJsonArrayTransform, parseJsonArray } from './shared/transforms';
 import { IsDateRange } from './shared/is-date-only.decorator';
 import { EventDetailDto } from './events.dto';
 import { BaseAnalyticsQueryDto } from './shared/base-analytics-query.dto';
+import { FunnelStepDto } from './funnel.dto';
 
 export class PersonsQueryDto {
   @IsUUID()
@@ -102,6 +103,71 @@ export class PersonCohortDto {
 export class PersonCohortsResponseDto {
   @ApiProperty({ type: [PersonCohortDto] })
   cohorts: PersonCohortDto[];
+}
+
+export class PersonsAtFunnelStepQueryDto {
+  @IsUUID()
+  project_id: string;
+
+  @Transform(makeJsonArrayTransform(FunnelStepDto))
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => FunnelStepDto)
+  steps: FunnelStepDto[];
+
+  /** 1-based step number that the person must have reached */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  step: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  @IsOptional()
+  conversion_window_days: number = 14;
+
+  @IsDateRange()
+  date_from: string;
+
+  @IsDateRange()
+  date_to: string;
+
+  @IsString()
+  @IsOptional()
+  timezone?: string = 'UTC';
+
+  @ApiPropertyOptional({ type: [String] })
+  @Transform(parseJsonArray)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  cohort_ids?: string[];
+
+  @ApiPropertyOptional({ enum: ['ordered', 'strict', 'unordered'] })
+  @IsIn(['ordered', 'strict', 'unordered'])
+  @IsOptional()
+  funnel_order_type?: 'ordered' | 'strict' | 'unordered';
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  limit?: number = 50;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  offset?: number = 0;
 }
 
 export class PersonsAtPointResponseDto {

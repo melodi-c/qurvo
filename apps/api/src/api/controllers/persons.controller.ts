@@ -21,6 +21,7 @@ import {
   PersonsAtPointResponseDto,
   PersonsAtLifecycleBucketQueryDto,
   PersonsAtRetentionCellQueryDto,
+  PersonsAtFunnelStepQueryDto,
   PersonsAtTrendBucketQueryDto,
   PersonsAtStickinessBarQueryDto,
 } from '../dto/persons.dto';
@@ -54,6 +55,30 @@ export class PersonsController {
     @Query() query: PersonsQueryDto,
   ): Promise<PersonsListResponseDto> {
     return this.personsService.getPersons(query) as any;
+  }
+
+  @Get('at-funnel-step')
+  async getPersonsAtFunnelStep(
+    @Query() query: PersonsAtFunnelStepQueryDto,
+  ): Promise<PersonsAtPointResponseDto> {
+    // Resolve cohort_ids → cohort_filters (same pattern as analytics factory)
+    const cohortFilters = query.cohort_ids?.length
+      ? await this.cohortsService.resolveCohortFilters(query.project_id, query.cohort_ids)
+      : undefined;
+
+    return this.personsService.getPersonsAtFunnelStep({
+      project_id: query.project_id,
+      steps: query.steps,
+      step: query.step,
+      conversion_window_days: query.conversion_window_days,
+      date_from: query.date_from,
+      date_to: query.date_to,
+      timezone: query.timezone ?? 'UTC',
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
+      cohort_filters: cohortFilters,
+      funnel_order_type: query.funnel_order_type,
+    }) as any;
   }
 
   @Get('at-trend-bucket')
