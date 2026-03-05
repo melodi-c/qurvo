@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { format, parse } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 
@@ -17,24 +16,24 @@ interface DatePickerProps {
 
 export function DatePicker({ value, onChange, className }: DatePickerProps) {
   const { t } = useLocalTranslation(translations)
-  const [open, setOpen] = useState(false)
 
   const date = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover>
       <PopoverTrigger asChild>
         <Button
+          data-slot="date-picker"
           variant="outline"
           size="sm"
+          data-empty={!date}
           className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground",
+            "w-full justify-start text-left font-normal data-[empty=true]:text-muted-foreground",
             className
           )}
         >
           <CalendarIcon className="size-3.5" />
-          {date ? format(date, "MMM d, yyyy") : t('pickADate')}
+          {date ? format(date, "PPP") : t('pickADate')}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start" collisionPadding={8}>
@@ -45,7 +44,6 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
             if (d) {
               onChange(format(d, "yyyy-MM-dd"))
             }
-            setOpen(false)
           }}
           autoFocus
         />

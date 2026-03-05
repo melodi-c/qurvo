@@ -69,3 +69,29 @@ export const WithDisabledDates: Story = {
     );
   },
 };
+
+export const DropdownCaption: Story = {
+  render: () => {
+    const [date, setDate] = useState<Date | undefined>(new Date());
+    return (
+      <div className="border rounded-md w-fit">
+        <Calendar
+          mode="single"
+          captionLayout="dropdown"
+          selected={date}
+          onSelect={setDate}
+          startMonth={new Date(2020, 0)}
+          endMonth={new Date(2030, 11)}
+        />
+      </div>
+    );
+  },
+};
+
+export const OutlineNavButtons: Story = {
+  render: () => (
+    <div className="border rounded-md w-fit">
+      <Calendar mode="single" buttonVariant="outline" />
+    </div>
+  ),
+};
